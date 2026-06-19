@@ -174,83 +174,83 @@
   "calculated_value_templates": {
     "cv_show_tier2": {
       "name": "Show Tier 2",
-      "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")",
       "description": "Gates tier 2 parameters — visible at Standard or above"
     },
     "cv_show_tier3": {
       "name": "Show Tier 3",
-      "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")",
       "description": "Gates tier 3 parameters — visible at Comprehensive"
     },
     "cv_show_warning": {
       "name": "Show Warning",
-      "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
       "description": "Gates warning text — visible when warnings enabled. Respects TAG_WARN_SEVERITY_FILTER_TXT"
     },
-    "_comment": "Calculated Value templates that tag family labels plug in to. CONDITION-FORM CONTRACT: every BOOL gate referenced by one of these templates is stored as TEXT ('Yes'/'No') in MR_PARAMETERS v5.3+, and a bare TEXT parameter is NOT a valid Revit if()/and()/or() condition (Revit has no truthy-string semantics — a bare TEXT gate raises 'Inconsistent Units'). A TEXT gate must therefore be tested explicitly as `gate = \"Yes\"`. A YESNO (Integer) gate is a valid bare condition and stays bare. The emitter (TagConfig.GateToken via FamilyLabelAuthor) picks the right form per storage type. STING writers (TagStyleEngine.SetTagFormulaBool, ParameterHelpers.SetYesNo, PresentationModeCommand.SetBool, MigrateTagFamiliesCommand.SetFamilyBool) write 'Yes'/'No' for TEXT or 1/0 for legacy INTEGER-storage families, so existing element data already satisfies the `= \"Yes\"` test.",
+    "_comment": "Calculated Value templates that tag family labels plug in to. CONDITION-FORM CONTRACT: every BOOL gate referenced by one of these templates is stored as YESNO in MR_PARAMETERS v5.4+ — YESNO is Revit's native type for an if()/and()/or() condition, so the gate is written BARE: `if(gate, <param>, \"\")`. Do NOT compare a YESNO gate to \"Yes\" — Revit rejects `gate` on a YESNO parameter with 'Inconsistent Units'. The VALUE parameter in the <param> position must stay TEXT (a Revit label can only emit a TEXT result). The emitter (TagConfig.GateToken via FamilyLabelAuthor) picks the form per storage type — it emits bare for YESNO and stays the safety net for any legacy family still holding a gate as TEXT. The file-declared gate type (MR_PARAMETERS.txt) must equal the type bound in the project and in the tag family.",
     "cv_show_tier4": {
       "name": "Show Tier 4",
-      "formula": "if(TAG_PARA_STATE_4_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_4_BOOL, <param>, \"\")",
       "description": "Gates tier 4 — Commissioning & handover data"
     },
     "cv_show_tier5": {
       "name": "Show Tier 5",
-      "formula": "if(TAG_PARA_STATE_5_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_5_BOOL, <param>, \"\")",
       "description": "Gates tier 5 — Cost & procurement roll-up"
     },
     "cv_show_tier6": {
       "name": "Show Tier 6",
-      "formula": "if(TAG_PARA_STATE_6_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_6_BOOL, <param>, \"\")",
       "description": "Gates tier 6 — Carbon & sustainability (A1-A3 / A4 / A5 / B6 / C1-C4)"
     },
     "cv_show_tier7": {
       "name": "Show Tier 7",
-      "formula": "if(TAG_PARA_STATE_7_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_7_BOOL, <param>, \"\")",
       "description": "Gates tier 7 — Fabrication & QC (spool, weld/bolt/flange counts, QC inspector)"
     },
     "cv_show_tier8": {
       "name": "Show Tier 8",
-      "formula": "if(TAG_PARA_STATE_8_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_8_BOOL, <param>, \"\")",
       "description": "Gates tier 8 — Clash & coordination (triage score, severity, resolution action)"
     },
     "cv_show_tier9": {
       "name": "Show Tier 9",
-      "formula": "if(TAG_PARA_STATE_9_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_9_BOOL, <param>, \"\")",
       "description": "Gates tier 9 — As-built & model health metrics"
     },
     "cv_show_tier10": {
       "name": "Show Tier 10",
-      "formula": "if(TAG_PARA_STATE_10_BOOL = \"Yes\", <param>, \"\")",
+      "formula": "if(TAG_PARA_STATE_10_BOOL, <param>, \"\")",
       "description": "Gates tier 10 — Compliance / audit trail (RGL_*, IFC_PSET_OVERRIDE_TXT)"
     },
     "cv_show_section_a": {
       "name": "Show TAG7 Section A",
-      "formula": "if(TAG_7_SECTION_VISIBLE_A_BOOL = \"Yes\", ASS_TAG_7A_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_A_BOOL, ASS_TAG_7A_TXT, \"\")",
       "description": "Gates TAG7 sub-section A visibility on the tag face"
     },
     "cv_show_section_b": {
       "name": "Show TAG7 Section B",
-      "formula": "if(TAG_7_SECTION_VISIBLE_B_BOOL = \"Yes\", ASS_TAG_7B_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_B_BOOL, ASS_TAG_7B_TXT, \"\")",
       "description": "Gates TAG7 sub-section B visibility on the tag face"
     },
     "cv_show_section_c": {
       "name": "Show TAG7 Section C",
-      "formula": "if(TAG_7_SECTION_VISIBLE_C_BOOL = \"Yes\", ASS_TAG_7C_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_C_BOOL, ASS_TAG_7C_TXT, \"\")",
       "description": "Gates TAG7 sub-section C visibility on the tag face"
     },
     "cv_show_section_d": {
       "name": "Show TAG7 Section D",
-      "formula": "if(TAG_7_SECTION_VISIBLE_D_BOOL = \"Yes\", ASS_TAG_7D_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_D_BOOL, ASS_TAG_7D_TXT, \"\")",
       "description": "Gates TAG7 sub-section D visibility on the tag face"
     },
     "cv_show_section_e": {
       "name": "Show TAG7 Section E",
-      "formula": "if(TAG_7_SECTION_VISIBLE_E_BOOL = \"Yes\", ASS_TAG_7E_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_E_BOOL, ASS_TAG_7E_TXT, \"\")",
       "description": "Gates TAG7 sub-section E visibility on the tag face"
     },
     "cv_show_section_f": {
       "name": "Show TAG7 Section F",
-      "formula": "if(TAG_7_SECTION_VISIBLE_F_BOOL = \"Yes\", ASS_TAG_7F_TXT, \"\")",
+      "formula": "if(TAG_7_SECTION_VISIBLE_F_BOOL, ASS_TAG_7F_TXT, \"\")",
       "description": "Gates TAG7 sub-section F visibility on the tag face"
     }
   },
@@ -2381,7 +2381,7 @@
           "unit": "mm",
           "description": "Casework depth maximum for accessibility",
           "standard": "BS 8300:2018 / BS EN 16121",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_CASEWORK_DEPTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CASEWORK_DEPTH_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -2390,7 +2390,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ],
       "paragraph_template": "This {type} casework unit is {width} mm wide by {depth} mm deep by {height} mm high, constructed from {material}. Countertop: {countertop}. Hardware: {hardware}. Accessible: {accessible} (clearance: {clearance} mm). Located in {room} on level {level} in the {zone} zone, serving the {department} department. Manufacturer: {manufacturer}, Model: {model}. Expected life: {life} years. Assembly code: {assembly_code}. Compliant with {standard}."
@@ -2782,7 +2782,7 @@
           "unit": "mm",
           "description": "Ceiling height minimum",
           "standard": "Building Regs Part B / ADB Table A1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_CEIL_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEIL_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_DOOR_FRR",
@@ -2791,7 +2791,7 @@
           "unit": "min",
           "description": "Fire resistance rating minimum compliance",
           "standard": "Building Regs Part B / BS 476",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_DOOR_FRR, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
         },
         {
           "param": "WARN_PER_RECYCLABILITY_LOW",
@@ -2800,7 +2800,7 @@
           "unit": "%",
           "description": "Material recyclability percentage minimum",
           "standard": "BREEAM Mat 01 / LEED MR Credit",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_RECYCLABILITY_LOW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
         },
         {
           "param": "WARN_PER_VOC_EMISSIONS",
@@ -2809,7 +2809,7 @@
           "unit": "µg/m³",
           "description": "VOC emissions limit for indoor air quality",
           "standard": "WELL Building Standard / EN 16516",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_VOC_EMISSIONS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
         }
       ],
       "csv_family_alias": "Ceiling"
@@ -3230,7 +3230,7 @@
           "unit": "min",
           "description": "Fire resistance rating minimum compliance",
           "standard": "Building Regs Part B / BS 476",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_DOOR_FRR, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
         },
         {
           "param": "WARN_BLE_DOOR_ACOUSTIC",
@@ -3239,7 +3239,7 @@
           "unit": "dB",
           "description": "Duct-borne sound level limit",
           "standard": "Building Regs Part M / BS 8300",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_DOOR_ACOUSTIC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_ACOUSTIC, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -3248,7 +3248,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         },
         {
           "param": "WARN_BLE_DOOR_HEIGHT_MM",
@@ -3257,7 +3257,7 @@
           "unit": "mm",
           "description": "Door height accessibility minimum",
           "standard": "Building Regs Part M / BS 8300",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_DOOR_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_HEIGHT_MM, \"\")"
         }
       ],
       "csv_family_alias": "Door"
@@ -3685,7 +3685,7 @@
           "unit": "W/m²K",
           "description": "Floor U-value thermal transmittance limit",
           "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS, \"\")"
         },
         {
           "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
@@ -3694,7 +3694,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         },
         {
           "param": "WARN_BLE_FLR_LD_CAP_KPA",
@@ -3703,7 +3703,7 @@
           "unit": "kPa",
           "description": "Floor imposed load capacity minimum",
           "standard": "BS EN 1991-1-1 / Eurocode 1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_FLR_LD_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, \"\")"
         },
         {
           "param": "WARN_PER_ACOUSTIC_FLOOR_IIC",
@@ -3712,7 +3712,7 @@
           "unit": "IIC",
           "description": "Floor Impact Insulation Class minimum rating",
           "standard": "Building Regs Part E / BS 8233:2014",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_ACOUSTIC_FLOOR_IIC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_FLOOR_IIC, \"\")"
         },
         {
           "param": "WARN_FLS_COMPARTMENT_AREA",
@@ -3721,7 +3721,7 @@
           "unit": "",
           "description": "Compliance check: fls compartment area",
           "standard": "Building Regs Part B / ADB Table A1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_COMPARTMENT_AREA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, \"\")"
         },
         {
           "param": "WARN_PER_RECYCLABILITY_LOW",
@@ -3730,7 +3730,7 @@
           "unit": "%",
           "description": "Material recyclability percentage minimum",
           "standard": "BREEAM Mat 01 / LEED MR Credit",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_RECYCLABILITY_LOW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
         },
         {
           "param": "WARN_PER_VOC_EMISSIONS",
@@ -3739,7 +3739,7 @@
           "unit": "µg/m³",
           "description": "VOC emissions limit for indoor air quality",
           "standard": "WELL Building Standard / EN 16516",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_VOC_EMISSIONS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
         }
       ],
       "csv_family_alias": "Floor"
@@ -4554,7 +4554,7 @@
           "unit": "mm",
           "description": "Furniture clearance zone minimum",
           "standard": "BS 8300:2018 / HSE workplace regs",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -4563,7 +4563,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         },
         {
           "param": "WARN_PER_VOC_EMISSIONS",
@@ -4572,7 +4572,7 @@
           "unit": "µg/m³",
           "description": "VOC emissions limit for indoor air quality",
           "standard": "WELL Building Standard / EN 16516",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_VOC_EMISSIONS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
         }
       ],
       "paragraph_template": "This {type} furniture piece is {width} mm wide by {depth} mm deep by {height} mm high, manufactured by {manufacturer} (Model: {model}). Material: {material}. Finish: {finish}. Weight: {weight} kg. Accessible clearance: {clearance} mm. Located in {room} on level {level} in the {zone} zone, serving the {department} department. Expected life: {life} years. VOC emissions: {voc}. Keynote: {keynote}. Assembly code: {assembly_code}. Compliant with {standard}."
@@ -5246,7 +5246,7 @@
           "unit": "mm",
           "description": "Furniture clearance zone minimum",
           "standard": "BS 8300:2018 / HSE workplace regs",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -5255,7 +5255,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ]
     },
@@ -5920,7 +5920,7 @@
           "unit": "mm",
           "description": "Parking bay width minimum",
           "standard": "BS 8300:2018 / Local Planning",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_PARKING_WIDTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_PARKING_WIDTH_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -5929,7 +5929,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ]
     },
@@ -6287,7 +6287,7 @@
           "unit": "%",
           "description": "Ramp gradient accessibility limit (1:12 max)",
           "standard": "BS 8300:2018 §7.2 / ADA §405.2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAMP_SLOPE_PCT_RAMPS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -6296,7 +6296,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ],
       "csv_family_alias": "Ramp"
@@ -6706,7 +6706,7 @@
           "unit": "W/m²K",
           "description": "Roof U-value thermal transmittance limit",
           "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, \"\")"
         },
         {
           "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
@@ -6715,7 +6715,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         },
         {
           "param": "WARN_BLE_ROOF_SLOPE",
@@ -6724,7 +6724,7 @@
           "unit": "%",
           "description": "Roof slope minimum for drainage",
           "standard": "Building Regs Part L / BS 6229",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_ROOF_SLOPE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_SLOPE, \"\")"
         },
         {
           "param": "WARN_PER_RECYCLABILITY_LOW",
@@ -6733,7 +6733,7 @@
           "unit": "%",
           "description": "Material recyclability percentage minimum",
           "standard": "BREEAM Mat 01 / LEED MR Credit",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_RECYCLABILITY_LOW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
         }
       ],
       "csv_family_alias": "Roof"
@@ -7137,7 +7137,7 @@
           "unit": "m²",
           "description": "Room minimum area compliance",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_AREA_MIN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, \"\")"
         },
         {
           "param": "WARN_ASS_ROOM_VENTILATION",
@@ -7146,7 +7146,7 @@
           "unit": "L/s/person",
           "description": "Room ventilation rate minimum",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_VENTILATION, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, \"\")"
         },
         {
           "param": "WARN_ASS_ROOM_HEIGHT_MM",
@@ -7155,7 +7155,7 @@
           "unit": "mm",
           "description": "Room clear height minimum",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_ASS_ROOM_DAYLIGHT",
@@ -7164,7 +7164,7 @@
           "unit": "%",
           "description": "Room daylight factor minimum",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_DAYLIGHT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_DAYLIGHT, \"\")"
         },
         {
           "param": "WARN_BLE_CORRIDOR_WIDTH_MM",
@@ -7173,7 +7173,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "Building Regs Part M / BS 8300",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_CORRIDOR_WIDTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CORRIDOR_WIDTH_MM, \"\")"
         },
         {
           "param": "WARN_FLS_TRAVEL_DIST_M",
@@ -7182,7 +7182,7 @@
           "unit": "",
           "description": "Compliance check: fls travel dist m",
           "standard": "Building Regs Part B / BS 9999 Table 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_TRAVEL_DIST_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESSIBLE_WC",
@@ -7191,7 +7191,7 @@
           "unit": "per floor",
           "description": "Accessible WC provision compliance",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESSIBLE_WC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESSIBLE_WC, \"\")"
         }
       ],
       "paragraph_template": "This is {room_name} (Room {room_number}) with a floor area of {area} m² and volume of {volume} m³, located on level {level} in the {zone} zone within the {department} department. The room has a ceiling height of {height} mm with {finishes} finishes. Design lighting level: {lux} lux. Ventilation rate: {ventilation} L/s per person. Acoustic requirement: {noise} dB background noise maximum. Fire escape travel distance: {travel} m. Occupancy load: {occupancy} persons. Grid reference: {grid}. Phase: {phase}. Workset: {workset}. Compliant with {standard}.",
@@ -7341,7 +7341,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -7866,7 +7866,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         }
       ]
     },
@@ -8252,7 +8252,7 @@
           "unit": "mm",
           "description": "Stair individual rise limit",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_RISE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_GOING",
@@ -8261,7 +8261,7 @@
           "unit": "mm",
           "description": "Stair individual going minimum",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_GOING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, \"\")"
         },
         {
           "param": "WARN_DOOR_FRR",
@@ -8270,7 +8270,7 @@
           "unit": "min",
           "description": "Fire resistance rating minimum compliance",
           "standard": "Building Regs Part B / BS 476",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_DOOR_FRR, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_HEADROOM_MM",
@@ -8279,7 +8279,7 @@
           "unit": "",
           "description": "Compliance check: ble stair headroom mm",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_HEADROOM_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_WIDTH_MM",
@@ -8288,7 +8288,7 @@
           "unit": "mm",
           "description": "Stair clear width minimum",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_WIDTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, \"\")"
         },
         {
           "param": "WARN_FLS_TRAVEL_DIST_M",
@@ -8297,7 +8297,7 @@
           "unit": "",
           "description": "Compliance check: fls travel dist m",
           "standard": "Building Regs Part B / BS 9999 Table 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_TRAVEL_DIST_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, \"\")"
         }
       ],
       "csv_family_alias": "Stair"
@@ -8752,7 +8752,7 @@
           "unit": "W/m²K",
           "description": "Wall U-value thermal transmittance limit",
           "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, \"\")"
         },
         {
           "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
@@ -8761,7 +8761,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -8770,7 +8770,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         },
         {
           "param": "WARN_BLE_WALL_HEIGHT_RATIO",
@@ -8779,7 +8779,7 @@
           "unit": "mm",
           "description": "Height compliance check",
           "standard": "BS EN 1996-1-1 / Eurocode 6",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_WALL_HEIGHT_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_HEIGHT_RATIO, \"\")"
         },
         {
           "param": "WARN_PER_ACOUSTIC_WALL_STC",
@@ -8788,7 +8788,7 @@
           "unit": "STC",
           "description": "Wall Sound Transmission Class minimum rating",
           "standard": "Building Regs Part E / BS 8233:2014",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_ACOUSTIC_WALL_STC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_WALL_STC, \"\")"
         },
         {
           "param": "WARN_FLS_COMPARTMENT_AREA",
@@ -8797,7 +8797,7 @@
           "unit": "",
           "description": "Compliance check: fls compartment area",
           "standard": "Building Regs Part B / ADB Table A1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_COMPARTMENT_AREA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, \"\")"
         },
         {
           "param": "WARN_PER_RECYCLABILITY_LOW",
@@ -8806,7 +8806,7 @@
           "unit": "%",
           "description": "Material recyclability percentage minimum",
           "standard": "BREEAM Mat 01 / LEED MR Credit",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_RECYCLABILITY_LOW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
         },
         {
           "param": "WARN_PER_VOC_EMISSIONS",
@@ -8815,7 +8815,7 @@
           "unit": "µg/m³",
           "description": "VOC emissions limit for indoor air quality",
           "standard": "WELL Building Standard / EN 16516",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_VOC_EMISSIONS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
         }
       ],
       "csv_family_alias": "Wall"
@@ -9219,7 +9219,7 @@
           "unit": "W/m²K",
           "description": "U-value thermal transmittance check",
           "standard": "Building Regs Part L / ASHRAE 90.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_WINDOW_U_VALUE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_U_VALUE, \"\")"
         },
         {
           "param": "WARN_BLE_WINDOW_SHGC",
@@ -9228,7 +9228,7 @@
           "unit": "SHGC",
           "description": "Solar heat gain coefficient limit",
           "standard": "Building Regs Part L / ASHRAE 90.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_WINDOW_SHGC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SHGC, \"\")"
         }
       ],
       "csv_family_alias": "Window"
@@ -9368,14 +9368,14 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         },
         {
           "param": "WARN_STR_RBR_LAP_LENGTH_MM",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_LAP_LENGTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -9900,7 +9900,7 @@
           "unit": "mm",
           "description": "Rebar concrete cover minimum",
           "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         },
         {
           "param": "WARN_STR_RBR_LAP_LENGTH_MM",
@@ -9909,7 +9909,7 @@
           "unit": "mm",
           "description": "Rebar lap length minimum",
           "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_LAP_LENGTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, \"\")"
         },
         {
           "param": "WARN_STR_REBAR_MIN_DIA",
@@ -9918,7 +9918,7 @@
           "unit": "mm",
           "description": "Minimum rebar diameter",
           "standard": "BS EN 1992-1-1 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_REBAR_MIN_DIA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, \"\")"
         }
       ]
     },
@@ -10575,7 +10575,7 @@
           "unit": "m²",
           "description": "Room minimum area compliance",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_AREA_MIN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, \"\")"
         }
       ]
     },
@@ -10714,7 +10714,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MEP_SPC_LIGHTING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_SPC_LIGHTING, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -11239,7 +11239,7 @@
           "unit": "W/m²",
           "description": "Space lighting power density limit",
           "standard": "CIBSE SLL LG7 / BS EN 15193",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MEP_SPC_LIGHTING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_SPC_LIGHTING, \"\")"
         }
       ]
     },
@@ -11903,7 +11903,7 @@
           "unit": "ratio",
           "description": "Column slenderness ratio limit",
           "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_COLUMN_SLENDERNESS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, \"\")"
         }
       ]
     },
@@ -12560,7 +12560,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -13217,7 +13217,7 @@
           "unit": "mm",
           "description": "Generic model clearance zone minimum",
           "standard": "Project-specific requirement",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
         }
       ]
     },
@@ -13874,7 +13874,7 @@
           "unit": "scale",
           "description": "Entourage/planting scale factor check",
           "standard": "Project landscape specification",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_ENTOURAGE_SCALE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ENTOURAGE_SCALE, \"\")"
         }
       ]
     },
@@ -14531,7 +14531,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         },
         {
           "param": "WARN_PLM_FIXTURE_ACCESS",
@@ -14540,7 +14540,7 @@
           "unit": "mm",
           "description": "Plumbing fixture access clearance",
           "standard": "Building Regs Part G / BS 6465",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_FIXTURE_ACCESS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_ACCESS, \"\")"
         }
       ]
     },
@@ -14679,7 +14679,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAMP_SLOPE_PCT_RAMPS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -15204,7 +15204,7 @@
           "unit": "kPa",
           "description": "Floor imposed load capacity minimum",
           "standard": "BS EN 1991-1-1 / Eurocode 1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_FLR_LD_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, \"\")"
         }
       ]
     },
@@ -15861,7 +15861,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -16518,7 +16518,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -16657,7 +16657,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -17182,7 +17182,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_FDN_BEARING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, \"\")"
         }
       ]
     },
@@ -17839,7 +17839,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -18496,7 +18496,7 @@
           "unit": "mm",
           "description": "Generic model clearance zone minimum",
           "standard": "Project-specific requirement",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
         }
       ]
     },
@@ -19153,7 +19153,7 @@
           "unit": "mm",
           "description": "Generic model clearance zone minimum",
           "standard": "Project-specific requirement",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
         }
       ]
     },
@@ -19810,7 +19810,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         }
       ]
     },
@@ -19949,7 +19949,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ROAD_GRADIENT_PCT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -20474,7 +20474,7 @@
           "unit": "%",
           "description": "Road gradient limit",
           "standard": "Highways England DMRB / Local Authority",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ROAD_GRADIENT_PCT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, \"\")"
         }
       ]
     },
@@ -21131,7 +21131,7 @@
           "unit": "mm",
           "description": "Signage mounting height check",
           "standard": "BS 8300:2018 / BS 5499",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_SIGNAGE_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_SIGNAGE_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -21140,7 +21140,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ]
     },
@@ -21279,7 +21279,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -21804,7 +21804,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         }
       ]
     },
@@ -21943,7 +21943,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_VERT_CIRC_LOAD, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_LOAD, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -22468,7 +22468,7 @@
           "unit": "kN/m²",
           "description": "Vertical circulation structural load check",
           "standard": "Building Regs Part K / BS EN 81-20",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_VERT_CIRC_LOAD, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_LOAD, \"\")"
         },
         {
           "param": "WARN_RGL_LIFT_CAR_SIZE",
@@ -22477,7 +22477,7 @@
           "unit": "mm",
           "description": "Lift car minimum size for wheelchair access",
           "standard": "Project-specific / ISO 19650",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_LIFT_CAR_SIZE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_LIFT_CAR_SIZE, \"\")"
         }
       ]
     },
@@ -23134,7 +23134,7 @@
           "unit": "L/s/person",
           "description": "Room ventilation rate minimum",
           "standard": "Building Regs / Space Standards",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_ROOM_VENTILATION, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, \"\")"
         }
       ]
     },
@@ -23791,7 +23791,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -24448,7 +24448,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -25105,7 +25105,7 @@
           "unit": "%",
           "description": "Pipe gradient minimum",
           "standard": "BS EN 12056-2 / Building Regs Part H",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_PIPE_GRADIENT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, \"\")"
         }
       ]
     },
@@ -25244,14 +25244,14 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_BLE_RAIL_LOAD_KN_M",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -25776,7 +25776,7 @@
           "unit": "mm",
           "description": "Railing height minimum",
           "standard": "Building Regs Part K / BS 6180:2011",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_BLE_RAIL_LOAD_KN_M",
@@ -25785,7 +25785,7 @@
           "unit": "kN/m",
           "description": "Railing horizontal load resistance minimum",
           "standard": "Building Regs Part K / BS 6180:2011",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
         }
       ]
     },
@@ -26442,7 +26442,7 @@
           "unit": "min",
           "description": "Fire resistance rating minimum compliance",
           "standard": "Building Regs Part B / BS 476",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_DOOR_FRR, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
         },
         {
           "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
@@ -26451,7 +26451,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -27108,7 +27108,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -27765,7 +27765,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ]
     },
@@ -27904,14 +27904,14 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_RISE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_GOING",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_GOING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -28436,7 +28436,7 @@
           "unit": "mm",
           "description": "Stair individual rise limit",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_RISE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_GOING",
@@ -28445,7 +28445,7 @@
           "unit": "mm",
           "description": "Stair individual going minimum",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_GOING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_HEADROOM_MM",
@@ -28454,7 +28454,7 @@
           "unit": "",
           "description": "Compliance check: ble stair headroom mm",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_HEADROOM_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, \"\")"
         },
         {
           "param": "WARN_BLE_STAIR_WIDTH_MM",
@@ -28463,7 +28463,7 @@
           "unit": "mm",
           "description": "Stair clear width minimum",
           "standard": "Building Regs Part K / BS 5395-1:2010",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STAIR_WIDTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, \"\")"
         }
       ]
     },
@@ -28602,7 +28602,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -29127,7 +29127,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -29266,14 +29266,14 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_BLE_RAIL_LOAD_KN_M",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -29798,7 +29798,7 @@
           "unit": "mm",
           "description": "Railing height minimum",
           "standard": "Building Regs Part K / BS 6180:2011",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
         },
         {
           "param": "WARN_BLE_RAIL_LOAD_KN_M",
@@ -29807,7 +29807,7 @@
           "unit": "kN/m",
           "description": "Railing horizontal load resistance minimum",
           "standard": "Building Regs Part K / BS 6180:2011",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
         }
       ]
     },
@@ -30464,7 +30464,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -30931,7 +30931,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         },
         {
           "param": "WARN_BLE_COLUMN_SLENDERNESS",
@@ -30940,7 +30940,7 @@
           "unit": "ratio",
           "description": "Column slenderness ratio limit",
           "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_COLUMN_SLENDERNESS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, \"\")"
         },
         {
           "param": "WARN_STR_COL_ECCENTRICITY",
@@ -30949,7 +30949,7 @@
           "unit": "mm",
           "description": "Column eccentricity limit",
           "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_COL_ECCENTRICITY, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_ECCENTRICITY, \"\")"
         }
       ],
       "csv_family_alias": "Structural Column"
@@ -31418,7 +31418,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_FDN_BEARING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, \"\")"
         },
         {
           "param": "WARN_STR_FDN_DEPTH_MM",
@@ -31427,7 +31427,7 @@
           "unit": "mm",
           "description": "Foundation depth minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_FDN_DEPTH_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM, \"\")"
         },
         {
           "param": "WARN_STR_FND_BLACK_COTTON",
@@ -31436,7 +31436,7 @@
           "unit": "flag",
           "description": "Black-cotton / expansive subgrade flagged on ProjectInformation -- foundation extension and BS 1377-2 swelling test required",
           "standard": "BS 1377-2 / Uganda NBC / EC7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_FND_BLACK_COTTON, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FND_BLACK_COTTON, \"\")"
         }
       ],
       "csv_family_alias": "Structural Foundation"
@@ -31623,42 +31623,42 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         },
         {
           "param": "WARN_STR_BEAM_WEB_OPENING",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_WEB_OPENING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_WEB_OPENING, \"\")"
         },
         {
           "param": "WARN_STR_BEAM_NOTCH",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_NOTCH, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_NOTCH, \"\")"
         },
         {
           "param": "WARN_STR_BEAM_PENETRATION_REVIEW",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_PENETRATION_REVIEW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_PENETRATION_REVIEW, \"\")"
         },
         {
           "param": "WARN_STR_TRANSFER_BEAM",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_TRANSFER_BEAM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRANSFER_BEAM, \"\")"
         },
         {
           "param": "WARN_STR_COMPOSITE_SHEAR_STUD",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_COMPOSITE_SHEAR_STUD, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COMPOSITE_SHEAR_STUD, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -32183,7 +32183,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         },
         {
           "param": "WARN_STR_BEAM_DEFLECTION",
@@ -32192,7 +32192,7 @@
           "unit": "L/value",
           "description": "Beam deflection limit (L/250)",
           "standard": "BS EN 1993-1-1 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_DEFLECTION, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, \"\")"
         },
         {
           "param": "WARN_STR_BEAM_SPAN_DEPTH",
@@ -32201,7 +32201,7 @@
           "unit": "ratio",
           "description": "Beam span-to-depth ratio limit",
           "standard": "BS EN 1993-1-1 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_SPAN_DEPTH, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, \"\")"
         }
       ]
     },
@@ -32340,7 +32340,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_FABRIC_SPEC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FABRIC_SPEC, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -32865,7 +32865,7 @@
           "unit": "spec",
           "description": "Fabric reinforcement specification check",
           "standard": "BS 4449:2005 / BS EN 10080",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_FABRIC_SPEC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FABRIC_SPEC, \"\")"
         }
       ]
     },
@@ -33522,7 +33522,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -34179,7 +34179,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -34836,7 +34836,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -35493,7 +35493,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -36150,7 +36150,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -36807,7 +36807,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -37464,7 +37464,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -38121,7 +38121,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -38778,7 +38778,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -39435,7 +39435,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -40092,7 +40092,7 @@
           "unit": "kN/m",
           "description": "Structural load capacity check",
           "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_STRUCT_LD_CAP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
         }
       ]
     },
@@ -40180,7 +40180,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -40705,7 +40705,7 @@
           "unit": "kN",
           "description": "Bolt proof load capacity minimum",
           "standard": "BS EN 14399 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
         }
       ]
     },
@@ -40793,14 +40793,14 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_WLD_STRENGTH_MPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_STRENGTH_MPA, \"\")"
         },
         {
           "param": "WARN_STR_WLD_THROAT_MM",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_WLD_THROAT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_THROAT_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -41325,7 +41325,7 @@
           "unit": "mm",
           "description": "Weld throat thickness minimum",
           "standard": "BS EN 1993-1-8 §4.5 / AWS D1.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_WLD_THROAT_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_THROAT_MM, \"\")"
         },
         {
           "param": "WARN_STR_WLD_STRENGTH_MPA",
@@ -41334,7 +41334,7 @@
           "unit": "MPa",
           "description": "Weld strength minimum",
           "standard": "BS EN 1993-1-8 §4.5 / AWS D1.1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_WLD_STRENGTH_MPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_STRENGTH_MPA, \"\")"
         }
       ]
     },
@@ -41422,7 +41422,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_WIR_TENSILE_MPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WIR_TENSILE_MPA, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -41947,7 +41947,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         }
       ]
     },
@@ -42086,7 +42086,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -42611,7 +42611,7 @@
           "unit": "mm",
           "description": "Rebar concrete cover minimum",
           "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         }
       ]
     },
@@ -42750,7 +42750,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -43275,7 +43275,7 @@
           "unit": "mm",
           "description": "Rebar concrete cover minimum",
           "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_RBR_COVER_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
         }
       ]
     },
@@ -43414,7 +43414,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_CONN_CAPACITY_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -43939,7 +43939,7 @@
           "unit": "kN",
           "description": "Bolt proof load capacity minimum",
           "standard": "BS EN 14399 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
         }
       ]
     },
@@ -44596,7 +44596,7 @@
           "unit": "L/value",
           "description": "Beam deflection limit (L/250)",
           "standard": "BS EN 1993-1-1 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_BEAM_DEFLECTION, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, \"\")"
         }
       ]
     },
@@ -45253,7 +45253,7 @@
           "unit": "mm",
           "description": "Stiffener weld specification check",
           "standard": "BS EN 1993-1-5 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_STIFFENER_WELD, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_STIFFENER_WELD, \"\")"
         }
       ]
     },
@@ -45392,7 +45392,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_TRUSS_SPAN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRUSS_SPAN, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -45917,7 +45917,7 @@
           "unit": "m",
           "description": "Truss span limit",
           "standard": "BS EN 1993-1-1 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_TRUSS_SPAN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRUSS_SPAN, \"\")"
         }
       ]
     },
@@ -46484,7 +46484,7 @@
           "unit": "dB",
           "description": "Duct-borne sound level limit",
           "standard": "CIBSE Guide B5 / BS 8233:2014",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_DCT_SOUNDLVL_DB, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, \"\")"
         }
       ],
       "csv_family_alias": "Air Terminal"
@@ -46856,7 +46856,7 @@
           "unit": "Pa",
           "description": "Duct accessory pressure drop limit",
           "standard": "DW/144 / BSRIA BG 30",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MEP_DUCT_ACC_PRESSURE_DROP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_ACC_PRESSURE_DROP, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -47228,7 +47228,7 @@
           "unit": "Pa",
           "description": "Duct fitting pressure loss limit",
           "standard": "DW/144 / BSRIA BG 30",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MEP_DUCT_FITTING_LOSS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_FITTING_LOSS, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -47793,7 +47793,7 @@
           "unit": "m/s",
           "description": "Duct velocity limit",
           "standard": "CIBSE Guide B2 / ASHRAE Handbook",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_VEL_MPS_DUCTS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, \"\")"
         },
         {
           "param": "WARN_HVC_DUCT_LEAKAGE_CLASS",
@@ -47802,7 +47802,7 @@
           "unit": "class",
           "description": "Duct air leakage class limit",
           "standard": "BSRIA / DW/144 HVAC Ductwork",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -48195,7 +48195,7 @@
           "unit": "m/s",
           "description": "Flex duct velocity limit",
           "standard": "CIBSE Guide B2 / ASHRAE Handbook",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_VEL_MPS_FLEX_DUCTS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, \"\")"
         },
         {
           "param": "WARN_HVC_DUCT_LEAKAGE_CLASS",
@@ -48204,7 +48204,7 @@
           "unit": "class",
           "description": "Duct air leakage class limit",
           "standard": "BSRIA / DW/144 HVAC Ductwork",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -48416,7 +48416,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -49154,7 +49154,7 @@
           "unit": "COP",
           "description": "HVAC efficiency ratio (COP/EER) minimum",
           "standard": "ASHRAE 90.1 / CIBSE Guide B1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
         },
         {
           "param": "WARN_MNT_ACCESS_CLEARANCE",
@@ -49163,7 +49163,7 @@
           "unit": "mm",
           "description": "Maintenance access clearance minimum",
           "standard": "CIBSE Guide M / BS 8210:2012",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MNT_ACCESS_CLEARANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
         },
         {
           "param": "WARN_MNT_SERVICE_SPACE",
@@ -49172,7 +49172,7 @@
           "unit": "",
           "description": "Compliance check: mnt service space",
           "standard": "CIBSE Guide M / BS 8210:2012",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MNT_SERVICE_SPACE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_SERVICE_SPACE, \"\")"
         }
       ]
     },
@@ -49543,7 +49543,7 @@
           "unit": "m/s",
           "description": "Pipe velocity limit",
           "standard": "CIBSE Guide G / BS EN 806-3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_VEL_MPS_PIPES, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -49907,7 +49907,7 @@
           "unit": "kPa",
           "description": "Pipe accessory pressure rating",
           "standard": "BS EN 1717 / WRAS approved",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_PIPE_ACC_RATING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_ACC_RATING, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -50280,7 +50280,7 @@
           "unit": "kPa",
           "description": "Pipe fitting pressure loss limit",
           "standard": "CIBSE Guide G / BS EN 806",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_PIPE_FITTING_LOSS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_FITTING_LOSS, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -50823,7 +50823,7 @@
           "unit": "m/s",
           "description": "Pipe velocity limit",
           "standard": "CIBSE Guide G / BS EN 806-3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_VEL_MPS_PIPES, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
         },
         {
           "param": "WARN_PLM_PIPE_GRADIENT",
@@ -50832,7 +50832,7 @@
           "unit": "%",
           "description": "Pipe gradient minimum",
           "standard": "BS EN 12056-2 / Building Regs Part H",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_PIPE_GRADIENT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, \"\")"
         },
         {
           "param": "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE",
@@ -50841,7 +50841,7 @@
           "unit": "L/s",
           "description": "Flow rate design limit",
           "standard": "CIBSE Guide G / BS EN 806",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, \"\")"
         },
         {
           "param": "WARN_PLM_VENT_PIPE",
@@ -50850,7 +50850,7 @@
           "unit": "boolean",
           "description": "Vent pipe provision check",
           "standard": "Building Regs Part H / BS EN 12056-2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_VENT_PIPE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VENT_PIPE, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -51479,7 +51479,7 @@
           "unit": "L/s",
           "description": "Flow rate design limit",
           "standard": "Building Regs Part G / BS 6465",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_FIXTURE_FLOW, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_FLOW, \"\")"
         },
         {
           "param": "WARN_PLM_FIXTURE_ACCESS",
@@ -51488,7 +51488,7 @@
           "unit": "mm",
           "description": "Plumbing fixture access clearance",
           "standard": "Building Regs Part G / BS 6465",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_FIXTURE_ACCESS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_ACCESS, \"\")"
         },
         {
           "param": "WARN_PLM_TRAP_SEAL_MM",
@@ -51497,7 +51497,7 @@
           "unit": "mm",
           "description": "Plumbing trap seal depth minimum",
           "standard": "BS EN 274 / Building Regs Part H",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_TRAP_SEAL_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_TRAP_SEAL_MM, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESSIBLE_WC",
@@ -51506,7 +51506,7 @@
           "unit": "per floor",
           "description": "Accessible WC provision compliance",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESSIBLE_WC, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESSIBLE_WC, \"\")"
         }
       ],
       "csv_family_alias": "Plumbing Fixture"
@@ -51914,7 +51914,7 @@
           "unit": "m²",
           "description": "Fire safety device coverage limit",
           "standard": "Building Regs Part B / BS 9999",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_PROT_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, \"\")"
         },
         {
           "param": "WARN_FLS_SMOKE_DETECTOR_SPACING",
@@ -51923,7 +51923,7 @@
           "unit": "m",
           "description": "Smoke detector spacing maximum",
           "standard": "BS 5839-1:2017 / BS EN 54",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_SMOKE_DETECTOR_SPACING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SMOKE_DETECTOR_SPACING, \"\")"
         }
       ],
       "csv_family_alias": "Fire Alarm Device"
@@ -52490,7 +52490,7 @@
           "unit": "m²",
           "description": "Sprinkler coverage area limit",
           "standard": "BS 9251:2021 / BS EN 12845",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, \"\")"
         },
         {
           "param": "WARN_FLS_SFTY_SPACING",
@@ -52499,7 +52499,7 @@
           "unit": "m",
           "description": "Safety device spacing maximum",
           "standard": "BS 9251:2021 / BS EN 12845",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_SFTY_SPACING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, \"\")"
         }
       ],
       "csv_family_alias": "Sprinkler"
@@ -52810,7 +52810,7 @@
           "unit": "%",
           "description": "Conduit/tray fill ratio maximum",
           "standard": "BS 7671 §522 / BS EN 61386",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CTR_FILL_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -53347,7 +53347,7 @@
           "unit": "%",
           "description": "Conduit/tray fill ratio maximum",
           "standard": "BS 7671 §522 / BS EN 61386",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CTR_FILL_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -53661,7 +53661,7 @@
           "unit": "%",
           "description": "Conduit/tray fill ratio maximum",
           "standard": "BS 7671 §522 / BS EN 61386",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CDT_FILL_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -54250,7 +54250,7 @@
           "unit": "%",
           "description": "Conduit/tray fill ratio maximum",
           "standard": "BS 7671 §522 / BS EN 61386",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CDT_FILL_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, \"\")"
         }
       ],
       "has_tie_point": true,
@@ -54512,42 +54512,42 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_SHORT_CIRCUIT",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_SHORT_CIRCUIT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SHORT_CIRCUIT, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_SPARE_WAYS",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_SPARE_WAYS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARE_WAYS, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_SCHEDULE_MISSING",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_SCHEDULE_MISSING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SCHEDULE_MISSING, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_LOAD_BALANCE",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_LOAD_BALANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_LOAD_BALANCE, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_FEEDER_UNDERSIZED",
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_FEEDER_UNDERSIZED, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_FEEDER_UNDERSIZED, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -55213,7 +55213,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_SPARE_WAYS",
@@ -55222,7 +55222,7 @@
           "unit": "%",
           "description": "Panel spare ways minimum",
           "standard": "BS 7671 / BS EN 61439",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_SPARE_WAYS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARE_WAYS, \"\")"
         },
         {
           "param": "WARN_ELC_PNL_SHORT_CIRCUIT",
@@ -55231,7 +55231,7 @@
           "unit": "kA",
           "description": "Panel short circuit rating check",
           "standard": "BS 7671 / BS EN 61439",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_PNL_SHORT_CIRCUIT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SHORT_CIRCUIT, \"\")"
         },
         {
           "param": "WARN_ELC_EARTHING_TYPE",
@@ -55240,7 +55240,7 @@
           "unit": "type",
           "description": "Earthing system type compliance",
           "standard": "BS 7671 §411 / IEC 60364",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_EARTHING_TYPE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTHING_TYPE, \"\")"
         },
         {
           "param": "WARN_ELC_IP_RATING",
@@ -55249,7 +55249,7 @@
           "unit": "IP rating",
           "description": "Ingress protection rating minimum",
           "standard": "BS EN 60529 / IEC 60529",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_IP_RATING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
         },
         {
           "param": "WARN_MNT_ACCESS_CLEARANCE",
@@ -55258,7 +55258,7 @@
           "unit": "mm",
           "description": "Maintenance access clearance minimum",
           "standard": "CIBSE Guide M / BS 8210:2012",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MNT_ACCESS_CLEARANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
         }
       ]
     },
@@ -55751,7 +55751,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         },
         {
           "param": "WARN_ELC_FIXTURE_MOUNTING_HEIGHT",
@@ -55760,7 +55760,7 @@
           "unit": "mm",
           "description": "Fixture mounting height standard",
           "standard": "BS 7671 §559 / Building Regs Part M",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_FIXTURE_MOUNTING_HEIGHT, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_FIXTURE_MOUNTING_HEIGHT, \"\")"
         },
         {
           "param": "WARN_ELC_IP_RATING",
@@ -55769,7 +55769,7 @@
           "unit": "IP rating",
           "description": "Ingress protection rating minimum",
           "standard": "BS EN 60529 / IEC 60529",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_IP_RATING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
         }
       ],
       "csv_family_alias": "Electrical Fixture"
@@ -56100,7 +56100,7 @@
           "unit": "lux",
           "description": "Illuminance level minimum",
           "standard": "CIBSE SLL LG7 / BS EN 12464-1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_LTG_ILLUMINANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, \"\")"
         }
       ],
       "csv_family_alias": "Lighting Device"
@@ -56696,7 +56696,7 @@
           "unit": "lux",
           "description": "Illuminance level minimum",
           "standard": "CIBSE SLL LG7 / BS EN 12464-1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_LTG_ILLUMINANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, \"\")"
         },
         {
           "param": "WARN_ELC_IP_RATING",
@@ -56705,7 +56705,7 @@
           "unit": "IP rating",
           "description": "Ingress protection rating minimum",
           "standard": "BS EN 60529 / IEC 60529",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_IP_RATING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
         }
       ],
       "csv_family_alias": "Lighting Fixture"
@@ -57225,7 +57225,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ],
       "csv_family_alias": "Communication Device"
@@ -57687,7 +57687,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ],
       "csv_family_alias": "Data Device"
@@ -58142,7 +58142,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ],
       "csv_family_alias": "Nurse Call Device"
@@ -58606,7 +58606,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ],
       "csv_family_alias": "Security Device"
@@ -59422,7 +59422,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ]
     },
@@ -59970,7 +59970,7 @@
           "unit": "mm",
           "description": "Generic model clearance zone minimum",
           "standard": "Project-specific requirement",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
         }
       ],
       "csv_family_alias": "Generic Model"
@@ -60802,7 +60802,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         }
       ]
     },
@@ -60829,7 +60829,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_TAG_2_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, \"\")"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -60838,7 +60838,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_DESCRIPTION_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, \"\")"
         },
         {
           "param": "ASS_SERIAL_NR_TXT",
@@ -60848,7 +60848,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_SERIAL_NR_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_SERIAL_NR_TXT, \"\")"
         },
         {
           "param": "ASS_ID_TXT",
@@ -60858,7 +60858,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_ID_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_ID_TXT, \"\")"
         }
       ],
       "tier_3": [
@@ -60870,7 +60870,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_INSTALL_DATE_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_INSTALL_DATE_TXT, \"\")"
         },
         {
           "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
@@ -60881,7 +60881,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_EXPECTED_LIFE_YEARS_YRS, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, \"\")"
         },
         {
           "param": "ASS_MAINTENANCE_FREQUENCY_MONTHS",
@@ -60892,7 +60892,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_MAINTENANCE_FREQUENCY_MONTHS, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MAINTENANCE_FREQUENCY_MONTHS, \"\")"
         },
         {
           "param": "ASS_WARRANTY_TXT",
@@ -60902,7 +60902,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_WARRANTY_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_WARRANTY_TXT, \"\")"
         },
         {
           "param": "ASS_CRITICALITY_RATING_NR",
@@ -60912,7 +60912,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_CRITICALITY_RATING_NR, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, \"\")"
         },
         {
           "param": "ASS_STATUS_TXT",
@@ -60921,7 +60921,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_STATUS_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, \"\")"
         }
       ],
       "tier_4": [
@@ -61303,7 +61303,7 @@
           "threshold": "Criticality rating > 3 without commissioning plan",
           "standard": "ISO 55000 / PAS 1192-3",
           "description": "Asset criticality rating exceeds threshold — commissioning plan required",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, \"\")"
         },
         {
           "param": "WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP",
@@ -61312,7 +61312,7 @@
           "threshold": "Commissioning requirement not specified",
           "standard": "BSRIA BG 6 / CIBSE Commissioning Codes",
           "description": "Commissioning requirement not specified for critical asset",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP, \"\")"
         }
       ],
       "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
@@ -61340,7 +61340,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_TAG_2_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, \"\")"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -61349,7 +61349,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_DESCRIPTION_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, \"\")"
         },
         {
           "param": "ASS_FUNC_TXT",
@@ -61359,7 +61359,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_FUNC_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, \"\")"
         },
         {
           "param": "ASS_SYSTEM_TYPE_TXT",
@@ -61368,7 +61368,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_2_BOOL = \"Yes\", ASS_SYSTEM_TYPE_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEM_TYPE_TXT, \"\")"
         }
       ],
       "tier_3": [
@@ -61380,7 +61380,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_MANUFACTURER_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MANUFACTURER_TXT, \"\")"
         },
         {
           "param": "ASS_MODEL_NR_TXT",
@@ -61390,7 +61390,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_MODEL_NR_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_MODEL_NR_TXT, \"\")"
         },
         {
           "param": "ASS_STATUS_TXT",
@@ -61399,7 +61399,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", ASS_STATUS_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, \"\")"
         },
         {
           "param": "RGL_STD_TXT",
@@ -61409,7 +61409,7 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0",
-          "formula": "if(TAG_PARA_STATE_3_BOOL = \"Yes\", RGL_STD_TXT, \"\")"
+          "formula": "if(TAG_PARA_STATE_3_BOOL, RGL_STD_TXT, \"\")"
         }
       ],
       "tier_4": [
@@ -61791,7 +61791,7 @@
           "threshold": "ASS_SYSTEM_TYPE_TXT empty",
           "standard": "ISO 19650-2 / CIBSE",
           "description": "System type not assigned — required for equipment register",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_GEN_SPEC_EQUIP_NO_SYS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, \"\")"
         },
         {
           "param": "WARN_GEN_SPEC_EQUIP_NO_COMMISSION",
@@ -61800,7 +61800,7 @@
           "threshold": "Commissioning requirements not specified",
           "standard": "BSRIA BG 8/2009 / CIBSE Commissioning Code",
           "description": "Commissioning requirements not specified for specialty equipment",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_GEN_SPEC_EQUIP_NO_COMMISSION, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, \"\")"
         }
       ],
       "source_csv": "STING_TAG_CONFIG_v5_0_GEN.csv"
@@ -61946,7 +61946,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -62471,7 +62471,7 @@
           "unit": "mm",
           "description": "Insulation thickness minimum",
           "standard": "CIBSE Guide B2 / BS 5422:2009",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         }
       ]
     },
@@ -62610,7 +62610,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -63135,7 +63135,7 @@
           "unit": "mm",
           "description": "Insulation thickness minimum",
           "standard": "CIBSE Guide B2 / BS 5422:2009",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         }
       ]
     },
@@ -63280,7 +63280,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -63805,7 +63805,7 @@
           "unit": "mm",
           "description": "Insulation thickness minimum",
           "standard": "CIBSE Guide B2 / BS 5422:2009",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_INS_THICKNESS_MM, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
         }
       ]
     },
@@ -63944,7 +63944,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_EQP_PRESSURE_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_EQP_PRESSURE_KPA, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -64660,7 +64660,7 @@
           "unit": "kPa",
           "description": "Equipment pressure rating check",
           "standard": "CIBSE Guide G / BS EN 1717",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_EQP_PRESSURE_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_EQP_PRESSURE_KPA, \"\")"
         },
         {
           "param": "WARN_PLM_VENT_PIPE",
@@ -64669,7 +64669,7 @@
           "unit": "boolean",
           "description": "Vent pipe provision check",
           "standard": "Building Regs Part H / BS EN 12056-2",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_VENT_PIPE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VENT_PIPE, \"\")"
         },
         {
           "param": "WARN_MNT_ACCESS_CLEARANCE",
@@ -64678,7 +64678,7 @@
           "unit": "mm",
           "description": "Maintenance access clearance minimum",
           "standard": "CIBSE Guide M / BS 8210:2012",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MNT_ACCESS_CLEARANCE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
         },
         {
           "param": "WARN_MNT_SERVICE_SPACE",
@@ -64687,7 +64687,7 @@
           "unit": "",
           "description": "Compliance check: mnt service space",
           "standard": "CIBSE Guide M / BS 8210:2012",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_MNT_SERVICE_SPACE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_SERVICE_SPACE, \"\")"
         }
       ]
     },
@@ -65344,7 +65344,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         }
       ]
     },
@@ -66001,7 +66001,7 @@
           "unit": "COP",
           "description": "HVAC efficiency ratio (COP/EER) minimum",
           "standard": "ASHRAE 90.1 / CIBSE Guide B1",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
         }
       ]
     },
@@ -66658,7 +66658,7 @@
           "unit": "A",
           "description": "Electrical connector rating check",
           "standard": "BS EN 60309 / BS 7671",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CONNECTOR_RATING, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONNECTOR_RATING, \"\")"
         }
       ]
     },
@@ -66797,7 +66797,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_PROT_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -67322,7 +67322,7 @@
           "unit": "m²",
           "description": "Fire safety device coverage limit",
           "standard": "Building Regs Part B / BS 9999",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FLS_PROT_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, \"\")"
         }
       ]
     },
@@ -67979,7 +67979,7 @@
           "unit": "%",
           "description": "Conduit/tray fill ratio maximum",
           "standard": "BS 7671 §522 / BS EN 61386",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_CTR_FILL_RATIO, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
         }
       ]
     },
@@ -68636,7 +68636,7 @@
           "unit": "m/s",
           "description": "Duct velocity limit",
           "standard": "CIBSE Guide B2 / ASHRAE Handbook",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_HVC_VEL_MPS_DUCTS, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, \"\")"
         }
       ]
     },
@@ -69293,7 +69293,7 @@
           "unit": "mm",
           "description": "Stiffener weld specification check",
           "standard": "BS EN 1993-1-5 / Eurocode 3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_STR_STIFFENER_WELD, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_STIFFENER_WELD, \"\")"
         }
       ]
     },
@@ -69445,7 +69445,7 @@
           "spaces": 0,
           "break": true,
           "note": "Conditional warning — visible when TAG_WARN_VISIBLE_BOOL is true",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FAB_HANGER_LOAD_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, \"\")"
         },
         {
           "param": "ASS_UNIFORMAT_TXT",
@@ -69970,7 +69970,7 @@
           "unit": "kN",
           "description": "Fabrication hanger load capacity",
           "standard": "DW/144 / BSRIA BG 30",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_FAB_HANGER_LOAD_KN, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, \"\")"
         }
       ]
     },
@@ -70627,7 +70627,7 @@
           "unit": "m/s",
           "description": "Pipe velocity limit",
           "standard": "CIBSE Guide G / BS EN 806-3",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PLM_VEL_MPS_PIPES, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
         }
       ]
     },
@@ -71284,7 +71284,7 @@
           "unit": "kgCO₂e/m²",
           "description": "Embodied carbon footprint limit per unit",
           "standard": "RIBA 2030 Climate Challenge / EN 15978",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
         }
       ]
     },
@@ -71941,7 +71941,7 @@
           "unit": "m",
           "description": "Communication device coverage radius",
           "standard": "BS EN 50600 / ISO/IEC 11801",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_COM_DEVICE_COVERAGE, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
         }
       ]
     },
@@ -72598,7 +72598,7 @@
           "unit": "%",
           "description": "Voltage drop percentage limit",
           "standard": "IEE Wiring Regs BS 7671 / NEC",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
         },
         {
           "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
@@ -72607,7 +72607,7 @@
           "unit": "mm",
           "description": "Accessible clear width minimum",
           "standard": "BS 8300:2018 / ADA / Uganda Building Code",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
         }
       ]
     },
@@ -73264,7 +73264,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         }
       ]
     },
@@ -73921,7 +73921,7 @@
           "unit": "kPa",
           "description": "Foundation/soil bearing capacity minimum",
           "standard": "BS EN 1997-1 / Eurocode 7",
-          "formula": "if(TAG_WARN_VISIBLE_BOOL = \"Yes\", WARN_SITE_BEARING_CAP_KPA, \"\")"
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
         }
       ]
     },

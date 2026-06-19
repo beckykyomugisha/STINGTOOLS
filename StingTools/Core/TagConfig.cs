@@ -90,19 +90,21 @@ namespace StingTools.Core
         /// <c>TAG_PARA_STATE_*_BOOL</c>, the 128
         /// <c>TAG_{size}{style}_{colour}_BOOL</c> style params, the 6
         /// <c>TAG_7_SECTION_VISIBLE_*_BOOL</c>, <c>TAG_WARN_VISIBLE_BOOL</c>, and
-        /// the mode gates — as TEXT ("Yes"/"No"). Revit has no truthy-string
-        /// semantics: a bare TEXT parameter is NOT a valid <c>if()</c>/<c>and()</c>/
-        /// <c>or()</c> condition. A TEXT gate must therefore be tested explicitly
-        /// as <c>gate = "Yes"</c>. A YESNO (Integer) gate is a valid bare
-        /// condition and must stay bare.</para>
+        /// the mode gates — as YESNO (v5.4+). YESNO (Integer) is Revit's native
+        /// <c>if()</c>/<c>and()</c>/<c>or()</c> condition type and must stay bare.
+        /// A legacy TEXT gate, by contrast, has no truthy-string semantics: a
+        /// bare TEXT parameter is NOT a valid condition and must be tested
+        /// explicitly as <c>gate = "Yes"</c>.</para>
         ///
-        /// <para>Returns <c>gateName + " = \"Yes\""</c> when the gate resolves to
-        /// <see cref="StorageType.String"/> (TEXT), or the bare
-        /// <paramref name="gateName"/> when <see cref="StorageType.Integer"/>
-        /// (YESNO). When the gate cannot be resolved on <paramref name="fm"/> we
-        /// default to the TEXT comparison form, because TEXT is the v5.3+ default
-        /// storage for every STING tag gate — this self-heals regardless of
-        /// dictionary drift and is safe for already-written "Yes"/"No" data.</para>
+        /// <para>Returns the bare <paramref name="gateName"/> when the gate
+        /// resolves to <see cref="StorageType.Integer"/> (YESNO — the v5.4+
+        /// canonical type), or <c>gateName + " = \"Yes\""</c> when it resolves to
+        /// <see cref="StorageType.String"/> (legacy TEXT). Because this reads the
+        /// gate's ACTUAL bound storage, it self-heals the runtime formula: a
+        /// YESNO family gets bare, a legacy TEXT family still gets the explicit
+        /// comparison. When the gate cannot be resolved on <paramref name="fm"/>
+        /// at all, it conservatively defaults to the TEXT comparison form (the
+        /// legacy-safe shape, unchanged from when TEXT was the default).</para>
         /// </summary>
         public static string GateToken(FamilyManager fm, string gateName)
         {

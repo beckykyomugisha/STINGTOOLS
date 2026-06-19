@@ -575,9 +575,9 @@ namespace StingTools.Tags
 
             FormatTier(sb, "TIER 1 — Always Visible (Compact+)", catDef["tier_1"] as JArray, paramText, null);
             FormatTier(sb, "TIER 2 — Standard+ (gate: TAG_PARA_STATE_2_BOOL)", catDef["tier_2"] as JArray, paramText,
-                "if(TAG_PARA_STATE_2_BOOL = \"Yes\", <param>, \"\")");
+                "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
             FormatTier(sb, "TIER 3 — Comprehensive (gate: TAG_PARA_STATE_3_BOOL)", catDef["tier_3"] as JArray, paramText,
-                "if(TAG_PARA_STATE_3_BOOL = \"Yes\", <param>, \"\")");
+                "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
             // Tiers 4..10: shared commissioning / cost / carbon / fabrication / clash /
             // as-built / compliance rows (v5.3 schema).
             string[] extTitles = new[]
@@ -594,7 +594,7 @@ namespace StingTools.Tags
             {
                 int t = i + 4;
                 FormatTier(sb, extTitles[i], catDef[$"tier_{t}"] as JArray, paramText,
-                    $"if(TAG_PARA_STATE_{t}_BOOL = \"Yes\", <param>, \"\")");
+                    $"if(TAG_PARA_STATE_{t}_BOOL, <param>, \"\")");
             }
 
             sb.AppendLine();

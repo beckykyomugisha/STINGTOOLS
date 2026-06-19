@@ -220,7 +220,7 @@
       "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff",
       "description": "Paragraph depth: compact (State 1 only)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -228,7 +228,7 @@
       "guid": "b1080057-9890-5a0c-959a-46fb8847c766",
       "description": "Paragraph depth: standard (States 1+2)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -236,7 +236,7 @@
       "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8",
       "description": "Paragraph depth: comprehensive (States 1+2+3)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -244,7 +244,7 @@
       "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f",
       "description": "Enable/disable warning text in tags",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -259,7 +259,7 @@
       "guid": "a8194ccf-05ae-5eb4-87b5-38bacb4324fe",
       "description": "Show/hide TAG7 Section A (Identity Header)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -267,7 +267,7 @@
       "guid": "b561a313-f873-5648-a127-3e917b5f5dd0",
       "description": "Show/hide TAG7 Section B (System & Function)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -275,7 +275,7 @@
       "guid": "0e535d1a-d2eb-5b15-b954-360ad46e1a57",
       "description": "Show/hide TAG7 Section C (Spatial Context)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -283,7 +283,7 @@
       "guid": "74f5360e-4107-539f-af72-38389e7b64bd",
       "description": "Show/hide TAG7 Section D (Lifecycle & Status)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -291,7 +291,7 @@
       "guid": "fdb2ccfa-6128-545c-8b6c-6a656d418948",
       "description": "Show/hide TAG7 Section E (Technical Specs)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -299,7 +299,7 @@
       "guid": "329929ad-5f26-5d15-98b2-54604ecda858",
       "description": "Show/hide TAG7 Section F (Classification)",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -307,7 +307,7 @@
       "guid": "3ac69694-7584-5ba2-9bce-4d045ca21088",
       "description": "State visibility control tier 4",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -315,7 +315,7 @@
       "guid": "c9045501-eee6-54ce-b725-3ea589ee8025",
       "description": "State visibility control tier 5",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -323,7 +323,7 @@
       "guid": "9b913556-ac00-5a04-b53c-1e262498ad1d",
       "description": "State visibility control tier 6",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -331,7 +331,7 @@
       "guid": "8eb03b28-aaf9-5803-8e87-f0655afbf08d",
       "description": "State visibility control tier 7",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -339,7 +339,7 @@
       "guid": "dd2f491c-8806-5cd2-bb21-d3b915646070",
       "description": "State visibility control tier 8",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -347,7 +347,7 @@
       "guid": "482475c4-be76-5db3-87a6-8aac4a53dc74",
       "description": "State visibility control tier 9",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -355,7 +355,7 @@
       "guid": "8be3ef27-42ab-5668-8cd0-a376578c805a",
       "description": "State visibility control tier 10",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -1467,7 +1467,7 @@
       "guid": "4ceac996-f3f3-5ba5-8049-06bbbd354ede",
       "description": "Tag bounding box visibility control",
       "binding": "universal",
-      "param_type": "TEXT",
+      "param_type": "YESNO",
       "required": false
     },
     {
@@ -1475,6 +1475,7 @@
       "guid": "b7f3e2a1-0001-4a01-b001-000000090001",
       "description": "Auto-select tag scale tier based on view scale",
       "binding": "universal",
+      "param_type": "YESNO",
       "required": false
     },
     {

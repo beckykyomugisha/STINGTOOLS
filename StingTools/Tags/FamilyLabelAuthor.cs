@@ -16,13 +16,14 @@ namespace StingTools.Tags
     /// <remarks>
     /// Scope of work that DOES land here:
     ///   • Bind every shared parameter referenced in the plan's T4..T10 rows.
-    ///   • Apply the CSV-derived <c>if(TAG_PARA_STATE_N_BOOL = "Yes", PARAM, "")</c>
+    ///   • Apply the CSV-derived <c>if(TAG_PARA_STATE_N_BOOL, PARAM, "")</c>
     ///     calculated-value formula on each bound family parameter so tier
-    ///     visibility is gated correctly. The gate is tested with an explicit
-    ///     <c>= "Yes"</c> because STING stores the BOOL gates as TEXT and a bare
-    ///     TEXT parameter is not a valid Revit <c>if()</c> condition
-    ///     ("Inconsistent Units"). <see cref="TagConfig.GateToken"/> picks the
-    ///     form per storage type (TEXT ⇒ <c>= "Yes"</c>, YESNO ⇒ bare).
+    ///     visibility is gated correctly. The gate is tested BARE because STING
+    ///     stores the BOOL gates as YESNO (v5.4+) — YESNO is Revit's native
+    ///     <c>if()</c> condition type. <see cref="TagConfig.GateToken"/> still
+    ///     picks the form per storage type (YESNO ⇒ bare, legacy TEXT ⇒
+    ///     <c>= "Yes"</c>) so it self-heals any family still holding a gate as
+    ///     TEXT.
     ///   • Honour <c>preserveHandEdits</c>: when any Dimension/TextNote in the
     ///     family has a non-default (non-origin) position we skip formula
     ///     re-writes for the rows that map to that tier, leaving a user's hand
@@ -107,9 +108,9 @@ namespace StingTools.Tags
         /// visibility formula with the entry's <see cref="ModePlan.GateParam"/>.
         /// When a source parameter appears in more than one mode it gets a
         /// single OR-merged formula of the shape
-        /// <c>if(or(and(stateN = "Yes", gateA = "Yes"), and(stateM = "Yes", gateB = "Yes"), …), PARAM, "")</c>
-        /// — each gate carries its storage-type-correct condition form (see
-        /// <see cref="TagConfig.GateToken"/>).
+        /// <c>if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "")</c>
+        /// — each gate carries its storage-type-correct condition form (bare for
+        /// the YESNO gates STING ships; see <see cref="TagConfig.GateToken"/>).
         /// </summary>
         public static Result AuthorLabelsMulti(Document fdoc,
             IEnumerable<ModePlan> modePlans, Options opts)
