@@ -2,18 +2,22 @@
 //
 // Closes the "clash in ACC AND STING" loop confirmed for the Kampala Temple
 // engagement: ACC Model Coordination runs the federated clash (system of
-// record); this command PULLS ACC's grouped clash results, ranks them with
-// the existing ClashTriageEngine, writes a triage CSV, and offers to push the
-// top clashes back to ACC Issues with an assigned priority via AccIssueSync.
+// record); this command PULLS ACC's clash results, ranks them with the
+// existing ClashTriageEngine, writes a triage CSV, and offers to push the top
+// clashes back to ACC Issues with the STING triage score via AccIssueSync.
+//
+// ACC clash data carries no Revit category — only object dbIds + source
+// document names — so triage severity is derived from the document-name
+// discipline (AccModelCoordSync.DisciplineOst) and the real penetration
+// distance (dist), not a Revit category lookup.
 //
 // Read-only with respect to the Revit model (no Transaction). Network I/O only.
 // Credentials come from %APPDATA%\Planscape\acc_credentials.json (AccIssueSync),
 // so nothing touches the project file or source control.
 //
-// Built without dotnet build verification (Linux sandbox); the ACC Model
-// Coordination v3 endpoint paths + grouped-clash field mapping are marked
-// // TODO-VERIFY-API in AccModelCoordSync — confirm against APS docs in Revit
-// before the engagement relies on the field mapping.
+// Built without dotnet build verification (Linux sandbox); endpoint paths +
+// payload field names are verified against the public APS aps-clash-data-view
+// sample, but confirm with one live pull before the engagement relies on them.
 
 using System;
 using System.Collections.Generic;
@@ -68,48 +72,49 @@ namespace StingTools.Core.Clash
             }
 
             string pick = StingListPicker.Show("ACC — pick a coordination model set",
-                "Grouped clash results are pulled from the selected model set, then triaged.",
+                "Clash results are pulled from the selected model set's latest test, then triaged.",
                 sets.Select(s => $"{s.Name}  [{s.Id}]").ToList());
             if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
             var chosen = sets.First(s => $"{s.Name}  [{s.Id}]" == pick);
 
-            // 2. Pull grouped clashes.
-            List<AccClashGroup> groups;
-            try { groups = AccModelCoordSync.GetGroupedClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC GetGroupedClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
+            // 2. Pull clashes (latest test -> resources -> scope files -> join).
+            List<AccClashRecord> clashes;
+            try { clashes = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
+            catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
 
-            if (groups == null || groups.Count == 0)
+            if (clashes == null || clashes.Count == 0)
             {
                 TaskDialog.Show("ACC — Pull Clashes",
-                    $"Model set '{chosen.Name}' returned no grouped clashes.\n\n" +
-                    "Either the model set is clash-clean, or a clash test has not run in ACC yet.");
+                    $"Model set '{chosen.Name}' returned no clashes.\n\n" +
+                    "Either the model set is clash-clean, or a clash test has not completed in ACC yet.");
                 return Result.Succeeded;
             }
 
-            // 3. Map → ClashInput → triage.
-            var inputs = groups.Select(g => new ClashInput
+            // 3. Map -> ClashInput -> triage. No Revit category in ACC data:
+            //    severity comes from document-name discipline + penetration depth.
+            var inputs = clashes.Select(c => new ClashInput
             {
-                ClashId         = g.Id,
-                ElementAId      = g.LeftObjectId,
-                ElementBId      = g.RightObjectId,
-                CategoryA       = g.LeftCategory,
-                CategoryB       = g.RightCategory,
-                RecurrenceCount = Math.Max(0, g.Count - 1),  // larger groups rank higher
+                ClashId       = c.Id,
+                ElementAId    = c.LeftObjectId,
+                ElementBId    = c.RightObjectId,
+                CategoryA     = AccModelCoordSync.DisciplineOst(c.LeftDocument),
+                CategoryB     = AccModelCoordSync.DisciplineOst(c.RightDocument),
+                PenetrationMm = c.PenetrationMm,
             }).ToList();
 
             var scored = ClashTriageEngine.Triage(inputs);   // top-N by score
-            var byId = groups.ToDictionary(g => g.Id, g => g, StringComparer.OrdinalIgnoreCase);
+            var byId = clashes.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             // 4. Report + CSV.
             var report = new StringBuilder();
             report.AppendLine($"Model set: {chosen.Name}");
-            report.AppendLine($"Grouped clashes pulled: {groups.Count}   (top {scored.Count} by triage score)");
+            report.AppendLine($"Clashes pulled: {clashes.Count}   (top {scored.Count} by triage score)");
             report.AppendLine();
             foreach (var s in scored.Take(10))
             {
-                byId.TryGetValue(s.ClashId, out var g);
-                report.AppendLine($"  {s.Score:F2}  [{s.Category}]  group {s.ClashId}" +
-                                  (g != null ? $"  x{g.Count}  {Short(g.LeftCategory)} ↔ {Short(g.RightCategory)}" : ""));
+                byId.TryGetValue(s.ClashId, out var c);
+                report.AppendLine($"  {s.Score:F2}  [{s.Category}]  clash {s.ClashId}" +
+                                  (c != null ? $"  pen {c.PenetrationMm:F0}mm  {DocShort(c.LeftDocument)} ↔ {DocShort(c.RightDocument)}" : ""));
             }
             string csv = WriteCsv(doc, chosen, scored, byId);
             if (csv != null) { report.AppendLine(); report.AppendLine("CSV: " + csv); }
@@ -117,14 +122,14 @@ namespace StingTools.Core.Clash
             // 5. Offer to push the triaged top clashes back to ACC Issues.
             var dlg = new TaskDialog("ACC — Pull Clashes")
             {
-                MainInstruction = $"{groups.Count} grouped clashes triaged — top {Math.Min(10, scored.Count)} shown",
+                MainInstruction = $"{clashes.Count} clashes triaged — top {Math.Min(10, scored.Count)} shown",
                 MainContent = report.ToString(),
                 CommonButtons = TaskDialogCommonButtons.Close,
                 AllowCancellation = true,
             };
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 $"Push top {Math.Min(scored.Count, 10)} clashes to ACC Issues",
-                "Creates one ACC Issue per top-ranked clash group, tagged with the STING triage score.");
+                "Creates one ACC Issue per top-ranked clash, tagged with the STING triage score.");
             var res = dlg.Show();
 
             if (res == TaskDialogResult.CommandLink1)
@@ -133,23 +138,23 @@ namespace StingTools.Core.Clash
                 TaskDialog.Show("ACC — Pull Clashes", $"Pushed {pushed} clash(es) to ACC Issues.");
             }
 
-            StingLog.Info($"ACC_PullClashes: {groups.Count} groups, {scored.Count} triaged, set '{chosen.Name}'.");
+            StingLog.Info($"ACC_PullClashes: {clashes.Count} clashes, {scored.Count} triaged, set '{chosen.Name}'.");
             return Result.Succeeded;
         }
 
         private static int PushTopIssues(AccCredentials creds, List<ScoredClash> top,
-            Dictionary<string, AccClashGroup> byId, AccModelSet set)
+            Dictionary<string, AccClashRecord> byId, AccModelSet set)
         {
             int pushed = 0;
             foreach (var s in top)
             {
-                byId.TryGetValue(s.ClashId, out var g);
+                byId.TryGetValue(s.ClashId, out var c);
                 var issue = new AccIssue
                 {
                     Title = $"Clash {s.ClashId} [{s.Category}] (STING score {s.Score:F2})",
                     Description = $"Triaged from ACC Model Coordination set '{set.Name}'.\n" +
                                   $"Score {s.Score:F2} — {s.Rationale}\n" +
-                                  (g != null ? $"Instances: {g.Count}; {g.LeftCategory} ↔ {g.RightCategory}" : ""),
+                                  (c != null ? $"Penetration {c.PenetrationMm:F0} mm; {c.LeftDocument} ↔ {c.RightDocument}" : ""),
                     Status = "open",
                     LocationDescription = set.Name,
                 };
@@ -164,20 +169,21 @@ namespace StingTools.Core.Clash
         }
 
         private static string WriteCsv(Document doc, AccModelSet set, List<ScoredClash> scored,
-            Dictionary<string, AccClashGroup> byId)
+            Dictionary<string, AccClashRecord> byId)
         {
             try
             {
-                var rows = new List<string> { "Score,Category,GroupId,Instances,LeftCategory,RightCategory,LeftObjectId,RightObjectId,Rationale" };
+                var rows = new List<string> { "Score,Category,ClashId,PenetrationMm,Status,LeftDocument,RightDocument,LeftObjectId,RightObjectId,Rationale" };
                 foreach (var s in scored)
                 {
-                    byId.TryGetValue(s.ClashId, out var g);
+                    byId.TryGetValue(s.ClashId, out var c);
                     rows.Add(string.Join(",",
                         s.Score.ToString("F3"), Csv(s.Category), Csv(s.ClashId),
-                        g?.Count ?? 0, Csv(g?.LeftCategory), Csv(g?.RightCategory),
-                        g?.LeftObjectId ?? 0, g?.RightObjectId ?? 0, Csv(s.Rationale)));
+                        (c?.PenetrationMm ?? 0).ToString("F0"), Csv(c?.Status),
+                        Csv(c?.LeftDocument), Csv(c?.RightDocument),
+                        c?.LeftObjectId ?? 0, c?.RightObjectId ?? 0, Csv(s.Rationale)));
                 }
-                string safe = new string((set.Name ?? "set").Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+                string safe = new string((set.Name ?? "set").Where(ch => char.IsLetterOrDigit(ch) || ch == '_').ToArray());
                 string path = OutputLocationHelper.GetOutputPath(doc, $"STING_ACC_Clashes_{safe}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
@@ -185,7 +191,13 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingLog.Warn("ACC clash CSV: " + ex.Message); return null; }
         }
 
-        private static string Short(string s) => string.IsNullOrEmpty(s) ? "?" : s.Replace("OST_", "");
+        private static string DocShort(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "?";
+            s = Path.GetFileNameWithoutExtension(s);
+            return s.Length > 24 ? s.Substring(0, 24) : s;
+        }
+
         private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
     }
 }
