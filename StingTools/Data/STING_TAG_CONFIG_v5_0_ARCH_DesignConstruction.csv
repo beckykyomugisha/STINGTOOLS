@@ -26,7 +26,7 @@
 #   Each tier beyond T3 uses the same Calculated Value pattern:
 #
 #     Tier row formula template (any Tier N row):
-#       if(TAG_PARA_STATE_N_BOOL, <Parameter>, "")
+#       if(TAG_PARA_STATE_N_BOOL, <Parameter>, "")   (gate is YESNO; bare condition)
 #
 #   Recommended use of tiers 4 to 10:
 #     T4 — Commissioning & handover   (COMM_* params, asset serials, warranty)

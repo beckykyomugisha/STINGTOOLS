@@ -77,6 +77,67 @@ namespace StingTools.Core
             return DisciplineProfiles.TryGetValue(disc, out var profile) ? profile : null;
         }
 
+        // ------------------------------------------------------------------
+        // Tag-formula gate emission (Inconsistent-Units fix)
+        // ------------------------------------------------------------------
+        /// <summary>
+        /// Resolve the correct condition-FORM for a boolean gate parameter used
+        /// inside a tag label / style-row Calculated Value formula, so the
+        /// emitted formula is consistent with the gate's STORAGE TYPE and never
+        /// trips Revit's "Inconsistent Units" error.
+        ///
+        /// <para>STING stores its tag-formula gates — the 10
+        /// <c>TAG_PARA_STATE_*_BOOL</c>, the 128
+        /// <c>TAG_{size}{style}_{colour}_BOOL</c> style params, the 6
+        /// <c>TAG_7_SECTION_VISIBLE_*_BOOL</c>, <c>TAG_WARN_VISIBLE_BOOL</c>, and
+        /// the mode gates — as YESNO (v5.4+). YESNO (Integer) is Revit's native
+        /// <c>if()</c>/<c>and()</c>/<c>or()</c> condition type and must stay bare.
+        /// A legacy TEXT gate, by contrast, has no truthy-string semantics: a
+        /// bare TEXT parameter is NOT a valid condition and must be tested
+        /// explicitly as <c>gate = "Yes"</c>.</para>
+        ///
+        /// <para>Returns the bare <paramref name="gateName"/> when the gate
+        /// resolves to <see cref="StorageType.Integer"/> (YESNO — the v5.4+
+        /// canonical type), or <c>gateName + " = \"Yes\""</c> when it resolves to
+        /// <see cref="StorageType.String"/> (legacy TEXT). Because this reads the
+        /// gate's ACTUAL bound storage, it self-heals the runtime formula: a
+        /// YESNO family gets bare, a legacy TEXT family still gets the explicit
+        /// comparison. When the gate cannot be resolved on <paramref name="fm"/>
+        /// at all, it conservatively defaults to the TEXT comparison form (the
+        /// legacy-safe shape, unchanged from when TEXT was the default).</para>
+        /// </summary>
+        public static string GateToken(FamilyManager fm, string gateName)
+        {
+            if (string.IsNullOrEmpty(gateName)) return gateName;
+
+            StorageType storage = StorageType.String; // TEXT is the v5.3+ default
+            try
+            {
+                if (fm != null)
+                {
+                    foreach (FamilyParameter fp in fm.Parameters)
+                    {
+                        if (string.Equals(fp?.Definition?.Name, gateName, StringComparison.Ordinal))
+                        {
+                            storage = fp.StorageType;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Tolerate API surface drift — fall back to TEXT comparison form.
+                storage = StorageType.String;
+            }
+
+            // Integer/YESNO gate → bare token (valid Revit condition).
+            // String/TEXT gate (and unknown) → explicit "Yes" comparison.
+            return storage == StorageType.Integer
+                ? gateName
+                : gateName + " = \"Yes\"";
+        }
+
         /// <summary>
         /// Validates token values against discipline profile constraints.
         /// Returns a list of validation error messages (empty if all valid).

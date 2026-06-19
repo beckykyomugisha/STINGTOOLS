@@ -3,6 +3,178 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
+
+PR #324 (Phase 193) fixed the recurring "Inconsistent Units" error by
+making **Text** the canonical gate type and rewriting every gate
+condition to `if(GATE = "Yes", …)`. That was the **wrong direction**:
+verification showed the live project and the existing tag families
+already hold the gate GUIDs as **Yes/No** — and Yes/No is Revit's
+native type for an `if()` condition. Text-canonical forced a type the
+documents don't have, so it re-broke on bind / family re-creation.
+This phase corrects it to **Yes/No-canonical** (`if(GATE, …)`, bare).
+
+The GATE set (condition params used inside `if()`/`and()`/`or()` — these
+only): the 10 `TAG_PARA_STATE_*_BOOL`, the 6 `TAG_7_SECTION_VISIBLE_*_BOOL`,
+`TAG_WARN_VISIBLE_BOOL` / `TAG_BOX_VISIBLE_BOOL` / `TAG_SCALE_TIER_AUTO_BOOL`,
+the 128 `TAG_{size}{style}_{colour}_BOOL` style params, and the 3
+`HANDOVER_MODE_*_BOOL` mode gates — **150 params total**. Classified
+first: a `_BOOL` flips only if it appears in a formula *condition*
+position. Display-mirror booleans (a `_BOOL` that appears only as the
+`if(cond, THAT_BOOL, "")` value) were verified absent from the gate set,
+and unrelated `_BOOL` params (`RGL_*_APPROVAL_*`, `*_STALE_BOOL`,
+`BLE_*_ACCESSIBLE_BOOL`, `*_SHOP_DRAWING_REQ_BOOL`, …) were **not**
+touched.
+
+**Changes:**
+
+1. **Parameter type flipped `TEXT` → `YESNO`** for the gate set across all
+   three sources, GUIDs unchanged (same GUID + same type the project
+   already holds = no bind conflict):
+   - `Data/MR_PARAMETERS.txt` — 147 gate `DataType` columns (the 3
+     `HANDOVER_MODE_*` were already `YESNO`).
+   - `Data/MR_PARAMETERS.csv` — same 147, mirror.
+   - `Data/PARAMETER_REGISTRY.json` — 18 gate `param_type` flipped (134
+     were already `YESNO`) + `param_type: "YESNO"` added to the one gate
+     (`TAG_SCALE_TIER_AUTO_BOOL`) that was missing a type field, so all
+     150 gates now agree across the three sources.
+2. **Gate formulas reverted to the bare form** (Yes/No cannot be compared
+   to `"Yes"`):
+   - `Data/LABEL_DEFINITIONS.json` — 281 `calculated_value_templates` +
+     per-category `warnings` gates `if(GATE = "Yes", …)` → `if(GATE, …)`;
+     the `calculated_value_templates._comment` rewritten to state the
+     real contract (gates are Yes/No → bare; value params stay TEXT;
+     file type must equal bound type).
+   - `Data/STING_TAG_CONFIG_v5_0_*.csv` (10 files) — 13,242 Formula-column
+     gate conditions reverted (CSV-escaped `= ""Yes""` removed) + the
+     header doc-comment example.
+   - Instructional strings in `TagFamilyCreatorCommand.ConfigureTagLabels`
+     + `PresentationModeCommand` + `FamilyLabelAuthor` doc-comments
+     reverted to the bare form.
+   - `Data/STING_TAG_LABEL_MANUAL.md` §1–§5, §10–§12 rewritten: gates are
+     Yes/No (Revit-native for `if()`), removed the "gates must be TEXT"
+     rule, kept "label-referenced **value** params must be TEXT",
+     documented the file-type-must-equal-bound-type contract.
+3. **`TagConfig.GateToken` left unchanged** — it reads the gate's actual
+   bound storage and now emits **bare** for the Yes/No gates
+   automatically; it remains the safety net for any legacy family still
+   holding a gate as TEXT (its doc-comment was corrected to match, logic
+   untouched).
+4. **New file↔bound drift guard** — `LabelParamTypeValidator.ValidateGateTypeDrift(doc)`
+   (`Tags/TagFamilyCreatorCommand.cs`) asserts every gate's file-declared
+   type (`MR_PARAMETERS.txt`) equals the type **bound in the active
+   document** — project binding map, or `FamilyManager` when run inside a
+   tag family. A `TEXT`↔`YESNO` contradiction is reported as a hard drift
+   finding (param name, both types, offending document). Surfaced in
+   `AuditTagFamilies` alongside the retained PR #324 condition-form check
+   (bare for YESNO, `= "Yes"` for TEXT) and the unchanged "value params
+   must be TEXT" check (`ValidateSourceFile`). This is the guard that
+   stops the file silently drifting from reality again.
+
+**Headless verification against the shipped data** (Linux sandbox — no
+`dotnet build` / Revit): (1) all **150 gates agree `YESNO`** across
+`.txt` / `.csv` / `.json`; (2) **0** residual `= "Yes"` across
+`LABEL_DEFINITIONS.json` + the 10 CSVs; (3) condition-form guard mirror
+scanned **13,460** gate references, **0** form issues. Built without
+`dotnet build` / Revit verification — verify in Revit before merge
+(in-Revit steps below).
+
+**In-Revit verification (user):** set file → Yes/No (this change) →
+`LoadSharedParams` (read the "type conflicts" report; **0 = uniform**) →
+recreate tag families → confirm a T2 calc value reads
+`if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` (bare) and saves with no
+"Inconsistent Units" → run `AuditTagFamilies` and confirm **0 drift**.
+
+**Caveat:** built without `dotnet build` / Revit verification (Linux
+sandbox). The `ValidateGateTypeDrift` bound-side and `GetDataType()` /
+`SpecTypeId.Boolean.YesNo` / `FamilyManager.Parameters` API calls follow
+the proven pattern already in `ValidateBoundParams` but were not
+compile-checked. The broader `PARAMETER_REGISTRY.json` heterogeneity
+(`datatype` / `param_type` / `data_type` documentary keys, none read by
+`ParamRegistry.cs` at runtime) was left as-is outside the gate set to
+keep this PR scoped to correctness; the 150 gates are uniform on
+`param_type`.
+
+#### Completed (Phase 193 — tag-formula "Inconsistent Units" permanent fix)
+
+Permanently fixed the recurring Revit **"Inconsistent Units"** error in
+STING tag label formulas by aligning every gate-condition's *formula
+form* with its *storage type*. **No parameter-type changes, no GUID
+migration, no writer changes** — formula-form alignment ONLY.
+
+**Root cause.** STING intentionally stores all tag-formula gate params —
+the 10 `TAG_PARA_STATE_*_BOOL`, the 128 `TAG_{size}{style}_{colour}_BOOL`
+style params, the 6 `TAG_7_SECTION_VISIBLE_*_BOOL`, `TAG_WARN_VISIBLE_BOOL`,
+and the mode gates — as TEXT (`"Yes"`/`"No"`). That's a correct v5.3+
+decision. The bug was that the formula emitters wrote those gates as
+*bare booleans* (`if(TAG_PARA_STATE_2_BOOL, param, "")`). Revit has no
+truthy-string semantics — a bare TEXT parameter is not a valid
+`if()`/`and()`/`or()` condition, so it raises "Inconsistent Units". A
+TEXT gate must be tested explicitly as `gate = "Yes"`.
+
+**Changes:**
+
+1. **`TagConfig.GateToken(fm, gateName)`** (new shared helper,
+   `Core/TagConfig.cs`) — resolves the gate parameter on the
+   `FamilyManager` and returns `gate + " = \"Yes\""` for String (TEXT)
+   storage or the bare `gate` for Integer (YESNO). Defaults to the TEXT
+   comparison form when the gate can't be resolved, so it self-heals
+   regardless of dict drift and is safe for already-written `"Yes"`/`"No"`
+   data.
+2. **`Tags/FamilyLabelAuthor.cs` `ApplyVisibilityFormulas`** — the only
+   runtime `SetFormula` emitter for tag tier gates — now routes the
+   `TAG_PARA_STATE_N_BOOL` state gate and every mode gate through
+   `GateToken`. Resulting shapes:
+   `if(TAG_PARA_STATE_2_BOOL = "Yes", PARAM, "")`,
+   `if(and(STATE_4 = "Yes", MODE_DC = "Yes"), PARAM, "")`,
+   `if(or(and(STATE_4 = "Yes", MODE_DC = "Yes"), and(STATE_4 = "Yes", MODE_HANDOVER = "Yes")), PARAM, "")`.
+   The value/return shape `if(cond, <textParam>, "")` is unchanged.
+3. **Instructional strings in `Tags/TagFamilyCreatorCommand.cs`**
+   (`ConfigureTagLabels` "edit label" guidance) corrected to the
+   `= "Yes"` form so users hand-editing families type the right thing.
+4. **Source-of-truth data realigned** so regeneration + docs agree:
+   - `Data/LABEL_DEFINITIONS.json` — all 280 `calculated_value_templates`
+     + per-category `warnings` formula gates rewritten to `= "Yes"`;
+     `_comment` rewritten to state the storage-type ↔ condition-form
+     contract (no false "truthy" claim).
+   - `Data/STING_TAG_CONFIG_v5_0_*.csv` (GEN/ARCH/MEP/STR/HEALTH + their
+     `_DesignConstruction` variants, 10 files) — Formula column gates
+     rewritten (CSV-escaped `= ""Yes""`) on every tier + warning + style
+     row; the header doc-comment example updated too.
+   - `Data/STING_TAG_LABEL_MANUAL.md` §3–§4 (+ §5 + §11) — formula
+     pattern + rationale corrected; removed the truthy-string claim;
+     documented the storage-type ↔ condition-form contract. The
+     (correct) "label-referenced VALUE params must be TEXT" point is kept.
+5. **Permanent regression guard** —
+   `LabelParamTypeValidator.ValidateGateConditionForms()` (new) asserts,
+   for every gate reference in the LABEL_DEFINITIONS.json formula
+   templates + per-category warnings + the CSV Formula columns, that the
+   condition form matches the gate's storage type (TEXT ⇒ `= "Yes"`,
+   YESNO ⇒ bare), reading types from MR_PARAMETERS.txt. Runs headless
+   (no Revit). Surfaced in `AuditTagFamilies`. The existing
+   "value/return params must be TEXT" check is retained.
+
+**Guard output (headless re-implementation against the shipped data
+files):** 145 gate params in MR_PARAMETERS.txt (all TEXT), 280
+LABEL_DEFINITIONS.json gate refs + 202 warning formulas + ~13,200 CSV
+formula gates — **0 condition-form issues**. The C# guard itself was
+not run (no Revit/.NET in this sandbox) but its data-only logic was
+mirrored exactly in the verification script.
+
+**In-Revit verification (do before merge):** regenerate a tag family via
+`CreateTagFamilies`, open the family editor, confirm the T2 calculated
+value reads `if(TAG_PARA_STATE_2_BOOL = "Yes", ASS_TAG_2_TXT, "")` and
+**SAVES with no "Inconsistent Units" error**; set the element's gate to
+`"Yes"` and confirm the tier renders; spot-check one style-row gate the
+same way; run `AuditTagFamilies` and confirm the new "gate condition
+forms aligned (0 issues)" line.
+
+**Caveat:** built without `dotnet build` / Revit verification (Linux
+sandbox). Every Revit API call uses documented signatures
+(`FamilyParameter.StorageType`, `FamilyManager.Parameters`,
+`FamilyManager.SetFormula`) but has not been compile-checked. Verify in
+Revit per the steps above before merge.
+
 #### Completed (Phase 192 — KUT alignment pack complete)
 
 The Kampala Uganda Temple alignment pack is fully landed across Parts

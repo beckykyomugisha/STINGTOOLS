@@ -6,8 +6,8 @@
 
 This manual is the single reference for configuring Revit Family Editor label rows in
 STING seed tag families. It covers the tier structure (T1–T10), formula syntax, the
-TEXT storage-type requirement for gate parameters, the 128-variant style matrix, box /
-leader / scale / depth params, and how to use the automated creation commands.
+Yes/No storage type for gate parameters (and why it's bare in `if()`), the 128-variant
+style matrix, box / leader / scale / depth params, and the automated creation commands.
 
 ---
 
@@ -55,7 +55,7 @@ The plugin ships **171 tag families** across all disciplines:
 ## 2. Tier Structure
 
 Every STING tag family has up to 10 **label rows** (tiers). Each row is a Revit Family
-Label using a **Calculated Value** formula that gates visibility via a TEXT-type parameter.
+Label using a **Calculated Value** formula that gates visibility via a Yes/No-type parameter.
 
 | Tier | Gate parameter | Primary content | Presentation modes |
 |---|---|---|---|
@@ -78,30 +78,46 @@ Label using a **Calculated Value** formula that gates visibility via a TEXT-type
 
 ---
 
-## 3. TAG_PARA_STATE Parameters — Critical Storage Type Requirement
+## 3. TAG_PARA_STATE Parameters — Canonical Storage Type (Yes/No)
 
-### The Constraint
+### The Contract
 
-**Revit's label formula engine cannot use a YESNO-typed parameter as the condition of
-`if(condition, trueValue, falseValue)`.**
+**Yes/No (YESNO) is Revit's native type for the condition of
+`if(condition, trueValue, falseValue)`.** STING stores all tag-formula GATE params as
+**Yes/No** — this is the v5.4+ canonical decision, and it matches the type the live project
+and the existing tag families already hold these GUIDs as. A Yes/No gate is tested **bare**:
 
-If `TAG_PARA_STATE_2_BOOL` is stored as `YESNO` in MR_PARAMETERS.txt, the Revit Family
-Editor will reject the Calculated Value formula with a cryptic error. The tag compiles but
-displays empty at runtime.
+| Gate storage | Condition form in the formula |
+|---|---|
+| **YESNO** (the STING canonical type) | `gate` — bare token |
+| **TEXT** (legacy only) | `gate = "Yes"` — explicit comparison |
 
-### The Fix — Store as TEXT
+`if(TAG_PARA_STATE_2_BOOL, …)` is correct for a Yes/No gate. Comparing a Yes/No gate to
+`"Yes"` (`if(TAG_PARA_STATE_2_BOOL = "Yes", …)`) raises Revit's **"Inconsistent Units"**
+error — you cannot compare a Yes/No parameter to a string. The emitter
+(`TagConfig.GateToken`, called from `FamilyLabelAuthor`) reads each gate's *actual* bound
+storage and picks the right form automatically (bare for Yes/No, `= "Yes"` for any legacy
+TEXT family), so authored families always get the right shape; the manual steps below show
+what to type if you edit a family by hand.
+
+> **The file must equal the binding.** The single rule that prevents this whole class of bug:
+> the type declared in `MR_PARAMETERS.txt` / `.csv` / `PARAMETER_REGISTRY.json` for a gate
+> must be the **same type the project and tag families bind it as**. `AuditTagFamilies`
+> enforces this with a file↔bound drift guard (Section 10).
+
+### The Setting — Store as Yes/No
 
 All 10 `TAG_PARA_STATE_N_BOOL` parameters **must** have:
 
 | Field | Correct value |
 |---|---|
-| Datatype (MR_PARAMETERS.txt) | `TEXT` |
-| Default value | `No` |
-| Active (tier-visible) value | `Yes` |
+| Datatype (MR_PARAMETERS.txt) | `YESNO` |
+| Default value | `No` (unchecked) |
+| Active (tier-visible) value | `Yes` (checked) |
 
-The STING plugin writes `"Yes"` / `"No"` string values to these parameters via
-`ParameterHelpers.SetString()`. The `TagStyleEngine`, `PresentationModeCommand`, and
-`MigrateTagFamiliesCommand` all detect TEXT vs INTEGER storage automatically.
+The STING plugin sets these via `ParameterHelpers.SetYesNo()`. The `TagStyleEngine`,
+`PresentationModeCommand`, and `MigrateTagFamiliesCommand` all detect YESNO (Integer) vs
+legacy TEXT storage automatically, so element data written either way keeps working.
 
 ### The 10 Gate Parameters
 
@@ -127,17 +143,19 @@ The STING plugin writes `"Yes"` / `"No"` string values to these parameters via
 Run the STING pre-check command or inspect the CSV:
 
 ```
-# In STING_TAG_CONFIG_v5_0_MEP.csv (catalog section):
-# Correct:
-TAG_PARA_STATE_1_BOOL,TEXT,No,TierGate,...
-TAG_PARA_STATE_2_BOOL,TEXT,No,TierGate,...
+# In MR_PARAMETERS.txt:
+# Correct (canonical):
+PARAM  <guid>  TAG_PARA_STATE_1_BOOL  YESNO  ...
+PARAM  <guid>  TAG_PARA_STATE_2_BOOL  YESNO  ...
 
-# Incorrect (will break label formulas):
-TAG_PARA_STATE_1_BOOL,YESNO,0,TierGate,...
+# Wrong — declaring TEXT while the project binds Yes/No is the drift that
+# breaks re-bind and forces `= "Yes"` formulas that then fail:
+PARAM  <guid>  TAG_PARA_STATE_1_BOOL  TEXT   ...
 ```
 
-The automated `CreateTagFamiliesCommand` runs `LabelParamTypeValidator.AutoFixSourceFile()`
-before any family authoring to catch and fix this condition.
+`AuditTagFamilies` runs `LabelParamTypeValidator.ValidateGateTypeDrift()` (file↔bound type
+guard) and `ValidateGateConditionForms()` (formula-form guard) so a divergence is reported
+rather than silently re-creating the failure.
 
 ---
 
@@ -150,8 +168,12 @@ following formula pattern:
 if(TAG_PARA_STATE_N_BOOL, <ParameterName>, "")
 ```
 
-The condition must reference a **TEXT**-type parameter (see Section 3). Revit evaluates the
-string `"Yes"` as truthy and any other value (including `"No"` or `""`) as falsy.
+The gate parameter is **Yes/No**-typed (see Section 3) and is tested **bare** — Yes/No is
+Revit's native condition type. Comparing it to `"Yes"` raises **"Inconsistent Units"**
+(you cannot compare a Yes/No parameter to a string). The return value (`<ParameterName>`)
+must be a **TEXT**-typed parameter; numeric params there raise the same error. A legacy
+family that still stores the gate as TEXT would instead need `gate = "Yes"` — `GateToken`
+emits whichever form matches the actual storage.
 
 ### Standard Tier Formulas
 
@@ -223,8 +245,10 @@ Examples:
 
 ### How the Style Matrix Works
 
-Exactly **one** of the 128 TYPE parameters is set to `1` (or `"Yes"` if TEXT-typed) at any
-time per element type. The tag family's label rows are wired as:
+Exactly **one** of the 128 TYPE parameters is checked (`Yes` — YESNO, the STING canonical
+type; or `1` on a legacy Integer family) at any time per element type. The style BOOLs are
+gates too, so they follow the same condition-form contract as Section 3/4: a Yes/No gate is
+tested **bare**, never `= "Yes"`. The tag family's label rows are wired as:
 
 ```
 Label row "2mm Normal Black":
@@ -273,9 +297,10 @@ These are all INTEGER-typed (not TEXT) because they carry numeric values, not bo
 
 | Parameter name | Purpose | Data type |
 |---|---|---|
-| `TAG_WARN_VISIBLE_BOOL` | Shows/hides T3 threshold warning text | TEXT (`"Yes"` / `"No"`) |
+| `TAG_WARN_VISIBLE_BOOL` | Shows/hides T3 threshold warning text | YESNO (`Yes` / `No`) |
 
-`TAG_WARN_VISIBLE_BOOL` must be TEXT for the same reason as `TAG_PARA_STATE_N_BOOL`.
+`TAG_WARN_VISIBLE_BOOL` must be Yes/No for the same reason as `TAG_PARA_STATE_N_BOOL` — it
+is an `if()` gate, so it uses Revit's native condition type.
 
 ---
 
@@ -305,7 +330,7 @@ These are all INTEGER-typed (not TEXT) because they carry numeric values, not bo
 
 **Visibility gate parameters** (`TagFamilyConfig.VisibilityParams` — 11 params, filtered by TierPlan):
 
-`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` (all TEXT type) + `TAG_WARN_VISIBLE_BOOL` (TEXT type).
+`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` (all YESNO type) + `TAG_WARN_VISIBLE_BOOL` (YESNO type).
 
 > Families whose `TierPlan` marks tiers T4–T10 as `Omit` receive a reduced set. The
 > `VisibilityParamsFor(familyName, category)` method handles filtering.
@@ -425,7 +450,10 @@ This command creates all 171 STING tag families from Revit annotation templates:
    - Loads into the active project
 
 **Pre-flight**: The command runs `LabelParamTypeValidator.AutoFixSourceFile()` before authoring
-to automatically correct any `YESNO` → `TEXT` mismatches in the CSV source files.
+to force every label **value** parameter (the `<param>` returned by a tier formula) to `TEXT`,
+since a Revit label can only emit TEXT. This does **not** touch the gate params (the `if()`
+conditions), which are Yes/No by design — see the `ValidateGateTypeDrift` /
+`ValidateGateConditionForms` guards in `AuditTagFamilies`.
 
 ### Secondary Command: `ConfigureTagLabels`
 
@@ -491,9 +519,10 @@ For tier-gated rows:
 1. Create a label as in Step 3 BUT choose **Add Calculated Value** instead
 2. Name the Calculated Value (e.g., `Show Tier 2`)
 3. In the formula field, enter: `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")`
-4. **Critical**: `TAG_PARA_STATE_2_BOOL` must be TEXT-typed (not YESNO). Revit will show
-   an error if it is YESNO. Correct this in MR_PARAMETERS.txt first, then reload the
-   shared parameter file.
+4. **Critical**: `TAG_PARA_STATE_2_BOOL` is Yes/No-typed (the STING canonical type), so the
+   gate is tested **bare**. Comparing it to `"Yes"` (`if(TAG_PARA_STATE_2_BOOL = "Yes", …)`)
+   raises "Inconsistent Units" — you cannot compare a Yes/No parameter to a string. (A legacy
+   TEXT family would instead need `= "Yes"`.) The return parameter must be TEXT-typed.
 5. Click OK → the label shows the calculated value
 
 ### Step 5 — Verify the Formula Works
@@ -501,7 +530,7 @@ For tier-gated rows:
 In the Family Editor canvas, the label row should show `<varies>` or the parameter value.
 If it shows an error:
 
-- Check that `TAG_PARA_STATE_N_BOOL` is stored as TEXT in the shared parameter file
+- Check that `TAG_PARA_STATE_N_BOOL` is stored as Yes/No in the shared parameter file
 - Verify the parameter is bound to the family (Project Parameters list)
 - Confirm the formula syntax: `if(condition, trueResult, falseResult)` with correct nesting
 
@@ -522,35 +551,42 @@ Use `View → Show Hidden Elements` in the Family Editor to see all rows at once
 
 ## 12. Troubleshooting
 
-### "Formula invalid" error in Family Editor
+### "Inconsistent Units" / "Formula invalid" error in Family Editor
 
-**Cause**: `TAG_PARA_STATE_N_BOOL` is stored as `YESNO` instead of `TEXT`.
+**Cause**: a Yes/No gate is being compared to a string — `if(TAG_PARA_STATE_N_BOOL = "Yes", …)`
+on a Yes/No-typed gate. (Equivalently: the gate was authored bare while it is still stored as
+legacy TEXT.) The condition form must match the storage type.
 
 **Fix**:
-1. In `MR_PARAMETERS.txt`, find the parameter entry and change `YESNO` → `TEXT`
-2. In the tag config CSV, change `YESNO` → `TEXT` and `0`/`1` → `No`/`Yes`
-3. In the Family Editor, delete the parameter and re-add from the corrected shared param file
-4. Re-enter the Calculated Value formula
+1. Confirm `MR_PARAMETERS.txt` declares the gate as `YESNO` (the canonical type) and that the
+   project / family bind it the same way — run `AuditTagFamilies` (it reports any file↔bound
+   drift via `ValidateGateTypeDrift`).
+2. Write the gate **bare**: `if(TAG_PARA_STATE_N_BOOL, <param>, "")`.
+3. If a legacy family genuinely holds the gate as TEXT, write `= "Yes"` instead — or re-bind
+   it to Yes/No and use the bare form.
 
-The automated fix: run `CreateTagFamilies` command — it calls `LabelParamTypeValidator.AutoFixSourceFile()`
-before authoring which corrects the CSV files, then rebuilds the families correctly.
+The automated path: `CreateTagFamilies` re-authors families through `FamilyLabelAuthor` /
+`TagConfig.GateToken`, which emits the storage-correct form automatically.
 
 ### Tag shows blank in model
 
-**Cause**: `TAG_PARA_STATE_N_BOOL` value is `"No"` for the active tier, or the element has
+**Cause**: `TAG_PARA_STATE_N_BOOL` is `No` (unchecked) for the active tier, or the element has
 no value for `ASS_TAG_1_TXT`.
 
 **Check**:
 1. Select the tagged element → Properties → confirm `ASS_TAG_1_TXT` is populated
-2. Check `TAG_PARA_STATE_1_BOOL` = `"Yes"` on the element TYPE (not instance)
+2. Check `TAG_PARA_STATE_1_BOOL` = `Yes` (checked) on the element TYPE (not instance)
 3. Run `SetPresentationMode → Compact` to force T1 visible
 
-### Style matrix param is YESNO but should be INTEGER
+### Are the style / gate params YESNO or INTEGER?
 
-The 128 `TAG_{size}{style}_{colour}_BOOL` parameters are INTEGER (0/1) in MR_PARAMETERS, not TEXT.
-They are switched by the `TagStyleEngine` writing integer values directly. Do not change these to TEXT.
-
-Only the 10 `TAG_PARA_STATE_N_BOOL` and `TAG_WARN_VISIBLE_BOOL` must be TEXT.
+The 128 `TAG_{size}{style}_{colour}_BOOL` params, the 10 `TAG_PARA_STATE_N_BOOL`, the 6
+`TAG_7_SECTION_VISIBLE_*_BOOL`, `TAG_WARN_VISIBLE_BOOL`, `TAG_BOX_VISIBLE_BOOL`,
+`TAG_SCALE_TIER_AUTO_BOOL`, and the 3 `HANDOVER_MODE_*_BOOL` mode gates are all **YESNO**
+(Revit stores Yes/No as Integer internally, so `0`/`1` writes still work). They are `if()`
+gates, so Yes/No is correct — tested bare, never `= "Yes"`. Do **not** declare them TEXT;
+that is the drift the Section 10 guards exist to catch. The non-gate numeric controls
+(`TAG_BOX_COLOR_*`, `TAG_LEADER_COLOR_*`, `TAG_DEPTH_TIER`) stay INTEGER (Section 6).
 
 ### "Parameter not found in shared parameter file"
 
