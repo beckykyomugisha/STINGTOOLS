@@ -1,5 +1,11 @@
 # render.yaml — Render.com Infrastructure-as-Code for Planscape Server
-# Deploy: push to main → Render detects this file → provisions all services automatically
+#
+# ⚠️ SUPERSEDED: Render only auto-detects a blueprint at the REPOSITORY ROOT,
+# and this file's dockerfilePath (./docker/Dockerfile) is wrong for the monorepo
+# layout. The canonical, deployable blueprint is /render.yaml at the repo root.
+# This copy is kept for reference only — do not point a Render Blueprint here.
+#
+# Deploy: push to main → Render detects /render.yaml → provisions all services
 # Docs: https://render.com/docs/infrastructure-as-code
 
 services:
