@@ -27,6 +27,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
@@ -134,38 +135,103 @@ namespace StingTools.Core.Clash
 
             if (res == TaskDialogResult.CommandLink1)
             {
-                int pushed = PushTopIssues(creds, scored.Take(10).ToList(), byId, chosen);
-                TaskDialog.Show("ACC — Pull Clashes", $"Pushed {pushed} clash(es) to ACC Issues.");
+                int pushed = PushTopIssues(doc, creds, scored.Take(10).ToList(), byId, chosen, out int skipped);
+                TaskDialog.Show("ACC — Pull Clashes",
+                    $"Pushed {pushed} new clash(es) to ACC Issues." +
+                    (skipped > 0 ? $"\nSkipped {skipped} already pushed (idempotent — see _BIM_COORD/acc/pushed_clashes.json)." : ""));
             }
 
             StingLog.Info($"ACC_PullClashes: {clashes.Count} clashes, {scored.Count} triaged, set '{chosen.Name}'.");
             return Result.Succeeded;
         }
 
-        private static int PushTopIssues(AccCredentials creds, List<ScoredClash> top,
-            Dictionary<string, AccClashRecord> byId, AccModelSet set)
+        // N-G1: idempotent push. A sidecar maps a STABLE clash signature
+        // (leftObjectId|rightObjectId|leftDoc|rightDoc — NOT the volatile ACC
+        // clash id, which can churn between tests) to the ACC issue id it
+        // created, so re-running pushes 0 new issues when nothing changed.
+        private static int PushTopIssues(Document doc, AccCredentials creds, List<ScoredClash> top,
+            Dictionary<string, AccClashRecord> byId, AccModelSet set, out int skipped)
         {
+            skipped = 0;
             int pushed = 0;
+            string sidecar = PushedSidecarPath(doc);
+            var pushedMap = LoadPushedMap(sidecar);
+            bool dirty = false;
+
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
+                if (c == null) continue;
+                string sig = ClashSignature(c);
+                if (pushedMap.ContainsKey(sig)) { skipped++; continue; }   // already pushed
+
                 var issue = new AccIssue
                 {
                     Title = $"Clash {s.ClashId} [{s.Category}] (STING score {s.Score:F2})",
                     Description = $"Triaged from ACC Model Coordination set '{set.Name}'.\n" +
                                   $"Score {s.Score:F2} — {s.Rationale}\n" +
-                                  (c != null ? $"Penetration {c.PenetrationMm:F0} mm; {c.LeftDocument} ↔ {c.RightDocument}" : ""),
+                                  $"Penetration {c.PenetrationMm:F0} mm; {c.LeftDocument} ↔ {c.RightDocument}",
                     Status = "open",
                     LocationDescription = set.Name,
                 };
                 try
                 {
                     var id = AccIssueSync.PushIssueAsync(creds, issue).GetAwaiter().GetResult();
-                    if (!string.IsNullOrEmpty(id)) pushed++;
+                    if (!string.IsNullOrEmpty(id))
+                    {
+                        pushedMap[sig] = id;
+                        dirty = true;
+                        pushed++;
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn("ACC push issue: " + ex.Message); }
             }
+
+            if (dirty) SavePushedMap(sidecar, pushedMap);
             return pushed;
+        }
+
+        // Stable signature: object dbIds + source document names. Deliberately
+        // NOT the ACC clash id (it is per-test and not stable across re-runs).
+        private static string ClashSignature(AccClashRecord c)
+            => $"{c.LeftObjectId}|{c.RightObjectId}|{c.LeftDocument}|{c.RightDocument}";
+
+        private static string PushedSidecarPath(Document doc)
+        {
+            string projDir = string.IsNullOrEmpty(doc?.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+            // Fall back to the standard output location for unsaved/cloud models.
+            string baseDir = !string.IsNullOrEmpty(projDir)
+                ? Path.Combine(projDir, "_BIM_COORD", "acc")
+                : Path.Combine(Path.GetDirectoryName(OutputLocationHelper.GetOutputPath(doc, "x.txt")) ?? Path.GetTempPath(), "_BIM_COORD", "acc");
+            return Path.Combine(baseDir, "pushed_clashes.json");
+        }
+
+        private static Dictionary<string, string> LoadPushedMap(string path)
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            try
+            {
+                if (path != null && File.Exists(path))
+                {
+                    var j = JObject.Parse(File.ReadAllText(path));
+                    foreach (var p in j.Properties())
+                        map[p.Name] = (string)p.Value ?? string.Empty;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes load: " + ex.Message); }
+            return map;
+        }
+
+        private static void SavePushedMap(string path, Dictionary<string, string> map)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                var j = new JObject();
+                foreach (var kv in map) j[kv.Key] = kv.Value;
+                File.WriteAllText(path, j.ToString());
+            }
+            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes save: " + ex.Message); }
         }
 
         private static string WriteCsv(Document doc, AccModelSet set, List<ScoredClash> scored,

@@ -39,6 +39,12 @@ namespace StingTools.V6
         public string HubId { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
 
+        // N-G2: ACC rejects an issue create with an empty issue_type_id. When
+        // unset, AccIssueSync.EnsureIssueTypeAsync fetches the project's issue
+        // types once and caches a Clash/default type (+ first subtype) here.
+        public string IssueTypeId { get; set; } = string.Empty;
+        public string IssueSubtypeId { get; set; } = string.Empty;
+
         public bool IsStale => string.IsNullOrEmpty(AccessToken) || DateTime.UtcNow >= AccessTokenExpiry.AddMinutes(-5);
     }
 
@@ -103,18 +109,78 @@ namespace StingTools.V6
             finally { _tokenLock.Release(); }
         }
 
+        /// <summary>
+        /// N-G2: Resolve a usable issue_type_id for the container. Order:
+        /// already-cached <see cref="AccCredentials.IssueTypeId"/> → fetch the
+        /// project's issue types once (GET issue-types) and pick a
+        /// Clash/Coordination type (else the first), caching the id (+ first
+        /// subtype). Idempotent; cached on the credentials + persisted.
+        /// </summary>
+        public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
+        {
+            if (!string.IsNullOrEmpty(creds.IssueTypeId)) return true;
+            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return false;
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get,
+                    $"{IssuesUrl}/containers/{creds.ProjectId}/issue-types?include=subtypes&limit=200");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    StingLog.Warn($"AccIssueSync.EnsureIssueType returned {(int)resp.StatusCode}");
+                    return false;
+                }
+                var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                var results = j["results"] as JArray ?? new JArray();
+                if (results.Count == 0) { StingLog.Warn("AccIssueSync.EnsureIssueType: container returned no issue types."); return false; }
+
+                JToken chosen = null;
+                foreach (var t in results)
+                {
+                    string title = ((string)t["title"] ?? string.Empty).ToLowerInvariant();
+                    if (title.Contains("clash") || title.Contains("coordination")) { chosen = t; break; }
+                }
+                chosen ??= results[0];
+                creds.IssueTypeId = (string)chosen["id"] ?? string.Empty;
+                var subs = chosen["subtypes"] as JArray;
+                if (subs != null && subs.Count > 0)
+                    creds.IssueSubtypeId = (string)subs[0]["id"] ?? string.Empty;
+                SaveCredentials(creds);
+                StingLog.Info($"AccIssueSync: resolved issue type '{(string)chosen["title"]}' ({creds.IssueTypeId}).");
+                return !string.IsNullOrEmpty(creds.IssueTypeId);
+            }
+            catch (Exception ex) { StingLog.Error("AccIssueSync.EnsureIssueType failed", ex); return false; }
+        }
+
         /// <summary>Push a STING-originated issue to ACC.</summary>
         public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
         {
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
+
+            // N-G2: an empty issue_type_id is rejected by ACC. Prefer an explicit
+            // type on the issue, else the credentials' configured/cached type,
+            // else fetch + cache one from the project.
+            string typeId = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
+            if (string.IsNullOrEmpty(typeId))
+            {
+                await EnsureIssueTypeAsync(creds).ConfigureAwait(false);
+                typeId = creds.IssueTypeId;
+            }
+            if (string.IsNullOrEmpty(typeId))
+                StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id resolved — ACC will reject. " +
+                              "Set IssueTypeId in acc_credentials.json or ensure the container exposes issue types.");
+
             var body = new JObject
             {
                 ["title"]               = issue.Title,
                 ["description"]         = issue.Description,
                 ["status"]              = issue.Status,
-                ["issue_type_id"]       = issue.IssueType,
+                ["issue_type_id"]       = typeId,
                 ["location_description"]= issue.LocationDescription,
             };
+            if (!string.IsNullOrEmpty(creds.IssueSubtypeId))
+                body["issue_subtype_id"] = creds.IssueSubtypeId;
             var req = new HttpRequestMessage(HttpMethod.Post,
                 $"{IssuesUrl}/containers/{creds.ProjectId}/issues")
             { Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json") };
