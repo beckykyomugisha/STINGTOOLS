@@ -27,6 +27,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
@@ -52,10 +53,11 @@ namespace StingTools.Core.Clash
                     "ACC credentials are not configured.\n\n" +
                     "Create %APPDATA%\\Planscape\\acc_credentials.json with at least:\n" +
                     "  ClientId, ClientSecret, RefreshToken, ProjectId\n\n" +
-                    "ProjectId is the ACC coordination container id.");
+                    "ProjectId is the Issues container; set CoordContainerId if the Model " +
+                    "Coordination container differs.");
                 return Result.Cancelled;
             }
-            string containerId = creds.ProjectId;
+            string containerId = creds.CoordContainer;   // falls back to ProjectId
 
             // 1. List model sets and let the user pick.
             List<AccModelSet> sets;
@@ -102,13 +104,14 @@ namespace StingTools.Core.Clash
                 PenetrationMm = c.PenetrationMm,
             }).ToList();
 
-            var scored = ClashTriageEngine.Triage(inputs);   // top-N by score
+            var scoredAll = ClashTriageEngine.TriageAll(inputs);   // full set (CSV + burn-down)
+            var scored = scoredAll.Take(10).ToList();              // top for display + push
             var byId = clashes.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             // 4. Report + CSV.
             var report = new StringBuilder();
             report.AppendLine($"Model set: {chosen.Name}");
-            report.AppendLine($"Clashes pulled: {clashes.Count}   (top {scored.Count} by triage score)");
+            report.AppendLine($"Clashes pulled: {clashes.Count}   (top {scored.Count} shown; CSV has all {scoredAll.Count})");
             report.AppendLine();
             foreach (var s in scored.Take(10))
             {
@@ -116,7 +119,7 @@ namespace StingTools.Core.Clash
                 report.AppendLine($"  {s.Score:F2}  [{s.Category}]  clash {s.ClashId}" +
                                   (c != null ? $"  pen {c.PenetrationMm:F0}mm  {DocShort(c.LeftDocument)} ↔ {DocShort(c.RightDocument)}" : ""));
             }
-            string csv = WriteCsv(doc, chosen, scored, byId);
+            string csv = WriteCsv(doc, chosen, scoredAll, byId);
             if (csv != null) { report.AppendLine(); report.AppendLine("CSV: " + csv); }
 
             // 5. Offer to push the triaged top clashes back to ACC Issues.
@@ -134,24 +137,33 @@ namespace StingTools.Core.Clash
 
             if (res == TaskDialogResult.CommandLink1)
             {
-                int pushed = PushTopIssues(creds, scored.Take(10).ToList(), byId, chosen);
-                TaskDialog.Show("ACC — Pull Clashes", $"Pushed {pushed} clash(es) to ACC Issues.");
+                string sidecar = SidecarPath(doc);
+                var pushedMap = LoadPushed(sidecar);
+                var (pushed, skipped) = PushTopIssues(creds, scored, byId, chosen, pushedMap);
+                SavePushed(sidecar, pushedMap);
+                TaskDialog.Show("ACC — Pull Clashes",
+                    $"Pushed {pushed} new clash(es) to ACC Issues; {skipped} already pushed (skipped).");
             }
 
             StingLog.Info($"ACC_PullClashes: {clashes.Count} clashes, {scored.Count} triaged, set '{chosen.Name}'.");
             return Result.Succeeded;
         }
 
-        private static int PushTopIssues(AccCredentials creds, List<ScoredClash> top,
-            Dictionary<string, AccClashRecord> byId, AccModelSet set)
+        // Idempotent push: skip clashes already issued (by stable signature), record the
+        // returned ACC issue id in the sidecar so re-runs don't create duplicate issues.
+        private static (int pushed, int skipped) PushTopIssues(AccCredentials creds, List<ScoredClash> top,
+            Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap)
         {
-            int pushed = 0;
+            int pushed = 0, skipped = 0;
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
+                string sig = c != null ? Signature(c) : s.ClashId;
+                if (pushedMap.ContainsKey(sig)) { skipped++; continue; }
+
                 var issue = new AccIssue
                 {
-                    Title = $"Clash {s.ClashId} [{s.Category}] (STING score {s.Score:F2})",
+                    Title = $"Clash [{s.Category}] (STING score {s.Score:F2})",
                     Description = $"Triaged from ACC Model Coordination set '{set.Name}'.\n" +
                                   $"Score {s.Score:F2} — {s.Rationale}\n" +
                                   (c != null ? $"Penetration {c.PenetrationMm:F0} mm; {c.LeftDocument} ↔ {c.RightDocument}" : ""),
@@ -161,11 +173,54 @@ namespace StingTools.Core.Clash
                 try
                 {
                     var id = AccIssueSync.PushIssueAsync(creds, issue).GetAwaiter().GetResult();
-                    if (!string.IsNullOrEmpty(id)) pushed++;
+                    if (!string.IsNullOrEmpty(id)) { pushed++; pushedMap[sig] = id; }
                 }
                 catch (Exception ex) { StingLog.Warn("ACC push issue: " + ex.Message); }
             }
-            return pushed;
+            return (pushed, skipped);
+        }
+
+        /// <summary>Order-invariant clash signature (object dbid @ document for each side,
+        /// sorted) so an A/B swap between ACC runs maps to the same key — true idempotency.</summary>
+        internal static string Signature(AccClashRecord c)
+        {
+            string a = $"{c.LeftObjectId}@{c.LeftDocument}";
+            string b = $"{c.RightObjectId}@{c.RightDocument}";
+            return string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
+        }
+
+        internal static string SidecarPath(Document doc)
+        {
+            string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+            if (string.IsNullOrEmpty(dir))
+                dir = Path.GetDirectoryName(OutputLocationHelper.GetOutputPath(doc, "x.txt")) ?? Path.GetTempPath();
+            string accDir = Path.Combine(dir, "_BIM_COORD", "acc");
+            try { Directory.CreateDirectory(accDir); } catch { }
+            return Path.Combine(accDir, "pushed_clashes.json");
+        }
+
+        internal static Dictionary<string, string> LoadPushed(string path)
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            try
+            {
+                if (path != null && File.Exists(path))
+                    foreach (var p in JObject.Parse(File.ReadAllText(path)).Properties())
+                        map[p.Name] = (string)p.Value ?? string.Empty;
+            }
+            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes load: " + ex.Message); }
+            return map;
+        }
+
+        internal static void SavePushed(string path, Dictionary<string, string> map)
+        {
+            try
+            {
+                var o = new JObject();
+                foreach (var kv in map) o[kv.Key] = kv.Value;
+                File.WriteAllText(path, o.ToString());
+            }
+            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes save: " + ex.Message); }
         }
 
         private static string WriteCsv(Document doc, AccModelSet set, List<ScoredClash> scored,
