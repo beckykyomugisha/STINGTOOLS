@@ -113,6 +113,23 @@ parameter set via `IoTDeviceRegistry`; live read-back stays an FM add-on.
 
 ---
 
+## 4b. Phased tagging (TAG1-only + Scaffold Tiers)
+
+Run the ISO tag now, complete the rest later, in parallel with the team:
+
+- **`Scaffold Tiers`** (one click) binds every tier/container (8 tokens + `ASS_TAG_2..7`
+  + discipline containers + TAG7 A–F), reveals all 10 paragraph tiers (`SetParagraphDepth`
+  T10), and leaves the segment mask at default — a ready-to-fill model for colleagues.
+- **`TAG1_ONLY: true`** in `project_config.json` (set via the Configure command) makes every
+  tagging path write only the 8 tokens + `ASS_TAG_1_TXT` (the ISO 19650 first line) and
+  **skip** the containers + TAG7 narrative — enforced centrally in
+  `ParamRegistry.WriteContainers` + `TagConfig.WriteTag7All`. Default `false` (full pipeline).
+- Colleagues complete the deferred tiers via element **Properties** or the **Excel
+  round-trip** (Export → fill → Import). Gates stay green because `required_containers`
+  is `["ASS_TAG_1_TXT"]` — the deferred tiers are tracked non-blockingly.
+
+---
+
 ## 5. Deployment checklist
 
 1. Copy `_BIM_COORD/` into the temple project folder.

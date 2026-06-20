@@ -197,6 +197,14 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
+        /// <summary>KUT phased tagging: when true, every tag-write path populates the
+        /// 8 source tokens + ASS_TAG_1_TXT (the ISO 19650 first line) only, and SKIPS the
+        /// discipline containers (ASS_TAG_2..7) + the TAG7 narrative — so colleagues can
+        /// complete those tiers later while coordination proceeds. Enforced centrally in
+        /// ParamRegistry.WriteContainers + TagConfig.WriteTag7All. Loaded from
+        /// project_config.json TAG1_ONLY. Default false (full pipeline).</summary>
+        public static bool Tag1Only { get; internal set; } = false;
+
         /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
@@ -617,7 +625,7 @@ namespace StingTools.Core
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
                     "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
                     "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
-                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
+                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT","TAG1_ONLY",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
                     "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
@@ -916,6 +924,14 @@ namespace StingTools.Core
                 {
                     if (gateObj is long gl) ComplianceGatePct = (int)gl;
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
+                }
+
+                // KUT phased tagging — TAG1-only mode (defer containers + TAG7 narrative)
+                Tag1Only = false;
+                if (data.TryGetValue("TAG1_ONLY", out object t1Obj))
+                {
+                    if (t1Obj is bool t1b) Tag1Only = t1b;
+                    else if (bool.TryParse(t1Obj?.ToString(), out bool t1p)) Tag1Only = t1p;
                 }
 
                 // Phase 40: Configurable cost rates filename
@@ -1355,6 +1371,7 @@ namespace StingTools.Core
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
                     ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
                     ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
+                    ["TAG1_ONLY"] = Tag1Only,
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
                     ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,

@@ -1390,6 +1390,7 @@ namespace StingTools.Core
             {
                 // Setup
                 case "LoadParams": return new Tags.LoadSharedParamsCommand();
+                case "ScaffoldTiers": return new Tags.ScaffoldTiersCommand();
                 case "MasterSetup": return new Temp.MasterSetupCommand();
                 case "ProjectSetup": return new Temp.ProjectSetupCommand();
 

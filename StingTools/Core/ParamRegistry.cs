@@ -3246,6 +3246,10 @@ namespace StingTools.Core
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
+            // KUT phased tagging: TAG1-only mode writes ASS_TAG_1 + tokens and defers the
+            // discipline containers for colleagues to complete later. Central guard so every
+            // caller (RunFullPipeline, token writers, auto-tagger) honours it uniformly.
+            if (TagConfig.Tag1Only) return 0;
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
 

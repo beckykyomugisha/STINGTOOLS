@@ -1633,6 +1633,8 @@ namespace StingTools.Core
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
         {
+            // KUT phased tagging: TAG1-only mode defers the TAG7 narrative to the team.
+            if (Tag1Only) return 0;
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
