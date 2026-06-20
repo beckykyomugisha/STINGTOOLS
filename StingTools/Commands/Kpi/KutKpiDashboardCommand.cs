@@ -31,6 +31,9 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
 using StingTools.Core.Clash;
+using StingTools.Core.Storage;
+using StingTools.Core.Twin;
+using StingTools.ExLink;
 using StingTools.UI;
 
 namespace StingTools.Commands.Kpi
@@ -50,6 +53,17 @@ namespace StingTools.Commands.Kpi
         public int OpenClashes { get; set; }
         public double HealthScore { get; set; }
         public Dictionary<string, int> OpenClashBySeverity { get; set; } = new Dictionary<string, int>();
+
+        // Owner-system coverage (Fohlio / SpecLink / Niagara).
+        public int FfeTotal { get; set; }
+        public int FfeLinked { get; set; }
+        public int FfeStale { get; set; }
+        public double FfeLinkedPct => FfeTotal > 0 ? 100.0 * FfeLinked / FfeTotal : 100.0;
+        public int SpecTotal { get; set; }
+        public int SpecAssigned { get; set; }
+        public double SpecCoveragePct => SpecTotal > 0 ? 100.0 * SpecAssigned / SpecTotal : 0;
+        public int BmsPoints { get; set; }
+        public int BmsNoEndpoint { get; set; }
     }
 
     public static class KutKpiEngine
@@ -86,6 +100,59 @@ namespace StingTools.Commands.Kpi
             }
             catch (Exception ex) { StingLog.Warn("KUT KPI clash load: " + ex.Message); }
 
+            // ── Owner-system coverage: Fohlio (FF&E) / SpecLink (CSI) / Niagara (BMS) ──
+            int ffeTotal = 0, ffeLinked = 0, ffeStale = 0;
+            try
+            {
+                var map = FohlioMap.Load(doc);
+                var ffeCats = new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                             .Where(e => e.Category != null && ffeCats.Contains(ParameterHelpers.GetCategoryName(e))))
+                {
+                    ffeTotal++;
+                    if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_REF))) ffeLinked++;
+                    var snap = StingFohlioSnapshotSchema.Read(el);
+                    if (snap != null && snap.CapturedUtcTicks > 0)
+                    {
+                        Dictionary<string, string> sv = null;
+                        try { sv = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); } catch { }
+                        sv = sv ?? new Dictionary<string, string>();
+                        foreach (var p in writeParams)
+                        {
+                            sv.TryGetValue(p, out string snapV);
+                            if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("KUT KPI Fohlio: " + ex.Message); }
+
+            int specTotal = 0, specAssigned = 0;
+            try
+            {
+                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums != null && catEnums.Length > 0)
+                    coll = coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                foreach (var el in coll)
+                {
+                    if (el.Category == null) continue;
+                    specTotal++;
+                    if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION))) specAssigned++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("KUT KPI SpecLink: " + ex.Message); }
+
+            int bmsPoints = 0, bmsNoEndpoint = 0;
+            try
+            {
+                var devs = new IoTDeviceRegistry(doc).All().ToList();
+                bmsPoints = devs.Count;
+                bmsNoEndpoint = devs.Count(d => string.IsNullOrEmpty(d.EndpointAddress));
+            }
+            catch (Exception ex) { StingLog.Warn("KUT KPI BMS: " + ex.Message); }
+
             double compliance = cs.TotalElements > 0 ? cs.CompliancePercent : 0;
             double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / ClashCap));
             double warnClean  = 100.0 * (1.0 - Math.Min(1.0, warnings / WarningCap));
@@ -105,6 +172,9 @@ namespace StingTools.Commands.Kpi
                 OpenClashes        = openClashes,
                 HealthScore        = Math.Round(Math.Max(0, Math.Min(100, health)), 1),
                 OpenClashBySeverity = bySev,
+                FfeTotal = ffeTotal, FfeLinked = ffeLinked, FfeStale = ffeStale,
+                SpecTotal = specTotal, SpecAssigned = specAssigned,
+                BmsPoints = bmsPoints, BmsNoEndpoint = bmsNoEndpoint,
             };
         }
 
@@ -166,6 +236,10 @@ namespace StingTools.Commands.Kpi
                 Row(sb, "Sheet ISO 19650 compliance", $"{s.SheetCompliancePct:F1}%", Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 Row(sb, "Stale elements", $"{s.Stale}", Delta(s.Stale, prev?.Stale, "", invert: true));
                 Row(sb, "Model warnings", $"{s.Warnings}", Delta(s.Warnings, prev?.Warnings, "", invert: true));
+                Row(sb, "Fohlio FF&E linked", $"{s.FfeLinkedPct:F1}% ({s.FfeLinked}/{s.FfeTotal})", Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                Row(sb, "FF&E stale (model ≠ Fohlio)", $"{s.FfeStale}", Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
+                Row(sb, "SpecLink CSI coverage", $"{s.SpecCoveragePct:F1}% ({s.SpecAssigned}/{s.SpecTotal})", Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
+                Row(sb, "BMS points (Niagara)", $"{s.BmsPoints} ({s.BmsNoEndpoint} no endpoint)", Delta(s.BmsPoints, prev?.BmsPoints, ""));
                 sb.Append("</table>");
                 if (s.OpenClashBySeverity.Count > 0)
                 {
@@ -270,6 +344,16 @@ namespace StingTools.Commands.Kpi
              .Metric("Review comment close-out", "via ReviewComments_Import", "import the Bluebeam session summary to compute")
              .Metric("As-built capture currency", "construction stage", "days lag between site change and model update");
 
+            // Owner-system coverage (Fohlio / SpecLink / Niagara)
+            b.AddSection("Owner-system coverage")
+             .RAGBar(snap.FfeLinkedPct, $"Fohlio FF&E linked {snap.FfeLinkedPct:F1}% ({snap.FfeLinked}/{snap.FfeTotal})")
+             .Metric("FF&E stale (model ≠ Fohlio)", snap.FfeStale.ToString(),
+                     snap.FfeTotal == 0 ? "no FF&E in mapped categories" : null)
+             .RAGBar(snap.SpecCoveragePct, $"SpecLink CSI coverage {snap.SpecCoveragePct:F1}% ({snap.SpecAssigned}/{snap.SpecTotal})")
+             .Metric("BMS points (Niagara)", snap.BmsPoints.ToString(),
+                     snap.BmsPoints == 0 ? "none tagged — populate ICT_HEALTHIOT_* on BMS controllers"
+                                         : $"{snap.BmsNoEndpoint} without endpoint");
+
             // Trend
             b.AddSection("Trend (30-day)")
              .Metric("Compliance trend", trendDir, $"{(trendDelta >= 0 ? "+" : "")}{trendDelta:F1} pp over window");
@@ -297,6 +381,11 @@ namespace StingTools.Commands.Kpi
                 R("Sheet compliance %", $"{s.SheetCompliancePct:F1}", KutKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
                 R("Stale elements", $"{s.Stale}", KutKpiEngine.Delta(s.Stale, prev?.Stale, "", invert: true));
                 R("Model warnings", $"{s.Warnings}", KutKpiEngine.Delta(s.Warnings, prev?.Warnings, "", invert: true));
+                R("Fohlio FF&E linked %", $"{s.FfeLinkedPct:F1}", KutKpiEngine.Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                R("FF&E stale", $"{s.FfeStale}", KutKpiEngine.Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
+                R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", KutKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
+                R("BMS points (Niagara)", $"{s.BmsPoints}", "");
+                R("BMS points without endpoint", $"{s.BmsNoEndpoint}", "");
                 foreach (var kv in s.OpenClashBySeverity.OrderByDescending(k => k.Value))
                     R($"Open clashes — {kv.Key}", kv.Value.ToString(), "");
                 string path = OutputLocationHelper.GetOutputPath(doc, $"STING_KUT_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");

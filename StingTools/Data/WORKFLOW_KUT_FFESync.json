@@ -1,0 +1,11 @@
+{
+  "name": "KUT FF&E Sync",
+  "description": "Kampala Uganda Temple — FF&E / finishes round-trip with Fohlio (link, never duplicate). Step 1 exports the FF&E register in Fohlio's import shape; you then update Fohlio outside Revit (the Interior Designer's authoritative source); steps 2-3 import the Fohlio export back (writing FOHLIO_REF_TXT + manufacturer/model + an ES snapshot) and audit currency (linked % / missing-ref / stale). Because the Fohlio round-trip happens between steps 1 and 2, you can cancel after step 1 and resume from the Import on a later pass — Import opens a file picker for the Fohlio export. Needs the KUT fohlio_map.json deployed to _BIM_COORD/.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "Fohlio_Export", "label": "1. Export FF&E register (CSV) → update Fohlio outside Revit" },
+    { "commandTag": "Fohlio_Import", "label": "2. Import the Fohlio export — write FOHLIO_REF + fields (diff preview)" },
+    { "commandTag": "Fohlio_Audit", "label": "3. Currency audit — linked % / missing-ref / stale (model ≠ Fohlio)" }
+  ]
+}

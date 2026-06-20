@@ -56,6 +56,7 @@ wins** — so you are activating/localising, never forking.
 | `WORKFLOW_KUT_CoordinationCycle.json` | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
 | `WORKFLOW_KUT_DeliverableD.json` | §4.4 | Close-out — LOD 400 verify/stamp, SpecLink reconcile, audit, sign-off |
 | `WORKFLOW_KUT_MonthlyReport.json` | §4.6 | Monthly — read-only KPI chain for the status report |
+| `WORKFLOW_KUT_FFESync.json` | A1 Fohlio | FF&E round-trip — Fohlio export → import → currency audit |
 
 Run from **STING panel → Workflows**, or `WorkflowPreset`.
 
@@ -81,7 +82,15 @@ monthly report is always computed from the current model, never hand-kept.
 `_BIM_COORD/kpi/kut_kpi_log.jsonl` for fortnight-on-fortnight burn-down, and
 writes an HTML + CSV report for attachment to the monthly status report. It is
 the final step of the **KUT Monthly Report** workflow. Model-health score =
-compliance 40% · clash 25% · warnings 20% · stale 15%.
+compliance 40% · clash 25% · warnings 20% · stale 15%. The dashboard also
+surfaces **Owner-system coverage**: Fohlio FF&E linked %, FF&E stale, SpecLink
+CSI coverage %, and Niagara BMS point count (+ points missing an endpoint).
+
+**Niagara (BMS) bridge** — `Niagara_ExportPoints` writes a Niagara-ingestable
+point list (controls submittal) from BMS/IoT-tagged devices; `Niagara_Reconcile`
+compares a Niagara/BACnet station export against the modelled BMS devices
+(station-only vs model-only points). Device source is the `ICT_HEALTHIOT_*`
+parameter set via `IoTDeviceRegistry`; live read-back stays an FM add-on.
 
 ---
 

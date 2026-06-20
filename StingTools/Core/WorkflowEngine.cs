@@ -1522,6 +1522,8 @@ namespace StingTools.Core
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
+                case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
+                case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
