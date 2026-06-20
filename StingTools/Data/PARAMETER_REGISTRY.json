@@ -1,6 +1,6 @@
 {
-  "version": "5.12",
-  "description": "STING Tools master parameter registry v5.11 \u2014 Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
+  "version": "5.13",
+  "description": "STING Tools master parameter registry v5.11 — Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -106,6 +106,13 @@
       "data_type": "Number"
     },
     {
+      "param_name": "ASS_CST_UNIT_RATE_TXT",
+      "guid": "87396d32-3d9d-54be-a262-7d5f7d29748c",
+      "description": "Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_CST_CURRENCY_TXT",
       "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42",
       "description": "ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR.",
@@ -119,6 +126,13 @@
       "binding": "universal",
       "required": false,
       "data_type": "Number"
+    },
+    {
+      "param_name": "ASS_CST_FX_TO_BASE_TXT",
+      "guid": "e5273e47-d3e3-5d07-bee4-67be5764a8a2",
+      "description": "FX rate to project base currency at write time [Phase 184] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_CST_FX_DATE_DT",
@@ -158,12 +172,26 @@
       "data_type": "Number"
     },
     {
+      "param_name": "ASS_PMT_PCT_COMPLETE_TXT",
+      "guid": "bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe",
+      "description": "Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_PMT_CERT_NO_NR",
       "guid": "b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d51",
       "description": "Payment certificate number this line item was last valued in (Phase 184g / P5).",
       "binding": "universal",
       "required": false,
       "data_type": "Integer"
+    },
+    {
+      "param_name": "ASS_PMT_CERT_NO_TXT",
+      "guid": "1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1",
+      "description": "Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_PMT_CERT_DATE_DT",
@@ -200,6 +228,13 @@
       "binding": "universal",
       "required": false,
       "data_type": "Number"
+    },
+    {
+      "param_name": "ASS_VAR_VALUATION_TXT",
+      "guid": "6a1a42f5-5097-52fb-b552-f14af0d6ee46",
+      "description": "Variation valuation amount in project base currency [Phase 184g / P5] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_INST_DETAIL_NUM_TXT",
@@ -361,7 +396,7 @@
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
-      "description": "Pattern selector \u2014 Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -369,7 +404,7 @@
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
-      "description": "Pattern selector \u2014 Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -377,7 +412,7 @@
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
-      "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -1441,7 +1476,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "a1b2c3d4-5035-4a01-b001-000000000153",
-      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
+      "description": "Tag bounding box fill color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1449,7 +1484,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "a1b2c3d4-5036-4a01-b001-000000000154",
-      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
+      "description": "Tag bounding box fill color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1457,7 +1492,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "a1b2c3d4-5037-4a01-b001-000000000155",
-      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
+      "description": "Tag bounding box fill color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1488,7 +1523,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "a1b2c3d4-5039-4a01-b001-000000000157",
-      "description": "Tag leader line color \u2014 Red channel (0-255)",
+      "description": "Tag leader line color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1496,7 +1531,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "a1b2c3d4-503a-4a01-b001-000000000158",
-      "description": "Tag leader line color \u2014 Green channel (0-255)",
+      "description": "Tag leader line color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1504,7 +1539,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "a1b2c3d4-503b-4a01-b001-000000000159",
-      "description": "Tag leader line color \u2014 Blue channel (0-255)",
+      "description": "Tag leader line color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1588,6 +1623,13 @@
       "required": false
     },
     {
+      "param_name": "ASS_ELEVATION_TXT",
+      "guid": "227b2546-457f-5b19-8791-6b9178d5f87f",
+      "description": "Element elevation in metres from project base (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_HOST_ELEMENT_TXT",
       "guid": "50f91aad-5ca3-55b6-8250-aa4d836d5bb7",
       "description": "Host element type and ID (for hosted families)",
@@ -1666,9 +1708,23 @@
       "required": false
     },
     {
+      "param_name": "PER_EMBODIED_ENERGY_TXT",
+      "guid": "b58970a6-d52d-55d0-96b7-d68a0b6c664c",
+      "description": "Embodied energy in megajoules [EN 15978] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PER_RECYCLABILITY_PCT",
       "guid": "6cfbec62-d60b-a0ef-4954-0e5cc4789aa5",
       "description": "Material recyclability percentage",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PER_RECYCLABILITY_TXT",
+      "guid": "bbf9bcbc-1b12-5fde-9c9b-4ae747d363b4",
+      "description": "Per Recyclability Pct [ISO 19650] (text mirror for tag display)",
       "binding": "universal",
       "required": false
     },
@@ -1683,6 +1739,13 @@
       "param_name": "PER_REPLACEMENT_COST_UGX",
       "guid": "b89f39a7-54ec-e344-a786-445af1f3b3d0",
       "description": "Replacement cost (UGX) for lifecycle analysis",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PER_REPLACEMENT_COST_TXT",
+      "guid": "0d29b8c2-019e-571b-89dc-0e71e0ad813f",
+      "description": "Per Replacement Cost Ugx [ISO 19650] (text mirror for tag display)",
       "binding": "universal",
       "required": false
     },
@@ -1890,6 +1953,13 @@
       "group": "Warning"
     },
     {
+      "param_name": "BLE_STAIR_HEADROOM_TXT",
+      "guid": "cf0b5e3e-f5e4-51d0-bf22-1612b328aa9b",
+      "description": "Stair headroom clearance in mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "Stairs",
+      "required": false
+    },
+    {
       "param_name": "BLE_RAIL_HEIGHT_MM",
       "guid": "4075ffb1-b93e-5970-a963-501c205f1aba",
       "description": "Railing height in mm. Maps from RAILING_HEIGHT.",
@@ -1912,6 +1982,13 @@
       "binding": "MechanicalEquipment",
       "required": false,
       "group": "Warning"
+    },
+    {
+      "param_name": "HVC_EFF_RATIO_TXT",
+      "guid": "3d7a7cb8-0465-5473-910b-623aab16f554",
+      "description": "Hvc Eff Ratio Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "MechanicalEquipment",
+      "required": false
     },
     {
       "param_name": "PER_ACOUSTIC_WALL_STC",
@@ -1938,12 +2015,26 @@
       "group": "Warning"
     },
     {
+      "param_name": "STR_FDN_DEPTH_TXT",
+      "guid": "5110768a-b5a2-5cd0-9308-4aff706affe6",
+      "description": "Str Fdn Depth Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "StructuralFoundation",
+      "required": false
+    },
+    {
       "param_name": "BLE_CEILING_HEIGHT_MM",
       "guid": "b1eaf7da-66bc-50d7-8261-eba13ac865e6",
       "description": "Ceiling height offset in mm. Maps from dimensional params.",
       "binding": "Ceilings",
       "required": false,
       "group": "Warning"
+    },
+    {
+      "param_name": "BLE_CEILING_HEIGHT_TXT",
+      "guid": "6e92a1ff-e900-5756-ab32-a226bd175c53",
+      "description": "Ble Ceiling Height Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "Ceilings",
+      "required": false
     },
     {
       "param_name": "ASS_INSTALLATION_DATE_TXT",
@@ -1972,6 +2063,13 @@
       "param_name": "SLV_SZ_MM",
       "guid": "ed2365b1-c559-573e-a9ae-c8554db2572b",
       "description": "Sleeve size in millimetres",
+      "binding": "Instance",
+      "required": false
+    },
+    {
+      "param_name": "SLV_SZ_TXT",
+      "guid": "2ccd0842-ede9-54b2-aab3-5fd49452565f",
+      "description": "Sleeve size in millimetres (text mirror for tag display)",
       "binding": "Instance",
       "required": false
     },
@@ -2062,7 +2160,7 @@
     {
       "param_name": "STING_SLEEVE_PFV_UUID",
       "guid": "cfe809e7-77c4-5f44-a43c-1d770d97abea",
-      "description": "Deterministic UUIDv5 keyed on (host, mep) \u2014 round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
+      "description": "Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2070,7 +2168,7 @@
     {
       "param_name": "STING_SLEEVE_BORE_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13",
-      "description": "Round sleeve bore in millimetres (element OD + 2\u00d7 insulation + 2\u00d7 clearance, clamped to rule minimum).",
+      "description": "Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2094,7 +2192,7 @@
     {
       "param_name": "STING_SLEEVE_DEPTH_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16",
-      "description": "Sleeve depth in millimetres (host thickness + 2\u00d7 protrusion).",
+      "description": "Sleeve depth in millimetres (host thickness + 2× protrusion).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2160,6 +2258,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_CST_QUANTITY_TXT",
+      "guid": "a1c796dd-93f5-5a34-994e-36a1f779a9e3",
+      "description": "Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_DESIGN_LTG_LVL_LUX_NR",
       "guid": "bfacc484-130a-5d4f-ab93-6980d071f989",
       "description": "Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020]",
@@ -2172,6 +2277,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_DESIGN_LTG_LVL_LUX_TXT",
+      "guid": "0fb2556e-ec10-5480-900c-b73a57bf52fa",
+      "description": "Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ASS_DESIGN_OCCUPANCY_INT",
       "guid": "65769434-297a-58ea-b9af-7a885f365936",
       "description": "Ass Design Occupancy Int [ISO 19650-3:2020]",
@@ -2182,6 +2294,13 @@
       "required": false,
       "discipline": "Asset",
       "curated": true
+    },
+    {
+      "param_name": "ASS_DESIGN_OCCUPANCY_TXT",
+      "guid": "0010d317-701e-5981-ba89-44823cc1ff33",
+      "description": "Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_ROOM_FUNCTION_USE_TXT",
@@ -2220,6 +2339,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_CEILING_GRID_SZ_TXT",
+      "guid": "2ddb2e9f-1097-5d62-aef4-f5b9742993f9",
+      "description": "Ble Ceiling Grid Sz Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_CEILING_LIGHT_REFLECTANCE_PCT",
       "guid": "711abfdb-7127-56c1-b3f5-7f318171812d",
       "description": "Ble Ceiling Light Reflectance Pct [ISO 19650-1:2018]",
@@ -2254,6 +2380,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_TXT",
+      "guid": "bb308a80-36e0-5653-8e0b-7faaad07f7ee",
+      "description": "Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_CEILING_PLENUM_HEIGHT_MM",
@@ -2494,6 +2627,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_FLR_LD_CAP_TXT",
+      "guid": "2c2a5908-ae78-5367-a2b0-70c0e4329804",
+      "description": "Ble Flr Ld Cap Kpa [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_FLR_SLIP_RESISTANCE_RATING_NR",
@@ -2748,6 +2888,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT",
+      "guid": "6c64d0a3-aea6-59dc-b086-d7f8de019994",
+      "description": "Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR",
       "guid": "5ee56aa6-f559-578c-9b72-6100c852fda1",
       "description": "Ble Wall Thermal Transmittance U Value W M 2k Nr [ISO 19650-1:2018]",
@@ -2808,6 +2955,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT",
+      "guid": "bb0d271d-f7d4-556e-9118-706ab7bbbc47",
+      "description": "Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_WINDOW_U_VALUE_W_M_2K_NR",
       "guid": "909af979-fe49-5c81-a0f8-db5c1f5e4ee0",
       "description": "Ble Window U Value W M 2k Nr [ISO 19650-1:2018]",
@@ -2818,6 +2972,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_WINDOW_U_VALUE_W_M_2K_TXT",
+      "guid": "f9ebfe27-54f6-519a-a789-bc86a75fd3f8",
+      "description": "Ble Window U Value W M 2k Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT",
@@ -3192,6 +3353,13 @@
       "curated": true
     },
     {
+      "param_name": "CST_S_REI_WEIGHT_TXT",
+      "guid": "879f204e-0c98-5915-93ec-b04b3b5bd98b",
+      "description": "Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "CST_S_REI_WEIGHT_WASTAGE_KG",
       "guid": "d9b73a97-fed2-5b86-86ac-0c53f1987157",
       "description": "Cst S Rei Weight Wastage Kg [ISO 19650-2:2018]",
@@ -3264,6 +3432,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CKT_CUR_TXT",
+      "guid": "63f7f8ff-710d-55f5-bc17-d4e328162c81",
+      "description": "Elc Ckt Cur A [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_DIV_FCT_NR",
       "guid": "f7aed743-08cc-5147-ae86-f7049c7b7f39",
       "description": "Elc Div Fct Nr [ISO 19650-1:2018]",
@@ -3288,6 +3463,13 @@
       "curated": true
     },
     {
+      "param_name": "MNT_HGT_TXT",
+      "guid": "496f30fe-abc1-5ecb-b3a6-46dfaafb1c77",
+      "description": "Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_PNL_PHS_COUNT_NR",
       "guid": "febd6223-1632-599f-991b-cbeb3b8fd979",
       "description": "Elc Pnl Phs Count Nr [ISO 19650-1:2018]",
@@ -3298,6 +3480,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_PNL_PHS_COUNT_TXT",
+      "guid": "ea7a5324-3196-5f29-83dd-239c8f59a233",
+      "description": "Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_PNL_VLT_V",
@@ -3312,6 +3501,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_PNL_VLT_TXT",
+      "guid": "6abac03e-94a6-52a2-bbf1-56759c2bccb4",
+      "description": "Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_PWR_KW",
       "guid": "1090274a-74b8-5ac4-8eaf-4f36c4b6cb55",
       "description": "Elc Pwr Kw [ISO 19650-1:2018]",
@@ -3322,6 +3518,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_PWR_TXT",
+      "guid": "8102aa91-d49e-5fe6-bba2-15193fdb2d9f",
+      "description": "Elc Pwr Kw [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_SPARE_WAYS_NR",
@@ -3336,6 +3539,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_SPARE_WAYS_TXT",
+      "guid": "12fe11e1-3b12-57d6-9b30-5022298d7e62",
+      "description": "Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "HVC_CAP_KW",
       "guid": "9990d504-d0ac-5537-80cd-a4eb66746e51",
       "description": "Hvc Cap Kw [ISO 19650-1:2018]",
@@ -3346,6 +3556,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_CAP_TXT",
+      "guid": "f1dfe78d-0896-5267-94a2-39d9a585b409",
+      "description": "Hvc Cap Kw [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_CAP_TR",
@@ -3420,6 +3637,13 @@
       "curated": true
     },
     {
+      "param_name": "HVC_DUCT_AREA_TXT",
+      "guid": "e4905f7a-06cf-5e9f-9340-18c1b6506cbd",
+      "description": "Hvc Duct Area Sq M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "HVC_DUCT_CLASS_TXT",
       "guid": "a767df19-9d03-51fd-a59b-81dc2037dd94",
       "description": "Hvc Duct Class Txt [ISO 19650-1:2018]",
@@ -3442,6 +3666,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_DUCT_FLOWRATE_TXT",
+      "guid": "4c234732-d8b4-5495-bf1e-396a644b0dba",
+      "description": "Hvc Duct Flowrate M3h [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_DUCT_LINING_TXT",
@@ -3480,6 +3711,13 @@
       "curated": true
     },
     {
+      "param_name": "HVC_PIPE_PRESSURE_TXT",
+      "guid": "b1c49ec2-8384-52de-8784-e9f8e9bb5b37",
+      "description": "Hvc Pipe Pressure Kpa [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "HVC_PWR_KW",
       "guid": "7cdd6e98-8462-5ecf-9223-a830c5c4622b",
       "description": "Hvc Pwr Kw [ISO 19650-1:2018]",
@@ -3490,6 +3728,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_PWR_TXT",
+      "guid": "cc2aea55-13fc-5321-9682-97bb14f7bae6",
+      "description": "Hvc Pwr Kw [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_REFRIGERANT_TXT",
@@ -3636,6 +3881,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_PPE_INS_THK_TXT",
+      "guid": "5bf693b8-574e-58f1-967e-338bb43ce853",
+      "description": "Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_PPE_INS_TYPE_TXT",
       "guid": "3eebb62d-4e9f-507a-8e9a-301a838ab774",
       "description": "Plm Ppe Ins Type Txt [ISO 19650-1:2018]",
@@ -3684,6 +3936,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_PPE_PSR_RATING_TXT",
+      "guid": "38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2",
+      "description": "Plm Ppe Psr Rating Bar [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_PSR_KPA",
       "guid": "bbf823b4-e2d3-5df8-99a8-4a641f5c8663",
       "description": "Plm Psr Kpa [ISO 19650-1:2018]",
@@ -3694,6 +3953,13 @@
       "required": false,
       "discipline": "Plumbing",
       "curated": true
+    },
+    {
+      "param_name": "PLM_PSR_TXT",
+      "guid": "ebcdad42-8f11-507f-99ba-b613849b16e8",
+      "description": "Plm Psr Kpa [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PLM_PWR_KW",
@@ -3744,6 +4010,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_VLV_CV_TXT",
+      "guid": "d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5",
+      "description": "Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_VLV_END_CONNECTION_TXT",
       "guid": "91eddd10-93a4-55bd-ad71-ca0f79c0b9fd",
       "description": "Plm Vlv End Connection Txt [ISO 19650-1:2018]",
@@ -3792,6 +4065,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CDT_SZ_TXT",
+      "guid": "c1050457-a218-5918-acfe-0ddff3083ced",
+      "description": "Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_CDT_MAT_TXT",
       "guid": "1d4c7468-66e8-4ee7-a13f-25fd28d4a875",
       "description": "Conduit material: GS-GALV/UPVC/SS316/AL-FLEX/EMT [ISO 19650-1:2018]",
@@ -3828,6 +4108,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CTR_WIDTH_TXT",
+      "guid": "a96f5f59-cd70-504e-9b20-80e50ef87113",
+      "description": "Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_CTR_DEPTH_MM",
       "guid": "60f19e3f-1cc9-431d-b041-22be14800ecb",
       "description": "Cable tray depth/return: 50/75/100mm [ISO 19650-1:2018]",
@@ -3862,6 +4149,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_CTR_FILL_TXT",
+      "guid": "3d9e3389-8895-515e-9a54-432290be0481",
+      "description": "Design cable fill percentage, max 40% for future capacity [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "SEC_DEV_ZONE_TXT",
@@ -4116,6 +4410,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_ACC_CONNECTION_SZ_TXT",
+      "guid": "2d377ba8-5812-5625-b32b-97099f815629",
+      "description": "Plm Acc Connection Sz Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "CST_UNIT_PRICE_SAND_UGX",
       "guid": "d5f55c06-5782-43c1-b8d6-47ac44a03f29",
       "description": "Unit price per cubic meter sand in UGX [ISO 19650-3:2020]",
@@ -4308,6 +4609,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_VNT_SZ_TXT",
+      "guid": "86b70d34-2f6b-56a2-80ba-24cf2144c00c",
+      "description": "Plm Vnt Sz Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PRJ_INFORMATION_SPARE_02_TXT",
       "guid": "b4e2d00d-a873-4fa9-bdc4-3d57fe742671",
       "description": "Spare parameter 2 for PRJ_INFORMATION group",
@@ -4354,6 +4662,13 @@
       "required": false,
       "discipline": "Performance",
       "curated": true
+    },
+    {
+      "param_name": "PER_THERM_R_VALUE_TXT",
+      "guid": "91ffa390-3dc0-5755-9ea9-737a64acf7d1",
+      "description": "Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PLM_DRN_PPE_SLOPE_PCT",
@@ -4426,6 +4741,13 @@
       "required": false,
       "discipline": "Cost",
       "curated": true
+    },
+    {
+      "param_name": "CST_CALC_AREA_TXT",
+      "guid": "76cdec7f-59a3-5de6-bf25-c15255a981ee",
+      "description": "Calculated area in square meters [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MA_ELEMENT_NAME_TXT",
@@ -4666,6 +4988,13 @@
       "required": false,
       "discipline": "Lighting",
       "curated": true
+    },
+    {
+      "param_name": "LTG_CLR_RENDERING_INDEX_TXT",
+      "guid": "a22cab3a-3815-5f9f-8447-2d34ec1e35e6",
+      "description": "Ltg Clr Rendering Index Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PLM_STR_BODY_MAT_TXT",
@@ -5002,6 +5331,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_CBL_NUM_OF_CORES_TXT",
+      "guid": "1257668b-628d-5ad7-a74e-5761f3788382",
+      "description": "Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_THERM_THERMAL_MASS_KJ_M2K_KJ",
@@ -6012,6 +6348,13 @@
       "curated": true
     },
     {
+      "param_name": "COM_C_PWR_SUPPLY_TXT",
+      "guid": "bbccda93-5b33-58cd-889a-b9eb56853e6e",
+      "description": "Com C Pwr Supply V [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_APP-SURFACE-BG-PATTERN",
       "guid": "0007744c-a411-51ac-8722-314271c17c5a",
       "description": "Ble App-surface-bg-pattern [ISO 19650-1:2018]",
@@ -7008,6 +7351,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_CRITICALITY_RATING_TXT",
+      "guid": "ab05e034-3374-5996-a39f-cefdf502e852",
+      "description": "Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_DRN_GRT_MAT_TXT",
       "guid": "4eef976d-29bc-568b-a137-114aa4a205a2",
       "description": "Plm Drn Grt Mat Txt [ISO 19650-1:2018]",
@@ -7126,6 +7476,13 @@
       "required": false,
       "discipline": "Lighting",
       "curated": true
+    },
+    {
+      "param_name": "LTG_CLR_TEMP_TXT",
+      "guid": "137315a5-f948-53a9-8745-25bad90d0770",
+      "description": "Ltg Clr Temp K [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MAT_LAYER_3_THICKNESS_MM",
@@ -7404,6 +7761,13 @@
       "curated": true
     },
     {
+      "param_name": "COM_C_DEV_BACNET_INSTANCE_TXT",
+      "guid": "a5ed6a44-3ebc-5c87-900c-75c69d413ed3",
+      "description": "Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_DRN_FLW_RATE_LPS",
       "guid": "098dc279-7870-50e9-93c3-5ba1b8ff9a20",
       "description": "Plm Drn Flw Rate Lps [ISO 19650-1:2018]",
@@ -7560,6 +7924,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_EXPECTED_LIFE_YEARS_TXT",
+      "guid": "8a640eab-e9ee-5aea-ad41-2be625cbadd4",
+      "description": "Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "MAT_EPD_REF_TXT",
       "guid": "9858e380-29bb-430b-82d0-7f2898d2fd3d",
       "description": "Environmental Product Declaration reference number per ISO 22057 [ISO 22057:2022]",
@@ -7630,6 +8001,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_STRUCT_LD_CAP_KN_TXT",
+      "guid": "e276658b-1928-5a8a-acd6-cc39845d344f",
+      "description": "Ble Struct Ld Cap Kn Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "CST_S_CON_SLUMP_MM",
@@ -8038,6 +8416,13 @@
       "required": false,
       "discipline": "Cost",
       "curated": true
+    },
+    {
+      "param_name": "CST_CALC_LENGTH_TXT",
+      "guid": "227ec904-3722-558d-941a-4353dd1e86a9",
+      "description": "Calculated length in meters [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_CBL_DERATING_FCT_NR",
@@ -9204,6 +9589,13 @@
       "curated": true
     },
     {
+      "param_name": "FLS_SFTY_COVERAGE_AREA_TXT",
+      "guid": "fd84f1d1-2ee9-53a2-9b93-7330681db40c",
+      "description": "Fls Sfty Coverage Area Sq M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "MAT_LAYER_4_FUNCTION",
       "guid": "3bc551ba-bd2b-5a28-8080-3d5d069ee07d",
       "description": "Mat Layer 4 Function [ISO 19650-1:2018]",
@@ -9468,6 +9860,13 @@
       "curated": true
     },
     {
+      "param_name": "PER_SUST_RECYCLED_CONTENT_TXT",
+      "guid": "842a9ea1-6b64-574f-b379-193b754d9009",
+      "description": "Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BI_TOP_COLOR_TXT",
       "guid": "38ccbdc5-caea-4d85-aa28-99f47183871b",
       "description": "Top gradient color RGB [ISO 19650-1:2018]",
@@ -9574,6 +9973,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_PIPE_LENGTH_TXT",
+      "guid": "1726b568-27df-5b33-8280-2caf1ad76658",
+      "description": "Hvc Pipe Length M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT",
@@ -10068,6 +10474,13 @@
       "curated": true
     },
     {
+      "param_name": "FLS_SFTY_K_FACTOR_TXT",
+      "guid": "e270f744-cc5d-5314-b94f-553bc032819f",
+      "description": "Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PROP_FIRE_RATING",
       "guid": "e9f9cfd6-e086-5eff-93a3-97eb552693a1",
       "description": "Prop Fire Rating [ISO 19650-1:2018]",
@@ -10368,6 +10781,13 @@
       "curated": true
     },
     {
+      "param_name": "LTG_EFFICACY_TXT",
+      "guid": "eb0c1e49-7095-530f-b727-db520e5108c8",
+      "description": "Ltg Efficacy Lm W [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PH_START_DATE_TXT",
       "guid": "fc7097df-9530-4b88-b075-a5bb4a891742",
       "description": "Phase start date [ISO 19650-2:2018]",
@@ -10548,6 +10968,13 @@
       "curated": true
     },
     {
+      "param_name": "HVC_DCT_SOUNDLVL_TXT",
+      "guid": "1d72d95c-05c9-5ede-ad45-19783edce060",
+      "description": "Hvc Dct Soundlvl Db [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_STRUCT_FOUNDATION_SZ_TXT",
       "guid": "b2c3d4e5-f6a7-8901-bcde-2345678901b2",
       "description": "Foundation plan dimensions (e.g. 1500x1500mm) [ISO 19650-1:2018]",
@@ -10618,6 +11045,13 @@
       "required": false,
       "discipline": "Performance",
       "curated": true
+    },
+    {
+      "param_name": "PER_SUST_WTR_RATING_TXT",
+      "guid": "db793c52-b25f-5a84-a2bb-3c073a1282cc",
+      "description": "Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_MAINTENANCE_SCHEDULE_TXT",
@@ -11244,6 +11678,13 @@
       "curated": true
     },
     {
+      "param_name": "FLS_SFTY_FLW_RATE_LPM_TXT",
+      "guid": "4b4f4aa7-8c5a-5860-9343-762dcae636c6",
+      "description": "Fls Sfty Flw Rate Lpm Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_HOTWTR_RECOVERY_RATE_GPH",
       "guid": "c17099fc-7c35-5d7d-892a-c6eca3f8f1a4",
       "description": "Plm Hotwtr Recovery Rate Gph [ISO 19650-1:2018]",
@@ -11302,6 +11743,13 @@
       "required": false,
       "discipline": "Fire & Life Safety",
       "curated": true
+    },
+    {
+      "param_name": "FLS_SFTY_TEMP_RATING_TXT",
+      "guid": "768413c0-29c0-5294-b609-e2d0ddea913f",
+      "description": "Fls Sfty Temp Rating C [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "VT_DISCIPLINE_TXT",
@@ -11388,6 +11836,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_FLR_AREA_TXT",
+      "guid": "cdebeb28-d111-5ad6-83bb-a8e0580b2c76",
+      "description": "Ble Flr Area Sq M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_FLR_TILE_QTY_NR",
       "guid": "da8a5092-8b76-50d2-8431-2ee49178446c",
       "description": "Ble Flr Tile Qty Nr [ISO 19650-1:2018]",
@@ -11424,6 +11879,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_RAMP_LENGTH_TXT",
+      "guid": "b2ce7f06-1e90-588c-852d-861c674477db",
+      "description": "Ble Ramp Length Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_STAIR_PITCH_LINE_MM",
       "guid": "6d2c0cf8-58b7-5fc3-aabc-f5a85679f33a",
       "description": "Ble Stair Pitch Line Mm [ISO 19650-1:2018]",
@@ -11458,6 +11920,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_WINDOW_AREA_TXT",
+      "guid": "d160688c-d537-5475-82de-ed60b9cd91db",
+      "description": "Ble Window Area Sq M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_WINDOW_WWR_PCT",
@@ -11532,6 +12001,13 @@
       "curated": true
     },
     {
+      "param_name": "FLS_ALARM_CIRCUIT_COUNT_TXT",
+      "guid": "f3c087dd-1eea-529e-a3c1-dc5496a3335f",
+      "description": "Fls Alarm Circuit Count Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "FLS_DETECTION_COST_UGX",
       "guid": "329519d6-e473-54e3-ab24-0753b172baa9",
       "description": "Fls Detection Cost Ugx [ISO 19650-1:2018]",
@@ -11544,6 +12020,13 @@
       "curated": true
     },
     {
+      "param_name": "FLS_DETECTION_COST_TXT",
+      "guid": "6dbc3568-ac21-5244-8398-0d6ec74318cb",
+      "description": "Fls Detection Cost Ugx [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "FLS_DETECTOR_COUNT_NR",
       "guid": "bc024757-f274-5834-a34e-1175dc263198",
       "description": "Fls Detector Count Nr [ISO 19650-1:2018]",
@@ -11554,6 +12037,13 @@
       "required": false,
       "discipline": "Fire & Life Safety",
       "curated": true
+    },
+    {
+      "param_name": "FLS_DETECTOR_COUNT_TXT",
+      "guid": "0ad23463-565e-558a-91a8-1387bb2a04a2",
+      "description": "Fls Detector Count Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "FLS_EVACUATION_TIME_MIN",
@@ -11650,6 +12140,13 @@
       "required": false,
       "discipline": "Fire & Life Safety",
       "curated": true
+    },
+    {
+      "param_name": "FLS_SFTY_HEADS_OPERATING_TXT",
+      "guid": "079163cd-137b-5199-abe7-a68e5db2e2dd",
+      "description": "Fls Sfty Heads Operating Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "FLS_SFTY_MAX_TRAVEL_DIST_M",
@@ -11784,6 +12281,13 @@
       "curated": true
     },
     {
+      "param_name": "HVC_AIR_CHANGES_PER_TXT",
+      "guid": "3f161746-3904-5bce-8f1a-3a2cac9abf0f",
+      "description": "Hvc Air Changes Per Hr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "HVC_HED_M",
       "guid": "e1db732f-9834-50d1-80fd-ab6bd18fc5fc",
       "description": "Hvc Hed M [ISO 19650-1:2018]",
@@ -11806,6 +12310,13 @@
       "required": false,
       "discipline": "Lighting",
       "curated": true
+    },
+    {
+      "param_name": "LTG_DESIGN_ILLUMINANCE_TXT",
+      "guid": "8fd4dfa3-b36f-5a47-b589-be2562f6c10c",
+      "description": "Ltg Design Illuminance Lux [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "LTG_POWER_DENSITY_W_M2",
@@ -11914,6 +12425,13 @@
       "required": false,
       "discipline": "Performance",
       "curated": true
+    },
+    {
+      "param_name": "PER_SUST_EMBODIED_CARBON_TXT",
+      "guid": "97abf67f-84fe-5fc2-b311-8deed7e4caec",
+      "description": "Per Sust Embodied Carbon Kg [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_SUST_ENERGY_USE_KWH_M2",
@@ -12082,6 +12600,13 @@
       "required": false,
       "discipline": "Performance",
       "curated": true
+    },
+    {
+      "param_name": "PER_THERM_U_VALUE_TXT",
+      "guid": "9ee43234-91ad-580e-95c9-0dd9c1e0997d",
+      "description": "Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PLM_PPE_SZ_INCH",
@@ -13044,6 +13569,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CBL_FEEDER_SZ_TXT",
+      "guid": "99aea13e-affc-5bdb-83e7-850b4ea0fa31",
+      "description": "Feeder cable cross-section area in mm2 [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ICT_TEL_OUTLET_QTY_NR",
       "guid": "c2ca3e24-ee24-5245-a398-ea4eed6e42ee",
       "description": "Number of telephone outlets [ISO 19650-1:2018]",
@@ -13054,6 +13586,13 @@
       "required": false,
       "discipline": "ICT/Data",
       "curated": true
+    },
+    {
+      "param_name": "ICT_TEL_OUTLET_QTY_TXT",
+      "guid": "985606e1-da7e-51dd-a351-a81373ed0a2a",
+      "description": "Number of telephone outlets [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ICT_TEL_PORT_TYPE_TXT",
@@ -13260,6 +13799,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CBT_SUPPORT_SPACING_TXT",
+      "guid": "a1cdfb11-0ce1-589c-be7e-132be49d4002",
+      "description": "Cable tray support spacing (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_CDT_BEND_RADIUS_MM",
       "guid": "28eff30f-4a9f-41d0-8368-414a49d6f5c6",
       "description": "Conduit bend radius",
@@ -13270,6 +13816,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_CDT_BEND_RADIUS_TXT",
+      "guid": "794dbd03-1c38-59ef-a360-04409fa4dc16",
+      "description": "Conduit bend radius (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_CDT_FAB_METHOD_TXT",
@@ -13294,6 +13847,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_CDT_SUPPORT_SPACING_TXT",
+      "guid": "c74e791d-cb70-5a1b-ab47-1fd596b510f6",
+      "description": "Conduit support spacing (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_DCT_FAB_METHOD_TXT",
@@ -13354,6 +13914,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_DCT_SUPPORTS_SPACING_TXT",
+      "guid": "c4db2b4e-0e36-51d1-9d8a-a4ff8c620910",
+      "description": "Duct support spacing (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_SUST_EPD_REF_TXT",
@@ -13440,6 +14007,13 @@
       "curated": true
     },
     {
+      "param_name": "PLM_PPE_SUPPORTS_SPACING_TXT",
+      "guid": "3c97f82e-a2a8-5d9b-9b33-5fdc647b82b4",
+      "description": "Pipe support spacing (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "PLM_PPE_WELD_TYPE_TXT",
       "guid": "723f57dd-9123-4592-9db3-e8c70a072cff",
       "description": "Pipe weld type",
@@ -13462,6 +14036,13 @@
       "required": false,
       "discipline": "Regulatory",
       "curated": true
+    },
+    {
+      "param_name": "RGL_KCCA_CERT_TXT",
+      "guid": "df882e35-1a1b-511d-817f-14fd3aaead1b",
+      "description": "KCCA certification number (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RGL_NEMA_CERT_NR",
@@ -13498,6 +14079,13 @@
       "required": false,
       "discipline": "Regulatory",
       "curated": true
+    },
+    {
+      "param_name": "RGL_NWSC_CERT_TXT",
+      "guid": "af342ac2-6935-5bb7-bcce-f3df4b26be6f",
+      "description": "NWSC certification number (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RGL_UMEME_APPROVAL_REQ_BOOL",
@@ -14834,7 +15422,7 @@
     {
       "param_name": "ASS_TAG_SCHEME_TXT",
       "guid": "2c8224df-92e0-567b-a9df-c8cd1e4402a3",
-      "description": "Project-grammar tag rendering (TagSchemeEngine) \u2014 derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
+      "description": "Project-grammar tag rendering (TagSchemeEngine) — derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
       "binding": "universal",
       "required": false
     },
@@ -14935,6 +15523,13 @@
       "curated": true
     },
     {
+      "param_name": "ASS_WEIGHT_KG_TXT",
+      "guid": "d461c3ab-0925-5748-923c-65ada3fce6fa",
+      "description": "Ass Weight Kg [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "COM_C_PANEL_TXT",
       "guid": "d2828a98-abba-5a71-825c-e8b1c6355fe9",
       "description": "Com C Panel [ISO 19650]",
@@ -15029,6 +15624,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_NOISE_LEVEL_TXT",
+      "guid": "ab9ad566-d2f6-5c7c-aaef-0bcb01286b0a",
+      "description": "Hvc Noise Level Db [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_THROW_M",
@@ -15175,6 +15777,13 @@
       "curated": true
     },
     {
+      "param_name": "PER_FIRE_RATING_TXT",
+      "guid": "de410371-898b-5eaf-be43-7759c0356d7c",
+      "description": "Per Fire Rating Hr [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_CASEWORK_FINISH_TXT",
       "guid": "6732cab3-765e-5123-b19f-b88152500842",
       "description": "Ble Casework Finish [ISO 19650]",
@@ -15281,6 +15890,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_FLOOR_LOAD_TXT",
+      "guid": "e2feb9ec-bd57-503c-9741-951f1711241c",
+      "description": "Ble Floor Load Kn M2 [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_FLOOR_SLIP_RESISTANCE_TXT",
@@ -15415,6 +16031,13 @@
       "curated": true
     },
     {
+      "param_name": "BLE_ROOM_OCCUPANCY_TXT",
+      "guid": "83f1b4c5-0ede-5d8b-809e-b48515f7dc40",
+      "description": "Ble Room Occupancy [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "BLE_STAIR_NR_RISERS_NR",
       "guid": "9d89ab30-8c23-53fa-9730-970af9124216",
       "description": "Ble Stair Risers [ISO 19650]",
@@ -15437,6 +16060,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_STRUCT_CAMBER_TXT",
+      "guid": "2037773a-1803-54fe-b90d-2721fad8ef13",
+      "description": "Ble Struct Camber Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_STRUCT_COVER_MM",
@@ -15485,6 +16115,13 @@
       "required": false,
       "discipline": "Building Elements",
       "curated": true
+    },
+    {
+      "param_name": "BLE_STRUCT_SPAN_TXT",
+      "guid": "9bda132a-c181-5942-870b-161320f21a4a",
+      "description": "Ble Struct Span Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "BLE_STRUCT_WATERPROOFING_TXT",
@@ -15703,6 +16340,13 @@
       "curated": true
     },
     {
+      "param_name": "STR_BRACE_LENGTH_TXT",
+      "guid": "c21de18f-ac3e-5254-b79f-3b8baff64174",
+      "description": "Str Brace Length Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "STR_BRACE_MATERIAL_TXT",
       "guid": "146ccb6b-3c8b-5a67-b516-5dbbf814ee82",
       "description": "Str Brace Material [ISO 19650]",
@@ -15763,6 +16407,13 @@
       "curated": true
     },
     {
+      "param_name": "STR_COL_HEIGHT_TXT",
+      "guid": "e9dc9060-38d4-5c23-9367-0cedf36dcb1b",
+      "description": "Str Col Height Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "STR_COL_MATERIAL_TXT",
       "guid": "4f960380-04d7-5950-a1c8-eca82f8e3b0a",
       "description": "Str Col Material [ISO 19650]",
@@ -15787,6 +16438,13 @@
       "curated": true
     },
     {
+      "param_name": "STR_COL_MOMENT_CAPACITY_TXT",
+      "guid": "58097a9b-2e70-5ac3-ad7f-b075b2541dce",
+      "description": "Str Col Moment Capacity Knm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "STR_COL_SECTION_TXT",
       "guid": "43a3abd7-6ea0-56b3-b076-2352644e37de",
       "description": "Str Col Section [ISO 19650]",
@@ -15809,6 +16467,13 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "STR_COL_SIZE_TXT",
+      "guid": "44c2a03e-6950-54e4-be4f-332662c10de2",
+      "description": "Str Col Size Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_COL_SPLICE_DETAIL_TXT",
@@ -15907,6 +16572,13 @@
       "curated": true
     },
     {
+      "param_name": "STR_FDN_BEARING_TXT",
+      "guid": "aa42c948-e992-5c11-ad8a-063444b63681",
+      "description": "Str Fdn Bearing Kn M2 [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "STR_FDN_COVER_MM",
       "guid": "d38c58f7-86a5-5aa4-81a7-4f305f0e00a1",
       "description": "Str Fdn Cover Mm [ISO 19650]",
@@ -15917,6 +16589,13 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "STR_FDN_COVER_TXT",
+      "guid": "bfe441bd-a402-5ae9-a93a-314e766aa900",
+      "description": "Str Fdn Cover Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_FDN_EXPOSURE_CLASS_TXT",
@@ -15979,6 +16658,13 @@
       "curated": true
     },
     {
+      "param_name": "STR_FDN_SETTLEMENT_TXT",
+      "guid": "d0f0b52a-4a24-571e-901b-5756906342a7",
+      "description": "Str Fdn Settlement Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "STR_FDN_SIZE_MM",
       "guid": "950a2924-339d-5512-b74a-e5c6ee377f40",
       "description": "Str Fdn Size Mm [ISO 19650]",
@@ -15989,6 +16675,13 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "STR_FDN_SIZE_TXT",
+      "guid": "9e8a7181-f02c-5c05-9264-9d8722cec712",
+      "description": "Str Fdn Size Mm [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_FDN_TYPE_TXT",
@@ -16049,6 +16742,13 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "STR_LOAD_AXIAL_TXT",
+      "guid": "484027f0-05e4-5aac-996c-d795b57b6697",
+      "description": "Str Load Axial Kn [ISO 19650] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_LOAD_CASE_TXT",
@@ -18307,6 +19007,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_LPS_ROLLING_SPHERE_RADIUS_TXT",
+      "guid": "5eb70931-71f1-5b83-b3aa-ef8bace4b339",
+      "description": "Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60) (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_LPS_MESH_SIZE_M",
       "guid": "d6a9566f-eda9-5e6d-9dcf-fd14440c395b",
       "description": "Air terminal mesh grid size in metres per BS EN 62305 class",
@@ -18317,6 +19024,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_MESH_SIZE_TXT",
+      "guid": "d9e69f3e-8750-5314-a669-5afd7b4ee6ce",
+      "description": "Air terminal mesh grid size in metres per BS EN 62305 class (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_AIR_TERMINAL_COUNT_NR",
@@ -18331,6 +19045,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_LPS_AIR_TERMINAL_COUNT_TXT",
+      "guid": "2d8bee86-b579-52d0-9e8b-13d3ac70344c",
+      "description": "Count of air terminals / lightning rods on the protected zone (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",
       "guid": "157527ba-17a8-5014-b6c5-f70273ccd5f5",
       "description": "Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)",
@@ -18341,6 +19062,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT",
+      "guid": "79636e90-122f-51ca-8c70-fc0fe1311656",
+      "description": "Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I) (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",
@@ -18355,6 +19083,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_LPS_EARTH_ELECTRODE_COUNT_TXT",
+      "guid": "f7f74ece-6f7b-5b34-becc-fe0271252d4a",
+      "description": "Count of earth electrodes serving the LPS (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_LPS_EARTH_RESISTANCE_OHM",
       "guid": "80da349f-708b-5165-bb2e-f369dec80e4b",
       "description": "Measured earth resistance in ohms (target <10 ohm per BS EN 62305)",
@@ -18365,6 +19100,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_EARTH_RESISTANCE_TXT",
+      "guid": "64bfbc63-3117-5b2e-907d-1599ae95ec61",
+      "description": "Measured earth resistance in ohms (target <10 ohm per BS EN 62305) (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_BOND_TYPE_TXT",
@@ -18389,6 +19131,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_PROTECTION_ANGLE_TXT",
+      "guid": "381046ca-eec3-5a46-b69a-c1ab709280e1",
+      "description": "Protection cone half-angle in degrees per BS EN 62305 class (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_ZONE_TXT",
@@ -18439,6 +19188,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_LPS_SEPARATION_DISTANCE_TXT",
+      "guid": "a2bc7edc-fd77-5617-9b04-c39c623050dd",
+      "description": "Separation distance (s) between LPS and services in millimetres (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
       "guid": "423133ca-7535-521d-9c37-65ec7ae68166",
       "description": "Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)",
@@ -18449,6 +19205,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_CONDUCTOR_CROSS_SECT_TXT",
+      "guid": "16ff46ea-ac8e-5b6e-8f74-6e8c9e76b962",
+      "description": "Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305) (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_EARTH_TYPE_TXT",
@@ -18533,6 +19296,13 @@
       "required": false,
       "discipline": "Electrical",
       "curated": true
+    },
+    {
+      "param_name": "ELC_LPS_PROJECT_NG_OVERRIDE_TXT",
+      "guid": "094be161-c341-5db9-bf8a-66f182942bf6",
+      "description": "Project ground flash density Ng (flashes/km2/year) override from lightning location service (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ELC_LPS_KC_FACTOR_NR",
@@ -19975,6 +20745,13 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CIRCUIT_POLES_TXT",
+      "guid": "ddffb732-0e99-546e-900f-8574313b3f34",
+      "description": "Number of poles (1/2/3/4) for circuit breakers and switches -- rendered into SLD labels [STING Phase 175] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "ELC_CIRCUIT_LABEL_TXT",
       "guid": "c2a7e5b1-3004-5333-9333-300000000004",
       "description": "Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]",
@@ -20131,6 +20908,13 @@
       "curated": true
     },
     {
+      "param_name": "CLN_MRI_ZONE_TXT",
+      "guid": "dee3b0a5-352b-56dc-bcb7-45feab640572",
+      "description": "MRI safety zone 1..4 [IEC 60601-2-33] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
       "param_name": "CLN_RF_SHIELD_BOOL",
       "guid": "c8d4f6e2-a013-4d27-8c61-0e7a3f9b0013",
       "description": "RF Faraday cage present (MRI suite)",
@@ -20177,6 +20961,13 @@
       "required": false,
       "discipline": "Clinical (Healthcare)",
       "curated": true
+    },
+    {
+      "param_name": "CLN_BARI_DESIGN_KG_TXT",
+      "guid": "165a8d91-660c-59fc-8f60-93964875b5bf",
+      "description": "Bariatric Safe Working Load (kg) [iHFG / HBN 04-01] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "CLN_HOIST_TRACK_BOOL",
@@ -20393,6 +21184,13 @@
       "required": false,
       "discipline": "Radiation",
       "curated": true
+    },
+    {
+      "param_name": "RAD_LEAD_MM_TXT",
+      "guid": "d5dccabf-86a8-5738-af8d-37c8f7a2c9dd",
+      "description": "Pb-equivalent thickness in this element (mm) [NCRP 147] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RAD_BARRIER_TYPE_TXT",
@@ -24345,7 +25143,7 @@
     {
       "param_name": "HVC_SEGMENT_ROLE_TXT",
       "guid": "5bf0485f-08dd-53d1-9cc5-d956305d42e0",
-      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) \u2014 cached by HvacSegmentRoleDetector [Phase 182]",
+      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) — cached by HvacSegmentRoleDetector [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24357,7 +25155,7 @@
     {
       "param_name": "HVC_SIZE_PREV_TXT",
       "guid": "b4385937-438e-5d5f-8ce0-f13c2a94a63d",
-      "description": "Previous duct size before auto-sizing run, format WxH or \u00d8 (audit trail) [Phase 182]",
+      "description": "Previous duct size before auto-sizing run, format WxH or Ø (audit trail) [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24429,7 +25227,7 @@
     {
       "param_name": "HVC_REFRIGERANT_KG_NR",
       "guid": "b99d07d1-6eca-50cf-b983-b6fe2442bc8c",
-      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand \u00d7 GWP) [Phase 183]",
+      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24437,6 +25235,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_REFRIGERANT_KG_TXT",
+      "guid": "11fd9c48-fb13-50ce-a390-a2f058c8c06f",
+      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand x GWP) [Phase 183] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "HVC_REFRIGERANT_TYPE_TXT",
@@ -24461,6 +25266,13 @@
       "required": false,
       "discipline": "HVAC",
       "curated": true
+    },
+    {
+      "param_name": "HVC_CAPACITY_TXT",
+      "guid": "64ee1612-3175-5bee-8b0e-ea2a1769058a",
+      "description": "Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PRJ_ORG_PRESSURE_PROFILE_TXT",
@@ -25557,6 +26369,349 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "ASBUILT_DEVIATION_TXT",
+      "guid": "b0240f42-75eb-525e-8697-dd2f33c325e6",
+      "description": "As-built vs as-designed deviation in millimetres (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_TOTAL_UGX_TXT",
+      "guid": "69e7f507-c82e-5e2d-8b19-5d355b9ed3a8",
+      "description": "Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_CST_UNIT_PRICE_UGX_TXT",
+      "guid": "4a8ee051-94ad-5357-8b43-c7a1963b6d84",
+      "description": "Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_ROOM_AREA_TXT",
+      "guid": "8a10a348-6a17-54ed-a724-0852d6492917",
+      "description": "Ass Room Area Sq M [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_DOOR_HEIGHT_TXT",
+      "guid": "434b3940-d611-58e5-a81c-d63d18da15aa",
+      "description": "Ble Door Height Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_DOOR_WIDTH_TXT",
+      "guid": "4734089c-fa37-579e-8f71-758a42b82221",
+      "description": "Ble Door Width Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ELE_AREA_TXT",
+      "guid": "d4b0741c-a2d7-5ee5-892e-02be28efd9c1",
+      "description": "Ble Ele Area Sq M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_FLR_THICKNESS_TXT",
+      "guid": "29a70160-6c99-50a7-83ed-0ea27f51fed5",
+      "description": "Ble Flr Thickness Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_HEADROOM_TXT",
+      "guid": "4a947d35-b607-5089-9597-d4a6dea6e212",
+      "description": "General headroom clearance in mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_RAMP_SLOPE_TXT",
+      "guid": "6d067dcc-a4a8-534e-89a0-7ef33a11d653",
+      "description": "Ble Ramp Slope Pct [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_RAMP_WIDTH_TXT",
+      "guid": "57b52bf8-9954-5c31-bd01-fd1b7e8255cf",
+      "description": "Ble Ramp Width Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ROOF_AREA_TXT",
+      "guid": "1aa96203-7842-5246-bdf5-0d876cd1d66e",
+      "description": "Roof plan area in sq.m [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ROOF_SLOPE_TXT",
+      "guid": "abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b",
+      "description": "Ble Roof Slope Deg [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ROOF_THICKNESS_TXT",
+      "guid": "9b87e199-9093-5504-b89f-2b0ea512b657",
+      "description": "Roof construction build-up thickness in mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT",
+      "guid": "c4e6bdb8-e228-5ff2-a3c9-cbe1af209963",
+      "description": "Room fire escape capacity in persons [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_ROOM_VENTILATION_RATE_TXT",
+      "guid": "48b1203d-e147-549c-90fd-678fe0b453d5",
+      "description": "Room design ventilation rate in l/s [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_STAIR_GOING_TXT",
+      "guid": "df42357b-7d1b-5b0b-a7d6-1763c0471652",
+      "description": "Ble Stair Going Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_STAIR_RISE_TXT",
+      "guid": "0ac4b034-dbe9-5847-9eee-ec5c831a76b5",
+      "description": "Ble Stair Rise Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_STAIR_WIDTH_TXT",
+      "guid": "17a05cf1-cb77-543e-a764-c681437bc529",
+      "description": "Ble Stair Width Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_WALL_THICKNESS_TXT",
+      "guid": "d083d603-797b-5775-aba8-a2d988ea67ad",
+      "description": "Ble Wall Thickness Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_WINDOW_HEIGHT_TXT",
+      "guid": "891b9d0d-741f-55ab-b05f-e66304fd1cb9",
+      "description": "Ble Window Height Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "BLE_WINDOW_WIDTH_TXT",
+      "guid": "2fe8a5aa-96d4-52f0-9673-349e20d2d5dd",
+      "description": "Ble Window Width Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CBN_A1_A3_KG_TXT",
+      "guid": "f549b09b-7b62-52ad-814f-15a6cd64b03a",
+      "description": "Embodied carbon A1-A3 product stage (manufacturing) kgCO2e (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CBN_A4_KG_TXT",
+      "guid": "a2f6f15f-b082-5b3e-b8eb-bea4e3927717",
+      "description": "Embodied carbon A4 transport to site kgCO2e (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CBN_B6_KG_TXT",
+      "guid": "7d7ee67d-a00a-5146-a26d-426360c875ca",
+      "description": "Operational carbon B6 energy annual kgCO2e/yr (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CLASH_TRIAGE_SEVERITY_TXT",
+      "guid": "443c8f33-03cc-5714-b77f-7ba5869564ff",
+      "description": "Clash triage severity 1 (lowest) to 5 (highest) (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CST_FIX_LUMEN_OUTPUT_TXT",
+      "guid": "2faac999-b3b7-55bc-9fd4-57a40f64e14c",
+      "description": "Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CST_INTL_PRICE_TXT",
+      "guid": "afaa54ec-cd64-58a2-9da2-e9cf309d34cb",
+      "description": "International supplier unit price in USD (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "CST_UG_PRICE_TXT",
+      "guid": "16b60b47-afb8-5b36-a3a9-c5ac99f598de",
+      "description": "Local Uganda unit price in UGX (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CDT_CBL_FILL_TXT",
+      "guid": "2097624c-c3ad-59bd-9a80-0ac8e5fb4f24",
+      "description": "Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CKT_PHASE_COUNT_TXT",
+      "guid": "add8ab8a-b528-533d-a39f-ef2202475da9",
+      "description": "Elc Ckt Phase Count Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_CKT_TXT",
+      "guid": "421483f2-ce3b-58eb-ba9b-3607c0c4f477",
+      "description": "Elc Ckt Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_PNL_CONNECTED_LOAD_TXT",
+      "guid": "8630888a-98a9-56ff-9c2a-83a50130187a",
+      "description": "Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_PNL_MAIN_BRK_TXT",
+      "guid": "c800dcd8-bf15-5bf5-93ad-0287ff86949d",
+      "description": "Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_PNL_NUM_OF_WAYS_TXT",
+      "guid": "312ce154-a768-5ad8-8be9-b4f3e98707b6",
+      "description": "Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_PNL_RATED_TXT",
+      "guid": "6917f15c-d540-584d-a35e-8b9a1399337d",
+      "description": "Panel rated capacity kW (for overload check) [ISO 19650-3:2020] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_TXT",
+      "guid": "2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c",
+      "description": "Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_VLT_DROP_TXT",
+      "guid": "efcb399c-f695-51e3-b34e-f6a67bfdb82b",
+      "description": "Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_VLT_PRIMARY_RATING_TXT",
+      "guid": "0553394c-6926-5460-bc44-4fc45ac42ed9",
+      "description": "Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ELC_VOLTAGE_TXT",
+      "guid": "fa5f8fbb-0d15-536e-adc7-5b5a5570359d",
+      "description": "Device operating voltage in V [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "FAB_HANGER_LOAD_TXT",
+      "guid": "5309d54c-bfe6-588e-b6da-12ea16c64b11",
+      "description": "MEP fabrication hanger design load in kN [SMACNA/BS 7671] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HEALTH_SCORE_LAST_TXT",
+      "guid": "1b84257b-1f60-5e21-96d7-4424a462a26e",
+      "description": "Last model health score 0 to 100 (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_DCT_FLW_TXT",
+      "guid": "42f1024e-ff68-5bea-bf9a-e774cdd0fe7f",
+      "description": "Hvc Dct Flw Cfm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "HVC_VEL_TXT",
+      "guid": "63a173d6-6108-5ff4-b87d-f318250e313f",
+      "description": "Hvc Vel Mps [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "LTG_FIX_LMP_WATTAGE_TXT",
+      "guid": "27a3fae8-4cc8-5638-8329-826db3ce4880",
+      "description": "Ltg Fix Lmp Wattage W [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_PPE_FLW_TXT",
+      "guid": "0cdfd7a4-8174-59bf-b496-b3ef1f97ab51",
+      "description": "Plm Ppe Flw Lps [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_PPE_LENGTH_TXT",
+      "guid": "70816e3d-82c5-53a5-ac09-2aa19c82d786",
+      "description": "Plm Ppe Length M [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_PPE_SZ_TXT",
+      "guid": "b9d2812d-5e30-5f84-994c-ddb7e018ba08",
+      "description": "Plm Ppe Sz Mm [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "PLM_VEL_TXT",
+      "guid": "184dc33c-9982-5614-9fa1-e3712a601ec7",
+      "description": "Plm Vel Mps [ISO 19650-1:2018] (text mirror for tag display)",
+      "binding": "universal",
+      "required": false
     }
   ],
   "token_presets": {
@@ -25651,7 +26806,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line top \u2014 DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
+          "description": "Multi-line top — DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
         },
         {
           "param_name": "ASS_TAG_6_TXT",
@@ -25660,7 +26815,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line bottom \u2014 SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
+          "description": "Multi-line bottom — SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
         },
         {
           "param_name": "ASS_TAG_7_TXT",
@@ -25669,7 +26824,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -25678,7 +26833,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -25687,7 +26842,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -25696,7 +26851,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -25705,7 +26860,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -25714,7 +26869,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -25723,7 +26878,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
         },
         {
           "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
@@ -27690,7 +28845,7 @@
         "key": "TERM_CAPPED",
         "param_name": "ASS_TERM_CAPPED_BOOL",
         "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
-        "description": "Termination capped/blanked flag (connectivity validator \u2014 open end with intentional cap)",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
         "categories": [
           "Pipes",
           "Ducts",
@@ -27735,12 +28890,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m\u00b2)"
+        "description": "Room area (m²)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m\u00b3)"
+        "description": "Room volume (m³)"
       },
       {
         "key": "DEPT",
@@ -27866,7 +29021,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m\u00b2)"
+        "description": "Element area (m²)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -28128,7 +29283,7 @@
       {
         "key": "ELC_PNL_FAULT_KA",
         "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
-        "description": "Calculated fault current at panel (kA) \u2014 reuses Phase 175 short-circuit param [STING Phase 178]",
+        "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28146,7 +29301,7 @@
         "key": "ELC_FEEDER_CSA",
         "param_name": "ELC_FEEDER_CSA_MM2",
         "guid": "f1d6e7c8-1002-5178-9178-100000000002",
-        "description": "Calculated / proposed feeder cable cross-sectional area (mm\u00b2) \u2014 distinct from circuit cable size [STING Phase 178]",
+        "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28155,7 +29310,7 @@
         "key": "ELC_FEEDER_RATING_A",
         "param_name": "ELC_FEEDER_RATING_A",
         "guid": "f1d6e7c8-1003-5178-9178-100000000003",
-        "description": "Calculated feeder breaker / fuse rating in amperes \u2014 the upstream protective device rating [STING Phase 178]",
+        "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28163,7 +29318,7 @@
       {
         "key": "ELC_CKT_VD_PCT",
         "param_name": "ELC_VLT_DROP_PCT",
-        "description": "Calculated voltage drop % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits"
         ]
@@ -28171,7 +29326,7 @@
       {
         "key": "ELC_CKT_CSA_MM2",
         "param_name": "ELC_CBL_SZ_MM",
-        "description": "Assigned cable CSA \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits",
           "Wires"
@@ -28180,7 +29335,7 @@
       {
         "key": "ELC_CONDUIT_FILL_PCT",
         "param_name": "ELC_CDT_CBL_FILL_PCT",
-        "description": "Calculated conduit fill % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Conduits"
         ]
@@ -28198,7 +29353,7 @@
         "key": "ELC_LPD_W_M2",
         "param_name": "ELC_LPD_W_PER_M2",
         "guid": "f1d6e7c8-1005-5178-9178-100000000005",
-        "description": "Calculated lighting power density (W/m\u00b2) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
+        "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -28207,7 +29362,7 @@
         "key": "ELC_LPD_LIMIT_W_M2",
         "param_name": "ELC_LPD_LIMIT_W_PER_M2",
         "guid": "f1d6e7c8-1006-5178-9178-100000000006",
-        "description": "Standard LPD limit for the room type (W/m\u00b2) [STING Phase 178]",
+        "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -28225,7 +29380,7 @@
         "key": "ELC_ARC_FLASH_IE",
         "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",
         "guid": "a2e7f8d9-1001-5179-9179-100000000001",
-        "description": "Calculated incident energy in cal/cm\u00b2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
+        "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28243,7 +29398,7 @@
         "key": "ELC_ARC_FLASH_PPE",
         "param_name": "ELC_ARC_FLASH_PPE_CAT",
         "guid": "a2e7f8d9-1003-5179-9179-100000000003",
-        "description": "NFPA 70E Table 130.5(G) PPE category 0\u20134 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28279,7 +29434,7 @@
         "key": "ELC_BUSBAR_CSA",
         "param_name": "ELC_BUSBAR_CSA_MM2",
         "guid": "a2e7f8d9-1007-5179-9179-100000000007",
-        "description": "Busbar trunking conductor cross-sectional area (mm\u00b2) [BS EN 60439-1 / STING Phase 179]",
+        "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]",
         "categories": [
           "Electrical Equipment",
           "Cable Trays"
@@ -31141,7 +32296,7 @@
       {
         "key": "STING_SLEEVE_CREATED_BY",
         "param_name": "STING_SLEEVE_CREATED_BY",
-        "description": "Audit \u2014 placement command"
+        "description": "Audit — placement command"
       }
     ],
     "tier_4_10": [
@@ -31159,7 +32314,7 @@
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000002",
-        "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
         "categories": [
           "ALL"
         ],
@@ -31169,7 +32324,7 @@
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000003",
-        "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
         ],
@@ -31179,7 +32334,7 @@
         "key": "CST_UG_PRICE",
         "param_name": "CST_UG_PRICE_UGX",
         "guid": "694fcd57-d0c2-5ed3-afca-f225781b3bc8",
-        "description": "Uganda local price (UGX) \u2014 quoted supplier price ex-works",
+        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
         "categories": [
           "ALL"
         ],
@@ -31189,7 +32344,7 @@
         "key": "CST_INTL_PRICE",
         "param_name": "CST_INTL_PRICE_USD",
         "guid": "c40720fa-3e80-5880-86c3-a82f43055fbf",
-        "description": "International price (USD) \u2014 CIF/DAP quote for imported goods",
+        "description": "International price (USD) — CIF/DAP quote for imported goods",
         "categories": [
           "ALL"
         ],
@@ -31199,7 +32354,7 @@
         "key": "CST_QUOTE_REF",
         "param_name": "CST_QUOTE_REF_TXT",
         "guid": "4de58d8f-38e2-584f-b8aa-5a5744a80fcd",
-        "description": "Quote reference \u2014 supplier quote/PO number",
+        "description": "Quote reference — supplier quote/PO number",
         "categories": [
           "ALL"
         ],
@@ -31209,7 +32364,7 @@
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000001",
-        "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
         "categories": [
           "ALL"
         ],
@@ -31219,7 +32374,7 @@
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000002",
-        "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
         "categories": [
           "ALL"
         ],
@@ -31229,7 +32384,7 @@
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
         "guid": "5753b5aa-0006-4000-8000-000000000003",
-        "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
         "categories": [
           "ALL"
         ],
@@ -31239,7 +32394,7 @@
         "key": "ASS_SPOOL_NR",
         "param_name": "ASS_SPOOL_NR_TXT",
         "guid": "1a4353be-eaaa-5e46-95ee-b64a74667194",
-        "description": "Fabrication spool number \u2014 BS EN ISO 6412 isometric reference",
+        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
         "categories": [
           "ALL"
         ],
@@ -31259,7 +32414,7 @@
         "key": "ASS_QC_INSPECTOR",
         "param_name": "ASS_QC_INSPECTOR_TXT",
         "guid": "a028f908-b100-53bc-b21a-1a0a6a03ffac",
-        "description": "QC inspector \u2014 name / ID of signing engineer",
+        "description": "QC inspector — name / ID of signing engineer",
         "categories": [
           "ALL"
         ],
@@ -31269,7 +32424,7 @@
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
         "guid": "5753b5aa-0008-4000-8000-000000000001",
-        "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
         "categories": [
           "ALL"
         ],
@@ -31299,7 +32454,7 @@
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
         "guid": "5753b5aa-0009-4000-8000-000000000001",
-        "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
         "categories": [
           "ALL"
         ],
@@ -31309,7 +32464,7 @@
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
         "guid": "5753b5aa-0009-4000-8000-000000000002",
-        "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
         "categories": [
           "ALL"
         ],
@@ -31319,7 +32474,7 @@
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
         "guid": "5753b5aa-0009-4000-8000-000000000003",
-        "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
         "categories": [
           "ALL"
         ],
@@ -31329,7 +32484,7 @@
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000001",
-        "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
         ],
@@ -31339,7 +32494,7 @@
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000002",
-        "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
         ],
@@ -31359,7 +32514,7 @@
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000010",
-        "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
         "categories": [
           "ALL"
         ],
@@ -31379,7 +32534,7 @@
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
         "guid": "5753b5aa-0005-4000-8000-000000000010",
-        "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
         "categories": [
           "ALL"
         ],
@@ -31389,7 +32544,7 @@
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
         "guid": "5753b5aa-0005-4000-8000-000000000011",
-        "description": "Labour crew identifier \u2014 crew code assigned to install",
+        "description": "Labour crew identifier — crew code assigned to install",
         "categories": [
           "ALL"
         ],
@@ -31399,7 +32554,7 @@
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
         "guid": "5753b5aa-0005-4000-8000-000000000012",
-        "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
         "categories": [
           "ALL"
         ],
@@ -31409,7 +32564,7 @@
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000010",
-        "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
         "categories": [
           "ALL"
         ],
@@ -31419,7 +32574,7 @@
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000011",
-        "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
         "categories": [
           "ALL"
         ],
@@ -31429,7 +32584,7 @@
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000012",
-        "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
         "categories": [
           "ALL"
         ],
@@ -31439,7 +32594,7 @@
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000013",
-        "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
         "categories": [
           "ALL"
         ],
@@ -31449,7 +32604,7 @@
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
         "guid": "5753b5aa-0008-4000-8000-000000000010",
-        "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
         "categories": [
           "ALL"
         ],
@@ -31459,7 +32614,7 @@
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
         "guid": "5753b5aa-0008-4000-8000-000000000011",
-        "description": "Clash resolution action \u2014 remediation action taken or planned",
+        "description": "Clash resolution action — remediation action taken or planned",
         "categories": [
           "ALL"
         ],
@@ -32244,7 +33399,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32334,7 +33489,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32524,7 +33679,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32554,7 +33709,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32694,7 +33849,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32704,7 +33859,7 @@
       "guid": "9cff654b-b254-4be2-9067-c5bb1fbb2b1b",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32834,7 +33989,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m\u00b2",
+      "unit": "W/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32894,7 +34049,7 @@
       "guid": "b8930262-2de1-4ec1-a68b-c7d1ce741b3c",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO\u2082e/m\u00b2",
+      "unit": "kgCO₂e/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32904,7 +34059,7 @@
       "guid": "05aac695-72d4-4826-be4c-f7f050ff2cba",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32914,7 +34069,7 @@
       "guid": "8fad1a00-1d39-4672-87f7-72aa5f3350c2",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32924,7 +34079,7 @@
       "guid": "a64d1a09-088f-4e61-9356-8190e9efc50e",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -32934,7 +34089,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "\u00b5g/m\u00b3",
+      "unit": "µg/m³",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -37485,7 +38640,7 @@
       "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
       "description": "Foundation bearing capacity minimum (warn if allowable bearing falls below this) [BS 8004 / BS EN 1997-1 Eurocode 7]",
       "threshold": "100",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
@@ -37830,7 +38985,7 @@
       "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
       "description": "Embodied carbon limit A1-A5, offices (2025 target; 2030 target 350) [LETI Climate Emergency Design Guide / RIBA 2030 Challenge]",
       "threshold": "600",
-      "unit": "kgCO\u2082/m\u00b2",
+      "unit": "kgCO₂/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",

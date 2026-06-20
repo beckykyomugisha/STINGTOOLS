@@ -1163,14 +1163,13 @@ namespace StingTools.Tags
             bool preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
             string activeMode = HandoverModeHelper.GetActiveMode(doc);
 
-            // ── Pre-check: Auto-fix any numeric label params to TEXT ──
+            // ── Pre-check: Validate label param types (informational only — do NOT auto-fix MR_PARAMETERS.txt) ──
+            // AutoFixSourceFile() removed: it re-manufactured type conflicts by rewriting MR_PARAMETERS.txt
+            // to TEXT on every CreateTagFamilies run. Correct architecture uses _TXT mirror params.
             var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
             if (typeMismatches.Count > 0)
-            {
-                int autoFixed = LabelParamTypeValidator.AutoFixSourceFile();
-                if (autoFixed > 0)
-                    StingLog.Info($"Auto-fixed {autoFixed} label params to TEXT before family creation");
-            }
+                StingLog.Warn($"Label param type check: {typeMismatches.Count} non-TXT params referenced in label " +
+                    "tiers. These should reference _TXT mirror params instead. No auto-fix applied.");
 
             // ── Step 1: Locate annotation templates ──
             string templateDir = TagFamilyConfig.FindTemplateDirectory(app);
@@ -2357,7 +2356,7 @@ namespace StingTools.Tags
                             // Attempt to set the FamilyLabel to our tag parameter.
                             // This works for dimension labels in families but may not
                             // work for annotation text labels (which is the Revit limitation).
-                            if (dim.FamilyLabel != null || dim.FamilyLabel == null)
+                            if (dim.FamilyLabel == null)
                             {
                                 dim.FamilyLabel = tagParam;
                                 StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
@@ -2473,6 +2472,89 @@ namespace StingTools.Tags
         /// </summary>
         private bool LoadFamilyIntoProject(Document doc, string familyPath, string expectedName)
         {
+            // ── GUID/type pre-screen ──
+            // doc.LoadFamily() raises an unrecoverable Error-severity modal when the family
+            // carries a shared param whose GUID already exists in the project with a different
+            // data type (e.g. family has BLE_WALL_THICKNESS_MM as Text, project has it as Length).
+            // Build a project-side GUID→typeId index and warn before calling LoadFamily.
+            var projectSpecByGuid = new Dictionary<Guid, (string name, string typeId)>();
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
+                {
+                    try
+                    {
+                        Guid g = spe.GuidValue;
+                        var intDef = spe.GetDefinition();
+                        string name = intDef?.Name ?? "";
+                        string typeId = null;
+                        try { typeId = intDef?.GetDataType()?.TypeId; } catch { }
+                        projectSpecByGuid[g] = (name, typeId);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadFamilyIntoProject: could not pre-scan project SharedParameterElements: {ex.Message}");
+            }
+
+            // Open the family's shared-param definitions and check for type conflicts.
+            // We cannot open the .rfa here without a Transaction, so we read the family's
+            // ExternalDefinitionCreationOptions from the shared param file it was built with.
+            // The conservative approach: if we cannot verify, proceed and catch the exception.
+            int conflictCount = 0;
+            if (projectSpecByGuid.Count > 0)
+            {
+                try
+                {
+                    string spFilePath = doc.Application.SharedParametersFilename;
+                    if (!string.IsNullOrEmpty(spFilePath) && System.IO.File.Exists(spFilePath))
+                    {
+                        var app = doc.Application;
+                        string prevPath = app.SharedParametersFilename;
+                        DefinitionFile defFile = app.OpenSharedParameterFile();
+                        app.SharedParametersFilename = prevPath;
+                        if (defFile != null)
+                        {
+                            foreach (DefinitionGroup grp in defFile.Groups)
+                            {
+                                foreach (Definition d in grp.Definitions)
+                                {
+                                    if (d is ExternalDefinition ed)
+                                    {
+                                        if (projectSpecByGuid.TryGetValue(ed.GUID, out var proj))
+                                        {
+                                            string newTypeId = null;
+                                            try { newTypeId = ed.GetDataType()?.TypeId; } catch { }
+                                            if (newTypeId != null && proj.typeId != null &&
+                                                newTypeId != proj.typeId)
+                                            {
+                                                StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': " +
+                                                    $"GUID {ed.GUID} param '{ed.Name}' type mismatch — " +
+                                                    $"family={newTypeId} project={proj.typeId}. " +
+                                                    "Family may cause Error modal. Proceeding with load.");
+                                                conflictCount++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': pre-screen error (non-fatal): {ex.Message}");
+                }
+                if (conflictCount > 0)
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': {conflictCount} GUID/type conflict(s) detected. " +
+                        "Fix _TXT mirror params in MR_PARAMETERS.txt before loading families.");
+            }
+
             try
             {
                 using (Transaction tx = new Transaction(doc, $"STING Load Tag Family"))
