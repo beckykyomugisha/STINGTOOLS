@@ -1,0 +1,4 @@
+{
+  "_comment": "Corporate ACC read-client config. Project override lives at <project>/_BIM_COORD/acc.json and is merged over this baseline by key. 'distToMm' (N-G4) is the factor that converts the raw ACC Model-Coordination clash 'dist' value to millimetres; 1000 means the raw dist is in metres. If a live pull shows penetration values 1000x off, set this to 1.",
+  "distToMm": 1000
+}

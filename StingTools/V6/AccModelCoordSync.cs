@@ -72,7 +72,12 @@ namespace StingTools.V6
         public long RightObjectId { get; set; }        // rvid (dbId)
         public string LeftDocument { get; set; } = string.Empty;
         public string RightDocument { get; set; } = string.Empty;
-        public double PenetrationMm => Math.Abs(DistanceM) * 1000.0;
+
+        // N-G4: ACC clash "dist" units are not guaranteed metres. The factor that
+        // converts the raw distance to millimetres is configurable (acc.json
+        // distToMm, default 1000 = metres). GetClashesAsync stamps it per record.
+        public double DistToMm { get; set; } = 1000.0;
+        public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
     }
 
     public static class AccModelCoordSync
@@ -102,7 +107,7 @@ namespace StingTools.V6
 
         // ── Clashes (tests -> resources -> scope files -> join) ──
         public static async Task<List<AccClashRecord>> GetClashesAsync(
-            AccCredentials creds, string containerId, string modelSetId, int max = 1000)
+            AccCredentials creds, string containerId, string modelSetId, int max = 1000, double distToMm = 1000.0)
         {
             var result = new List<AccClashRecord>();
             if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId)) return result;
@@ -136,9 +141,9 @@ namespace StingTools.V6
             }
 
             // 3. download + gunzip the scope files
-            var clashScope    = await DownloadScopeAsync(clashUrl).ConfigureAwait(false);
-            var instanceScope = await DownloadScopeAsync(instanceUrl).ConfigureAwait(false);
-            var documentScope = documentUrl != null ? await DownloadScopeAsync(documentUrl).ConfigureAwait(false) : null;
+            var clashScope    = await DownloadScopeAsync(creds, clashUrl).ConfigureAwait(false);
+            var instanceScope = await DownloadScopeAsync(creds, instanceUrl).ConfigureAwait(false);
+            var documentScope = documentUrl != null ? await DownloadScopeAsync(creds, documentUrl).ConfigureAwait(false) : null;
             if (clashScope == null || instanceScope == null) return result;
 
             // 4. join. instances are keyed by cid (== clash id); first instance per cid wins.
@@ -168,6 +173,7 @@ namespace StingTools.V6
                     Id            = id,
                     Status        = (string)c["status"] ?? "active",
                     DistanceM     = (double?)c["dist"] ?? 0.0,
+                    DistToMm      = distToMm,
                     LeftObjectId  = ParseLong(ins?["lvid"]),
                     RightObjectId = ParseLong(ins?["rvid"]),
                     LeftDocument  = ldid != null && docNameById.TryGetValue(ldid, out var ln) ? ln : (ldid ?? ""),
@@ -218,13 +224,22 @@ namespace StingTools.V6
             return null;
         }
 
-        /// <summary>Download a pre-signed scope resource and gunzip it to JSON.
-        /// Pre-signed URLs carry their own auth, so no bearer header is sent.</summary>
-        private static async Task<JObject> DownloadScopeAsync(string url)
+        /// <summary>Download a scope resource and gunzip it to JSON.
+        /// N-G5: pre-signed (e.g. S3) URLs carry their own auth and ignore a
+        /// bearer; but a resource hosted on developer.api.autodesk.com needs the
+        /// OAuth bearer or it 403s. Send the bearer only for the APS host.</summary>
+        private static async Task<JObject> DownloadScopeAsync(AccCredentials creds, string url)
         {
             try
             {
-                using var resp = await _http.GetAsync(url).ConfigureAwait(false);
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                if (Uri.TryCreate(url, UriKind.Absolute, out var u) &&
+                    u.Host.Equals("developer.api.autodesk.com", StringComparison.OrdinalIgnoreCase) &&
+                    creds != null && !string.IsNullOrEmpty(creds.AccessToken))
+                {
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                }
+                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) { StingLog.Warn($"ACC scope download {(int)resp.StatusCode}"); return null; }
                 var bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
                 string text = TryGunzip(bytes) ?? Encoding.UTF8.GetString(bytes);

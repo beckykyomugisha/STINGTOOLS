@@ -2733,6 +2733,8 @@ Generic Models,ICT_ENDO_READER_ID_TXT,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005,TEXT,
 Generic Models,ICT_HEALTHIOT_ALERT_BAND_TXT,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,TEXT,COM_DAT,Type,IoT alert band free-text [H-20],False,,,MULTI,1,0
 Generic Models,ICT_HEALTHIOT_DEVICE_ID_TXT,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,TEXT,COM_DAT,Type,Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20],False,,,MULTI,1,0
 Generic Models,ICT_HEALTHIOT_ENDPOINT_TXT,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,TEXT,COM_DAT,Type,IoT endpoint URI [H-20],False,,,MULTI,1,0
+Generic Models,BMS_DEVICE_ID_TXT,fb34eb23-1a98-53bd-8207-e65917c193f3,TEXT,COM_DAT,Type,Generic BMS device ID (consumed by IoTDeviceRegistry / Niagara) [N-G8],False,,,MULTI,1,0
+Generic Models,BMS_ENDPOINT_TXT,559f06f2-e423-5e8b-84de-59d5969b1975,TEXT,COM_DAT,Type,BMS device endpoint URI e.g. bacnet://host/instance [N-G8],False,,,MULTI,1,0
 Generic Models,ICT_HEALTHIOT_PROTOCOL_TXT,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,TEXT,COM_DAT,Type,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],False,,,MULTI,1,0
 Generic Models,ICT_RTLS_ANCHOR_ID_TXT,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001,TEXT,COM_DAT,Type,RTLS anchor / reader ID [H-29],False,,,MULTI,1,0
 Generic Models,ICT_RTLS_COVERAGE_M_NR,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,NUMBER,COM_DAT,Type,RTLS anchor effective coverage radius (m) [H-29],False,,,MULTI,1,0

@@ -39,6 +39,11 @@ namespace StingTools.V6
         public string HubId { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
 
+        // N-G3: the Model-Coordination container can differ from the Issues
+        // container. AccPullClashesCommand reads model-sets/clashes from
+        // CoordContainerId, falling back to ProjectId when unset.
+        public string CoordContainerId { get; set; } = string.Empty;
+
         // N-G2: ACC rejects an issue create with an empty issue_type_id. When
         // unset, AccIssueSync.EnsureIssueTypeAsync fetches the project's issue
         // types once and caches a Clash/default type (+ first subtype) here.
