@@ -1,0 +1,10 @@
+{
+  "_comment": "Corporate KUT model-health KPI config (N-G6). Project override at <project>/_BIM_COORD/kpi_config.json is merged over this by key. Caps normalise raw counts to 0..1 before scoring; weights must sum to ~1.0. Edit to retune the health score without recompiling.",
+  "clashCap": 200,
+  "warningCap": 500,
+  "staleCap": 100,
+  "weightCompliance": 0.40,
+  "weightClash": 0.25,
+  "weightWarnings": 0.20,
+  "weightStale": 0.15
+}

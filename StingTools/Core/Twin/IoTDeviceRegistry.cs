@@ -1,7 +1,10 @@
-// Healthcare Pack H-20 — IoT device registry.
-// Maps BIM element IDs to IoT device endpoints by walking elements
-// that carry an ICT_HEALTHIOT_DEVICE_ID_TXT (or equivalent) and a
-// protocol token (BACNET / OPC-UA / MODBUS / REST / PROPRIETARY).
+// Healthcare Pack H-20 — IoT / BMS device registry.
+// Maps BIM element IDs to device endpoints by walking elements that carry a
+// device id. N-G8: detection is no longer healthcare-only — a device is any
+// element carrying the generic BMS id (BMS_DEVICE_ID_TXT), a BACnet instance
+// (COM_C_DEV_BACNET_INSTANCE_INT), OR the legacy healthcare ids
+// (ICT_HEALTHIOT_* / MGS_*), which are kept as additional sources. Protocol
+// token is BACNET / OPC-UA / MODBUS / REST / PROPRIETARY.
 
 using Autodesk.Revit.DB;
 using System;
@@ -77,16 +80,30 @@ namespace StingTools.Core.Twin
             var f = new ElementMulticategoryFilter(cats);
             foreach (var el in new FilteredElementCollector(_doc).WherePasses(f).WhereElementIsNotElementType())
             {
-                var deviceId = Get(el, "ICT_HEALTHIOT_DEVICE_ID_TXT")
+                // N-G8: generic BMS id first, then legacy healthcare ids, then a
+                // BACnet instance number as a last-resort id.
+                string bacnet = Get(el, "COM_C_DEV_BACNET_INSTANCE_INT");
+                var deviceId = Get(el, "BMS_DEVICE_ID_TXT")
+                            ?? Get(el, "ICT_HEALTHIOT_DEVICE_ID_TXT")
                             ?? Get(el, "MGS_AAP_REF_TXT")
-                            ?? Get(el, "MGS_ZVB_REF_TXT");
+                            ?? Get(el, "MGS_ZVB_REF_TXT")
+                            ?? bacnet;
                 if (string.IsNullOrEmpty(deviceId)) continue;
+
+                // Protocol: explicit healthcare/BMS token, else BACnet when an
+                // instance is present, else proprietary.
+                string protocol = Get(el, "ICT_HEALTHIOT_PROTOCOL_TXT")
+                               ?? Get(el, "HVC_BMS_CONTROL_TYPE_TXT");
+                if (string.IsNullOrEmpty(protocol))
+                    protocol = !string.IsNullOrEmpty(bacnet) ? "BACNET" : "PROPRIETARY";
+
                 _devices.Add(new IoTDeviceRef
                 {
                     BimElementId = el.Id,
                     DeviceId = deviceId,
-                    Protocol = Get(el, "ICT_HEALTHIOT_PROTOCOL_TXT") ?? "PROPRIETARY",
-                    EndpointAddress = Get(el, "ICT_HEALTHIOT_ENDPOINT_TXT") ?? "",
+                    Protocol = protocol,
+                    EndpointAddress = Get(el, "BMS_ENDPOINT_TXT")
+                                   ?? Get(el, "ICT_HEALTHIOT_ENDPOINT_TXT") ?? "",
                     AlertBand = Get(el, "ICT_HEALTHIOT_ALERT_BAND_TXT") ?? "",
                     LastSeenUtc = default
                 });

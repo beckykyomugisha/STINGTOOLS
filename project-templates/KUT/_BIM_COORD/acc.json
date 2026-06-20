@@ -1,0 +1,4 @@
+{
+  "_comment": "KUT ACC read-client overlay (merged over Data/STING_ACC_CONFIG.json). distToMm: raw clash 'dist' -> mm (1000 = dist in metres). The Model-Coordination container id (when it differs from the Issues container) is set as CoordContainerId in %APPDATA%/Planscape/acc_credentials.json, NOT here (it is account-scoped, not committed).",
+  "distToMm": 1000
+}
