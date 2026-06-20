@@ -34,11 +34,21 @@ services:
       - key: Jwt__Audience
         value: Planscape.Client
 
-      # ── CORS — add your Flutter Web / dashboard origin ──
+      # ── Platform Owner bootstrap (PlatformOwnerSeeder) ──
+      # The operator/founder login, seeded idempotently on startup. The email is
+      # safe to declare here; the password is a secret set in the Render
+      # dashboard. Seeding is a one-time bootstrap — after first boot, rotate the
+      # password via change-password / forgot-password, not by editing this var.
+      - key: PLANSCAPE_OWNER_EMAIL
+        value: davis@planscape.build
+      - key: PLANSCAPE_OWNER_PASSWORD
+        sync: false   # Set in Render dashboard → Settings → Environment (secret). Required to make the Owner loginable.
+
+      # ── CORS — web dashboard / app origins ──
       - key: Cors__Origins__0
-        value: https://planscape.io
+        value: https://planscape.build
       - key: Cors__Origins__1
-        value: https://app.planscape.io
+        value: https://app.planscape.build
 
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
