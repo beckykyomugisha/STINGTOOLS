@@ -1,0 +1,51 @@
+Ref,Discipline,Originator,Deliverable,Type,Stage,LOD,Format,Suitability,CDE State,Planned Rel Month,Planned Date,Actual Date,Responsible,TIDP Ref,RAG,Notes
+Z-000,BIM/Info Mgmt,PLNS,BIM Execution Plan (BEP),Document,Mobilisation,NA,DOCX/PDF,A1,Published,M0,,,Mayanja Davis,TIDP-Z,,Baseline at mobilisation
+Z-001,BIM/Info Mgmt,PLNS,Master Information Delivery Plan (MIDP),Document,Mobilisation,NA,XLSX/CSV,A1,Published,M0,,,Mayanja Davis,TIDP-Z,,Aggregated from all TIDPs
+Z-002,BIM/Info Mgmt,PLNS,Responsibility matrix (RACI),Document,Mobilisation,NA,XLSX,A1,Published,M0,,,Mayanja Davis,TIDP-Z,,
+Z-003,BIM/Info Mgmt,PLNS,Federated coordination model,Model,2.1 BOD,200,NWC/IFC,S1,Shared,M1,,,BIM Coordinator,TIDP-Z,,First federation
+A-100,Architecture,FILL,Architectural model,Model,2.1 BOD,200,RVT/IFC,S2,Shared,M1,,,Arch lead,TIDP-A,,Massing + generic
+S-100,Structure,FILL,Structural model,Model,2.1 BOD,200,RVT/IFC,S2,Shared,M1,,,Struct lead,TIDP-S,,Generic frame
+M-100,Mechanical,FILL,Mechanical (HVAC) model,Model,2.1 BOD,200,RVT/IFC,S2,Shared,M1,,,MEP lead,TIDP-M,,Generic systems
+E-100,Electrical,FILL,Electrical model,Model,2.1 BOD,200,RVT/IFC,S2,Shared,M1,,,MEP lead,TIDP-E,,Generic systems
+P-100,Public Health,FILL,Plumbing/drainage model,Model,2.1 BOD,200,RVT/IFC,S2,Shared,M1,,,MEP lead,TIDP-P,,Generic systems
+Z-110,BIM/Info Mgmt,PLNS,Basis of Design (BOD) report,Document,2.1 BOD,200,DOCX/PDF,S3,Shared,M1,,,Lead AP,TIDP-Z,,Design intent
+A-200,Architecture,FILL,Architectural model,Model,2.2 Deliverable B,300,RVT/IFC,S2,Shared,M4,,,Arch lead,TIDP-A,,Developed design
+A-201,Architecture,FILL,GA plans/sections/elevations (50%),Drawing,2.2 Deliverable B,300,PDF/DWG,S2,Shared,M4,,,Arch lead,TIDP-A,,
+A-202,Architecture,FILL,Door/window schedules,Schedule,2.2 Deliverable B,300,PDF/XLSX,S2,Shared,M4,,,Arch lead,TIDP-A,,
+A-203,Architecture,FILL,Room data sheets (key spaces),Document,2.2 Deliverable B,300,PDF,S2,Shared,M4,,,Arch lead,TIDP-A,,STINGTOOLS RDS
+S-200,Structure,FILL,Structural model,Model,2.2 Deliverable B,300,RVT/IFC,S2,Shared,M4,,,Struct lead,TIDP-S,,
+S-201,Structure,FILL,General arrangement drawings (50%),Drawing,2.2 Deliverable B,300,PDF/DWG,S2,Shared,M4,,,Struct lead,TIDP-S,,
+M-200,Mechanical,FILL,Mechanical model,Model,2.2 Deliverable B,300,RVT/IFC,S2,Shared,M4,,,MEP lead,TIDP-M,,
+M-201,Mechanical,FILL,HVAC layouts (50%),Drawing,2.2 Deliverable B,300,PDF/DWG,S2,Shared,M4,,,MEP lead,TIDP-M,,
+E-200,Electrical,FILL,Electrical model,Model,2.2 Deliverable B,300,RVT/IFC,S2,Shared,M4,,,MEP lead,TIDP-E,,
+E-201,Electrical,FILL,Power/lighting layouts (50%),Drawing,2.2 Deliverable B,300,PDF/DWG,S2,Shared,M4,,,MEP lead,TIDP-E,,
+P-200,Public Health,FILL,Plumbing/drainage model,Model,2.2 Deliverable B,300,RVT/IFC,S2,Shared,M4,,,MEP lead,TIDP-P,,
+Z-210,BIM/Info Mgmt,PLNS,Clash/coordination report,Document,2.2 Deliverable B,300,PDF/BCF,S2,Shared,M4,,,BIM Coordinator,TIDP-Z,,Zero high-priority clashes
+Z-211,BIM/Info Mgmt,PLNS,Federated model,Model,2.2 Deliverable B,300,NWC/IFC,S2,Shared,M4,,,BIM Coordinator,TIDP-Z,,
+Z-212,QS/Cost,FILL,Bill of Quantities (preliminary),Schedule,2.2 Deliverable B,300,XLSX,S2,Shared,M4,,,QS,TIDP-Z,,STINGTOOLS BOQ/NRM2
+A-300,Architecture,FILL,Architectural model,Model,2.3 Deliverable C,350,RVT/IFC,S4,Shared,M8,,,Arch lead,TIDP-A,,Technical design
+A-301,Architecture,FILL,Full drawing set (100%) + details,Drawing,2.3 Deliverable C,350,PDF/DWG,S4,Shared,M8,,,Arch lead,TIDP-A,,
+S-300,Structure,FILL,Structural model,Model,2.3 Deliverable C,350,RVT/IFC,S4,Shared,M8,,,Struct lead,TIDP-S,,Connections resolved
+S-301,Structure,FILL,Structural drawing set (100%),Drawing,2.3 Deliverable C,350,PDF/DWG,S4,Shared,M8,,,Struct lead,TIDP-S,,
+M-300,Mechanical,FILL,Mechanical model,Model,2.3 Deliverable C,350,RVT/IFC,S4,Shared,M8,,,MEP lead,TIDP-M,,
+M-301,Mechanical,FILL,HVAC drawing set (100%),Drawing,2.3 Deliverable C,350,PDF/DWG,S4,Shared,M8,,,MEP lead,TIDP-M,,
+E-300,Electrical,FILL,Electrical model + drawings (100%),Model/Drawing,2.3 Deliverable C,350,RVT/PDF,S4,Shared,M8,,,MEP lead,TIDP-E,,
+P-300,Public Health,FILL,Plumbing model + drawings (100%),Model/Drawing,2.3 Deliverable C,350,RVT/PDF,S4,Shared,M8,,,MEP lead,TIDP-P,,
+FP-300,Fire,FILL,Fire strategy + model,Model/Document,2.3 Deliverable C,350,RVT/PDF,S4,Shared,M8,,,Fire lead,TIDP-FP,,
+Z-310,QS/Cost,FILL,Bill of Quantities (tender),Schedule,2.3 Deliverable C,350,XLSX,S4,Shared,M8,,,QS,TIDP-Z,,
+Z-311,BIM/Info Mgmt,PLNS,Specifications,Document,2.3 Deliverable C,350,PDF,S4,Shared,M8,,,Lead AP,TIDP-Z,,
+FF-300,FF&E,FILL,FF&E specifications (initial),Schedule,2.3 Deliverable C,350,Fohlio/PDF,S4,Shared,M8,,,FF&E lead,TIDP-FF,,Fohlio Option A
+Z-400,BIM/Info Mgmt,PLNS,Tender documents,Document,2.4 Tender,NA,PDF,A1,Published,M9,,,Lead AP,TIDP-Z,,
+Z-401,BIM/Info Mgmt,PLNS,Conformed set / construction documentation,Drawing,2.5 Conformed,350,PDF/DWG,A1,Published,M11,,,Lead AP,TIDP-Z,,Post-award addenda
+ALL-500,All disciplines,FILL,Construction-stage models (LOD 400),Model,3.1 Construction,400,RVT/IFC,A1,Published,M12-M43,,,Task teams,TIDP-ALL,,Ongoing; revisions tracked
+Z-510,BIM/Info Mgmt,PLNS,RFI/submittal register,Document,3.1 Construction,400,XLSX,S2,Shared,M12-M43,,,Info Mgr,TIDP-Z,,ACC Issues
+Z-511,BIM/Info Mgmt,PLNS,Monthly model-health/KPI report,Document,3.1 Construction,400,PDF/HTML,S2,Shared,M12-M43,,,Info Mgr,TIDP-Z,,STINGTOOLS KPI dashboard
+M-520,Mechanical,FILL,BMS points export (Niagara),Document,3.1 Construction,400,CSV,S2,Shared,M40,,,MEP lead,TIDP-M,,Niagara_ExportPoints
+FF-600,FF&E,FILL,FF&E final schedule + procurement,Schedule,3.2 FF&E,400,Fohlio/XLSX,A1,Published,M43,,,FF&E lead,TIDP-FF,,
+A-700,Architecture,FILL,As-built architectural model,Model,3.3 Deliverable D,500,RVT/IFC,A1,Published,M45,,,Arch lead,TIDP-A,,Verified as-built
+S-700,Structure,FILL,As-built structural model,Model,3.3 Deliverable D,500,RVT/IFC,A1,Published,M45,,,Struct lead,TIDP-S,,
+M-700,MEP,FILL,As-built MEP model,Model,3.3 Deliverable D,500,RVT/IFC,A1,Published,M45,,,MEP lead,TIDP-M,,
+Z-700,BIM/Info Mgmt,PLNS,COBie handover dataset,Schedule,3.3 Deliverable D,500,XLSX,A1,Published,M45,,,Info Mgr,TIDP-Z,,STINGTOOLS COBie 2.4
+Z-701,BIM/Info Mgmt,PLNS,O&M / asset data pack,Document,3.3 Deliverable D,500,Fohlio/PDF,A1,Published,M45,,,Info Mgr,TIDP-Z,,
+Z-702,BIM/Info Mgmt,PLNS,Digital twin baseline (model reconciled to BMS),Document,3.3 Deliverable D,500,CSV/PDF,A1,Published,M45,,,Info Mgr,TIDP-Z,,Niagara_Reconcile
+Z-703,BIM/Info Mgmt,PLNS,Final handover transmittal + archive,Document,3.3 Deliverable D,500,PDF,A1,Archived,M45,,,Info Mgr,TIDP-Z,,
