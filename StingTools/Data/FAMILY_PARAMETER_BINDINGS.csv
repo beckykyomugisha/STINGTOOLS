@@ -1,4 +1,9 @@
+# v3.1 | 20260620 | +476 rows for 104 _TXT mirror params (Phase 188 native-type + display-mirror)
 # v3.0 | 20260313 | BIM Template family_parameter_bindings
+# Phase 184 P0.2 + P5 — currency-neutral cost / payment cert / variation params
+# Phase 182-183 — HVAC sizing-registry audit-trail + refrigerant/capacity params
+# STING Tag Style Parameters (TAG_* — injected by Phase 187i audit, 2026-06-08)
+# STING Tag Style Parameters (dot-notation + extras — Phase 187i supplement, 2026-06-08)
 ParameterGroup,ParameterName,GUID,DataType,BindingType,Description,RevitCategory,Maps_To_Shared_Param_GUID
 ASS_MNG,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,Type,Catalog Number,Casework,f8fe813a-44e9-5e47-9109-921171dc53b6
 ASS_MNG,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,Type,Catalog Number,Electrical Equipment,f8fe813a-44e9-5e47-9109-921171dc53b6
@@ -5870,7 +5875,6 @@ SLV_SLEEVE_PARAMS,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,
 SLV_SLEEVE_PARAMS,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,Instance,Fire test standard,Generic Models,0a2943a3-036b-55ae-89ee-01055824fad8
 SLV_SLEEVE_PARAMS,SLV_STATUS_TXT,91403abb-2a37-5571-9435-d68bc6cacec1,TEXT,Instance,Sleeve status,Generic Models,91403abb-2a37-5571-9435-d68bc6cacec1
 SLV_SLEEVE_PARAMS,SLV_INSPECTION_DATE_TXT,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7,TEXT,Instance,Last inspection date,Generic Models,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7
-# Phase 184 P0.2 + P5 — currency-neutral cost / payment cert / variation params
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
@@ -5969,7 +5973,6 @@ CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,V
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
-# Phase 182-183 — HVAC sizing-registry audit-trail + refrigerant/capacity params
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Air Terminals,5bf0485f-08dd-53d1-9cc5-d956305d42e0
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Accessories,5bf0485f-08dd-53d1-9cc5-d956305d42e0
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Fittings,5bf0485f-08dd-53d1-9cc5-d956305d42e0
@@ -6037,7 +6040,6 @@ HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,S
 HVC_SYSTEMS,HVC_REFRIGERANT_KG_NR,b99d07d1-6eca-50cf-b983-b6fe2442bc8c,TEXT,Type,Refrigerant charge mass kg,Mechanical Equipment,b99d07d1-6eca-50cf-b983-b6fe2442bc8c
 HVC_SYSTEMS,HVC_REFRIGERANT_TYPE_TXT,10d87a6e-b7d8-5058-81a9-bc62394d9bad,TEXT,Type,Refrigerant id,Mechanical Equipment,10d87a6e-b7d8-5058-81a9-bc62394d9bad
 HVC_SYSTEMS,HVC_CAPACITY_KW,397ee526-7af0-5516-a2a1-48db5a42f249,TEXT,Type,Equipment design capacity kW,Mechanical Equipment,397ee526-7af0-5516-a2a1-48db5a42f249
-# STING Tag Style Parameters (TAG_* — injected by Phase 187i audit, 2026-06-08)
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Air Terminals,d5a1b2c3-2013-4e01-a1c1-200000000013
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Cable Tray Fittings,d5a1b2c3-2013-4e01-a1c1-200000000013
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,YESNO,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Cable Trays,d5a1b2c3-2013-4e01-a1c1-200000000013
@@ -10070,48 +10072,27 @@ STINGTags_ISO19650,TAG_STYLE_WEIGHT_INT,a1b2c3d4-5034-4a01-b001-000000000152,INT
 STINGTags_ISO19650,TAG_STYLE_WEIGHT_INT,a1b2c3d4-5034-4a01-b001-000000000152,INTEGER,Type,Tag text weight index,Doors,a1b2c3d4-5034-4a01-b001-000000000152
 STINGTags_ISO19650,TAG_STYLE_WEIGHT_INT,a1b2c3d4-5034-4a01-b001-000000000152,INTEGER,Type,Tag text weight index,Floors,a1b2c3d4-5034-4a01-b001-000000000152
 STINGTags_ISO19650,TAG_STYLE_WEIGHT_INT,a1b2c3d4-5034-4a01-b001-000000000152,INTEGER,Type,Tag text weight index,Roofs,a1b2c3d4-5034-4a01-b001-000000000152
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Air Terminals,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Cable Tray Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Cable Trays,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Casework,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Ceilings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Communication Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Conduit Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Conduits,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Data Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Duct Accessories,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Duct Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Ducts,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Electrical Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Electrical Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Fire Alarm Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Flex Ducts,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Flex Pipes,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Furniture,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Furniture Systems,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Generic Models,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Lighting Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Lighting Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Mechanical Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Nurse Call Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Pipe Accessories,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Pipe Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Pipes,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Plumbing Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Plumbing Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Rooms,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Spaces,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Security Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Specialty Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Sprinklers,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Structural Columns,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Structural Framing,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Telephone Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Walls,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Windows,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Doors,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Floors,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
-STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Roofs,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Air Terminals,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Cable Tray Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Cable Trays,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Casework,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Ceilings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Communication Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Conduit Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Conduits,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Data Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Duct Accessories,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Duct Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Ducts,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Electrical Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Electrical Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Fire Alarm Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Flex Ducts,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Flex Pipes,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Furniture,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Furniture Systems,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Generic Models,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Lighting Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Lighting Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Mechanical Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Nurse Call Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Pipe Accessories,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Pipe Fittings,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Pipes,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Plumbing Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Plumbing Fixtures,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Rooms,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Spaces,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Security Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Specialty Equipment,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Sprinklers,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Structural Columns,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Structural Framing,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Telephone Devices,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Walls,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Windows,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Doors,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
+STINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,"Filter: CRITICAL,Floors,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6bSTINGTags_ISO19650,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,Type,Filter: CRITICAL",Roofs,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Air Terminals,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Cable Tray Fittings,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Cable Trays,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
@@ -10154,7 +10135,6 @@ STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YE
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Doors,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Floors,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Roofs,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
-# STING Tag Style Parameters (dot-notation + extras — Phase 187i supplement, 2026-06-08)
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,YESNO,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Air Terminals,d5a1b2c3-2513-4e01-a1c1-250000000013
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,YESNO,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Cable Tray Fittings,d5a1b2c3-2513-4e01-a1c1-250000000013
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,YESNO,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Cable Trays,d5a1b2c3-2513-4e01-a1c1-250000000013
@@ -12843,3 +12823,479 @@ STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YE
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Doors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Floors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,YESNO,Type,Tag 3.5Nom White [ISO 19650-3:2020],Roofs,d5a1b2c3-3536-4e01-a1c1-350000000036
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Casework,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Electrical Equipment,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Furniture,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Generic Models,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Mechanical Equipment,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,ab05e034-3374-5996-a39f-cefdf502e852
+ASS_MNG,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,Type,Ass Criticality Rating Nr [ISO 19650-3:2020] (text mirror),Specialty Equipment,ab05e034-3374-5996-a39f-cefdf502e852
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Casework,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Electrical Equipment,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Furniture,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Generic Models,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Mechanical Equipment,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Plumbing Fixtures,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+CST_PROC,ASS_CST_FX_TO_BASE_TXT,e5273e47-d3e3-5d07-bee4-67be5764a8a2,TEXT,Type,FX rate to project base currency at write time [Phase 184] (text mirror),Specialty Equipment,e5273e47-d3e3-5d07-bee4-67be5764a8a2
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Air Terminals,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Cable Trays,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Casework,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Conduits,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Electrical Equipment,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Electrical Fixtures,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Furniture,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Generic Models,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Lighting Fixtures,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Mechanical Equipment,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Plumbing Equipment,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Specialty Equipment,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_QUANTITY_TXT,a1c796dd-93f5-5a34-994e-36a1f779a9e3,TEXT,Type,Ass Cst Quantity Nr [ISO 19650-3:2020] (text mirror),Sprinklers,a1c796dd-93f5-5a34-994e-36a1f779a9e3
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Air Terminals,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Cable Trays,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Casework,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Conduits,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Electrical Equipment,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Electrical Fixtures,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Furniture,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Generic Models,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Lighting Fixtures,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Mechanical Equipment,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Plumbing Equipment,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Specialty Equipment,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_TOTAL_UGX_TXT,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8,TEXT,Type,Ass Cst Total Ugx Nr [ISO 19650-3:2020] (text mirror),Sprinklers,69e7f507-c82e-5e2d-8b19-5d355b9ed3a8
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Air Terminals,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Cable Trays,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Casework,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Conduits,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Electrical Equipment,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Electrical Fixtures,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Furniture,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Generic Models,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Lighting Fixtures,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Mechanical Equipment,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Plumbing Equipment,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Specialty Equipment,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+ASS_MNG,ASS_CST_UNIT_PRICE_UGX_TXT,4a8ee051-94ad-5357-8b43-c7a1963b6d84,TEXT,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020] (text mirror),Sprinklers,4a8ee051-94ad-5357-8b43-c7a1963b6d84
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Casework,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Electrical Equipment,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Furniture,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Generic Models,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Mechanical Equipment,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Plumbing Fixtures,87396d32-3d9d-54be-a262-7d5f7d29748c
+CST_PROC,ASS_CST_UNIT_RATE_TXT,87396d32-3d9d-54be-a262-7d5f7d29748c,TEXT,Type,Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT [Phase 184] (text mirror),Specialty Equipment,87396d32-3d9d-54be-a262-7d5f7d29748c
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Casework,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Electrical Equipment,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Furniture,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Generic Models,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Mechanical Equipment,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_LTG_LVL_LUX_TXT,0fb2556e-ec10-5480-900c-b73a57bf52fa,TEXT,Instance,Ass Design Ltg Lvl Lux Nr [ISO 19650-3:2020] (text mirror),Specialty Equipment,0fb2556e-ec10-5480-900c-b73a57bf52fa
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Casework,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Electrical Equipment,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Furniture,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Generic Models,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Mechanical Equipment,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_DESIGN_OCCUPANCY_TXT,0010d317-701e-5981-ba89-44823cc1ff33,TEXT,Type,Ass Design Occupancy Int [ISO 19650-3:2020] (text mirror),Specialty Equipment,0010d317-701e-5981-ba89-44823cc1ff33
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Casework,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Electrical Equipment,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Furniture,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Generic Models,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Mechanical Equipment,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+ASS_MNG,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020] (text mirror),Specialty Equipment,8a640eab-e9ee-5aea-ad41-2be625cbadd4
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Casework,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Electrical Equipment,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Furniture,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Generic Models,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Mechanical Equipment,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Plumbing Fixtures,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,Type,Payment certificate number this line item was last valued in [Phase 184g / P5] (text mirror),Specialty Equipment,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Casework,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Electrical Equipment,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Furniture,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Generic Models,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Mechanical Equipment,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Plumbing Fixtures,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+CST_PROC,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEXT,Type,Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5] (text mirror),Specialty Equipment,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Casework,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Electrical Equipment,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Furniture,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Generic Models,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Mechanical Equipment,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,8a10a348-6a17-54ed-a724-0852d6492917
+ASS_MNG,ASS_ROOM_AREA_TXT,8a10a348-6a17-54ed-a724-0852d6492917,TEXT,Type,Ass Room Area Sq M [ISO 19650-3:2020] (text mirror),Specialty Equipment,8a10a348-6a17-54ed-a724-0852d6492917
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Casework,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Electrical Equipment,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Furniture,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Generic Models,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Mechanical Equipment,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Plumbing Fixtures,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,Type,Variation valuation amount in project base currency [Phase 184g / P5] (text mirror),Specialty Equipment,6a1a42f5-5097-52fb-b552-f14af0d6ee46
+CST_PROC,BLE_CEILING_GRID_SZ_TXT,2ddb2e9f-1097-5d62-aef4-f5b9742993f9,TEXT,Type,Ble Ceiling Grid Sz Mm [ISO 19650-1:2018] (text mirror),Doors,2ddb2e9f-1097-5d62-aef4-f5b9742993f9
+CST_PROC,BLE_CEILING_GRID_SZ_TXT,2ddb2e9f-1097-5d62-aef4-f5b9742993f9,TEXT,Type,Ble Ceiling Grid Sz Mm [ISO 19650-1:2018] (text mirror),Windows,2ddb2e9f-1097-5d62-aef4-f5b9742993f9
+CST_PROC,BLE_CEILING_HEIGHT_TXT,6e92a1ff-e900-5756-ab32-a226bd175c53,TEXT,Type,Ble Ceiling Height Mm [ISO 19650-1:2018] (text mirror),Doors,6e92a1ff-e900-5756-ab32-a226bd175c53
+CST_PROC,BLE_CEILING_HEIGHT_TXT,6e92a1ff-e900-5756-ab32-a226bd175c53,TEXT,Type,Ble Ceiling Height Mm [ISO 19650-1:2018] (text mirror),Windows,6e92a1ff-e900-5756-ab32-a226bd175c53
+CST_PROC,BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_TXT,bb308a80-36e0-5653-8e0b-7faaad07f7ee,TEXT,Type,Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018] (text mirror),Doors,bb308a80-36e0-5653-8e0b-7faaad07f7ee
+CST_PROC,BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_TXT,bb308a80-36e0-5653-8e0b-7faaad07f7ee,TEXT,Type,Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018] (text mirror),Windows,bb308a80-36e0-5653-8e0b-7faaad07f7ee
+CST_PROC,BLE_DOOR_HEIGHT_TXT,434b3940-d611-58e5-a81c-d63d18da15aa,TEXT,Type,Ble Door Height Mm [ISO 19650-1:2018] (text mirror),Doors,434b3940-d611-58e5-a81c-d63d18da15aa
+CST_PROC,BLE_DOOR_HEIGHT_TXT,434b3940-d611-58e5-a81c-d63d18da15aa,TEXT,Type,Ble Door Height Mm [ISO 19650-1:2018] (text mirror),Windows,434b3940-d611-58e5-a81c-d63d18da15aa
+CST_PROC,BLE_DOOR_WIDTH_TXT,4734089c-fa37-579e-8f71-758a42b82221,TEXT,Type,Ble Door Width Mm [ISO 19650-1:2018] (text mirror),Doors,4734089c-fa37-579e-8f71-758a42b82221
+CST_PROC,BLE_DOOR_WIDTH_TXT,4734089c-fa37-579e-8f71-758a42b82221,TEXT,Type,Ble Door Width Mm [ISO 19650-1:2018] (text mirror),Windows,4734089c-fa37-579e-8f71-758a42b82221
+CST_PROC,BLE_ELE_AREA_TXT,d4b0741c-a2d7-5ee5-892e-02be28efd9c1,TEXT,Type,Ble Ele Area Sq M [ISO 19650-1:2018] (text mirror),Doors,d4b0741c-a2d7-5ee5-892e-02be28efd9c1
+CST_PROC,BLE_ELE_AREA_TXT,d4b0741c-a2d7-5ee5-892e-02be28efd9c1,TEXT,Type,Ble Ele Area Sq M [ISO 19650-1:2018] (text mirror),Windows,d4b0741c-a2d7-5ee5-892e-02be28efd9c1
+BLE_ELES,BLE_FLR_AREA_TXT,cdebeb28-d111-5ad6-83bb-a8e0580b2c76,TEXT,Type,Ble Flr Area Sq M [ISO 19650-1:2018] (text mirror),Generic Models,cdebeb28-d111-5ad6-83bb-a8e0580b2c76
+CST_PROC,BLE_FLR_LD_CAP_TXT,2c2a5908-ae78-5367-a2b0-70c0e4329804,TEXT,Type,Ble Flr Ld Cap Kpa [ISO 19650-1:2018] (text mirror),Doors,2c2a5908-ae78-5367-a2b0-70c0e4329804
+CST_PROC,BLE_FLR_LD_CAP_TXT,2c2a5908-ae78-5367-a2b0-70c0e4329804,TEXT,Type,Ble Flr Ld Cap Kpa [ISO 19650-1:2018] (text mirror),Windows,2c2a5908-ae78-5367-a2b0-70c0e4329804
+CST_PROC,BLE_FLR_THICKNESS_TXT,29a70160-6c99-50a7-83ed-0ea27f51fed5,TEXT,Type,Ble Flr Thickness Mm [ISO 19650-1:2018] (text mirror),Doors,29a70160-6c99-50a7-83ed-0ea27f51fed5
+CST_PROC,BLE_FLR_THICKNESS_TXT,29a70160-6c99-50a7-83ed-0ea27f51fed5,TEXT,Type,Ble Flr Thickness Mm [ISO 19650-1:2018] (text mirror),Windows,29a70160-6c99-50a7-83ed-0ea27f51fed5
+BLE_ELES,BLE_RAMP_LENGTH_TXT,b2ce7f06-1e90-588c-852d-861c674477db,TEXT,Type,Ble Ramp Length Mm [ISO 19650-1:2018] (text mirror),Generic Models,b2ce7f06-1e90-588c-852d-861c674477db
+CST_PROC,BLE_RAMP_SLOPE_TXT,6d067dcc-a4a8-534e-89a0-7ef33a11d653,TEXT,Type,Ble Ramp Slope Pct [ISO 19650-1:2018] (text mirror),Doors,6d067dcc-a4a8-534e-89a0-7ef33a11d653
+CST_PROC,BLE_RAMP_SLOPE_TXT,6d067dcc-a4a8-534e-89a0-7ef33a11d653,TEXT,Type,Ble Ramp Slope Pct [ISO 19650-1:2018] (text mirror),Windows,6d067dcc-a4a8-534e-89a0-7ef33a11d653
+CST_PROC,BLE_RAMP_WIDTH_TXT,57b52bf8-9954-5c31-bd01-fd1b7e8255cf,TEXT,Type,Ble Ramp Width Mm [ISO 19650-1:2018] (text mirror),Doors,57b52bf8-9954-5c31-bd01-fd1b7e8255cf
+CST_PROC,BLE_RAMP_WIDTH_TXT,57b52bf8-9954-5c31-bd01-fd1b7e8255cf,TEXT,Type,Ble Ramp Width Mm [ISO 19650-1:2018] (text mirror),Windows,57b52bf8-9954-5c31-bd01-fd1b7e8255cf
+CST_PROC,BLE_ROOF_SLOPE_TXT,abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b,TEXT,Type,Ble Roof Slope Deg [ISO 19650-1:2018] (text mirror),Doors,abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b
+CST_PROC,BLE_ROOF_SLOPE_TXT,abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b,TEXT,Type,Ble Roof Slope Deg [ISO 19650-1:2018] (text mirror),Windows,abc0ddb3-b246-5ae1-bedc-a2c5a6a4722b
+CST_PROC,BLE_STAIR_GOING_TXT,df42357b-7d1b-5b0b-a7d6-1763c0471652,TEXT,Type,Ble Stair Going Mm [ISO 19650-1:2018] (text mirror),Generic Models,df42357b-7d1b-5b0b-a7d6-1763c0471652
+CST_PROC,BLE_STAIR_GOING_TXT,df42357b-7d1b-5b0b-a7d6-1763c0471652,TEXT,Type,Ble Stair Going Mm [ISO 19650-1:2018] (text mirror),Stairs,df42357b-7d1b-5b0b-a7d6-1763c0471652
+CST_PROC,BLE_STAIR_RISE_TXT,0ac4b034-dbe9-5847-9eee-ec5c831a76b5,TEXT,Type,Ble Stair Rise Mm [ISO 19650-1:2018] (text mirror),Generic Models,0ac4b034-dbe9-5847-9eee-ec5c831a76b5
+CST_PROC,BLE_STAIR_RISE_TXT,0ac4b034-dbe9-5847-9eee-ec5c831a76b5,TEXT,Type,Ble Stair Rise Mm [ISO 19650-1:2018] (text mirror),Stairs,0ac4b034-dbe9-5847-9eee-ec5c831a76b5
+CST_PROC,BLE_STAIR_WIDTH_TXT,17a05cf1-cb77-543e-a764-c681437bc529,TEXT,Type,Ble Stair Width Mm [ISO 19650-1:2018] (text mirror),Generic Models,17a05cf1-cb77-543e-a764-c681437bc529
+CST_PROC,BLE_STAIR_WIDTH_TXT,17a05cf1-cb77-543e-a764-c681437bc529,TEXT,Type,Ble Stair Width Mm [ISO 19650-1:2018] (text mirror),Stairs,17a05cf1-cb77-543e-a764-c681437bc529
+CST_PROC,BLE_STRUCT_LD_CAP_KN_TXT,e276658b-1928-5a8a-acd6-cc39845d344f,TEXT,Type,Ble Struct Ld Cap Kn Nr [ISO 19650-1:2018] (text mirror),Doors,e276658b-1928-5a8a-acd6-cc39845d344f
+CST_PROC,BLE_STRUCT_LD_CAP_KN_TXT,e276658b-1928-5a8a-acd6-cc39845d344f,TEXT,Type,Ble Struct Ld Cap Kn Nr [ISO 19650-1:2018] (text mirror),Structural Columns,e276658b-1928-5a8a-acd6-cc39845d344f
+CST_PROC,BLE_STRUCT_LD_CAP_KN_TXT,e276658b-1928-5a8a-acd6-cc39845d344f,TEXT,Type,Ble Struct Ld Cap Kn Nr [ISO 19650-1:2018] (text mirror),Structural Framing,e276658b-1928-5a8a-acd6-cc39845d344f
+CST_PROC,BLE_STRUCT_LD_CAP_KN_TXT,e276658b-1928-5a8a-acd6-cc39845d344f,TEXT,Type,Ble Struct Ld Cap Kn Nr [ISO 19650-1:2018] (text mirror),Windows,e276658b-1928-5a8a-acd6-cc39845d344f
+CST_PROC,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT,6c64d0a3-aea6-59dc-b086-d7f8de019994,TEXT,Type,Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018] (text mirror),Doors,6c64d0a3-aea6-59dc-b086-d7f8de019994
+CST_PROC,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT,6c64d0a3-aea6-59dc-b086-d7f8de019994,TEXT,Type,Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018] (text mirror),Windows,6c64d0a3-aea6-59dc-b086-d7f8de019994
+CST_PROC,BLE_WALL_THICKNESS_TXT,d083d603-797b-5775-aba8-a2d988ea67ad,TEXT,Type,Ble Wall Thickness Mm [ISO 19650-1:2018] (text mirror),Doors,d083d603-797b-5775-aba8-a2d988ea67ad
+CST_PROC,BLE_WALL_THICKNESS_TXT,d083d603-797b-5775-aba8-a2d988ea67ad,TEXT,Type,Ble Wall Thickness Mm [ISO 19650-1:2018] (text mirror),Windows,d083d603-797b-5775-aba8-a2d988ea67ad
+BLE_ELES,BLE_WINDOW_AREA_TXT,d160688c-d537-5475-82de-ed60b9cd91db,TEXT,Type,Ble Window Area Sq M [ISO 19650-1:2018] (text mirror),Generic Models,d160688c-d537-5475-82de-ed60b9cd91db
+CST_PROC,BLE_WINDOW_HEIGHT_TXT,891b9d0d-741f-55ab-b05f-e66304fd1cb9,TEXT,Type,Ble Window Height Mm [ISO 19650-1:2018] (text mirror),Doors,891b9d0d-741f-55ab-b05f-e66304fd1cb9
+CST_PROC,BLE_WINDOW_HEIGHT_TXT,891b9d0d-741f-55ab-b05f-e66304fd1cb9,TEXT,Type,Ble Window Height Mm [ISO 19650-1:2018] (text mirror),Windows,891b9d0d-741f-55ab-b05f-e66304fd1cb9
+CST_PROC,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT,bb0d271d-f7d4-556e-9118-706ab7bbbc47,TEXT,Type,Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018] (text mirror),Doors,bb0d271d-f7d4-556e-9118-706ab7bbbc47
+CST_PROC,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT,bb0d271d-f7d4-556e-9118-706ab7bbbc47,TEXT,Type,Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018] (text mirror),Windows,bb0d271d-f7d4-556e-9118-706ab7bbbc47
+CST_PROC,BLE_WINDOW_U_VALUE_W_M_2K_TXT,f9ebfe27-54f6-519a-a789-bc86a75fd3f8,TEXT,Type,Ble Window U Value W M 2k Nr [ISO 19650-1:2018] (text mirror),Doors,f9ebfe27-54f6-519a-a789-bc86a75fd3f8
+CST_PROC,BLE_WINDOW_U_VALUE_W_M_2K_TXT,f9ebfe27-54f6-519a-a789-bc86a75fd3f8,TEXT,Type,Ble Window U Value W M 2k Nr [ISO 19650-1:2018] (text mirror),Windows,f9ebfe27-54f6-519a-a789-bc86a75fd3f8
+CST_PROC,BLE_WINDOW_WIDTH_TXT,2fe8a5aa-96d4-52f0-9673-349e20d2d5dd,TEXT,Type,Ble Window Width Mm [ISO 19650-1:2018] (text mirror),Doors,2fe8a5aa-96d4-52f0-9673-349e20d2d5dd
+CST_PROC,BLE_WINDOW_WIDTH_TXT,2fe8a5aa-96d4-52f0-9673-349e20d2d5dd,TEXT,Type,Ble Window Width Mm [ISO 19650-1:2018] (text mirror),Windows,2fe8a5aa-96d4-52f0-9673-349e20d2d5dd
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Communication Devices,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Data Devices,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Electrical Equipment,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Nurse Call Devices,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Security Devices,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,Type,Com C Dev Bacnet Instance Int [ISO 19650-1:2018] (text mirror),Telephone Devices,a5ed6a44-3ebc-5c87-900c-75c69d413ed3
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Communication Devices,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Data Devices,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Electrical Equipment,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Nurse Call Devices,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Security Devices,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,COM_C_PWR_SUPPLY_TXT,bbccda93-5b33-58cd-889a-b9eb56853e6e,TEXT,Type,Com C Pwr Supply V [ISO 19650-1:2018] (text mirror),Telephone Devices,bbccda93-5b33-58cd-889a-b9eb56853e6e
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Air Terminals,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Cable Trays,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Casework,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Ceilings,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Conduits,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Curtain Panels,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Curtain Wall Mullions,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Doors,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Ducts,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Electrical Equipment,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Electrical Fixtures,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Floors,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Furniture,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Generic Models,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Lighting Fixtures,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Mechanical Equipment,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Pipe Accessories,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Pipe Fittings,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Pipes,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Plumbing Equipment,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Ramps,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Roofs,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Rooms,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Specialty Equipment,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Sprinklers,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Stairs,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Walls,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_AREA_TXT,76cdec7f-59a3-5de6-bf25-c15255a981ee,TEXT,Type,Calculated area in square meters [ISO 19650-3:2020] (text mirror),Windows,76cdec7f-59a3-5de6-bf25-c15255a981ee
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Air Terminals,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Cable Trays,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Casework,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Ceilings,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Conduits,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Curtain Panels,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Curtain Wall Mullions,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Doors,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Ducts,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Electrical Equipment,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Electrical Fixtures,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Floors,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Furniture,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Generic Models,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Lighting Fixtures,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Mechanical Equipment,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Pipe Accessories,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Pipe Fittings,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Pipes,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Plumbing Equipment,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Plumbing Fixtures,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Ramps,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Roofs,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Rooms,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Specialty Equipment,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Sprinklers,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Stairs,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Walls,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,Type,Calculated length in meters [ISO 19650-3:2020] (text mirror),Windows,227ec904-3722-558d-941a-4353dd1e86a9
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Casework,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Electrical Equipment,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Furniture,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Generic Models,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Mechanical Equipment,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Plumbing Fixtures,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,Type,Cst Fix Lumen Output Lm [ISO 19650-2:2018] (text mirror),Specialty Equipment,2faac999-b3b7-55bc-9fd4-57a40f64e14c
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Casework,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Electrical Equipment,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Furniture,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Generic Models,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Mechanical Equipment,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Plumbing Fixtures,879f204e-0c98-5915-93ec-b04b3b5bd98b
+COM_DAT,CST_S_REI_WEIGHT_TXT,879f204e-0c98-5915-93ec-b04b3b5bd98b,TEXT,Type,Cst S Rei Weight Kg [ISO 19650-2:2018] (text mirror),Specialty Equipment,879f204e-0c98-5915-93ec-b04b3b5bd98b
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Cable Trays,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Conduit Fittings,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Conduits,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CBL_NUM_OF_CORES_TXT,1257668b-628d-5ad7-a74e-5761f3788382,TEXT,Type,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,1257668b-628d-5ad7-a74e-5761f3788382
+ELC_PWR,ELC_CDT_CBL_FILL_TXT,2097624c-c3ad-59bd-9a80-0ac8e5fb4f24,TEXT,Type,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018] (text mirror),Conduits,2097624c-c3ad-59bd-9a80-0ac8e5fb4f24
+ELC_PWR,ELC_CDT_SZ_TXT,c1050457-a218-5918-acfe-0ddff3083ced,TEXT,Type,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018] (text mirror),Conduits,c1050457-a218-5918-acfe-0ddff3083ced
+ELC_PWR,ELC_CDT_SZ_TXT,c1050457-a218-5918-acfe-0ddff3083ced,TEXT,Type,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018] (text mirror),Conduit Fittings,c1050457-a218-5918-acfe-0ddff3083ced
+ELC_PWR,ELC_CKT_CUR_TXT,63f7f8ff-710d-55f5-bc17-d4e328162c81,TEXT,Type,Elc Ckt Cur A [ISO 19650-1:2018] (text mirror),Electrical Equipment,63f7f8ff-710d-55f5-bc17-d4e328162c81
+ELC_PWR,ELC_CKT_CUR_TXT,63f7f8ff-710d-55f5-bc17-d4e328162c81,TEXT,Type,Elc Ckt Cur A [ISO 19650-1:2018] (text mirror),Electrical Fixtures,63f7f8ff-710d-55f5-bc17-d4e328162c81
+ELC_PWR,ELC_CKT_CUR_TXT,63f7f8ff-710d-55f5-bc17-d4e328162c81,TEXT,Type,Elc Ckt Cur A [ISO 19650-1:2018] (text mirror),Generic Models,63f7f8ff-710d-55f5-bc17-d4e328162c81
+ELC_PWR,ELC_CKT_CUR_TXT,63f7f8ff-710d-55f5-bc17-d4e328162c81,TEXT,Type,Elc Ckt Cur A [ISO 19650-1:2018] (text mirror),Lighting Fixtures,63f7f8ff-710d-55f5-bc17-d4e328162c81
+ELC_PWR,ELC_CKT_PHASE_COUNT_TXT,add8ab8a-b528-533d-a39f-ef2202475da9,TEXT,Type,Elc Ckt Phase Count Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,add8ab8a-b528-533d-a39f-ef2202475da9
+ELC_PWR,ELC_CKT_PHASE_COUNT_TXT,add8ab8a-b528-533d-a39f-ef2202475da9,TEXT,Type,Elc Ckt Phase Count Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,add8ab8a-b528-533d-a39f-ef2202475da9
+ELC_PWR,ELC_CKT_PHASE_COUNT_TXT,add8ab8a-b528-533d-a39f-ef2202475da9,TEXT,Type,Elc Ckt Phase Count Nr [ISO 19650-1:2018] (text mirror),Generic Models,add8ab8a-b528-533d-a39f-ef2202475da9
+ELC_PWR,ELC_CKT_PHASE_COUNT_TXT,add8ab8a-b528-533d-a39f-ef2202475da9,TEXT,Type,Elc Ckt Phase Count Nr [ISO 19650-1:2018] (text mirror),Lighting Fixtures,add8ab8a-b528-533d-a39f-ef2202475da9
+ELC_PWR,ELC_CKT_TXT,421483f2-ce3b-58eb-ba9b-3607c0c4f477,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,421483f2-ce3b-58eb-ba9b-3607c0c4f477
+ELC_PWR,ELC_CKT_TXT,421483f2-ce3b-58eb-ba9b-3607c0c4f477,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,421483f2-ce3b-58eb-ba9b-3607c0c4f477
+ELC_PWR,ELC_CKT_TXT,421483f2-ce3b-58eb-ba9b-3607c0c4f477,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018] (text mirror),Generic Models,421483f2-ce3b-58eb-ba9b-3607c0c4f477
+ELC_PWR,ELC_CKT_TXT,421483f2-ce3b-58eb-ba9b-3607c0c4f477,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018] (text mirror),Lighting Fixtures,421483f2-ce3b-58eb-ba9b-3607c0c4f477
+ELC_PWR,ELC_CTR_FILL_TXT,3d9e3389-8895-515e-9a54-432290be0481,TEXT,Type,"Design cable fill percentage, max 40% for future capacity [ISO 19650-1:2018] (text mirror)",Cable Trays,3d9e3389-8895-515e-9a54-432290be0481
+ELC_PWR,ELC_CTR_WIDTH_TXT,a96f5f59-cd70-504e-9b20-80e50ef87113,TEXT,Type,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018] (text mirror),Cable Trays,a96f5f59-cd70-504e-9b20-80e50ef87113
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Cable Trays,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Conduit Fittings,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Conduits,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Electrical Equipment,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_CONNECTED_LOAD_TXT,8630888a-98a9-56ff-9c2a-83a50130187a,TEXT,Type,Elc Pnl Connected Load Kw [ISO 19650-1:2018] (text mirror),Electrical Fixtures,8630888a-98a9-56ff-9c2a-83a50130187a
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Cable Trays,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Conduit Fittings,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Conduits,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Electrical Equipment,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_MAIN_BRK_TXT,c800dcd8-bf15-5bf5-93ad-0287ff86949d,TEXT,Type,Elc Pnl Main Brk A [ISO 19650-1:2018] (text mirror),Electrical Fixtures,c800dcd8-bf15-5bf5-93ad-0287ff86949d
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Cable Trays,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Conduit Fittings,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Conduits,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_NUM_OF_WAYS_TXT,312ce154-a768-5ad8-8be9-b4f3e98707b6,TEXT,Type,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,312ce154-a768-5ad8-8be9-b4f3e98707b6
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Cable Trays,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Conduit Fittings,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Conduits,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_PHS_COUNT_TXT,ea7a5324-3196-5f29-83dd-239c8f59a233,TEXT,Type,Elc Pnl Phs Count Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,ea7a5324-3196-5f29-83dd-239c8f59a233
+ELC_PWR,ELC_PNL_SHORT_CIRCUIT_RATING_TXT,2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c,TEXT,Type,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018] (text mirror),Electrical Equipment,2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c
+ELC_PWR,ELC_PNL_SHORT_CIRCUIT_RATING_TXT,2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c,TEXT,Type,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018] (text mirror),Generic Models,2e2ca5cc-6ab2-57de-a7f7-2bda8a0eff6c
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Cable Trays,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Conduit Fittings,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Conduits,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Electrical Equipment,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PNL_VLT_TXT,6abac03e-94a6-52a2-bbf1-56759c2bccb4,TEXT,Type,Elc Pnl Vlt V [ISO 19650-1:2018] (text mirror),Electrical Fixtures,6abac03e-94a6-52a2-bbf1-56759c2bccb4
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Cable Trays,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Conduit Fittings,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Conduits,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Electrical Equipment,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_PWR_TXT,8102aa91-d49e-5fe6-bba2-15193fdb2d9f,TEXT,Type,Elc Pwr Kw [ISO 19650-1:2018] (text mirror),Electrical Fixtures,8102aa91-d49e-5fe6-bba2-15193fdb2d9f
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Cable Trays,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Conduit Fittings,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Conduits,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Electrical Equipment,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_SPARE_WAYS_TXT,12fe11e1-3b12-57d6-9b30-5022298d7e62,TEXT,Type,Elc Spare Ways Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,12fe11e1-3b12-57d6-9b30-5022298d7e62
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Cable Trays,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Conduits,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Electrical Equipment,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Electrical Fixtures,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Generic Models,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_DROP_TXT,efcb399c-f695-51e3-b34e-f6a67bfdb82b,TEXT,Type,Elc Vlt Drop Pct [ISO 19650-1:2018] (text mirror),Lighting Fixtures,efcb399c-f695-51e3-b34e-f6a67bfdb82b
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,0553394c-6926-5460-bc44-4fc45ac42ed9
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Cable Trays,0553394c-6926-5460-bc44-4fc45ac42ed9
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Conduit Fittings,0553394c-6926-5460-bc44-4fc45ac42ed9
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Conduits,0553394c-6926-5460-bc44-4fc45ac42ed9
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Electrical Equipment,0553394c-6926-5460-bc44-4fc45ac42ed9
+ELC_PWR,ELC_VLT_PRIMARY_RATING_TXT,0553394c-6926-5460-bc44-4fc45ac42ed9,TEXT,Type,Elc Vlt Primary Rating V [ISO 19650-1:2018] (text mirror),Electrical Fixtures,0553394c-6926-5460-bc44-4fc45ac42ed9
+FLS_LIFE_SFTY,FLS_ALARM_CIRCUIT_COUNT_TXT,f3c087dd-1eea-529e-a3c1-dc5496a3335f,TEXT,Type,Fls Alarm Circuit Count Nr [ISO 19650-1:2018] (text mirror),Generic Models,f3c087dd-1eea-529e-a3c1-dc5496a3335f
+FLS_LIFE_SFTY,FLS_DETECTION_COST_TXT,6dbc3568-ac21-5244-8398-0d6ec74318cb,TEXT,Type,Fls Detection Cost Ugx [ISO 19650-1:2018] (text mirror),Generic Models,6dbc3568-ac21-5244-8398-0d6ec74318cb
+FLS_LIFE_SFTY,FLS_DETECTOR_COUNT_TXT,0ad23463-565e-558a-91a8-1387bb2a04a2,TEXT,Type,Fls Detector Count Nr [ISO 19650-1:2018] (text mirror),Generic Models,0ad23463-565e-558a-91a8-1387bb2a04a2
+FLS_LIFE_SFTY,FLS_SFTY_COVERAGE_AREA_TXT,fd84f1d1-2ee9-53a2-9b93-7330681db40c,TEXT,Type,Fls Sfty Coverage Area Sq M [ISO 19650-1:2018] (text mirror),Fire Alarm Devices,fd84f1d1-2ee9-53a2-9b93-7330681db40c
+FLS_LIFE_SFTY,FLS_SFTY_COVERAGE_AREA_TXT,fd84f1d1-2ee9-53a2-9b93-7330681db40c,TEXT,Type,Fls Sfty Coverage Area Sq M [ISO 19650-1:2018] (text mirror),Mechanical Equipment,fd84f1d1-2ee9-53a2-9b93-7330681db40c
+FLS_LIFE_SFTY,FLS_SFTY_COVERAGE_AREA_TXT,fd84f1d1-2ee9-53a2-9b93-7330681db40c,TEXT,Type,Fls Sfty Coverage Area Sq M [ISO 19650-1:2018] (text mirror),Sprinklers,fd84f1d1-2ee9-53a2-9b93-7330681db40c
+FLS_LIFE_SFTY,FLS_SFTY_FLW_RATE_LPM_TXT,4b4f4aa7-8c5a-5860-9343-762dcae636c6,TEXT,Type,Fls Sfty Flw Rate Lpm Nr [ISO 19650-1:2018] (text mirror),Fire Alarm Devices,4b4f4aa7-8c5a-5860-9343-762dcae636c6
+FLS_LIFE_SFTY,FLS_SFTY_FLW_RATE_LPM_TXT,4b4f4aa7-8c5a-5860-9343-762dcae636c6,TEXT,Type,Fls Sfty Flw Rate Lpm Nr [ISO 19650-1:2018] (text mirror),Mechanical Equipment,4b4f4aa7-8c5a-5860-9343-762dcae636c6
+FLS_LIFE_SFTY,FLS_SFTY_FLW_RATE_LPM_TXT,4b4f4aa7-8c5a-5860-9343-762dcae636c6,TEXT,Type,Fls Sfty Flw Rate Lpm Nr [ISO 19650-1:2018] (text mirror),Sprinklers,4b4f4aa7-8c5a-5860-9343-762dcae636c6
+FLS_LIFE_SFTY,FLS_SFTY_HEADS_OPERATING_TXT,079163cd-137b-5199-abe7-a68e5db2e2dd,TEXT,Type,Fls Sfty Heads Operating Nr [ISO 19650-1:2018] (text mirror),Generic Models,079163cd-137b-5199-abe7-a68e5db2e2dd
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Air Terminals,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Cable Trays,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Casework,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Conduits,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Electrical Equipment,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Electrical Fixtures,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Furniture,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Generic Models,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Lighting Fixtures,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Mechanical Equipment,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Plumbing Equipment,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Specialty Equipment,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_K_FACTOR_TXT,e270f744-cc5d-5314-b94f-553bc032819f,TEXT,Type,Sprinkler K-factor discharge coefficient [ISO 19650-1:2018] (text mirror),Sprinklers,e270f744-cc5d-5314-b94f-553bc032819f
+FLS_LIFE_SFTY,FLS_SFTY_TEMP_RATING_TXT,768413c0-29c0-5294-b609-e2d0ddea913f,TEXT,Type,Fls Sfty Temp Rating C [ISO 19650-1:2018] (text mirror),Fire Alarm Devices,768413c0-29c0-5294-b609-e2d0ddea913f
+FLS_LIFE_SFTY,FLS_SFTY_TEMP_RATING_TXT,768413c0-29c0-5294-b609-e2d0ddea913f,TEXT,Type,Fls Sfty Temp Rating C [ISO 19650-1:2018] (text mirror),Mechanical Equipment,768413c0-29c0-5294-b609-e2d0ddea913f
+FLS_LIFE_SFTY,FLS_SFTY_TEMP_RATING_TXT,768413c0-29c0-5294-b609-e2d0ddea913f,TEXT,Type,Fls Sfty Temp Rating C [ISO 19650-1:2018] (text mirror),Sprinklers,768413c0-29c0-5294-b609-e2d0ddea913f
+HVC_SYSTEMS,HVC_AIR_CHANGES_PER_TXT,3f161746-3904-5bce-8f1a-3a2cac9abf0f,TEXT,Type,Hvc Air Changes Per Hr [ISO 19650-1:2018] (text mirror),Generic Models,3f161746-3904-5bce-8f1a-3a2cac9abf0f
+HVC_SYSTEMS,HVC_CAPACITY_TXT,64ee1612-3175-5bee-8b0e-ea2a1769058a,TEXT,Type,"Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183] (text mirror)",Mechanical Equipment,64ee1612-3175-5bee-8b0e-ea2a1769058a
+HVC_SYSTEMS,HVC_CAP_TXT,f1dfe78d-0896-5267-94a2-39d9a585b409,TEXT,Type,Hvc Cap Kw [ISO 19650-1:2018] (text mirror),Air Terminals,f1dfe78d-0896-5267-94a2-39d9a585b409
+HVC_SYSTEMS,HVC_CAP_TXT,f1dfe78d-0896-5267-94a2-39d9a585b409,TEXT,Type,Hvc Cap Kw [ISO 19650-1:2018] (text mirror),Duct Accessories,f1dfe78d-0896-5267-94a2-39d9a585b409
+HVC_SYSTEMS,HVC_CAP_TXT,f1dfe78d-0896-5267-94a2-39d9a585b409,TEXT,Type,Hvc Cap Kw [ISO 19650-1:2018] (text mirror),Duct Fittings,f1dfe78d-0896-5267-94a2-39d9a585b409
+HVC_SYSTEMS,HVC_CAP_TXT,f1dfe78d-0896-5267-94a2-39d9a585b409,TEXT,Type,Hvc Cap Kw [ISO 19650-1:2018] (text mirror),Mechanical Equipment,f1dfe78d-0896-5267-94a2-39d9a585b409
+HVC_SYSTEMS,HVC_DCT_FLW_TXT,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f,TEXT,Type,Hvc Dct Flw Cfm [ISO 19650-1:2018] (text mirror),Air Terminals,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f
+HVC_SYSTEMS,HVC_DCT_FLW_TXT,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f,TEXT,Type,Hvc Dct Flw Cfm [ISO 19650-1:2018] (text mirror),Duct Accessories,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f
+HVC_SYSTEMS,HVC_DCT_FLW_TXT,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f,TEXT,Type,Hvc Dct Flw Cfm [ISO 19650-1:2018] (text mirror),Duct Fittings,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f
+HVC_SYSTEMS,HVC_DCT_FLW_TXT,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f,TEXT,Type,Hvc Dct Flw Cfm [ISO 19650-1:2018] (text mirror),Mechanical Equipment,42f1024e-ff68-5bea-bf9a-e774cdd0fe7f
+HVC_SYSTEMS,HVC_DCT_SOUNDLVL_TXT,1d72d95c-05c9-5ede-ad45-19783edce060,TEXT,Type,Hvc Dct Soundlvl Db [ISO 19650-1:2018] (text mirror),Air Terminals,1d72d95c-05c9-5ede-ad45-19783edce060
+HVC_SYSTEMS,HVC_DCT_SOUNDLVL_TXT,1d72d95c-05c9-5ede-ad45-19783edce060,TEXT,Type,Hvc Dct Soundlvl Db [ISO 19650-1:2018] (text mirror),Duct Accessories,1d72d95c-05c9-5ede-ad45-19783edce060
+HVC_SYSTEMS,HVC_DCT_SOUNDLVL_TXT,1d72d95c-05c9-5ede-ad45-19783edce060,TEXT,Type,Hvc Dct Soundlvl Db [ISO 19650-1:2018] (text mirror),Duct Fittings,1d72d95c-05c9-5ede-ad45-19783edce060
+HVC_SYSTEMS,HVC_DCT_SOUNDLVL_TXT,1d72d95c-05c9-5ede-ad45-19783edce060,TEXT,Type,Hvc Dct Soundlvl Db [ISO 19650-1:2018] (text mirror),Mechanical Equipment,1d72d95c-05c9-5ede-ad45-19783edce060
+HVC_SYSTEMS,HVC_DUCT_AREA_TXT,e4905f7a-06cf-5e9f-9340-18c1b6506cbd,TEXT,Type,Hvc Duct Area Sq M [ISO 19650-1:2018] (text mirror),Air Terminals,e4905f7a-06cf-5e9f-9340-18c1b6506cbd
+HVC_SYSTEMS,HVC_DUCT_AREA_TXT,e4905f7a-06cf-5e9f-9340-18c1b6506cbd,TEXT,Type,Hvc Duct Area Sq M [ISO 19650-1:2018] (text mirror),Ducts,e4905f7a-06cf-5e9f-9340-18c1b6506cbd
+HVC_SYSTEMS,HVC_DUCT_AREA_TXT,e4905f7a-06cf-5e9f-9340-18c1b6506cbd,TEXT,Type,Hvc Duct Area Sq M [ISO 19650-1:2018] (text mirror),Generic Models,e4905f7a-06cf-5e9f-9340-18c1b6506cbd
+HVC_SYSTEMS,HVC_DUCT_FLOWRATE_TXT,4c234732-d8b4-5495-bf1e-396a644b0dba,TEXT,Type,Hvc Duct Flowrate M3h [ISO 19650-1:2018] (text mirror),Air Terminals,4c234732-d8b4-5495-bf1e-396a644b0dba
+HVC_SYSTEMS,HVC_DUCT_FLOWRATE_TXT,4c234732-d8b4-5495-bf1e-396a644b0dba,TEXT,Type,Hvc Duct Flowrate M3h [ISO 19650-1:2018] (text mirror),Ducts,4c234732-d8b4-5495-bf1e-396a644b0dba
+HVC_SYSTEMS,HVC_DUCT_FLOWRATE_TXT,4c234732-d8b4-5495-bf1e-396a644b0dba,TEXT,Type,Hvc Duct Flowrate M3h [ISO 19650-1:2018] (text mirror),Generic Models,4c234732-d8b4-5495-bf1e-396a644b0dba
+HVC_SYSTEMS,HVC_EFF_RATIO_TXT,3d7a7cb8-0465-5473-910b-623aab16f554,TEXT,Type,Hvc Eff Ratio Nr [ISO 19650-1:2018] (text mirror),Air Terminals,3d7a7cb8-0465-5473-910b-623aab16f554
+HVC_SYSTEMS,HVC_EFF_RATIO_TXT,3d7a7cb8-0465-5473-910b-623aab16f554,TEXT,Type,Hvc Eff Ratio Nr [ISO 19650-1:2018] (text mirror),Ducts,3d7a7cb8-0465-5473-910b-623aab16f554
+HVC_SYSTEMS,HVC_EFF_RATIO_TXT,3d7a7cb8-0465-5473-910b-623aab16f554,TEXT,Type,Hvc Eff Ratio Nr [ISO 19650-1:2018] (text mirror),Generic Models,3d7a7cb8-0465-5473-910b-623aab16f554
+HVC_SYSTEMS,HVC_EFF_RATIO_TXT,3d7a7cb8-0465-5473-910b-623aab16f554,TEXT,Type,Hvc Eff Ratio Nr [ISO 19650-1:2018] (text mirror),Mechanical Equipment,3d7a7cb8-0465-5473-910b-623aab16f554
+HVC_SYSTEMS,HVC_PIPE_LENGTH_TXT,1726b568-27df-5b33-8280-2caf1ad76658,TEXT,Type,Hvc Pipe Length M [ISO 19650-1:2018] (text mirror),Air Terminals,1726b568-27df-5b33-8280-2caf1ad76658
+HVC_SYSTEMS,HVC_PIPE_LENGTH_TXT,1726b568-27df-5b33-8280-2caf1ad76658,TEXT,Type,Hvc Pipe Length M [ISO 19650-1:2018] (text mirror),Ducts,1726b568-27df-5b33-8280-2caf1ad76658
+HVC_SYSTEMS,HVC_PIPE_LENGTH_TXT,1726b568-27df-5b33-8280-2caf1ad76658,TEXT,Type,Hvc Pipe Length M [ISO 19650-1:2018] (text mirror),Generic Models,1726b568-27df-5b33-8280-2caf1ad76658
+HVC_SYSTEMS,HVC_PIPE_LENGTH_TXT,1726b568-27df-5b33-8280-2caf1ad76658,TEXT,Type,Hvc Pipe Length M [ISO 19650-1:2018] (text mirror),Mechanical Equipment,1726b568-27df-5b33-8280-2caf1ad76658
+HVC_SYSTEMS,HVC_PIPE_PRESSURE_TXT,b1c49ec2-8384-52de-8784-e9f8e9bb5b37,TEXT,Type,Hvc Pipe Pressure Kpa [ISO 19650-1:2018] (text mirror),Air Terminals,b1c49ec2-8384-52de-8784-e9f8e9bb5b37
+HVC_SYSTEMS,HVC_PIPE_PRESSURE_TXT,b1c49ec2-8384-52de-8784-e9f8e9bb5b37,TEXT,Type,Hvc Pipe Pressure Kpa [ISO 19650-1:2018] (text mirror),Ducts,b1c49ec2-8384-52de-8784-e9f8e9bb5b37
+HVC_SYSTEMS,HVC_PIPE_PRESSURE_TXT,b1c49ec2-8384-52de-8784-e9f8e9bb5b37,TEXT,Type,Hvc Pipe Pressure Kpa [ISO 19650-1:2018] (text mirror),Generic Models,b1c49ec2-8384-52de-8784-e9f8e9bb5b37
+HVC_SYSTEMS,HVC_PIPE_PRESSURE_TXT,b1c49ec2-8384-52de-8784-e9f8e9bb5b37,TEXT,Type,Hvc Pipe Pressure Kpa [ISO 19650-1:2018] (text mirror),Mechanical Equipment,b1c49ec2-8384-52de-8784-e9f8e9bb5b37
+HVC_SYSTEMS,HVC_PWR_TXT,cc2aea55-13fc-5321-9682-97bb14f7bae6,TEXT,Type,Hvc Pwr Kw [ISO 19650-1:2018] (text mirror),Air Terminals,cc2aea55-13fc-5321-9682-97bb14f7bae6
+HVC_SYSTEMS,HVC_PWR_TXT,cc2aea55-13fc-5321-9682-97bb14f7bae6,TEXT,Type,Hvc Pwr Kw [ISO 19650-1:2018] (text mirror),Duct Accessories,cc2aea55-13fc-5321-9682-97bb14f7bae6
+HVC_SYSTEMS,HVC_PWR_TXT,cc2aea55-13fc-5321-9682-97bb14f7bae6,TEXT,Type,Hvc Pwr Kw [ISO 19650-1:2018] (text mirror),Duct Fittings,cc2aea55-13fc-5321-9682-97bb14f7bae6
+HVC_SYSTEMS,HVC_PWR_TXT,cc2aea55-13fc-5321-9682-97bb14f7bae6,TEXT,Type,Hvc Pwr Kw [ISO 19650-1:2018] (text mirror),Mechanical Equipment,cc2aea55-13fc-5321-9682-97bb14f7bae6
+HVC_SYSTEMS,HVC_REFRIGERANT_KG_TXT,11fd9c48-fb13-50ce-a390-a2f058c8c06f,TEXT,Type,Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand x GWP) [Phase 183] (text mirror),Mechanical Equipment,11fd9c48-fb13-50ce-a390-a2f058c8c06f
+HVC_SYSTEMS,HVC_VEL_TXT,63a173d6-6108-5ff4-b87d-f318250e313f,TEXT,Type,Hvc Vel Mps [ISO 19650-1:2018] (text mirror),Air Terminals,63a173d6-6108-5ff4-b87d-f318250e313f
+HVC_SYSTEMS,HVC_VEL_TXT,63a173d6-6108-5ff4-b87d-f318250e313f,TEXT,Type,Hvc Vel Mps [ISO 19650-1:2018] (text mirror),Duct Accessories,63a173d6-6108-5ff4-b87d-f318250e313f
+HVC_SYSTEMS,HVC_VEL_TXT,63a173d6-6108-5ff4-b87d-f318250e313f,TEXT,Type,Hvc Vel Mps [ISO 19650-1:2018] (text mirror),Duct Fittings,63a173d6-6108-5ff4-b87d-f318250e313f
+HVC_SYSTEMS,HVC_VEL_TXT,63a173d6-6108-5ff4-b87d-f318250e313f,TEXT,Type,Hvc Vel Mps [ISO 19650-1:2018] (text mirror),Mechanical Equipment,63a173d6-6108-5ff4-b87d-f318250e313f
+LTG_CONTROLS,LTG_CLR_RENDERING_INDEX_TXT,a22cab3a-3815-5f9f-8447-2d34ec1e35e6,TEXT,Type,Ltg Clr Rendering Index Nr [ISO 19650-1:2018] (text mirror),Electrical Fixtures,a22cab3a-3815-5f9f-8447-2d34ec1e35e6
+LTG_CONTROLS,LTG_CLR_RENDERING_INDEX_TXT,a22cab3a-3815-5f9f-8447-2d34ec1e35e6,TEXT,Type,Ltg Clr Rendering Index Nr [ISO 19650-1:2018] (text mirror),Lighting Devices,a22cab3a-3815-5f9f-8447-2d34ec1e35e6
+LTG_CONTROLS,LTG_CLR_RENDERING_INDEX_TXT,a22cab3a-3815-5f9f-8447-2d34ec1e35e6,TEXT,Type,Ltg Clr Rendering Index Nr [ISO 19650-1:2018] (text mirror),Lighting Fixtures,a22cab3a-3815-5f9f-8447-2d34ec1e35e6
+LTG_CONTROLS,LTG_CLR_TEMP_TXT,137315a5-f948-53a9-8745-25bad90d0770,TEXT,Type,Ltg Clr Temp K [ISO 19650-1:2018] (text mirror),Electrical Fixtures,137315a5-f948-53a9-8745-25bad90d0770
+LTG_CONTROLS,LTG_CLR_TEMP_TXT,137315a5-f948-53a9-8745-25bad90d0770,TEXT,Type,Ltg Clr Temp K [ISO 19650-1:2018] (text mirror),Lighting Devices,137315a5-f948-53a9-8745-25bad90d0770
+LTG_CONTROLS,LTG_CLR_TEMP_TXT,137315a5-f948-53a9-8745-25bad90d0770,TEXT,Type,Ltg Clr Temp K [ISO 19650-1:2018] (text mirror),Lighting Fixtures,137315a5-f948-53a9-8745-25bad90d0770
+ELC_PWR,LTG_DESIGN_ILLUMINANCE_TXT,8fd4dfa3-b36f-5a47-b589-be2562f6c10c,TEXT,Type,Ltg Design Illuminance Lux [ISO 19650-1:2018] (text mirror),Generic Models,8fd4dfa3-b36f-5a47-b589-be2562f6c10c
+LTG_CONTROLS,LTG_EFFICACY_TXT,eb0c1e49-7095-530f-b727-db520e5108c8,TEXT,Type,Ltg Efficacy Lm W [ISO 19650-1:2018] (text mirror),Electrical Fixtures,eb0c1e49-7095-530f-b727-db520e5108c8
+LTG_CONTROLS,LTG_EFFICACY_TXT,eb0c1e49-7095-530f-b727-db520e5108c8,TEXT,Type,Ltg Efficacy Lm W [ISO 19650-1:2018] (text mirror),Lighting Devices,eb0c1e49-7095-530f-b727-db520e5108c8
+LTG_CONTROLS,LTG_EFFICACY_TXT,eb0c1e49-7095-530f-b727-db520e5108c8,TEXT,Type,Ltg Efficacy Lm W [ISO 19650-1:2018] (text mirror),Lighting Fixtures,eb0c1e49-7095-530f-b727-db520e5108c8
+LTG_CONTROLS,LTG_FIX_LMP_WATTAGE_TXT,27a3fae8-4cc8-5638-8329-826db3ce4880,TEXT,Type,Ltg Fix Lmp Wattage W [ISO 19650-1:2018] (text mirror),Electrical Fixtures,27a3fae8-4cc8-5638-8329-826db3ce4880
+LTG_CONTROLS,LTG_FIX_LMP_WATTAGE_TXT,27a3fae8-4cc8-5638-8329-826db3ce4880,TEXT,Type,Ltg Fix Lmp Wattage W [ISO 19650-1:2018] (text mirror),Lighting Devices,27a3fae8-4cc8-5638-8329-826db3ce4880
+LTG_CONTROLS,LTG_FIX_LMP_WATTAGE_TXT,27a3fae8-4cc8-5638-8329-826db3ce4880,TEXT,Type,Ltg Fix Lmp Wattage W [ISO 19650-1:2018] (text mirror),Lighting Fixtures,27a3fae8-4cc8-5638-8329-826db3ce4880
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Cable Tray Fittings,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Cable Trays,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Conduit Fittings,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Conduits,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Electrical Equipment,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Electrical Fixtures,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Lighting Devices,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+ELC_PWR,MNT_HGT_TXT,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77,TEXT,Type,Elc Mnt Hgt Mm [ISO 19650-1:2018] (text mirror),Lighting Fixtures,496f30fe-abc1-5ecb-b3a6-46dfaafb1c77
+PER_SUST,PER_SUST_EMBODIED_CARBON_TXT,97abf67f-84fe-5fc2-b311-8deed7e4caec,TEXT,Type,Per Sust Embodied Carbon Kg [ISO 19650-1:2018] (text mirror),Generic Models,97abf67f-84fe-5fc2-b311-8deed7e4caec
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Doors,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Generic Models,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Mechanical Equipment,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Structural Columns,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Structural Framing,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_RECYCLED_CONTENT_TXT,842a9ea1-6b64-574f-b379-193b754d9009,TEXT,Type,Per Sust Recycled Content Pct [ISO 19650-1:2018] (text mirror),Windows,842a9ea1-6b64-574f-b379-193b754d9009
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Doors,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Generic Models,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Mechanical Equipment,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Structural Columns,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Structural Framing,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_SUST_WTR_RATING_TXT,db793c52-b25f-5a84-a2bb-3c073a1282cc,TEXT,Type,Per Sust Wtr Rating Nr [ISO 19650-1:2018] (text mirror),Windows,db793c52-b25f-5a84-a2bb-3c073a1282cc
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Doors,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Generic Models,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Mechanical Equipment,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Structural Columns,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Structural Framing,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_R_VALUE_TXT,91ffa390-3dc0-5755-9ea9-737a64acf7d1,TEXT,Type,Per Therm R Value M2k W [ISO 19650-1:2018] (text mirror),Windows,91ffa390-3dc0-5755-9ea9-737a64acf7d1
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Doors,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Generic Models,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Mechanical Equipment,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Structural Columns,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Structural Framing,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Windows,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PER_SUST,PER_THERM_U_VALUE_TXT,9ee43234-91ad-580e-95c9-0dd9c1e0997d,TEXT,Type,Per Therm U Value W M2K [ISO 19650-1:2018] (text mirror),Generic Models,9ee43234-91ad-580e-95c9-0dd9c1e0997d
+PLM_DRN,PLM_ACC_CONNECTION_SZ_TXT,2d377ba8-5812-5625-b32b-97099f815629,TEXT,Type,Plm Acc Connection Sz Nr [ISO 19650-1:2018] (text mirror),Pipe Accessories,2d377ba8-5812-5625-b32b-97099f815629
+PLM_DRN,PLM_ACC_CONNECTION_SZ_TXT,2d377ba8-5812-5625-b32b-97099f815629,TEXT,Type,Plm Acc Connection Sz Nr [ISO 19650-1:2018] (text mirror),Pipe Fittings,2d377ba8-5812-5625-b32b-97099f815629
+PLM_DRN,PLM_ACC_CONNECTION_SZ_TXT,2d377ba8-5812-5625-b32b-97099f815629,TEXT,Type,Plm Acc Connection Sz Nr [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,2d377ba8-5812-5625-b32b-97099f815629
+PLM_DRN,PLM_PPE_FLW_TXT,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51,TEXT,Type,Plm Ppe Flw Lps [ISO 19650-1:2018] (text mirror),Pipe Accessories,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51
+PLM_DRN,PLM_PPE_FLW_TXT,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51,TEXT,Type,Plm Ppe Flw Lps [ISO 19650-1:2018] (text mirror),Pipe Fittings,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51
+PLM_DRN,PLM_PPE_FLW_TXT,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51,TEXT,Type,Plm Ppe Flw Lps [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,0cdfd7a4-8174-59bf-b496-b3ef1f97ab51
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Generic Models,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Pipe Accessories,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Pipe Fittings,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Pipes,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Plumbing Equipment,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_INS_THK_TXT,5bf693b8-574e-58f1-967e-338bb43ce853,TEXT,Type,Plm Ppe Ins Thk Mm [ISO 19650-1:2018] (text mirror),Sprinklers,5bf693b8-574e-58f1-967e-338bb43ce853
+PLM_DRN,PLM_PPE_LENGTH_TXT,70816e3d-82c5-53a5-ac09-2aa19c82d786,TEXT,Type,Plm Ppe Length M [ISO 19650-1:2018] (text mirror),Pipe Accessories,70816e3d-82c5-53a5-ac09-2aa19c82d786
+PLM_DRN,PLM_PPE_LENGTH_TXT,70816e3d-82c5-53a5-ac09-2aa19c82d786,TEXT,Type,Plm Ppe Length M [ISO 19650-1:2018] (text mirror),Pipe Fittings,70816e3d-82c5-53a5-ac09-2aa19c82d786
+PLM_DRN,PLM_PPE_LENGTH_TXT,70816e3d-82c5-53a5-ac09-2aa19c82d786,TEXT,Type,Plm Ppe Length M [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,70816e3d-82c5-53a5-ac09-2aa19c82d786
+PLM_DRN,PLM_PPE_PSR_RATING_TXT,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2,TEXT,Type,Plm Ppe Psr Rating Bar [ISO 19650-1:2018] (text mirror),Pipe Accessories,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2
+PLM_DRN,PLM_PPE_PSR_RATING_TXT,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2,TEXT,Type,Plm Ppe Psr Rating Bar [ISO 19650-1:2018] (text mirror),Pipe Fittings,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2
+PLM_DRN,PLM_PPE_PSR_RATING_TXT,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2,TEXT,Type,Plm Ppe Psr Rating Bar [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,38f2f0dd-9ed1-51ab-99b5-1bf94c4967b2
+PLM_DRN,PLM_PPE_SZ_TXT,b9d2812d-5e30-5f84-994c-ddb7e018ba08,TEXT,Type,Plm Ppe Sz Mm [ISO 19650-1:2018] (text mirror),Pipe Accessories,b9d2812d-5e30-5f84-994c-ddb7e018ba08
+PLM_DRN,PLM_PPE_SZ_TXT,b9d2812d-5e30-5f84-994c-ddb7e018ba08,TEXT,Type,Plm Ppe Sz Mm [ISO 19650-1:2018] (text mirror),Pipe Fittings,b9d2812d-5e30-5f84-994c-ddb7e018ba08
+PLM_DRN,PLM_PPE_SZ_TXT,b9d2812d-5e30-5f84-994c-ddb7e018ba08,TEXT,Type,Plm Ppe Sz Mm [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,b9d2812d-5e30-5f84-994c-ddb7e018ba08
+PLM_DRN,PLM_PSR_TXT,ebcdad42-8f11-507f-99ba-b613849b16e8,TEXT,Type,Plm Psr Kpa [ISO 19650-1:2018] (text mirror),Pipe Accessories,ebcdad42-8f11-507f-99ba-b613849b16e8
+PLM_DRN,PLM_PSR_TXT,ebcdad42-8f11-507f-99ba-b613849b16e8,TEXT,Type,Plm Psr Kpa [ISO 19650-1:2018] (text mirror),Pipe Fittings,ebcdad42-8f11-507f-99ba-b613849b16e8
+PLM_DRN,PLM_PSR_TXT,ebcdad42-8f11-507f-99ba-b613849b16e8,TEXT,Type,Plm Psr Kpa [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,ebcdad42-8f11-507f-99ba-b613849b16e8
+PLM_DRN,PLM_VEL_TXT,184dc33c-9982-5614-9fa1-e3712a601ec7,TEXT,Type,Plm Vel Mps [ISO 19650-1:2018] (text mirror),Pipe Accessories,184dc33c-9982-5614-9fa1-e3712a601ec7
+PLM_DRN,PLM_VEL_TXT,184dc33c-9982-5614-9fa1-e3712a601ec7,TEXT,Type,Plm Vel Mps [ISO 19650-1:2018] (text mirror),Pipe Fittings,184dc33c-9982-5614-9fa1-e3712a601ec7
+PLM_DRN,PLM_VEL_TXT,184dc33c-9982-5614-9fa1-e3712a601ec7,TEXT,Type,Plm Vel Mps [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,184dc33c-9982-5614-9fa1-e3712a601ec7
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Generic Models,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Pipe Accessories,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Pipe Fittings,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Pipes,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Plumbing Equipment,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VLV_CV_TXT,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5,TEXT,Type,Plm Vlv Cv Nr [ISO 19650-1:2018] (text mirror),Sprinklers,d52b0b93-3b82-54bb-8b8c-e350ef9ab5c5
+PLM_DRN,PLM_VNT_SZ_TXT,86b70d34-2f6b-56a2-80ba-24cf2144c00c,TEXT,Type,Plm Vnt Sz Nr [ISO 19650-1:2018] (text mirror),Pipe Accessories,86b70d34-2f6b-56a2-80ba-24cf2144c00c
+PLM_DRN,PLM_VNT_SZ_TXT,86b70d34-2f6b-56a2-80ba-24cf2144c00c,TEXT,Type,Plm Vnt Sz Nr [ISO 19650-1:2018] (text mirror),Pipe Fittings,86b70d34-2f6b-56a2-80ba-24cf2144c00c
+PLM_DRN,PLM_VNT_SZ_TXT,86b70d34-2f6b-56a2-80ba-24cf2144c00c,TEXT,Type,Plm Vnt Sz Nr [ISO 19650-1:2018] (text mirror),Plumbing Fixtures,86b70d34-2f6b-56a2-80ba-24cf2144c00c
+SLV_SLEEVE_PARAMS,SLV_SZ_TXT,2ccd0842-ede9-54b2-aab3-5fd49452565f,TEXT,Instance,Sleeve size in millimetres (text mirror),Generic Models,2ccd0842-ede9-54b2-aab3-5fd49452565f
