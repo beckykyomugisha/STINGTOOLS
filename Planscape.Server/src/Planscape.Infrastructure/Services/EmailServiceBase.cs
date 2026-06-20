@@ -34,7 +34,7 @@ public abstract class EmailServiceBase : IEmailService
     protected string Cfg(string key, string fallback = "") =>
         _config[$"Smtp:{key}"] ?? _config[$"Email:{key}"] ?? fallback;
 
-    protected string FromAddress => Cfg("FromAddress", "noreply@planscape.io");
+    protected string FromAddress => Cfg("FromAddress", "noreply@planscape.build");
     protected string FromName    => Cfg("FromName", "Planscape");
 
     /// <summary>True when this provider has the credentials it needs to send.</summary>
@@ -130,7 +130,7 @@ public abstract class EmailServiceBase : IEmailService
             AccentColor:      _config["Tenant:DefaultBranding:AccentColor"]      ?? "#E8912D",
             HeaderColor:      _config["Tenant:DefaultBranding:HeaderColor"]      ?? "#1A237E",
             LogoUrl:          _config["Tenant:DefaultBranding:LogoUrl"],
-            SupportEmail:     _config["Tenant:DefaultBranding:SupportEmail"]     ?? "support@planscape.io",
+            SupportEmail:     _config["Tenant:DefaultBranding:SupportEmail"]     ?? "support@planscape.build",
             EmailFromName:    FromName,
             EmailFromAddress: FromAddress,
             EmailSignature:   _config["Tenant:DefaultBranding:EmailSignature"],

@@ -1,0 +1,87 @@
+# render.yaml — Render.com Blueprint (Infrastructure-as-Code) for Planscape Server.
+#
+# MUST live at the REPOSITORY ROOT — Render only auto-detects a blueprint here,
+# and the Docker build context (and the Dockerfile's COPY paths) are relative to
+# the repo root. The Dockerfile copies both Planscape/assets/viewer/** and
+# Planscape.Server/src/** from the monorepo root, so dockerContext is "." (root)
+# and dockerfilePath points into the subfolder.
+#
+# Deploy:
+#   1. Render dashboard → Blueprints → New Blueprint Instance → connect this repo.
+#   2. Render provisions planscape-api (web) + planscape-db (Postgres) from below.
+#   3. Set the two secrets (sync:false) in the service's Environment tab:
+#        Jwt__Key                 — 32+ byte random (e.g. `openssl rand -base64 48`)
+#        PLANSCAPE_OWNER_PASSWORD — the davis@planscape.build login password
+#   4. Add the custom domain api.planscape.build (service → Settings → Custom Domains)
+#      and the matching CNAME at the planscape.build registrar.
+#
+# Docs: https://render.com/docs/infrastructure-as-code
+
+services:
+  # ── Planscape API (ASP.NET Core 8) ──────────────────────────────────────────
+  - type: web
+    name: planscape-api
+    runtime: docker
+    dockerfilePath: ./Planscape.Server/docker/Dockerfile
+    dockerContext: .            # repo root — the Dockerfile COPYs from Planscape/ and Planscape.Server/
+    branch: main
+    region: frankfurt           # eu-central-1 — closest to UK/Europe clients
+    plan: starter               # £6/mo — upgrade to standard when >60 concurrent users
+
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+
+      # ── Database (injected automatically from the planscape-db below) ──
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: planscape-db
+          property: connectionString
+
+      # ── JWT — secret, set in the Render dashboard ──
+      - key: Jwt__Key
+        sync: false             # Must be set manually in Render — never commit secrets
+      - key: Jwt__Issuer
+        value: Planscape
+      - key: Jwt__Audience
+        value: Planscape.Client
+
+      # ── Platform Owner bootstrap (PlatformOwnerSeeder) ──
+      # The operator/founder login, seeded idempotently on startup. The email is
+      # safe to declare here; the password is a secret set in the Render dashboard.
+      # Seeding is a one-time bootstrap — after first boot, rotate the password via
+      # change-password / forgot-password, not by editing this var. For multiple
+      # operators, set PLANSCAPE_OWNER_EMAILS (comma-separated) instead.
+      - key: PLANSCAPE_OWNER_EMAIL
+        value: davis@planscape.build
+      - key: PLANSCAPE_OWNER_PASSWORD
+        sync: false             # Set in Render → Environment (secret). Required to make the Owner loginable.
+
+      # ── CORS — web dashboard / app origins ──
+      - key: Cors__Origins__0
+        value: https://planscape.build
+      - key: Cors__Origins__1
+        value: https://app.planscape.build
+
+      # ── Serilog ──
+      - key: Serilog__MinimumLevel__Default
+        value: Warning
+
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  # ── PostgreSQL 16 (managed by Render) ──────────────────────────────────────
+  - name: planscape-db
+    databaseName: planscape
+    user: planscape
+    region: frankfurt
+    plan: starter               # £6/mo — 1GB storage, daily backups
+
+# ── Cost at launch (3 projects, ~60 users): API £6 + DB £6 = £12/month ──
+# Redis is optional — the API runs without it (refresh-token tracking + JTI
+# blacklist degrade gracefully). Add a Render Key Value instance + a
+# `Redis__Connection` env var later if you want those hardening features.
