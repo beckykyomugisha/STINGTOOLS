@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "description": "Kampala Uganda Temple (KUT) PROJECT OVERLAY for the STING LOD verification matrix. Merged by id/category over the corporate baseline (StingTools/Data/STING_LOD_MATRIX.json) — project milestones/categoryRules win. Deploy to <project>/_BIM_COORD/lod_matrix.json. The five milestones below are the unified A1/A2 reconciliation from proposal Section 3.5 (A1 LOD 300 governs over A2's LOD 200 at Deliverable B; Deliverable C stated at LOD 350 to make coordinated interfaces contractual). The corporate baseline already matches these — they are restated here as the project's confirmed, client-facing record. Checks are a parameter/naming/geometry-presence maturity proxy, NOT a geometric survey. Add temple-specific category rules below as the design team confirms them.",
+  "milestones": [
+    { "id": "deliverable-a", "name": "Deliverable A (Basis of Design)", "lod": 200 },
+    { "id": "deliverable-b", "name": "Deliverable B (50% documentation)", "lod": 300 },
+    { "id": "deliverable-c", "name": "Deliverable C (100% documentation)", "lod": 350 },
+    { "id": "conformed-set", "name": "Conformed set", "lod": 350 },
+    { "id": "deliverable-d", "name": "Deliverable D (record model)", "lod": 400 }
+  ],
+  "categoryRules": [
+    {
+      "category": "Lighting Fixtures",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    },
+    {
+      "category": "Plumbing Fixtures",
+      "checks": {
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true }
+      }
+    }
+  ]
+}

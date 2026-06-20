@@ -1522,6 +1522,8 @@ namespace StingTools.Core
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
+                case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
+                case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
@@ -1680,6 +1682,7 @@ namespace StingTools.Core
                 case "SmartNumbering":
                 case "GraitecNumbering":     return new Organise.SmartNumberingCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
+                case "KUT_KpiDashboard":     return new Commands.Kpi.KutKpiDashboardCommand();
 
                 // Phase 72: Doc/Schedule Automation
                 case "DrawingRegisterSync":     return new Docs.DrawingRegisterSyncCommand();
@@ -1771,6 +1774,7 @@ namespace StingTools.Core
                 case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
                 case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
                 case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
+                case "ACC_PullClashes":         return new Core.Clash.AccPullClashesCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
