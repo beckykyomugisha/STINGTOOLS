@@ -323,43 +323,32 @@ namespace StingTools.Tags
                         fm.GetParameters().Select(p => p.Definition.Name),
                         StringComparer.OrdinalIgnoreCase);
 
+                    // Phase 196: index existing SharedParameterElements once; route
+                    // every add through the shared conflict-tolerant injector so a
+                    // TEXT↔YESNO gate drift is skipped, never thrown as a modal. The
+                    // commit-time swallower is installed on the caller's transaction
+                    // (ProcessFamily / ProcessFamilyDocument).
+                    var injIdx = TagParamInjector.BuildIndex(famDoc);
                     foreach (string paramName in paramNames)
                     {
-                        try
+                        if (existingNames.Contains(paramName)) { skipped++; continue; }
+
+                        ExternalDefinition extDef = null;
+                        foreach (DefinitionGroup group in defFile.Groups)
                         {
-                            if (existingNames.Contains(paramName))
-                            {
-                                skipped++;
-                                continue;
-                            }
+                            extDef = group.Definitions
+                                .Cast<ExternalDefinition>()
+                                .FirstOrDefault(d => d.Name == paramName);
+                            if (extDef != null) break;
+                        }
+                        if (extDef == null) { skipped++; continue; }
 
-                            // Find the definition in shared param file
-                            ExternalDefinition extDef = null;
-                            foreach (DefinitionGroup group in defFile.Groups)
-                            {
-                                extDef = group.Definitions
-                                    .Cast<ExternalDefinition>()
-                                    .FirstOrDefault(d => d.Name == paramName);
-                                if (extDef != null) break;
-                            }
-
-                            if (extDef == null)
-                            {
-                                skipped++;
-                                continue;
-                            }
-
-                            bool isInstance = paramName != ParamRegistry.TAG_POS;
-                            fm.AddParameter(extDef,
-                                GroupTypeId.General,
-                                isInstance);
+                        bool isInstance = paramName != ParamRegistry.TAG_POS;
+                        if (TagParamInjector.EnsureFamilyParam(fm, extDef, injIdx, GroupTypeId.General, isInstance)
+                                == TagParamInjector.InjectResult.Added)
                             added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"InjectSharedParams '{paramName}': {ex.Message}");
-                            skipped++;
-                        }
+                        else
+                            skipped++; // SkippedExists / SkippedConflict / Failed (logged by the injector)
                     }
                 }
                 finally
@@ -1023,6 +1012,7 @@ namespace StingTools.Tags
 
                 using (Transaction tx = new Transaction(famDoc, "STING Tag Family Parameter Creator"))
                 {
+                    TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
 
                     // Pre-injection purge. Scope is set by opts.Purge:
@@ -1472,6 +1462,7 @@ namespace StingTools.Tags
 
                 using (Transaction tx = new Transaction(famDoc, "STING Family Param Inject"))
                 {
+                    TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
 
                     if (opts.Purge != PurgeMode.None)
