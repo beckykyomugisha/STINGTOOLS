@@ -13,13 +13,15 @@ const BASE_URL_KEY = 'planscape_base_url';
 //      out of the box. This is the line that fixes "won't open on phones":
 //      a phone can't reach the dev machine's localhost, so we need an
 //      explicit LAN/internet host before the first launch.
-//   3. localhost fallback for fresh git-clone dev runs on the same machine.
+//   3. Production default (api.planscape.build) so a fresh install reaches the
+//      real server out of the box. For same-machine dev, set
+//      EXPO_PUBLIC_API_BASE=http://localhost:5000 (or pick it in Settings).
 const ENV_BASE_URL =
   (typeof process !== 'undefined' && (
     process.env?.EXPO_PUBLIC_API_BASE
     || process.env?.EXPO_PUBLIC_PLANSCAPE_API
   )) || '';
-const DEFAULT_BASE_URL = ENV_BASE_URL || 'http://localhost:5000';
+const DEFAULT_BASE_URL = ENV_BASE_URL || 'https://api.planscape.build';
 
 let cachedBaseUrl: string | null = null;
 

@@ -2754,6 +2754,11 @@ namespace StingTools.UI
 
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
+                    // ACC (Autodesk Construction Cloud) live coordination — wired
+                    // to the existing plugin-side ACC client (V6.AccIssueSync /
+                    // AccModelCoordSync), not the server OAuth scaffold.
+                    case "AccPullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
+                    case "AccSyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {

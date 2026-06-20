@@ -80,11 +80,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
     private PlanscapeServerClient() { }
 
     // ── Shared URL builders (#9, #21) ────────────────────────────────────────
-    // Single canonical fallback for the web SPA when no server URL is known.
-    // The retired Render.com host (planscape-api.onrender.com) is explicitly
-    // NOT used — LoadConnectionSettings already drops it (:677) — and Planscape
-    // is self-hosted/offline-first, so the docker-compose default is canonical.
-    public const string DefaultAppFallbackUrl = "http://localhost:5000";
+    // The default API base is no longer a baked localhost const. It now resolves
+    // through ResolveDefaultServerUrl() (env var STING_PLANSCAPE_URL → machine
+    // settings file → baked production default api.planscape.build) so every
+    // install points at the right server without re-typing it per document.
+    // See PlanscapeServerClient.Settings.cs.
+    public static string DefaultAppFallbackUrl => ResolveDefaultServerUrl();
 
     /// <summary>
     /// #9 — Build the coordinator SPA URL (<c>&lt;base&gt;/app/</c> + optional
@@ -110,10 +111,10 @@ public sealed partial class PlanscapeServerClient : IDisposable
         }
         if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = DefaultAppFallbackUrl;
 
-        string url = baseUrl.TrimEnd('/') + "/app/";
-        if (!string.IsNullOrWhiteSpace(hash))
-            url += hash!.StartsWith("#") ? hash : "#" + hash;
-        return url;
+        // FormatWebAppUrl maps a cloud api.<domain> host to the sibling
+        // app.<domain> SPA root, and keeps the same-origin <base>/app/
+        // convention for localhost / self-hosted stacks. See Settings partial.
+        return FormatWebAppUrl(baseUrl, hash);
     }
 
     /// <summary>
@@ -181,6 +182,10 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
+            // Remember the server URL machine-wide so every other document
+            // (and the "Open Planscape" buttons) default to the same cloud
+            // server without the user re-typing it. Idempotent on the same URL.
+            SaveDefaultServerUrl(_serverUrl);
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
 
             // C2 — fire-and-forget SignalR start so real-time updates flow without
