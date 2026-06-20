@@ -101,48 +101,52 @@ namespace StingTools.Commands.Kpi
             catch (Exception ex) { StingLog.Warn("KUT KPI clash load: " + ex.Message); }
 
             // ── Owner-system coverage: Fohlio (FF&E) / SpecLink (CSI) / Niagara (BMS) ──
+            // Single combined pass over taggable categories: SpecLink CSI coverage (all
+            // taggable cats) + Fohlio FF&E coverage (mapped cats only). Folds what were
+            // two separate collector iterations into one (#13).
             int ffeTotal = 0, ffeLinked = 0, ffeStale = 0;
+            int specTotal = 0, specAssigned = 0;
             try
             {
                 var map = FohlioMap.Load(doc);
                 var ffeCats = new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
                 var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                             .Where(e => e.Category != null && ffeCats.Contains(ParameterHelpers.GetCategoryName(e))))
-                {
-                    ffeTotal++;
-                    if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_REF))) ffeLinked++;
-                    var snap = StingFohlioSnapshotSchema.Read(el);
-                    if (snap != null && snap.CapturedUtcTicks > 0)
-                    {
-                        Dictionary<string, string> sv = null;
-                        try { sv = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); } catch { }
-                        sv = sv ?? new Dictionary<string, string>();
-                        foreach (var p in writeParams)
-                        {
-                            sv.TryGetValue(p, out string snapV);
-                            if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn("KUT KPI Fohlio: " + ex.Message); }
 
-            int specTotal = 0, specAssigned = 0;
-            try
-            {
                 var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                 var catEnums = SharedParamGuids.AllCategoryEnums;
                 if (catEnums != null && catEnums.Length > 0)
                     coll = coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
                 foreach (var el in coll)
                 {
                     if (el.Category == null) continue;
+                    string cat = ParameterHelpers.GetCategoryName(el);
+
+                    // SpecLink CSI coverage
                     specTotal++;
                     if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION))) specAssigned++;
+
+                    // Fohlio FF&E coverage (mapped categories only)
+                    if (ffeCats.Contains(cat))
+                    {
+                        ffeTotal++;
+                        if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_REF))) ffeLinked++;
+                        var snap = StingFohlioSnapshotSchema.Read(el);
+                        if (snap != null && snap.CapturedUtcTicks > 0)
+                        {
+                            Dictionary<string, string> sv = null;
+                            try { sv = JsonConvert.DeserializeObject<Dictionary<string, string>>(snap.SnapshotJson); } catch { }
+                            sv = sv ?? new Dictionary<string, string>();
+                            foreach (var p in writeParams)
+                            {
+                                sv.TryGetValue(p, out string snapV);
+                                if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
+                            }
+                        }
+                    }
                 }
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI SpecLink: " + ex.Message); }
+            catch (Exception ex) { StingLog.Warn("KUT KPI coverage scan: " + ex.Message); }
 
             int bmsPoints = 0, bmsNoEndpoint = 0;
             try

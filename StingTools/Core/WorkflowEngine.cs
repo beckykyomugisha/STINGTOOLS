@@ -1523,6 +1523,8 @@ namespace StingTools.Core
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
+                case "Fohlio_ExportFinishes": return new ExLink.FohlioExportFinishesCommand();
+                case "Fohlio_ImportFinishes": return new ExLink.FohlioImportFinishesCommand();
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
