@@ -72,7 +72,9 @@ namespace StingTools.V6
         public long RightObjectId { get; set; }        // rvid (dbId)
         public string LeftDocument { get; set; } = string.Empty;
         public string RightDocument { get; set; } = string.Empty;
-        public double PenetrationMm => Math.Abs(DistanceM) * 1000.0;
+        /// <summary>Factor converting DistanceM → mm (from AccCredentials.DistToMm; default 1000 = metres).</summary>
+        public double DistToMm { get; set; } = 1000.0;
+        public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
     }
 
     public static class AccModelCoordSync
@@ -83,20 +85,31 @@ namespace StingTools.V6
         private const string ModelSetBase = Host + "/bim360/modelset/v3";
         private const string ClashBase    = Host + "/bim360/clash/v3";
 
-        // ── Model sets ──
+        // ── Model sets (paginated; dedupes by id so an offset-ignoring endpoint can't loop) ──
         public static async Task<List<AccModelSet>> ListModelSetsAsync(AccCredentials creds, string containerId)
         {
             var list = new List<AccModelSet>();
             if (string.IsNullOrEmpty(containerId)) return list;
-            var json = await GetJsonAsync(creds, $"{ModelSetBase}/containers/{containerId}/modelsets").ConfigureAwait(false);
-            var arr = json?["modelSets"] as JArray ?? json?["results"] as JArray ?? json as JArray;
-            if (arr == null) return list;
-            foreach (var m in arr)
-                list.Add(new AccModelSet
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            const int pageSize = 100;
+            int offset = 0;
+            for (int page = 0; page < 50; page++)
+            {
+                var json = await GetJsonAsync(creds,
+                    $"{ModelSetBase}/containers/{containerId}/modelsets?limit={pageSize}&offset={offset}").ConfigureAwait(false);
+                var arr = json?["modelSets"] as JArray ?? json?["results"] as JArray ?? json as JArray;
+                if (arr == null || arr.Count == 0) break;
+                int added = 0;
+                foreach (var m in arr)
                 {
-                    Id   = (string)(m["modelSetId"] ?? m["id"]) ?? string.Empty,
-                    Name = (string)(m["name"] ?? m["title"]) ?? "(unnamed model set)",
-                });
+                    string id = (string)(m["modelSetId"] ?? m["id"]) ?? string.Empty;
+                    if (string.IsNullOrEmpty(id) || !seen.Add(id)) continue;
+                    list.Add(new AccModelSet { Id = id, Name = (string)(m["name"] ?? m["title"]) ?? "(unnamed model set)" });
+                    added++;
+                }
+                if (arr.Count < pageSize || added == 0) break;  // last page, or endpoint ignored offset
+                offset += pageSize;
+            }
             return list;
         }
 
@@ -136,9 +149,9 @@ namespace StingTools.V6
             }
 
             // 3. download + gunzip the scope files
-            var clashScope    = await DownloadScopeAsync(clashUrl).ConfigureAwait(false);
-            var instanceScope = await DownloadScopeAsync(instanceUrl).ConfigureAwait(false);
-            var documentScope = documentUrl != null ? await DownloadScopeAsync(documentUrl).ConfigureAwait(false) : null;
+            var clashScope    = await DownloadScopeAsync(clashUrl, creds).ConfigureAwait(false);
+            var instanceScope = await DownloadScopeAsync(instanceUrl, creds).ConfigureAwait(false);
+            var documentScope = documentUrl != null ? await DownloadScopeAsync(documentUrl, creds).ConfigureAwait(false) : null;
             if (clashScope == null || instanceScope == null) return result;
 
             // 4. join. instances are keyed by cid (== clash id); first instance per cid wins.
@@ -172,6 +185,7 @@ namespace StingTools.V6
                     RightObjectId = ParseLong(ins?["rvid"]),
                     LeftDocument  = ldid != null && docNameById.TryGetValue(ldid, out var ln) ? ln : (ldid ?? ""),
                     RightDocument = rdid != null && docNameById.TryGetValue(rdid, out var rn) ? rn : (rdid ?? ""),
+                    DistToMm      = creds.DistToMm,
                 });
             }
             return result;
@@ -218,13 +232,17 @@ namespace StingTools.V6
             return null;
         }
 
-        /// <summary>Download a pre-signed scope resource and gunzip it to JSON.
-        /// Pre-signed URLs carry their own auth, so no bearer header is sent.</summary>
-        private static async Task<JObject> DownloadScopeAsync(string url)
+        /// <summary>Download a scope resource and gunzip it to JSON. Pre-signed S3/
+        /// CloudFront URLs carry their own auth; API-hosted resources (developer.api.
+        /// autodesk.com) need the bearer, so we attach it when the host matches.</summary>
+        private static async Task<JObject> DownloadScopeAsync(string url, AccCredentials creds)
         {
             try
             {
-                using var resp = await _http.GetAsync(url).ConfigureAwait(false);
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                if (url.StartsWith(Host, StringComparison.OrdinalIgnoreCase) && creds != null && !string.IsNullOrEmpty(creds.AccessToken))
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) { StingLog.Warn($"ACC scope download {(int)resp.StatusCode}"); return null; }
                 var bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
                 string text = TryGunzip(bytes) ?? Encoding.UTF8.GetString(bytes);

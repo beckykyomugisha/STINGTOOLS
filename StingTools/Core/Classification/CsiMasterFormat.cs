@@ -110,11 +110,14 @@ namespace StingTools.Core.Classification
             return bestScore >= 0 ? best : null;
         }
 
-        /// <summary>Canonical key for a CSI section number (trim, collapse spaces, upper).</summary>
+        /// <summary>Canonical key for a CSI section number. Removes ALL whitespace (and
+        /// upper-cases) so spaced "23 05 00" and unspaced "230500" reconcile to the same
+        /// key — SpecLink exports spaced, models often store unspaced. Dots are preserved,
+        /// so a child section "23 05 00.13" stays distinct from its parent.</summary>
         public static string NormalizeSection(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return "";
-            return Regex.Replace(s.Trim().ToUpperInvariant(), "\\s+", " ");
+            return Regex.Replace(s.Trim().ToUpperInvariant(), "\\s+", "");
         }
 
         public class CsiTocEntry { public string Section; public string Title; }

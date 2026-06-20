@@ -38,6 +38,15 @@ namespace StingTools.V6
         public DateTime AccessTokenExpiry { get; set; }
         public string HubId { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
+        /// <summary>ACC Model-Coordination container id. Often differs from the Issues/ProjectId container. Falls back to ProjectId when empty.</summary>
+        public string CoordContainerId { get; set; } = string.Empty;
+        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.</summary>
+        public string IssueTypeId { get; set; } = string.Empty;
+        /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres). Set per the model's clash-result units.</summary>
+        public double DistToMm { get; set; } = 1000.0;
+
+        /// <summary>Coordination container, falling back to the Issues/ProjectId container when unset.</summary>
+        public string CoordContainer => string.IsNullOrEmpty(CoordContainerId) ? ProjectId : CoordContainerId;
 
         public bool IsStale => string.IsNullOrEmpty(AccessToken) || DateTime.UtcNow >= AccessTokenExpiry.AddMinutes(-5);
     }
@@ -107,14 +116,18 @@ namespace StingTools.V6
         public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
         {
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
+            string issueType = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
             var body = new JObject
             {
                 ["title"]               = issue.Title,
                 ["description"]         = issue.Description,
                 ["status"]              = issue.Status,
-                ["issue_type_id"]       = issue.IssueType,
                 ["location_description"]= issue.LocationDescription,
             };
+            // ACC requires a valid issue_type_id. Only send it when we have one;
+            // omitting an empty value is safer than posting "" (which ACC rejects).
+            if (!string.IsNullOrEmpty(issueType)) body["issue_type_id"] = issueType;
+            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — set IssueTypeId in acc_credentials.json; ACC may reject.");
             var req = new HttpRequestMessage(HttpMethod.Post,
                 $"{IssuesUrl}/containers/{creds.ProjectId}/issues")
             { Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json") };
@@ -141,31 +154,60 @@ namespace StingTools.V6
             return null;
         }
 
-        /// <summary>Pull the latest issue set from ACC.</summary>
-        public static async Task<List<AccIssue>> PullIssuesAsync(AccCredentials creds, int pageSize = 100)
+        /// <summary>Pull the full issue set from ACC, following pagination (offset
+        /// loop) so large projects aren't truncated at the first page. 429s retried
+        /// per page with back-off; stops at the first short page or maxPages cap.</summary>
+        public static async Task<List<AccIssue>> PullIssuesAsync(AccCredentials creds, int pageSize = 100, int maxPages = 200)
         {
             var list = new List<AccIssue>();
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return list;
-            var req = new HttpRequestMessage(HttpMethod.Get,
-                $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}");
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-            var resp = await _http.SendAsync(req).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode) return list;
-            var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
-            foreach (var t in j["results"] ?? new JArray())
+
+            int offset = 0;
+            for (int page = 0; page < maxPages; page++)
             {
-                list.Add(new AccIssue
+                JObject j = null;
+                for (int attempt = 0; attempt < 4 && j == null; attempt++)
                 {
-                    Id                  = (string)t["id"] ?? string.Empty,
-                    Title               = (string)t["title"] ?? string.Empty,
-                    Description         = (string)t["description"] ?? string.Empty,
-                    Status              = (string)t["status"] ?? "open",
-                    IssueType           = (string)t["issue_type_id"] ?? string.Empty,
-                    AssignedToUserId    = (string)t["assigned_to"] ?? string.Empty,
-                    LocationDescription = (string)t["location_description"] ?? string.Empty,
-                });
+                    var req = new HttpRequestMessage(HttpMethod.Get,
+                        $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                    var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                    if ((int)resp.StatusCode == 429) { await Task.Delay(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        StingLog.Warn($"AccIssueSync.PullIssues {(int)resp.StatusCode} at offset {offset}");
+                        return list;
+                    }
+                    j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                }
+                if (j == null) break;
+
+                var results = j["results"] as JArray ?? new JArray();
+                foreach (var t in results)
+                {
+                    list.Add(new AccIssue
+                    {
+                        Id                  = (string)t["id"] ?? string.Empty,
+                        Title               = (string)t["title"] ?? string.Empty,
+                        Description         = (string)t["description"] ?? string.Empty,
+                        Status              = (string)t["status"] ?? "open",
+                        IssueType           = (string)t["issue_type_id"] ?? string.Empty,
+                        AssignedToUserId    = (string)t["assigned_to"] ?? string.Empty,
+                        LocationDescription = (string)t["location_description"] ?? string.Empty,
+                    });
+                }
+                if (results.Count < pageSize) break;   // last page
+                offset += pageSize;
             }
             return list;
+        }
+
+        /// <summary>True when an ACC issue status represents a closed/resolved state.</summary>
+        public static bool IsClosedStatus(string status)
+        {
+            if (string.IsNullOrEmpty(status)) return false;
+            string s = status.ToLowerInvariant();
+            return s.Contains("closed") || s.Contains("resolved") || s.Contains("not_an_issue") || s.Contains("void");
         }
 
         public static string CredentialsPath => Path.Combine(
