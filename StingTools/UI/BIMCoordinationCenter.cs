@@ -4255,6 +4255,41 @@ namespace StingTools.UI
             twoColGrid.Children.Add(_platformDetailArea);
 
             var outerStack = new StackPanel();
+
+            // ── Open Planscape banner (always available) ──
+            // Jump straight from BCC into the Planscape web app (coordinator SPA:
+            // issues / clashes / 3D viewer / meetings). Resolves the server URL
+            // even when offline so it always works; deep-links the active project
+            // when one is linked. Mirrors the "Open Web Dashboard" button in the
+            // Planscape hub panel but is reachable without scrolling/selecting.
+            var openBar = new Border
+            {
+                Background = Br(Color.FromRgb(0xEE, 0xF4, 0xFF)),
+                BorderBrush = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(16, 8, 16, 0)
+            };
+            var openBarGrid = new Grid();
+            openBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            openBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var openBarText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            openBarText.Children.Add(new TextBlock { Text = "Planscape online coordination", FontSize = 12, FontWeight = FontWeights.SemiBold });
+            openBarText.Children.Add(new TextBlock { Text = "Open the web app to coordinate issues, clashes, the 3D model and meetings with your team.", FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap });
+            openBarGrid.Children.Add(openBarText);
+            var openPlanscapeBtn = new Button
+            {
+                Content = "🌐 Open Planscape", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Open the Planscape web app (app.planscape.build) in your browser, deep-linked to this project when linked."
+            };
+            openPlanscapeBtn.Click += (s, e) => DispatchAction("PlanscapeOpenWebDashboard");
+            Grid.SetColumn(openPlanscapeBtn, 1);
+            openBarGrid.Children.Add(openPlanscapeBtn);
+            openBar.Child = openBarGrid;
+            outerStack.Children.Add(openBar);
+
             outerStack.Children.Add(twoColGrid);
 
             // ── Handover & Export section ──
@@ -4688,8 +4723,8 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "http://localhost:5000",
-                    ToolTip = "Planscape API server URL (default: http://localhost:5000 for the local docker-compose stack)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : BIMManager.PlanscapeServerClient.DefaultAppFallbackUrl,
+                    ToolTip = "Planscape API server URL. Default resolves from the STING_PLANSCAPE_URL env var → machine settings → the production default (api.planscape.build). Use http://localhost:5000 for a local docker-compose stack."
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
@@ -4954,7 +4989,7 @@ namespace StingTools.UI
                         : "\ud83c\udfe2  Tenant: (not linked)";
                     string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
                         ? $"\ud83d\udd17  Server: {client.ServerUrl}"
-                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default http://localhost:5000";
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default {BIMManager.PlanscapeServerClient.DefaultAppFallbackUrl}";
                     string errLine   = !string.IsNullOrEmpty(client.LastError)
                         ? $"\n\u26A0  Last error: {client.LastError}"
                         : "";
@@ -5055,6 +5090,23 @@ namespace StingTools.UI
                 return;
             }
 
+            // ── ACC: live Autodesk Construction Cloud coordination ──
+            // Special-cased (like Planscape) so the panel is wired to the real
+            // plugin-side ACC client (V6.AccIssueSync / AccModelCoordSync +
+            // AccPullClashes / AccSyncIssueStatus / ACCPublish commands) instead
+            // of the inert generic URL/username/token placeholder.
+            if (platformName.StartsWith("ACC"))
+            {
+                BuildAccDetail(detailStack, navyBrush);
+                _platformDetailArea.Content = new Border
+                {
+                    Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(16), Child = detailStack
+                };
+                return;
+            }
+
             detailStack.Children.Add(new TextBlock { Text = platformName + " — Connection", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 10) });
 
             var urlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
@@ -5095,6 +5147,141 @@ namespace StingTools.UI
                 Padding = new Thickness(16), Child = detailStack
             };
             _platformDetailArea.Content = detailBorder;
+        }
+
+        // ── ACC (Autodesk Construction Cloud) detail panel ──────────────
+        // Wired to the existing plugin-side ACC client so the panel actually
+        // does something: credentials persist to %APPDATA%\Planscape\
+        // acc_credentials.json (V6.AccIssueSync.LoadCredentials/SaveCredentials),
+        // "Test / Refresh" runs the real OAuth refresh-token grant
+        // (V6.AccIssueSync.EnsureAuthAsync), and the action buttons run the
+        // existing IExternalCommands (AccPullClashes / AccSyncIssueStatus /
+        // ACCPublish) through the BCC dispatch. No Autodesk secrets are baked
+        // into the assembly; the user supplies their APS app credentials here.
+        private void BuildAccDetail(StackPanel detailStack, System.Windows.Media.Brush navyBrush)
+        {
+            V6.AccCredentials creds;
+            try { creds = V6.AccIssueSync.LoadCredentials(); }
+            catch (Exception ex) { StingLog.Warn($"ACC panel: load creds failed — {ex.Message}"); creds = new V6.AccCredentials(); }
+
+            detailStack.Children.Add(new TextBlock { Text = "Autodesk Construction Cloud — Coordination", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
+            detailStack.Children.Add(new TextBlock { Text = "Pull Model Coordination clashes into Revit, triage them, and escalate to ACC Issues — and reconcile their status. Credentials stay on this machine (never in the model). Supply your APS app's Client ID/Secret and a delegated refresh token.", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x44, 0x44, 0x44)), Margin = new Thickness(0, 0, 0, 10) });
+
+            // Connection status
+            bool tokenValid = !string.IsNullOrWhiteSpace(creds.AccessToken) && creds.AccessTokenExpiry > DateTime.UtcNow.AddMinutes(1);
+            bool configured = !string.IsNullOrWhiteSpace(creds.ClientId) && !string.IsNullOrWhiteSpace(creds.RefreshToken);
+            var accStatus = new TextBlock
+            {
+                Text = tokenValid
+                    ? $"🟢 Connected — token valid until {creds.AccessTokenExpiry.ToLocalTime():dd MMM HH:mm}"
+                    : configured ? "🟠 Configured — click Test / Refresh to obtain an access token"
+                                 : "🔴 Not configured",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = tokenValid ? Br(CGreen) : configured ? Br(Color.FromRgb(0xE6, 0x5F, 0x00)) : Br(CRed),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            detailStack.Children.Add(accStatus);
+
+            // Credential fields (mapped to AccCredentials)
+            detailStack.Children.Add(new TextBlock { Text = "APS / ACC CREDENTIALS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
+
+            System.Windows.Controls.Control AddField(string label, string initial, bool secret, string tip)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                row.Children.Add(new TextBlock { Text = label, Width = 150, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+                System.Windows.Controls.Control input;
+                if (secret)
+                {
+                    var pb = new System.Windows.Controls.PasswordBox { Width = 280, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = tip };
+                    if (!string.IsNullOrEmpty(initial)) pb.Password = initial;
+                    input = pb;
+                }
+                else
+                {
+                    input = new System.Windows.Controls.TextBox { Width = 280, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = initial ?? "", ToolTip = tip };
+                }
+                row.Children.Add(input);
+                detailStack.Children.Add(row);
+                return input;
+            }
+
+            var clientIdBox  = (System.Windows.Controls.TextBox)     AddField("Client ID:",         creds.ClientId,         false, "APS (Forge) application Client ID");
+            var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "APS application Client Secret — held only on this machine");
+            var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Delegated 3-legged OAuth refresh token (data:read data:write). Obtain it via your APS auth flow.");
+            var projectIdBox = (System.Windows.Controls.TextBox)     AddField("Issues Project ID:", creds.ProjectId,        false, "ACC project / Issues container id (the 'b.<guid>' container)");
+            var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
+            var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "ACC issue type id used when escalating clashes (optional — ACC may reject without it)");
+
+            // Buttons row 1 — credentials
+            var credBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
+            V6.AccCredentials Gather()
+            {
+                var c = V6.AccIssueSync.LoadCredentials();
+                c.ClientId         = clientIdBox.Text.Trim();
+                c.ClientSecret     = clientSecBox.Password;
+                c.RefreshToken     = refreshBox.Password;
+                c.ProjectId        = projectIdBox.Text.Trim();
+                c.CoordContainerId = coordIdBox.Text.Trim();
+                c.IssueTypeId      = issueTypeBox.Text.Trim();
+                return c;
+            }
+
+            var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save these credentials to %APPDATA%\\Planscape\\acc_credentials.json (this machine only)." };
+            saveAccBtn.Click += (s, e) =>
+            {
+                try { V6.AccIssueSync.SaveCredentials(Gather()); ShowStatus("ACC credentials saved."); ShowPlatformDetail("ACC"); }
+                catch (Exception ex) { StingLog.Warn($"ACC save: {ex.Message}"); ShowStatus($"ACC save failed: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(saveAccBtn);
+
+            var testAccBtn = new Button { Content = "🔌 Test / Refresh Token", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Exchange the refresh token for an access token via Autodesk OAuth. Confirms the Client ID/Secret + refresh token are valid." };
+            testAccBtn.Click += async (s, e) =>
+            {
+                try
+                {
+                    var c = Gather();
+                    if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret) || string.IsNullOrWhiteSpace(c.RefreshToken))
+                    { ShowStatus("Enter Client ID, Client Secret and Refresh Token first."); return; }
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus("Refreshing ACC token…");
+                    bool ok = await V6.AccIssueSync.EnsureAuthAsync(c).ConfigureAwait(true);
+                    ShowStatus(ok ? "ACC token refreshed — connected." : "ACC token refresh failed — check credentials (see log).");
+                    ShowPlatformDetail("ACC");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC test: {ex.Message}"); ShowStatus($"ACC test failed: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(testAccBtn);
+            detailStack.Children.Add(credBtnRow);
+
+            // Buttons row 2 — coordination actions (run real IExternalCommands via dispatch)
+            detailStack.Children.Add(new TextBlock { Text = "COORDINATION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 8, 0, 4) });
+            var actRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            void AddAct(string label, string action, Color clr, string tip)
+            {
+                var b = new Button { Content = label, Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(clr), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = tip };
+                b.Click += (s, e) => DispatchAction(action);
+                actRow.Children.Add(b);
+            }
+            AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
+            AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
+            AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into an ACC-ready upload bundle.");
+            detailStack.Children.Add(actRow);
+
+            // View logs / open credentials folder
+            var logsRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var viewLogsBtn = new Button { Content = "📄 Open ACC Folder", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand, ToolTip = "Open the %APPDATA%\\Planscape folder holding ACC credentials + escalation history." };
+            viewLogsBtn.Click += (s, e) =>
+            {
+                try
+                {
+                    string dir = System.IO.Path.GetDirectoryName(V6.AccIssueSync.CredentialsPath);
+                    System.IO.Directory.CreateDirectory(dir);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC view logs: {ex.Message}"); ShowStatus($"Could not open folder: {ex.Message}"); }
+            };
+            logsRow.Children.Add(viewLogsBtn);
+            detailStack.Children.Add(logsRow);
         }
 
         // ── Phase 77: Legacy platform code removed ──────────────────────

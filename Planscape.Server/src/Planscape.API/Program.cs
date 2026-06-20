@@ -1632,6 +1632,20 @@ using (var scope = app.Services.CreateScope())
         // Don't fail boot — log and continue; first request will surface the error.
         Log.Warning(ex, "PlatformTenantSeeder failed");
     }
+
+    // Seed the operator Owner account into the platform tenant
+    // (davis@planscape.build by default; password via Platform:OwnerPassword /
+    // PLANSCAPE_OWNER_PASSWORD). Idempotent — no-ops once the account exists.
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<Planscape.Infrastructure.Data.PlanscapeDbContext>();
+        var lf = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+        await Planscape.API.PlatformOwnerSeeder.EnsureAsync(db, app.Configuration, lf.CreateLogger("PlatformOwnerSeeder"));
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "PlatformOwnerSeeder failed");
+    }
 }
 
 await app.RunAsync();

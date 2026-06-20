@@ -5602,6 +5602,8 @@ namespace StingTools.Core
                 { "COBieExport", "COBieExport" },
                 { "IFCExport", "IFCExport" },
                 { "ACCPublish", "ACCPublish" },
+                { "AccPullClashes", "AccPullClashes" },
+                { "AccSyncIssueStatus", "AccSyncIssueStatus" },
                 { "SharePointExport", "SharePointExport" },
 
                 // Phase 167 — Planscape BCC dispatch entries. Disconnect /
