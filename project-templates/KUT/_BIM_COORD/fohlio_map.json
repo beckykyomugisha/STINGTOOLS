@@ -1,0 +1,21 @@
+{
+  "_comment": "Kampala Uganda Temple (KUT) Fohlio ExLink mapping. Deploy to <project>/_BIM_COORD/fohlio_map.json. Read by StingTools.ExLink.FohlioMap.Load on Fohlio_Export / Fohlio_Import. Link key is FOHLIO_REF_TXT (link, never duplicate). '$'-prefixed params are resolved at export time ($Family/$Type/$Category/$Room). WriteBack=true columns may be written back into the model on Fohlio_Import. Fohlio remains authoritative for FF&E/finishes/O&M.",
+  "Categories": [
+    "Furniture",
+    "Furniture Systems",
+    "Casework",
+    "Plumbing Fixtures",
+    "Lighting Fixtures",
+    "Specialty Equipment"
+  ],
+  "Columns": [
+    { "Header": "Item Tag",     "Param": "ASS_TAG_1_TXT",        "WriteBack": false },
+    { "Header": "Category",     "Param": "$Category",            "WriteBack": false },
+    { "Header": "Product",      "Param": "$Type",                "WriteBack": false },
+    { "Header": "Family",       "Param": "$Family",              "WriteBack": false },
+    { "Header": "Manufacturer", "Param": "ASS_MANUFACTURER_TXT", "WriteBack": true },
+    { "Header": "Model",        "Param": "ASS_MODEL_REF_TXT",    "WriteBack": true },
+    { "Header": "Room",         "Param": "$Room",                "WriteBack": false },
+    { "Header": "Fohlio Ref",   "Param": "FOHLIO_REF_TXT",       "WriteBack": true }
+  ]
+}

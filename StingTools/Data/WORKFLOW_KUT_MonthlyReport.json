@@ -10,6 +10,7 @@
     { "commandTag": "SheetComplianceCheck", "label": "4. Sheet ISO 19650 compliance", "optional": true },
     { "commandTag": "ExportSheetRegister", "label": "5. Sheet / exchange register CSV", "optional": true },
     { "commandTag": "WorkflowTrend", "label": "6. KPI trend versus prior months", "optional": true },
-    { "commandTag": "FullComplianceDashboard", "label": "7. Composite KPI dashboard for the monthly report" }
+    { "commandTag": "FullComplianceDashboard", "label": "7. Composite compliance dashboard", "optional": true },
+    { "commandTag": "KUT_KpiDashboard", "label": "8. KUT KPI dashboard — §4.6 headline (HTML + CSV for the report)" }
   ]
 }

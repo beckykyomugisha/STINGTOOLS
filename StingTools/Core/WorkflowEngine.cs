@@ -1680,6 +1680,7 @@ namespace StingTools.Core
                 case "SmartNumbering":
                 case "GraitecNumbering":     return new Organise.SmartNumberingCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
+                case "KUT_KpiDashboard":     return new Commands.Kpi.KutKpiDashboardCommand();
 
                 // Phase 72: Doc/Schedule Automation
                 case "DrawingRegisterSync":     return new Docs.DrawingRegisterSyncCommand();

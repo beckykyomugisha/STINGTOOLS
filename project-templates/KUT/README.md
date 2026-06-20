@@ -47,6 +47,7 @@ wins** — so you are activating/localising, never forking.
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); adds a (disabled) Fohlio FF&E link check |
 | `_BIM_COORD/lod_matrix.json` | Restates the confirmed 5-milestone matrix as the client-facing record; adds Lighting Fixtures + Plumbing Fixtures category rules |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
+| `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the now-enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
 
 ### B. Workflow presets (in `StingTools/Data/`, auto-loaded)
 | Preset | Proposal ref | Rhythm |
@@ -74,6 +75,13 @@ Run from **STING panel → Workflows**, or `WorkflowPreset`.
 
 KPIs are **derived from live commands**, not a static config file — so the
 monthly report is always computed from the current model, never hand-kept.
+
+**KPI dashboard (`KUT_KpiDashboard`)** renders the §4.6 set in one visual panel
+(RAG bars + per-discipline table + clash burn-down), persists a snapshot to
+`_BIM_COORD/kpi/kut_kpi_log.jsonl` for fortnight-on-fortnight burn-down, and
+writes an HTML + CSV report for attachment to the monthly status report. It is
+the final step of the **KUT Monthly Report** workflow. Model-health score =
+compliance 40% · clash 25% · warnings 20% · stale 15%.
 
 ---
 

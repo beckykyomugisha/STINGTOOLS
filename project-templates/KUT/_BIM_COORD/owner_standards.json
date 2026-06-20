@@ -26,10 +26,10 @@
       "id": "ffe-fohlio-ref",
       "type": "paramRequired",
       "severity": "WARN",
-      "enabled": false,
+      "enabled": true,
       "param": "FOHLIO_REF_TXT",
-      "categories": ["Furniture", "Furniture Systems", "Casework", "Specialty Equipment", "Lighting Fixtures"],
-      "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). Ships DISABLED: enable once the Fohlio CSV/XLSX link has been run (ExLink Fohlio_Import) so the references exist to check against. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement.",
+      "categories": ["Furniture", "Furniture Systems", "Casework", "Plumbing Fixtures", "Specialty Equipment", "Lighting Fixtures"],
+      "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). WARN, non-blocking: flags FF&E elements not yet linked to Fohlio. Run ExLink Fohlio_Import (with fohlio_map.json deployed) to populate FOHLIO_REF_TXT. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement. Categories match the KUT fohlio_map.json category list.",
       "source": "A1 — Fohlio FF&E/finishes/O&M database; proposal 3.3 information hierarchy"
     }
   ]
