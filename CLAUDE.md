@@ -110,7 +110,7 @@ under namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`, so the
 
 | File | Purpose | When to edit |
 |---|---|---|
-| `CLAUDE.md` (this file) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
+| `CLAUDE.md` (this file, **1 file · ~4,875 lines**) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
 
@@ -2270,7 +2270,7 @@ a default `manifest.json` seeded from `ProjectInformation` and
 
 ```
 STINGTOOLS/
-├── CLAUDE.md                           # AI assistant guide (this file)
+├── CLAUDE.md                           # AI assistant guide (this file, ~4,875 lines)
 ├── StingTools.addin                    # Revit addin manifest (XML)
 ├── build.bat / extract_plugin.sh       # Build and deployment scripts
 │
