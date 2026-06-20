@@ -3673,6 +3673,32 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- BMS (NIAGARA) — controls submittal / station reconcile -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="BMS (NIAGARA)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#5E35B1">
+                            <StackPanel>
+                                <TextBlock Text="BMS model content + controls submittal — bridge to the Niagara station (ICT_HEALTHIOT_*)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Export Points" Tag="Niagara_ExportPoints" Click="Cmd_Click"
+                                            ToolTip="Export a Niagara-ingestable BMS point list (controls submittal) from tagged ICT_HEALTHIOT_* devices"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reconcile" Tag="Niagara_Reconcile" Click="Cmd_Click"
+                                            ToolTip="Compare a Niagara/BACnet station export against the modelled BMS devices (station-only / model-only / matched)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- KUT KPI DASHBOARD (proposal §4.6) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="KUT KPI DASHBOARD"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1A237E">
+                            <StackPanel>
+                                <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="KUT_KpiDashboard" Click="Cmd_Click"
+                                            ToolTip="Kampala Temple KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CARBON and CHANGE TRACKING -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
                         <Border Style="{StaticResource GroupBorder}">

@@ -3661,6 +3661,9 @@ namespace StingTools.UI
                     case "Fohlio_Export": RunCommand<ExLink.FohlioExportCommand>(app); break;
                     case "Fohlio_Import": RunCommand<ExLink.FohlioImportCommand>(app); break;
                     case "Fohlio_Audit": RunCommand<ExLink.FohlioAuditCommand>(app); break;
+                    case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
+                    case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
+                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
