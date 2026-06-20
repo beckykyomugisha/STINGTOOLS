@@ -2511,12 +2511,11 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    string spFilePath = SharedParamGuids.GetSharedParamFilePath(doc);
+                    string spFilePath = doc.Application.SharedParametersFilename;
                     if (!string.IsNullOrEmpty(spFilePath) && System.IO.File.Exists(spFilePath))
                     {
                         var app = doc.Application;
                         string prevPath = app.SharedParametersFilename;
-                        app.SharedParametersFilename = spFilePath;
                         DefinitionFile defFile = app.OpenSharedParameterFile();
                         app.SharedParametersFilename = prevPath;
                         if (defFile != null)
