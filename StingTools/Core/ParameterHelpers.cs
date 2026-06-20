@@ -221,7 +221,7 @@ namespace StingTools.Core
             if (p.StorageType == StorageType.Integer)
             {
                 if (!overwrite && p.AsInteger() != 0) return false;
-                try { p.Set(value); return true; }
+                try { p.Set(value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }
             if (p.StorageType == StorageType.String)
@@ -423,12 +423,96 @@ namespace StingTools.Core
             if (p == null || p.IsReadOnly) return false;
             try
             {
-                if (p.StorageType == StorageType.Integer) { p.Set(value); return true; }
-                if (p.StorageType == StorageType.Double) { p.Set((double)value); return true; }
+                if (p.StorageType == StorageType.Integer) { p.Set(value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
+                if (p.StorageType == StorageType.Double) { p.Set((double)value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
                 if (p.StorageType == StorageType.String) { p.Set(value.ToString()); return true; }
             }
             catch (Exception ex) { StingLog.Warn($"SetInt({paramName}): {ex.Message}"); }
             return false;
+        }
+
+        // ── _TXT Mirror Write-back ─────────────────────────────────────────────────
+        // When writing a native-typed param (NUMBER/LENGTH/AREA/CURRENCY/INTEGER),
+        // also write its string representation to the corresponding _TXT mirror param
+        // so tag label formulas (which must reference TEXT params) always stay current.
+        // Mirror name is derived by the same suffix-replacement table used by
+        // tools/transform_mr_params.py and tools/fix_label_definitions.py.
+
+        private static readonly (string Suffix, string Repl)[] _suffixReplacements =
+        {
+            ("_LM_W",    "_TXT"), ("_SQ_M",   "_TXT"), ("_CU_M",   "_TXT"),
+            ("_MM2",     "_TXT"), ("_M2K_W",  "_TXT"), ("_W_M2K",  "_TXT"),
+            ("_KN_M2",   "_TXT"), ("_INT",    "_TXT"), ("_NR",     "_TXT"),
+            ("_MM",      "_TXT"), ("_M2",     "_TXT"), ("_KW",     "_TXT"),
+            ("_KPA",     "_TXT"), ("_KNM",    "_TXT"), ("_KA",     "_TXT"),
+            ("_KN",      "_TXT"), ("_LPS",    "_TXT"), ("_LPM",    "_TXT"),
+            ("_LPM_NR",  "_TXT"), ("_MPS",    "_TXT"), ("_LUX",    "_TXT"),
+            ("_OHM",     "_TXT"), ("_DEG",    "_TXT"), ("_YRS",    "_TXT"),
+            ("_USD",     "_TXT"), ("_UGX",    "_TXT"), ("_LM",     "_TXT"),
+            ("_MJ",      "_TXT"), ("_DB",     "_TXT"), ("_CFM",    "_TXT"),
+            ("_PCT",     "_TXT"), ("_KG",     "_TXT"), ("_BAR",    "_TXT"),
+            ("_HR",      "_TXT"), ("_CO2E",   "_TXT"), ("_CO2E_YR","_TXT"),
+            ("_W",       "_TXT"), ("_V",      "_TXT"), ("_A",      "_TXT"),
+            ("_M3H",     "_TXT"), ("_M",      "_TXT"), ("_K",      "_TXT"),
+            ("_LS",      "_TXT"), ("_C",      "_TXT"),
+        };
+
+        /// <summary>
+        /// Returns the _TXT mirror param name for a native-typed param
+        /// (e.g. MNT_HGT_MM → MNT_HGT_TXT), or null when no suffix matches
+        /// or the param is already TEXT/BOOL/DT.
+        /// </summary>
+        private static string TxtMirrorName(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return null;
+            if (paramName.EndsWith("_TXT",  StringComparison.Ordinal)) return null;
+            if (paramName.EndsWith("_BOOL", StringComparison.Ordinal)) return null;
+            if (paramName.EndsWith("_DT",   StringComparison.Ordinal)) return null;
+            foreach (var (suffix, _) in _suffixReplacements)
+                if (paramName.EndsWith(suffix, StringComparison.Ordinal))
+                    return paramName.Substring(0, paramName.Length - suffix.Length) + "_TXT";
+            return null;
+        }
+
+        /// <summary>
+        /// Best-effort write of the _TXT display mirror for a native-typed param.
+        /// Silently skips when the mirror param is not bound on this element.
+        /// </summary>
+        private static void WriteTxtMirror(Element el, string paramName, string displayValue)
+        {
+            string mirror = TxtMirrorName(paramName);
+            if (mirror == null) return;
+            Parameter mp = CachedLookup(el, mirror);
+            if (mp == null || mp.IsReadOnly || mp.StorageType != StorageType.String) return;
+            try { mp.Set(displayValue ?? string.Empty); }
+            catch (Exception ex) { StingLog.Warn($"WriteTxtMirror '{mirror}' on {el.Id}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Set a native-typed DOUBLE parameter (NUMBER, LENGTH, AREA, CURRENCY).
+        /// Also writes the formatted string to the corresponding _TXT mirror param when bound.
+        /// </summary>
+        /// <param name="displayFormat">Format string for the _TXT mirror value. Defaults to "G".</param>
+        public static bool SetDouble(Element el, string paramName, double value,
+            bool overwrite = false, string displayFormat = null)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType != StorageType.Double) return false;
+            double existing = p.AsDouble();
+            if (!overwrite && Math.Abs(existing) > 1e-12) return false;
+            try
+            {
+                p.Set(value);
+                WriteTxtMirror(el, paramName, value.ToString(displayFormat ?? "G"));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetDouble '{paramName}' on {el.Id} failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Return a short level code from the element's host level.</summary>
