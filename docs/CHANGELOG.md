@@ -3,6 +3,27 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase D: Niagara join — commissioning gaps + unified register)
+
+New read-only `KUT_LifecycleReconcile` command joins all four ledgers
+(SpecLink/CSI · BOQ · Fohlio · Niagara) on the Revit element. **Compile-
+verified Revit 2025 (0/0).**
+
+- **Unified register** (`STING_KUT_Lifecycle_Register_*.xlsx`) — one row per
+  modelled BOQ asset with Element | Category | Item | CSI section | NRM2 § |
+  Amount UGX | Fohlio ref | BMS device/endpoint, and a ✓/✗/⚠/— status per
+  ledger (Fohlio "—" for non-FF&E, BMS "—" for non-monitorable; BMS ⚠ = device
+  id but no endpoint).
+- **PRICED_NO_BMS_POINT** — a priced line in a monitorable MEP/equipment
+  category whose element has no BMS device id / no endpoint (handover gap),
+  with UGX at risk.
+- **COMMISSIONED_UNPRICED** — a Niagara station point (from an optional station
+  export) with no priced BOQ line (asset-register gap). The station file is
+  optional; without it the register + priced-no-BMS still produce.
+- Built on `BuildBOQDocument` (read-only) + `IoTDeviceRegistry`; tag registered
+  in `WorkflowEngine.ResolveCommand` + `StingCommandHandler` for the Phase E
+  workflow.
+
 #### Completed (KUT Lifecycle Integration — Phase C: Fohlio cost → BOQ via a rate provider)
 
 The cost integration — Fohlio FF&E procurement prices now flow into the
