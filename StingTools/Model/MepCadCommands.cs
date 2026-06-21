@@ -213,6 +213,8 @@ namespace StingTools.Model
                 if (nc + nt > 0)
                     sb.AppendLine($"      {"Conduit / CableTray",-26} {nc + nt}   (no system — Revit API)");
             }
+            if (run.SysFromService > 0)
+                sb.AppendLine($"   SYS tag set from DWG service on {run.SysFromService} run(s) (STING SYS ↔ Revit system aligned).");
             if (run.ServiceDefaultedDuct > 0 || run.ServiceDefaultedPipe > 0)
                 sb.AppendLine($"   ⚠ Defaulted systems: {run.ServiceDefaultedDuct} duct(s) → Supply (no service keyword), {run.ServiceDefaultedPipe} pipe(s) → first-available (no token).");
             if (run.SizeSnapped > 0)
