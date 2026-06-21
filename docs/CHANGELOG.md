@@ -3,6 +3,38 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P1: correctness — system assignment, drainage invert, fall direction, riser join)
+
+Turns "MEP-shaped geometry" into a coordinatable model so downstream
+system-based schedules/filters/validators work. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Service-aware system assignment** — `MepServiceClassifier` maps the
+  service token in the layer name to a `MEPSystemClassification` (duct:
+  supply/return/exhaust/OA; pipe: chw/hw hydronic supply/return, dcw/dhw
+  domestic, san/foul/waste→Sanitary, svp/vp→Vent, rwd/storm→OtherPipe,
+  condensate→OtherPipe). `MepRunBuilder` now indexes every Mechanical/Piping
+  `SystemType` by classification and resolves the system **per run** (first-
+  available fallback only when no class matches). Resolved system-type names are
+  reported; the parsed service is shown in preview. (OA→SupplyAir, storm→
+  OtherPipe: `// TODO-VERIFY-API` — no distinct Revit classification.)
+- **1.2 Drainage cumulative invert + chaining** — multi-segment drains were
+  resetting to flat at every segment start (sawtooth) and the sloped end no
+  longer met the next segment. `MepDrainage.Chain` stitches contiguous drainage
+  segments into ordered polylines; the builder tracks a **cumulative invert**
+  (each segment Start Z = previous End Z) so the drain falls continuously and the
+  chained ends stay coincident for the fitting pass. Single-segment drains
+  unchanged.
+- **1.3 Fall-direction heuristic** — `MepDrainage.OrientFall` orients each chain
+  to fall toward the nearest detected stack/riser; when none is found the run is
+  created with the deterministic drop and **flagged "fall direction unverified —
+  confirm fall"** in the report (count surfaced).
+- **1.4 Riser → horizontal join** — risers are now based at the *run* elevation
+  (level + per-kind offset) instead of the bare level, so their base end is
+  coincident with horizontal runs at the same XY and the combined fitting pass
+  joins them. The report counts **joined-to-run vs floating** risers
+  (`CountRiserJoins`). `// TODO-VERIFY-API`.
+
 #### Completed (MEP-from-DWG — V3: fittings + risers + drainage slope)
 
 Closes the MEP-from-DWG arc: runs now form connected systems, risers become
