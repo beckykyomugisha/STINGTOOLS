@@ -23,10 +23,12 @@ namespace StingTools.V6
     /// %APPDATA%\Planscape\acc_credentials.json). Requires the APS app to carry
     /// at least <c>data:read data:write data:create</c> scopes.
     ///
+    /// Handles large files (multi-part signed-S3 upload, 100 MB parts) and
+    /// re-uploads (a duplicate name adds a new VERSION to the existing item
+    /// instead of failing).
+    ///
     /// CAVEAT: built to the documented APS signatures but NOT verified against a
-    /// live ACC project. Single-part upload only (fine for &lt; ~100 MB GLB/IFC);
-    /// updating an existing file (new version on a 409) is a TODO — today a
-    /// duplicate name reports a friendly error rather than versioning.
+    /// live ACC project.
     /// </summary>
     public static class AccModelUpload
     {
@@ -106,34 +108,9 @@ namespace StingTools.V6
                 string bucketKey = bucketAndKey.Substring(0, slash);
                 string objectKey = bucketAndKey.Substring(slash + 1);
 
-                // 3a. Get a signed S3 upload URL.
-                var signResp = await SendAsync(HttpMethod.Get,
-                    $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload?minutesExpiration=60",
-                    creds.AccessToken, null, null, ct).ConfigureAwait(false);
-                if (!signResp.ok) return Fail($"Signed-upload request failed (HTTP {signResp.status}). {Trim(signResp.body)}");
-                var signJson = JObject.Parse(signResp.body);
-                string uploadKey = signJson["uploadKey"]?.Value<string>() ?? "";
-                string signedUrl = signJson["urls"]?[0]?.Value<string>() ?? "";
-                if (string.IsNullOrEmpty(uploadKey) || string.IsNullOrEmpty(signedUrl))
-                    return Fail("Signed-upload response missing uploadKey/urls (file may be too large for single-part upload).");
-
-                // 3b. PUT the bytes to S3 (presigned — NO Authorization header).
-                // Stream straight from disk so a large model isn't buffered in
-                // memory; the seekable FileStream lets HttpClient set Content-Length.
-                using (var fs = File.OpenRead(filePath))
-                using (var put = new HttpRequestMessage(HttpMethod.Put, signedUrl) { Content = new StreamContent(fs) })
-                {
-                    var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
-                    if (!putResp.IsSuccessStatusCode)
-                        return Fail($"S3 upload failed (HTTP {(int)putResp.StatusCode}).");
-                }
-
-                // 3c. Finalise the upload.
-                var finalizeBody = new JObject { ["uploadKey"] = uploadKey };
-                var finResp = await SendAsync(HttpMethod.Post,
-                    $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload",
-                    creds.AccessToken, finalizeBody, "application/json", ct).ConfigureAwait(false);
-                if (!finResp.ok) return Fail($"Finalise upload failed (HTTP {finResp.status}). {Trim(finResp.body)}");
+                // 3. Upload the bytes to OSS (single- or multi-part, signed S3).
+                var up = await UploadFileAsync(creds.AccessToken, bucketKey, objectKey, filePath, ct).ConfigureAwait(false);
+                if (!up.ok) return Fail(up.err);
 
                 // 4. Create the item + first version pointing at the storage object.
                 var itemBody = new JObject
@@ -174,7 +151,14 @@ namespace StingTools.V6
                 var itemResp = await SendAsync(HttpMethod.Post, $"{DataBase}/projects/{projectId}/items",
                     creds.AccessToken, itemBody, JsonApi, ct).ConfigureAwait(false);
                 if (itemResp.status == 409)
-                    return Fail($"A file named '{fileName}' already exists in that folder. Versioning an existing item isn't implemented yet — rename or upload to a different folder.");
+                {
+                    // Item already exists in the folder — add a new VERSION to it
+                    // (pointing at the storage object we just uploaded) instead of failing.
+                    var ver = await CreateVersionAsync(creds.AccessToken, projectId, folderUrn, fileName, objectId, ct).ConfigureAwait(false);
+                    if (!ver.ok) return Fail(ver.err);
+                    StingLog.Info($"AccModelUpload: new version of '{fileName}' → {ver.urn}");
+                    return new UploadResult { Ok = true, ItemUrn = ver.urn, Message = $"Uploaded a new version of '{fileName}' to ACC." };
+                }
                 if (!itemResp.ok) return Fail($"Create item failed (HTTP {itemResp.status}). {Trim(itemResp.body)}");
 
                 string itemUrn = JObject.Parse(itemResp.body)["data"]?["id"]?.Value<string>() ?? "";
@@ -186,6 +170,123 @@ namespace StingTools.V6
                 StingLog.Error("AccModelUpload.UploadAsync failed", ex);
                 return Fail(ex.Message);
             }
+        }
+
+        // 100 MB per part. S3 allows up to 10,000 parts (min 5 MB each except the
+        // last), so this comfortably covers multi-GB models.
+        private const long PartSizeBytes = 100L * 1024 * 1024;
+
+        /// <summary>
+        /// Upload a file to the OSS object via signed-S3. One PUT for files ≤ one
+        /// part (streamed from disk); otherwise request N signed URLs and PUT each
+        /// part (one part buffered at a time to bound memory). Finalises with the
+        /// uploadKey either way.
+        /// </summary>
+        private static async Task<(bool ok, string err)> UploadFileAsync(
+            string accessToken, string bucketKey, string objectKey, string filePath, CancellationToken ct)
+        {
+            long size = new FileInfo(filePath).Length;
+            int numParts = (int)Math.Max(1, (size + PartSizeBytes - 1) / PartSizeBytes);
+
+            string signUrl = $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload?minutesExpiration=60"
+                             + (numParts > 1 ? $"&parts={numParts}" : "");
+            var signResp = await SendAsync(HttpMethod.Get, signUrl, accessToken, null, null, ct).ConfigureAwait(false);
+            if (!signResp.ok) return (false, $"Signed-upload request failed (HTTP {signResp.status}). {Trim(signResp.body)}");
+
+            var signJson = JObject.Parse(signResp.body);
+            string uploadKey = signJson["uploadKey"]?.Value<string>() ?? "";
+            var urls = signJson["urls"] as JArray;
+            if (string.IsNullOrEmpty(uploadKey) || urls == null || urls.Count == 0)
+                return (false, "Signed-upload response missing uploadKey/urls.");
+
+            if (numParts == 1)
+            {
+                // Stream the whole file straight from disk (seekable → Content-Length set).
+                using var fs = File.OpenRead(filePath);
+                using var put = new HttpRequestMessage(HttpMethod.Put, urls[0].Value<string>()) { Content = new StreamContent(fs) };
+                var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
+                if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload failed (HTTP {(int)putResp.StatusCode}).");
+            }
+            else
+            {
+                using var fs = File.OpenRead(filePath);
+                for (int i = 0; i < urls.Count; i++)
+                {
+                    long remaining = size - (long)i * PartSizeBytes;
+                    int len = (int)Math.Min(PartSizeBytes, remaining);
+                    var buffer = new byte[len];
+                    int read = 0;
+                    while (read < len)
+                    {
+                        int n = await fs.ReadAsync(buffer, read, len - read, ct).ConfigureAwait(false);
+                        if (n == 0) break;
+                        read += n;
+                    }
+                    using var put = new HttpRequestMessage(HttpMethod.Put, urls[i].Value<string>()) { Content = new ByteArrayContent(buffer, 0, read) };
+                    var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
+                    if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload part {i + 1}/{urls.Count} failed (HTTP {(int)putResp.StatusCode}).");
+                }
+            }
+
+            var finResp = await SendAsync(HttpMethod.Post,
+                $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload",
+                accessToken, new JObject { ["uploadKey"] = uploadKey }, "application/json", ct).ConfigureAwait(false);
+            if (!finResp.ok) return (false, $"Finalise upload failed (HTTP {finResp.status}). {Trim(finResp.body)}");
+            return (true, "");
+        }
+
+        /// <summary>Add a new version to an existing item (the 409 path), pointing at the just-uploaded storage object.</summary>
+        private static async Task<(bool ok, string urn, string err)> CreateVersionAsync(
+            string accessToken, string projectId, string folderUrn, string fileName, string objectId, CancellationToken ct)
+        {
+            string itemId = await FindItemIdAsync(accessToken, projectId, folderUrn, fileName, ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(itemId))
+                return (false, "", $"'{fileName}' exists but its item couldn't be located in the folder for versioning.");
+
+            var body = new JObject
+            {
+                ["jsonapi"] = new JObject { ["version"] = "1.0" },
+                ["data"] = new JObject
+                {
+                    ["type"] = "versions",
+                    ["attributes"] = new JObject
+                    {
+                        ["name"] = fileName,
+                        ["extension"] = new JObject { ["type"] = "versions:autodesk.bim360:File", ["version"] = "1.0" }
+                    },
+                    ["relationships"] = new JObject
+                    {
+                        ["item"] = new JObject { ["data"] = new JObject { ["type"] = "items", ["id"] = itemId } },
+                        ["storage"] = new JObject { ["data"] = new JObject { ["type"] = "objects", ["id"] = objectId } }
+                    }
+                }
+            };
+            var resp = await SendAsync(HttpMethod.Post, $"{DataBase}/projects/{projectId}/versions",
+                accessToken, body, JsonApi, ct).ConfigureAwait(false);
+            if (!resp.ok) return (false, "", $"Create version failed (HTTP {resp.status}). {Trim(resp.body)}");
+            string urn = JObject.Parse(resp.body)["data"]?["id"]?.Value<string>() ?? "";
+            return (true, urn, "");
+        }
+
+        /// <summary>Locate an existing item id by display name within a folder.</summary>
+        private static async Task<string> FindItemIdAsync(
+            string accessToken, string projectId, string folderUrn, string fileName, CancellationToken ct)
+        {
+            var resp = await SendAsync(HttpMethod.Get,
+                $"{DataBase}/projects/{projectId}/folders/{Uri.EscapeDataString(folderUrn)}/contents",
+                accessToken, null, null, ct).ConfigureAwait(false);
+            if (!resp.ok) { StingLog.Warn($"folder contents HTTP {resp.status}: {Trim(resp.body)}"); return ""; }
+
+            var data = JObject.Parse(resp.body)["data"] as JArray;
+            if (data == null) return "";
+            foreach (var it in data)
+            {
+                if ((it["type"]?.Value<string>() ?? "") != "items") continue;
+                string dn = it["attributes"]?["displayName"]?.Value<string>() ?? "";
+                if (dn.Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                    return it["id"]?.Value<string>() ?? "";
+            }
+            return "";
         }
 
         /// <summary>Find the project's "Project Files" top folder URN via the Project API.</summary>
