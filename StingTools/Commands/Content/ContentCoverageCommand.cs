@@ -48,6 +48,22 @@ namespace StingTools.Commands.Content
                 sb.AppendLine($"Bundles      : {m.Bundles.Count,4}");
                 sb.AppendLine();
 
+                // The REAL seed denominator — engine-required loadable categories,
+                // not the 206 tag list.
+                if (m.Coverage != null)
+                {
+                    var cov = m.Coverage;
+                    int seedable = cov.SeededLoadableCount + cov.NeedsSpecCount; // exclude system/datum
+                    int pct = seedable > 0
+                        ? (int)System.Math.Round(100.0 * cov.SeededLoadableCount / seedable) : 100;
+                    sb.AppendLine($"SEED COVERAGE (engine-required denominator, NOT the 206 tag list):");
+                    sb.AppendLine($"  {cov.SeededLoadableCount}/{seedable} seedable categories covered ({pct}%), {cov.NeedsSpecCount} needs-spec");
+                    sb.AppendLine($"  ({cov.EngineRequiredCount} engine-required total; {cov.ExcludedSystemDatum.Count} system/datum excluded by design)");
+                    if (cov.NeedsSpec != null && cov.NeedsSpec.Count > 0)
+                        sb.AppendLine($"  needs-spec: {string.Join(", ", cov.NeedsSpec)}");
+                    sb.AppendLine();
+                }
+
                 if (gaps.Count == 0)
                 {
                     sb.AppendLine("No open gaps - every declared content item is built or buildable.");

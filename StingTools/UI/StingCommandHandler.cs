@@ -493,6 +493,7 @@ namespace StingTools.UI
                     case "Symbols_PlaceView":      RunCommand<Commands.Symbols.PlaceSymbolsInViewCommand>(app); break;
                     case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
                     case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
+                    case "Content_Coverage":       RunCommand<Commands.Content.ContentCoverageCommand>(app); break;
                     case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;
                     case "Symbols_AutoPlaceToggle": RunCommand<Commands.Symbols.SymbolsAutoPlaceToggleCommand>(app); break;
                     case "Symbols_RemoveInView":   RunCommand<Commands.Symbols.RemoveSymbolsInViewCommand>(app); break;
