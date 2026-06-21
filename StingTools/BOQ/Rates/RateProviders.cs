@@ -129,7 +129,12 @@ namespace StingTools.BOQ.Rates
     internal sealed class ExtensibleStorageRateProvider : IRateProvider
     {
         public string Id => "es-override";
-        public int Priority => 95;
+        // Phase 195 re-rank — a sticky per-element manual correction stored in
+        // Extensible Storage must beat every automated feed (Fohlio at 96 /
+        // material-library / CSV). Lifted 95 -> 98 (just under the inline param
+        // override at 100); also breaks the old 95-tie with material-library.
+        // Override via _BIM_COORD/boq_rate_policy.json (RatePolicy overlay).
+        public int Priority => 98;
         public bool RequiresNetwork => false;
 
         public RateLookup Resolve(RateRequest req)

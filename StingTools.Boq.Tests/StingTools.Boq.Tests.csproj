@@ -29,6 +29,8 @@
     <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
     <!-- Phase H3 (KUT lifecycle): pure BMS commissioning-valuation arithmetic. -->
     <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
+    <!-- Phase 195: pure host-free rate-policy overlay (boq_rate_policy.json). -->
+    <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>

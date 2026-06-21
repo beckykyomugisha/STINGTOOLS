@@ -1,0 +1,21 @@
+{
+  "_comment": "KUT (Kampala Uganda Temple) BOQ rate-provider policy overlay. Phase 195. This file re-ranks and gates the corporate rate-provider waterfall for THIS project only. Leave a provider out to keep its compiled-in baseline. 'enabled:false' switches a provider off so a tender runs deterministically; 'priority' (higher wins) re-ranks the chain. The full resolved chain for KUT is documented below.",
+  "_chain_high_to_low": [
+    "param-override (100)  inline CST_UNIT_RATE_UGX edit  ALWAYS WINS",
+    "es-override (98)      sticky per-element manual correction (Extensible Storage)",
+    "fohlio (96)           Owner FF&E procurement PO price (links Fohlio, never duplicates)",
+    "project-rate-card (93) negotiated sub-contractor rate card (_BIM_COORD/rate_card.json)",
+    "csv-default (90)      cost_rates_5d.csv category rate",
+    "material-library (85) MAT panel ALL_MODEL_COST / MATERIAL_LOOKUP.csv",
+    "cobie-typemap (75)    COBIE_TYPE_MAP.csv -> rate code",
+    "default-baseline (60) Scheduling4DEngine fallback",
+    "bcis-http (DISABLED)  live BCIS HTTP feed - off for deterministic KUT tenders"
+  ],
+  "providers": {
+    "bcis-http": { "enabled": false },
+    "es-override": { "priority": 98 },
+    "fohlio": { "priority": 96 },
+    "project-rate-card": { "priority": 93 },
+    "material-library": { "priority": 85 }
+  }
+}

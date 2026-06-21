@@ -8,11 +8,12 @@
 //      ...
 //    ]
 //
-//  Priority 40 — sits below external HTTP rate-book providers (50) and
-//  above the COBie type map (75)? No — actually below COBie (75) per
-//  the priority scale. Project rate card *should* override the COBie
-//  / CSV defaults, so we place it at 87 (between the standard CSV at
-//  90 and PROD-code CSV at 85). Adjust per project policy.
+//  Priority 93 (Phase 195 re-rank) — a negotiated project rate card is a
+//  commercial commitment that should beat the generic CSV category rate (90),
+//  the material library (85), COBie type-map (75) and 4D default (60). It
+//  still sits below the ES per-element manual correction (98), Fohlio PO
+//  price (96) and the inline parameter override (100). Override via
+//  _BIM_COORD/boq_rate_policy.json (RatePolicy overlay).
 //
 //  P8 of the Cost Management Implementation Plan.
 // ══════════════════════════════════════════════════════════════════════════
@@ -29,7 +30,7 @@ namespace StingTools.BOQ.Rates.Providers
     public sealed class ProjectRateCardProvider : IRateProvider
     {
         public string Id => "project-rate-card";
-        public int Priority => 87;
+        public int Priority => 93;
         public bool RequiresNetwork => false;
 
         private readonly Dictionary<string, RateLookup> _byCategory;

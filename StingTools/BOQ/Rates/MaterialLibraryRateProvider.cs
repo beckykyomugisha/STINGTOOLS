@@ -6,9 +6,13 @@
 //             set inline via MAT > Browse cell-edit)
 //    Tier 2 — MaterialLookupCsv corporate baseline
 //
-//  Priority 95 — sits above the CSV category match (90) but below explicit
-//  parameter overrides (100), so a project that has curated material cost
-//  in the MAT panel always beats the cost_rates_5d.csv category rate.
+//  Priority 85 (Phase 195 re-rank) — sits below the project rate card (93),
+//  the ES manual correction (98), Fohlio PO price (96) and inline parameter
+//  override (100), but above the COBie type map (75) and 4D default (60).
+//  Rationale: a negotiated project rate card / sub-contractor quote and a
+//  per-element manual correction both reflect commercial intent that should
+//  beat a generic material-library cost. Override via
+//  _BIM_COORD/boq_rate_policy.json (RatePolicy overlay).
 //
 //  Closes BOQ-2 + BOQ-11 from the integration audit.
 // ══════════════════════════════════════════════════════════════════════════
@@ -22,7 +26,7 @@ namespace StingTools.BOQ.Rates
     internal sealed class MaterialLibraryRateProvider : IRateProvider
     {
         public string Id => "material-library";
-        public int Priority => 95;
+        public int Priority => 85;
         public bool RequiresNetwork => false;
 
         public RateLookup Resolve(RateRequest req)

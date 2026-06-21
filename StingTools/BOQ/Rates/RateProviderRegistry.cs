@@ -16,8 +16,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.BIMManager;
 using StingTools.Core;
 
 namespace StingTools.BOQ.Rates
@@ -31,19 +33,29 @@ namespace StingTools.BOQ.Rates
             = new ConcurrentDictionary<string, RateProviderRegistry>(StringComparer.OrdinalIgnoreCase);
 
         private readonly List<IRateProvider> _providers;
+        private readonly RatePolicy _policy;
         private readonly double _ugxPerUsd;
         private readonly double _ugxPerGbp;
 
         private RateProviderRegistry(IEnumerable<IRateProvider> providers,
+                                     RatePolicy policy,
                                      double ugxPerUsd, double ugxPerGbp)
         {
+            _policy = policy ?? RatePolicy.Empty;
             _providers = providers
                 .Where(p => p != null)
-                .OrderByDescending(p => p.Priority)
+                // Phase 195 — order by the POLICY-effective priority so a
+                // project-scoped boq_rate_policy.json can re-rank the chain
+                // without recompiling. Disabled providers stay in the list but
+                // are skipped at Resolve time (keeps ResolveAll diagnostics honest).
+                .OrderByDescending(EffPriority)
                 .ToList();
             _ugxPerUsd = ugxPerUsd > 0 ? ugxPerUsd : 3700.0;
             _ugxPerGbp = ugxPerGbp > 0 ? ugxPerGbp : 4700.0;
         }
+
+        /// <summary>Policy-effective priority for a provider (override or baseline).</summary>
+        private int EffPriority(IRateProvider p) => _policy.EffectivePriority(p.Id, p.Priority);
 
         /// <summary>
         /// Acquire the registry for this document. Builds it lazily from
@@ -58,7 +70,34 @@ namespace StingTools.BOQ.Rates
             double ugxPerGbp = 0)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ =>
+            {
+                var policy = LoadPolicy(doc);
+                return Build(csvRates, cobieCostCodes, policy, ugxPerUsd, ugxPerGbp);
+            });
+        }
+
+        /// <summary>
+        /// Resolve <c>&lt;project&gt;/_BIM_COORD/boq_rate_policy.json</c> via the same
+        /// path convention ProjectRateCardProvider uses, and parse it. Never
+        /// throws — a missing or malformed file yields an empty (no-op) policy.
+        /// </summary>
+        private static RatePolicy LoadPolicy(Document doc)
+        {
+            try
+            {
+                string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                string projectDir = Path.GetDirectoryName(bimDir);
+                var policy = RatePolicy.Load(projectDir);
+                if (policy?.Providers != null && policy.Providers.Count > 0)
+                    StingLog.Info($"RateProviderRegistry: applied boq_rate_policy.json overlay ({policy.Providers.Count} provider override(s)).");
+                return policy ?? RatePolicy.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RateProviderRegistry.LoadPolicy: {ex.Message}");
+                return RatePolicy.Empty;
+            }
         }
 
         /// <summary>
@@ -70,6 +109,7 @@ namespace StingTools.BOQ.Rates
         private static RateProviderRegistry Build(
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
+            RatePolicy policy,
             double ugxPerUsd, double ugxPerGbp)
         {
             var providers = new List<IRateProvider>
@@ -93,7 +133,7 @@ namespace StingTools.BOQ.Rates
                 new CobieRateProvider(cobieCostCodes, csvRates),
                 new DefaultRateProvider()
             };
-            return new RateProviderRegistry(providers, ugxPerUsd, ugxPerGbp);
+            return new RateProviderRegistry(providers, policy, ugxPerUsd, ugxPerGbp);
         }
 
         /// <summary>
@@ -106,8 +146,11 @@ namespace StingTools.BOQ.Rates
         {
             if (provider == null) return;
             _providers.Add(provider);
-            _providers.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-            StingLog.Info($"RateProviderRegistry: registered {provider.Id} (priority {provider.Priority}).");
+            // Re-sort by policy-effective priority so an externally-registered
+            // provider (e.g. bcis-http) lands at its overlaid rank, or is
+            // sorted as baseline when the policy doesn't name it.
+            _providers.Sort((a, b) => EffPriority(b).CompareTo(EffPriority(a)));
+            StingLog.Info($"RateProviderRegistry: registered {provider.Id} (priority {EffPriority(provider)}).");
         }
 
         /// <summary>
@@ -120,6 +163,9 @@ namespace StingTools.BOQ.Rates
             if (req == null) return ZeroLookup("");
             foreach (var provider in _providers)
             {
+                // Phase 195 — a project policy may switch a provider off
+                // (e.g. disable the live BCIS feed for a deterministic tender).
+                if (!_policy.IsEnabled(provider.Id)) continue;
                 try
                 {
                     var lookup = provider.Resolve(req);
