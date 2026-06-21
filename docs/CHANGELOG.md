@@ -3,6 +3,29 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P6-3: data-driven run rules)
+
+Moves the run engine's hardcoded policy into `Data/STING_DWG_RUN_RULES.json`
+(corporate) + `<project>/_BIM_COORD/dwg_run_rules.json` (per-field override) — same
+loader pattern as `STING_DWG_FIXTURE_MAP.json`. **Compile-verified Revit 2025
+(0/0).** Shipped corporate values reproduce the previous hardcoded defaults exactly,
+so an un-customised project converts byte-for-byte unchanged. Verify runtime in
+Revit before merge.
+
+- New `MepRunRules` POCO + `MepRunRulesRegistry` (per-doc cache, corporate + project
+  merge, invalidated on document close).
+- Externalised: per-kind default size + run elevation + riser default size,
+  the wall-mount category set, the fitting coincidence tolerance (now ONE source —
+  `MepRunBuilder` drainage chaining + `MepFittingBuilder` both read it), and the
+  drainage fall as a per-diameter band table (ships a single flat 1.25 % band =
+  previous behaviour; projects add BS EN 12056 graduated falls in their override).
+- `ServiceRules` is an override-only surface — the corporate service→
+  `MEPSystemClassification` mapping stays in `MepServiceClassifier` (proven, in code)
+  and projects add/override patterns via the data file.
+- Every accessor falls back to the original `MepRunClassifier` constant, so a
+  missing/partial file behaves identically. `RiserDefaultSize` is shipped in the
+  schema but consumed in P7-3.3 (riser sizing is intentionally output-changing).
+
 #### Completed (MEP-from-DWG — P6-2: performance — indexing/caching, identical outputs)
 
 Makes the pass usable on a real floor plate. **Compile-verified against Revit 2025

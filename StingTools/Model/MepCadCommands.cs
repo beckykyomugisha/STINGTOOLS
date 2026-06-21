@@ -81,7 +81,9 @@ namespace StingTools.Model
             var run = rb.Build(detection.Runs, level, null, detection.Risers);
             var riser = rb.BuildRisers(detection.Risers, level, levels);
             var ids = run.CreatedIds.Concat(riser.CreatedIds).ToList();
-            var fitB = new MepFittingBuilder(doc);
+            // P6-3 — fitting coincidence tolerance from the (data-driven) run rules,
+            // unifying it with the drainage-chaining tolerance MepRunBuilder uses.
+            var fitB = new MepFittingBuilder(doc, MepRunRulesRegistry.Get(doc).FittingToleranceMm);
             var fit = ids.Count > 1 ? fitB.Build(ids) : new MepFittingBuildResult();
             // P5 2.1 — mid-run branch taps (split main + tee). Run after the end-junction pass.
             if (ids.Count > 1) fitB.BuildMidRunTaps(ids, fit);
