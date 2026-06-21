@@ -6,6 +6,11 @@
 //     each chunk back to /api/scene-nodes (tenant-scoped storage),
 //     returns the manifest the SceneNode rows are minted from.
 //
+// POST /ifc-to-glb
+//   { sourceUrl: string, projectId: uuid, fileName?: string, discipline?: string }
+//   → downloads the IFC, runs IfcConvert (IfcOpenShell) to produce a GLB,
+//     publishes it back as a renderable ProjectModel, returns { modelId }.
+//
 // POST /health
 //   → 200 OK
 //
@@ -20,6 +25,12 @@ import { draco, prune, dedup, weld } from '@gltf-transform/functions';
 import draco3d from 'draco3dgltf';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+import os from 'os';
+import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { mkdtemp, writeFile, readFile, rm } from 'fs/promises';
+const execFileP = promisify(execFile);
 
 const PORT = process.env.PORT || 7700;
 const API_BASE = process.env.API_BASE || 'http://api:8080';
@@ -30,6 +41,67 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// IFC → GLB via IfcConvert (IfcOpenShell). Downloads the IFC, converts to a
+// binary glTF, then publishes the GLB back as a renderable ProjectModel so the
+// web/mobile viewer (GLTFLoader) can open it. RVT is out of scope — route those
+// through the Revit plugin's own GLB export or APS Model Derivative.
+app.post('/ifc-to-glb', async (req, res) => {
+  if (CONVERTER_TOKEN && req.headers['x-converter-token'] !== CONVERTER_TOKEN) {
+    return res.status(401).json({ error: 'unauthorised' });
+  }
+  const { sourceUrl, projectId, fileName, discipline } = req.body || {};
+  if (!sourceUrl || !projectId) {
+    return res.status(400).json({ error: 'sourceUrl and projectId are required' });
+  }
+
+  const work = await mkdtemp(path.join(os.tmpdir(), 'ifc-'));
+  const inPath = path.join(work, 'src.ifc');
+  const outPath = path.join(work, 'out.glb');
+  const baseName = (fileName || 'model').replace(/\.[^.]+$/, '');
+  const outName = `${baseName}.glb`;
+  try {
+    // 1. Pull the IFC.
+    const srcResp = await fetch(sourceUrl);
+    if (!srcResp.ok) throw new Error(`source fetch failed: HTTP ${srcResp.status}`);
+    await writeFile(inPath, Buffer.from(await srcResp.arrayBuffer()));
+
+    // 2. Convert. --use-element-guids keeps IFC GlobalIds as glTF node names so
+    //    the element-map / clash highlighting lines up with the source IFC.
+    try {
+      await execFileP('IfcConvert', ['--use-element-guids', '-y', inPath, outPath], {
+        maxBuffer: 64 * 1024 * 1024,
+      });
+    } catch (convErr) {
+      const missing = convErr && (convErr.code === 'ENOENT');
+      return res.status(missing ? 501 : 500).json({
+        error: missing
+          ? 'IfcConvert not installed in this image — rebuild the sidecar with IFCCONVERT_URL set.'
+          : `IfcConvert failed: ${String(convErr)}`,
+      });
+    }
+
+    // 3. Publish the GLB as a renderable ProjectModel.
+    const glb = await readFile(outPath);
+    const fd = new FormData();
+    fd.append('File', new Blob([glb], { type: 'model/gltf-binary' }), outName);
+    fd.append('Name', outName);
+    if (discipline) fd.append('Discipline', discipline);
+    const pubResp = await fetch(`${API_BASE}/api/projects/${projectId}/models`, {
+      method: 'POST',
+      headers: API_BEARER ? { Authorization: `Bearer ${API_BEARER}` } : {},
+      body: fd,
+    });
+    if (!pubResp.ok) throw new Error(`publish failed: HTTP ${pubResp.status} ${await pubResp.text()}`);
+    const row = await pubResp.json();
+    res.json({ ok: true, modelId: row.id ?? row.modelId ?? null, name: outName, glbBytes: glb.length });
+  } catch (err) {
+    console.error('ifc-to-glb failed', err);
+    res.status(500).json({ error: String(err) });
+  } finally {
+    await rm(work, { recursive: true, force: true }).catch(() => {});
+  }
+});
 
 app.post('/chunk', async (req, res) => {
   if (CONVERTER_TOKEN && req.headers['x-converter-token'] !== CONVERTER_TOKEN) {
