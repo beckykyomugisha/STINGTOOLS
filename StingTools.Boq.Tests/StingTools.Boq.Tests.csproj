@@ -31,6 +31,8 @@
     <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
     <!-- Phase 195: pure host-free rate-policy overlay (boq_rate_policy.json). -->
     <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
+    <!-- Phase 196: pure host-free classification-order overlay (classification_policy.json). -->
+    <Compile Include="..\StingTools\Core\Classification\ClassificationPolicy.cs" Link="Classification\ClassificationPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>

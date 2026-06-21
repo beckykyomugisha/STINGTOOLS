@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 196 — per-project classification switch via classification_policy.json)
+
+The authoritative classification for BOQ grouping / COBie / IFC / handover was
+hard-coded in `ClassificationReader.ResolveFallback` (Uniclass.Pr → Ss → Ef →
+OmniClass23 → native) — UK-centric. American projects (KUT) lead with CSI
+MasterFormat / OmniClass, and the code auto-assigns CSI (`CSI_Assign`) but never
+let it *drive* grouping. Made the order a per-project data file, mirroring the
+Phase 195 rate-policy pattern.
+
+- **New host-free `ClassificationPolicy`** (`Core/Classification/ClassificationPolicy.cs`):
+  `Parse` / `Load` / `Default`. Reads
+  `<project>/_BIM_COORD/classification_policy.json` — an ordered `order[]` of
+  rungs, each naming a TEXT shared parameter to read (type-first) + a key prefix
+  + a provenance label. A rung with no `param` (or id `native`) is the terminal
+  family/type fallback. Point `param` at ANY parameter to introduce a
+  classification the code has never seen — no new code. `Default` reproduces the
+  pre-196 order exactly, so a missing/malformed file is zero behavioural change.
+  Normalisation guarantees a single terminal native rung, collapses duplicates,
+  drops rungs after native, and synthesises prefix/label from the id when
+  omitted.
+- **`ClassificationReader.ResolveFallback` now walks the policy** (cached per
+  project directory; `InvalidatePolicy()` to refresh). The native-key builder is
+  factored out; the historic five-param `Read()` is untouched (still used by the
+  named-field consumers).
+- **KUT overlay shipped** (`project-templates/KUT/_BIM_COORD/classification_policy.json`):
+  CSI MasterFormat → OmniClass23 → Uniclass Pr/Ss/Ef → native. Switching a
+  project to UK Uniclass-first is a reorder; deleting the file restores the
+  corporate default.
+- **7 new `ClassificationPolicyTests`** (host-free) link into
+  `StingTools.Boq.Tests`. Suite 164/165 (the 1 failure is the pre-existing
+  `ConcreteGradeCarbon` regression, unrelated). Main plugin builds clean vs
+  Revit 2025.
+
 #### Completed (KUT Lifecycle Integration — Phase 195: rate re-rank, latest-wins SpecLink, unified BMS source)
 
 Three follow-ups to the H1–H4 review, applied in value order. Built clean

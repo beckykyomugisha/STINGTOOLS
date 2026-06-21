@@ -1,0 +1,11 @@
+{
+  "_comment": "KUT (Kampala Uganda Temple) classification policy overlay. Phase 196. KUT follows the American convention: CSI MasterFormat is the authoritative classification for work-results / BOQ structure (auto-assigned by CSI_Assign from STING_CSI_MASTERFORMAT_MAP.csv + project csi_map.csv overlay), with OmniClass Table 23 next and Uniclass 2015 as the final coded fallback before the native family/type bucket. To switch a project to Uniclass-first (UK) simply reorder the rungs, or delete this file to use the corporate default (Uniclass.Pr -> Ss -> Ef -> OmniClass23 -> native). Each rung names a TEXT shared parameter to read (type-first); point 'param' at any parameter to introduce a classification the code has never seen.",
+  "order": [
+    { "id": "csi",         "param": "CSI_SECTION_TXT",    "prefix": "CSI",  "label": "CSI.MasterFormat" },
+    { "id": "omniclass23", "param": "STING_OMNICLASS_23", "prefix": "OMNI", "label": "OmniClass23" },
+    { "id": "uniclass.pr", "param": "UNICLASS_PR_TXT",    "prefix": "PR",   "label": "Uniclass.Pr" },
+    { "id": "uniclass.ss", "param": "UNICLASS_SS_TXT",    "prefix": "SS",   "label": "Uniclass.Ss" },
+    { "id": "uniclass.ef", "param": "UNICLASS_EF_TXT",    "prefix": "EF",   "label": "Uniclass.Ef" },
+    { "id": "native" }
+  ]
+}

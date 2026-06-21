@@ -5,7 +5,11 @@
 // (already injected by InjectAutomationPresentationPack) so hybrid projects
 // that only populated OmniClass remain fully functional.
 
+using System;
+using System.Collections.Concurrent;
+using System.IO;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Classification
 {
@@ -45,31 +49,67 @@ namespace StingTools.Core.Classification
             return c;
         }
 
+        // Phase 196 — per-project classification order overlay, cached per
+        // project directory. Default (no file) reproduces the historic order
+        // exactly (Uniclass.Pr → Ss → Ef → OmniClass23 → native).
+        private static readonly ConcurrentDictionary<string, ClassificationPolicy> _policyCache
+            = new ConcurrentDictionary<string, ClassificationPolicy>(StringComparer.OrdinalIgnoreCase);
+
+        private static ClassificationPolicy PolicyFor(Document doc)
+        {
+            string dir = "";
+            try { dir = Path.GetDirectoryName(doc?.PathName ?? "") ?? ""; } catch { }
+            string key = string.IsNullOrEmpty(dir) ? "default" : dir;
+            return _policyCache.GetOrAdd(key, _ =>
+            {
+                var p = ClassificationPolicy.Load(dir);
+                // Only the opt-in case is worth a log line.
+                try
+                {
+                    if (!string.IsNullOrEmpty(dir) &&
+                        File.Exists(Path.Combine(dir, "_BIM_COORD", "classification_policy.json")))
+                        StingLog.Info($"ClassificationReader: applied classification_policy.json ({p.Order.Count} rung(s)).");
+                }
+                catch { }
+                return p;
+            });
+        }
+
+        /// <summary>Drop the cached policy so an edited classification_policy.json is re-read.</summary>
+        public static void InvalidatePolicy() => _policyCache.Clear();
+
         /// <summary>
         /// Pack 126 / Gap J — single canonical fallback chain used by BOQ /
-        /// COBie / handover / IFC export. Ordered by specificity:
-        ///   1. Uniclass.Pr  (Product)
-        ///   2. Uniclass.Ss  (Systems)
-        ///   3. Uniclass.Ef  (Elements / Functions)
-        ///   4. STING_OMNICLASS_23
-        ///   5. Category / FamilyName / TypeName
+        /// COBie / handover / IFC export. Phase 196: the order is now driven by
+        /// the project's classification_policy.json (see <see cref="ClassificationPolicy"/>);
+        /// the compiled-in default reproduces the historic order
+        /// (Uniclass.Pr → Ss → Ef → OmniClass23 → native), so an American project
+        /// can put CSI MasterFormat or OmniClass first by dropping an overlay.
         ///
-        /// Returns (key, source, value). Source is the bucket that won so
-        /// downstream reports can show "via: Uniclass.Pr". Guarantees a
-        /// non-empty key so BOQ rows never collide on blank classification.
+        /// Returns (key, source, value). Source is the rung that won so
+        /// downstream reports can show "via: Uniclass.Pr" / "via: CSI.MasterFormat".
+        /// Guarantees a non-empty key so BOQ rows never collide on blank
+        /// classification.
         /// </summary>
         public static (string key, string source, string value) ResolveFallback(Element el)
         {
-            var c = Read(el);
-            if (!string.IsNullOrEmpty(c.UniclassProduct)) return ("PR:"   + c.UniclassProduct, "Uniclass.Pr",  c.UniclassProduct);
-            if (!string.IsNullOrEmpty(c.UniclassSystem))  return ("SS:"   + c.UniclassSystem,  "Uniclass.Ss",  c.UniclassSystem);
-            if (!string.IsNullOrEmpty(c.UniclassElement)) return ("EF:"   + c.UniclassElement, "Uniclass.Ef",  c.UniclassElement);
-
+            var policy = PolicyFor(el?.Document);
             Element type = null;
             try { type = el?.Document?.GetElement(el.GetTypeId()); } catch { }
-            string omni = type?.LookupParameter("STING_OMNICLASS_23")?.AsString() ?? "";
-            if (!string.IsNullOrEmpty(omni)) return ("OMNI:" + omni, "OmniClass23", omni);
 
+            foreach (var src in policy.Order)
+            {
+                if (src.IsNative) return NativeKey(type);
+                string v = TypeFirst(el, type, src.Param);
+                if (!string.IsNullOrEmpty(v))
+                    return (src.Prefix + ":" + v, src.Label, v);
+            }
+            // Policy with no terminal native rung — guarantee a key.
+            return NativeKey(type);
+        }
+
+        private static (string key, string source, string value) NativeKey(Element type)
+        {
             string famTypeKey = (type?.Category?.Name ?? "") + "/" +
                                 ((type as ElementType)?.FamilyName ?? "") + "/" +
                                 (type?.Name ?? "");
