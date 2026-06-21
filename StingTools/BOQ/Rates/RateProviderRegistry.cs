@@ -75,6 +75,9 @@ namespace StingTools.BOQ.Rates
             var providers = new List<IRateProvider>
             {
                 new ParameterOverrideRateProvider(),
+                // Phase C (KUT lifecycle) — Owner FF&E procurement price (96), above
+                // material-library/CSV, below inline override (100).
+                new FohlioRateProvider(),
                 new ExtensibleStorageRateProvider(),
                 // N+8 — Material-library rate (priority 95). Sits above CSV
                 // category match so a project that has curated material cost

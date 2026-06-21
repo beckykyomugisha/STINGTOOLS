@@ -212,6 +212,13 @@ namespace StingTools.Core
         /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string FOHLIO_REF = "FOHLIO_REF_TXT";
         public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
+        /// <summary>Phase C (KUT lifecycle) — Fohlio procurement unit cost + quote
+        /// currency, pulled into the BOQ by FohlioRateProvider. UUIDv5 in namespace
+        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
+        public const string FOHLIO_UNIT_COST = "FOHLIO_UNIT_COST_NR";
+        public const string FOHLIO_UNIT_COST_GUID = "b6e507ab-bab5-5b7f-aecd-ca78bd14f4c5";
+        public const string FOHLIO_CURRENCY = "FOHLIO_CURRENCY_TXT";
+        public const string FOHLIO_CURRENCY_GUID = "f369abea-4433-541c-a409-128ec9c1675e";
         /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
         /// lighting schedule). UUIDv5 in namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>

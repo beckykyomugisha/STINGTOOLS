@@ -309,6 +309,7 @@ namespace StingTools.Commands.Cost
             StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
             StingTools.BOQ.MeasurementStandard.Icms3PhaseMap.Invalidate();
             StingTools.Commands.Classification.CsiMap.Invalidate();   // Phase A — CSI↔NRM2 bridge cache
+            StingTools.ExLink.FohlioMap.Invalidate();                 // Phase C — FF&E treatment cache
 
             // P8 — register external rate providers lazily. The default
             // chain (param / ES / CSV / COBie / scheduled) is built by

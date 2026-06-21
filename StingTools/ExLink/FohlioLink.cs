@@ -53,6 +53,31 @@ namespace StingTools.ExLink
             new FohlioColumn { Header = "Fohlio Ref",    Param = "FOHLIO_REF_TXT",       WriteBack = true },
         };
 
+        // ── Phase C (KUT lifecycle) — FF&E BOQ treatment ──────────────────────
+        // How Fohlio FF&E is carried in the bill. KUT default is a Provisional /
+        // Prime-Cost sum that references the Fohlio register (Owner-procured items
+        // the contractor does not measure-and-price). Per-category overrides flip
+        // a category to a contractor-supplied measured line, or drop it from this
+        // bill entirely. An item is exactly one of the three — never double-counted.
+        //   "pcSum"                  (DEFAULT) PC/Provisional sum, value = Fohlio total
+        //   "measured"               normal priced line using the Fohlio rate
+        //   "ownerSupplied-excluded" zero-cost in this bill (skipped)
+        public string BoqTreatment { get; set; } = "pcSum";
+        public Dictionary<string, string> BoqTreatmentByCategory { get; set; }
+
+        /// <summary>Canonical treatment for a category — delegates to the pure,
+        /// unit-tested <see cref="StingTools.BOQ.FfeTreatment"/>.</summary>
+        public string TreatmentFor(string category)
+            => StingTools.BOQ.FfeTreatment.Resolve(category, BoqTreatment, BoqTreatmentByCategory);
+
+        public bool IsFfeCategory(string category)
+        {
+            if (string.IsNullOrEmpty(category) || Categories == null) return false;
+            foreach (var c in Categories)
+                if (string.Equals(c, category, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         public static FohlioMap Load(Document doc)
         {
             var map = new FohlioMap();
@@ -68,6 +93,17 @@ namespace StingTools.ExLink
             catch (Exception ex) { StingLog.Warn($"FohlioMap load: {ex.Message}"); }
             return map;
         }
+
+        // Per-document cache so the BOQ build loop (one call per FF&E element)
+        // reads the JSON once. Invalidated alongside the rate registry on
+        // Cost_ReloadRules.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, FohlioMap> _cache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, FohlioMap>(StringComparer.OrdinalIgnoreCase);
+
+        public static FohlioMap Cached(Document doc)
+            => _cache.GetOrAdd(doc?.PathName ?? "default", _ => Load(doc));
+
+        public static void Invalidate() => _cache.Clear();
 
         public static string ProjectFile(Document doc, string name)
         {

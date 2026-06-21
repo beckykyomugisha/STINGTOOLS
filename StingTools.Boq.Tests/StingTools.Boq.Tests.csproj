@@ -22,6 +22,8 @@
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
     <!-- Phase A (KUT lifecycle): pure CSI MasterFormat resolver + CSI↔NRM2 bridge. -->
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
+    <!-- Phase C (KUT lifecycle): pure FF&E BOQ-treatment resolution. -->
+    <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
   </ItemGroup>
 
   <ItemGroup>

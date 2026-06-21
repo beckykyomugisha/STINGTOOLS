@@ -197,6 +197,22 @@ namespace StingTools.BOQ
             // Skip phase-demolished or temporary elements — they don't belong in the cost plan.
             if (IsPhaseDemolished(doc, el)) return null;
 
+            // Phase C (KUT lifecycle) — FF&E BOQ treatment. KUT default is a PC sum
+            // referencing the Fohlio register; per-category overrides flip to a
+            // measured line or drop the item. Resolve once, up front, so exactly one
+            // treatment applies per element (never double-counted).
+            string ffeTreatment = null;   // null ⇒ not an FF&E (Fohlio-mapped) category
+            try
+            {
+                var fmap = StingTools.ExLink.FohlioMap.Cached(doc);
+                if (fmap != null && fmap.IsFfeCategory(catName))
+                {
+                    ffeTreatment = fmap.TreatmentFor(catName);
+                    if (ffeTreatment == "ownerSupplied-excluded") return null;   // zero-cost in this bill
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FF&E treatment: {ex.Message}"); }
+
             // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
             string rateSource;
             int rateConfidence;
@@ -290,6 +306,21 @@ namespace StingTools.BOQ
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
 
+            // Phase C — FF&E carried as a PC sum referencing the Fohlio register.
+            // The line value is the Fohlio total (rate via FohlioRateProvider). A PC
+            // sum is a fully-inclusive allowance, so it is kept OUT of the contractor
+            // OH&P base (RateIncludesOhp) — matching the BoqTotals OH&P-base rule.
+            // ("measured" needs no special handling: it is a normal model line whose
+            // rate the FohlioRateProvider supplies at confidence 95 / RateSource "Fohlio".)
+            if (ffeTreatment == "pcSum")
+            {
+                line.Source = BOQRowSource.ProvisionalSum;
+                line.RateIncludesOhp = true;
+                string pcNote = "PC sum — Fohlio FF&E register" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
+            }
+
             return line;
         }
 
@@ -362,6 +393,7 @@ namespace StingTools.BOQ
             {
                 case "param-override": return "Override";
                 case "es-override":    return "Override";
+                case "fohlio":         return "Fohlio";
                 case "csv-default":    return "CSV";
                 case "cobie-typemap":  return "COBie";
                 case "default-baseline": return "Default";

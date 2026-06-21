@@ -212,6 +212,25 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>Read a numeric parameter as double with fallback. Handles Double,
+        /// Integer and String storage (String parsed culture-invariantly).</summary>
+        public static double GetDouble(Element el, string paramName, double defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return defaultValue;
+            switch (p.StorageType)
+            {
+                case StorageType.Double: return p.AsDouble();
+                case StorageType.Integer: return p.AsInteger();
+                case StorageType.String:
+                    string s = p.AsString();
+                    return double.TryParse(s, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : defaultValue;
+                default: return defaultValue;
+            }
+        }
+
         /// <summary>Set an INTEGER parameter. Skips read-only params. Skips non-zero unless overwrite.</summary>
         public static bool SetInt(Element el, string paramName, int value, bool overwrite = false)
         {

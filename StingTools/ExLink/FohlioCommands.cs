@@ -128,8 +128,19 @@ namespace StingTools.ExLink
             }
 
             var writeCols = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).ToList();
+
+            // Phase C (KUT lifecycle) — pull the procurement cost columns. The numeric
+            // unit cost is written via SetDouble (not the text-diff path), so exclude it
+            // from writeCols. Headers resolved by Param so the map controls the names.
+            string costHeader = map.Columns.FirstOrDefault(c => string.Equals(c.Param, ParamRegistry.FOHLIO_UNIT_COST, StringComparison.OrdinalIgnoreCase))?.Header;
+            string curHeader  = map.Columns.FirstOrDefault(c => string.Equals(c.Param, ParamRegistry.FOHLIO_CURRENCY, StringComparison.OrdinalIgnoreCase))?.Header;
+            string qtyHeader  = map.Columns.FirstOrDefault(c => string.Equals(c.Param, "$FohlioQty", StringComparison.OrdinalIgnoreCase))?.Header;
+            string leadHeader = map.Columns.FirstOrDefault(c => string.Equals(c.Param, "$FohlioLeadDays", StringComparison.OrdinalIgnoreCase))?.Header;
+            writeCols = writeCols.Where(c => !string.Equals(c.Param, ParamRegistry.FOHLIO_UNIT_COST, StringComparison.OrdinalIgnoreCase)).ToList();
+
             var changes = new List<ProposedChange>();
             var snapshots = new Dictionary<long, (string fref, Dictionary<string, string> snap)>();
+            var costData = new Dictionary<long, (double cost, string cur, double qty, int lead)>();
             int matched = 0, unmatched = 0;
 
             foreach (var row in rows)
@@ -150,38 +161,53 @@ namespace StingTools.ExLink
                 }
                 row.TryGetValue("Fohlio Ref", out string fref);
                 snapshots[el.Id.Value] = (snap.TryGetValue(ParamRegistry.FOHLIO_REF, out var fr) ? fr : (fref ?? ""), snap);
+
+                // Procurement cost (optional columns)
+                double cost = ParseNum(costHeader, row);
+                string cur = (curHeader != null && row.TryGetValue(curHeader, out string cv)) ? (cv ?? "").Trim() : "";
+                double qty = ParseNum(qtyHeader, row);
+                int lead = (int)ParseNum(leadHeader, row);
+                costData[el.Id.Value] = (cost, cur, qty, lead);
             }
 
-            if (changes.Count == 0)
+            bool anyCost = costData.Values.Any(c => c.cost > 0);
+            if (changes.Count == 0 && !anyCost)
             {
                 TaskDialog.Show("Fohlio Import",
-                    $"Matched {matched} row(s), {unmatched} unmatched. No field changes to write.");
+                    $"Matched {matched} row(s), {unmatched} unmatched. No field or cost changes to write.");
                 return Result.Succeeded;
             }
 
-            // Preview / diff before any write.
-            var preview = new StringBuilder();
-            preview.AppendLine($"Matched {matched} row(s) by Item Tag — {unmatched} unmatched.");
-            preview.AppendLine($"{changes.Count} field change(s) proposed across {changes.Select(c => c.El.Id.Value).Distinct().Count()} element(s).");
-            preview.AppendLine();
-            foreach (var c in changes.Take(15))
-                preview.AppendLine($"  {c.El.Id} {c.Header}: '{c.Old}' → '{c.New}'");
-            if (changes.Count > 15) preview.AppendLine($"  … +{changes.Count - 15} more");
-
-            var confirm = new TaskDialog("Fohlio Import — preview")
+            // Preview / diff before any write. Skipped when only cost (no text field
+            // changes) is being imported — cost is numeric, not a text diff.
+            bool overwrite = true;
+            if (changes.Count > 0)
             {
-                MainInstruction = "Review before writing to the model",
-                MainContent = preview.ToString(),
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                AllowCancellation = true
-            };
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the model value is currently blank");
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing model values with the Fohlio values");
-            var choice = confirm.Show();
-            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool overwrite = choice == TaskDialogResult.CommandLink2;
+                var preview = new StringBuilder();
+                preview.AppendLine($"Matched {matched} row(s) by Item Tag — {unmatched} unmatched.");
+                preview.AppendLine($"{changes.Count} field change(s) proposed across {changes.Select(c => c.El.Id.Value).Distinct().Count()} element(s).");
+                if (anyCost) preview.AppendLine($"Procurement cost on {costData.Values.Count(c => c.cost > 0)} item(s) will also be written.");
+                preview.AppendLine();
+                foreach (var c in changes.Take(15))
+                    preview.AppendLine($"  {c.El.Id} {c.Header}: '{c.Old}' → '{c.New}'");
+                if (changes.Count > 15) preview.AppendLine($"  … +{changes.Count - 15} more");
 
-            int written = 0;
+                var confirm = new TaskDialog("Fohlio Import — preview")
+                {
+                    MainInstruction = "Review before writing to the model",
+                    MainContent = preview.ToString(),
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    AllowCancellation = true
+                };
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Apply — fill empty only", "Write only where the model value is currently blank");
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Apply — overwrite", "Overwrite existing model values with the Fohlio values");
+                var choice = confirm.Show();
+                if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+                overwrite = choice == TaskDialogResult.CommandLink2;
+            }
+
+            string fxDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            int written = 0, costWritten = 0;
             using (var t = new Transaction(doc, "STING Fohlio Import"))
             {
                 t.Start();
@@ -193,25 +219,52 @@ namespace StingTools.ExLink
                         : ParameterHelpers.SetIfEmpty(c.El, c.Param, c.New);
                     if (ok) written++;
                 }
-                // Snapshot every matched element (for the staleness audit), even those with no change.
+                // Procurement cost — numeric unit cost + quote currency + FX-fixing
+                // date (decision #3, auditable at tender). Always overwrite (a fresh
+                // Fohlio export is authoritative for the price).
+                foreach (var kv in costData)
+                {
+                    if (kv.Value.cost <= 0) continue;
+                    var el = doc.GetElement(new ElementId(kv.Key));
+                    if (el == null || !TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    if (ParameterHelpers.SetDouble(el, ParamRegistry.FOHLIO_UNIT_COST, kv.Value.cost, overwrite: true))
+                        costWritten++;
+                    if (!string.IsNullOrEmpty(kv.Value.cur))
+                        ParameterHelpers.SetString(el, ParamRegistry.FOHLIO_CURRENCY, kv.Value.cur, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_CST_FX_DATE_DT", fxDate, overwrite: true);
+                }
+                // Snapshot every matched element (for the staleness + cost audit), even
+                // those with no change. Carries the cost fields for the rate fallback.
                 foreach (var kv in snapshots)
                 {
                     var el = doc.GetElement(new ElementId(kv.Key));
                     if (el == null) continue;
+                    costData.TryGetValue(kv.Key, out var cd);
                     StingFohlioSnapshotSchema.Write(el, kv.Value.fref,
-                        JsonConvert.SerializeObject(kv.Value.snap), DateTime.UtcNow);
+                        JsonConvert.SerializeObject(kv.Value.snap), DateTime.UtcNow,
+                        cd.cost, cd.cur, cd.qty, cd.lead);
                 }
                 t.Commit();
             }
 
             new TaskDialog("Fohlio Import")
             {
-                MainInstruction = $"Wrote {written} field value(s) ({(overwrite ? "overwrite" : "fill empty")})",
-                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n\n" +
-                              "FOHLIO_REF_TXT now links each item to Fohlio; the ES snapshot powers the currency audit."
+                MainInstruction = $"Wrote {written} field value(s) + {costWritten} cost(s)",
+                MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n" +
+                              $"Procurement costs written: {costWritten}\n\n" +
+                              "FOHLIO_REF_TXT links each item to Fohlio; FOHLIO_UNIT_COST_NR feeds the BOQ " +
+                              "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date."
             }.Show();
-            StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} snapshots={snapshots.Count}");
+            StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} costs={costWritten} snapshots={snapshots.Count}");
             return Result.Succeeded;
+        }
+
+        // Phase C — parse an optional numeric column from a row; 0 when absent/blank.
+        private static double ParseNum(string header, Dictionary<string, string> row)
+        {
+            if (header == null || !row.TryGetValue(header, out string s) || string.IsNullOrWhiteSpace(s)) return 0;
+            return double.TryParse(s.Trim(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
         }
 
         private static List<Dictionary<string, string>> ReadRows(string path, FohlioMap map)

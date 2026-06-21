@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase C: Fohlio cost → BOQ via a rate provider)
+
+The cost integration — Fohlio FF&E procurement prices now flow into the
+BOQ, with KUT's PC-sum default. **Compile-verified Revit 2025 (0/0)**;
+pure FF&E-treatment logic locked by 13 xUnit tests (`FfeTreatmentTests`).
+
+- **Two new shared params** (UUIDv5, Fohlio namespace): `FOHLIO_UNIT_COST_NR`
+  (b6e507ab-…) + `FOHLIO_CURRENCY_TXT` (f369abea-…) — added to
+  `MR_PARAMETERS.txt` + `.csv` and `ParamRegistry`. `ParameterHelpers.GetDouble`
+  added.
+- **ES schema v2** (`StingFohlioSnapshotSchema`, new GUID …1246) adds
+  UnitCost / Currency / QtyFromFohlio / LeadTimeDays; `Read` falls back to v1
+  for pre-Phase-C snapshots; `Write` is source-compatible (cost args optional).
+- **`FohlioRateProvider` (priority 96)** — reads `FOHLIO_UNIT_COST_NR`
+  (+ currency), else the ES snapshot; returns confidence 95, SourceId
+  "fohlio" → legacy RateSource **"Fohlio"**. Sits above material-library/CSV,
+  below an inline override (100). USD default → registry FX adapter converts
+  to UGX.
+- **FF&E treatment toggle** in `fohlio_map.json`
+  (`boqTreatment` + `boqTreatmentByCategory`), resolved by the pure
+  `FfeTreatment` (default **pcSum**). In `BuildLineItemFromElement`:
+  `ownerSupplied-excluded` skips the line; `pcSum` → ProvisionalSum, value =
+  Fohlio total, kept out of the OH&P base via `RateIncludesOhp` (matches the
+  `BoqTotals` OH&P-base rule), note references the Fohlio register; `measured`
+  prices normally from the Fohlio rate. Exactly one treatment per element.
+- **`Fohlio_Import`** writes `FOHLIO_UNIT_COST_NR` (numeric) + currency +
+  stamps `ASS_CST_FX_DATE_DT` (decision #3, FX auditable at tender) and stores
+  the cost fields in the ES snapshot. Official Fohlio Revit plugin remains the
+  primary Revit⇄Fohlio sync (unique key `ASS_TAG_1_TXT`); STING coexists and
+  consumes the result. KUT `fohlio_map.json` gains Unit Cost / Currency / Qty /
+  Lead-Days columns.
+- Caches (`FohlioMap.Cached`) invalidated on `Cost_ReloadRules`.
+
 #### Completed (KUT Lifecycle Integration — Phase B: cost↔spec gap rows in SpecLink_Reconcile)
 
 `SpecLink_Reconcile` now joins the live BOQ document against the SpecLink

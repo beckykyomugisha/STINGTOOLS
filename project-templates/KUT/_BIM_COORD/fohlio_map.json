@@ -1,5 +1,9 @@
 {
-  "_comment": "Kampala Uganda Temple (KUT) Fohlio ExLink mapping. Deploy to <project>/_BIM_COORD/fohlio_map.json. Read by StingTools.ExLink.FohlioMap.Load on Fohlio_Export / Fohlio_Import. Link key is FOHLIO_REF_TXT (link, never duplicate). '$'-prefixed params are resolved at export time ($Family/$Type/$Category/$Room). WriteBack=true columns may be written back into the model on Fohlio_Import. Fohlio remains authoritative for FF&E/finishes/O&M.",
+  "_comment": "Kampala Uganda Temple (KUT) Fohlio ExLink mapping. Deploy to <project>/_BIM_COORD/fohlio_map.json. Read by StingTools.ExLink.FohlioMap.Load on Fohlio_Export / Fohlio_Import and (cached) by the BOQ engine. Link key is FOHLIO_REF_TXT (link, never duplicate). '$'-prefixed params are resolved at export time ($Family/$Type/$Category/$Room); $FohlioQty / $FohlioLeadDays are import-only and stored in the ES snapshot. WriteBack=true columns may be written back into the model on Fohlio_Import. Fohlio remains authoritative for FF&E/finishes/O&M.",
+  "_boqTreatmentComment": "How FF&E is carried in the bill. KUT default is a PC/Provisional sum referencing the Fohlio register (Owner-procured, not contractor-measured). Per-category override values: 'pcSum' (default), 'measured' (contractor-supplied, priced from the Fohlio rate), 'ownerSupplied-excluded' (zero-cost in this bill). An item is exactly one of these — never double-counted.",
+  "boqTreatment": "pcSum",
+  "boqTreatmentByCategory": {
+  },
   "Categories": [
     "Furniture",
     "Furniture Systems",
@@ -16,6 +20,10 @@
     { "Header": "Manufacturer", "Param": "ASS_MANUFACTURER_TXT", "WriteBack": true },
     { "Header": "Model",        "Param": "ASS_MODEL_REF_TXT",    "WriteBack": true },
     { "Header": "Room",         "Param": "$Room",                "WriteBack": false },
-    { "Header": "Fohlio Ref",   "Param": "FOHLIO_REF_TXT",       "WriteBack": true }
+    { "Header": "Fohlio Ref",   "Param": "FOHLIO_REF_TXT",       "WriteBack": true },
+    { "Header": "Unit Cost",    "Param": "FOHLIO_UNIT_COST_NR",  "WriteBack": true },
+    { "Header": "Currency",     "Param": "FOHLIO_CURRENCY_TXT",  "WriteBack": true },
+    { "Header": "Qty",          "Param": "$FohlioQty",           "WriteBack": false },
+    { "Header": "Lead Days",    "Param": "$FohlioLeadDays",      "WriteBack": false }
   ]
 }
