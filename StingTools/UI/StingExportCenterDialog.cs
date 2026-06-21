@@ -575,6 +575,14 @@ namespace StingTools.UI
             wmText.TextChanged += (_, __) => _profile.Pdf.WatermarkText = wmText.Text;
             sp.Children.Add(LabelFor("Watermark text", wmText));
 
+            var wmPos = new ComboBox { Margin = new Thickness(0, 4, 0, 6) };
+            foreach (var pos in new[] { "Center", "DiagonalCentre", "TopLeft", "TopCenter", "TopRight",
+                "MiddleLeft", "MiddleRight", "BottomLeft", "BottomCenter", "BottomRight" })
+                wmPos.Items.Add(pos);
+            wmPos.SelectedItem = _profile.Pdf.WatermarkPosition;
+            wmPos.SelectionChanged += (_, __) => _profile.Pdf.WatermarkPosition = wmPos.SelectedItem?.ToString() ?? "Center";
+            sp.Children.Add(LabelFor("Watermark position", wmPos));
+
             return card;
         }
 

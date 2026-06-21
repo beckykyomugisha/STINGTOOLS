@@ -836,7 +836,12 @@ namespace StingTools.Docs
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
                 row.OutputPath = Path.Combine(folder, stem + ".pdf");
                 row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                if (row.Success)
+                {
+                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                    if (profile.Pdf.ApplyWatermark)
+                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                }
                 else row.Error = $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
             }
             catch (Exception ex)

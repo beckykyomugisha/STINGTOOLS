@@ -142,6 +142,34 @@ namespace StingTools.Docs
                             gfx.DrawString(pdf.WatermarkText, font, brush,
                                 new XPoint(20, 20 + size.Height));
                             break;
+                        case "TopCenter":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint((w - size.Width) / 2, 20 + size.Height));
+                            break;
+                        case "TopRight":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint(w - size.Width - 20, 20 + size.Height));
+                            break;
+                        case "MiddleLeft":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint(20, (h + size.Height) / 2));
+                            break;
+                        case "Center":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint((w - size.Width) / 2, (h + size.Height) / 2));
+                            break;
+                        case "MiddleRight":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint(w - size.Width - 20, (h + size.Height) / 2));
+                            break;
+                        case "BottomLeft":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint(20, h - 20));
+                            break;
+                        case "BottomCenter":
+                            gfx.DrawString(pdf.WatermarkText, font, brush,
+                                new XPoint((w - size.Width) / 2, h - 20));
+                            break;
                         case "BottomRight":
                             gfx.DrawString(pdf.WatermarkText, font, brush,
                                 new XPoint(w - size.Width - 20, h - 20));
