@@ -1556,7 +1556,8 @@ namespace StingTools.BOQ
             // outside the prelims + contingency markup base (MarkupExemptUGX).
             var totals = BoqTotals.Compute(measured, ohpBase,
                 m.PrelimPct, m.OverheadPct, m.ContingencyPct, m.VatPct,
-                BoqTotals.ParseMode(boq.MarkupModeName), boq.MarkupExemptUGX, boq.VatOnPcSums);
+                BoqTotals.ParseMode(boq.MarkupModeName), boq.MarkupExemptUGX, boq.VatOnPcSums,
+                boq.FfeOwnerProcuredUGX, boq.FfeOnCostPct);
             double prelims = totals.Preliminaries;
             double contingency = totals.Contingency;
             double overhead = totals.OverheadProfit;
@@ -1581,6 +1582,11 @@ namespace StingTools.BOQ
                 lines.Add((((char)nextCode++).ToString(),
                     "FF&E — Owner-procured (Fohlio register, at cost — excl. construction markup)",
                     boq.FfeOwnerProcuredUGX, false));
+            // Phase C.3 — FF&E delivery/install on-cost (separate allowance, not markup).
+            if (totals.FfeOnCost > 0)
+                lines.Add((((char)nextCode++).ToString(),
+                    $"FF&E delivery / installation on-cost ({boq.FfeOnCostPct:F1}%)",
+                    totals.FfeOnCost, false));
             if (boq.ProvisionalSumUGX > 0)
                 lines.Add((((char)nextCode++).ToString(),
                     "Provisional / Prime-Cost Sums (excl. markup)", boq.ProvisionalSumUGX, false));

@@ -3,6 +3,25 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase C.3: FF&E delivery / install on-cost knob)
+
+Adds an optional FF&E delivery/install on-cost — a separate allowance on the
+Owner-procured FF&E subtotal, NOT a construction markup. Default 0 (off), so it is
+byte-identical to Phase C.2 until a project opts in. Lets a project carry the real
+cost of delivering + installing Owner-procured FF&E without borrowing the
+construction contractor's prelims/OH&P/contingency.
+
+- `BoqTotals.Compute` gains optional `ffeWorks` + `ffeOnCostPct`; the on-cost is
+  `min(ffeWorks, provisionalSumWorks) × pct`, added after the cascade and always
+  VATable (it's a service — stays in the VAT base even when `vatOnPcSums` is false).
+  New result field `FfeOnCost`. `ffeOnCostPct == 0` ⇒ unchanged (locked by test).
+- `BOQDocument.FfeOnCostPct` (from `FFE_ONCOST_PCT`, default 0) + `FfeOnCostUGX`;
+  `Totals()` passes `FfeOwnerProcuredUGX` as the on-cost base.
+- Tender Grand Summary + basic export show a distinct "FF&E delivery / install
+  on-cost (X%)" line so the works total foots.
+- 3 new tests; build clean (Revit 2025, 0 errors); 125/126 pass (1 pre-existing).
+- New config: `FFE_ONCOST_PCT` (default 0).
+
 #### Completed (KUT Lifecycle Integration — Phase C.2: FF&E as a transparent Owner-procured category, not a provisional sum)
 
 Replaces the Phase C "provisional sum" default for Owner-procured FF&E with the

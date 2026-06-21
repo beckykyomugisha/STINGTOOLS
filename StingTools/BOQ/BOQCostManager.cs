@@ -83,6 +83,8 @@ namespace StingTools.BOQ
             boq.MarkupModeName = TagConfig.GetConfigString("COST_MARKUP_MODE", "cascade");
             // Phase C.1 — VAT on PC/provisional sums (default on). 0 ⇒ off.
             boq.VatOnPcSums = TagConfig.GetConfigDouble("COST_VAT_ON_PC_SUMS", 1.0) != 0.0;
+            // Phase C.3 — FF&E delivery/install on-cost % (default 0 = off).
+            boq.FfeOnCostPct = TagConfig.GetConfigDouble("FFE_ONCOST_PCT", 0.0);
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 

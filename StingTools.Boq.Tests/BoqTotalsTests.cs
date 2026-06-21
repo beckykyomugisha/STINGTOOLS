@@ -125,5 +125,42 @@ namespace StingTools.Boq.Tests
             Assert.Equal(withoutParam.Contingency, withParam.Contingency, 0);
             Assert.Equal(withoutParam.ContractSum, withParam.ContractSum, 0);
         }
+
+        // ── Phase C.3 — FF&E delivery/install on-cost (separate allowance) ──
+
+        [Fact]
+        public void FfeOnCost_AddsAllowanceOnFfePortionOnly_AndIsVatable()
+        {
+            // 200,000 PC/FF&E exempt; of that 150,000 is Owner-procured FF&E.
+            // 10% FF&E on-cost = 15,000 added on top, VATable.
+            var t = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade,
+                provisionalSumWorks: 200_000, vatOnPcSums: true,
+                ffeWorks: 150_000, ffeOnCostPct: 10);
+            Assert.Equal(15_000, t.FfeOnCost, 0);                  // 10% of 150,000
+            Assert.Equal(1_279_448, t.SubTotalExclVat, 0);        // 1,264,448 + 15,000
+            Assert.Equal(230_301, t.Vat, 0);                      // 18% of 1,279,448 = 230,300.64
+        }
+
+        [Fact]
+        public void FfeOnCost_StaysVatable_EvenWhenVatOnPcSumsFalse()
+        {
+            var t = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade,
+                provisionalSumWorks: 200_000, vatOnPcSums: false,
+                ffeWorks: 150_000, ffeOnCostPct: 10);
+            // VAT base = subTotal − PC sums = 1,279,448 − 200,000 = 1,079,448 → 18% = 194,300.64
+            Assert.Equal(194_301, t.Vat, 0);
+        }
+
+        [Fact]
+        public void FfeOnCost_ZeroIsByteIdenticalToPreC3()
+        {
+            var withParam = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade,
+                200_000, true, ffeWorks: 150_000, ffeOnCostPct: 0);
+            var withoutParam = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade,
+                200_000, true);
+            Assert.Equal(0, withParam.FfeOnCost, 0);
+            Assert.Equal(withoutParam.SubTotalExclVat, withParam.SubTotalExclVat, 0);
+            Assert.Equal(withoutParam.ContractSum, withParam.ContractSum, 0);
+        }
     }
 }

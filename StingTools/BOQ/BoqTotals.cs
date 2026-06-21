@@ -68,6 +68,7 @@ namespace StingTools.BOQ
         public double OhpBaseWorks;      // net works excluding OH&P-loaded lines
         public double ProvisionalSums;   // PC/provisional-sum portion (excl. from markup)
         public double MarkupBase;        // netWorks − provisionalSums (prelims/contingency base)
+        public double FfeOnCost;         // FF&E delivery/install on-cost (Phase C.3)
         public double Preliminaries;
         public double OverheadProfit;
         public double Contingency;
@@ -96,7 +97,8 @@ namespace StingTools.BOQ
             double netWorks, double ohpBaseWorks,
             double prelimPct, double overheadPct, double contingencyPct, double vatPct,
             MarkupMode mode,
-            double provisionalSumWorks = 0, bool vatOnPcSums = true)
+            double provisionalSumWorks = 0, bool vatOnPcSums = true,
+            double ffeWorks = 0, double ffeOnCostPct = 0)
         {
             double net = netWorks > 0 ? netWorks : 0;
             // Phase C.1 — PC/provisional sums are carried outside the markup cascade.
@@ -122,7 +124,13 @@ namespace StingTools.BOQ
 
             // PC sums added back AFTER the cascade. (markupBase + prov == net, so for
             // prov == 0 this equals net + prelims + ohp + contingency — unchanged.)
-            double subTotal = markupBase + prelims + ohp + contingency + prov;
+            // Phase C.3 — FF&E delivery/install on-cost. A separate allowance on the
+            // Owner-procured FF&E portion only (ffeWorks ⊆ prov), NOT a construction
+            // markup. Always VATable (it's a service), so it stays in the VAT base even
+            // when vatOnPcSums is false. ffeOnCostPct == 0 ⇒ no change.
+            double ffe = ffeWorks > 0 ? Math.Min(ffeWorks, prov) : 0;
+            double ffeOnCost = ffe * (Clamp(ffeOnCostPct) / 100.0);
+            double subTotal = markupBase + prelims + ohp + contingency + prov + ffeOnCost;
             double vatBase = vatOnPcSums ? subTotal : subTotal - prov;
             double vat = vatBase * v;
             double contract = subTotal + vat;
@@ -133,6 +141,7 @@ namespace StingTools.BOQ
                 OhpBaseWorks = Math.Round(ohpBase, 0),
                 ProvisionalSums = Math.Round(prov, 0),
                 MarkupBase = Math.Round(markupBase, 0),
+                FfeOnCost = Math.Round(ffeOnCost, 0),
                 Preliminaries = Math.Round(prelims, 0),
                 OverheadProfit = Math.Round(ohp, 0),
                 Contingency = Math.Round(contingency, 0),

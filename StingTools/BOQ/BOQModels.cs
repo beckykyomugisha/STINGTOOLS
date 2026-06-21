@@ -194,6 +194,10 @@ namespace StingTools.BOQ
         /// portion. Default true (spent PC sums are VATable works). Set from
         /// COST_VAT_ON_PC_SUMS.</summary>
         public bool VatOnPcSums = true;
+        /// <summary>Phase C.3 — FF&amp;E delivery/install on-cost %, applied to the
+        /// Owner-procured FF&amp;E subtotal only (a separate allowance, NOT a
+        /// construction markup). Default 0 (off). Set from FFE_ONCOST_PCT.</summary>
+        public double FfeOnCostPct = 0.0;
         /// <summary>
         /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
         /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
@@ -232,11 +236,14 @@ namespace StingTools.BOQ
         /// the tender export and the snapshot list agree to the shilling.</summary>
         public BoqTotalsResult Totals() => BoqTotals.Compute(
             SubtotalUGX, OhpBaseWorksUGX, PrelimPct, OverheadPct, ContingencyPct, VatPct,
-            BoqTotals.ParseMode(MarkupModeName), MarkupExemptUGX, VatOnPcSums);
+            BoqTotals.ParseMode(MarkupModeName), MarkupExemptUGX, VatOnPcSums,
+            FfeOwnerProcuredUGX, FfeOnCostPct);
 
         public double PreliminariesUGX => Totals().Preliminaries;
         public double OverheadProfitUGX => Totals().OverheadProfit;
         public double ContingencyUGX => Totals().Contingency;
+        /// <summary>Phase C.3 — FF&amp;E delivery/install on-cost (separate allowance).</summary>
+        public double FfeOnCostUGX => Totals().FfeOnCost;
         /// <summary>Works cost incl. preliminaries + OH&amp;P + contingency,
         /// EXCLUSIVE of VAT. (Renamed semantics: was additive, now cascade.)</summary>
         public double GrandTotalUGX => Totals().SubTotalExclVat;

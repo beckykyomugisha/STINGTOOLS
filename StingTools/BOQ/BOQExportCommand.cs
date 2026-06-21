@@ -247,6 +247,12 @@ namespace StingTools.BOQ
             ws.Cell(row, 7).Value = boq.OverheadProfitUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
             ws.Cell(row, 6).Value = $"Contingency ({boq.ContingencyPct:F0}%, {markupNote})";
             ws.Cell(row, 7).Value = boq.ContingencyUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            // Phase C.3 — FF&E delivery/install on-cost (separate allowance).
+            if (boq.FfeOnCostUGX > 0)
+            {
+                ws.Cell(row, 6).Value = $"FF&E delivery / install on-cost ({boq.FfeOnCostPct:F0}%)";
+                ws.Cell(row, 7).Value = boq.FfeOnCostUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            }
             ws.Cell(row, 6).Value = "WORKS TOTAL (excl. VAT)";
             ws.Cell(row, 7).Value = boq.GrandTotalUGX;
             ws.Range(row, 6, row, 9).Style.Fill.SetBackgroundColor(HeaderFill)
