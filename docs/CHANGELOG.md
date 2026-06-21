@@ -3,6 +3,30 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P6-4: consistency / DRY)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **4.1 Shared batch scaffold** — `MepBatch.ShouldCancel` (escape cadence) +
+  `MepBatch.AutoTag` (post-commit ISO 19650 auto-tag) replace the copy-pasted
+  scaffold in all three builders, and **fix the real drift bug: `BuildRisers` had
+  NO Escape-cancellation check** — it now has one. (The full single-loop
+  `BatchCreate<T>` was intentionally not forced onto `MepRunBuilder.Build`, whose
+  two-phase normal/drainage + chained-polyline loop doesn't fit one item list.)
+- **4.2 De-duplicated closest-point** — the 3D (`MepFittingBuilder`) and 2D
+  (`MepFixtureBuilder`) `ClosestPointOnSegment` copies collapse into one
+  `MepGeom.ClosestPointOnSegment(..., planar)`.
+- **4.3 Report reconciliation** — the systems table now shows
+  `Conduit / CableTray N (no system — Revit API)` so the ByKind and BySystem
+  tables reconcile instead of conduit/tray silently vanishing from the systems view.
+- **4.4 Cleanup** — inline `/304.8` literals replaced with `Units.Mm()` in the
+  fixture + fitting builders. (Two sub-items were *not* done because the codebase
+  doesn't match the assumption: there is no `ParamRegistry` constant for
+  `MOUNTING_REFERENCE_TXT` and adding one for a non-registry param is out of scope;
+  and `StingEsHelpers` exposes per-schema domain methods, not a generic
+  GetOrCreate/Read/Write facade, so `StingMepCadStampSchema` keeps the established
+  hand-rolled entity pattern it shares with `StingLpsSldStampSchema`.)
+
 #### Completed (MEP-from-DWG — P6-3: data-driven run rules)
 
 Moves the run engine's hardcoded policy into `Data/STING_DWG_RUN_RULES.json`

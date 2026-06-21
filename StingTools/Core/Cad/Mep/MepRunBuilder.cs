@@ -388,7 +388,7 @@ namespace StingTools.Core.Cad.Mep
                         var a = new XYZ(run.Line.Start.X, run.Line.Start.Y, z);
                         var b = new XYZ(run.Line.End.X, run.Line.End.Y, z);
                         if (a.DistanceTo(b) >= 0.01) CreateOne(run, a, b, level.Id, result);
-                        if (Cancelled(i, result)) goto done;
+                        if (MepBatch.ShouldCancel(i, result.Warnings)) goto done;
                     }
 
                     // (b) Drainage — chain contiguous segments and fall CONTINUOUSLY (each
@@ -417,7 +417,7 @@ namespace StingTools.Core.Cad.Mep
                                     else if (fall == MepDrainage.FallResult.Ambiguous) result.DrainageDirectionAmbiguous++;
                                 }
                             }
-                            if (Cancelled(i, result)) goto done;
+                            if (MepBatch.ShouldCancel(i, result.Warnings)) goto done;
                         }
                     }
                     done:
@@ -438,11 +438,7 @@ namespace StingTools.Core.Cad.Mep
             if (result.DrainageDirectionAmbiguous > 0)
                 result.Warnings.Add($"{result.DrainageDirectionAmbiguous} drainage run(s): ≥2 stacks equally near — fall target ambiguous, confirm.");
 
-            if (result.CreatedIds.Count > 0)
-            {
-                try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
-                catch (Exception ex) { StingLog.Warn($"MEP run auto-tag: {ex.Message}"); }
-            }
+            MepBatch.AutoTag(_doc, result.CreatedIds, n => result.Tagged = n);
             return result;
         }
 
@@ -474,16 +470,6 @@ namespace StingTools.Core.Cad.Mep
             }
         }
 
-        private static bool Cancelled(int i, MepRunBuildResult result)
-        {
-            if (i % 50 == 0 && EscapeChecker.IsEscapePressed())
-            {
-                result.Warnings.Add($"Cancelled by user after {i} runs.");
-                return true;
-            }
-            return false;
-        }
-
         // Planar (XY) length in feet — DWG run lines are planar; ignore any Z noise.
         private static double Planar(XYZ a, XYZ b)
         {
@@ -509,8 +495,10 @@ namespace StingTools.Core.Cad.Mep
                 tx.Start();
                 try
                 {
+                    int i = 0;
                     foreach (var r in risers)
                     {
+                        i++;
                         if (r?.Point == null) continue;
                         // P1.4 — base the riser at the RUN elevation (level + per-kind offset),
                         // not the bare level, so its base end coincides with horizontal runs at
@@ -542,6 +530,8 @@ namespace StingTools.Core.Cad.Mep
                             if (result.Warnings.Count < 30)
                                 result.Warnings.Add($"Riser '{r.BlockName}' ({r.Kind}): {ex.Message}");
                         }
+
+                        if (MepBatch.ShouldCancel(i, result.Warnings)) break;   // P6-4.1 — was missing
                     }
                     tx.Commit();
                 }
@@ -555,11 +545,7 @@ namespace StingTools.Core.Cad.Mep
                 }
             }
 
-            if (result.CreatedIds.Count > 0)
-            {
-                try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
-                catch (Exception ex) { StingLog.Warn($"MEP riser auto-tag: {ex.Message}"); }
-            }
+            MepBatch.AutoTag(_doc, result.CreatedIds, n => result.Tagged = n);
             return result;
         }
 
