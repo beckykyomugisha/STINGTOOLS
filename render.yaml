@@ -77,6 +77,30 @@ services:
       - key: Cors__Origins__1
         value: https://app.planscape.build
 
+      # ── Email — REQUIRED for invites, password reset, and the owner-account
+      # reset path to actually send. Easiest is Resend (HTTP, no SMTP ports):
+      # set Email__Provider=resend + Resend__ApiKey, and verify planscape.build
+      # as a sending domain in Resend. (Alternatively Email__Provider=smtp +
+      # Smtp__Host/Username/Password.) Without these, mail is only logged, never
+      # delivered. FromAddress defaults to noreply@planscape.build in code.
+      - key: Email__Provider
+        sync: false            # "resend" (recommended) or "smtp"
+      - key: Resend__ApiKey
+        sync: false            # required when Email__Provider=resend
+      - key: Smtp__Host
+        sync: false            # required when Email__Provider=smtp
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+
+      # ── Redis (optional but recommended) — backs JWT revocation, rate
+      # limiting and refresh-token activity tracking. The app FAILS OPEN without
+      # it (degraded security, not broken). To enable: create a Render Key Value
+      # instance and paste its internal connection string here.
+      - key: Redis__Connection
+        sync: false
+
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
         value: Warning
