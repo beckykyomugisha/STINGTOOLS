@@ -60,10 +60,15 @@ namespace StingTools.Core.Classification
 
         /// <summary>
         /// Phase 199 — the active OmniClass TABLE the OmniClass column / OmniClass_Assign
-        /// classifies by. "21" = Elements (default), "13" = Spaces by Function, "23" =
-        /// Products. Accepts "Table 21" / "T21" / "21" (normalised by <see cref="OmniClassTableNumber"/>).
-        /// Switching is a one-line change here; the assigner loads the matching corporate
-        /// map (STING_OMNICLASS_&lt;table&gt;_MAP.csv) and the BOQ column names the table.
+        /// classifies by. Any real OmniClass table number works (11/12/13/14/21/22/23/31/
+        /// 32/33/34/35/36/41/49 — there is NO table 24-28); the BOQ-relevant ones are
+        /// "21" = Elements (default), "23" = Products, "41" = Materials (element axes) and
+        /// "13"/"14" = Spaces (host-room axis). Accepts "Table 21" / "T21" / "21"
+        /// (normalised by <see cref="OmniClassTableNumber"/>). Switching is this one line;
+        /// the assigner loads STING_OMNICLASS_&lt;table&gt;_MAP.csv (corporate) +
+        /// _BIM_COORD/omniclass_map.csv (overlay) and the BOQ column names the table.
+        /// Tables 21 + 13 ship corporate maps; any other table needs its map shipped or
+        /// supplied via the overlay.
         /// </summary>
         [JsonProperty("omniClassTable")]
         public string OmniClassTable { get; set; } = "21";

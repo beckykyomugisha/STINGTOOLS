@@ -88,11 +88,19 @@ namespace StingTools.Boq.Tests
         {
             Assert.False(OmniClassTables.Resolve("21").IsSpatial);
             Assert.Equal("STING_OMNICLASS_21_MAP.csv", OmniClassTables.Resolve("21").MapFile);
+            // Both Spaces tables (13, 14) are spatial — they classify the host room.
             Assert.True(OmniClassTables.Resolve("13").IsSpatial);
+            Assert.True(OmniClassTables.Resolve("14").IsSpatial);
             Assert.Equal("Table 13 — Spaces by Function", OmniClassTables.Resolve("13").Label);
+            // The other BOQ-relevant element axes are registered + non-spatial.
             Assert.False(OmniClassTables.Resolve("23").IsSpatial);
-            // Unknown number → generic non-spatial info (so an overlay table still works).
-            Assert.Equal("STING_OMNICLASS_36_MAP.csv", OmniClassTables.Resolve("36").MapFile);
+            Assert.Equal("Products", OmniClassTables.Resolve("23").Name);
+            Assert.Equal("Work Results", OmniClassTables.Resolve("22").Name);
+            Assert.Equal("Materials", OmniClassTables.Resolve("41").Name);
+            Assert.False(OmniClassTables.Resolve("11").IsSpatial);
+            // A truly-unknown number → generic non-spatial info (so an overlay table still works).
+            Assert.Equal("STING_OMNICLASS_99_MAP.csv", OmniClassTables.Resolve("99").MapFile);
+            Assert.False(OmniClassTables.Resolve("99").IsSpatial);
             // Blank → default Table 21.
             Assert.Equal("21", OmniClassTables.Resolve("").Number);
         }

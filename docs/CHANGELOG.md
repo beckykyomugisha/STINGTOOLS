@@ -3,6 +3,23 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199b — full OmniClass table registry)
+
+Generalised the Phase 199 selector to the **whole OmniClass table set**. Registered
+all 15 real OmniClass tables in `OmniClassTables.Known` with friendly names + the
+correct element-vs-spatial flag (11/12 Construction Entities · 13/14 Spaces — both
+spatial · 21 Elements · 22 Work Results · 23 Products · 31 Phases · 32 Services ·
+33 Disciplines · 34 Roles · 35 Tools · 36 Information · 41 Materials · 49 Properties).
+Any number not listed still resolves (generic non-spatial), so an overlay table
+keeps working. Corrects a common misconception: **OmniClass has no table 24-28** —
+the "21-28" range is CSI MasterFormat *divisions* (Fire/Plumbing/HVAC/…/Electronic
+Safety), already carried as the MasterFormat column via `CSI_Assign`. Switching to
+any table is unchanged (set `omniClassTable` → ship/overlay `STING_OMNICLASS_<n>_MAP.csv`
+→ run assign); tables 21 + 13 ship corporate maps, the rest are a data drop. Policy
+doc-comment + KUT policy comment list the valid set; registry test extended (14
+spatial, 41 Materials, 22 Work Results, 11 non-spatial, truly-unknown → generic).
+Suite 172/173 (pre-existing carbon failure only); builds clean vs Revit 2025.
+
 #### Completed (Phase 199 — OmniClass table switching)
 
 Phase 198 hardwired the OmniClass column to Table 21 (Elements). This makes the
