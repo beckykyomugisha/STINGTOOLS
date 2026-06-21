@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { getProject, listIssues } from '@/lib/data';
+import { useProjectRealtime } from '@/lib/realtime';
 import type { Project, BimIssue, IssueStatus } from '@/lib/types';
 
 const FILTERS: (IssueStatus | 'ALL')[] = ['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
@@ -23,18 +24,29 @@ export default function ProjectPage() {
   const [issues, setIssues] = useState<BimIssue[] | null>(null);
   const [filter, setFilter] = useState<IssueStatus | 'ALL'>('OPEN');
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     getProject(projectId).then(setProject).catch(() => {});
   }, [projectId]);
 
-  useEffect(() => {
-    setIssues(null);
-    setError(null);
+  const loadIssues = useCallback(() => {
     listIssues(projectId, filter === 'ALL' ? undefined : filter)
       .then(setIssues)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load issues'));
   }, [projectId, filter]);
+
+  useEffect(() => {
+    setIssues(null);
+    setError(null);
+    loadIssues();
+  }, [loadIssues]);
+
+  // Live updates: refresh the list when an issue changes elsewhere.
+  useProjectRealtime(projectId, (event) => {
+    setLive(true);
+    if (event.startsWith('Issue')) loadIssues();
+  });
 
   return (
     <AppShell>
@@ -45,6 +57,11 @@ export default function ProjectPage() {
           </Link>
           <h1 className="text-xl font-semibold">{project?.name ?? 'Project'}</h1>
           {project?.code && <p className="text-xs text-slate-400">{project.code}</p>}
+          {live && (
+            <span className="mt-1 inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Live
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
