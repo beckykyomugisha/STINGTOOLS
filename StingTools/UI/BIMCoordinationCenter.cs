@@ -5207,10 +5207,18 @@ namespace StingTools.UI
 
             var clientIdBox  = (System.Windows.Controls.TextBox)     AddField("Client ID:",         creds.ClientId,         false, "APS (Forge) application Client ID");
             var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "APS application Client Secret — held only on this machine");
-            var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Delegated 3-legged OAuth refresh token (data:read data:write). Obtain it via your APS auth flow.");
+            var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Auto-filled by “Sign in with Autodesk”. Only paste one manually if you obtained it via your own APS 3-legged flow.");
             var projectIdBox = (System.Windows.Controls.TextBox)     AddField("Issues Project ID:", creds.ProjectId,        false, "ACC project / Issues container id (the 'b.<guid>' container)");
             var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
             var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "ACC issue type id used when escalating clashes (optional — ACC may reject without it)");
+
+            // One-time APS setup hint for the in-plugin sign-in flow.
+            detailStack.Children.Add(new TextBlock
+            {
+                Text = $"Register this callback URL in your APS app, then use “Sign in with Autodesk”: {V6.AccOAuthFlow.RedirectUri()}",
+                FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
 
             // Buttons row 1 — credentials
             var credBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
@@ -5225,6 +5233,25 @@ namespace StingTools.UI
                 c.IssueTypeId      = issueTypeBox.Text.Trim();
                 return c;
             }
+
+            // Sign in with Autodesk — 3-legged OAuth in the plugin (no manual refresh token).
+            var signInBtn = new Button { Content = "🔓 Sign in with Autodesk", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Open the Autodesk sign-in page in your browser and capture the tokens automatically. Requires Client ID + Client Secret above and the callback URL registered in your APS app." };
+            signInBtn.Click += async (s, e) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
+                { ShowStatus("Enter Client ID and Client Secret first."); return; }
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus("Opening Autodesk sign-in in your browser…");
+                    var r = await V6.AccOAuthFlow.SignInAsync(c).ConfigureAwait(true);
+                    ShowStatus(r.Ok ? "Signed in to Autodesk — tokens stored." : $"Autodesk sign-in failed: {r.Message}");
+                    ShowPlatformDetail("ACC");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC sign-in: {ex.Message}"); ShowStatus($"Autodesk sign-in error: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(signInBtn);
 
             var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save these credentials to %APPDATA%\\Planscape\\acc_credentials.json (this machine only)." };
             saveAccBtn.Click += (s, e) =>
