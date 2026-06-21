@@ -58,6 +58,11 @@
     <None Include="..\StingTools\Data\STING_CSI_MASTERFORMAT_MAP.csv" Link="Data\STING_CSI_MASTERFORMAT_MAP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Phase 198: the shipped OmniClass Table 21 map, so the resolver test runs
+         against production rows + catches the comma-in-title parser trap. -->
+    <None Include="..\StingTools\Data\STING_OMNICLASS_MAP.csv" Link="Data\STING_OMNICLASS_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

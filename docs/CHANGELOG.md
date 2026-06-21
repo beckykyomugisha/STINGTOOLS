@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 198 — OmniClass rule-driven assigner)
+
+Phase 197 added the OmniClass column to the BOQ but left it blank until OmniClass
+codes were authored on elements (family or ArchiCAD-IFC import). This closes that
+gap with `OmniClass_Assign` — the OmniClass twin of `CSI_Assign`.
+
+- **`OmniClassAssignCommand`** (`Commands/Classification/OmniClassCommands.cs`,
+  tag `OmniClass_Assign`) — a faithful clone of `CsiAssignCommand`: same scope
+  picker, fill-empty/overwrite modes, worksharing guard, and unmapped-category
+  report. Resolves each element to an OmniClass code + title from the map and
+  writes `ASS_OMNICLASS_TXT` (+ best-effort `CLS_OMNICLASS_TITLE_TXT` for the
+  title the BOQ reads). Reuses the shared `CsiMasterFormat` parser/resolver — the
+  map's `Section` column carries the OmniClass number.
+- **`STING_OMNICLASS_MAP.csv`** — corporate baseline shipping **OmniClass Table 21
+  (Elements)** codes, the elemental breakdown that complements MasterFormat work
+  results (substructure 21-01, shell 21-02, interiors 21-03, services 21-04-xx
+  split into Conveying / Plumbing / HVAC / Fire / Electrical / Comms / Security,
+  equipment & furnishings 21-05, sitework 21-07). Same category coverage as the
+  CSI map; project overlay at `_BIM_COORD/omniclass_map.csv` (loaded first, wins
+  ties). Codes are starter approximations per the file header; a project can swap
+  to Table 23 (Products) or Table 22 (Work Results) via the overlay.
+- **Wiring** — dispatch case in `StingCommandHandler`; a green "OmniClass Assign"
+  dock button beside "CSI Assign" in the classification panel.
+- **4 new `OmniClassMapTests`** (host-free) — load the shipped map, assert every
+  row has a `21-…` code + title (catching the comma-in-title parser trap), and
+  verify resolution (Ducts → 21-04 30 00, SAN pipes → plumbing, Mechanical
+  Equipment elevator → conveying vs generic AHU → HVAC, structure + site). Suite
+  168/169 (the 1 failure is the pre-existing `ConcreteGradeCarbon` regression);
+  plugin builds clean vs Revit 2025.
+
+With both assigners, a project runs `CSI_Assign` + `OmniClass_Assign` and the BOQ
+carries both American coding systems on every line with no hand-authoring.
+
 #### Completed (Phase 197 — dual classification on the BOQ: MasterFormat + OmniClass columns)
 
 KUT bills American: MasterFormat (CSI / OmniClass Table 22 = work results) is the
