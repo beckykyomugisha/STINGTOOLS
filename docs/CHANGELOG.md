@@ -3,6 +3,25 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P2: matching precision — layer-corroborated fixtures + regex hardening)
+
+Reduces false positives on real consultant drawings and closes the run-vs-fixture
+asymmetry (runs already used layer+keyword+length; fixtures matched on block name
+alone). **Compile-verified against Revit 2025 (0 errors, 0 warnings).**
+
+- **2.1 Layer-corroborated fixture matching** — when a block matches a fixture
+  rule, its DWG layer discipline is inferred (`LayerMapper` → E/M/P/FP via
+  `MepFixtureDiscipline`) and compared to the discipline the matched category
+  implies. Disagreements (e.g. a `DB` block on a plumbing layer) are flagged
+  `LayerMismatch` and surfaced in MEP CAD Preview as **"low-confidence — confirm
+  before placing"** (E↔FP treated as compatible for shared fire-alarm layers).
+  Placement is not blocked — the user decides.
+- **2.2 Regex hardening** — removed the four highest-collision 2-letter tokens
+  that had clear longer discriminators (`SW`, `EL`, `FL`, `VF`) from
+  `STING_DWG_FIXTURE_MAP.json`; the remaining ambiguous abbreviations (DB / SD /
+  HD / EF / SF / SK / BT / UR …) stay broad and now lean on the 2.1 layer
+  corroboration, as documented in the JSON header (bumped to v1.1).
+
 #### Completed (MEP-from-DWG — P1: correctness — system assignment, drainage invert, fall direction, riser join)
 
 Turns "MEP-shaped geometry" into a coordinatable model so downstream

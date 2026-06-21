@@ -166,6 +166,16 @@ namespace StingTools.Model
             sb.AppendLine();
             sb.AppendLine($"Would place: {wouldPlace}    Would skip (no family loaded): {wouldSkipNoFamily}");
 
+            // P2.1 — low-confidence matches: block name matched a rule but the block's DWG
+            // layer points at a different discipline. Surface so the user can confirm.
+            if (detection.LayerMismatchCount > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"⚠ Low-confidence ({detection.LayerMismatchCount}) — block name ↔ layer discipline disagree (confirm before placing):");
+                foreach (var f in detection.Fixtures.Where(f => f.LayerMismatch).Take(10))
+                    sb.AppendLine($"   {f.BlockName}  →  {f.Category} [{f.RuleDiscipline}]  but layer '{f.Block?.LayerName}' is [{f.LayerDiscipline}]");
+            }
+
             // V2 — straight-run candidates from lines.
             sb.AppendLine();
             sb.AppendLine($"Straight runs from lines ({detection.Runs.Count} of {detection.TotalLines} lines on MEP layers):");
