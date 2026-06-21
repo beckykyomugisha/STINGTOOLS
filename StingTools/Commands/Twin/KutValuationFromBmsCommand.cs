@@ -44,23 +44,25 @@ namespace StingTools.Commands.Twin
 
             string dir = Path.GetDirectoryName(doc.PathName ?? "");
             var conn = NiagaraConnection.Load(dir);
-            if (conn == null || string.IsNullOrEmpty(conn.BaseUrl))
-            {
-                TaskDialog.Show("BMS valuation",
-                    "No Niagara station configured.\n\nCreate <project>/_BIM_COORD/niagara_connection.json " +
-                    "with { \"baseUrl\": \"http://station:port\", \"pointsPath\": \"/obix/...\" } " +
-                    "(and apiKey or username/password). This file is gitignored — never commit station credentials.");
-                return Result.Cancelled;
-            }
 
-            var points = NiagaraJsonClient.FetchPoints(conn);
-            if (points == null)
+            // Unified source: live read when reachable (persists a snapshot),
+            // last good cached read when the station is down.
+            var snap = CommissioningSource.Resolve(dir, conn);
+            if (snap.Source == CommissioningSourceKind.None || snap.Points.Count == 0)
             {
-                TaskDialog.Show("BMS valuation",
-                    "Could not read live points from the Niagara station (see StingTools.log). " +
-                    "Check the URL / credentials / network and retry.");
+                if (conn == null || string.IsNullOrEmpty(conn.BaseUrl))
+                    TaskDialog.Show("BMS valuation",
+                        "No Niagara station configured and no cached snapshot.\n\nCreate " +
+                        "<project>/_BIM_COORD/niagara_connection.json with { \"baseUrl\": \"http://station:port\", " +
+                        "\"pointsPath\": \"/obix/...\" } (and apiKey or username/password). This file is gitignored — " +
+                        "never commit station credentials. Run once while the station is reachable to cache a snapshot.");
+                else
+                    TaskDialog.Show("BMS valuation",
+                        "Could not read live points from the Niagara station and no cached snapshot exists " +
+                        "(see StingTools.log). Check the URL / credentials / network and retry.");
                 return Result.Failed;
             }
+            var points = snap.Points;
 
             BOQDocument boq;
             try { boq = BOQCostManager.BuildBOQDocument(doc); }
@@ -112,6 +114,7 @@ namespace StingTools.Commands.Twin
                 Directory.CreateDirectory(outDir);
                 csvPath = Path.Combine(outDir, "bms_valuation.csv");
                 var sb = new StringBuilder();
+                sb.AppendLine($"# BMS source: {snap.Detail}");
                 sb.AppendLine("Tag,DeviceId,AmountUGX,LiveStatus,Commissioned");
                 foreach (var a in assets.OrderByDescending(a => a.ValueUGX))
                     sb.AppendLine($"\"{a.Tag.Replace("\"", "'")}\",{a.DeviceId},{a.ValueUGX:0},{a.Status},{(a.Commissioned ? "yes" : "no")}");
@@ -120,6 +123,7 @@ namespace StingTools.Commands.Twin
             catch (Exception ex) { StingLog.Warn("KUT_ValuationFromBms CSV: " + ex.Message); }
 
             string body =
+                $"BMS source: {snap.Detail}\n\n" +
                 $"Monitorable priced scope: {r.MonitorableCount} assets, UGX {r.MonitorableValueUGX:N0}\n" +
                 $"Live on BMS (commissioned): {r.CommissionedCount} assets, UGX {r.CommissionedValueUGX:N0}\n" +
                 $"No BMS point yet: {r.NoPointCount} assets\n\n" +
