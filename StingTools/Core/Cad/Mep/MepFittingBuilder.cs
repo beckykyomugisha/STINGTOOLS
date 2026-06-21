@@ -188,5 +188,63 @@ namespace StingTools.Core.Cad.Mep
             try { _doc.Create.NewCrossFitting(ends[0].Conn, ends[1].Conn, ends[2].Conn, ends[3].Conn); result.Crosses++; }
             catch (Exception ex) { result.Failed++; if (result.Warnings.Count < 30) result.Warnings.Add($"Cross: {ex.Message}"); }
         }
+
+        // ── P3.2 routing-preference pre-flight (read-only) ───────────────────
+        /// <summary>Whether a run kind's resolved type carries the fitting families
+        /// (routing preferences) needed for junctions to form. Surfaced in preview so the
+        /// user knows BEFORE placing that fittings will (or won't) be created.</summary>
+        public class RoutingPrefStatus
+        {
+            public MepRunKind Kind;
+            public string TypeName = "";
+            public bool TypeFound;
+            public bool HasElbow;
+            public bool HasJunction;   // tees
+            public bool Ok => TypeFound && HasElbow && HasJunction;
+        }
+
+        /// <summary>For each kind present, inspect the first-available type's
+        /// RoutingPreferenceManager for elbow + junction (tee) rules. TODO-VERIFY-API:
+        /// RoutingPreferenceManager / RoutingPreferenceRuleGroupType against Revit 2025.</summary>
+        public static List<RoutingPrefStatus> PreflightRoutingPrefs(Document doc, IEnumerable<MepRunKind> kinds)
+        {
+            var outl = new List<RoutingPrefStatus>();
+            if (doc == null || kinds == null) return outl;
+            foreach (var kind in kinds.Distinct())
+            {
+                var st = new RoutingPrefStatus { Kind = kind };
+                var t = FirstCurveType(doc, kind);
+                if (t != null)
+                {
+                    st.TypeFound = true; st.TypeName = t.Name;
+                    try
+                    {
+                        var rpm = t.RoutingPreferenceManager;   // TODO-VERIFY-API
+                        if (rpm != null)
+                        {
+                            st.HasElbow = rpm.GetNumberOfRules(RoutingPreferenceRuleGroupType.Elbows) > 0;
+                            st.HasJunction = rpm.GetNumberOfRules(RoutingPreferenceRuleGroupType.Junctions) > 0;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Routing prefs {kind}: {ex.Message}"); }
+                }
+                outl.Add(st);
+            }
+            return outl;
+        }
+
+        private static MEPCurveType FirstCurveType(Document doc, MepRunKind kind)
+        {
+            System.Type t;
+            switch (kind)
+            {
+                case MepRunKind.Duct:      t = typeof(Autodesk.Revit.DB.Mechanical.DuctType); break;
+                case MepRunKind.Pipe:      t = typeof(Autodesk.Revit.DB.Plumbing.PipeType); break;
+                case MepRunKind.Conduit:   t = typeof(Autodesk.Revit.DB.Electrical.ConduitType); break;
+                case MepRunKind.CableTray: t = typeof(Autodesk.Revit.DB.Electrical.CableTrayType); break;
+                default: return null;
+            }
+            return new FilteredElementCollector(doc).OfClass(t).FirstElement() as MEPCurveType;
+        }
     }
 }

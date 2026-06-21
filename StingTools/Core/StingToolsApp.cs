@@ -348,6 +348,10 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
+                // MEP-from-DWG: drop the per-document fixture-map cache so a re-open
+                // re-reads the corporate baseline + project _BIM_COORD override.
+                try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }
+                catch (Exception cEx) { StingLog.Warn($"MEP fixture-map invalidate: {cEx.Message}"); }
                 // PBR Material Hub: drop per-document PBR state cache.
                 try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }

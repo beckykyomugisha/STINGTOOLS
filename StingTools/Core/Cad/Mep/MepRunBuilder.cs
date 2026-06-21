@@ -345,9 +345,12 @@ namespace StingTools.Core.Cad.Mep
 
                     // (b) Drainage — chain contiguous segments and fall CONTINUOUSLY (each
                     // segment Start Z = previous End Z) toward the nearest stack (P1.2/1.3).
+                    // Only DRAINAGE stacks are valid fall targets — a drain must not orient
+                    // toward a supply/return riser that happens to be nearer.
+                    var drainageStacks = stacks?.Where(s => s != null && s.DrainageStack).ToList();
                     foreach (var chain in MepDrainage.Chain(drains, TolFt))
                     {
-                        bool verified = MepDrainage.OrientFall(chain, stacks, TolFt);
+                        bool verified = MepDrainage.OrientFall(chain, drainageStacks, TolFt);
                         double cur = level.Elevation + StingTools.Model.Units.Mm(OffMm(chain[0].Cand));
                         foreach (var seg in chain)
                         {

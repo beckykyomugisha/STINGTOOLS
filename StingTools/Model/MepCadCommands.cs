@@ -176,6 +176,30 @@ namespace StingTools.Model
                     sb.AppendLine($"   {f.BlockName}  →  {f.Category} [{f.RuleDiscipline}]  but layer '{f.Block?.LayerName}' is [{f.LayerDiscipline}]");
             }
 
+            // P3.1 — hosting honesty: which placeable fixtures will host vs be forced
+            // unhosted (family is not a hosted/work-plane type), so preview matches reality.
+            if (detection.Fixtures.Count > 0)
+            {
+                int willHost = 0, forcedUnhosted = 0, free = 0;
+                var symByCat = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+                foreach (var fx in detection.Fixtures)
+                {
+                    if (!symByCat.TryGetValue(fx.Category, out var sym))
+                        symByCat[fx.Category] = sym = MepFixtureBuilder.PreviewResolveSymbol(doc, fx.Category, fx.Rule?.FamilyHint, fx.Rule?.TypeHint);
+                    if (sym == null) continue;   // already counted as skip-no-family
+                    string intent = MepFixtureBuilder.HostIntentName(fx.Category, fx.Rule?.MountingReference);
+                    if (intent == "None") free++;
+                    else if (MepFixtureBuilder.FamilyIsHostable(sym)) willHost++;
+                    else forcedUnhosted++;
+                }
+                if (willHost + forcedUnhosted + free > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"Hosting: {willHost} will host to wall/ceiling, {free} placed free, " +
+                                  $"{forcedUnhosted} forced unhosted (family is not a hosted/work-plane type).");
+                }
+            }
+
             // V2 — straight-run candidates from lines.
             sb.AppendLine();
             sb.AppendLine($"Straight runs from lines ({detection.Runs.Count} of {detection.TotalLines} lines on MEP layers):");
@@ -192,6 +216,25 @@ namespace StingTools.Model
             if (detection.DrainageRunCount > 0)
                 sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall toward the nearest stack)");
             sb.AppendLine($"Risers (UP/DN/RISER blocks → vertical segments): {detection.Risers.Count}");
+
+            // P3.2 — routing-preference pre-flight: will junctions actually form? A run type
+            // with no elbow/tee fitting family in its routing prefs silently produces no
+            // fittings — surface that here, before placing.
+            var kindsPresent = detection.Runs.Select(r => r.Kind)
+                .Concat(detection.Risers.Select(r => r.Kind)).Distinct().ToList();
+            if (kindsPresent.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Fitting pre-flight (run type routing preferences):");
+                foreach (var st in MepFittingBuilder.PreflightRoutingPrefs(doc, kindsPresent))
+                {
+                    if (!st.TypeFound) { sb.AppendLine($"   {st.Kind,-10} — no type in project (runs + fittings will skip)"); continue; }
+                    string elbow = st.HasElbow ? "elbows ✓" : "elbows ✗";
+                    string tee = st.HasJunction ? "tees ✓" : "tees ✗";
+                    string flag = st.Ok ? "" : "   ⚠ junctions may not form";
+                    sb.AppendLine($"   {st.Kind,-10} '{st.TypeName}'  {elbow} · {tee}{flag}");
+                }
+            }
 
             if (detection.UnmatchedBlockCounts.Count > 0)
             {
