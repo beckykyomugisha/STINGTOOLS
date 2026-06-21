@@ -240,6 +240,7 @@ namespace StingTools.UI
                     // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
                     case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
                     case "OmniClass_Assign":         RunCommand<Commands.Classification.OmniClassAssignCommand>(app); break;
+                    case "OmniClass_Audit":          RunCommand<Commands.Classification.OmniClassAuditCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
                     case "SpecLink_ImportFolder":    RunCommand<Commands.Classification.SpecLinkImportCommand>(app); break;
 

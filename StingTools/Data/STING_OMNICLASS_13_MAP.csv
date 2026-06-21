@@ -17,6 +17,7 @@
 # published OmniClass Table 13. Projects extend/override via
 # _BIM_COORD/omniclass_map.csv (loaded first so it wins ties); a temple/owner
 # can add ordinance/sealing/baptistry rooms there.
+# matchOn: room
 Category,FamilyRegex,TypeRegex,Sys,Section,Title
 *,(?i)hall|auditorium|assembly|multipurpose|gather,,,13-11 00 00,Assembly Space
 *,(?i)chapel|ordinance|sealing|baptistry|endowment|celestial|worship|prayer|temple,,,13-61 00 00,Religious Space

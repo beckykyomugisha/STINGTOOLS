@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199d — classification robustness/accuracy sweep: native-first + audit + material-read + hardening)
+
+A review of the classification subsystem (resolver + assigner + maps) for "how do we
+get as close to 100% correct as possible". The honest ceiling: name/category
+heuristics can't be 100% — only authoring classification on the type + a verification
+pass closes the gap. So this builds the **3-tier architecture** plus the hardening.
+
+- **Native-first resolution (Tier 1).** `OmniClassAssignCommand` now reads an element
+  type's authored native OmniClass Number (Revit's built-in `OMNICLASS_CODE`, which is
+  Table 23) and uses it verbatim before the map — author-on-type wins → 100% where
+  present. The assign + audit dialogs report the native-vs-map split.
+- **`OmniClass_Audit` (the measurement).** New read-only command (tag `OmniClass_Audit`,
+  dock button beside Assign): dry-run resolves the whole scope without writing and
+  reports **% classified**, the **unmapped keys** (by category/room/material), and
+  **ambiguous** elements (≥2 rules tie at the top score — row order silently decided
+  them) → CSV + summary. Makes accuracy measurable so a project closes the residual.
+- **Material-axis resolution for Table 41.** The assigner now classifies Table 41 from
+  the element's **actual `Material` / `StructuralMaterial` name** (not just the type
+  name), falling back to the type-name keyword. Big accuracy jump for Materials.
+- **`# matchOn: element|room|material` directive.** Each map declares its resolution
+  input in a header line (defaults: 13/14 → room, 41 → material, else element),
+  replacing the hard-coded "table 13 = spatial" branch. Adding a spatial/material table
+  is now data-only. `OmniClassTableInfo.IsSpatial` is derived from `MatchMode`.
+- **Robustness hardening.** Resolver compiles regex with `IgnoreCase` always (kills the
+  silent case-sensitivity trap for overlay rows that forget `(?i)`); **code validation**
+  warns + counts map rows whose Section isn't an active-table code (typo / wrong-table
+  overlay); **switch-table hygiene** — a stamped code from a *different* table is treated
+  as empty in fill-empty mode, so switching tables re-classifies cleanly (no mixed
+  column); OmniClass codes are whitespace-normalised on write (no phantom BOQ groups).
+- **3 new tests** (case-insensitive match without `(?i)`; ambiguity/tie reporting incl.
+  the agree-on-code non-flag; match-mode registry). Suite 177/178 (pre-existing carbon
+  failure only); plugin builds clean vs Revit 2025. Already-good bits left alone: regex
+  is precompiled per rule, map loads once per run, deterministic scoring.
+
 #### Completed (Phase 199c — Table 23 + Table 41 corporate maps, researched from source)
 
 Authored the two remaining BOQ-relevant OmniClass maps from authoritative sources

@@ -169,5 +169,54 @@ namespace StingTools.Boq.Tests
             // Category fallback when the type name has no material keyword.
             Assert.Equal("41-30 20 11 11", CsiMasterFormat.Resolve(rules, "Structural Rebar", "Rebar", "16mm", "").Section); // Carbon Steel
         }
+
+        // ── Phase 199d — resolver robustness + match modes ──────────────────
+
+        [Fact]
+        public void Resolver_IsCaseInsensitive_WithoutInlineFlag()
+        {
+            // A hand-authored overlay row with no "(?i)" must still match regardless of case.
+            var rules = new System.Collections.Generic.List<CsiRule>
+            {
+                new CsiRule { Category = "Walls", FamilyRegex = "concrete", Section = "21-02 20 00", Title = "X" },
+            };
+            Assert.NotNull(CsiMasterFormat.Resolve(rules, "Walls", "CONCRETE Cavity", "", ""));
+            Assert.NotNull(CsiMasterFormat.Resolve(rules, "Walls", "Precast Concrete", "", ""));
+        }
+
+        [Fact]
+        public void Resolver_ReportsAmbiguity_WhenTwoRulesTieOnDifferentCodes()
+        {
+            var rules = new System.Collections.Generic.List<CsiRule>
+            {
+                new CsiRule { Category = "Specialty Equipment", Section = "23-19 00 00", Title = "A" },
+                new CsiRule { Category = "Specialty Equipment", Section = "23-21 00 00", Title = "B" },
+            };
+            var best = CsiMasterFormat.Resolve(rules, "Specialty Equipment", "", "", "", out int score, out int tie);
+            Assert.Equal("23-19 00 00", best.Section);  // first wins
+            Assert.Equal(1, score);
+            Assert.Equal(2, tie);                        // ambiguous — two distinct codes tie
+            // Two rules that tie but AGREE on the code are not flagged.
+            var agree = new System.Collections.Generic.List<CsiRule>
+            {
+                new CsiRule { Category = "Doors", Section = "23-17 11 00" },
+                new CsiRule { Category = "Doors", Section = "23-17 11 00" },
+            };
+            CsiMasterFormat.Resolve(agree, "Doors", "", "", "", out _, out int tie2);
+            Assert.Equal(1, tie2);
+        }
+
+        [Fact]
+        public void TableRegistry_MatchModes()
+        {
+            Assert.Equal("element",  OmniClassTables.Resolve("21").MatchMode);
+            Assert.Equal("element",  OmniClassTables.Resolve("23").MatchMode);
+            Assert.Equal("room",     OmniClassTables.Resolve("13").MatchMode);
+            Assert.Equal("room",     OmniClassTables.Resolve("14").MatchMode);
+            Assert.Equal("material", OmniClassTables.Resolve("41").MatchMode);
+            Assert.Equal("element",  OmniClassTables.Resolve("99").MatchMode);   // generic fallback
+            Assert.True(OmniClassTables.Resolve("13").IsSpatial);
+            Assert.False(OmniClassTables.Resolve("41").IsSpatial);               // material ≠ spatial
+        }
     }
 }

@@ -39,8 +39,11 @@ namespace StingTools.Core.Classification
         {
             if (_compiled) return;
             _compiled = true;
-            if (!string.IsNullOrEmpty(FamilyRegex)) { try { _famRx = new Regex(FamilyRegex); } catch { } }
-            if (!string.IsNullOrEmpty(TypeRegex)) { try { _typeRx = new Regex(TypeRegex); } catch { } }
+            // Always case-insensitive — authors (incl. project-overlay rows) need not
+            // remember the inline "(?i)" prefix, eliminating a silent case-sensitivity trap.
+            const RegexOptions opt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+            if (!string.IsNullOrEmpty(FamilyRegex)) { try { _famRx = new Regex(FamilyRegex, opt); } catch { } }
+            if (!string.IsNullOrEmpty(TypeRegex)) { try { _typeRx = new Regex(TypeRegex, opt); } catch { } }
         }
 
         /// <summary>Match score, or -1 when the rule does not apply. Higher = more specific.</summary>
@@ -112,16 +115,33 @@ namespace StingTools.Core.Classification
         /// <summary>Best-matching rule for the element context, or null when none apply.
         /// Highest score wins; ties resolve to the earliest rule in the list.</summary>
         public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys)
+            => Resolve(rules, category, family, type, sys, out _, out _);
+
+        /// <summary>Resolve + report the winning <paramref name="score"/> and how many rules
+        /// tied at that top score (<paramref name="tieCount"/>). tieCount &gt; 1 means the
+        /// match is AMBIGUOUS — row order silently decided it; the audit surfaces these so a
+        /// more-specific rule can be authored. tieCount counts distinct Sections only, so two
+        /// rules that tie but agree on the code are not flagged.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
+            out int score, out int tieCount)
         {
             CsiRule best = null;
             int bestScore = -1;
+            score = -1; tieCount = 0;
             if (rules == null) return null;
             for (int i = 0; i < rules.Count; i++)
             {
                 int s = rules[i].Score(category, family, type, sys);
                 if (s > bestScore) { bestScore = s; best = rules[i]; }
             }
-            return bestScore >= 0 ? best : null;
+            if (bestScore < 0) return null;
+            // count distinct Sections among rules that tie at the top score
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < rules.Count; i++)
+                if (rules[i].Score(category, family, type, sys) == bestScore)
+                    seen.Add(NormalizeSection(rules[i].Section));
+            score = bestScore; tieCount = seen.Count;
+            return best;
         }
 
         /// <summary>Phase A (KUT lifecycle) — CSI section → NRM2 section bridge. Builds a

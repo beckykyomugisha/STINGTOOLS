@@ -3652,7 +3652,9 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
                                             ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT (MasterFormat) from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="OmniClass Assign" Tag="OmniClass_Assign" Click="Cmd_Click"
-                                            ToolTip="Resolve + write ASS_OMNICLASS_TXT (OmniClass Table 21 Elements) from STING_OMNICLASS_MAP.csv — the element axis that rides alongside MasterFormat on the BOQ"/>
+                                            ToolTip="Resolve + write ASS_OMNICLASS_TXT for the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces, per classification_policy.json). Native-authored codes win; the map is the bootstrap"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="OmniClass Audit" Tag="OmniClass_Audit" Click="Cmd_Click"
+                                            ToolTip="Read-only dry-run: % classified, unmapped keys, and ambiguous (tied-rule) elements for the active OmniClass table — CSV + summary. Run before Assign to see the holes"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
                                             ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
                                 </WrapPanel>

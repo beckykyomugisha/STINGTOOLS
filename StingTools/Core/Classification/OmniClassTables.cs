@@ -23,8 +23,16 @@ namespace StingTools.Core.Classification
     {
         public string Number;     // "21"
         public string Name;       // "Elements"
-        public bool IsSpatial;    // true ⇒ classify the host room, not the element
         public string MapFile;    // "STING_OMNICLASS_21_MAP.csv"
+
+        /// <summary>What the assigner matches on for this table: "element" (the element's
+        /// own category/family/type/sys — default), "room" (the host room name, for Spaces
+        /// tables) or "material" (the element's material name, for the Materials table). A
+        /// map may override this with a "# matchOn:" header directive.</summary>
+        public string MatchMode = "element";
+
+        /// <summary>true ⇒ classify the host room, not the element (Spaces tables 13/14).</summary>
+        public bool IsSpatial => string.Equals(MatchMode, "room", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>e.g. "Table 21 — Elements".</summary>
         public string Label => $"Table {Number} — {Name}";
@@ -40,21 +48,21 @@ namespace StingTools.Core.Classification
         private static readonly Dictionary<string, OmniClassTableInfo> Known =
             new Dictionary<string, OmniClassTableInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            ["11"] = new OmniClassTableInfo { Number = "11", Name = "Construction Entities by Function", IsSpatial = false, MapFile = "STING_OMNICLASS_11_MAP.csv" },
-            ["12"] = new OmniClassTableInfo { Number = "12", Name = "Construction Entities by Form",     IsSpatial = false, MapFile = "STING_OMNICLASS_12_MAP.csv" },
-            ["13"] = new OmniClassTableInfo { Number = "13", Name = "Spaces by Function",  IsSpatial = true,  MapFile = "STING_OMNICLASS_13_MAP.csv" },
-            ["14"] = new OmniClassTableInfo { Number = "14", Name = "Spaces by Form",      IsSpatial = true,  MapFile = "STING_OMNICLASS_14_MAP.csv" },
-            ["21"] = new OmniClassTableInfo { Number = "21", Name = "Elements",            IsSpatial = false, MapFile = "STING_OMNICLASS_21_MAP.csv" },
-            ["22"] = new OmniClassTableInfo { Number = "22", Name = "Work Results",        IsSpatial = false, MapFile = "STING_OMNICLASS_22_MAP.csv" },
-            ["23"] = new OmniClassTableInfo { Number = "23", Name = "Products",            IsSpatial = false, MapFile = "STING_OMNICLASS_23_MAP.csv" },
-            ["31"] = new OmniClassTableInfo { Number = "31", Name = "Phases",              IsSpatial = false, MapFile = "STING_OMNICLASS_31_MAP.csv" },
-            ["32"] = new OmniClassTableInfo { Number = "32", Name = "Services",            IsSpatial = false, MapFile = "STING_OMNICLASS_32_MAP.csv" },
-            ["33"] = new OmniClassTableInfo { Number = "33", Name = "Disciplines",         IsSpatial = false, MapFile = "STING_OMNICLASS_33_MAP.csv" },
-            ["34"] = new OmniClassTableInfo { Number = "34", Name = "Organizational Roles",IsSpatial = false, MapFile = "STING_OMNICLASS_34_MAP.csv" },
-            ["35"] = new OmniClassTableInfo { Number = "35", Name = "Tools",               IsSpatial = false, MapFile = "STING_OMNICLASS_35_MAP.csv" },
-            ["36"] = new OmniClassTableInfo { Number = "36", Name = "Information",         IsSpatial = false, MapFile = "STING_OMNICLASS_36_MAP.csv" },
-            ["41"] = new OmniClassTableInfo { Number = "41", Name = "Materials",           IsSpatial = false, MapFile = "STING_OMNICLASS_41_MAP.csv" },
-            ["49"] = new OmniClassTableInfo { Number = "49", Name = "Properties",          IsSpatial = false, MapFile = "STING_OMNICLASS_49_MAP.csv" },
+            ["11"] = new OmniClassTableInfo { Number = "11", Name = "Construction Entities by Function", MapFile = "STING_OMNICLASS_11_MAP.csv" },
+            ["12"] = new OmniClassTableInfo { Number = "12", Name = "Construction Entities by Form",     MapFile = "STING_OMNICLASS_12_MAP.csv" },
+            ["13"] = new OmniClassTableInfo { Number = "13", Name = "Spaces by Function",  MatchMode = "room",     MapFile = "STING_OMNICLASS_13_MAP.csv" },
+            ["14"] = new OmniClassTableInfo { Number = "14", Name = "Spaces by Form",      MatchMode = "room",     MapFile = "STING_OMNICLASS_14_MAP.csv" },
+            ["21"] = new OmniClassTableInfo { Number = "21", Name = "Elements",            MapFile = "STING_OMNICLASS_21_MAP.csv" },
+            ["22"] = new OmniClassTableInfo { Number = "22", Name = "Work Results",        MapFile = "STING_OMNICLASS_22_MAP.csv" },
+            ["23"] = new OmniClassTableInfo { Number = "23", Name = "Products",            MapFile = "STING_OMNICLASS_23_MAP.csv" },
+            ["31"] = new OmniClassTableInfo { Number = "31", Name = "Phases",              MapFile = "STING_OMNICLASS_31_MAP.csv" },
+            ["32"] = new OmniClassTableInfo { Number = "32", Name = "Services",            MapFile = "STING_OMNICLASS_32_MAP.csv" },
+            ["33"] = new OmniClassTableInfo { Number = "33", Name = "Disciplines",         MapFile = "STING_OMNICLASS_33_MAP.csv" },
+            ["34"] = new OmniClassTableInfo { Number = "34", Name = "Organizational Roles",MapFile = "STING_OMNICLASS_34_MAP.csv" },
+            ["35"] = new OmniClassTableInfo { Number = "35", Name = "Tools",               MapFile = "STING_OMNICLASS_35_MAP.csv" },
+            ["36"] = new OmniClassTableInfo { Number = "36", Name = "Information",         MapFile = "STING_OMNICLASS_36_MAP.csv" },
+            ["41"] = new OmniClassTableInfo { Number = "41", Name = "Materials",           MatchMode = "material", MapFile = "STING_OMNICLASS_41_MAP.csv" },
+            ["49"] = new OmniClassTableInfo { Number = "49", Name = "Properties",          MapFile = "STING_OMNICLASS_49_MAP.csv" },
         };
 
         /// <summary>Resolve a table number ("13"/"21"/…) to its metadata, defaulting
@@ -70,7 +78,6 @@ namespace StingTools.Core.Classification
             {
                 Number = n,
                 Name = $"Table {n}",
-                IsSpatial = false,
                 MapFile = $"STING_OMNICLASS_{n}_MAP.csv"
             };
         }

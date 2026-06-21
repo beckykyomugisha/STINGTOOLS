@@ -14,6 +14,8 @@
 # Grammar: Category, FamilyRegex, TypeRegex, Sys, Section, Title (Title NO commas).
 # Most-specific row wins (more matched qualifiers = higher score; ties: first) —
 # so specific keywords (stainless, hardwood, PVC) are listed before generic ones.
+# matchOn: material  (the assigner reads the element's actual material name, then
+# falls back to the type name; the keyword regex below matches either)
 Category,FamilyRegex,TypeRegex,Sys,Section,Title
 *,,(?i)stainless,,41-30 20 11 14,Stainless Steel
 *,,(?i)\bsteel\b|\brsj\b|\bub\b|\buc\b|\bshs\b|\brhs\b|\bchs\b|rebar|reinforc,,41-30 20 11 11,Carbon Steel
