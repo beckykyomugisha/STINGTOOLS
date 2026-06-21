@@ -67,8 +67,8 @@ namespace StingTools.Core.Classification
         /// (normalised by <see cref="OmniClassTableNumber"/>). Switching is this one line;
         /// the assigner loads STING_OMNICLASS_&lt;table&gt;_MAP.csv (corporate) +
         /// _BIM_COORD/omniclass_map.csv (overlay) and the BOQ column names the table.
-        /// Tables 21 + 13 ship corporate maps; any other table needs its map shipped or
-        /// supplied via the overlay.
+        /// Tables 21 (Elements), 23 (Products), 41 (Materials) + 13 (Spaces) ship corporate
+        /// maps; any other table needs its map shipped or supplied via the overlay.
         /// </summary>
         [JsonProperty("omniClassTable")]
         public string OmniClassTable { get; set; } = "21";

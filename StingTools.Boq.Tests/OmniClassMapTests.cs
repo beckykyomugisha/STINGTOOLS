@@ -125,5 +125,49 @@ namespace StingTools.Boq.Tests
             // Normalises "T23" / whitespace → "23".
             Assert.Equal("23", ClassificationPolicy.Parse("{ \"omniClassTable\": \"T23\" }").OmniClassTableNumber);
         }
+
+        // ── Phase 199c — Table 23 (Products) + Table 41 (Materials) maps ────
+
+        [Fact]
+        public void Table23_ProductsMap_ResolvesFromAutodeskCodes()
+        {
+            var rules = LoadShipped("STING_OMNICLASS_23_MAP.csv");
+            Assert.All(rules, r =>
+            {
+                Assert.StartsWith("23-", r.Section);
+                Assert.False(string.IsNullOrWhiteSpace(r.Title));
+                Assert.True(string.IsNullOrEmpty(r.Nrm2), "comma leaked into Title?");
+            });
+            Assert.Equal("23-17 11 00", CsiMasterFormat.Resolve(rules, "Doors", "", "", "").Section);
+            Assert.Equal("23-17 13 00", CsiMasterFormat.Resolve(rules, "Windows", "", "", "").Section);
+            Assert.Equal("23-33 49 00", CsiMasterFormat.Resolve(rules, "Ducts", "", "", "").Section);          // HVAC Ductwork
+            Assert.Equal("23-27 39 00", CsiMasterFormat.Resolve(rules, "Pipes", "", "", "DCW").Section);        // Piping
+            Assert.Equal("23-29 33 00", CsiMasterFormat.Resolve(rules, "Pipes", "", "", "FP").Section);         // Fire suppression
+            Assert.Equal("23-35 47 00", CsiMasterFormat.Resolve(rules, "Lighting Fixtures", "", "", "").Section);
+            // Family-specific refinement beats the Mechanical Equipment family default.
+            Assert.Equal("23-33 25 00", CsiMasterFormat.Resolve(rules, "Mechanical Equipment", "Generic AHU", "", "").Section);
+            Assert.Equal("23-33 00 00", CsiMasterFormat.Resolve(rules, "Mechanical Equipment", "Misc Unit", "", "").Section);
+            Assert.Equal("23-31 19 00", CsiMasterFormat.Resolve(rules, "Plumbing Fixtures", "Wall Hung WC", "", "").Section); // Toilets
+        }
+
+        [Fact]
+        public void Table41_MaterialsMap_ResolvesByTypeNameKeyword()
+        {
+            var rules = LoadShipped("STING_OMNICLASS_41_MAP.csv");
+            Assert.All(rules, r =>
+            {
+                Assert.StartsWith("41-", r.Section);
+                Assert.False(string.IsNullOrWhiteSpace(r.Title));
+                Assert.True(string.IsNullOrEmpty(r.Nrm2), "comma leaked into Title?");
+            });
+            // Material keyword lives in the type name (3rd arg = type).
+            Assert.Equal("41-30 10 25 19 15", CsiMasterFormat.Resolve(rules, "Floors", "Floor", "Concrete - 200mm", "").Section); // Cement
+            Assert.Equal("41-30 20 11 11", CsiMasterFormat.Resolve(rules, "Structural Framing", "UB", "Steel UB 305x165", "").Section); // Carbon Steel
+            Assert.Equal("41-30 20 11 14", CsiMasterFormat.Resolve(rules, "Pipes", "Pipe", "Stainless Steel DN50", "").Section); // Stainless beats steel
+            Assert.Equal("41-30 10 27 17 13", CsiMasterFormat.Resolve(rules, "Walls", "Curtain", "Glazed Curtain Wall", "").Section); // Glass
+            Assert.Equal("41-30 30 11 19 13", CsiMasterFormat.Resolve(rules, "Casework", "Unit", "White Oak Veneer", "").Section); // Hardwood
+            // Category fallback when the type name has no material keyword.
+            Assert.Equal("41-30 20 11 11", CsiMasterFormat.Resolve(rules, "Structural Rebar", "Rebar", "16mm", "").Section); // Carbon Steel
+        }
     }
 }

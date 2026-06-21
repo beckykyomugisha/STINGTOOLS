@@ -68,6 +68,14 @@
     <None Include="..\StingTools\Data\STING_OMNICLASS_13_MAP.csv" Link="Data\STING_OMNICLASS_13_MAP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Phase 199c: Table 23 (Products, from Autodesk Classification Manager) +
+         Table 41 (Materials, from NBIMS-US OmniClass Table 41). -->
+    <None Include="..\StingTools\Data\STING_OMNICLASS_23_MAP.csv" Link="Data\STING_OMNICLASS_23_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_41_MAP.csv" Link="Data\STING_OMNICLASS_41_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

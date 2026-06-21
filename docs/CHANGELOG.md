@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199c — Table 23 + Table 41 corporate maps, researched from source)
+
+Authored the two remaining BOQ-relevant OmniClass maps from authoritative sources
+(not guessed), so `OmniClass_Assign` now ships usable maps for **four** tables —
+21 Elements, 23 Products, 41 Materials, 13 Spaces.
+
+- **`STING_OMNICLASS_23_MAP.csv` (Products)** — codes taken from **Autodesk's
+  Classification Manager database** (`US-WITH CATEGORIES.xlsx`, OmniClass Table 23
+  May 2012), i.e. the exact OmniClass-number ↔ Revit-category mapping Revit itself
+  uses for the "OmniClass Number" family property. 75 rows across the full category
+  set with family-regex refinements (AHU → 23-33 25 00 Air Handling Units, WC →
+  23-31 19 00 Toilets, FP pipe → 23-29 33 00 Fire Suppression, …). The 15 level-2
+  product families (23-11 Site … 23-37 Information & Communication) verified against
+  the source.
+- **`STING_OMNICLASS_41_MAP.csv` (Materials)** — codes from the official
+  **NBIMS-US v3 OmniClass Table 41 (Materials)** PDF. Table 41 is a chemistry
+  taxonomy (Elements 41-10 / Solid Compounds 41-30 / Liquids / Gases); construction
+  materials live under 41-30, so concrete → 41-30 10 25 19 15 Cement, carbon steel →
+  41-30 20 11 11, stainless → 41-30 20 11 14, aluminium → 41-30 20 14, glass →
+  41-30 10 27 17 13, gypsum → 41-30 10 25 17, hardwood → 41-30 30 11 19 13, PVC →
+  41-30 50 21 71, etc. Keyed on **material keywords in the type name** (Revit holds
+  material separately from names, so this is best-effort — the header says so) plus
+  near-certain category fallbacks (rebar → steel, curtain panel → glass, mullion →
+  aluminium, foundation → cement).
+- Policy + KUT comments updated (21/23/41/13 ship maps); **2 new resolution tests**
+  (Table 23 family-refinement + FP-pipe + Ducts; Table 41 type-keyword + stainless-
+  beats-steel + category fallback). Suite 174/175 (pre-existing carbon failure only);
+  builds clean vs Revit 2025. Switch with `"omniClassTable": "23"` (or `"41"`).
+
 #### Completed (Phase 199b — full OmniClass table registry)
 
 Generalised the Phase 199 selector to the **whole OmniClass table set**. Registered

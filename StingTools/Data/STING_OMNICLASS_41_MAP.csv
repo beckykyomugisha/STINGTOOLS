@@ -1,0 +1,60 @@
+# STING OmniClass Table 41 (Materials) map (Phase 199c). Active when
+# classification_policy.json sets "omniClassTable": "41". Classifies each element
+# by the MATERIAL it is made of and stamps ASS_OMNICLASS_TXT.
+#
+# IMPORTANT — Table 41 is a chemistry taxonomy (Chemical Elements 41-10 / Solid
+# Compounds 41-30 / Liquids 41-50 / Gases 41-70); construction materials live
+# under 41-30 Solid Compounds. Revit carries an element's material SEPARATELY from
+# its name, so this map keys on MATERIAL KEYWORDS in the type name (TypeRegex) +
+# a few near-certain category fallbacks. It is therefore best-effort: a steel beam
+# whose type name is "305x165x40" (no "steel") won't match. Refine per project via
+# _BIM_COORD/omniclass_map.csv, or drive it from the element material in a custom
+# pass. Codes are from the official NBIMS-US v3 OmniClass Table 41 (Materials).
+#
+# Grammar: Category, FamilyRegex, TypeRegex, Sys, Section, Title (Title NO commas).
+# Most-specific row wins (more matched qualifiers = higher score; ties: first) —
+# so specific keywords (stainless, hardwood, PVC) are listed before generic ones.
+Category,FamilyRegex,TypeRegex,Sys,Section,Title
+*,,(?i)stainless,,41-30 20 11 14,Stainless Steel
+*,,(?i)\bsteel\b|\brsj\b|\bub\b|\buc\b|\bshs\b|\brhs\b|\bchs\b|rebar|reinforc,,41-30 20 11 11,Carbon Steel
+*,,(?i)cast iron,,41-30 20 11 17,Cast Iron
+*,,(?i)alumin,,41-30 20 14,Aluminum Alloys
+*,,(?i)brass,,41-30 20 17 11,Brass
+*,,(?i)bronze,,41-30 20 17 14,Bronze
+*,,(?i)\bcopper\b,,41-30 20 17,Copper Alloys
+*,,(?i)\bzinc\b|galvani,,41-30 20 21,Zinc Alloys
+*,,(?i)\blead\b,,41-30 20 24,Lead Alloys
+*,,(?i)portland,,41-30 10 25 19 15 11,Portland Cement
+*,,(?i)concrete|\brc\b|screed|blinding|cement|grout,,41-30 10 25 19 15,Cement
+*,,(?i)brick|brickwork,,41-30 10 25 13 11,Brick
+*,,(?i)\bblock\b|blockwork|\bcmu\b|masonry|mortar,,41-30 10 25 19 15,Cement
+*,,(?i)porcelain,,41-30 10 25 13 19,Porcelain
+*,,(?i)ceramic|terracotta|earthenware|\btile\b,,41-30 10 25 13,Ceramic
+*,,(?i)granite,,41-30 10 11 11,Granite
+*,,(?i)marble,,41-30 10 15 13,Marble
+*,,(?i)limestone,,41-30 10 13 11,Limestone
+*,,(?i)sandstone,,41-30 10 13 13,Sandstone
+*,,(?i)slate,,41-30 10 15 17,Slate
+*,,(?i)\bstone\b,,41-30 10 00,Mineral Compounds
+*,,(?i)glass|glazing|glazed,,41-30 10 27 17 13,Glass
+*,,(?i)gypsum|plaster|plasterboard|drywall|gyp ?board,,41-30 10 25 17,Gypsum
+*,,(?i)softwood|\bpine\b|\bfir\b|spruce|cedar|redwood,,41-30 30 11 19 11,Softwood Timber
+*,,(?i)hardwood|\boak\b|\bmaple\b|cherry|mahogany|walnut,,41-30 30 11 19 13,Hardwood Timber
+*,,(?i)timber|\bwood\b|lumber|plywood|\bmdf\b|chipboard|\bosb\b|joinery,,41-30 30 11 19,Timber
+*,,(?i)bamboo,,41-30 30 11 17 13 11,Bamboo
+*,,(?i)\bcork\b,,41-30 30 11 17 11,Cork
+*,,(?i)\bpvc\b|polyvinyl|\bupvc\b,,41-30 50 21 71,Polyvinyl Chloride
+*,,(?i)polyethylene|\bhdpe\b|\bmdpe\b|\bldpe\b,,41-30 50 21 37,Polyethylene
+*,,(?i)polycarbonate,,41-30 50 21 31,Polycarbonate
+*,,(?i)polystyrene|\beps\b|\bxps\b,,41-30 50 21 54,Polystyrene
+*,,(?i)polyurethane|\bpur\b|\bpir\b|polyiso,,41-30 50 21 61,Polyurethane
+*,,(?i)\bplastic\b|acrylic|\bhpl\b|laminate|composite,,41-30 50 21,Plastics
+*,,(?i)silicone|sealant,,41-30 50 24 17,Silicone
+*,,(?i)rubber|\bepdm\b|neoprene,,41-30 50 24,Rubbers
+*,,(?i)mineral ?wool|rock ?wool|rock fib|glass ?wool|insulation,,41-30 10 27 19,Rock Fibers
+*,,(?i)\bwool\b|acoustic,,41-30 30 21 11 15,Wool
+*,,(?i)leather,,41-30 30 21 11 11,Leather
+Curtain Panels,,,,41-30 10 27 17 13,Glass
+Curtain Wall Mullions,,,,41-30 20 14,Aluminum Alloys
+Structural Rebar,,,,41-30 20 11 11,Carbon Steel
+Structural Foundations,,,,41-30 10 25 19 15,Cement
