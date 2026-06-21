@@ -3,6 +3,49 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — V1: MEP fixtures from DWG blocks)
+
+First slice of MEP DWG→BIM conversion (previously recognized-but-never-built).
+Reuses the shared `CADToModelEngine` extraction core via a NEW MEP discipline
+pipeline above it — no parallel re-extraction, no graft into the structural
+pipeline. **Compile-verified against Revit 2025 (0 errors, 0 warnings)** —
+not the usual Linux-sandbox caveat; verify runtime behaviour in Revit before
+merge.
+
+**New engine** (`Core/Cad/Mep/`):
+- `MepFixtureMap` — block-name (regex) → fixture rule {category, family/type
+  hint, mounting height + reference}. Corporate baseline
+  `Data/STING_DWG_FIXTURE_MAP.json` (24 rules) + project override
+  `<project>/_BIM_COORD/dwg_fixture_map.json` layered by id (project wins),
+  mirroring `AecFilterRegistry`. Replaces the scattered hardcoded name lists.
+- `MepDetectionEngine` — calls `CADToModelEngine.PreviewImport` (the shared
+  `ExtractGeometry`), classifies extracted blocks by name → a read-only plan
+  (fixtures by category + unmatched block names + layer counts). Resolves
+  mounting height from `STING_HEIGHT_STANDARDS.json` (preferred) or the rule.
+- `MepFixtureBuilder` — resolves a `FamilySymbol` (by category + family/type
+  hint), activates, places unhosted/level-based at the block insertion point
+  with block rotation and a mounting-height Z; workset-assigns + ISO 19650
+  auto-tags via the same path native Placement-Center output uses. No symbol
+  resolves → **skip + count** (never synthesises geometry).
+
+**New commands** (MODEL tab, peer to `StrCAD*`): `Mep_CadPreview` (ReadOnly
+audit — what would place vs skip, with no-family + unmatched-block reporting)
+and `Mep_CadToModel` (Manual — places fixtures with a confirm gate). Wired in
+`StingCommandHandler` + a "DWG → MEP (fixtures)" expander in the dock panel.
+
+**Shared-core touch-ups** (additive, low-risk): the block-capture whitelist in
+`CADToModelEngine.ProcessGeometryElement` now also captures Ducts/Pipes/Fire
+Protection/Equipment blocks (classification is by block name, so existing
+consumers are unaffected); `HeightStandardEntry` gains `PreferredMm`/`MountType`
+(already in the JSON); the doc-less DWG plan converter
+(`DWGImportCommands.ConvertBlockReference`) now consults the map first
+(`MepFixtureMap.ClassifyLegacy`) with the original regexes as a no-regression
+fallback.
+
+V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
+fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
+are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 
 PR #324 (Phase 193) fixed the recurring "Inconsistent Units" error by
