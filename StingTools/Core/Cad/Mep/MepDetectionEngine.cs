@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using StingTools.Core.Placement;
 using StingTools.Model;   // CADToModelEngine, DetectedBlock, CADExtractionResult
@@ -33,6 +34,9 @@ namespace StingTools.Core.Cad.Mep
         public List<MepDetectedFixture> Fixtures { get; } = new List<MepDetectedFixture>();
         /// <summary>V2 — ExtractedLines classified as straight runs (Duct/Pipe/Conduit/Tray).</summary>
         public List<MepRunCandidate> Runs { get; } = new List<MepRunCandidate>();
+        /// <summary>V3 — riser blocks (UP/DN/RISER) → vertical run segments.</summary>
+        public List<MepRiserCandidate> Risers { get; } = new List<MepRiserCandidate>();
+        public int DrainageRunCount => Runs.Count(r => r.Drainage);
         /// <summary>Block names that matched no fixture rule, with occurrence counts.</summary>
         public Dictionary<string, int> UnmatchedBlockCounts { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> LayerCounts { get; set; } = new Dictionary<string, int>();
@@ -53,6 +57,8 @@ namespace StingTools.Core.Cad.Mep
 
     public class MepDetectionEngine
     {
+        private static readonly Regex RiserRx = new Regex(@"riser|\b(up|dn|down)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
         private readonly Document _doc;
         public MepDetectionEngine(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
@@ -82,11 +88,14 @@ namespace StingTools.Core.Cad.Mep
                 if (StingTools.Model.Units.ToMm(line.Length) < MepRunClassifier.MinRunLengthMm) continue;
                 var kind = MepRunClassifier.DetectKind(line.LayerName, line.Category);
                 if (kind == null) continue;
+                bool drainage = kind == MepRunKind.Pipe && MepRunClassifier.IsDrainage(line.LayerName);
                 result.Runs.Add(new MepRunCandidate
                 {
                     Line = line,
                     Kind = kind.Value,
                     Size = MepRunClassifier.ParseSize(line.LayerName, kind.Value),
+                    Drainage = drainage,
+                    SlopePercent = drainage ? MepRunClassifier.DefaultDrainageSlopePercent : 0,
                 });
             }
 
@@ -94,6 +103,22 @@ namespace StingTools.Core.Cad.Mep
             foreach (var block in extraction.Blocks ?? new List<DetectedBlock>())
             {
                 if (block == null || string.IsNullOrEmpty(block.BlockName)) continue;
+
+                // V3 — riser blocks (UP/DN/RISER) become vertical runs, not fixtures.
+                if (RiserRx.IsMatch(block.BlockName))
+                {
+                    var rk = MepRunClassifier.DetectKind(block.LayerName, block.InferredCategory) ?? MepRunKind.Pipe;
+                    result.Risers.Add(new MepRiserCandidate
+                    {
+                        Point = block.InsertionPoint,
+                        Kind = rk,
+                        Size = MepRunClassifier.Default(rk),
+                        Up = !Regex.IsMatch(block.BlockName, @"(?i)\b(dn|down)\b"),
+                        BlockName = block.BlockName,
+                    });
+                    continue;
+                }
+
                 var rule = lib?.Match(block.BlockName);
                 if (rule == null)
                 {

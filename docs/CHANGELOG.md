@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — V3: fittings + risers + drainage slope)
+
+Closes the MEP-from-DWG arc: runs now form connected systems, risers become
+vertical segments, and drainage pipe falls. Same shared extraction core.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — fitting
+creation is runtime-fragile, so verify in Revit before merge.
+
+**Fittings** (`MepFittingBuilder`): after runs/risers are placed, collects their
+open END connectors (`MEPCurve.ConnectorManager`), groups by coincident origin +
+matching domain, and inserts the fitting — 2 ends → `NewElbowFitting` (in-line →
+`Connector.ConnectTo` union fallback), 3 → `NewTeeFitting` (main pair = the two
+most anti-parallel connector directions; remainder = branch), 4 →
+`NewCrossFitting`. Every attempt is guarded + counted (elbows/tees/crosses/
+unions/failed); a failure is skipped, never thrown.
+
+**Risers** (`MepRiserCandidate` + `MepRunBuilder.BuildRisers`): DWG blocks whose
+name matches `riser|up|dn|down` become a vertical run at the block XY spanning
+the current level to the adjacent level above (UP) / below (DN), or ±3 m when
+there is none; kind inferred from the block layer. Detected in
+`MepDetectionEngine` (riser blocks no longer counted as unmatched fixtures).
+
+**Drainage slope** (`MepRunClassifier.IsDrainage` + run builder): pipe runs on a
+sanitary/drainage layer (`san|soil|waste|foul|drain|rwd|swd|storm|sewer|svp/vp`)
+get a gravity fall — the End end is dropped by length × slope% (default 1:80 ≈
+1.25 %). Surfaced in preview as the drainage-run count.
+
+`Mep_CadToModel` + the wizard now run the full pass (fixtures → runs → risers →
+fittings) via shared `MepCadShared.PlaceAll`/`Report`; preview reports risers +
+drainage. See `docs/ROADMAP.md` for the fitting/flow-direction caveats.
+
 #### Completed (MEP-from-DWG — V2: straight runs + host-snapping + per-layer wizard)
 
 Builds on V1 (fixtures from blocks). Same shared `CADToModelEngine` extraction
