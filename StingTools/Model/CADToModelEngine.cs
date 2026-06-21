@@ -156,6 +156,10 @@ namespace StingTools.Model
         public string LayerName { get; set; }
         public string InferredCategory { get; set; }
         public double Rotation { get; set; }
+        /// <summary>MEP-from-DWG P6-1.3 — true when the block transform is mirrored
+        /// (negative basis determinant); its Rotation can't be trusted, so consumers flag
+        /// it for an orientation check. Additive — ignored by the structural/arch path.</summary>
+        public bool Mirrored { get; set; }
     }
 
     /// <summary>Results from the CAD geometry extraction pass.</summary>
@@ -464,6 +468,12 @@ namespace StingTools.Model
                                 nestedTransform.BasisX.Y,
                                 nestedTransform.BasisX.X);
 
+                            // P6-1.3 — mirrored (negative determinant) blocks have an
+                            // untrustworthy rotation; flag for an orientation check.
+                            bool mirrored = nestedTransform.BasisX
+                                .CrossProduct(nestedTransform.BasisY)
+                                .DotProduct(nestedTransform.BasisZ) < 0;
+
                             result.Blocks.Add(new DetectedBlock
                             {
                                 InsertionPoint = insertionPoint,
@@ -471,6 +481,7 @@ namespace StingTools.Model
                                 LayerName = layerName,
                                 InferredCategory = category,
                                 Rotation = rotation,
+                                Mirrored = mirrored,
                             });
                         }
                     }

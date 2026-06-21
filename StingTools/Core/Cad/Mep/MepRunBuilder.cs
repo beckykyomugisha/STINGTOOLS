@@ -37,6 +37,9 @@ namespace StingTools.Core.Cad.Mep
         public double HeightMm { get; set; }
         public double DiameterMm { get; set; }
         public bool FromLayer { get; set; }   // true when parsed from the layer name (vs a default)
+        /// <summary>P6-1.3 — a W×H size was parsed onto a ROUND kind (pipe/conduit) and
+        /// coerced to a diameter (larger dimension). Flagged so the user can confirm.</summary>
+        public bool RectCoerced { get; set; }
 
         public override string ToString() => IsRound ? $"Ø{DiameterMm:F0}" : $"{WidthMm:F0}x{HeightMm:F0}";
     }
@@ -56,6 +59,9 @@ namespace StingTools.Core.Cad.Mep
         /// <summary>P1.1 — service classification parsed from the layer (drives the
         /// MEP system type at Create). Undefined → the builder uses the fallback.</summary>
         public MEPSystemClassification Classification { get; set; } = MEPSystemClassification.UndefinedSystemClassification;
+        /// <summary>P6-1.1 — true when no service keyword matched and the system fell back
+        /// silently (duct → Supply, pipe → first-available). Reporting only.</summary>
+        public bool ServiceDefaulted { get; set; }
         public double LengthFt => Line?.Length ?? 0;
     }
 
@@ -81,7 +87,15 @@ namespace StingTools.Core.Cad.Mep
     public static class MepServiceClassifier
     {
         public static MEPSystemClassification Classify(string layerName, MepRunKind kind)
+            => Classify(layerName, kind, out _);
+
+        /// <summary><paramref name="defaulted"/> is true when NO explicit service keyword
+        /// matched and the result is the silent fallback (duct → Supply, pipe → Undefined →
+        /// first-available system). P6-1.1 surfaces these so mis-systemed runs are visible.
+        /// Return values are unchanged from the keyword-free overload.</summary>
+        public static MEPSystemClassification Classify(string layerName, MepRunKind kind, out bool defaulted)
         {
+            defaulted = false;
             string l = (layerName ?? "").ToLowerInvariant();
             if (kind == MepRunKind.Duct)
             {
@@ -90,7 +104,8 @@ namespace StingTools.Core.Cad.Mep
                 // Outdoor / fresh air is supply-side — Revit has no distinct OutsideAir
                 // classification, so it routes onto SupplyAir. // TODO-VERIFY-API
                 if (Regex.IsMatch(l, @"\b(oa|osa|fa|fresh|outdoor|outside)\b|fresh.?air")) return MEPSystemClassification.SupplyAir;
-                return MEPSystemClassification.SupplyAir;            // default duct = supply
+                defaulted = true;                                   // no keyword → silent Supply default
+                return MEPSystemClassification.SupplyAir;
             }
             if (kind == MepRunKind.Pipe)
             {
@@ -105,6 +120,7 @@ namespace StingTools.Core.Cad.Mep
                 if (Regex.IsMatch(l, @"\b(chwr|hwr|lhwr|hhwr|lphwr|mphwr|cwr)\b")) return MEPSystemClassification.ReturnHydronic;
                 if (Regex.IsMatch(l, @"\b(chw|hhw|lhw|lphw|mphw|cwf)\b")) return MEPSystemClassification.SupplyHydronic;
                 if (Regex.IsMatch(l, @"\b(cond|condensate|cd)\b")) return MEPSystemClassification.OtherPipe;
+                defaulted = true;                                   // no token → Undefined → first-available
             }
             return MEPSystemClassification.UndefinedSystemClassification;
         }
@@ -121,6 +137,13 @@ namespace StingTools.Core.Cad.Mep
         public Dictionary<string, int> BySystem { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         /// <summary>P1.3 — drainage runs whose fall direction could not be verified against a stack.</summary>
         public int DrainageDirectionUnverified { get; set; }
+        /// <summary>P6-1.3 — drainage runs where ≥2 stacks were equally near (fall target ambiguous).</summary>
+        public int DrainageDirectionAmbiguous { get; set; }
+        /// <summary>P6-1.1 — runs whose system fell back silently (no service keyword).</summary>
+        public int ServiceDefaultedDuct { get; set; }
+        public int ServiceDefaultedPipe { get; set; }
+        /// <summary>P6-1.2 — runs whose applied size differs from the requested size (catalog snap).</summary>
+        public int SizeSnapped { get; set; }
         public int Tagged { get; set; }
         public void Bump(MepRunKind k) { ByKind.TryGetValue(k, out int n); ByKind[k] = n + 1; }
         public void BumpSystem(string name)
@@ -166,7 +189,14 @@ namespace StingTools.Core.Cad.Mep
                 double.TryParse(rect.Groups[1].Value, out double w) &&
                 double.TryParse(rect.Groups[2].Value, out double h) &&
                 w >= 20 && h >= 20)
+            {
+                // P6-1.3 — a pipe/conduit is round; a W×H on its layer is not a real pipe
+                // size. Coerce to a diameter (larger dimension) and flag, rather than using
+                // the first dimension as the bore (the old silent-but-wrong behaviour).
+                if (kind == MepRunKind.Pipe || kind == MepRunKind.Conduit)
+                    return new MepSize { IsRound = true, DiameterMm = Math.Max(w, h), FromLayer = true, RectCoerced = true };
                 return new MepSize { IsRound = false, WidthMm = w, HeightMm = h, FromLayer = true };
+            }
 
             var dia = DiaRx.Match(s);
             if (dia.Success && double.TryParse(dia.Groups[1].Value, out double d) && d >= 10 && d <= 1200)
@@ -211,6 +241,9 @@ namespace StingTools.Core.Cad.Mep
     public static class MepDrainage
     {
         public struct Seg { public MepRunCandidate Cand; public XYZ S; public XYZ E; }
+
+        /// <summary>P6-1.3 — outcome of orienting a drainage chain's fall.</summary>
+        public enum FallResult { Verified, Unverified, Ambiguous }
 
         private static bool Near(XYZ a, XYZ b, double tolFt)
         {
@@ -265,18 +298,27 @@ namespace StingTools.Core.Cad.Mep
         }
 
         /// <summary>Orient the chain so it FALLS toward the nearest stack (the low end ends
-        /// last). Returns false when no stack is found (caller flags those as unverified).</summary>
-        public static bool OrientFall(List<Seg> chain, IList<MepRiserCandidate> stacks, double tolFt)
+        /// last). Unverified when no stack is found; Ambiguous when ≥2 stacks are nearly
+        /// equidistant from the low end (caller flags both for the user to confirm).</summary>
+        public static FallResult OrientFall(List<Seg> chain, IList<MepRiserCandidate> stacks, double tolFt)
         {
-            if (chain == null || chain.Count == 0) return true;
+            if (chain == null || chain.Count == 0) return FallResult.Verified;
             var pts = (stacks ?? new List<MepRiserCandidate>())
                 .Where(r => r?.Point != null).Select(r => r.Point).ToList();
-            if (pts.Count == 0) return false;   // unverified — keep deterministic order
+            if (pts.Count == 0) return FallResult.Unverified;   // keep deterministic order
 
             XYZ head = chain[0].S, tail = chain[chain.Count - 1].E;
             double Dist(XYZ p) => pts.Min(s => { double dx = p.X - s.X, dy = p.Y - s.Y; return Math.Sqrt(dx * dx + dy * dy); });
-            if (Dist(head) < Dist(tail)) Reverse(chain);   // head is the low end → make it last
-            return true;
+            double dHead = Dist(head), dTail = Dist(tail);
+            if (dHead < dTail) Reverse(chain);                  // head is the low end → make it last
+
+            // Ambiguous: the two nearest stacks to the LOW end are within a close band.
+            XYZ low = dHead < dTail ? head : tail;
+            double bandFt = 500.0 / 304.8;                      // 500 mm
+            var sorted = pts.Select(s => { double dx = low.X - s.X, dy = low.Y - s.Y; return Math.Sqrt(dx * dx + dy * dy); })
+                            .OrderBy(d => d).ToList();
+            if (sorted.Count >= 2 && sorted[1] <= sorted[0] + bandFt) return FallResult.Ambiguous;
+            return FallResult.Verified;
         }
 
         private static void Reverse(List<Seg> chain)
@@ -350,7 +392,7 @@ namespace StingTools.Core.Cad.Mep
                     var drainageStacks = stacks?.Where(s => s != null && s.DrainageStack).ToList();
                     foreach (var chain in MepDrainage.Chain(drains, TolFt))
                     {
-                        bool verified = MepDrainage.OrientFall(chain, drainageStacks, TolFt);
+                        var fall = MepDrainage.OrientFall(chain, drainageStacks, TolFt);
                         double cur = level.Elevation + StingTools.Model.Units.Mm(OffMm(chain[0].Cand));
                         foreach (var seg in chain)
                         {
@@ -363,7 +405,11 @@ namespace StingTools.Core.Cad.Mep
                             if (a.DistanceTo(b) >= 0.01)
                             {
                                 var el = CreateOne(seg.Cand, a, b, level.Id, result);
-                                if (el != null && !verified) result.DrainageDirectionUnverified++;
+                                if (el != null)
+                                {
+                                    if (fall == MepDrainage.FallResult.Unverified) result.DrainageDirectionUnverified++;
+                                    else if (fall == MepDrainage.FallResult.Ambiguous) result.DrainageDirectionAmbiguous++;
+                                }
                             }
                             if (Cancelled(i, result)) goto done;
                         }
@@ -383,6 +429,8 @@ namespace StingTools.Core.Cad.Mep
 
             if (result.DrainageDirectionUnverified > 0)
                 result.Warnings.Add($"{result.DrainageDirectionUnverified} drainage run(s): no stack found to set fall direction — confirm fall manually.");
+            if (result.DrainageDirectionAmbiguous > 0)
+                result.Warnings.Add($"{result.DrainageDirectionAmbiguous} drainage run(s): ≥2 stacks equally near — fall target ambiguous, confirm.");
 
             if (result.CreatedIds.Count > 0)
             {
@@ -404,6 +452,11 @@ namespace StingTools.Core.Cad.Mep
                 result.CreatedIds.Add(el.Id);
                 result.Created++;
                 result.Bump(run.Kind);
+                if (run.ServiceDefaulted)
+                {
+                    if (run.Kind == MepRunKind.Duct) result.ServiceDefaultedDuct++;
+                    else if (run.Kind == MepRunKind.Pipe) result.ServiceDefaultedPipe++;
+                }
                 return el;
             }
             catch (Exception ex)
@@ -554,35 +607,58 @@ namespace StingTools.Core.Cad.Mep
             if (el == null || size == null) return;
             try
             {
+                bool snapped = false;
                 switch (kind)
                 {
                     case MepRunKind.Duct:
-                        if (size.IsRound) SetLen(el, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, size.DiameterMm);
-                        else { SetLen(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, size.WidthMm); SetLen(el, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, size.HeightMm); }
+                        if (size.IsRound) snapped |= Differs(SetLen(el, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, size.DiameterMm), size.DiameterMm);
+                        else { snapped |= Differs(SetLen(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, size.WidthMm), size.WidthMm);
+                               snapped |= Differs(SetLen(el, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, size.HeightMm), size.HeightMm); }
                         break;
                     case MepRunKind.Pipe:
-                        SetLen(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, size.IsRound ? size.DiameterMm : size.WidthMm);
+                    {
+                        double req = size.IsRound ? size.DiameterMm : size.WidthMm;
+                        snapped |= Differs(SetLen(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, req), req);
                         break;
+                    }
                     case MepRunKind.CableTray:
-                        SetLen(el, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM, size.IsRound ? size.DiameterMm : size.WidthMm);
-                        SetLen(el, BuiltInParameter.RBS_CABLETRAY_HEIGHT_PARAM, size.IsRound ? size.DiameterMm : size.HeightMm);
+                    {
+                        double rw = size.IsRound ? size.DiameterMm : size.WidthMm;
+                        double rh = size.IsRound ? size.DiameterMm : size.HeightMm;
+                        snapped |= Differs(SetLen(el, BuiltInParameter.RBS_CABLETRAY_WIDTH_PARAM, rw), rw);
+                        snapped |= Differs(SetLen(el, BuiltInParameter.RBS_CABLETRAY_HEIGHT_PARAM, rh), rh);
                         break;
+                    }
                     case MepRunKind.Conduit:
                         // Conduit diameter is driven by the conduit TYPE (RBS_CONDUIT_DIAMETER_PARAM
                         // is read-only on the instance) — left at the type default in V2.
                         break;
                 }
+                // P6-1.2 — Revit snaps the instance size to the type's size catalog; report
+                // when the APPLIED size differs from what was requested (the model truth).
+                if (snapped)
+                {
+                    result.SizeSnapped++;
+                    if (result.Warnings.Count < 30)
+                        result.Warnings.Add($"Size snapped to catalog: {kind} requested {size} — type adjusted it.");
+                }
             }
             catch (Exception ex) { result.Warnings.Add($"Size {kind} {size}: {ex.Message}"); }
         }
 
-        private void SetLen(Element el, BuiltInParameter bip, double mm)
+        // Sets the parameter (mm) and returns the APPLIED value in mm (read back, so a
+        // catalog snap is visible), or NaN when the parameter can't be set.
+        private double SetLen(Element el, BuiltInParameter bip, double mm)
         {
-            if (mm <= 0) return;
+            if (mm <= 0) return double.NaN;
             var p = el.get_Parameter(bip);
-            if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
-                p.Set(StingTools.Model.Units.Mm(mm));
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return double.NaN;
+            p.Set(StingTools.Model.Units.Mm(mm));
+            return StingTools.Model.Units.ToMm(p.AsDouble());
         }
+
+        private static bool Differs(double appliedMm, double requestedMm)
+            => !double.IsNaN(appliedMm) && Math.Abs(appliedMm - requestedMm) > 1.0;
 
         private void ResolveTypes()
         {
