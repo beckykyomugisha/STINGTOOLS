@@ -48,6 +48,10 @@ public class IfcToGlbConversionJob
         _logger = logger;
     }
 
+    // "heavy" queue is worker-only (see Program.cs Hangfire server config) — keep
+    // the up-to-10-min IfcConvert round-trip off the API's 2 default-queue workers
+    // so it can't starve compliance / notification / platform-sync jobs.
+    [Hangfire.Queue("heavy")]
     [Hangfire.AutomaticRetry(Attempts = 2, OnAttemptsExceeded = Hangfire.AttemptsExceededAction.Delete)]
     public async Task ExecuteAsync(Guid modelId, CancellationToken ct = default)
     {
@@ -68,6 +72,11 @@ public class IfcToGlbConversionJob
         if (ifc.Format != ModelFormat.Ifc)
         {
             _logger.LogInformation("IfcToGlbConversionJob: model {ModelId} is {Format}, not IFC; skipping", modelId, ifc.Format);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(ifc.StoragePath))
+        {
+            _logger.LogWarning("IfcToGlbConversionJob: model {ModelId} has no StoragePath; skipping", modelId);
             return;
         }
 
