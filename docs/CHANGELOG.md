@@ -3,6 +3,53 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase 195: rate re-rank, latest-wins SpecLink, unified BMS source)
+
+Three follow-ups to the H1–H4 review, applied in value order. Built clean
+against Revit 2025; the BOQ test suite is 153/154 (the 1 failure is the
+pre-existing `ConcreteGradeCarbon` regression, unrelated).
+
+**(a) Rate-provider re-rank + project-configurable `boq_rate_policy.json` (signed off).**
+The rate waterfall had an authority inversion — a curated material-library cost
+(95) tied the per-element ES manual correction (95) and outranked a negotiated
+project rate card (87). Baseline priorities corrected so commercial intent wins:
+- `es-override` 95→98 (sticky manual correction beats every automated feed; also
+  breaks the old 95-tie with material-library);
+- `project-rate-card` 87→93 (negotiated sub-contractor rate beats CSV / library / COBie);
+- `material-library` 95→85 (generic library cost yields to the rate card + ES).
+Resolved chain: param 100 > es 98 > fohlio 96 > rate-card 93 > csv 90 >
+material 85 > cobie 75 > default 60 > bcis (policy-gated). New host-free
+`RatePolicy` (`BOQ/Rates/RatePolicy.cs`) reads
+`<project>/_BIM_COORD/boq_rate_policy.json` — a per-project overlay that re-ranks
+(`priority`) or gates (`enabled:false`) any provider without recompiling; a
+missing/malformed file is a no-op. `RateProviderRegistry` now orders + sorts by
+the policy-effective priority and skips disabled providers at Resolve time
+(`ResolveAll` still lists them for honest heat-map diagnostics). The KUT template
+ships a `boq_rate_policy.json` documenting the chain and disabling the live
+`bcis-http` feed so tenders run deterministically. 6 new `RatePolicyTests`
+(host-free) link into `StingTools.Boq.Tests`.
+
+**(b) SpecLink import: newest export wins on a section collision.**
+`SpecLink_ImportFolder` merged drop-folder CSVs by filename ascending with
+first-seen-wins, so a re-issued SpecLink manual dropped beside an older export
+lost every section the old file already defined — stale spec text kept billing.
+Now ordered by `LastWriteTimeUtc` descending so the newest drop is merged first
+and supersedes the older one (no manual deletion of the superseded export); each
+file logs its "N new section(s)" contribution.
+
+**(c) Unified Niagara commissioning source (live → cached fallback + provenance).**
+`KUT_ValuationFromBms` called `NiagaraJsonClient.FetchPoints` directly and failed
+hard when the station was unreachable. New host-free
+`CommissioningSource.Resolve(projectDir, conn)` (`Core/Twin/CommissioningSource.cs`):
+station reachable → fetch live + persist a snapshot to
+`_BIM_COORD/twin/last_station_points.json` (with `capturedUtc`), `Source=Live`;
+station down but a snapshot exists → return the cached points + their
+`capturedUtc`, `Source=Cached`; neither → `None`. The valuation routes through it
+and stamps the provenance (`live (captured …Z)` / `CACHED …Z (station
+unreachable …)`) into both the result dialog and a `# BMS source:` header line in
+`bms_valuation.csv`, so a payment certificate is never fed a stale BMS read
+without that staleness being visible. Network/file code — build-verified only.
+
 #### Completed (KUT Lifecycle Integration — Phase H review hardening)
 
 Self-review of the H1–H4 integration surfaced one real defect + one robustness
