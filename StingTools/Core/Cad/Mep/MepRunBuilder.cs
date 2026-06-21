@@ -341,6 +341,8 @@ namespace StingTools.Core.Cad.Mep
         // P1.1 — MEP system types by classification + a first-available fallback.
         private Dictionary<MEPSystemClassification, ElementId> _mechByClass, _pipeByClass;
         private ElementId _mechFallback, _pipeFallback;
+        // P6-2.4 — resolve types/systems once; Build + BuildRisers share the result.
+        private bool _typesResolved;
 
         public MepRunBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
@@ -662,6 +664,8 @@ namespace StingTools.Core.Cad.Mep
 
         private void ResolveTypes()
         {
+            if (_typesResolved) return;
+            _typesResolved = true;
             _ductType      = FirstId<DuctType>();
             _pipeType      = FirstId<PipeType>();
             _conduitType   = FirstId<ConduitType>();

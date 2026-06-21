@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using StingTools.Core.Placement;
@@ -134,8 +135,37 @@ namespace StingTools.Core.Cad.Mep
         private readonly Document _doc;
         public MepDetectionEngine(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
-        /// <summary>Run the read-only detection pass. Reuses the shared extraction core.</summary>
+        // P6-2.3 — per-document, per-import detection cache so Preview→Convert doesn't
+        // re-walk the same ImportInstance geometry twice. Invalidated on ANY document
+        // change (sound: a model edit between Preview and Convert drops the entry) and on
+        // close, so a cache hit always reflects the current model.
+        private static readonly ConditionalWeakTable<Document, Dictionary<string, MepDetectionResult>> _cache
+            = new ConditionalWeakTable<Document, Dictionary<string, MepDetectionResult>>();
+
+        public static void InvalidateCache(Document doc)
+        {
+            if (doc != null) { try { _cache.Remove(doc); } catch { } }
+        }
+
+        /// <summary>Read-only detection pass (cached per import). Reuses the shared extraction core.</summary>
         public MepDetectionResult Detect(ImportInstance import)
+        {
+            if (import == null) return new MepDetectionResult();
+            string ik = import.UniqueId ?? "";
+            if (!string.IsNullOrEmpty(ik) && _cache.TryGetValue(_doc, out var byImport)
+                && byImport.TryGetValue(ik, out var hit) && hit != null)
+                return hit;
+
+            var result = DetectCore(import);
+            if (!string.IsNullOrEmpty(ik))
+            {
+                if (!_cache.TryGetValue(_doc, out byImport)) { byImport = new Dictionary<string, MepDetectionResult>(); _cache.Add(_doc, byImport); }
+                byImport[ik] = result;
+            }
+            return result;
+        }
+
+        private MepDetectionResult DetectCore(ImportInstance import)
         {
             var result = new MepDetectionResult();
             if (import == null) return result;

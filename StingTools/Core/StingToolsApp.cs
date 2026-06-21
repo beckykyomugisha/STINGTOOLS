@@ -194,6 +194,9 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // MEP-from-DWG P6-2.3: drop the per-import detection cache on ANY model
+                // change so a Preview→Convert cache hit always reflects the current model.
+                application.ControlledApplication.DocumentChanged += OnDocumentChangedMepCache;
                 // BUG-05: Also clear param cache on document open to prevent cross-document
                 // cache collisions when switching between documents.
                 application.ControlledApplication.DocumentOpened += OnDocumentOpened;
@@ -298,6 +301,14 @@ namespace StingTools.Core
         /// These become invalid when a document closes and cause native crashes if used
         /// against a different document.
         /// </summary>
+        // MEP-from-DWG P6-2.3 — invalidate the per-import detection cache on any model change.
+        private static void OnDocumentChangedMepCache(object sender,
+            Autodesk.Revit.DB.Events.DocumentChangedEventArgs e)
+        {
+            try { Core.Cad.Mep.MepDetectionEngine.InvalidateCache(e.GetDocument()); }
+            catch { /* never let cache housekeeping disturb the edit */ }
+        }
+
         private static void OnDocumentClosing(object sender,
             Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
         {
@@ -352,6 +363,8 @@ namespace StingTools.Core
                 // re-reads the corporate baseline + project _BIM_COORD override.
                 try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }
                 catch (Exception cEx) { StingLog.Warn($"MEP fixture-map invalidate: {cEx.Message}"); }
+                try { Core.Cad.Mep.MepDetectionEngine.InvalidateCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP detection cache invalidate: {cEx.Message}"); }
                 // PBR Material Hub: drop per-document PBR state cache.
                 try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }

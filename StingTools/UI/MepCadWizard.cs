@@ -149,20 +149,39 @@ namespace StingTools.UI
             foreach (var run in detection.Runs)
             {
                 string layer = run.Line?.LayerName ?? "(unnamed)";
+                var emit = run;
                 if (runRows.TryGetValue(layer, out var row))
                 {
                     if (!row.Include || row.Role == "Skip") continue;
-                    if (row.Role != "Auto" && Enum.TryParse<MepRunKind>(row.Role, out var k)) run.Kind = k;
+                    MepRunKind? kindOverride = null;
+                    if (row.Role != "Auto" && Enum.TryParse<MepRunKind>(row.Role, out var k)) kindOverride = k;
+                    double? offOverride = null;
                     if (double.TryParse(row.OffsetMm, NumberStyles.Any, CultureInfo.InvariantCulture, out double off) && off >= 0)
-                        run.OffsetMm = off;
+                        offOverride = off;
+                    // P6-2.3 — the detection result is now cached + shared across Preview→Convert,
+                    // so override on a CLONE rather than mutating the cached candidate.
+                    if (kindOverride != null || offOverride != null)
+                    {
+                        emit = Clone(run);
+                        if (kindOverride != null) emit.Kind = kindOverride.Value;
+                        if (offOverride != null) emit.OffsetMm = offOverride.Value;
+                    }
                 }
-                outR.Runs.Add(run);
+                outR.Runs.Add(emit);
             }
 
             // Risers aren't in the per-layer grid — carry them through unchanged.
             foreach (var r in detection.Risers) outR.Risers.Add(r);
             return outR;
         }
+
+        // Shallow copy of a run candidate so wizard overrides never mutate the cached detection.
+        private static MepRunCandidate Clone(MepRunCandidate r) => new MepRunCandidate
+        {
+            Line = r.Line, Kind = r.Kind, Size = r.Size, OffsetMm = r.OffsetMm,
+            Drainage = r.Drainage, SlopePercent = r.SlopePercent,
+            Classification = r.Classification, ServiceDefaulted = r.ServiceDefaulted,
+        };
 
         private class LevelItem { public Level Level; public override string ToString() => Level?.Name ?? "(level)"; }
     }

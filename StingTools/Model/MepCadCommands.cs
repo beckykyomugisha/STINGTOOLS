@@ -76,8 +76,10 @@ namespace StingTools.Model
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
             var fx = new MepFixtureBuilder(doc).Place(detection, level, hostSnap);
             // P1.3 — pass riser/stack candidates so drainage chains fall toward a stack.
-            var run = new MepRunBuilder(doc).Build(detection.Runs, level, null, detection.Risers);
-            var riser = new MepRunBuilder(doc).BuildRisers(detection.Risers, level, levels);
+            // P6-2.4 — one MepRunBuilder for both passes so types/systems resolve once.
+            var rb = new MepRunBuilder(doc);
+            var run = rb.Build(detection.Runs, level, null, detection.Risers);
+            var riser = rb.BuildRisers(detection.Risers, level, levels);
             var ids = run.CreatedIds.Concat(riser.CreatedIds).ToList();
             var fitB = new MepFittingBuilder(doc);
             var fit = ids.Count > 1 ? fitB.Build(ids) : new MepFittingBuildResult();
