@@ -47,6 +47,8 @@ namespace StingTools.Core.Cad.Mep
         public ExtractedLine Line { get; set; }
         public MepRunKind Kind { get; set; }
         public MepSize Size { get; set; }
+        /// <summary>V2 wizard — per-run elevation override (mm above level); null = per-kind default.</summary>
+        public double? OffsetMm { get; set; }
         public double LengthFt => Line?.Length ?? 0;
     }
 
@@ -156,8 +158,9 @@ namespace StingTools.Core.Cad.Mep
                     {
                         i++;
                         if (run?.Line == null) continue;
-                        double offMm = (offsetByKind != null && offsetByKind.TryGetValue(run.Kind, out double o))
-                            ? o : MepRunClassifier.DefaultOffsetMm(run.Kind);
+                        double offMm = run.OffsetMm                                   // per-run (wizard) wins
+                            ?? (offsetByKind != null && offsetByKind.TryGetValue(run.Kind, out double o) ? o
+                            : MepRunClassifier.DefaultOffsetMm(run.Kind));
                         double z = level.Elevation + StingTools.Model.Units.Mm(offMm);
                         var a = new XYZ(run.Line.Start.X, run.Line.Start.Y, z);
                         var b = new XYZ(run.Line.End.X, run.Line.End.Y, z);

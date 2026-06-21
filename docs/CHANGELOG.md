@@ -3,6 +3,41 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — V2: straight runs + host-snapping + per-layer wizard)
+
+Builds on V1 (fixtures from blocks). Same shared `CADToModelEngine` extraction
+core; new run pipeline + host-snapping + a per-layer mapping wizard.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — verify runtime
+behaviour in Revit before merge.
+
+**Straight runs** (`MepRunBuilder` + `MepRunClassifier`): `ExtractedLine` on an
+MEP layer → `Duct` / `Pipe` / `Conduit` / `CableTray` via the documented
+point-based `*.Create` APIs. Run kind from the layer name (explicit run keyword,
+or Ducts/Pipes category) with a 0.5 m length floor so fixture-symbol lines aren't
+misread; size from a layer suffix (`300x200` / `DN50`) or a per-kind default
+(pluggable resolver); elevation = level + per-kind offset. Duct/Pipe get a
+Mechanical/Piping **system type** at `Create`; sizes set on the instance (duct
+W/H, pipe Ø, tray W/H — conduit Ø is type-driven). Missing type/system → those
+runs skip with a warning. `MepDetectionEngine` now classifies lines into run
+candidates; `Mep_CadPreview` reports runs by kind + total length.
+
+**Fixture host-snapping** (`MepFixtureBuilder`): wall-mount categories snap to
+the nearest wall (≤ 700 mm, projected onto the wall line), ceiling-referenced
+fixtures to the containing/nearest ceiling — but **only** when the family is a
+hosted/work-plane placement type; any hosting failure falls back to an unhosted
+level-based instance (the fixture is never lost). Rotation is applied only to
+unhosted instances. Hosted count surfaced in the result.
+
+**`MepCadWizard`** (`UI/MepCadWizard.cs`) + `Mep_CadWizard` command: a compact
+per-layer mapping dialog (DataGrid of layers) — pick the target level, toggle
+host-snap, include/exclude each layer, override a run layer's kind, and set a
+per-run-layer elevation offset; then place fixtures + runs. New "★ MEP Wizard"
+button on the MODEL tab. (Per-layer family/run **type** selection stays
+"first available" — see ROADMAP MEPDWG-V2-type.)
+
+`Mep_CadToModel` now places fixtures **and** runs in one pass. Fittings, risers
+and drainage slope are V3.
+
 #### Completed (MEP-from-DWG — V1: MEP fixtures from DWG blocks)
 
 First slice of MEP DWG→BIM conversion (previously recognized-but-never-built).
