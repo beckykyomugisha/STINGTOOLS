@@ -24,6 +24,7 @@ using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
+using StingTools.Core.Content;   // ContentResolver, ContentRequest, MissingContent
 using StingTools.Model;   // Units, ModelWorksetAssigner, ModelEngine.AutoTagCreatedElements
 
 namespace StingTools.Core.Cad.Mep
@@ -35,6 +36,10 @@ namespace StingTools.Core.Cad.Mep
         public int Failed { get; set; }
         public List<ElementId> CreatedIds { get; } = new List<ElementId>();
         public List<string> Warnings { get; } = new List<string>();
+        /// <summary>Families that could not be resolved (in-project or library) — the
+        /// structured detail behind <see cref="SkippedNoSymbol"/>, surfaced to the
+        /// command for reporting instead of a silent count.</summary>
+        public List<MissingContent> Missing { get; } = new List<MissingContent>();
         /// <summary>Per-category placed / skipped-no-symbol counts (audit).</summary>
         public Dictionary<string, (int placed, int skipped)> ByCategory { get; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
@@ -52,30 +57,12 @@ namespace StingTools.Core.Cad.Mep
     public class MepFixtureBuilder
     {
         private readonly Document _doc;
-        private readonly Dictionary<string, FamilySymbol> _symbolCache
-            = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
-        // P6-2.4 — every FamilySymbol grouped by category, collected ONCE (collector order
-        // preserved so symbol selection is identical to the old per-category scan).
-        private Dictionary<string, List<FamilySymbol>> _symbolsByCategory;
+        // PC-Content — unified content resolution (in-project → on-disk library → miss),
+        // replacing the old per-builder category index. Built once per Place() call;
+        // owns its own symbol cache and surfaced MissingContent list.
+        private ContentResolver _resolver;
 
         public MepFixtureBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
-
-        private void EnsureSymbolIndex()
-        {
-            if (_symbolsByCategory != null) return;
-            _symbolsByCategory = new Dictionary<string, List<FamilySymbol>>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var fs in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
-                {
-                    var cat = fs.Category?.Name;
-                    if (string.IsNullOrEmpty(cat)) continue;
-                    if (!_symbolsByCategory.TryGetValue(cat, out var list)) _symbolsByCategory[cat] = list = new List<FamilySymbol>();
-                    list.Add(fs);
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"MEP symbol index: {ex.Message}"); }
-        }
 
         /// <summary>Place all detected fixtures on the target level. One transaction.
         /// <paramref name="hostSnap"/> enables best-effort wall/ceiling hosting.</summary>
@@ -83,6 +70,11 @@ namespace StingTools.Core.Cad.Mep
         {
             var result = new MepBuildResult();
             if (detection == null || detection.Fixtures.Count == 0 || level == null) return result;
+
+            // Unified content resolution. DWG import may need a family the project
+            // doesn't contain yet; the resolver pulls it from the content library
+            // (firm/project/baseline roots) and records misses instead of skipping silently.
+            _resolver = new ContentResolver(_doc, ContentManifestRegistry.Get(_doc));
 
             // Pre-collect potential hosts once. P6-2.2 — walls go into a coarse XY grid
             // (one cell = the snap tolerance) so each fixture queries only its cell ±1
@@ -166,47 +158,35 @@ namespace StingTools.Core.Cad.Mep
                 try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
                 catch (Exception ex) { StingLog.Warn($"MEP fixture auto-tag: {ex.Message}"); }
             }
+
+            // Surface which families could not be resolved (closes the silent-skip gap).
+            if (_resolver?.Missing != null && _resolver.Missing.Count > 0)
+                result.Missing.AddRange(_resolver.Missing);
             return result;
         }
 
         /// <summary>Resolve a FamilySymbol for a rule: collector by category, narrowed
         /// by optional family/type hint regex; first match wins, else first-for-category.
         /// Returns null (→ skip) when nothing in the project matches — never synthesises.</summary>
+        /// <summary>Resolve a FamilySymbol for a rule via the shared ContentResolver:
+        /// in-project first, then the on-disk content library. AllowBuild stays off so a
+        /// DWG import never synthesises families mid-run. Returns null (→ skip; the miss
+        /// is recorded on the resolver and surfaced in <see cref="MepBuildResult.Missing"/>)
+        /// when nothing resolves.</summary>
         private FamilySymbol ResolveSymbol(MepFixtureRule rule, MepBuildResult result)
         {
             if (rule == null || string.IsNullOrEmpty(rule.Category)) return null;
-            string key = $"{rule.Category}|{rule.FamilyHint}|{rule.TypeHint}";
-            if (_symbolCache.TryGetValue(key, out var cached)) return cached;
-
-            Regex famRx = BuildRx(rule.FamilyHint, "FamilyHint", rule.Id, result);
-            Regex typeRx = BuildRx(rule.TypeHint, "TypeHint", rule.Id, result);
-
-            EnsureSymbolIndex();
-            FamilySymbol picked = null, firstForCategory = null;
-            try
+            var res = _resolver.Resolve(_doc, new ContentRequest
             {
-                if (_symbolsByCategory.TryGetValue(rule.Category, out var list))
-                    foreach (var fs in list)   // collector order preserved → identical selection
-                    {
-                        if (firstForCategory == null) firstForCategory = fs;
-                        if (famRx != null && !famRx.IsMatch(fs.Family?.Name ?? "")) continue;
-                        if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
-                        picked = fs;
-                        break;
-                    }
-            }
-            catch (Exception ex) { result.Warnings.Add($"Resolve symbol for '{rule.Category}': {ex.Message}"); }
-
-            var sym = picked ?? firstForCategory;
-            _symbolCache[key] = sym;
-            return sym;
-        }
-
-        private static Regex BuildRx(string pattern, string label, string ruleId, MepBuildResult result)
-        {
-            if (string.IsNullOrEmpty(pattern)) return null;
-            try { return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); }
-            catch (Exception ex) { result.Warnings.Add($"{label} regex on rule '{ruleId}': {ex.Message}"); return null; }
+                Category   = rule.Category,
+                FamilyHint = rule.FamilyHint,
+                TypeHint   = rule.TypeHint,
+                AllowLoad  = true,
+                AllowBuild = false,
+            });
+            if (res.IsFallback && result.Warnings.Count < 30)
+                result.Warnings.Add($"'{rule.Category}': no family/type-hint match - used first available symbol.");
+            return res.Symbol;
         }
 
         // ── V2 host-snapping ─────────────────────────────────────────────────
