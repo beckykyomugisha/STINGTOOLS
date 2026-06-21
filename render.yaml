@@ -60,6 +60,17 @@ services:
       - key: PLANSCAPE_OWNER_PASSWORD
         sync: false             # Set in Render → Environment (secret). Required to make the Owner loginable.
 
+      # ── ACC (Autodesk Construction Cloud) — optional server-side connector ──
+      # Set these in the Render dashboard only if you want the team-shared,
+      # server-mediated ACC connection (AccConnector + /api/acc/oauth/*). The
+      # plugin's own ACC integration doesn't need them.
+      - key: Acc__ClientId
+        sync: false
+      - key: Acc__ClientSecret
+        sync: false
+      - key: Acc__CallbackUrl
+        value: https://api.planscape.build/api/acc/oauth/callback
+
       # ── CORS — web dashboard / app origins ──
       - key: Cors__Origins__0
         value: https://planscape.build

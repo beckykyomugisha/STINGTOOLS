@@ -5211,6 +5211,7 @@ namespace StingTools.UI
             var projectIdBox = (System.Windows.Controls.TextBox)     AddField("Issues Project ID:", creds.ProjectId,        false, "ACC project / Issues container id (the 'b.<guid>' container)");
             var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
             var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "ACC issue type id used when escalating clashes (optional — ACC may reject without it)");
+            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", creds.FolderUrn,        false, "ACC Docs folder to upload models into (urn:adsk.wipprod:fs.folder:...). Leave blank to auto-use the project's “Project Files” folder.");
 
             // One-time APS setup hint for the in-plugin sign-in flow.
             detailStack.Children.Add(new TextBlock
@@ -5231,6 +5232,7 @@ namespace StingTools.UI
                 c.ProjectId        = projectIdBox.Text.Trim();
                 c.CoordContainerId = coordIdBox.Text.Trim();
                 c.IssueTypeId      = issueTypeBox.Text.Trim();
+                c.FolderUrn        = folderUrnBox.Text.Trim();
                 return c;
             }
 
@@ -5291,7 +5293,32 @@ namespace StingTools.UI
             }
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
-            AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into an ACC-ready upload bundle.");
+            AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
+
+            // Live upload to ACC Docs via the APS Data Management API (pure HTTP —
+            // runs inline like Sign-in; no Revit transaction needed).
+            var uploadBtn = new Button { Content = "⬆ Upload Model to ACC", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0xE6, 0x5F, 0x00)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Upload a model/deliverable file straight into the ACC Docs folder (storage → signed-S3 upload → create item). Requires data:create scope on your APS app." };
+            uploadBtn.Click += async (s, e) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ProjectId)) { ShowStatus("Set the Issues Project ID (the ACC project) first."); return; }
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Pick a model / deliverable to upload to ACC",
+                    Filter = "Model & doc files (*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg)|*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg|All files (*.*)|*.*"
+                };
+                if (dlg.ShowDialog() != true) return;
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus($"Uploading {System.IO.Path.GetFileName(dlg.FileName)} to ACC…");
+                    var r = await V6.AccModelUpload.UploadAsync(c, dlg.FileName).ConfigureAwait(true);
+                    ShowStatus(r.Ok ? r.Message : $"ACC upload failed: {r.Message}");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC upload: {ex.Message}"); ShowStatus($"ACC upload error: {ex.Message}"); }
+            };
+            actRow.Children.Add(uploadBtn);
+
             detailStack.Children.Add(actRow);
 
             // View logs / open credentials folder
