@@ -5221,14 +5221,6 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 4, 0, 0)
             });
 
-            // One-time APS setup hint for the in-plugin sign-in flow.
-            detailStack.Children.Add(new TextBlock
-            {
-                Text = $"Register this callback URL in your APS app, then use “Sign in with Autodesk”: {V6.AccOAuthFlow.RedirectUri()}",
-                FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-
             // Buttons row 1 — credentials
             var credBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
             V6.AccCredentials Gather()
