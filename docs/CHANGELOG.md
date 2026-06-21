@@ -3,6 +3,29 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase C.2: FF&E as a transparent Owner-procured category, not a provisional sum)
+
+Replaces the Phase C "provisional sum" default for Owner-procured FF&E with the
+standard, transparent treatment: a **dedicated FF&E cost category** (NRM1 Group 8 —
+Furniture, Fittings & Equipment / ICMS FF&E classification). FF&E is priced at cost
+from the Fohlio register, shown as its own subtotal, and excluded from the
+construction contractor's prelims / OH&P / contingency — but it is **not** labelled
+"provisional" (KUT FF&E is defined and priced, not deferred). More transparent,
+reconcilable against Fohlio, and per-category flexible.
+
+- `FfeTreatment`: new default `ffe`; `pcSum` retained as an explicit opt-in (the
+  contractual mechanism). `Normalize` maps exclud*/ownerSupplied* → excluded,
+  measur* → measured, pc*/provision* → pcSum, everything else → `ffe`.
+- `BOQLineItem.FfeOwnerProcured` flag; the default FF&E line stays a visible Model
+  row (not ProvisionalSum), excluded from the markup base via the flag.
+- `BOQDocument.FfeOwnerProcuredUGX` + `MarkupExemptUGX` (= PC sums + FF&E); `Totals()`
+  feeds `MarkupExemptUGX` to `BoqTotals` (so prelims + contingency skip both).
+- Tender Grand Summary shows a distinct "FF&E — Owner-procured (Fohlio, at cost)"
+  line above VAT; basic export relabels accordingly.
+- KUT `fohlio_map.json` + `FohlioMap` default → `ffe`.
+- Tests updated to the new default; build clean (Revit 2025, 0 errors); 122/123 pass
+  (1 pre-existing unrelated `ConcreteGradeCarbon`).
+
 #### Completed (KUT Lifecycle Integration — Phase C.1: PC sums out of the prelims + contingency base)
 
 Closes review Finding 1 from the Phase D code review. A `pcSum` FF&E line (the KUT

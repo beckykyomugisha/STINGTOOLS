@@ -60,9 +60,13 @@ namespace StingTools.ExLink
         // a category to a contractor-supplied measured line, or drop it from this
         // bill entirely. An item is exactly one of the three — never double-counted.
         //   "pcSum"                  (DEFAULT) PC/Provisional sum, value = Fohlio total
-        //   "measured"               normal priced line using the Fohlio rate
+        //   "ffe"                    DEFAULT — transparent Owner-procured FF&E
+        //                            category (at cost from Fohlio; excl. construction
+        //                            markups; NRM1 grp 8 / ICMS)
+        //   "measured"               normal priced line using the Fohlio rate (full markups)
         //   "ownerSupplied-excluded" zero-cost in this bill (skipped)
-        public string BoqTreatment { get; set; } = "pcSum";
+        //   "pcSum"                  explicit contractual provisional / prime-cost sum
+        public string BoqTreatment { get; set; } = "ffe";
         public Dictionary<string, string> BoqTreatmentByCategory { get; set; }
 
         /// <summary>Canonical treatment for a category — delegates to the pure,

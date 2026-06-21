@@ -1,7 +1,7 @@
 {
   "_comment": "Kampala Uganda Temple (KUT) Fohlio ExLink mapping. Deploy to <project>/_BIM_COORD/fohlio_map.json. Read by StingTools.ExLink.FohlioMap.Load on Fohlio_Export / Fohlio_Import and (cached) by the BOQ engine. Link key is FOHLIO_REF_TXT (link, never duplicate). '$'-prefixed params are resolved at export time ($Family/$Type/$Category/$Room); $FohlioQty / $FohlioLeadDays are import-only and stored in the ES snapshot. WriteBack=true columns may be written back into the model on Fohlio_Import. Fohlio remains authoritative for FF&E/finishes/O&M.",
-  "_boqTreatmentComment": "How FF&E is carried in the bill. KUT default is a PC/Provisional sum referencing the Fohlio register (Owner-procured, not contractor-measured). Per-category override values: 'pcSum' (default), 'measured' (contractor-supplied, priced from the Fohlio rate), 'ownerSupplied-excluded' (zero-cost in this bill). An item is exactly one of these — never double-counted.",
-  "boqTreatment": "pcSum",
+  "_boqTreatmentComment": "How FF&E is carried in the bill. KUT default 'ffe' = a TRANSPARENT Owner-procured FF&E category (NRM1 Group 8 / ICMS): priced at cost from the Fohlio register, shown as its own subtotal, and EXCLUDED from the construction contractor's prelims / OH&P / contingency. Per-category override values: 'ffe' (default), 'measured' (contractor-supplied, priced from the Fohlio rate, full markups), 'ownerSupplied-excluded' (zero-cost in this bill), 'pcSum' (explicit contractual Provisional / Prime-Cost sum). An item is exactly one of these — never double-counted.",
+  "boqTreatment": "ffe",
   "boqTreatmentByCategory": {
   },
   "Categories": [

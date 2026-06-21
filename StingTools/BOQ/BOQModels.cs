@@ -89,6 +89,12 @@ namespace StingTools.BOQ
         /// </summary>
         public bool RateIncludesOhp = false;
 
+        /// <summary>Phase C.2 — true when this line is Owner-procured FF&amp;E carried
+        /// as a transparent at-cost category (the KUT default), excluded from the
+        /// construction prelims + contingency markup base and shown as its own
+        /// FF&amp;E subtotal. Distinct from a contractual provisional / PC sum.</summary>
+        public bool FfeOwnerProcured = false;
+
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
 
@@ -127,6 +133,7 @@ namespace StingTools.BOQ
                 SortOrder = this.SortOrder,
                 QuantityMeasured = this.QuantityMeasured,
                 RateIncludesOhp = this.RateIncludesOhp,
+                FfeOwnerProcured = this.FfeOwnerProcured,
                 CsiSection = this.CsiSection,
                 CsiTitle = this.CsiTitle
             };
@@ -210,12 +217,22 @@ namespace StingTools.BOQ
         /// outside the preliminaries + contingency markup base.</summary>
         public double ProvisionalSumUGX => AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).Sum(i => i.TotalUGX);
 
+        /// <summary>Phase C.2 — Σ of Owner-procured FF&amp;E line totals (transparent
+        /// at-cost category from the Fohlio register; the KUT default). Distinct from
+        /// contractual provisional / PC sums.</summary>
+        public double FfeOwnerProcuredUGX => AllItems.Where(i => i.FfeOwnerProcured).Sum(i => i.TotalUGX);
+
+        /// <summary>Phase C.1/C.2 — works EXEMPT from the prelims + contingency markup
+        /// base: contractual provisional / PC sums plus Owner-procured FF&amp;E. The two
+        /// sets do not overlap (an item is one treatment), so no double-count.</summary>
+        public double MarkupExemptUGX => ProvisionalSumUGX + FfeOwnerProcuredUGX;
+
         /// <summary>FIX #3/#4 — the one place markups + VAT are applied. Every
         /// summary figure below reads from this so the model, the basic export,
         /// the tender export and the snapshot list agree to the shilling.</summary>
         public BoqTotalsResult Totals() => BoqTotals.Compute(
             SubtotalUGX, OhpBaseWorksUGX, PrelimPct, OverheadPct, ContingencyPct, VatPct,
-            BoqTotals.ParseMode(MarkupModeName), ProvisionalSumUGX, VatOnPcSums);
+            BoqTotals.ParseMode(MarkupModeName), MarkupExemptUGX, VatOnPcSums);
 
         public double PreliminariesUGX => Totals().Preliminaries;
         public double OverheadProfitUGX => Totals().OverheadProfit;

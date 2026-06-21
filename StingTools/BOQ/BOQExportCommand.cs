@@ -231,15 +231,15 @@ namespace StingTools.BOQ
             // helper (cascade by default), written as values so this sheet, the
             // model dashboard and the tender export agree to the shilling.
             string markupNote = boq.MarkupModeName?.Trim().ToLowerInvariant() == "flat" ? "flat" : "cascade NRM";
-            ws.Cell(row, 6).Value = "Net works (measured + PC sums)"; ws.Cell(row, 6).Style.Font.SetBold();
+            ws.Cell(row, 6).Value = "Net works (measured + FF&E / PC)"; ws.Cell(row, 6).Style.Font.SetBold();
             ws.Cell(row, 7).FormulaA1 = $"SUM(G{firstDataRow}:G{row - 4})"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
-            // Phase C.1 — PC/provisional sums are carried at cost; prelims +
-            // contingency apply to the measured works only (PC sums excluded).
-            if (boq.ProvisionalSumUGX > 0)
+            // Phase C.2 — Owner-procured FF&E + PC sums are carried at cost; prelims +
+            // contingency apply to the measured works only (FF&E / PC excluded).
+            if (boq.MarkupExemptUGX > 0)
             {
-                ws.Cell(row, 6).Value = "  of which PC/provisional sums (Fohlio FF&E, no markup)";
+                ws.Cell(row, 6).Value = "  of which Owner-procured FF&E + PC sums (at cost, no markup)";
                 ws.Cell(row, 6).Style.Font.SetItalic(true);
-                ws.Cell(row, 7).Value = boq.ProvisionalSumUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+                ws.Cell(row, 7).Value = boq.MarkupExemptUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
             }
             ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
             ws.Cell(row, 7).Value = boq.PreliminariesUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;

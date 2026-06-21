@@ -1552,11 +1552,11 @@ namespace StingTools.BOQ
             double ohpBase = boq.SubtotalUGX > 0
                 ? measured * (boq.OhpBaseWorksUGX / boq.SubtotalUGX)
                 : measured;
-            // Phase C.1 — PC/provisional sums (Owner-procured FF&E from Fohlio) are
-            // carried outside the prelims + contingency markup base.
+            // Phase C.1/C.2 — Owner-procured FF&E + contractual PC sums are carried
+            // outside the prelims + contingency markup base (MarkupExemptUGX).
             var totals = BoqTotals.Compute(measured, ohpBase,
                 m.PrelimPct, m.OverheadPct, m.ContingencyPct, m.VatPct,
-                BoqTotals.ParseMode(boq.MarkupModeName), boq.ProvisionalSumUGX, boq.VatOnPcSums);
+                BoqTotals.ParseMode(boq.MarkupModeName), boq.MarkupExemptUGX, boq.VatOnPcSums);
             double prelims = totals.Preliminaries;
             double contingency = totals.Contingency;
             double overhead = totals.OverheadProfit;
@@ -1573,12 +1573,19 @@ namespace StingTools.BOQ
                 ("C", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}% — {modeLabel})", overhead, false),
                 ("D", $"Contingency ({m.ContingencyPct:F1}% — {modeLabel})", contingency, false),
             };
-            // Phase C.1 — PC/provisional sums sit BELOW the markups (no prelims /
-            // OH&P / contingency earned on a fixed Owner-procured allowance).
-            if (totals.ProvisionalSums > 0)
-                lines.Add(("E", "Provisional / Prime-Cost Sums (Fohlio FF&E register — excl. markup)", totals.ProvisionalSums, false));
-            string vatCode = totals.ProvisionalSums > 0 ? "F" : "E";
-            string vatNote = boq.VatOnPcSums ? "" : ", excl. PC sums";
+            // Phase C.2 — Owner-procured FF&E and contractual PC sums sit BELOW the
+            // markups (no prelims / OH&P / contingency earned on Owner-direct money),
+            // each as its own transparent line. Their sum == totals.ProvisionalSums.
+            int nextCode = 'E';
+            if (boq.FfeOwnerProcuredUGX > 0)
+                lines.Add((((char)nextCode++).ToString(),
+                    "FF&E — Owner-procured (Fohlio register, at cost — excl. construction markup)",
+                    boq.FfeOwnerProcuredUGX, false));
+            if (boq.ProvisionalSumUGX > 0)
+                lines.Add((((char)nextCode++).ToString(),
+                    "Provisional / Prime-Cost Sums (excl. markup)", boq.ProvisionalSumUGX, false));
+            string vatCode = ((char)nextCode).ToString();
+            string vatNote = boq.VatOnPcSums ? "" : ", excl. FF&E / PC sums";
             lines.Add((null, null, null, false));
             lines.Add(("",  "SUB-TOTAL EXCLUSIVE OF TAX", subTotal, true));
             lines.Add((null, null, null, false));

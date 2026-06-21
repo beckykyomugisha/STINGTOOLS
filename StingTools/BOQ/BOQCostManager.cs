@@ -308,14 +308,24 @@ namespace StingTools.BOQ
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
 
-            // Phase C — FF&E carried as a PC sum referencing the Fohlio register.
-            // The line value is the Fohlio total (rate via FohlioRateProvider). A PC
-            // sum is a fully-inclusive allowance, so it is kept OUT of the contractor
-            // OH&P base (RateIncludesOhp) — matching the BoqTotals OH&P-base rule.
-            // ("measured" needs no special handling: it is a normal model line whose
-            // rate the FohlioRateProvider supplies at confidence 95 / RateSource "Fohlio".)
-            if (ffeTreatment == "pcSum")
+            // Phase C.2 — FF&E treatment. The line value is the Fohlio total (rate
+            // via FohlioRateProvider). Both the transparent FF&E category (default)
+            // and the explicit PC sum are kept OUT of the construction markup base
+            // (RateIncludesOhp + their respective document totals); "measured" needs
+            // no special handling — it is a normal model line at RateSource "Fohlio".
+            if (ffeTreatment == "ffe")
             {
+                // KUT default — transparent Owner-procured FF&E category (NRM1 grp 8 /
+                // ICMS). Stays a visible Model line; excluded from prelims/OH&P/contingency.
+                line.FfeOwnerProcured = true;
+                line.RateIncludesOhp = true;
+                string note = "FF&E — Owner-procured via Fohlio register (at cost; excl. construction markups)" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? note : $"{line.Note}; {note}";
+            }
+            else if (ffeTreatment == "pcSum")
+            {
+                // Explicit opt-in — contractual Provisional / Prime-Cost sum.
                 line.Source = BOQRowSource.ProvisionalSum;
                 line.RateIncludesOhp = true;
                 string pcNote = "PC sum — Fohlio FF&E register" +
