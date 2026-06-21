@@ -11,6 +11,7 @@
     { "commandTag": "Niagara_ExportPoints", "label": "5. Export the Niagara BMS point list (controls submittal)" },
     { "commandTag": "Niagara_Reconcile", "label": "6. Reconcile model BMS devices vs the station export", "optional": true },
     { "commandTag": "KUT_LifecycleReconcile", "label": "7. Four-ledger join — unified asset register + commissioning gaps", "optional": true },
-    { "commandTag": "KUT_KpiDashboard", "label": "8. KUT KPI dashboard — four-ledger join metrics (HTML + CSV)" }
+    { "commandTag": "KUT_PushLifecycleGapsToAcc", "label": "8. Push priced-unspecified / priced-no-BMS gaps to ACC Issues (idempotent)", "optional": true },
+    { "commandTag": "KUT_KpiDashboard", "label": "9. KUT KPI dashboard — four-ledger join metrics (HTML + CSV)" }
   ]
 }

@@ -3672,6 +3672,7 @@ namespace StingTools.UI
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
                     case "KUT_LifecycleReconcile": RunCommand<Commands.Twin.KutLifecycleReconcileCommand>(app); break;
+                    case "KUT_PushLifecycleGapsToAcc": RunCommand<Commands.Twin.KutPushLifecycleGapsToAccCommand>(app); break;
                     case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;

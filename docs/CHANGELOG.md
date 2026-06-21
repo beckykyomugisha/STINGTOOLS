@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase G: lifecycle gaps → ACC Issues)
+
+Closes the loop between the four-ledger lifecycle reconcile and the coordination
+team by pushing the model-derivable gaps into ACC as Issues, reusing the LIVE ACC
+client (`StingTools.V6.AccIssueSync` — same 3-legged OAuth, 429 back-off and
+`acc_credentials.json` as the clash-push path).
+
+- New command `KUT_PushLifecycleGapsToAcc` (`Commands/Twin/KutPushLifecycleGapsToAccCommand.cs`).
+  Builds the priced BOQ + `IoTDeviceRegistry`, derives two gaps from the model:
+  `PRICED_UNSPECIFIED` (priced line, no CSI section) and `PRICED_NO_BMS_POINT`
+  (priced monitorable asset, no BMS device/endpoint), and pushes each as an ACC
+  Issue (title + element id + UGX-at-risk + CSI/BMS context).
+- Idempotent via `_BIM_COORD/acc/pushed_lifecycle_gaps.json` (gap signature → issue
+  id) — mirrors `pushed_clashes.json`; re-runs update, never duplicate.
+- Offline / no-creds → clear TaskDialog, never throws. Value floor via
+  `KUT_ACC_GAP_VALUE_FLOOR` (default 0). ReadOnly on the Revit side.
+- Registered in `StingCommandHandler` + `WorkflowEngine`; added as step 8 of
+  `WORKFLOW_KUT_LifecycleReconcile.json`.
+- Build clean against Revit 2025 (0 errors). **Network code — not live-verified
+  here (no ACC credentials in the build environment); verify against a live ACC
+  project before relying on it** (repo convention). The file-dependent gaps
+  (`SPECIFIED_UNPRICED` needs the SpecLink ToC, `COMMISSIONED_UNPRICED` needs the
+  Niagara station export) stay with their reconcile commands' XLSX outputs — a
+  future enhancement can push those too.
+
 #### Completed (KUT Lifecycle Integration — Phase C.3: FF&E delivery / install on-cost knob)
 
 Adds an optional FF&E delivery/install on-cost — a separate allowance on the

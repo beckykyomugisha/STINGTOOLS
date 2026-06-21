@@ -1528,6 +1528,7 @@ namespace StingTools.Core
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "KUT_LifecycleReconcile": return new Commands.Twin.KutLifecycleReconcileCommand();
+                case "KUT_PushLifecycleGapsToAcc": return new Commands.Twin.KutPushLifecycleGapsToAccCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
