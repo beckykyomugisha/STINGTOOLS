@@ -3,6 +3,24 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase B: cost↔spec gap rows in SpecLink_Reconcile)
+
+`SpecLink_Reconcile` now joins the live BOQ document against the SpecLink
+ToC and emits two cost-aware gap rows alongside the existing
+SPEC_GAP / OVER_SPEC / TITLE_MISMATCH. **Compile-verified Revit 2025
+(0/0).**
+
+- **PRICED_UNSPECIFIED** — a priced BOQ line (`TotalUGX > 0`) whose CSI
+  section is empty or absent from the ToC. Grouped by (section, category)
+  and carrying the **UGX value at risk**; the report and summary headline
+  the total priced-unspecified figure.
+- **SPECIFIED_UNPRICED** — a ToC section with zero measured BOQ value
+  (cost-aware companion to OVER_SPEC, which is model-presence only).
+- Report (`STING_SpecLink_Reconcile_*.xlsx`) gains "Value at risk (UGX)"
+  + "Count" columns; `ComputeCostGaps` degrades gracefully (BoqAvailable
+  flag) when the BOQ document can't be built. Join is read-only —
+  `BuildBOQDocument` is the same path the read-only BOQ audits use.
+
 #### Completed (KUT Lifecycle Integration — Phase A: Spec ref on every BOQ line + CSI↔NRM2 bridge)
 
 First slice of the KUT (Kampala Uganda Temple) lifecycle integration —

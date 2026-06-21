@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
+using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Classification;
 
@@ -201,27 +202,41 @@ namespace StingTools.Commands.Classification
             var model = ReadModelSections(doc);
             var rec = CsiMasterFormat.Reconcile(model, spec);
 
-            string xlsx = WriteReport(doc, rec);
+            // Phase B (KUT lifecycle) — cost↔spec gap rows from the BOQ join.
+            // PRICED_UNSPECIFIED: priced BOQ line with no CSI section / a section
+            //   not in the SpecLink ToC → carries the UGX value at risk.
+            // SPECIFIED_UNPRICED: a ToC section that has zero measured BOQ value.
+            var gaps = ComputeCostGaps(doc, spec);
+
+            string xlsx = WriteReport(doc, rec, gaps);
             var sb = new StringBuilder();
             sb.AppendLine($"Model CSI sections: {model.Count}   Spec sections: {spec.Count}");
             sb.AppendLine();
             sb.AppendLine($"Spec gaps (model section, no spec):     {rec.SpecGaps.Count}");
             sb.AppendLine($"Over-specification (spec, no model):    {rec.OverSpec.Count}  (INFO)");
             sb.AppendLine($"Title mismatches:                       {rec.TitleMismatches.Count}");
-            if (rec.SpecGaps.Count > 0)
+            sb.AppendLine();
+            sb.AppendLine("Cost ↔ spec gaps (BOQ join):");
+            sb.AppendLine($"   Priced but unspecified:   {gaps.PricedUnspecified.Count} group(s) — UGX {gaps.PricedUnspecifiedTotalUgx:N0} at risk");
+            sb.AppendLine($"   Specified but unpriced:   {gaps.SpecifiedUnpriced.Count} section(s)");
+            if (!gaps.BoqAvailable)
+                sb.AppendLine("   (BOQ document unavailable — cost gaps skipped.)");
+            if (gaps.PricedUnspecified.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("First spec gaps:");
-                foreach (var g in rec.SpecGaps.Take(10)) sb.AppendLine($"   {g.Section}  {g.Title}");
+                sb.AppendLine("Top priced-unspecified (value at risk):");
+                foreach (var g in gaps.PricedUnspecified.OrderByDescending(x => x.Ugx).Take(8))
+                    sb.AppendLine($"   {g.Section,-12} {g.Category,-22} UGX {g.Ugx:N0} ({g.Count})");
             }
             if (xlsx != null) { sb.AppendLine(); sb.AppendLine($"Report: {xlsx}"); }
 
             new TaskDialog("SpecLink Reconcile")
             {
-                MainInstruction = $"{rec.SpecGaps.Count} spec gap(s), {rec.TitleMismatches.Count} title mismatch(es)",
+                MainInstruction = $"{rec.SpecGaps.Count} spec gap(s), {gaps.PricedUnspecified.Count} priced-unspecified group(s)",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"SpecLink_Reconcile: gaps={rec.SpecGaps.Count} over={rec.OverSpec.Count} mismatch={rec.TitleMismatches.Count}");
+            StingLog.Info($"SpecLink_Reconcile: gaps={rec.SpecGaps.Count} over={rec.OverSpec.Count} mismatch={rec.TitleMismatches.Count} " +
+                $"pricedUnspec={gaps.PricedUnspecified.Count}(UGX {gaps.PricedUnspecifiedTotalUgx:N0}) specUnpriced={gaps.SpecifiedUnpriced.Count}");
             return Result.Succeeded;
         }
 
@@ -298,18 +313,97 @@ namespace StingTools.Commands.Classification
             return -1;
         }
 
-        private static string WriteReport(Document doc, CsiMasterFormat.CsiReconcileResult rec)
+        // ── Phase B (KUT lifecycle) — cost ↔ spec gap join ────────────────────
+        private sealed class CostSpecGapResult
+        {
+            public bool BoqAvailable;
+            // grouped by (CSI section or "(none)", category): count + UGX at risk
+            public List<(string Section, string Category, int Count, double Ugx)> PricedUnspecified
+                = new List<(string, string, int, double)>();
+            public double PricedUnspecifiedTotalUgx;
+            public List<CsiMasterFormat.CsiTocEntry> SpecifiedUnpriced
+                = new List<CsiMasterFormat.CsiTocEntry>();
+        }
+
+        /// <summary>Joins the live BOQ document against the spec TOC (sections already
+        /// whitespace-normalised). Priced lines whose CSI section is empty or absent from
+        /// the TOC are "priced but unspecified" (value at risk); TOC sections with zero
+        /// measured BOQ value are "specified but unpriced".</summary>
+        private static CostSpecGapResult ComputeCostGaps(Document doc, Dictionary<string, string> spec)
+        {
+            var result = new CostSpecGapResult();
+            BOQDocument boq;
+            try { boq = BOQCostManager.BuildBOQDocument(doc); }
+            catch (Exception ex) { StingLog.Warn($"SpecLink cost gaps — BOQ build: {ex.Message}"); return result; }
+            if (boq == null) return result;
+            result.BoqAvailable = true;
+
+            // measured UGX per normalised CSI section, plus priced-unspecified groups
+            var measuredBySection = new Dictionary<string, double>(StringComparer.Ordinal);
+            var unspecGroups = new Dictionary<(string Sec, string Cat), (int Count, double Ugx)>();
+
+            foreach (var it in boq.AllItems)
+            {
+                if (it == null || it.TotalUGX <= 0) continue;
+                string sec = CsiMasterFormat.NormalizeSection(it.CsiSection ?? "");
+                if (sec.Length > 0)
+                {
+                    measuredBySection.TryGetValue(sec, out double v);
+                    measuredBySection[sec] = v + it.TotalUGX;
+                }
+                bool unspecified = sec.Length == 0 || !spec.ContainsKey(sec);
+                if (unspecified)
+                {
+                    string secKey = sec.Length == 0 ? "(none)" : sec;
+                    var gk = (secKey, it.Category ?? "");
+                    unspecGroups.TryGetValue(gk, out var agg);
+                    unspecGroups[gk] = (agg.Count + 1, agg.Ugx + it.TotalUGX);
+                    result.PricedUnspecifiedTotalUgx += it.TotalUGX;
+                }
+            }
+
+            foreach (var kv in unspecGroups)
+                result.PricedUnspecified.Add((kv.Key.Sec, kv.Key.Cat, kv.Value.Count, kv.Value.Ugx));
+
+            foreach (var kv in spec)
+            {
+                measuredBySection.TryGetValue(kv.Key, out double measured);
+                if (measured <= 0)
+                    result.SpecifiedUnpriced.Add(new CsiMasterFormat.CsiTocEntry { Section = kv.Key, Title = kv.Value });
+            }
+            return result;
+        }
+
+        private static string WriteReport(Document doc, CsiMasterFormat.CsiReconcileResult rec, CostSpecGapResult gaps)
         {
             try
             {
                 using var wb = new XLWorkbook();
                 var ws = wb.AddWorksheet("SpecLink Reconcile");
-                string[] hdr = { "Type", "Section", "Model Title", "Spec Title" };
+                string[] hdr = { "Type", "Section", "Model Title / Category", "Spec Title", "Value at risk (UGX)", "Count" };
                 for (int c = 0; c < hdr.Length; c++) { ws.Cell(1, c + 1).Value = hdr[c]; ws.Cell(1, c + 1).Style.Font.Bold = true; }
                 int row = 2;
                 foreach (var g in rec.SpecGaps) { ws.Cell(row, 1).Value = "SPEC_GAP"; ws.Cell(row, 2).Value = g.Section; ws.Cell(row, 3).Value = g.Title; row++; }
                 foreach (var m in rec.TitleMismatches) { ws.Cell(row, 1).Value = "TITLE_MISMATCH"; ws.Cell(row, 2).Value = m.Section; ws.Cell(row, 3).Value = m.ModelTitle; ws.Cell(row, 4).Value = m.SpecTitle; row++; }
                 foreach (var o in rec.OverSpec) { ws.Cell(row, 1).Value = "OVER_SPEC"; ws.Cell(row, 2).Value = o.Section; ws.Cell(row, 4).Value = o.Title; row++; }
+                // Phase B — cost↔spec gaps
+                foreach (var p in (gaps?.PricedUnspecified ?? new List<(string, string, int, double)>()).OrderByDescending(x => x.Ugx))
+                {
+                    ws.Cell(row, 1).Value = "PRICED_UNSPECIFIED";
+                    ws.Cell(row, 2).Value = p.Section;
+                    ws.Cell(row, 3).Value = p.Category;
+                    ws.Cell(row, 5).Value = p.Ugx; ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+                    ws.Cell(row, 6).Value = p.Count;
+                    row++;
+                }
+                foreach (var s in gaps?.SpecifiedUnpriced ?? new List<CsiMasterFormat.CsiTocEntry>())
+                {
+                    ws.Cell(row, 1).Value = "SPECIFIED_UNPRICED";
+                    ws.Cell(row, 2).Value = s.Section;
+                    ws.Cell(row, 4).Value = s.Title;
+                    ws.Cell(row, 5).Value = 0; ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+                    row++;
+                }
                 ws.Columns().AdjustToContents();
                 string path = OutputLocationHelper.GetOutputPath(doc, $"STING_SpecLink_Reconcile_{DateTime.Now:yyyyMMdd}.xlsx");
                 wb.SaveAs(path);
