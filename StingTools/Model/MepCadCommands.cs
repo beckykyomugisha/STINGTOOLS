@@ -6,11 +6,12 @@
 // MepDetectionEngine / MepFixtureBuilder pipeline (Core/Cad/Mep).
 //
 //   Mep_CadPreview  (ReadOnly) — audit: per-layer counts + which DWG blocks
-//                   would place as which fixture vs skip (no rule / no family).
-//   Mep_CadToModel  (Manual)   — place MEP fixtures from DWG block references.
+//                   would place as which fixture vs skip, + straight-run candidates.
+//   Mep_CadToModel  (Manual)   — place MEP fixtures from blocks AND straight runs
+//                   (Duct/Pipe/Conduit/CableTray) from lines.
 //
-// V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
-// fixture host-snapping, and the per-layer wizard are V2.
+// V1 placed fixtures from blocks. V2 adds straight runs (this file + MepRunBuilder).
+// Fixture host-snapping and the per-layer wizard are the remaining V2 items.
 // ============================================================================
 using System;
 using System.Collections.Generic;
@@ -98,6 +99,15 @@ namespace StingTools.Model
 
             sb.AppendLine();
             sb.AppendLine($"Would place: {wouldPlace}    Would skip (no family loaded): {wouldSkipNoFamily}");
+
+            // V2 — straight-run candidates from lines.
+            sb.AppendLine();
+            sb.AppendLine($"Straight runs from lines ({detection.Runs.Count} of {detection.TotalLines} lines on MEP layers):");
+            if (detection.Runs.Count == 0)
+                sb.AppendLine("   (none — no lines on duct/pipe/conduit/tray layers above the 0.5 m floor)");
+            foreach (var (kind, count, totalM) in detection.RunsByKind())
+                sb.AppendLine($"   {kind,-10} {count,4}   {totalM:F1} m");
+
             if (detection.UnmatchedBlockCounts.Count > 0)
             {
                 sb.AppendLine();
@@ -108,10 +118,10 @@ namespace StingTools.Model
 
             new TaskDialog("MEP CAD Preview")
             {
-                MainInstruction = $"{detection.Fixtures.Count} fixture(s) recognised · {wouldPlace} placeable",
+                MainInstruction = $"{detection.Fixtures.Count} fixture(s) · {wouldPlace} placeable · {detection.Runs.Count} run(s)",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"Mep_CadPreview: recognised={detection.Fixtures.Count} placeable={wouldPlace} noFamily={wouldSkipNoFamily} unmatched={detection.UnmatchedBlockCounts.Count}");
+            StingLog.Info($"Mep_CadPreview: recognised={detection.Fixtures.Count} placeable={wouldPlace} noFamily={wouldSkipNoFamily} runs={detection.Runs.Count} unmatched={detection.UnmatchedBlockCounts.Count}");
             return Result.Succeeded;
         }
     }
@@ -138,55 +148,71 @@ namespace StingTools.Model
             if (level == null) { TaskDialog.Show("MEP CAD → Model", "No levels in the project — create a level first."); return Result.Failed; }
 
             var detection = new MepDetectionEngine(doc).Detect(import);
-            if (detection.Fixtures.Count == 0)
+            if (detection.Fixtures.Count == 0 && detection.Runs.Count == 0)
             {
                 TaskDialog.Show("MEP CAD → Model",
-                    "No DWG blocks matched the fixture map. Run MEP CAD Preview to see the unmatched block names, " +
-                    "then add rules to _BIM_COORD/dwg_fixture_map.json.");
+                    "No DWG blocks matched the fixture map and no run lines were found. Run MEP CAD Preview to see " +
+                    "unmatched block names + run candidates, then add rules to _BIM_COORD/dwg_fixture_map.json.");
                 return Result.Succeeded;
             }
 
             // Confirm before writing.
             var confirm = new TaskDialog("MEP CAD → Model")
             {
-                MainInstruction = $"Place {detection.Fixtures.Count} MEP fixture(s) on level '{level.Name}'?",
-                MainContent = "Fixtures with no matching family loaded are skipped and counted (no geometry is synthesised). " +
-                              "Placed fixtures are workset-assigned and ISO 19650 auto-tagged.",
+                MainInstruction = $"Place {detection.Fixtures.Count} fixture(s) + {detection.Runs.Count} run(s) on level '{level.Name}'?",
+                MainContent = "Fixtures with no matching family loaded are skipped + counted (no geometry synthesised). " +
+                              "Runs (Duct/Pipe/Conduit/CableTray) use the first matching type/system in the project, " +
+                              "sized from the layer name or a per-kind default, at a per-kind elevation above the level. " +
+                              "Everything placed is workset-assigned and ISO 19650 auto-tagged.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true
             };
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Place fixtures");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Place fixtures + runs");
             if (confirm.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
 
             var result = new MepFixtureBuilder(doc).Place(detection, level);
+            var runResult = new MepRunBuilder(doc).Build(detection.Runs, level);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Level: {level.Name}   DWG imports: {importCount}");
             sb.AppendLine();
-            sb.AppendLine($"Placed:              {result.Placed}");
-            sb.AppendLine($"Skipped (no family): {result.SkippedNoSymbol}");
-            sb.AppendLine($"Failed:              {result.Failed}");
-            sb.AppendLine($"Auto-tagged:         {result.Tagged}");
+            sb.AppendLine("FIXTURES");
+            sb.AppendLine($"   Placed:              {result.Placed}");
+            sb.AppendLine($"   Skipped (no family): {result.SkippedNoSymbol}");
+            sb.AppendLine($"   Failed:              {result.Failed}");
+            sb.AppendLine($"   Auto-tagged:         {result.Tagged}");
             if (result.ByCategory.Count > 0)
             {
-                sb.AppendLine();
-                sb.AppendLine("By category (placed / skipped-no-family):");
+                sb.AppendLine("   By category (placed / skipped-no-family):");
                 foreach (var kv in result.ByCategory.OrderByDescending(k => k.Value.placed + k.Value.skipped))
-                    sb.AppendLine($"   {kv.Key,-22} {kv.Value.placed} / {kv.Value.skipped}");
+                    sb.AppendLine($"      {kv.Key,-22} {kv.Value.placed} / {kv.Value.skipped}");
             }
-            if (result.Warnings.Count > 0)
+            sb.AppendLine();
+            sb.AppendLine("RUNS");
+            sb.AppendLine($"   Created:             {runResult.Created}");
+            sb.AppendLine($"   Failed:              {runResult.Failed}");
+            sb.AppendLine($"   Auto-tagged:         {runResult.Tagged}");
+            if (runResult.ByKind.Count > 0)
+            {
+                sb.AppendLine("   By kind:");
+                foreach (var kv in runResult.ByKind.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"      {kv.Key,-10} {kv.Value}");
+            }
+
+            var warns = result.Warnings.Concat(runResult.Warnings).ToList();
+            if (warns.Count > 0)
             {
                 sb.AppendLine();
                 sb.AppendLine("Warnings:");
-                foreach (var w in result.Warnings.Take(10)) sb.AppendLine($"   {w}");
+                foreach (var w in warns.Take(12)) sb.AppendLine($"   {w}");
             }
 
             new TaskDialog("MEP CAD → Model")
             {
-                MainInstruction = $"Placed {result.Placed} fixture(s), skipped {result.SkippedNoSymbol}",
+                MainInstruction = $"Placed {result.Placed} fixture(s) + {runResult.Created} run(s)",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"Mep_CadToModel: placed={result.Placed} skippedNoFamily={result.SkippedNoSymbol} failed={result.Failed} tagged={result.Tagged}");
+            StingLog.Info($"Mep_CadToModel: fixtures placed={result.Placed} skippedNoFamily={result.SkippedNoSymbol} | runs created={runResult.Created} failed={runResult.Failed}");
             return Result.Succeeded;
         }
     }
