@@ -3,6 +3,50 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase H3/H4: Niagara valuation + SpecLink watch-folder coordinator)
+
+Closes the four-step Niagara/SpecLink max-automation roadmap. H3 turns the live
+BMS into a 5D valuation signal; H4 makes the issued spec a drop-folder the
+lifecycle workflow refreshes unattended. Built clean against Revit 2025 (0
+warnings); 147/148 BOQ unit tests pass (1 pre-existing carbon-data failure).
+H3's network paths (Niagara HTTP) and the file-IO command are build-verified
+only — no live station / drop in the dev sandbox.
+
+**H3 — Niagara live read-back → commissioning valuation** (`Core/Twin/BmsValuation.cs` + `NiagaraJsonClient.cs` + `Commands/Twin/KutValuationFromBmsCommand.cs`):
+
+- New pure `BmsValuation`: `IsCommissioned(status, hasValue)` decides a point is
+  in service (Niagara/oBIX live statuses `ok`/empty-Baja/`online`/… AND a present
+  value — a configured-but-dead point reports status but no value); `Compute`
+  rolls priced monitorable assets into commissioned value / monitorable value =
+  the commissioning valuation %.
+- New `NiagaraJsonClient`: read-only HttpClient GET of a station's JSON Toolkit /
+  oBIX points feed (Bearer or Basic auth), tolerant `ParsePoints` (array /
+  `{points:[…]}` / id-keyed dict). Connection at `_BIM_COORD/niagara_connection.json`
+  (gitignored — never commit station credentials).
+- `KUT_ValuationFromBms` (read-only) joins the priced monitorable BOQ scope (same
+  category set as the lifecycle reconcile, owner-procured FF&E excluded) to the
+  live station, reports the commissioning valuation % + per-asset CSV. Feed the %
+  to `PayCert_Create` for the monitorable scope.
+
+**H4 — SpecLink watch-folder + lifecycle coordinator** (`BOQ/SpecStore.cs` + `Commands/Classification/SpecLinkImportCommand.cs` + `WORKFLOW_KUT_LifecycleReconcile.json`):
+
+- `SpecStore` gains pure `ParseManualCsv` (header-aware Section/Title/Description/
+  Unit column mapping; positional fallback; RFC-4180-ish quoted-field splitter) +
+  `Serialize` → the array-shaped `sections.json` that Phase H1's `Parse` reads.
+- `SpecLink_ImportFolder` (read-only) scans `<project>/_BIM_COORD/speclink/*.csv`
+  (the exported project manual — SpecLink has no public API, so CSV export is the
+  integration surface), merges them into `sections.json`, and invalidates the CSI
+  caches so the next BOQ build bills spec'd items from the specification. Mirrors
+  the StingBridge watch-IFC drop pattern.
+- The lifecycle workflow becomes the coordinator: `SpecLink_ImportFolder` is now
+  step 1 (spec refresh) and `KUT_ValuationFromBms` step 8 (5D valuation), so a
+  single `WORKFLOW_KUT_LifecycleReconcile` run drives the whole A→H pipeline.
+
+Tests: `BmsValuationTests` (12 — status×value decision matrix + roll-up math) +
+3 `SpecStore` manual-CSV cases (header-aware, positional, Serialize→Parse
+round-trip). `NiagaraJsonClient` transport + both new commands are build-verified
+only (network / Revit-bound).
+
 #### Completed (KUT Lifecycle Integration — Phase H1/H2: spec writes the bill + tender gate)
 
 Two pure-internal automation wins that need no external credentials — the

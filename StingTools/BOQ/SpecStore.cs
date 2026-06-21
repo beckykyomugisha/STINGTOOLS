@@ -15,6 +15,9 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core.Classification;
 
@@ -78,6 +81,106 @@ namespace StingTools.BOQ
         {
             if (store == null || string.IsNullOrWhiteSpace(csiSection)) return null;
             return store.TryGetValue(CsiMasterFormat.NormalizeSection(csiSection), out var s) ? s : null;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Phase H4 — manual-CSV import. SpecLink_ImportFolder feeds an exported
+        //  project-manual CSV (the table of contents, optionally with a description
+        //  / unit column) through ParseManualCsv → Serialize → sections.json, which
+        //  is then what Parse() reads at BOQ-build time. Header-aware (maps Section /
+        //  Title / Description|Text / Unit by name, case-insensitive); falls back to
+        //  positional (col0=section, col1=title) when the header is absent.
+        // ──────────────────────────────────────────────────────────────────────
+        public static Dictionary<string, SpecSection> ParseManualCsv(IEnumerable<string> lines)
+        {
+            var d = new Dictionary<string, SpecSection>(StringComparer.Ordinal);
+            int iSec = 0, iTitle = 1, iDesc = -1, iUnit = -1;
+            bool headerSeen = false;
+            foreach (var raw in lines ?? Enumerable.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string line = raw.TrimEnd('\r');
+                if (line.TrimStart().StartsWith("#")) continue;
+                var f = SplitCsv(line);
+                if (f.Count == 0) continue;
+
+                if (!headerSeen)
+                {
+                    // Treat the first non-comment row as a header iff it names a section column.
+                    var lower = f.Select(x => x.Trim().ToLowerInvariant()).ToList();
+                    int hs = lower.FindIndex(x => x == "section" || x == "csi" || x == "csisection");
+                    if (hs >= 0)
+                    {
+                        iSec = hs;
+                        iTitle = lower.FindIndex(x => x == "title" || x == "name");
+                        iDesc = lower.FindIndex(x => x == "description" || x == "text" || x == "spec" || x == "body");
+                        iUnit = lower.FindIndex(x => x == "unit" || x == "uom");
+                        if (iTitle < 0) iTitle = 1;
+                        headerSeen = true;
+                        continue;   // consume the header row
+                    }
+                    headerSeen = true;  // no header → positional, and this row IS data
+                }
+
+                string sec = CsiMasterFormat.NormalizeSection(Field(f, iSec));
+                if (sec.Length == 0 || d.ContainsKey(sec)) continue;
+                d[sec] = new SpecSection
+                {
+                    Section = sec,
+                    Title = Field(f, iTitle),
+                    Description = Field(f, iDesc),
+                    Unit = Field(f, iUnit),
+                };
+            }
+            return d;
+        }
+
+        /// <summary>Serialize a store to the array-shaped sections.json that Parse reads.</summary>
+        public static string Serialize(Dictionary<string, SpecSection> store)
+        {
+            var arr = new JArray();
+            foreach (var s in (store ?? new Dictionary<string, SpecSection>()).Values
+                         .OrderBy(v => v.Section, StringComparer.Ordinal))
+            {
+                arr.Add(new JObject
+                {
+                    ["section"] = s.Section,
+                    ["title"] = s.Title ?? "",
+                    ["description"] = s.Description ?? "",
+                    ["unit"] = s.Unit ?? "",
+                });
+            }
+            return new JObject { ["sections"] = arr }.ToString(Formatting.Indented);
+        }
+
+        private static string Field(IReadOnlyList<string> f, int i) =>
+            i >= 0 && i < f.Count ? (f[i] ?? "").Trim() : "";
+
+        /// <summary>Minimal RFC-4180-ish splitter (quoted fields, doubled quotes).</summary>
+        private static List<string> SplitCsv(string line)
+        {
+            var outp = new List<string>();
+            if (line == null) return outp;
+            var sb = new StringBuilder();
+            bool q = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (q)
+                {
+                    if (c == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                        else q = false;
+                    }
+                    else sb.Append(c);
+                }
+                else if (c == '"') q = true;
+                else if (c == ',') { outp.Add(sb.ToString()); sb.Clear(); }
+                else sb.Append(c);
+            }
+            outp.Add(sb.ToString());
+            return outp;
         }
     }
 }

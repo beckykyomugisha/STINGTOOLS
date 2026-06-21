@@ -343,7 +343,7 @@ namespace StingTools.Core
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
-            "CSI_Assign", "SpecLink_Reconcile",
+            "CSI_Assign", "SpecLink_Reconcile", "SpecLink_ImportFolder", "KUT_ValuationFromBms",
             "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -1520,6 +1520,7 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "SpecLink_ImportFolder": return new Commands.Classification.SpecLinkImportCommand();
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
@@ -1529,6 +1530,7 @@ namespace StingTools.Core
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "KUT_LifecycleReconcile": return new Commands.Twin.KutLifecycleReconcileCommand();
                 case "KUT_PushLifecycleGapsToAcc": return new Commands.Twin.KutPushLifecycleGapsToAccCommand();
+                case "KUT_ValuationFromBms": return new Commands.Twin.KutValuationFromBmsCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();

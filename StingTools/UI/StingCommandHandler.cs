@@ -240,6 +240,7 @@ namespace StingTools.UI
                     // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
                     case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+                    case "SpecLink_ImportFolder":    RunCommand<Commands.Classification.SpecLinkImportCommand>(app); break;
 
                     // ── Phase 192 (B4): Device coordination ──
                     case "DeviceCoord_Audit":        RunCommand<Commands.Validation.DeviceCoordinationCommand>(app); break;
@@ -3673,6 +3674,7 @@ namespace StingTools.UI
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
                     case "KUT_LifecycleReconcile": RunCommand<Commands.Twin.KutLifecycleReconcileCommand>(app); break;
                     case "KUT_PushLifecycleGapsToAcc": RunCommand<Commands.Twin.KutPushLifecycleGapsToAccCommand>(app); break;
+                    case "KUT_ValuationFromBms": RunCommand<Commands.Twin.KutValuationFromBmsCommand>(app); break;
                     case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;

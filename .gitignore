@@ -97,3 +97,9 @@ tools/bin/
 # .example template is tracked.
 fohlio_connection.json
 **/fohlio_connection.json
+
+# Phase H3 (KUT lifecycle) - Niagara BMS station connection (base URL + API key
+# or username/password) is user-created at runtime under <project>/_BIM_COORD/
+# and must never be committed.
+niagara_connection.json
+**/niagara_connection.json

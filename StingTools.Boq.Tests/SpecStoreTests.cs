@@ -66,6 +66,49 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void ParseManualCsv_HeaderAware_MapsColumnsByName()
+        {
+            var lines = new[]
+            {
+                "Section,Title,Description,Unit",
+                "08 11 00,Metal Doors,\"Supply, fit and finish hollow metal doors.\",each",
+                "03 30 00,Concrete,Cast-in-situ structural concrete.,m3",
+            };
+            var store = SpecStore.ParseManualCsv(lines);
+            Assert.Equal(2, store.Count);
+            Assert.Equal("Metal Doors", store["081100"].Title);
+            Assert.Contains("hollow metal", store["081100"].Description); // quoted comma preserved
+            Assert.Equal("each", store["081100"].Unit);
+            Assert.Equal("m3", store["033000"].Unit);
+        }
+
+        [Fact]
+        public void ParseManualCsv_NoHeader_PositionalSectionThenTitle()
+        {
+            var lines = new[] { "08 11 00,Metal Doors", "08 50 00,Windows" };
+            var store = SpecStore.ParseManualCsv(lines);
+            Assert.Equal(2, store.Count);
+            Assert.Equal("Windows", store["085000"].Title);
+        }
+
+        [Fact]
+        public void ManualCsv_RoundTrips_ThroughSerializeAndParse()
+        {
+            var lines = new[]
+            {
+                "Section,Title,Description,Unit",
+                "23 05 00,HVAC Common,Common work results for HVAC.,",
+            };
+            var store = SpecStore.ParseManualCsv(lines);
+            string json = SpecStore.Serialize(store);
+            var reparsed = SpecStore.Parse(json);          // Serialize → Parse must round-trip
+            var s = SpecStore.Get(reparsed, "230500");
+            Assert.NotNull(s);
+            Assert.Equal("HVAC Common", s.Title);
+            Assert.Equal("Common work results for HVAC.", s.Description);
+        }
+
+        [Fact]
         public void ParseCsvLines_EighthUnitColumn_BackCompatWithSixColRows()
         {
             var lines = new[]

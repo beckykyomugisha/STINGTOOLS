@@ -27,6 +27,8 @@
     <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
     <!-- Phase H1 (KUT lifecycle): pure SpecLink section store reader. -->
     <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
+    <!-- Phase H3 (KUT lifecycle): pure BMS commissioning-valuation arithmetic. -->
+    <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
   </ItemGroup>
 
   <ItemGroup>
