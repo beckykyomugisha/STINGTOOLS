@@ -176,17 +176,17 @@ namespace StingTools.BOQ
             int hr = 7;
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note",
-                "Spec ref (CSI)" };
+                "MasterFormat (CSI §)", "OmniClass" };
             for (int i = 0; i < cols.Length; i++)
             {
                 ws.Cell(hr, i + 1).Value = cols[i];
             }
-            ws.Range(hr, 1, hr, 14).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+            ws.Range(hr, 1, hr, 15).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
                 .Fill.SetBackgroundColor(HeaderFill);
             ws.SheetView.FreezeRows(hr);
 
             // Column widths
-            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22, 30 };
+            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22, 30, 26 };
             for (int i = 0; i < widths.Length; i++) ws.Column(i + 1).Width = widths[i];
 
             // Data rows — section headers + items
@@ -194,7 +194,7 @@ namespace StingTools.BOQ
             foreach (var sec in boq.Sections)
             {
                 ws.Cell(row, 1).Value = $"§{sec.NRM2Section} — {sec.Name}";
-                ws.Range(row, 1, row, 14).Merge().Style.Font.SetBold().Font.SetFontSize(11)
+                ws.Range(row, 1, row, 15).Merge().Style.Font.SetBold().Font.SetFontSize(11)
                     .Fill.SetBackgroundColor(DisciplineColor(sec.Discipline));
                 row++;
 
@@ -219,7 +219,8 @@ namespace StingTools.BOQ
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
                     ws.Cell(row, 13).Value = (!item.QuantityMeasured ? "⚠ UNMEASURED (qty is a 1.0 placeholder) " : "") + (item.Note ?? "");
                     ws.Cell(row, 14).Value = SpecRef(item);
-                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 14).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
+                    ws.Cell(row, 15).Value = OmniRef(item);
+                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 15).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
                     row++;
                 }
             }
@@ -542,6 +543,13 @@ namespace StingTools.BOQ
         {
             if (string.IsNullOrEmpty(it?.CsiSection)) return "";
             return string.IsNullOrEmpty(it.CsiTitle) ? it.CsiSection : $"{it.CsiSection} — {it.CsiTitle}";
+        }
+
+        // Phase 197 — OmniClass (element / product axis) carried alongside MasterFormat.
+        private static string OmniRef(BOQLineItem it)
+        {
+            if (string.IsNullOrEmpty(it?.OmniClassCode)) return "";
+            return string.IsNullOrEmpty(it.OmniClassTitle) ? it.OmniClassCode : $"{it.OmniClassCode} — {it.OmniClassTitle}";
         }
 
         private string ExtractStatus(string note)

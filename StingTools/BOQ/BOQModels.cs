@@ -71,6 +71,15 @@ namespace StingTools.BOQ
         public string CsiSection;
         public string CsiTitle;
 
+        /// <summary>Phase 197 (dual classification) — the element's OmniClass code +
+        /// title (ASS_OMNICLASS_TXT, falling back to STING_OMNICLASS_23 / the ArchiCAD
+        /// CLS_OMNICLASS_* import). MasterFormat (CsiSection) is the bill's work-results
+        /// axis; OmniClass rides alongside as the element/product classification so the
+        /// same priced bill carries both American coding systems. Empty when neither is
+        /// authored on the element.</summary>
+        public string OmniClassCode;
+        public string OmniClassTitle;
+
         /// <summary>Phase H1 (KUT lifecycle) — true when ResolvedNRM2Paragraph was
         /// taken verbatim from the issued SpecLink section text (single source of
         /// truth) rather than a generated NRM2 template. Surfaced in the export so a
@@ -146,7 +155,9 @@ namespace StingTools.BOQ
                 RateIncludesOhp = this.RateIncludesOhp,
                 FfeOwnerProcured = this.FfeOwnerProcured,
                 CsiSection = this.CsiSection,
-                CsiTitle = this.CsiTitle
+                CsiTitle = this.CsiTitle,
+                OmniClassCode = this.OmniClassCode,
+                OmniClassTitle = this.OmniClassTitle
             };
         }
     }

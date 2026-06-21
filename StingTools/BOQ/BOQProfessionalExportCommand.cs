@@ -1441,13 +1441,20 @@ namespace StingTools.BOQ
         }
 
         // Phase A (KUT lifecycle) — CSI MasterFormat specification reference cited
-        // under the item description in the QS bill.
+        // under the item description in the QS bill. Phase 197 appends the OmniClass
+        // (element/product) code so the priced bill carries both American coding
+        // systems on the line.
         private string SpecRefText(BOQLineItem it)
         {
-            if (it == null || string.IsNullOrEmpty(it.CsiSection)) return "";
-            return string.IsNullOrEmpty(it.CsiTitle)
-                ? $"Specification: CSI {it.CsiSection}"
-                : $"Specification: CSI {it.CsiSection} — {it.CsiTitle}";
+            if (it == null) return "";
+            string csi = string.IsNullOrEmpty(it.CsiSection)
+                ? ""
+                : (string.IsNullOrEmpty(it.CsiTitle)
+                    ? $"Specification: CSI {it.CsiSection}"
+                    : $"Specification: CSI {it.CsiSection} — {it.CsiTitle}");
+            string omni = string.IsNullOrEmpty(it.OmniClassCode) ? "" : $"OmniClass {it.OmniClassCode}";
+            if (csi.Length > 0 && omni.Length > 0) return $"{csi}  ·  {omni}";
+            return csi.Length > 0 ? csi : (omni.Length > 0 ? $"Specification: {omni}" : "");
         }
 
         private string PrettifyUnit(string raw)

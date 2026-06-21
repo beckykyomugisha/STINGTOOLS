@@ -259,6 +259,36 @@ namespace StingTools.BOQ
             // row (e.g. Pipes+SAN → 32) bills consistently with its specification.
             string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION) ?? "";
             string csiTitle = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
+            // Phase 197 — MasterFormat for the BOQ. When the element wasn't CSI_Assign-
+            // stamped, resolve its MasterFormat section straight from the map so the
+            // bill's MasterFormat column is populated for the whole model (the stamp
+            // still wins when present). Keeps "use MasterFormat for the BOQ" working
+            // without a mandatory pre-pass.
+            if (string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
+                    if (rules != null && rules.Count > 0)
+                    {
+                        string sysTok = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "";
+                        var rule = StingTools.Core.Classification.CsiMasterFormat.Resolve(
+                            rules, catName, GetFamilyName(el), el.Name ?? "", sysTok);
+                        if (rule != null)
+                        {
+                            csiSection = rule.Section ?? "";
+                            if (string.IsNullOrEmpty(csiTitle)) csiTitle = rule.Title ?? "";
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CSI map resolve: {ex.Message}"); }
+            }
+            // Phase 197 — OmniClass (element / product axis) carried alongside MasterFormat.
+            string omniCode = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+            if (string.IsNullOrEmpty(omniCode)) omniCode = ParameterHelpers.GetString(el, "STING_OMNICLASS_23");
+            if (string.IsNullOrEmpty(omniCode)) omniCode = ParameterHelpers.GetString(el, "CLS_OMNICLASS_NR_TXT");
+            string omniTitle = ParameterHelpers.GetString(el, "CLS_OMNICLASS_TITLE_TXT");
+
             if (!string.IsNullOrEmpty(csiSection))
             {
                 try
@@ -303,7 +333,9 @@ namespace StingTools.BOQ
                 QuantityMeasured = quantityMeasured,
                 RateIncludesOhp = rateIncludesOhp,
                 CsiSection = csiSection,
-                CsiTitle = csiTitle
+                CsiTitle = csiTitle,
+                OmniClassCode = omniCode ?? "",
+                OmniClassTitle = omniTitle ?? ""
             };
 
             // Phase H1 (KUT lifecycle) — the SPEC writes the bill. When the element's

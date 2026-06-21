@@ -81,7 +81,21 @@ namespace StingTools.Commands.Classification
             });
         }
 
-        public static void Invalidate() { _nrm2Cache.Clear(); _unitCache.Clear(); _specCache.Clear(); }
+        // Phase 197 — per-document cache of the parsed rule list so the BOQ build can
+        // resolve an element's MasterFormat section straight from the map when the
+        // element hasn't been CSI_Assign-stamped yet (keeps the bill's MasterFormat
+        // column populated for the whole model, not just stamped elements).
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<CsiRule>> _rulesCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, List<CsiRule>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Parsed corporate + project-overlay CSI rules, cached per document.</summary>
+        public static List<CsiRule> Rules(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            return _rulesCache.GetOrAdd(key, _unused => Load(doc, out int _, out int _));
+        }
+
+        public static void Invalidate() { _nrm2Cache.Clear(); _unitCache.Clear(); _specCache.Clear(); _rulesCache.Clear(); }
 
         // ── Phase H1 (KUT lifecycle) — CSI section → preferred-unit + spec store ──
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, string>> _unitCache

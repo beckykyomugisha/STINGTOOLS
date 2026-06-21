@@ -3,6 +3,37 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 197 — dual classification on the BOQ: MasterFormat + OmniClass columns)
+
+KUT bills American: MasterFormat (CSI / OmniClass Table 22 = work results) is the
+spec/work-results axis; OmniClass (element/product) is the parallel classification.
+These aren't alternatives — the bill carries both. The NRM2 bill structure is kept
+(per the chosen "keep NRM2 bill + add both as columns" shape); each line now carries
+both codes.
+
+- **`BOQLineItem` gains `OmniClassCode` + `OmniClassTitle`** (`BOQModels.cs`,
+  cloned in snapshots). `CsiSection` / `CsiTitle` (MasterFormat) were already
+  carried by the Phase A bridge.
+- **`BOQCostManager.BuildLineItemFromElement`** populates OmniClass from
+  `ASS_OMNICLASS_TXT` → `STING_OMNICLASS_23` → ArchiCAD `CLS_OMNICLASS_NR_TXT`
+  (+ `CLS_OMNICLASS_TITLE_TXT`). It also resolves the MasterFormat section
+  **straight from the CSI map** when the element hasn't been `CSI_Assign`-stamped,
+  so the MasterFormat column is populated for the whole model, not just stamped
+  elements (the stamp still wins when present). New cached `CsiMap.Rules(doc)`
+  accessor (invalidated alongside the other CSI caches).
+- **Exports.** The basic XLSX (`BOQExportCommand`) renames the spec-ref column to
+  **"MasterFormat (CSI §)"** and adds an **"OmniClass"** column (col 15) on every
+  row; header/merge/width ranges extended 14 → 15. The professional tender export
+  (`BOQProfessionalExportCommand`) appends the OmniClass code to the per-line
+  `Specification: CSI …` citation so the QS bill cites both. JSON snapshots carry
+  the new fields automatically.
+
+Suite 164/165 (the 1 failure is the pre-existing `ConcreteGradeCarbon` regression,
+unrelated); main plugin builds clean vs Revit 2025. To use it on KUT: keep the
+NRM2 measurement standard, run `CSI_Assign` (or rely on the map fallback) so
+MasterFormat populates, and author/import OmniClass codes (family or ArchiCAD-IFC)
+so the OmniClass column fills — it's blank until OmniClass is on the elements.
+
 #### Completed (Phase 196 — per-project classification switch via classification_policy.json)
 
 The authoritative classification for BOQ grouping / COBie / IFC / handover was
