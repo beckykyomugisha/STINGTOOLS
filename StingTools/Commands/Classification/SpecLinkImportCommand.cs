@@ -41,9 +41,17 @@ namespace StingTools.Commands.Classification
 
             string specDir = Path.Combine(dir, "_BIM_COORD", "speclink");
             Directory.CreateDirectory(specDir);
+            // Newest export wins. A re-issued SpecLink manual is dropped beside
+            // the previous one; ordering by last-write-time DESCENDING + the
+            // first-seen-wins merge below means the most recent file's section
+            // text supersedes an older file's on a collision, without the user
+            // having to delete the superseded export.
             var csvs = Directory.EnumerateFiles(specDir, "*.csv", SearchOption.TopDirectoryOnly)
                 .Where(p => !Path.GetFileName(p).Equals("sections.json", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(p => p)
+                .Select(p => new FileInfo(p))
+                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                .ThenBy(fi => fi.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(fi => fi.FullName)
                 .ToList();
 
             if (csvs.Count == 0)
@@ -55,7 +63,8 @@ namespace StingTools.Commands.Classification
                 return Result.Cancelled;
             }
 
-            // Merge every CSV — earliest file + earliest row wins on a section collision.
+            // Merge — newest file (first in the time-ordered list) + earliest
+            // row within a file wins on a section collision.
             var merged = new Dictionary<string, SpecSection>(StringComparer.Ordinal);
             int rows = 0, files = 0;
             foreach (var p in csvs)
@@ -64,7 +73,13 @@ namespace StingTools.Commands.Classification
                 {
                     var part = SpecStore.ParseManualCsv(File.ReadAllLines(p));
                     files++;
-                    foreach (var kv in part) { rows++; if (!merged.ContainsKey(kv.Key)) merged[kv.Key] = kv.Value; }
+                    int added = 0;
+                    foreach (var kv in part)
+                    {
+                        rows++;
+                        if (!merged.ContainsKey(kv.Key)) { merged[kv.Key] = kv.Value; added++; }
+                    }
+                    StingLog.Info($"SpecLink import {Path.GetFileName(p)}: {added} new section(s) of {part.Count} (newer files take precedence).");
                 }
                 catch (Exception ex) { StingLog.Warn($"SpecLink import {Path.GetFileName(p)}: {ex.Message}"); }
             }
@@ -85,6 +100,7 @@ namespace StingTools.Commands.Classification
             TaskDialog.Show("SpecLink import",
                 $"Imported {merged.Count} spec section(s) from {files} CSV file(s) ({rows} rows read).\n" +
                 $"{withDesc} carry description text (these drive BOQ line descriptions).\n\n" +
+                "Newest export wins on a section collision — re-issued manuals supersede older drops automatically.\n\n" +
                 "Written:\n" + outPath + "\n\nRe-run a BOQ export — spec'd items now bill from the specification.");
             return Result.Succeeded;
         }
