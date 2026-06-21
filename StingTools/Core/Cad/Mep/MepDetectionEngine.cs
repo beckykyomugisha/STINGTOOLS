@@ -26,6 +26,63 @@ namespace StingTools.Core.Cad.Mep
         public double MountingHeightMm { get; set; }
         public string Category => Rule?.Category ?? "";
         public string BlockName => Block?.BlockName ?? "";
+        /// <summary>P2.1 — discipline inferred from the block's DWG layer (E/M/P/FP), or "".</summary>
+        public string LayerDiscipline { get; set; } = "";
+        /// <summary>P2.1 — discipline the matched rule's category implies.</summary>
+        public string RuleDiscipline { get; set; } = "";
+        /// <summary>P2.1 — true when the layer discipline is known and disagrees with the
+        /// rule's discipline (a low-confidence, block-name-only match to confirm).</summary>
+        public bool LayerMismatch { get; set; }
+    }
+
+    /// <summary>P2.1 — discipline corroboration: does the block's layer agree with the
+    /// discipline its matched fixture category implies? Reduces false positives from the
+    /// short 2-letter block-name tokens.</summary>
+    public static class MepFixtureDiscipline
+    {
+        // Block-name fixture category → expected discipline.
+        public static string OfCategory(string revitCategory)
+        {
+            switch (revitCategory)
+            {
+                case "Air Terminals":
+                case "Mechanical Equipment":   return "M";
+                case "Plumbing Fixtures":      return "P";
+                case "Sprinklers":
+                case "Fire Alarm Devices":     return "FP";
+                case "Electrical Fixtures":
+                case "Electrical Equipment":
+                case "Lighting Fixtures":
+                case "Data Devices":
+                case "Communication Devices":
+                case "Security Devices":
+                case "Nurse Call Devices":     return "E";
+                default: return "";
+            }
+        }
+
+        // LayerMapper category (Electrical/Ducts/Pipes/Plumbing/Fire Protection) → discipline.
+        public static string OfLayerCategory(string layerCategory)
+        {
+            switch (layerCategory)
+            {
+                case "Ducts":           return "M";
+                case "Pipes":
+                case "Plumbing":        return "P";
+                case "Fire Protection": return "FP";
+                case "Electrical":      return "E";
+                default: return "";   // arch/struct/unknown → no opinion
+            }
+        }
+
+        /// <summary>Compatible disciplines (exact, plus E↔FP since fire-alarm / safety
+        /// devices commonly share electrical layers).</summary>
+        public static bool Compatible(string layerDisc, string ruleDisc)
+        {
+            if (string.IsNullOrEmpty(layerDisc) || string.IsNullOrEmpty(ruleDisc)) return true;
+            if (layerDisc == ruleDisc) return true;
+            return (layerDisc == "E" && ruleDisc == "FP") || (layerDisc == "FP" && ruleDisc == "E");
+        }
     }
 
     /// <summary>Read-only outcome of an MEP detection pass over a DWG import.</summary>
@@ -37,6 +94,8 @@ namespace StingTools.Core.Cad.Mep
         /// <summary>V3 — riser blocks (UP/DN/RISER) → vertical run segments.</summary>
         public List<MepRiserCandidate> Risers { get; } = new List<MepRiserCandidate>();
         public int DrainageRunCount => Runs.Count(r => r.Drainage);
+        /// <summary>P2.1 — fixtures whose block-name match disagrees with the layer discipline.</summary>
+        public int LayerMismatchCount => Fixtures.Count(f => f.LayerMismatch);
         /// <summary>Block names that matched no fixture rule, with occurrence counts.</summary>
         public Dictionary<string, int> UnmatchedBlockCounts { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> LayerCounts { get; set; } = new Dictionary<string, int>();
@@ -136,11 +195,18 @@ namespace StingTools.Core.Cad.Mep
                     result.UnmatchedBlockCounts[block.BlockName] = n + 1;
                     continue;
                 }
+                // P2.1 — corroborate the block-name match against the block's DWG layer.
+                string layerCat = LayerMapper.InferCategory(block.LayerName);
+                string layerDisc = MepFixtureDiscipline.OfLayerCategory(layerCat);
+                string ruleDisc = MepFixtureDiscipline.OfCategory(rule.Category);
                 result.Fixtures.Add(new MepDetectedFixture
                 {
                     Block = block,
                     Rule = rule,
                     MountingHeightMm = ResolveHeightMm(rule),
+                    LayerDiscipline = layerDisc,
+                    RuleDiscipline = ruleDisc,
+                    LayerMismatch = !MepFixtureDiscipline.Compatible(layerDisc, ruleDisc),
                 });
             }
             return result;
