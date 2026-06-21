@@ -168,7 +168,9 @@ public class AccConnector : IPlatformConnector
 
             var j = JObject.Parse(body);
             int total = (int?)j["pagination"]?["totalResults"] ?? ((j["results"] as JArray)?.Count ?? 0);
-            // Pull-only for now — pushing STING elements as ACC issues is a TODO.
+            // Element-centric pull-only path. The issue-centric PUSH (open Planscape
+            // BimIssues → ACC issues) lives in AccSyncService — it needs DB + BimIssue
+            // access the connector interface deliberately doesn't expose.
             return new PlatformSyncResult(true, PushedCount: 0, PulledCount: total);
         }
         catch (Exception ex) { return new PlatformSyncResult(false, Error: ex.Message); }
