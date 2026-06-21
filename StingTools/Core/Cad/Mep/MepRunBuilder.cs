@@ -124,6 +124,27 @@ namespace StingTools.Core.Cad.Mep
             }
             return MEPSystemClassification.UndefinedSystemClassification;
         }
+
+        /// <summary>P7-2.2 — the STING SYS tag code for a classification, so the STING SYS
+        /// token AGREES with the Revit system instead of being inferred independently. Empty
+        /// for ambiguous classifications (storm vs condensate) — the tag pipeline then derives
+        /// SYS as before (no regression).</summary>
+        public static string SysCodeFor(MEPSystemClassification cls)
+        {
+            switch (cls)
+            {
+                case MEPSystemClassification.SupplyAir:
+                case MEPSystemClassification.ReturnAir:
+                case MEPSystemClassification.ExhaustAir:
+                case MEPSystemClassification.SupplyHydronic:
+                case MEPSystemClassification.ReturnHydronic: return "HVAC";
+                case MEPSystemClassification.DomesticColdWater: return "DCW";
+                case MEPSystemClassification.DomesticHotWater:  return "DHW";
+                case MEPSystemClassification.Sanitary:
+                case MEPSystemClassification.Vent:              return "SAN";
+                default: return "";   // OtherPipe / Undefined → leave to the tag pipeline
+            }
+        }
     }
 
     public class MepRunBuildResult
@@ -144,6 +165,8 @@ namespace StingTools.Core.Cad.Mep
         public int ServiceDefaultedPipe { get; set; }
         /// <summary>P6-1.2 — runs whose applied size differs from the requested size (catalog snap).</summary>
         public int SizeSnapped { get; set; }
+        /// <summary>P7-2.2 — runs whose STING SYS token was set from the parsed DWG service.</summary>
+        public int SysFromService { get; set; }
         public int Tagged { get; set; }
         public void Bump(MepRunKind k) { ByKind.TryGetValue(k, out int n); ByKind[k] = n + 1; }
         public void BumpSystem(string name)
@@ -450,6 +473,7 @@ namespace StingTools.Core.Cad.Mep
                 Element el = CreateRun(run.Kind, run.Classification, a, b, levelId, result);
                 if (el == null) return null;
                 ApplySize(el, run.Kind, run.Size, result);
+                StampSys(el, run.Classification, result);
                 ModelWorksetAssigner.Assign(_doc, el);
                 result.CreatedIds.Add(el.Id);
                 result.Created++;
@@ -468,6 +492,20 @@ namespace StingTools.Core.Cad.Mep
                     result.Warnings.Add($"{run.Kind} on '{run.Line?.LayerName}': {ex.Message}");
                 return null;
             }
+        }
+
+        // P7-2.2 — stamp the STING SYS token from the parsed service classification BEFORE the
+        // post-commit tag pipeline (which runs overwrite:false, so this value is preserved),
+        // so the STING SYS tag agrees with the Revit system. No-op for ambiguous services.
+        private void StampSys(Element el, MEPSystemClassification cls, MepRunBuildResult result)
+        {
+            string sys = MepServiceClassifier.SysCodeFor(cls);
+            if (string.IsNullOrEmpty(sys)) return;
+            try
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: false)) result.SysFromService++;
+            }
+            catch (Exception ex) { StingLog.Warn($"MEP SYS stamp {el?.Id}: {ex.Message}"); }
         }
 
         // Planar (XY) length in feet — DWG run lines are planar; ignore any Z noise.
@@ -519,6 +557,7 @@ namespace StingTools.Core.Cad.Mep
                             var el = CreateRun(r.Kind, r.Classification, a, b, level.Id, result);
                             if (el == null) continue;
                             ApplySize(el, r.Kind, r.Size ?? MepRunClassifier.Default(r.Kind), result);
+                            StampSys(el, r.Classification, result);
                             ModelWorksetAssigner.Assign(_doc, el);
                             result.CreatedIds.Add(el.Id);
                             result.Created++;

@@ -3,6 +3,30 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P7-2: alignment — first-class STING data)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **2.1 Full tag pipeline — VERIFIED already satisfied (no change needed).** The
+  builders auto-tag via `MepBatch.AutoTag` → `ModelEngine.AutoTagCreatedElements`,
+  which already routes every created element through the canonical
+  `TagPipelineHelper.RunFullPipeline` (TypeTokenInherit → PopulateAll →
+  NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers →
+  WriteTag7 → GridRef). The "light path" the plan feared isn't present — converted
+  elements get the same full tagging as every other creation path.
+- **2.2 Service token → STING SYS tag** (the genuinely-open gap, now closed) —
+  `MepServiceClassifier.SysCodeFor` maps the parsed classification to a SYS code
+  (Supply/Return/Exhaust/Hydronic → HVAC, DCW, DHW, Sanitary/Vent → SAN; ambiguous
+  storm/condensate left to the pipeline). `MepRunBuilder` stamps `ASS_SYSTEM_TYPE_TXT`
+  on each run/riser BEFORE the post-commit pipeline (which runs `overwrite:false`, so
+  the value is preserved), so the **STING SYS tag now agrees with the Revit system**
+  instead of being inferred independently. Count reported.
+- **2.3 Compliance participation — partly already satisfied.**
+  `AutoTagCreatedElements` already calls `ComplianceScan.InvalidateCache()` (and runs
+  `WarningsEngine.ValidateModelElements`) after a conversion, so converted elements
+  show up in compliance. (The optional "offer to run RunAllValidators" UX prompt is
+  left for the geometry-moving P7-4/5 pass.)
+
 #### Completed (MEP-from-DWG — P6-4: consistency / DRY)
 
 **Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
