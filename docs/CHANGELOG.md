@@ -3,6 +3,34 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — preview honesty + housekeeping)
+
+Carry-over block before the P5 gap-closure pass. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **Hosted-family preview honesty** — MEP CAD Preview now resolves a
+  representative symbol per fixture category and reports how many fixtures
+  **will host** to a wall/ceiling vs are **forced unhosted** (the family is not a
+  hosted / work-plane type) vs placed free, so the preview matches what placement
+  will actually do. (`MepFixtureBuilder.PreviewResolveSymbol` / `HostIntentName`
+  / `FamilyIsHostable`.)
+- **Fitting routing-prefs pre-flight** — for each run kind present, preview
+  inspects the resolved run type's `RoutingPreferenceManager` and reports whether
+  it carries elbow + tee (junction) fitting families, so the user knows BEFORE
+  placing that junctions will (or won't) form. (`MepFittingBuilder.PreflightRoutingPrefs`;
+  `RoutingPreferenceManager`/`RoutingPreferenceRuleGroupType` marked
+  `TODO-VERIFY-API`.)
+- **Drainage fall-target filter (carry-over)** — `MepRunBuilder.Build` now passes
+  only `DrainageStack`-flagged risers to `MepDrainage.OrientFall`, so a drain
+  can't orient toward a supply/return riser that merely happens to be nearer.
+- **Cache-invalidation wiring** — `MepFixtureMap.Invalidate()` is now called from
+  `StingToolsApp.OnDocumentClosing`, alongside the HVAC/climate registries, so a
+  re-open re-reads the corporate baseline + project override.
+
+Still deferred (logged in ROADMAP): native numeric mounting-height param (blocked
+on the exact shared-param name/unit), per-layer type combo in the wizard, and
+collinear-segment merge.
+
 #### Completed (MEP-from-DWG — P2: matching precision — layer-corroborated fixtures + regex hardening)
 
 Reduces false positives on real consultant drawings and closes the run-vs-fixture

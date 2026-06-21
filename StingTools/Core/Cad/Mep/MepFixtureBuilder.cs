@@ -216,6 +216,48 @@ namespace StingTools.Core.Cad.Mep
             return t == FamilyPlacementType.OneLevelBasedHosted || t == FamilyPlacementType.WorkPlaneBased;
         }
 
+        // ── P3.1 preview honesty (public, side-effect-free) ──────────────────
+        public static bool FamilyIsHostable(FamilySymbol s) => IsHostable(s);
+
+        /// <summary>Host intent ("Wall"/"Ceiling"/"None") from a category + mounting reference,
+        /// so the preview can warn which fixtures will host vs be forced unhosted.</summary>
+        public static string HostIntentName(string category, string mountingReference)
+        {
+            if (string.Equals(mountingReference, "Ceiling", StringComparison.OrdinalIgnoreCase)) return "Ceiling";
+            if (WallMount.Contains(category ?? "")) return "Wall";
+            return "None";
+        }
+
+        /// <summary>Resolve the FamilySymbol a rule would place — read-only, no cache, no
+        /// warnings — for the preview's placement-type check. Mirrors ResolveSymbol's
+        /// category + family/type-hint matching; first match wins, else first-for-category.</summary>
+        public static FamilySymbol PreviewResolveSymbol(Document doc, string category, string familyHint, string typeHint)
+        {
+            if (doc == null || string.IsNullOrEmpty(category)) return null;
+            Regex famRx = SafeRx(familyHint), typeRx = SafeRx(typeHint);
+            FamilySymbol picked = null, first = null;
+            try
+            {
+                foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
+                {
+                    if (fs.Category == null ||
+                        !string.Equals(fs.Category.Name, category, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (first == null) first = fs;
+                    if (famRx != null && !famRx.IsMatch(fs.Family?.Name ?? "")) continue;
+                    if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
+                    picked = fs; break;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PreviewResolveSymbol '{category}': {ex.Message}"); }
+            return picked ?? first;
+        }
+
+        private static Regex SafeRx(string p)
+        {
+            if (string.IsNullOrEmpty(p)) return null;
+            try { return new Regex(p, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); } catch { return null; }
+        }
+
         /// <summary>Place hosted when possible, else unhosted on the level. Never throws
         /// the fixture away — any hosting failure falls back to the level-based instance.
         /// TODO-VERIFY-API: the host-overload behaviour (NewFamilyInstance(pt, symbol, host,
