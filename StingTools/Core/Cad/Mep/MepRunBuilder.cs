@@ -343,6 +343,9 @@ namespace StingTools.Core.Cad.Mep
         private ElementId _mechFallback, _pipeFallback;
         // P6-2.4 — resolve types/systems once; Build + BuildRisers share the result.
         private bool _typesResolved;
+        // P6-3 — data-driven run policy (offset / default size / fitting tolerance).
+        private MepRunRules _rules;
+        private MepRunRules Rules => _rules ?? (_rules = MepRunRulesRegistry.Get(_doc));
 
         public MepRunBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
@@ -364,7 +367,8 @@ namespace StingTools.Core.Cad.Mep
 
             double OffMm(MepRunCandidate r) => r.OffsetMm
                 ?? (offsetByKind != null && offsetByKind.TryGetValue(r.Kind, out double o) ? o
-                : MepRunClassifier.DefaultOffsetMm(r.Kind));
+                : Rules.OffsetMm(r.Kind));
+            double tolFt = Rules.FittingToleranceFt;
 
             var normal = runs.Where(r => r?.Line != null && !(r.Drainage && r.SlopePercent > 0)).ToList();
             var drains = runs.Where(r => r?.Line != null && r.Drainage && r.SlopePercent > 0).ToList();
@@ -392,9 +396,9 @@ namespace StingTools.Core.Cad.Mep
                     // Only DRAINAGE stacks are valid fall targets — a drain must not orient
                     // toward a supply/return riser that happens to be nearer.
                     var drainageStacks = stacks?.Where(s => s != null && s.DrainageStack).ToList();
-                    foreach (var chain in MepDrainage.Chain(drains, TolFt))
+                    foreach (var chain in MepDrainage.Chain(drains, tolFt))
                     {
-                        var fall = MepDrainage.OrientFall(chain, drainageStacks, TolFt);
+                        var fall = MepDrainage.OrientFall(chain, drainageStacks, tolFt);
                         double cur = level.Elevation + StingTools.Model.Units.Mm(OffMm(chain[0].Cand));
                         foreach (var seg in chain)
                         {
@@ -511,7 +515,7 @@ namespace StingTools.Core.Cad.Mep
                         // P1.4 — base the riser at the RUN elevation (level + per-kind offset),
                         // not the bare level, so its base end coincides with horizontal runs at
                         // the same XY and the combined fitting pass can join them.
-                        double off = StingTools.Model.Units.Mm(MepRunClassifier.DefaultOffsetMm(r.Kind));
+                        double off = StingTools.Model.Units.Mm(Rules.OffsetMm(r.Kind));
                         double baseE = curE + off;
                         var above = sorted.FirstOrDefault(l => l.Elevation > curE + 0.1);
                         var below = sorted.LastOrDefault(l => l.Elevation < curE - 0.1);

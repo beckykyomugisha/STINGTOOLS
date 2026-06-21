@@ -180,6 +180,11 @@ namespace StingTools.Core.Cad.Mep
             result.TotalBlocks = extraction.Blocks?.Count ?? 0;
             result.TotalLines = extraction.Lines?.Count ?? 0;
 
+            // P6-3 — run policy (default size / offset / drainage fall / service map) from
+            // STING_DWG_RUN_RULES.json (+ project override). Defaults reproduce the previous
+            // hardcoded values, so an un-customised project is unchanged.
+            var rules = MepRunRulesRegistry.Get(_doc);
+
             // V2 — classify extracted lines on MEP layers into straight-run candidates.
             // Length floor filters short fixture-internal lines; run-kind requires an
             // explicit run keyword (or Ducts/Pipes category) so power-layer symbol
@@ -191,14 +196,18 @@ namespace StingTools.Core.Cad.Mep
                 var kind = MepRunClassifier.DetectKind(line.LayerName, line.Category);
                 if (kind == null) continue;
                 bool drainage = kind == MepRunKind.Pipe && MepRunClassifier.IsDrainage(line.LayerName);
-                var cls = MepServiceClassifier.Classify(line.LayerName, kind.Value, out bool svcDefaulted);
+                var cls = rules.Classify(line.LayerName, kind.Value, out bool svcDefaulted);
+                // Layer-parsed size wins; otherwise the (data-driven) per-kind default.
+                var size = MepRunClassifier.ParseSize(line.LayerName, kind.Value);
+                if (!size.FromLayer) size = rules.DefaultSize(kind.Value);
+                double dia = size.IsRound ? size.DiameterMm : size.WidthMm;
                 result.Runs.Add(new MepRunCandidate
                 {
                     Line = line,
                     Kind = kind.Value,
-                    Size = MepRunClassifier.ParseSize(line.LayerName, kind.Value),
+                    Size = size,
                     Drainage = drainage,
-                    SlopePercent = drainage ? MepRunClassifier.DefaultDrainageSlopePercent : 0,
+                    SlopePercent = drainage ? rules.SlopePercentForDiameter(dia) : 0,
                     Classification = cls,
                     ServiceDefaulted = svcDefaulted,
                 });
@@ -221,7 +230,7 @@ namespace StingTools.Core.Cad.Mep
                         Size = MepRunClassifier.Default(rk),
                         Up = up,
                         BlockName = block.BlockName,
-                        Classification = MepServiceClassifier.Classify(block.LayerName, rk),
+                        Classification = rules.Classify(block.LayerName, rk, out _),
                         DrainageStack = !up || MepRunClassifier.IsDrainage(block.LayerName),
                     });
                     continue;

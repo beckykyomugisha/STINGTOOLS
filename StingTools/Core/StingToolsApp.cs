@@ -365,6 +365,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"MEP fixture-map invalidate: {cEx.Message}"); }
                 try { Core.Cad.Mep.MepDetectionEngine.InvalidateCache(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"MEP detection cache invalidate: {cEx.Message}"); }
+                try { Core.Cad.Mep.MepRunRulesRegistry.Invalidate(); }
+                catch (Exception cEx) { StingLog.Warn($"MEP run-rules invalidate: {cEx.Message}"); }
                 // PBR Material Hub: drop per-document PBR state cache.
                 try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }

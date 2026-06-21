@@ -61,6 +61,8 @@ namespace StingTools.Core.Cad.Mep
         // replacing the old per-builder category index. Built once per Place() call;
         // owns its own symbol cache and surfaced MissingContent list.
         private ContentResolver _resolver;
+        // P6-3 — wall-mount category set from the (data-driven) run rules; loaded per Place().
+        private HashSet<string> _wallMount;
 
         public MepFixtureBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
@@ -75,6 +77,7 @@ namespace StingTools.Core.Cad.Mep
             // doesn't contain yet; the resolver pulls it from the content library
             // (firm/project/baseline roots) and records misses instead of skipping silently.
             _resolver = new ContentResolver(_doc, ContentManifestRegistry.Get(_doc));
+            _wallMount = MepRunRulesRegistry.Get(_doc).WallMountSet();
 
             // Pre-collect potential hosts once. P6-2.2 — walls go into a coarse XY grid
             // (one cell = the snap tolerance) so each fixture queries only its cell ±1
@@ -200,11 +203,12 @@ namespace StingTools.Core.Cad.Mep
             "Security Devices", "Fire Alarm Devices", "Nurse Call Devices"
         };
 
-        private static HostIntent HostIntentFor(MepDetectedFixture fx)
+        private HostIntent HostIntentFor(MepDetectedFixture fx)
         {
             if (string.Equals(fx.Rule?.MountingReference, "Ceiling", StringComparison.OrdinalIgnoreCase))
                 return HostIntent.Ceiling;
-            if (WallMount.Contains(fx.Category)) return HostIntent.Wall;
+            var set = _wallMount ?? WallMount;
+            if (set.Contains(fx.Category)) return HostIntent.Wall;
             return HostIntent.None;
         }
 
