@@ -1,0 +1,99 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { AppShell } from '@/components/AppShell';
+import { getProject, listIssues } from '@/lib/data';
+import type { Project, BimIssue, IssueStatus } from '@/lib/types';
+
+const FILTERS: (IssueStatus | 'ALL')[] = ['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+
+const priorityClass: Record<string, string> = {
+  CRITICAL: 'bg-red-100 text-red-700',
+  HIGH: 'bg-orange-100 text-orange-700',
+  MEDIUM: 'bg-amber-100 text-amber-700',
+  LOW: 'bg-slate-100 text-slate-600',
+};
+
+export default function ProjectPage() {
+  const params = useParams<{ id: string }>();
+  const projectId = params.id;
+  const [project, setProject] = useState<Project | null>(null);
+  const [issues, setIssues] = useState<BimIssue[] | null>(null);
+  const [filter, setFilter] = useState<IssueStatus | 'ALL'>('OPEN');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getProject(projectId).then(setProject).catch(() => {});
+  }, [projectId]);
+
+  useEffect(() => {
+    setIssues(null);
+    setError(null);
+    listIssues(projectId, filter === 'ALL' ? undefined : filter)
+      .then(setIssues)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load issues'));
+  }, [projectId, filter]);
+
+  return (
+    <AppShell>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <Link href="/projects" className="text-sm text-slate-400 hover:underline">
+            ← Projects
+          </Link>
+          <h1 className="text-xl font-semibold">{project?.name ?? 'Project'}</h1>
+          {project?.code && <p className="text-xs text-slate-400">{project.code}</p>}
+        </div>
+        <Link
+          href={`/projects/${projectId}/issues/new`}
+          className="shrink-0 rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          New issue
+        </Link>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-2">
+        {FILTERS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`rounded-full px-3 py-1 text-xs ${
+              filter === s ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'
+            }`}
+          >
+            {s.replace('_', ' ')}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {!issues && !error && <p className="text-slate-400">Loading…</p>}
+      {issues && issues.length === 0 && <p className="text-slate-500">No issues.</p>}
+
+      <ul className="space-y-2">
+        {issues?.map((i) => (
+          <li key={i.id}>
+            <Link
+              href={`/projects/${projectId}/issues/${i.id}`}
+              className="block rounded-lg bg-white p-3 ring-1 ring-slate-200 transition hover:ring-blue-300"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium">{i.title}</span>
+                <span className={`shrink-0 rounded px-2 py-0.5 text-xs ${priorityClass[i.priority] ?? 'bg-slate-100 text-slate-600'}`}>
+                  {i.priority}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                {i.status.replace('_', ' ')}
+                {i.discipline ? ` · ${i.discipline}` : ''}
+                {i.assignee ? ` · ${i.assignee}` : ''}
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </AppShell>
+  );
+}

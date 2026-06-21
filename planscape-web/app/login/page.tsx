@@ -18,7 +18,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await login(email.trim(), password);
-      router.replace('/dashboard');
+      router.replace('/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.');
     } finally {
