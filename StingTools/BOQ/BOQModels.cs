@@ -64,6 +64,24 @@ namespace StingTools.BOQ
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
 
+        /// <summary>
+        /// FIX #1 — false when <see cref="Quantity"/> is a 1.0 placeholder that
+        /// DeriveQuantity fell back to because a MEASURED unit (m²/m³/m/kg/tonne)
+        /// could not read its source geometry/parameter. A genuine count of 1 on
+        /// an each/item row stays true. Surfaced as "UNMEASURED" in exports and
+        /// forces RateConfidence down so a high-confidence rate over a placeholder
+        /// quantity can no longer masquerade as a trustworthy total.
+        /// </summary>
+        public bool QuantityMeasured = true;
+
+        /// <summary>
+        /// FIX #6 — true when the unit rate already carries overhead+profit
+        /// (e.g. a fully-loaded Extensible-Storage rate override). Such rows are
+        /// excluded from the document-level OH&amp;P markup base so OH&amp;P is not
+        /// applied twice. See <see cref="BoqTotals"/>.
+        /// </summary>
+        public bool RateIncludesOhp = false;
+
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
 
@@ -99,7 +117,9 @@ namespace StingTools.BOQ
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
-                SortOrder = this.SortOrder
+                SortOrder = this.SortOrder,
+                QuantityMeasured = this.QuantityMeasured,
+                RateIncludesOhp = this.RateIncludesOhp
             };
         }
     }
@@ -147,6 +167,13 @@ namespace StingTools.BOQ
         public double OverheadPct = 8.0;
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
+        /// <summary>FIX #4 — VAT is now a first-class document field so the
+        /// model grand total and the tender contract sum are computed the same
+        /// way. Default 18% (Uganda standard rate).</summary>
+        public double VatPct = 18.0;
+        /// <summary>FIX #3 — markup application mode: "cascade" (NRM-aligned,
+        /// default) or "flat" (legacy additive). Set from COST_MARKUP_MODE.</summary>
+        public string MarkupModeName = "cascade";
         /// <summary>
         /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
         /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
@@ -159,8 +186,29 @@ namespace StingTools.BOQ
         public double ModeledTotalUGX => AllItems.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvTotalUGX => AllItems.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double SubtotalUGX => AllItems.Sum(i => i.TotalUGX);
-        public double GrandTotalUGX =>
-            Math.Round(SubtotalUGX * (1 + PrelimPct / 100.0 + ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
+
+        /// <summary>FIX #6 — net works EXCLUDING lines whose rate already carries
+        /// overhead+profit, used as the OH&amp;P markup base so loaded rates are
+        /// not marked up twice.</summary>
+        public double OhpBaseWorksUGX => AllItems.Where(i => !i.RateIncludesOhp).Sum(i => i.TotalUGX);
+
+        /// <summary>FIX #3/#4 — the one place markups + VAT are applied. Every
+        /// summary figure below reads from this so the model, the basic export,
+        /// the tender export and the snapshot list agree to the shilling.</summary>
+        public BoqTotalsResult Totals() => BoqTotals.Compute(
+            SubtotalUGX, OhpBaseWorksUGX, PrelimPct, OverheadPct, ContingencyPct, VatPct,
+            BoqTotals.ParseMode(MarkupModeName));
+
+        public double PreliminariesUGX => Totals().Preliminaries;
+        public double OverheadProfitUGX => Totals().OverheadProfit;
+        public double ContingencyUGX => Totals().Contingency;
+        /// <summary>Works cost incl. preliminaries + OH&amp;P + contingency,
+        /// EXCLUSIVE of VAT. (Renamed semantics: was additive, now cascade.)</summary>
+        public double GrandTotalUGX => Totals().SubTotalExclVat;
+        public double VatUGX => Totals().Vat;
+        /// <summary>GrandTotal + VAT — the figure a contractor signs.</summary>
+        public double ContractSumUGX => Totals().ContractSum;
+
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
         public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);

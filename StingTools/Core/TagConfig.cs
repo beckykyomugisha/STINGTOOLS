@@ -345,6 +345,33 @@ namespace StingTools.Core
             return defaultValue;
         }
 
+        /// <summary>Generic string config getter — mirrors GetConfigDouble.
+        /// Reads from the cached project_config.json JObject.</summary>
+        internal static string GetConfigString(string key, string defaultValue)
+        {
+            try
+            {
+                string path = ConfigSource;
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return defaultValue;
+
+                var lastWrite = System.IO.File.GetLastWriteTimeUtc(path);
+                if (_cachedConfigObj == null || _cachedConfigPath != path || _cachedConfigModified != lastWrite)
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    _cachedConfigObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    _cachedConfigPath = path;
+                    _cachedConfigModified = lastWrite;
+                }
+
+                var token = _cachedConfigObj[key];
+                if (token == null) return defaultValue;
+                string s = token.ToString();
+                return string.IsNullOrWhiteSpace(s) ? defaultValue : s;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetConfigString({key}): {ex.Message}"); }
+            return defaultValue;
+        }
+
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 

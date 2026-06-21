@@ -3,6 +3,57 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 — BOQ accuracy hardening for production sign-off)
+
+Closes ten accuracy findings from a production-readiness review of the
+BOQ & Cost Manager. Two produced *confidently-wrong* numbers with no
+warning; the markup math did not follow NRM/estimating convention; and
+three independent code paths computed the grand total inconsistently.
+**Compile-verified against Revit 2025 (0 errors)** — not the usual
+Linux-sandbox caveat — and the pure arithmetic is locked by 21 new
+xUnit tests (`BoqUnitsTests`, `BoqTotalsTests`).
+
+**New pure, host-free helpers** (linked into `StingTools.Boq.Tests`):
+- `BOQ/BoqTotals.cs` — single source of truth for summary arithmetic.
+  NRM cascade by default (OH&P on works+prelims; contingency on
+  construction cost); `flat` legacy mode opt-in via `COST_MARKUP_MODE`.
+  Emits net → prelims → OH&P → contingency → sub-total → VAT →
+  contract sum.
+- `BOQ/BoqUnits.cs` — unit normalisation that stops aliasing tonne onto
+  kg, plus `MassKgToRateUnit` (the ÷1000 a per-tonne rate needs).
+
+**Fixes:**
+1. **#1 Silent `1.0` quantity fallback now flagged.** `DeriveQuantity`
+   returns a `measured` flag; an unmeasured row is capped to confidence
+   ≤ 25 and rendered amber + "⚠ UNMEASURED" in exports, so a
+   high-confidence rate over a placeholder quantity can no longer
+   masquerade as a real total. (`BOQLineItem.QuantityMeasured`.)
+2. **#2 Volumetric cost gained the geometry fallback the carbon path
+   already had** — columns/foundations priced per m³ without
+   `HOST_VOLUME_COMPUTED` are measured from real solid geometry, not 1 m³.
+3. **#3 Markup cascade.** Prelims/OH&P/contingency were each a flat % of
+   net works, summed (~3% understatement vs NRM). Now cascaded,
+   centralised in `BoqTotals`.
+4. **#4 One grand total.** Model `GrandTotalUGX` (works, excl VAT), the
+   basic export and the tender export all route through `BoqTotals`;
+   VAT + `ContractSumUGX` are first-class fields, labelled excl/incl VAT.
+5. **#5 Latent 1000× tonne bug.** Tonne is a distinct unit token and a
+   per-tonne rate scales the kilogram measurement ÷1000 (legacy path +
+   `TakeoffRule` `kg_to_tonne`).
+6. **#6 OH&P double-count removed.** A fully-loaded ES rate override sets
+   `RateLookup.RateIncludesOhp`; such lines are excluded from the
+   document-level OH&P base (`BOQDocument.OhpBaseWorksUGX`).
+7. **#7 Honest measurement-standard disclosure** — header now states the
+   5 standards re-classify but do NOT re-measure.
+8. **#8 Prelims-as-%** documented as an order-of-cost simplification.
+9. **#9 Snapshot dropdown total** reads contingency/overhead/VAT/mode
+   from the snapshot (was hardcoded 10/8) and uses `BoqTotals`.
+10. **#10 Tender provenance caveat** printed on the Grand Summary when a
+    priced/contract copy rests on unverified rates or unmeasured qtys.
+
+New config knobs: `COST_VAT_PCT` (18), `COST_MARKUP_MODE`
+(`cascade`|`flat`). New `TagConfig.GetConfigString`.
+
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 
 PR #324 (Phase 193) fixed the recurring "Inconsistent Units" error by

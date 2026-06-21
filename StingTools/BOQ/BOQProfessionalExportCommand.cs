@@ -1529,21 +1529,32 @@ namespace StingTools.BOQ
 
             SheetBanner(ws, "GRAND SUMMARY", m);
 
+            // FIX #3/#4/#6 — markups + VAT via the single-source BoqTotals helper
+            // (NRM cascade by default) so the tender contract sum is computed the
+            // same way as the model dashboard and the basic export. The OH&P base
+            // excludes fully-loaded override lines (same ratio the document uses).
             double measured = rows.Sum(x => x.TotalUGX);
-            double prelims = measured * (m.PrelimPct / 100.0);
-            double contingency = measured * (m.ContingencyPct / 100.0);
-            double overhead = measured * (m.OverheadPct / 100.0);
-            double subTotal = measured + prelims + contingency + overhead;
-            double vat = subTotal * (m.VatPct / 100.0);
-            double contractSum = subTotal + vat;
+            double ohpBase = boq.SubtotalUGX > 0
+                ? measured * (boq.OhpBaseWorksUGX / boq.SubtotalUGX)
+                : measured;
+            var totals = BoqTotals.Compute(measured, ohpBase,
+                m.PrelimPct, m.OverheadPct, m.ContingencyPct, m.VatPct,
+                BoqTotals.ParseMode(boq.MarkupModeName));
+            double prelims = totals.Preliminaries;
+            double contingency = totals.Contingency;
+            double overhead = totals.OverheadProfit;
+            double subTotal = totals.SubTotalExclVat;
+            double vat = totals.Vat;
+            double contractSum = totals.ContractSum;
+            string modeLabel = totals.Mode == MarkupMode.Cascade ? "cascaded bases, NRM" : "flat % of works";
 
             int r = 5;
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>
             {
                 ("A", "Total Measured Works (from Collections)", measured, false),
                 ("B", $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
-                ("C", $"Contingency ({m.ContingencyPct:F1}%)", contingency, false),
-                ("D", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}%)", overhead, false),
+                ("C", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}% — {modeLabel})", overhead, false),
+                ("D", $"Contingency ({m.ContingencyPct:F1}% — {modeLabel})", contingency, false),
                 (null, null, null, false),
                 ("",  "SUB-TOTAL EXCLUSIVE OF TAX", subTotal, true),
                 (null, null, null, false),
@@ -1594,6 +1605,34 @@ namespace StingTools.BOQ
                     ws.Row(r).Height = 22;
                 }
                 r++;
+            }
+
+            // FIX #10 — rate/quantity provenance caveat. A tender or contract
+            // copy issued while a material share of the value still rests on
+            // unverified baseline rates or placeholder quantities is a real
+            // commercial risk; surface it on the very sheet that carries the
+            // contract sum rather than burying it.
+            double unverifiedVal = boq.AllItems
+                .Where(i => i.RateConfidence < 70
+                    || string.Equals(i.RateSource, "Default", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase))
+                .Sum(i => i.TotalUGX);
+            double unmeasuredVal = boq.AllItems.Where(i => !i.QuantityMeasured).Sum(i => i.TotalUGX);
+            double net = measured > 0 ? measured : 1;
+            double unverifiedPct = 100.0 * unverifiedVal / net;
+            double unmeasuredPct = 100.0 * unmeasuredVal / net;
+            if (unverifiedPct >= 1 || unmeasuredPct >= 1)
+            {
+                r += 2;
+                bool priced = tcfg != null && tcfg.PricingMode != BOQPricingMode.TenderIssue;
+                string sev = (priced && (unverifiedPct >= 25 || unmeasuredPct >= 10)) ? "⚠ CAUTION" : "Note";
+                ws.Cell(r, 3).Value =
+                    $"{sev}: {unverifiedPct:F0}% of the measured-works value rests on unverified / baseline rates " +
+                    $"and {unmeasuredPct:F0}% on placeholder (unmeasured) quantities. Verify before relying on the contract sum.";
+                ws.Range(r, 3, r, 4).Merge().Style.Alignment.SetWrapText(true)
+                    .Font.SetFontName(BodyFont).Font.SetFontSize(9).Font.SetItalic(true)
+                    .Font.SetFontColor(sev.StartsWith("⚠") ? XLColor.FromArgb(150, 40, 40) : XLColor.FromArgb(110, 110, 110));
+                ws.Row(r).Height = 30;
             }
 
             // Currency note

@@ -191,7 +191,8 @@ namespace StingTools.BOQ.Rates
                 FetchedUtc = lookup.FetchedUtc,
                 Confidence = lookup.Confidence,
                 Provenance = $"{lookup.Provenance} (FX {lookup.CurrencyCode}→{targetCurrency})",
-                MatchedKey = lookup.MatchedKey
+                MatchedKey = lookup.MatchedKey,
+                RateIncludesOhp = lookup.RateIncludesOhp
             };
         }
 

@@ -17,6 +17,17 @@
 //  is intentionally minimal here — the interface + 5 implementations
 //  unlock multi-standard exports and let project work refine the
 //  per-standard grammar against real data.
+//
+//  ── ACCURACY DISCLOSURE (audit #7) — READ BEFORE RELYING ON THIS ──────────
+//  These standards re-CLASSIFY rows (section/group codes + description
+//  grammar). They do NOT re-MEASURE: the quantity on a line is derived once
+//  by BOQCostManager.DeriveQuantity (Revit geometry) and is NOT recomputed
+//  per standard. `ApplyDeductions` returns the quantity UNCHANGED for NRM2 /
+//  POMI / ICMS3 / MMHW, and the CESMM4 opening-deduction is a STUB that
+//  currently deducts 0 (it needs Wall.FindInserts host traversal — not yet
+//  implemented). `PreferredUnit` is an advisory hint and does not drive the
+//  measured quantity. Treat standard selection as a presentation/coding
+//  choice, not as a guarantee of standard-compliant measurement.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Concurrent;

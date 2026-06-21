@@ -81,6 +81,13 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>Optional matched key (category name, PROD code, MAT_CODE) — useful for logging.</summary>
         public string MatchedKey { get; set; } = "";
+
+        /// <summary>
+        /// FIX #6 — true when this rate already carries overhead+profit (e.g. a
+        /// fully-loaded Extensible-Storage override). The line is then excluded
+        /// from the document-level OH&amp;P markup base so OH&amp;P is applied once.
+        /// </summary>
+        public bool RateIncludesOhp { get; set; } = false;
     }
 
     /// <summary>

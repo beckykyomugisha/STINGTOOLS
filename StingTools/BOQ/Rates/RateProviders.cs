@@ -113,7 +113,10 @@ namespace StingTools.BOQ.Rates
                     SourceId = Id,
                     Confidence = 95,
                     Provenance = provenance,
-                    MatchedKey = req.Element.UniqueId
+                    MatchedKey = req.Element.UniqueId,
+                    // FIX #6 — flag so the document-level OH&P markup skips this
+                    // line (its rate already carries the OH&P we just loaded).
+                    RateIncludesOhp = ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0
                 };
             }
             catch (Exception ex)

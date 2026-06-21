@@ -158,15 +158,22 @@ namespace StingTools.BOQ
             ws.Cell(r, 4).Value = boq.ModeledTotalUGX;
             ws.Cell(r, 5).Value = "Provisional:"; ws.Cell(r, 5).Style.Font.SetBold();
             ws.Cell(r, 6).Value = boq.ProvTotalUGX;
-            ws.Cell(r, 7).Value = "Grand total:"; ws.Cell(r, 7).Style.Font.SetBold();
+            ws.Cell(r, 7).Value = "Works (ex VAT):"; ws.Cell(r, 7).Style.Font.SetBold();
             ws.Cell(r, 8).Value = boq.GrandTotalUGX;
             ws.Cell(r, 9).Value = "Coverage:"; ws.Cell(r, 9).Style.Font.SetBold();
             ws.Cell(r, 10).Value = boq.BudgetCoveragePct / 100.0; ws.Cell(r, 10).Style.NumberFormat.Format = "0.0%";
             ws.Cell(r, 11).Value = "Carbon:"; ws.Cell(r, 11).Style.Font.SetBold();
             ws.Cell(r, 12).Value = boq.TotalCarbonKg; ws.Cell(r, 13).Value = "kgCO₂e";
 
-            // Row 6 — column headers
-            int hr = 6;
+            // Row 5 — VAT + contract sum strip (FIX #4 — VAT now shown here too).
+            int r2 = 5;
+            ws.Cell(r2, 5).Value = $"VAT ({boq.VatPct:F0}%):"; ws.Cell(r2, 5).Style.Font.SetBold();
+            ws.Cell(r2, 6).Value = boq.VatUGX;
+            ws.Cell(r2, 7).Value = "Contract sum:"; ws.Cell(r2, 7).Style.Font.SetBold();
+            ws.Cell(r2, 8).Value = boq.ContractSumUGX; ws.Cell(r2, 8).Style.Font.SetBold();
+
+            // Row 7 — column headers
+            int hr = 7;
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note" };
             for (int i = 0; i < cols.Length; i++)
@@ -198,6 +205,10 @@ namespace StingTools.BOQ
                     ws.Cell(row, 3).Style.Alignment.WrapText = true;
                     ws.Cell(row, 4).Value = item.Unit ?? "";
                     ws.Cell(row, 5).Value = item.Quantity; ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.000";
+                    // FIX #1 — an unmeasured (placeholder 1.0) quantity is tinted
+                    // amber so a reviewer cannot mistake it for a real take-off.
+                    if (!item.QuantityMeasured)
+                        ws.Cell(row, 5).Style.Fill.SetBackgroundColor(XLColor.FromArgb(255, 235, 200));
                     ws.Cell(row, 6).Value = item.RateUGX; ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0";
                     ws.Cell(row, 7).FormulaA1 = $"E{row}*F{row}"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
                     ws.Cell(row, 8).Value = item.RateUSD; ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
@@ -205,7 +216,7 @@ namespace StingTools.BOQ
                     ws.Cell(row, 10).Value = SourceLabel(item.Source);
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
-                    ws.Cell(row, 13).Value = item.Note ?? "";
+                    ws.Cell(row, 13).Value = (!item.QuantityMeasured ? "⚠ UNMEASURED (qty is a 1.0 placeholder) " : "") + (item.Note ?? "");
                     if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 13).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
                     row++;
                 }
@@ -214,17 +225,27 @@ namespace StingTools.BOQ
             // Totals block — 3 blank rows then subtotals
             row += 3;
             int firstDataRow = hr + 1;
-            ws.Cell(row, 6).Value = "Subtotal"; ws.Cell(row, 6).Style.Font.SetBold();
-            ws.Cell(row, 7).FormulaA1 = $"SUM(G{firstDataRow}:G{row - 4})"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
-            int subtotalRow = row; row++;
+            // FIX #3/#4 — markups + VAT computed by the single-source BoqTotals
+            // helper (cascade by default), written as values so this sheet, the
+            // model dashboard and the tender export agree to the shilling.
+            string markupNote = boq.MarkupModeName?.Trim().ToLowerInvariant() == "flat" ? "flat" : "cascade NRM";
+            ws.Cell(row, 6).Value = "Net measured works"; ws.Cell(row, 6).Style.Font.SetBold();
+            ws.Cell(row, 7).FormulaA1 = $"SUM(G{firstDataRow}:G{row - 4})"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
             ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
-            ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.PrelimPct / 100:F4}"; row++;
-            ws.Cell(row, 6).Value = $"Contingency ({boq.ContingencyPct:F0}%)";
-            ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.ContingencyPct / 100:F4}"; row++;
-            ws.Cell(row, 6).Value = $"Overhead & profit ({boq.OverheadPct:F0}%)";
-            ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.OverheadPct / 100:F4}"; row++;
-            ws.Cell(row, 6).Value = "GRAND TOTAL";
-            ws.Cell(row, 7).FormulaA1 = $"SUM(G{subtotalRow}:G{row - 1})";
+            ws.Cell(row, 7).Value = boq.PreliminariesUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            ws.Cell(row, 6).Value = $"Overhead & profit ({boq.OverheadPct:F0}%, {markupNote})";
+            ws.Cell(row, 7).Value = boq.OverheadProfitUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            ws.Cell(row, 6).Value = $"Contingency ({boq.ContingencyPct:F0}%, {markupNote})";
+            ws.Cell(row, 7).Value = boq.ContingencyUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            ws.Cell(row, 6).Value = "WORKS TOTAL (excl. VAT)";
+            ws.Cell(row, 7).Value = boq.GrandTotalUGX;
+            ws.Range(row, 6, row, 9).Style.Fill.SetBackgroundColor(HeaderFill)
+                .Font.SetFontColor(XLColor.White).Font.SetBold().Font.SetFontSize(11);
+            ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            ws.Cell(row, 6).Value = $"VAT ({boq.VatPct:F0}%)";
+            ws.Cell(row, 7).Value = boq.VatUGX; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0"; row++;
+            ws.Cell(row, 6).Value = "CONTRACT SUM (incl. VAT)";
+            ws.Cell(row, 7).Value = boq.ContractSumUGX;
             ws.Range(row, 6, row, 9).Style.Fill.SetBackgroundColor(NavyFill)
                 .Font.SetFontColor(XLColor.White).Font.SetBold().Font.SetFontSize(12);
             ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";

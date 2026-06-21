@@ -77,6 +77,10 @@ namespace StingTools.BOQ
             boq.PrelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
             boq.ContingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
             boq.OverheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
+            // FIX #3/#4 — VAT + markup mode are now document-level so every
+            // summary surface computes the contract sum identically.
+            boq.VatPct = TagConfig.GetConfigDouble("COST_VAT_PCT", 18.0);
+            boq.MarkupModeName = TagConfig.GetConfigString("COST_MARKUP_MODE", "cascade");
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
@@ -196,12 +200,18 @@ namespace StingTools.BOQ
             // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
             string rateSource;
             int rateConfidence;
+            bool rateIncludesOhp;
             (double rate, string unit, string description) picked = ResolveRate(
-                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence);
+                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence, out rateIncludesOhp);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
-            double quantity = DeriveQuantity(el, unit);
+            // FIX #1/#2 — quantity now reports whether it is a real measurement
+            // or a 1.0 placeholder. An unmeasured row has its confidence capped
+            // so it can never present as a trustworthy total.
+            bool quantityMeasured;
+            double quantity = DeriveQuantity(el, unit, out quantityMeasured);
+            if (!quantityMeasured) rateConfidence = Math.Min(rateConfidence, 25);
 
             // (b) Currency
             double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -247,7 +257,9 @@ namespace StingTools.BOQ
                 Location = GetLocationName(doc, el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
-                RateConfidence = rateConfidence
+                RateConfidence = rateConfidence,
+                QuantityMeasured = quantityMeasured,
+                RateIncludesOhp = rateIncludesOhp
             };
 
             // Mark provisional sums on the element if configured via existing parameter.
@@ -263,8 +275,9 @@ namespace StingTools.BOQ
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            out string rateSource, out int rateConfidence)
+            out string rateSource, out int rateConfidence, out bool rateIncludesOhp)
         {
+            rateIncludesOhp = false;
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -299,6 +312,7 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            rateIncludesOhp = lookup.RateIncludesOhp;
             return (lookup.UnitRate, lookup.Unit, lookup.MatchedKey ?? catName);
         }
 
@@ -312,20 +326,9 @@ namespace StingTools.BOQ
             return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string NormaliseUnit(string u)
-        {
-            if (string.IsNullOrEmpty(u)) return "";
-            string s = u.Trim().ToLowerInvariant();
-            switch (s)
-            {
-                case "m²": case "sqm": case "m2": return "m2";
-                case "m³": case "cum": case "m3": return "m3";
-                case "lm": case "lin-m": case "linear-m": case "m": return "m";
-                case "tonne": case "tonnes": case "t": case "kg": return "kg";
-                case "no": case "nr": case "item": case "each": case "ea": return "each";
-                default: return s;
-            }
-        }
+        // Delegates to BoqUnits (FIX #5 — tonne no longer aliased onto kg, so a
+        // kg rule and a tonne rate no longer falsely "align").
+        private static string NormaliseUnit(string u) => BoqUnits.Normalise(u);
 
         // Legacy RateSource labels — preserved so heat-maps and schedules
         // built against the old shape keep working.
@@ -346,8 +349,14 @@ namespace StingTools.BOQ
         // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity
         // so cost totals exactly match the existing 5D Cost Trace output.
 
-        private static double DeriveQuantity(Element el, string unit)
+        private static double DeriveQuantity(Element el, string unit, out bool measured)
         {
+            // FIX #1 — `measured` reports whether the returned quantity is a real
+            // measurement or a 1.0 "couldn't-measure" placeholder. Default true:
+            // an each/item count of 1 IS a genuine measure; only a measured unit
+            // (m²/m³/m/kg/tonne) that fails to read its geometry/param is false.
+            measured = true;
+
             // P0 refactor — first consult the data-driven TakeoffRuleRegistry.
             // When a rule matches AND its declared unit aligns with the
             // caller's requested unit, the rule's quantitySource +
@@ -370,6 +379,12 @@ namespace StingTools.BOQ
                         // pipeline lands in P5.2 once star-rates use it).
                         if (rule.WastePercent > 0)
                             q *= 1.0 + rule.WastePercent / 100.0;
+                        // A measured-unit rule whose quantitySource is not a
+                        // literal yet returned the 1.0 sentinel means the
+                        // geometry/param was absent — flag as unmeasured.
+                        measured = !(IsMeasuredUnit(rule.Unit)
+                            && !(rule.QuantitySource ?? "").StartsWith("literal:", StringComparison.OrdinalIgnoreCase)
+                            && Math.Abs(q - 1.0) < 1e-9);
                         return q;
                     }
                 }
@@ -407,22 +422,27 @@ namespace StingTools.BOQ
                 double concreteBuffer = MeasuredAddition.ConcreteOverOrderPercent(
                     IsConcreteElement(el), TagConfig.GetConfigDouble("CONCRETE_OVERORDER_PCT", 0.0));
 
-                switch ((unit ?? "").ToLowerInvariant())
+                // Normalised switch (BoqUnits) so synonyms collapse and tonne is
+                // handled distinctly from kg (FIX #5).
+                switch (BoqUnits.Normalise(unit))
                 {
-                    case "m²":
                     case "m2":
-                    case "sqm":
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
                         if (areaP != null && areaP.HasValue)
                             return WasteFactor.Apply(areaP.AsDouble() * 0.092903, unit, wastePct); // ft² → m²
+                        measured = false;
                         return 1.0;
-                    case "m³":
                     case "m3":
-                    case "cum":
-                        Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
-                        if (volP != null && volP.HasValue)
+                        // FIX #2 — give the cost m³ path the same geometry fallback
+                        // the carbon path already had, so columns/foundations priced
+                        // per m³ that don't expose HOST_VOLUME_COMPUTED are measured
+                        // from their real solid volume instead of defaulting to 1.0.
+                        double volM3 = ReadElementVolumeM3(el);          // HOST_VOLUME_COMPUTED → generic "Volume"
+                        if (volM3 <= 0) volM3 = ReadGeometryVolumeM3(el); // actual solid geometry
+                        if (volM3 > 0)
                             // waste + (opt-in) concrete over-order buffer, once.
-                            return MeasuredAddition.GrossUp(volP.AsDouble() * 0.0283168, unit, wastePct, concreteBuffer); // ft³ → m³
+                            return MeasuredAddition.GrossUp(volM3, unit, wastePct, concreteBuffer);
+                        measured = false;
                         return 1.0;
                     case "m":
                         if (el.Location is LocationCurve lc)
@@ -431,20 +451,41 @@ namespace StingTools.BOQ
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         if (lenP != null && lenP.HasValue)
                             return WasteFactor.Apply(lenP.AsDouble() * 0.3048, unit, wastePct);
+                        measured = false;
                         return 1.0;
                     case "kg":
+                        Parameter massKgP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        if (massKgP != null && massKgP.HasValue)
+                            // Revit internal mass is kilograms — rate is per kg, no scale.
+                            return MeasuredAddition.GrossUp(massKgP.AsDouble(), unit, wastePct, rebarLap);
+                        measured = false;
+                        return 1.0;
                     case "tonne":
-                    case "tonnes":
-                        Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
-                        if (massP != null && massP.HasValue)
-                            // waste + (opt-in) rebar lap allowance, once.
-                            return MeasuredAddition.GrossUp(massP.AsDouble(), unit, wastePct, rebarLap);
+                        // FIX #5 — measured mass is ALWAYS kilograms internally; a
+                        // per-tonne rate needs the ÷1000 scale (BoqUnits) or it
+                        // overcharges 1000×.
+                        Parameter massTP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        if (massTP != null && massTP.HasValue)
+                            return MeasuredAddition.GrossUp(
+                                BoqUnits.MassKgToRateUnit(massTP.AsDouble(), unit), unit, wastePct, rebarLap);
+                        measured = false;
                         return 1.0;
                     default:
+                        // each / item / unknown — a count of 1 is a genuine measure.
                         return 1.0;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
+            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); measured = false; return 1.0; }
+        }
+
+        // True when the unit denotes a measured material quantity (FIX #1).
+        private static bool IsMeasuredUnit(string unit)
+        {
+            switch (BoqUnits.Normalise(unit))
+            {
+                case "m2": case "m3": case "m": case "kg": case "tonne": return true;
+                default: return false;
+            }
         }
 
         // ── NRM2 paragraph resolution ──────────────────────────────────────
@@ -1143,10 +1184,17 @@ namespace StingTools.BOQ
                                             }
                                         }
                                     }
-                                    double pre = 12.0, con = 10.0, oh = 8.0;
-                                    double.TryParse(jo.Value<string>("PrelimPct") ?? "", NumberStyles.Any,
-                                        CultureInfo.InvariantCulture, out pre);
-                                    total = Math.Round(total * (1 + pre / 100 + con / 100 + oh / 100), 0);
+                                    // FIX #9 — read ALL markups (was: contingency
+                                    // + overhead hardcoded) and compute via the
+                                    // single-source helper so the dropdown total
+                                    // matches the document/exports exactly.
+                                    double pre = jo.Value<double?>("PrelimPct") ?? 12.0;
+                                    double con = jo.Value<double?>("ContingencyPct") ?? 10.0;
+                                    double oh = jo.Value<double?>("OverheadPct") ?? 8.0;
+                                    double vat = jo.Value<double?>("VatPct") ?? 18.0;
+                                    string mmode = jo.Value<string>("MarkupModeName") ?? "cascade";
+                                    total = BoqTotals.Compute(total, total, pre, oh, con, vat,
+                                        BoqTotals.ParseMode(mmode)).SubTotalExclVat;
                                 }
                             }
                         }

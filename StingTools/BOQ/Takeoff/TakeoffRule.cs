@@ -189,6 +189,9 @@ namespace StingTools.BOQ.Takeoff
                 case "ft2_to_m2": return value * 0.092903;
                 case "ft3_to_m3": return value * 0.0283168;
                 case "ft_to_m":   return value * 0.3048;
+                // FIX #5 — a per-tonne rate rule reading a kilogram mass source
+                // must scale ÷1000 or it overcharges 1000×.
+                case "kg_to_tonne": return value / 1000.0;
                 case "none":
                 default:          return value;
             }
