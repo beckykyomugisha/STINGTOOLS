@@ -70,6 +70,19 @@ public interface IFileStorageService
         string objectKey, string contentType, TimeSpan validFor, long maxBytes, CancellationToken ct = default);
 
     /// <summary>
+    /// Generate a short-lived presigned GET URL for an object so an external,
+    /// unauthenticated worker can pull the bytes directly (no API proxy, no
+    /// bearer). Used by the IFC→GLB converter sidecar, which fetches its
+    /// <c>sourceUrl</c> with a plain GET. Background jobs run without a tenant
+    /// context, so they pass <paramref name="bypassTenantCheck"/>.
+    /// Throws <see cref="NotSupportedException"/> on backends that can't
+    /// presign (local filesystem in dev) — callers must handle that and skip
+    /// conversion rather than crash.
+    /// </summary>
+    Task<string> GetPresignedGetUrlAsync(
+        string objectKey, TimeSpan validFor, CancellationToken ct = default, bool bypassTenantCheck = false);
+
+    /// <summary>
     /// Move (server-side copy + delete) an object from one key to
     /// another inside the same bucket. Used by the ClamAV scanner
     /// to promote <c>uploads/raw/...</c> → <c>safe/...</c> after the

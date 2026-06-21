@@ -32,6 +32,7 @@ public class ModelsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
+    private readonly IConverterClient _converter;
     private readonly ILogger<ModelsController> _logger;
 
     // Upload cap — glTF can be large but anything over this is almost certainly
@@ -41,10 +42,12 @@ public class ModelsController : ControllerBase
     public ModelsController(
         PlanscapeDbContext db,
         IFileStorageService storage,
+        IConverterClient converter,
         ILogger<ModelsController> logger)
     {
         _db = db;
         _storage = storage;
+        _converter = converter;
         _logger = logger;
     }
 
@@ -97,21 +100,23 @@ public class ModelsController : ControllerBase
 
         var format = InferFormat(req.File.FileName);
         // #1 (Empty 3D viewer) — the web viewer is GLTFLoader-only
-        // (viewer.html:782) and this endpoint serves the stored bytes verbatim
-        // (no conversion on the publish path; the converter sidecar's handlers
-        // are not yet written). Publishing IFC/RVT/OBJ/FBX therefore produced a
-        // "successful publish" that rendered an empty canvas. Reject non-glTF at
-        // the boundary so successful publish ⇒ viewable. The plugin's primary
-        // path already exports GLB (PublishModelCommand → RevitGltfExporter); to
-        // keep an IFC-first workflow, wire the converter to emit a GLB
-        // derivative and relax this check (also requires Converter__ApiBearer,
-        // finding #5).
-        if (format is not (ModelFormat.Glb or ModelFormat.Gltf))
+        // (viewer.html:782) and this endpoint serves the stored bytes verbatim.
+        // Publishing IFC/RVT/OBJ/FBX would produce a "successful publish" that
+        // renders an empty canvas, so non-glTF is rejected at the boundary —
+        // EXCEPT IFC when a converter sidecar is configured: then the IFC is
+        // stored as the source and a GLB derivative is generated asynchronously
+        // (the sidecar publishes the GLB back as a normal, renderable model).
+        // The plugin's primary path still exports GLB directly
+        // (PublishModelCommand → RevitGltfExporter).
+        bool willConvertIfc = format == ModelFormat.Ifc && _converter.IsConfigured;
+        if (format is not (ModelFormat.Glb or ModelFormat.Gltf) && !willConvertIfc)
             return BadRequest(new
             {
                 error = "unsupported_viewer_format",
                 format = format.ToString(),
-                message = "Only GLB/glTF are renderable by the viewer. Export/convert IFC/RVT/OBJ/FBX to GLB before publishing."
+                message = format == ModelFormat.Ifc
+                    ? "IFC upload needs the converter sidecar configured (Converter:BaseUrl). Export to GLB from Revit, or enable the converter."
+                    : "Only GLB/glTF are renderable by the viewer. Export/convert IFC/RVT/OBJ/FBX to GLB before publishing."
             });
         var project = await _db.Projects.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId, ct);
@@ -274,6 +279,23 @@ public class ModelsController : ControllerBase
         }
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
+
+        // IFC with a configured converter — kick off async IFC→GLB conversion.
+        // The IFC is retained as the source row; the sidecar publishes the
+        // renderable GLB back through this same endpoint as a separate model.
+        if (willConvertIfc)
+        {
+            Hangfire.BackgroundJob.Enqueue<Planscape.Infrastructure.Services.IfcToGlbConversionJob>(
+                j => j.ExecuteAsync(row.Id, CancellationToken.None));
+            _logger.LogInformation("Queued IFC→GLB conversion for model {ModelId}", row.Id);
+            return Accepted(new
+            {
+                id = row.Id,
+                format = row.Format.ToString(),
+                converting = true,
+                message = "IFC stored. A renderable GLB derivative is being generated and will appear as a separate model shortly."
+            });
+        }
 
         return CreatedAtAction(nameof(Get), new { projectId, modelId = row.Id }, ToMetaDto(row));
     }

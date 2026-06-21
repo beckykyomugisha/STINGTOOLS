@@ -71,6 +71,18 @@ services:
       - key: Acc__CallbackUrl
         value: https://api.planscape.build/api/acc/oauth/callback
 
+      # ── Converter sidecar (IFC→GLB) — optional ──
+      # Set Converter__BaseUrl to the deployed converter-sidecar URL to enable
+      # server-side IFC→GLB conversion on model upload. When unset, IFC uploads
+      # are rejected with a "convert to GLB first" message (no behaviour change).
+      # Converter__Token must match the sidecar's CONVERTER_TOKEN. The sidecar
+      # also needs API_BASE (this API) + API_BEARER (an Admin/Owner/Coordinator
+      # token with project access) to publish the GLB back.
+      - key: Converter__BaseUrl
+        sync: false
+      - key: Converter__Token
+        sync: false
+
       # ── CORS — web dashboard / app origins ──
       - key: Cors__Origins__0
         value: https://planscape.build

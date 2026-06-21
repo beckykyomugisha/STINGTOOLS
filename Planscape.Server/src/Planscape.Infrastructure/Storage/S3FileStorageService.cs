@@ -250,6 +250,26 @@ public class S3FileStorageService : IFileStorageService, IAsyncDisposable
     }
 
     /// <summary>
+    /// Presigned GET so the converter sidecar (or any external worker) can pull
+    /// an object's bytes directly. Mirror of <see cref="GetPresignedPutUrlAsync"/>
+    /// with <c>Verb = GET</c>; no headers to pin on a download.
+    /// </summary>
+    public Task<string> GetPresignedGetUrlAsync(
+        string objectKey, TimeSpan validFor, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(objectKey, bypassTenantCheck);
+
+        var req = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucket,
+            Key = objectKey,
+            Verb = HttpVerb.GET,
+            Expires = DateTime.UtcNow.Add(validFor),
+        };
+        return Task.FromResult(_s3.GetPreSignedURL(req));
+    }
+
+    /// <summary>
     /// Phase 175 — server-side copy + delete inside the same bucket.
     /// Used to promote uploads/raw/... → safe/... after AV scan.
     /// </summary>
