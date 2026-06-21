@@ -88,6 +88,13 @@ namespace StingTools.BOQ
                 {
                     if (item == null) continue;
 
+                    // Phase H1 (KUT lifecycle) — when the line description IS the issued
+                    // SpecLink section text (single source of truth), leave it verbatim.
+                    // The enhancer's appenders (performance/compliance/"or approved
+                    // equivalent"/vocab substitution) would otherwise mutate a contractual
+                    // spec clause — wrong for a tender bill. The spec is the authority.
+                    if (item.SpecSourced) { report.SpecPreservedCount++; continue; }
+
                     Element el = null;
                     if (item.RevitElementId > 0 && doc != null)
                     {
@@ -111,7 +118,7 @@ namespace StingTools.BOQ
             StingLog.Info($"BOQ paragraph enhancer: performance={report.PerformanceCount} compliance={report.ComplianceCount} "
                 + $"groups={report.GroupedCount} inclusion={report.InclusionCount} equivalent={report.OrEquivalentCount} "
                 + $"conditional={report.ConditionalCount} vocab={report.VocabCount} smartName={report.SmartNameCount} "
-                + $"specRef={report.SpecRefCount}");
+                + $"specRef={report.SpecRefCount} specPreserved={report.SpecPreservedCount}");
             return report;
         }
 
@@ -126,6 +133,7 @@ namespace StingTools.BOQ
             public int VocabCount;
             public int SmartNameCount;
             public int SpecRefCount;
+            public int SpecPreservedCount;   // Phase H1 — spec-sourced lines left verbatim
         }
 
         // ══════════════════════════════════════════════════════════════════

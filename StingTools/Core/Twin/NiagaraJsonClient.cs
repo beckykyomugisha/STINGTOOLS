@@ -87,8 +87,13 @@ namespace StingTools.Core.Twin
             string id = ((string)o["deviceId"] ?? (string)o["id"] ?? (string)o["name"] ?? keyFallback ?? "").Trim();
             if (id.Length == 0) return;
             var val = o["present_value"] ?? o["presentValue"] ?? o["out"] ?? o["value"] ?? o["val"];
-            bool hasVal = val != null && val.Type != JTokenType.Null &&
-                          !string.IsNullOrWhiteSpace(val.Type == JTokenType.Object ? (string)val["val"] : (string)val);
+            // Type-safe presence test — never (string)-cast a JArray (throws). oBIX
+            // <real val="…"/> arrives as an object with a "val" child; primitives arrive
+            // as JValue; an absent/null value means a configured-but-dead point.
+            bool hasVal;
+            if (val == null || val.Type == JTokenType.Null) hasVal = false;
+            else if (val.Type == JTokenType.Object) { var inner = val["val"]; hasVal = inner != null && inner.Type != JTokenType.Null && !string.IsNullOrWhiteSpace(inner.ToString()); }
+            else hasVal = !string.IsNullOrWhiteSpace(val.ToString());
             d[id] = new NiagaraPoint { Status = (string)o["status"] ?? "", HasValue = hasVal };
         }
 

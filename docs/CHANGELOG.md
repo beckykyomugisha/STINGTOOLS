@@ -3,6 +3,32 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase H review hardening)
+
+Self-review of the H1–H4 integration surfaced one real defect + one robustness
+nit; both fixed. Built clean vs Revit 2025 (0 warnings); 147/148 BOQ tests pass.
+
+- **Spec text was being diluted in the tender export (real defect).** H1 makes the
+  issued spec the BOQ line description and sets `SpecSourced`, and the *basic*
+  export correctly leaves it verbatim (it only rewrites empty/token-bearing
+  paragraphs). But the *professional/tender* export runs
+  `BOQParagraphEnhancer.EnhanceAll`, whose appenders (`or approved equivalent.`,
+  performance/compliance clauses, client-vocabulary substitution) would have been
+  joined onto the verbatim spec clause — wrong for a contractual tender bill (a
+  spec may explicitly prohibit equivalents). `EnhanceAll` now skips
+  `SpecSourced` lines entirely (`report.SpecPreservedCount`), so the specification
+  is the authority end-to-end (model + basic + tender exports all agree).
+- **NiagaraJsonClient parse hardening.** The present-value presence test could
+  `(string)`-cast a JArray (throws) and abort the whole points feed; replaced with
+  a type-safe check (object→`val` child, primitive→`ToString`, array/other→safe),
+  so one odd point can't blank the live read-back.
+
+Integration trace (all four ledgers join on the same Revit element, confirmed):
+SpecLink/CSI→BOQ on `CSI_SECTION_TXT`; Fohlio→BOQ via `FohlioRateProvider`
+(rate, priority 96) + `FohlioMap.TreatmentFor` (`FfeOwnerProcured`) + `FOHLIO_REF`;
+Niagara→BOQ on `ICT_HEALTHIOT_DEVICE_ID_TXT` via `IoTDeviceRegistry`; ACC←BOQ gap
+push on element id.
+
 #### Completed (KUT Lifecycle Integration — Phase H3/H4: Niagara valuation + SpecLink watch-folder coordinator)
 
 Closes the four-step Niagara/SpecLink max-automation roadmap. H3 turns the live
