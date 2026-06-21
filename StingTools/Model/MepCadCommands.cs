@@ -203,8 +203,14 @@ namespace StingTools.Model
                 foreach (var kv in run.BySystem.OrderByDescending(k => k.Value))
                     sb.AppendLine($"      {kv.Key,-26} {kv.Value}");
             }
+            if (run.ServiceDefaultedDuct > 0 || run.ServiceDefaultedPipe > 0)
+                sb.AppendLine($"   ⚠ Defaulted systems: {run.ServiceDefaultedDuct} duct(s) → Supply (no service keyword), {run.ServiceDefaultedPipe} pipe(s) → first-available (no token).");
+            if (run.SizeSnapped > 0)
+                sb.AppendLine($"   ⚠ {run.SizeSnapped} run(s) — applied size snapped to the type catalog (differs from the requested size).");
             if (run.DrainageDirectionUnverified > 0)
                 sb.AppendLine($"   ⚠ {run.DrainageDirectionUnverified} drainage run(s) — fall direction unverified (no stack); confirm fall.");
+            if (run.DrainageDirectionAmbiguous > 0)
+                sb.AppendLine($"   ⚠ {run.DrainageDirectionAmbiguous} drainage run(s) — fall target ambiguous (≥2 stacks equally near); confirm.");
             sb.AppendLine();
             sb.AppendLine("RISERS");
             sb.AppendLine($"   Created: {riser.Created}  (failed {riser.Failed}; joined-to-run {fit.JoinedRisers}, floating {fit.FloatingRisers})");
@@ -314,8 +320,16 @@ namespace StingTools.Model
                 foreach (var (service, count) in detection.RunsByService())
                     sb.AppendLine($"      {service,-26} {count}");
             }
+            // P6-1.1 — flag runs whose system will fall back silently (no service keyword).
+            if (detection.DuctServiceDefaulted > 0 || detection.PipeServiceDefaulted > 0)
+                sb.AppendLine($"   ⚠ Defaulted systems: {detection.DuctServiceDefaulted} duct(s) → Supply, {detection.PipeServiceDefaulted} pipe(s) → first-available (no service keyword — verify).");
+            // P6-1.3 — accuracy flags.
+            if (detection.RectCoercedRunCount > 0)
+                sb.AppendLine($"   ⚠ {detection.RectCoercedRunCount} pipe/conduit run(s) — a W×H layer size was coerced to a diameter (larger dim); confirm.");
             if (detection.DrainageRunCount > 0)
                 sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall toward the nearest stack)");
+            if (detection.MirroredFixtureCount > 0)
+                sb.AppendLine($"   ⚠ {detection.MirroredFixtureCount} mirrored (negative-scale) block(s) — placement rotation may be wrong; check orientation.");
             sb.AppendLine($"Risers (UP/DN/RISER blocks → vertical segments): {detection.Risers.Count}");
 
             // P3.2 — routing-preference pre-flight: will junctions actually form? A run type

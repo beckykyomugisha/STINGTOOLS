@@ -96,6 +96,13 @@ namespace StingTools.Core.Cad.Mep
         public int DrainageRunCount => Runs.Count(r => r.Drainage);
         /// <summary>P2.1 — fixtures whose block-name match disagrees with the layer discipline.</summary>
         public int LayerMismatchCount => Fixtures.Count(f => f.LayerMismatch);
+        /// <summary>P6-1.1 — runs whose system will fall back silently (no service keyword).</summary>
+        public int DuctServiceDefaulted => Runs.Count(r => r.Kind == MepRunKind.Duct && r.ServiceDefaulted);
+        public int PipeServiceDefaulted => Runs.Count(r => r.Kind == MepRunKind.Pipe && r.ServiceDefaulted);
+        /// <summary>P6-1.3 — pipe/conduit runs whose W×H layer size was coerced to a diameter.</summary>
+        public int RectCoercedRunCount => Runs.Count(r => r.Size?.RectCoerced == true);
+        /// <summary>P6-1.3 — fixtures placed from mirrored (negative-scale) blocks (rotation unreliable).</summary>
+        public int MirroredFixtureCount => Fixtures.Count(f => f.Block?.Mirrored == true);
         /// <summary>Block names that matched no fixture rule, with occurrence counts.</summary>
         public Dictionary<string, int> UnmatchedBlockCounts { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> LayerCounts { get; set; } = new Dictionary<string, int>();
@@ -154,6 +161,7 @@ namespace StingTools.Core.Cad.Mep
                 var kind = MepRunClassifier.DetectKind(line.LayerName, line.Category);
                 if (kind == null) continue;
                 bool drainage = kind == MepRunKind.Pipe && MepRunClassifier.IsDrainage(line.LayerName);
+                var cls = MepServiceClassifier.Classify(line.LayerName, kind.Value, out bool svcDefaulted);
                 result.Runs.Add(new MepRunCandidate
                 {
                     Line = line,
@@ -161,7 +169,8 @@ namespace StingTools.Core.Cad.Mep
                     Size = MepRunClassifier.ParseSize(line.LayerName, kind.Value),
                     Drainage = drainage,
                     SlopePercent = drainage ? MepRunClassifier.DefaultDrainageSlopePercent : 0,
-                    Classification = MepServiceClassifier.Classify(line.LayerName, kind.Value),
+                    Classification = cls,
+                    ServiceDefaulted = svcDefaulted,
                 });
             }
 

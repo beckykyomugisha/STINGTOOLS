@@ -3,6 +3,30 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P6-1: accuracy reporting)
+
+Makes wrong-but-plausible output visible. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — verify runtime in Revit before merge. Reporting-only
+except one contained accuracy fix (1.3 rect-on-round), so a normal DWG converts to
+identical elements/geometry/sizes/systems with extra report lines.
+
+- **1.1 Silent system defaults flagged** — `MepServiceClassifier.Classify` gained an
+  `out bool defaulted` overload (return values unchanged); detection records it per
+  run. Preview + placement report now show "N duct(s) → Supply, M pipe(s) →
+  first-available (no service keyword)".
+- **1.2 Applied-vs-requested size** — `SetLen` reads the value back after setting it
+  (Revit snaps to the type's size catalog); `ApplySize` counts runs whose applied
+  size differs from requested and the report flags "N run(s) snapped to catalog".
+- **1.3 Edge-case accuracy** —
+  • a W×H size parsed onto a pipe/conduit layer is now coerced to a diameter
+    (larger dimension) and flagged, instead of silently using the first dimension as
+    the bore (the one behavioural change — only affects round-kind layers literally
+    carrying "NNNxNNN", which were already wrong);
+  • mirrored blocks (negative basis determinant) are detected (`DetectedBlock.Mirrored`)
+    and the preview flags them so the user checks orientation;
+  • `MepDrainage.OrientFall` now returns Verified/Unverified/**Ambiguous** and the
+    report flags drains where ≥2 stacks are equally near ("fall target ambiguous").
+
 #### Completed (MEP-from-DWG — P5 §2: topology — mid-run branch taps + near-miss reporting)
 
 Makes "fittings" represent real systems. **Compile-verified against Revit 2025
