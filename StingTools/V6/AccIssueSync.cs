@@ -45,6 +45,9 @@ namespace StingTools.V6
         /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres). Set per the model's clash-result units.</summary>
         public double DistToMm { get; set; } = 1000.0;
 
+        /// <summary>ACC Docs folder URN to upload models into (urn:adsk.wipprod:fs.folder:...). When empty, AccModelUpload auto-resolves the project's "Project Files" top folder.</summary>
+        public string FolderUrn { get; set; } = string.Empty;
+
         /// <summary>Coordination container, falling back to the Issues/ProjectId container when unset.</summary>
         public string CoordContainer => string.IsNullOrEmpty(CoordContainerId) ? ProjectId : CoordContainerId;
 

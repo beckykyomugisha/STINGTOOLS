@@ -1,28 +1,165 @@
+using System.Net.Http.Headers;
+using System.Text;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 
 namespace Planscape.Infrastructure.Services;
 
 /// <summary>
-/// Stub connector for Autodesk Construction Cloud (BIM 360 / ACC).
-/// Replace with real OAuth2 + Forge/APS API calls when ACC integration is configured.
+/// Server-side Autodesk Construction Cloud connector — the team-shared half of
+/// the ACC integration (the plugin half lives in StingTools V6.AccIssueSync).
+/// Tokens are held per-project in <see cref="PlatformConnection"/> (seeded by the
+/// 3-legged flow in AccOAuthController), so the whole team shares one ACC grant.
+///
+/// Reads the APS app credentials from config: <c>Acc:ClientId</c> /
+/// <c>Acc:ClientSecret</c> (env <c>Acc__ClientId</c> / <c>Acc__ClientSecret</c>).
+/// Returns a configuration error when those are absent so the dashboard can show
+/// a setup CTA.
+///
+/// Implemented: OAuth refresh (rotates tokens onto the connection so the caller's
+/// SaveChanges persists them), connectivity test (lists hubs), and a pull-sync
+/// that reports the ACC Issues count for the connected container. Pushing STING
+/// elements as ACC issues is a documented TODO.
+///
+/// CAVEAT: built to documented APS signatures but NOT yet exercised against a
+/// live ACC project or a deployed server.
 /// </summary>
 public class AccConnector : IPlatformConnector
 {
+    private const string TokenUrl  = "https://developer.api.autodesk.com/authentication/v2/token";
+    private const string HubsUrl   = "https://developer.api.autodesk.com/project/v1/hubs";
+    private const string IssuesUrl = "https://developer.api.autodesk.com/construction/issues/v1";
+
+    private readonly IConfiguration _config;
+    private readonly IHttpClientFactory _httpFactory;
+    private readonly ILogger<AccConnector> _logger;
+
+    public AccConnector(IConfiguration config, IHttpClientFactory httpFactory, ILogger<AccConnector> logger)
+    {
+        _config = config;
+        _httpFactory = httpFactory;
+        _logger = logger;
+    }
+
     public PlatformType Platform => PlatformType.ACC;
 
-    public Task<PlatformTestResult> TestConnectionAsync(PlatformConnection connection, CancellationToken ct = default)
-        => Task.FromResult(new PlatformTestResult(false, "ACC connector not yet configured — provide OAuth credentials in appsettings."));
+    private (string id, string secret) AppCreds() =>
+        (_config["Acc:ClientId"]     ?? Environment.GetEnvironmentVariable("Acc__ClientId")     ?? "",
+         _config["Acc:ClientSecret"] ?? Environment.GetEnvironmentVariable("Acc__ClientSecret") ?? "");
 
-    public Task<PlatformTokenResult> RefreshTokenAsync(PlatformConnection connection, CancellationToken ct = default)
-        => Task.FromResult(new PlatformTokenResult(false, Error: "ACC token refresh not implemented."));
+    public async Task<PlatformTokenResult> RefreshTokenAsync(PlatformConnection connection, CancellationToken ct = default)
+    {
+        var (id, secret) = AppCreds();
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
+            return new PlatformTokenResult(false, Error: "Acc:ClientId / Acc:ClientSecret not configured on the server.");
+        if (string.IsNullOrWhiteSpace(connection.RefreshToken))
+            return new PlatformTokenResult(false, Error: "No refresh token — connect ACC via /api/acc/oauth/start first.");
 
-    public Task<PlatformSyncResult> SyncAsync(PlatformConnection connection, IReadOnlyList<TaggedElement> elements, CancellationToken ct = default)
-        => Task.FromResult(new PlatformSyncResult(false, Error: "ACC sync not implemented."));
+        try
+        {
+            var http = _httpFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
+            {
+                Content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                    new KeyValuePair<string, string>("refresh_token", connection.RefreshToken!),
+                })
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{id}:{secret}")));
+
+            var resp = await http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("ACC token refresh HTTP {Status}: {Body}", (int)resp.StatusCode, body);
+                return new PlatformTokenResult(false, Error: $"ACC token refresh failed (HTTP {(int)resp.StatusCode}).");
+            }
+
+            var j = JObject.Parse(body);
+            string access  = (string?)j["access_token"]  ?? "";
+            string refresh = (string?)j["refresh_token"] ?? connection.RefreshToken!;
+            int expiresIn  = (int?)j["expires_in"] ?? 3600;
+            var expiry = DateTime.UtcNow.AddSeconds(expiresIn);
+
+            // Rotate onto the connection so the scoped caller's SaveChanges persists it.
+            connection.AccessToken    = access;
+            connection.RefreshToken   = refresh;
+            connection.TokenExpiresAt = expiry;
+            return new PlatformTokenResult(true, access, refresh, expiry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ACC token refresh failed");
+            return new PlatformTokenResult(false, Error: ex.Message);
+        }
+    }
+
+    /// <summary>Refresh the access token when missing or within 5 min of expiry.</summary>
+    private async Task<bool> EnsureTokenAsync(PlatformConnection c, CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(c.AccessToken)
+            && c.TokenExpiresAt.HasValue
+            && c.TokenExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
+            return true;
+        return (await RefreshTokenAsync(c, ct)).Success;
+    }
+
+    public async Task<PlatformTestResult> TestConnectionAsync(PlatformConnection connection, CancellationToken ct = default)
+    {
+        var (id, secret) = AppCreds();
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
+            return new PlatformTestResult(false, "Acc:ClientId / Acc:ClientSecret not configured on the server.");
+        if (!await EnsureTokenAsync(connection, ct))
+            return new PlatformTestResult(false, "Couldn't obtain an ACC access token — (re)connect ACC first.");
+
+        try
+        {
+            var http = _httpFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Get, HubsUrl);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
+            var resp = await http.SendAsync(req, ct);
+            return resp.IsSuccessStatusCode
+                ? new PlatformTestResult(true, "ACC reachable.")
+                : new PlatformTestResult(false, $"ACC hubs query returned HTTP {(int)resp.StatusCode}.");
+        }
+        catch (Exception ex) { return new PlatformTestResult(false, ex.Message); }
+    }
+
+    public async Task<PlatformSyncResult> SyncAsync(PlatformConnection connection, IReadOnlyList<TaggedElement> elements, CancellationToken ct = default)
+    {
+        if (!await EnsureTokenAsync(connection, ct))
+            return new PlatformSyncResult(false, Error: "No valid ACC token — (re)connect ACC first.");
+        string container = connection.ExternalProjectId;
+        if (string.IsNullOrWhiteSpace(container))
+            return new PlatformSyncResult(false, Error: "PlatformConnection.ExternalProjectId (ACC Issues container) is empty.");
+
+        try
+        {
+            var http = _httpFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{IssuesUrl}/containers/{container}/issues?limit=1");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
+            var resp = await http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                return new PlatformSyncResult(false, Error: $"ACC issues query HTTP {(int)resp.StatusCode}.");
+
+            var j = JObject.Parse(body);
+            int total = (int?)j["pagination"]?["totalResults"] ?? ((j["results"] as JArray)?.Count ?? 0);
+            // Pull-only for now — pushing STING elements as ACC issues is a TODO.
+            return new PlatformSyncResult(true, PushedCount: 0, PulledCount: total);
+        }
+        catch (Exception ex) { return new PlatformSyncResult(false, Error: ex.Message); }
+    }
 
     public Task<PlatformWebhookResult> HandleWebhookAsync(PlatformConnection connection, string payload, string? signature, CancellationToken ct = default)
-        => Task.FromResult(new PlatformWebhookResult(false, Error: "ACC webhook handling not implemented."));
+        // Inbound Autodesk webhooks are processed by AutodeskWebhooksController; this
+        // connector hook just acknowledges so the platform sync pipeline doesn't error.
+        => Task.FromResult(new PlatformWebhookResult(true, Action: "acknowledged"));
 }
 
 /// <summary>
