@@ -22,6 +22,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Cad.Mep;
+using StingTools.UI;
 
 namespace StingTools.Model
 {
@@ -177,7 +178,7 @@ namespace StingTools.Model
             sb.AppendLine($"Level: {level.Name}   DWG imports: {importCount}");
             sb.AppendLine();
             sb.AppendLine("FIXTURES");
-            sb.AppendLine($"   Placed:              {result.Placed}");
+            sb.AppendLine($"   Placed:              {result.Placed}  (hosted to wall/ceiling: {result.Hosted})");
             sb.AppendLine($"   Skipped (no family): {result.SkippedNoSymbol}");
             sb.AppendLine($"   Failed:              {result.Failed}");
             sb.AppendLine($"   Auto-tagged:         {result.Tagged}");
@@ -213,6 +214,69 @@ namespace StingTools.Model
                 MainContent = sb.ToString()
             }.Show();
             StingLog.Info($"Mep_CadToModel: fixtures placed={result.Placed} skippedNoFamily={result.SkippedNoSymbol} | runs created={runResult.Created} failed={runResult.Failed}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>Per-layer mapping wizard: pick level + host-snap, include/exclude layers,
+    /// override run kind + offset, then place fixtures + runs.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class MepCadWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var import = MepCadShared.PickImport(doc, out int importCount);
+            if (import == null)
+            {
+                TaskDialog.Show("MEP CAD Wizard",
+                    "No DWG/DXF import found. Import (not just link) the MEP drawing first, then re-run.");
+                return Result.Succeeded;
+            }
+
+            var detection = new MepDetectionEngine(doc).Detect(import);
+            if (detection.Fixtures.Count == 0 && detection.Runs.Count == 0)
+            {
+                TaskDialog.Show("MEP CAD Wizard",
+                    "No DWG blocks matched the fixture map and no run lines were found. " +
+                    "Run MEP CAD Preview to see what is on the drawing.");
+                return Result.Succeeded;
+            }
+
+            var wiz = new MepCadWizard(doc, detection);
+            bool? shown = wiz.ShowDialog();
+            if (shown != true || !wiz.Confirmed) return Result.Cancelled;
+
+            var level = wiz.SelectedLevel ?? MepCadShared.ResolveLevel(doc);
+            if (level == null) { TaskDialog.Show("MEP CAD Wizard", "No level selected / available."); return Result.Failed; }
+
+            var filtered = wiz.ApplyTo(detection);
+            var result = new MepFixtureBuilder(doc).Place(filtered, level, wiz.HostSnap);
+            var runResult = new MepRunBuilder(doc).Build(filtered.Runs, level);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Level: {level.Name}   Host-snap: {(wiz.HostSnap ? "on" : "off")}");
+            sb.AppendLine();
+            sb.AppendLine($"Fixtures placed: {result.Placed} (hosted {result.Hosted}, skipped-no-family {result.SkippedNoSymbol})");
+            sb.AppendLine($"Runs created:    {runResult.Created} (failed {runResult.Failed})");
+            var warns = result.Warnings.Concat(runResult.Warnings).ToList();
+            if (warns.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Warnings:");
+                foreach (var w in warns.Take(12)) sb.AppendLine($"   {w}");
+            }
+
+            new TaskDialog("MEP CAD Wizard")
+            {
+                MainInstruction = $"Placed {result.Placed} fixture(s) + {runResult.Created} run(s)",
+                MainContent = sb.ToString()
+            }.Show();
+            StingLog.Info($"Mep_CadWizard: fixtures={result.Placed} hosted={result.Hosted} runs={runResult.Created} level={level.Name} hostSnap={wiz.HostSnap}");
             return Result.Succeeded;
         }
     }

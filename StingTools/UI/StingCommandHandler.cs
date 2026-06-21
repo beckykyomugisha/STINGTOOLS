@@ -1854,6 +1854,7 @@ namespace StingTools.UI
                     // MEP-from-DWG V1 — peer to the structural StrCAD* commands.
                     case "Mep_CadPreview": RunCommand<Model.MepCadPreviewCommand>(app); break;
                     case "Mep_CadToModel": RunCommand<Model.MepCadToModelCommand>(app); break;
+                    case "Mep_CadWizard": RunCommand<Model.MepCadWizardCommand>(app); break;
                     // Phase-78 note: 7-page stepped wizard removed — use StrCADWizard (legacy single-page CAD wizard) instead.
                     case "DWGDryRunPreview": RunCommand<Model.DWGDryRunPreviewCommand>(app); break;
                     case "DWGExplodeImports": RunCommand<Model.DWGExplodeImportsCommand>(app); break;

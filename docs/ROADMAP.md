@@ -22,11 +22,13 @@ V1 (MEP fixtures from DWG blocks) shipped — see `CHANGELOG.md`. Remaining:
 
 | Id | Item | Notes |
 |---|---|---|
-| MEPDWG-V2-1 | **Straight runs** — `MepRunBuilder`: `ExtractedLine` on an MEP layer → `Duct.Create` / `Pipe.Create` / `Conduit.Create` / `CableTray.Create`. Size from layer-name suffix (e.g. `M-DUCT-300x200`) or a per-type default; pluggable size resolver. | Endpoints come straight from `ExtractedLine`; reuse the V1 layer recognition. |
-| MEPDWG-V2-2 | **System assignment** — assign each run to a Mechanical / Piping / Electrical system; run elevation/Z from level + per-layer offset (reuse height standards). | |
-| MEPDWG-V2-3 | **Fixture host-snapping** — nearest-wall for sockets/switches, nearest-ceiling for luminaires/diffusers/sprinklers; fall back to unhosted when none found. | V1 places unhosted on the level. |
-| MEPDWG-V2-4 | **`MepCadWizard`** — per-layer category/type/level mapping UI modeled on `StructuralCADWizard`. | V1 uses the active level + the corporate/project map without a wizard. |
-| MEPDWG-V2-5 | **Native mounting-height param** — wire the numeric `MNT_HGT_MM` stamp once its exact name + unit (Length vs Number) is confirmed against Placement-Center output (V1 stamps only `MOUNTING_REFERENCE_TXT`; height is encoded in the instance Z). | `TODO-VERIFY-API` in `MepFixtureBuilder.StampMetadata`. |
+| ~~MEPDWG-V2-1~~ | ~~**Straight runs** — line → Duct/Pipe/Conduit/CableTray; size from layer suffix or default.~~ | **DONE (V2)** — `MepRunBuilder` + `MepRunClassifier`. |
+| ~~MEPDWG-V2-2~~ | ~~**System assignment** + run elevation from level + per-layer offset.~~ | **DONE (V2)** — system TYPE at `Create`; per-kind / per-layer offset. |
+| ~~MEPDWG-V2-3~~ | ~~**Fixture host-snapping** — nearest wall/ceiling; fall back to unhosted.~~ | **DONE (V2)** — best-effort, hosted-family only. |
+| ~~MEPDWG-V2-4~~ | ~~**`MepCadWizard`** — per-layer mapping UI.~~ | **DONE (V2)** — per-layer include / run-kind / level / offset. |
+| MEPDWG-V2-5 | **Native mounting-height param** — wire the numeric `MNT_HGT_MM` stamp once its exact name + unit (Length vs Number) is confirmed against Placement-Center output (height is encoded in the instance Z; only `MOUNTING_REFERENCE_TXT` stamped). | `TODO-VERIFY-API` in `MepFixtureBuilder.StampMetadata`. |
+| MEPDWG-V2-type | **Per-layer family/run TYPE selection** in the wizard — V2 uses the first available type per category/kind. Add a per-layer type combo (enumerate types per category/kind) threaded into the builders. | |
+| MEPDWG-V2-host2 | **Ceiling face-hosting fidelity** — V2 uses the host-element overload; face-based (WorkPlaneBased) families may fall back to unhosted. Use a real face `Reference` for true face hosting. | `TODO-VERIFY-API` in `MepFixtureBuilder.PlaceWithHost`. |
 | MEPDWG-V3-1 | **Fittings** — junction/branch detection between runs → elbows/tees so runs form connected systems (investigate reuse of `Core/Routing` junction-box placer + A*). | |
 | MEPDWG-V3-2 | **Risers** — vertical lines / UP-DN blocks → vertical run segments. | |
 | MEPDWG-V3-3 | **Drainage slope** — slope handling for sanitary/drainage pipe. | |

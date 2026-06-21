@@ -10,7 +10,12 @@
 //
 // Placed instances are workset-assigned and ISO 19650 auto-tagged via the same
 // path native Placement-Center output uses, so they flow into tagging / BOQ /
-// validation unchanged. Host-snapping (nearest wall/ceiling) is V2.
+// validation unchanged.
+//
+// V2 adds best-effort host-snapping: wall-mount categories snap to the nearest
+// wall, ceiling-referenced fixtures to the nearest ceiling — but ONLY when the
+// family is a hosted/work-plane type; any failure falls back to unhosted on the
+// level (never throws away the fixture).
 // ============================================================================
 using System;
 using System.Collections.Generic;
@@ -34,6 +39,8 @@ namespace StingTools.Core.Cad.Mep
         public Dictionary<string, (int placed, int skipped)> ByCategory { get; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
         public int Tagged { get; set; }
+        /// <summary>V2 — how many of the placed fixtures were snapped to a wall/ceiling host.</summary>
+        public int Hosted { get; set; }
 
         public void Bump(string cat, bool placed)
         {
@@ -50,11 +57,16 @@ namespace StingTools.Core.Cad.Mep
 
         public MepFixtureBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
-        /// <summary>Place all detected fixtures on the target level. One transaction.</summary>
-        public MepBuildResult Place(MepDetectionResult detection, Level level)
+        /// <summary>Place all detected fixtures on the target level. One transaction.
+        /// <paramref name="hostSnap"/> enables best-effort wall/ceiling hosting.</summary>
+        public MepBuildResult Place(MepDetectionResult detection, Level level, bool hostSnap = true)
         {
             var result = new MepBuildResult();
             if (detection == null || detection.Fixtures.Count == 0 || level == null) return result;
+
+            // Pre-collect potential hosts once (cheap nearest-XY search per fixture).
+            List<(Wall w, Line ln)> walls = hostSnap ? CollectWalls() : null;
+            List<(Element c, BoundingBoxXYZ bb)> ceilings = hostSnap ? CollectCeilings() : null;
 
             using (var tx = new Transaction(_doc, "STING MODEL: Place MEP Fixtures from DWG"))
             {
@@ -79,9 +91,14 @@ namespace StingTools.Core.Cad.Mep
 
                             var bp = fx.Block.InsertionPoint;
                             var p = new XYZ(bp.X, bp.Y, level.Elevation + StingTools.Model.Units.Mm(fx.MountingHeightMm));
-                            var inst = _doc.Create.NewFamilyInstance(p, symbol, level, StructuralType.NonStructural);
 
-                            if (Math.Abs(fx.Block.Rotation) > 1e-6)
+                            // V2 — best-effort host-snapping; falls back to unhosted.
+                            var inst = PlaceWithHost(fx, symbol, level, p, hostSnap, walls, ceilings, out bool wasHosted);
+                            if (wasHosted) result.Hosted++;
+
+                            // Rotation is only applied to unhosted point-based instances;
+                            // wall-hosted instances take their orientation from the host.
+                            if (!wasHosted && Math.Abs(fx.Block.Rotation) > 1e-6)
                             {
                                 var axis = Line.CreateBound(p, p + XYZ.BasisZ);
                                 ElementTransformUtils.RotateElement(_doc, inst.Id, axis, fx.Block.Rotation);
@@ -171,6 +188,124 @@ namespace StingTools.Core.Cad.Mep
             if (string.IsNullOrEmpty(pattern)) return null;
             try { return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); }
             catch (Exception ex) { result.Warnings.Add($"{label} regex on rule '{ruleId}': {ex.Message}"); return null; }
+        }
+
+        // ── V2 host-snapping ─────────────────────────────────────────────────
+        private enum HostIntent { None, Wall, Ceiling }
+        private const double WallTolFt = 700.0 / 304.8;     // snap to a wall within ~700 mm
+        private const double CeilingFallbackFt = 1500.0 / 304.8;
+
+        private static readonly HashSet<string> WallMount = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Electrical Fixtures", "Data Devices", "Communication Devices",
+            "Security Devices", "Fire Alarm Devices", "Nurse Call Devices"
+        };
+
+        private static HostIntent HostIntentFor(MepDetectedFixture fx)
+        {
+            if (string.Equals(fx.Rule?.MountingReference, "Ceiling", StringComparison.OrdinalIgnoreCase))
+                return HostIntent.Ceiling;
+            if (WallMount.Contains(fx.Category)) return HostIntent.Wall;
+            return HostIntent.None;
+        }
+
+        // Only families that can actually take a host (wall-hosted / work-plane / face-based).
+        private static bool IsHostable(FamilySymbol s)
+        {
+            var t = s?.Family?.FamilyPlacementType;
+            return t == FamilyPlacementType.OneLevelBasedHosted || t == FamilyPlacementType.WorkPlaneBased;
+        }
+
+        /// <summary>Place hosted when possible, else unhosted on the level. Never throws
+        /// the fixture away — any hosting failure falls back to the level-based instance.
+        /// TODO-VERIFY-API: the host-overload behaviour (NewFamilyInstance(pt, symbol, host,
+        /// level, NonStructural)) varies by family placement type — verify in Revit.</summary>
+        private FamilyInstance PlaceWithHost(MepDetectedFixture fx, FamilySymbol symbol, Level level, XYZ p,
+            bool hostSnap, List<(Wall w, Line ln)> walls, List<(Element c, BoundingBoxXYZ bb)> ceilings, out bool hosted)
+        {
+            hosted = false;
+            if (hostSnap && IsHostable(symbol))
+            {
+                try
+                {
+                    var intent = HostIntentFor(fx);
+                    if (intent == HostIntent.Wall && walls != null)
+                    {
+                        var w = NearestWall(walls, p, WallTolFt, out XYZ proj);
+                        if (w != null)
+                        {
+                            var inst = _doc.Create.NewFamilyInstance(proj, symbol, w, level, StructuralType.NonStructural);
+                            hosted = true; return inst;
+                        }
+                    }
+                    else if (intent == HostIntent.Ceiling && ceilings != null)
+                    {
+                        var c = NearestCeiling(ceilings, p);
+                        if (c != null)
+                        {
+                            var inst = _doc.Create.NewFamilyInstance(p, symbol, c, level, StructuralType.NonStructural);
+                            hosted = true; return inst;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Host-snap fallback for '{fx.BlockName}': {ex.Message}");
+                    hosted = false;
+                }
+            }
+            return _doc.Create.NewFamilyInstance(p, symbol, level, StructuralType.NonStructural);
+        }
+
+        private List<(Wall w, Line ln)> CollectWalls()
+        {
+            var list = new List<(Wall, Line)>();
+            foreach (Wall w in new FilteredElementCollector(_doc).OfClass(typeof(Wall)).Cast<Wall>())
+                if (w.Location is LocationCurve lc && lc.Curve is Line ln) list.Add((w, ln));
+            return list;
+        }
+
+        private List<(Element c, BoundingBoxXYZ bb)> CollectCeilings()
+        {
+            var list = new List<(Element, BoundingBoxXYZ)>();
+            foreach (var c in new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_Ceilings).WhereElementIsNotElementType())
+            {
+                var bb = c.get_BoundingBox(null);
+                if (bb != null) list.Add((c, bb));
+            }
+            return list;
+        }
+
+        private static Wall NearestWall(List<(Wall w, Line ln)> walls, XYZ p, double tolFt, out XYZ proj)
+        {
+            Wall best = null; double bestD = tolFt; proj = p;
+            foreach (var (w, ln) in walls)
+            {
+                var cp = ClosestPointOnSegment2D(ln.GetEndPoint(0), ln.GetEndPoint(1), p, out double d);
+                if (d < bestD) { bestD = d; best = w; proj = new XYZ(cp.X, cp.Y, p.Z); }
+            }
+            return best;
+        }
+
+        private static Element NearestCeiling(List<(Element c, BoundingBoxXYZ bb)> ceilings, XYZ p)
+        {
+            Element nearest = null; double bestD = double.MaxValue;
+            foreach (var (c, bb) in ceilings)
+            {
+                if (p.X >= bb.Min.X && p.X <= bb.Max.X && p.Y >= bb.Min.Y && p.Y <= bb.Max.Y) return c; // contained
+                var ctr = new XYZ((bb.Min.X + bb.Max.X) / 2, (bb.Min.Y + bb.Max.Y) / 2, p.Z);
+                double d = ctr.DistanceTo(new XYZ(p.X, p.Y, p.Z));
+                if (d < bestD) { bestD = d; nearest = c; }
+            }
+            return bestD <= CeilingFallbackFt ? nearest : null;
+        }
+
+        private static XYZ ClosestPointOnSegment2D(XYZ a, XYZ b, XYZ p, out double dist2D)
+        {
+            var a2 = new XYZ(a.X, a.Y, 0); var b2 = new XYZ(b.X, b.Y, 0); var p2 = new XYZ(p.X, p.Y, 0);
+            var ab = b2 - a2; double len2 = ab.DotProduct(ab);
+            double t = len2 > 1e-9 ? Math.Max(0, Math.Min(1, (p2 - a2).DotProduct(ab) / len2)) : 0;
+            var cp = a2 + t * ab; dist2D = cp.DistanceTo(p2); return cp;
         }
 
         /// <summary>Stamp mounting metadata so DWG-placed fixtures match native
