@@ -34,6 +34,12 @@ namespace StingTools.Core.Cad.Mep
         public int FloatingRisers { get; set; }
         /// <summary>P5 — element ids of the fitting families created (for stamping + Replace cleanup).</summary>
         public List<ElementId> CreatedIds { get; } = new List<ElementId>();
+        /// <summary>P5 2.1 — mid-run branch taps found / teed / unsupported (conduit/tray).</summary>
+        public int TapsFound { get; set; }
+        public int TapsJoined { get; set; }
+        public int TapsUnsupported { get; set; }
+        /// <summary>P5 2.2 — approx. junctions just outside the join tolerance (raise tol to capture).</summary>
+        public int NearMissJunctions { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public int Created => Elbows + Tees + Crosses + Unions;
     }
@@ -41,10 +47,18 @@ namespace StingTools.Core.Cad.Mep
     public class MepFittingBuilder
     {
         private readonly Document _doc;
-        // Coincidence tolerance for two run ends meeting (~12 mm), in feet.
-        private const double TolFt = 12.0 / 304.8;
+        // P5 2.2 — coincidence tolerance for two run ends meeting (default ~12 mm), in feet.
+        private readonly double _tolFt;
+        // Near-miss window: ends within (_tolFt, NearMissFt] are reported, not joined.
+        private const double NearMissMm = 50.0;
+        private readonly double _nearMissFt;
 
-        public MepFittingBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+        public MepFittingBuilder(Document doc, double tolMm = 12.0)
+        {
+            _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+            _tolFt = (tolMm > 0 ? tolMm : 12.0) / 304.8;
+            _nearMissFt = Math.Max(NearMissMm, tolMm * 2) / 304.8;
+        }
 
         private sealed class EndRef
         {
@@ -84,11 +98,21 @@ namespace StingTools.Core.Cad.Mep
             if (ends.Count < 2) return result;
 
             // Group by coincident origin + domain.
-            int Key(double v) => (int)Math.Round(v / TolFt);
+            int Key(double v) => (int)Math.Round(v / _tolFt);
             var groups = ends
                 .GroupBy(e => (Key(e.Origin.X), Key(e.Origin.Y), Key(e.Origin.Z), e.Domain))
                 .Where(g => g.Count() >= 2)
                 .ToList();
+
+            // P5 2.2 — near-miss: ends that cluster at the wider tolerance but NOT at the
+            // join tolerance (small corner gaps in the DWG). Reported so they're not silent.
+            int CoarseKey(double v) => (int)Math.Round(v / _nearMissFt);
+            int coarseJunctions = ends
+                .GroupBy(e => (CoarseKey(e.Origin.X), CoarseKey(e.Origin.Y), CoarseKey(e.Origin.Z), e.Domain))
+                .Count(g => g.Count() >= 2);
+            result.NearMissJunctions = Math.Max(0, coarseJunctions - groups.Count);
+            if (result.NearMissJunctions > 0)
+                result.Warnings.Add($"≈{result.NearMissJunctions} junction(s) within {12:F0}–{NearMissMm:F0} mm not joined — raise the fitting tolerance to capture.");
 
             using (var tx = new Transaction(_doc, "STING MODEL: Insert MEP Fittings"))
             {
@@ -133,6 +157,124 @@ namespace StingTools.Core.Cad.Mep
                 }
             }
             return result;
+        }
+
+        /// <summary>P5 2.1 — mid-run branch taps. An open run END that lands on ANOTHER run's
+        /// BODY (within tol, interior) is the most common MEP topology and the end-coincidence
+        /// pass misses it. Break the main at that point and tee the three resulting ends.
+        /// Pipe + Duct only (BreakCurve support); conduit/tray are counted unsupported.
+        /// One transaction. TODO-VERIFY-API: PlumbingUtils/MechanicalUtils.BreakCurve.</summary>
+        public void BuildMidRunTaps(IEnumerable<ElementId> runIds, MepFittingBuildResult result)
+        {
+            if (runIds == null) return;
+            var ours = new HashSet<ElementId>(runIds.Where(id => id != null && id != ElementId.InvalidElementId));
+            if (ours.Count < 2) return;
+
+            // Snapshot open END connector origins as branch candidates (owner + point).
+            var branches = new List<(ElementId owner, XYZ origin)>();
+            foreach (var id in ours)
+            {
+                if (!(_doc.GetElement(id) is MEPCurve mc) || mc.ConnectorManager == null) continue;
+                try
+                {
+                    foreach (Connector c in mc.ConnectorManager.Connectors)
+                        if (c.ConnectorType == ConnectorType.End && !c.IsConnected) branches.Add((id, c.Origin));
+                }
+                catch { }
+            }
+            if (branches.Count == 0) return;
+
+            using (var tx = new Transaction(_doc, "STING MODEL: Insert MEP Branch Taps"))
+            {
+                tx.Start();
+                try
+                {
+                    foreach (var br in branches)
+                    {
+                        var mainId = FindBodyHit(ours, br.owner, br.origin, out XYZ breakPt);
+                        if (mainId == null) continue;
+                        result.TapsFound++;
+
+                        var mainEl = _doc.GetElement(mainId) as MEPCurve;
+                        bool isPipe = mainEl is Autodesk.Revit.DB.Plumbing.Pipe;
+                        bool isDuct = mainEl is Autodesk.Revit.DB.Mechanical.Duct;
+                        if (!isPipe && !isDuct) { result.TapsUnsupported++; continue; }   // conduit/tray: no BreakCurve
+
+                        try
+                        {
+                            ElementId newId = isPipe
+                                ? Autodesk.Revit.DB.Plumbing.PlumbingUtils.BreakCurve(_doc, mainId, breakPt)     // TODO-VERIFY-API
+                                : Autodesk.Revit.DB.Mechanical.MechanicalUtils.BreakCurve(_doc, mainId, breakPt); // TODO-VERIFY-API
+                            if (newId == null || newId == ElementId.InvalidElementId) { result.Failed++; continue; }
+                            ours.Add(newId);
+                            result.CreatedIds.Add(newId);   // the new half is part of the conversion (stamp + Replace cleanup)
+
+                            var c1 = EndConnectorNear(mainId, breakPt);
+                            var c2 = EndConnectorNear(newId, breakPt);
+                            var cb = EndConnectorNear(br.owner, br.origin);
+                            if (c1 == null || c2 == null || cb == null) { result.Failed++; continue; }
+
+                            var f = _doc.Create.NewTeeFitting(c1, c2, cb);
+                            Track(result, f);
+                            result.TapsJoined++;
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Failed++;
+                            if (result.Warnings.Count < 30) result.Warnings.Add($"Branch tap: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("MepFittingBuilder.BuildMidRunTaps", ex);
+                    result.Warnings.Add($"Branch-tap batch failed (rolled back): {ex.Message}");
+                }
+            }
+        }
+
+        // A main run whose body passes within tol of p (interior, not at its own ends).
+        private ElementId FindBodyHit(HashSet<ElementId> ours, ElementId branchOwner, XYZ p, out XYZ breakPt)
+        {
+            breakPt = p;
+            foreach (var id in ours)
+            {
+                if (id == branchOwner) continue;
+                if (!(_doc.GetElement(id) is MEPCurve mc)) continue;
+                if (!(mc.Location is LocationCurve lc) || !(lc.Curve is Line ln)) continue;
+                XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                if (p.DistanceTo(a) <= _tolFt || p.DistanceTo(b) <= _tolFt) continue; // that's an end-junction
+                var cp = ClosestPointOnSegment(a, b, p, out double t, out double dist);
+                if (dist <= _tolFt && t > 1e-3 && t < 1.0 - 1e-3) { breakPt = cp; return id; }
+            }
+            return null;
+        }
+
+        private Connector EndConnectorNear(ElementId id, XYZ pt)
+        {
+            if (!(_doc.GetElement(id) is MEPCurve mc) || mc.ConnectorManager == null) return null;
+            Connector best = null; double bestD = double.MaxValue;
+            try
+            {
+                foreach (Connector c in mc.ConnectorManager.Connectors)
+                {
+                    if (c.ConnectorType != ConnectorType.End) continue;
+                    double d = c.Origin.DistanceTo(pt);
+                    if (d < bestD) { bestD = d; best = c; }
+                }
+            }
+            catch { }
+            return best;
+        }
+
+        private static XYZ ClosestPointOnSegment(XYZ a, XYZ b, XYZ p, out double t, out double dist)
+        {
+            var ab = b - a; double len2 = ab.DotProduct(ab);
+            t = len2 > 1e-12 ? (p - a).DotProduct(ab) / len2 : 0;
+            t = Math.Max(0, Math.Min(1, t));
+            var cp = a + t * ab; dist = cp.DistanceTo(p); return cp;
         }
 
         private static bool SafeOpen(Connector c)

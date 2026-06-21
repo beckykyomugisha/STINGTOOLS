@@ -3,6 +3,25 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P5 §2: topology — mid-run branch taps + near-miss reporting)
+
+Makes "fittings" represent real systems. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — fitting/break behaviour is runtime-fragile; verify in
+Revit before merge.
+
+- **2.1 Mid-run branch taps** (the biggest topology gap) — `MepFittingBuilder.
+  BuildMidRunTaps` detects an open run END that lands on ANOTHER run's BODY
+  (within tolerance, strictly interior), **splits the main** at that point
+  (`PlumbingUtils.BreakCurve` / `MechanicalUtils.BreakCurve` — `TODO-VERIFY-API`)
+  and `NewTeeFitting`s the three resulting ends. Pipe + Duct only (conduit/tray
+  have no BreakCurve and are counted "unsupported"). The new half-run is stamped
+  for idempotency/Replace. Report shows **taps teed / found**. Guarded — a
+  failure is counted, never thrown.
+- **2.2 Near-miss / gap handling** — the join tolerance is now a constructor
+  parameter (default 12 mm; data-driven default is P4) and `Build` reports
+  **"≈N junction(s) within 12–50 mm not joined — raise the fitting tolerance"**
+  so small DWG corner gaps are visible instead of silent.
+
 #### Completed (MEP-from-DWG — P5 §1: safety — idempotent re-run + atomic pass)
 
 The two near-blocking safety gaps before real use. **Compile-verified against

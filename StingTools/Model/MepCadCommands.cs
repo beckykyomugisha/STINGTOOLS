@@ -81,6 +81,8 @@ namespace StingTools.Model
             var ids = run.CreatedIds.Concat(riser.CreatedIds).ToList();
             var fitB = new MepFittingBuilder(doc);
             var fit = ids.Count > 1 ? fitB.Build(ids) : new MepFittingBuildResult();
+            // P5 2.1 — mid-run branch taps (split main + tee). Run after the end-junction pass.
+            if (ids.Count > 1) fitB.BuildMidRunTaps(ids, fit);
             // P1.4 — report which risers joined a horizontal run.
             if (riser.CreatedIds.Count > 0) fitB.CountRiserJoins(riser.CreatedIds, fit);
             return new PlaceOutcome { Fixtures = fx, Runs = run, Risers = riser, Fittings = fit };
@@ -209,6 +211,10 @@ namespace StingTools.Model
             sb.AppendLine();
             sb.AppendLine("FITTINGS");
             sb.AppendLine($"   Junctions: {fit.Junctions}   Elbows {fit.Elbows} · Tees {fit.Tees} · Crosses {fit.Crosses} · Unions {fit.Unions} · failed {fit.Failed}");
+            sb.AppendLine($"   Mid-run taps: {fit.TapsJoined}/{fit.TapsFound} teed" +
+                          (fit.TapsUnsupported > 0 ? $" ({fit.TapsUnsupported} conduit/tray unsupported)" : ""));
+            if (fit.NearMissJunctions > 0)
+                sb.AppendLine($"   ⚠ ≈{fit.NearMissJunctions} near-miss junction(s) just outside tolerance — raise the fitting tolerance to capture.");
 
             var warns = fx.Warnings.Concat(run.Warnings).Concat(riser.Warnings).Concat(fit.Warnings).ToList();
             if (warns.Count > 0)
