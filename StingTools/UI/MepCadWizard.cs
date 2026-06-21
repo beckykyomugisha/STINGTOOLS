@@ -158,6 +158,9 @@ namespace StingTools.UI
                 }
                 outR.Runs.Add(run);
             }
+
+            // Risers aren't in the per-layer grid — carry them through unchanged.
+            foreach (var r in detection.Risers) outR.Risers.Add(r);
             return outR;
         }
 

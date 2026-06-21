@@ -59,6 +59,59 @@ namespace StingTools.Model
                 .Any(fs => fs.Category != null &&
                            string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase));
         }
+
+        public struct PlaceOutcome
+        {
+            public MepBuildResult Fixtures;
+            public MepRunBuildResult Runs;
+            public MepRunBuildResult Risers;
+            public MepFittingBuildResult Fittings;
+        }
+
+        /// <summary>The full V1→V3 placement pass: fixtures (host-snapped) → horizontal runs
+        /// → risers → fittings at coincident run/riser ends. One outcome for reporting.</summary>
+        public static PlaceOutcome PlaceAll(Document doc, MepDetectionResult detection, Level level, bool hostSnap)
+        {
+            var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
+            var fx = new MepFixtureBuilder(doc).Place(detection, level, hostSnap);
+            var run = new MepRunBuilder(doc).Build(detection.Runs, level);
+            var riser = new MepRunBuilder(doc).BuildRisers(detection.Risers, level, levels);
+            var ids = run.CreatedIds.Concat(riser.CreatedIds).ToList();
+            var fit = ids.Count > 1 ? new MepFittingBuilder(doc).Build(ids) : new MepFittingBuildResult();
+            return new PlaceOutcome { Fixtures = fx, Runs = run, Risers = riser, Fittings = fit };
+        }
+
+        /// <summary>Human-readable result block shared by the Convert command + the wizard.</summary>
+        public static string Report(PlaceOutcome o)
+        {
+            var fx = o.Fixtures; var run = o.Runs; var riser = o.Risers; var fit = o.Fittings;
+            var sb = new StringBuilder();
+            sb.AppendLine("FIXTURES");
+            sb.AppendLine($"   Placed: {fx.Placed}  (hosted {fx.Hosted}, skipped-no-family {fx.SkippedNoSymbol}, failed {fx.Failed})");
+            if (fx.ByCategory.Count > 0)
+                foreach (var kv in fx.ByCategory.OrderByDescending(k => k.Value.placed + k.Value.skipped))
+                    sb.AppendLine($"      {kv.Key,-22} {kv.Value.placed} / {kv.Value.skipped}");
+            sb.AppendLine();
+            sb.AppendLine("RUNS");
+            sb.AppendLine($"   Created: {run.Created}  (failed {run.Failed})");
+            foreach (var kv in run.ByKind.OrderByDescending(k => k.Value))
+                sb.AppendLine($"      {kv.Key,-10} {kv.Value}");
+            sb.AppendLine();
+            sb.AppendLine("RISERS");
+            sb.AppendLine($"   Created: {riser.Created}  (failed {riser.Failed})");
+            sb.AppendLine();
+            sb.AppendLine("FITTINGS");
+            sb.AppendLine($"   Junctions: {fit.Junctions}   Elbows {fit.Elbows} · Tees {fit.Tees} · Crosses {fit.Crosses} · Unions {fit.Unions} · failed {fit.Failed}");
+
+            var warns = fx.Warnings.Concat(run.Warnings).Concat(riser.Warnings).Concat(fit.Warnings).ToList();
+            if (warns.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Warnings:");
+                foreach (var w in warns.Take(12)) sb.AppendLine($"   {w}");
+            }
+            return sb.ToString();
+        }
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -108,6 +161,9 @@ namespace StingTools.Model
                 sb.AppendLine("   (none — no lines on duct/pipe/conduit/tray layers above the 0.5 m floor)");
             foreach (var (kind, count, totalM) in detection.RunsByKind())
                 sb.AppendLine($"   {kind,-10} {count,4}   {totalM:F1} m");
+            if (detection.DrainageRunCount > 0)
+                sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall)");
+            sb.AppendLine($"Risers (UP/DN/RISER blocks → vertical segments): {detection.Risers.Count}");
 
             if (detection.UnmatchedBlockCounts.Count > 0)
             {
@@ -119,7 +175,7 @@ namespace StingTools.Model
 
             new TaskDialog("MEP CAD Preview")
             {
-                MainInstruction = $"{detection.Fixtures.Count} fixture(s) · {wouldPlace} placeable · {detection.Runs.Count} run(s)",
+                MainInstruction = $"{detection.Fixtures.Count} fixture(s) · {wouldPlace} placeable · {detection.Runs.Count} run(s) · {detection.Risers.Count} riser(s)",
                 MainContent = sb.ToString()
             }.Show();
             StingLog.Info($"Mep_CadPreview: recognised={detection.Fixtures.Count} placeable={wouldPlace} noFamily={wouldSkipNoFamily} runs={detection.Runs.Count} unmatched={detection.UnmatchedBlockCounts.Count}");
@@ -160,60 +216,31 @@ namespace StingTools.Model
             // Confirm before writing.
             var confirm = new TaskDialog("MEP CAD → Model")
             {
-                MainInstruction = $"Place {detection.Fixtures.Count} fixture(s) + {detection.Runs.Count} run(s) on level '{level.Name}'?",
+                MainInstruction = $"Place {detection.Fixtures.Count} fixture(s) + {detection.Runs.Count} run(s) + {detection.Risers.Count} riser(s) on level '{level.Name}'?",
                 MainContent = "Fixtures with no matching family loaded are skipped + counted (no geometry synthesised). " +
-                              "Runs (Duct/Pipe/Conduit/CableTray) use the first matching type/system in the project, " +
-                              "sized from the layer name or a per-kind default, at a per-kind elevation above the level. " +
-                              "Everything placed is workset-assigned and ISO 19650 auto-tagged.",
+                              "Runs use the first matching type/system, sized from the layer or a default, at a per-kind " +
+                              "elevation; drainage pipes get a gravity fall. Risers become vertical segments to the adjacent " +
+                              "level; fittings (elbow/tee/cross) are inserted where run ends meet. Everything is workset-" +
+                              "assigned and ISO 19650 auto-tagged.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true
             };
-            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Place fixtures + runs");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Place fixtures + runs + risers + fittings");
             if (confirm.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
 
-            var result = new MepFixtureBuilder(doc).Place(detection, level);
-            var runResult = new MepRunBuilder(doc).Build(detection.Runs, level);
+            var outcome = MepCadShared.PlaceAll(doc, detection, level, hostSnap: true);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Level: {level.Name}   DWG imports: {importCount}");
             sb.AppendLine();
-            sb.AppendLine("FIXTURES");
-            sb.AppendLine($"   Placed:              {result.Placed}  (hosted to wall/ceiling: {result.Hosted})");
-            sb.AppendLine($"   Skipped (no family): {result.SkippedNoSymbol}");
-            sb.AppendLine($"   Failed:              {result.Failed}");
-            sb.AppendLine($"   Auto-tagged:         {result.Tagged}");
-            if (result.ByCategory.Count > 0)
-            {
-                sb.AppendLine("   By category (placed / skipped-no-family):");
-                foreach (var kv in result.ByCategory.OrderByDescending(k => k.Value.placed + k.Value.skipped))
-                    sb.AppendLine($"      {kv.Key,-22} {kv.Value.placed} / {kv.Value.skipped}");
-            }
-            sb.AppendLine();
-            sb.AppendLine("RUNS");
-            sb.AppendLine($"   Created:             {runResult.Created}");
-            sb.AppendLine($"   Failed:              {runResult.Failed}");
-            sb.AppendLine($"   Auto-tagged:         {runResult.Tagged}");
-            if (runResult.ByKind.Count > 0)
-            {
-                sb.AppendLine("   By kind:");
-                foreach (var kv in runResult.ByKind.OrderByDescending(k => k.Value))
-                    sb.AppendLine($"      {kv.Key,-10} {kv.Value}");
-            }
-
-            var warns = result.Warnings.Concat(runResult.Warnings).ToList();
-            if (warns.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("Warnings:");
-                foreach (var w in warns.Take(12)) sb.AppendLine($"   {w}");
-            }
+            sb.Append(MepCadShared.Report(outcome));
 
             new TaskDialog("MEP CAD → Model")
             {
-                MainInstruction = $"Placed {result.Placed} fixture(s) + {runResult.Created} run(s)",
+                MainInstruction = $"{outcome.Fixtures.Placed} fixture(s) · {outcome.Runs.Created} run(s) · {outcome.Risers.Created} riser(s) · {outcome.Fittings.Created} fitting(s)",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"Mep_CadToModel: fixtures placed={result.Placed} skippedNoFamily={result.SkippedNoSymbol} | runs created={runResult.Created} failed={runResult.Failed}");
+            StingLog.Info($"Mep_CadToModel: fixtures={outcome.Fixtures.Placed} runs={outcome.Runs.Created} risers={outcome.Risers.Created} fittings={outcome.Fittings.Created}");
             return Result.Succeeded;
         }
     }
@@ -255,28 +282,19 @@ namespace StingTools.Model
             if (level == null) { TaskDialog.Show("MEP CAD Wizard", "No level selected / available."); return Result.Failed; }
 
             var filtered = wiz.ApplyTo(detection);
-            var result = new MepFixtureBuilder(doc).Place(filtered, level, wiz.HostSnap);
-            var runResult = new MepRunBuilder(doc).Build(filtered.Runs, level);
+            var outcome = MepCadShared.PlaceAll(doc, filtered, level, wiz.HostSnap);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Level: {level.Name}   Host-snap: {(wiz.HostSnap ? "on" : "off")}");
             sb.AppendLine();
-            sb.AppendLine($"Fixtures placed: {result.Placed} (hosted {result.Hosted}, skipped-no-family {result.SkippedNoSymbol})");
-            sb.AppendLine($"Runs created:    {runResult.Created} (failed {runResult.Failed})");
-            var warns = result.Warnings.Concat(runResult.Warnings).ToList();
-            if (warns.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("Warnings:");
-                foreach (var w in warns.Take(12)) sb.AppendLine($"   {w}");
-            }
+            sb.Append(MepCadShared.Report(outcome));
 
             new TaskDialog("MEP CAD Wizard")
             {
-                MainInstruction = $"Placed {result.Placed} fixture(s) + {runResult.Created} run(s)",
+                MainInstruction = $"{outcome.Fixtures.Placed} fixture(s) · {outcome.Runs.Created} run(s) · {outcome.Risers.Created} riser(s) · {outcome.Fittings.Created} fitting(s)",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"Mep_CadWizard: fixtures={result.Placed} hosted={result.Hosted} runs={runResult.Created} level={level.Name} hostSnap={wiz.HostSnap}");
+            StingLog.Info($"Mep_CadWizard: fixtures={outcome.Fixtures.Placed} runs={outcome.Runs.Created} risers={outcome.Risers.Created} fittings={outcome.Fittings.Created} level={level.Name}");
             return Result.Succeeded;
         }
     }

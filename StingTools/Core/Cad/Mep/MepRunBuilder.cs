@@ -49,7 +49,21 @@ namespace StingTools.Core.Cad.Mep
         public MepSize Size { get; set; }
         /// <summary>V2 wizard — per-run elevation override (mm above level); null = per-kind default.</summary>
         public double? OffsetMm { get; set; }
+        /// <summary>V3 — drainage/sanitary pipe that takes a gravity fall.</summary>
+        public bool Drainage { get; set; }
+        /// <summary>V3 — fall to apply along a drainage run (% , e.g. 1.25 = 1:80). 0 = flat.</summary>
+        public double SlopePercent { get; set; }
         public double LengthFt => Line?.Length ?? 0;
+    }
+
+    /// <summary>V3 — a riser block (UP/DN/RISER) that becomes a short vertical run.</summary>
+    public class MepRiserCandidate
+    {
+        public XYZ Point { get; set; }          // plan XY of the riser (model coords)
+        public MepRunKind Kind { get; set; }
+        public MepSize Size { get; set; }
+        public bool Up { get; set; }            // true = rises (UP), false = drops (DN)
+        public string BlockName { get; set; }
     }
 
     public class MepRunBuildResult
@@ -127,6 +141,14 @@ namespace StingTools.Core.Cad.Mep
             MepRunKind.CableTray => 2900,
             _ => 2700,
         };
+
+        /// <summary>V3 — true when a pipe layer is a gravity drainage / sanitary system.</summary>
+        public static bool IsDrainage(string layerName)
+            => Regex.IsMatch((layerName ?? "").ToLowerInvariant(),
+                   @"\b(san|soil|waste|foul|drain|rwd|swd|storm|sewer|wc|svp|vp)\b|drainage|sanitary");
+
+        /// <summary>V3 — default gravity fall for drainage pipe (% of run length). 1:80 ≈ 1.25 %.</summary>
+        public const double DefaultDrainageSlopePercent = 1.25;
     }
 
     public class MepRunBuilder
@@ -163,7 +185,11 @@ namespace StingTools.Core.Cad.Mep
                             : MepRunClassifier.DefaultOffsetMm(run.Kind));
                         double z = level.Elevation + StingTools.Model.Units.Mm(offMm);
                         var a = new XYZ(run.Line.Start.X, run.Line.Start.Y, z);
-                        var b = new XYZ(run.Line.End.X, run.Line.End.Y, z);
+                        // V3 — gravity fall for drainage pipe: drop the End end by length × slope%.
+                        double bz = z;
+                        if (run.Drainage && run.SlopePercent > 0)
+                            bz = z - run.Line.Length * (run.SlopePercent / 100.0);
+                        var b = new XYZ(run.Line.End.X, run.Line.End.Y, bz);
                         if (a.DistanceTo(b) < 0.01) continue;   // degenerate
 
                         try
@@ -205,6 +231,71 @@ namespace StingTools.Core.Cad.Mep
             {
                 try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
                 catch (Exception ex) { StingLog.Warn($"MEP run auto-tag: {ex.Message}"); }
+            }
+            return result;
+        }
+
+        /// <summary>V3 — create a vertical run segment per riser block, spanning from the
+        /// current level to the adjacent level above (UP) / below (DN), or ±3 m when there
+        /// is none. One transaction. Reuses the same type/system resolution as Build.</summary>
+        public MepRunBuildResult BuildRisers(IList<MepRiserCandidate> risers, Level level, IList<Level> levels)
+        {
+            var result = new MepRunBuildResult();
+            if (risers == null || risers.Count == 0 || level == null) return result;
+
+            ResolveTypes();
+            double curE = level.Elevation;
+            double span3m = StingTools.Model.Units.Mm(3000);
+            var sorted = (levels ?? new List<Level>()).OrderBy(l => l.Elevation).ToList();
+
+            using (var tx = new Transaction(_doc, "STING MODEL: Create MEP Risers from DWG"))
+            {
+                tx.Start();
+                try
+                {
+                    foreach (var r in risers)
+                    {
+                        if (r?.Point == null) continue;
+                        double topE = r.Up
+                            ? (sorted.FirstOrDefault(l => l.Elevation > curE + 0.1)?.Elevation ?? curE + span3m)
+                            : (sorted.LastOrDefault(l => l.Elevation < curE - 0.1)?.Elevation ?? curE - span3m);
+                        var a = new XYZ(r.Point.X, r.Point.Y, curE);
+                        var b = new XYZ(r.Point.X, r.Point.Y, topE);
+                        if (a.DistanceTo(b) < 0.01) continue;
+
+                        try
+                        {
+                            var el = CreateRun(r.Kind, a, b, level.Id, result);
+                            if (el == null) continue;
+                            ApplySize(el, r.Kind, r.Size ?? MepRunClassifier.Default(r.Kind), result);
+                            ModelWorksetAssigner.Assign(_doc, el);
+                            result.CreatedIds.Add(el.Id);
+                            result.Created++;
+                            result.Bump(r.Kind);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Failed++;
+                            if (result.Warnings.Count < 30)
+                                result.Warnings.Add($"Riser '{r.BlockName}' ({r.Kind}): {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("MepRunBuilder.BuildRisers", ex);
+                    result.Warnings.Add($"Riser batch failed (rolled back): {ex.Message}");
+                    result.CreatedIds.Clear();
+                    return result;
+                }
+            }
+
+            if (result.CreatedIds.Count > 0)
+            {
+                try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
+                catch (Exception ex) { StingLog.Warn($"MEP riser auto-tag: {ex.Message}"); }
             }
             return result;
         }
