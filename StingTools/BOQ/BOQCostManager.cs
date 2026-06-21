@@ -81,6 +81,8 @@ namespace StingTools.BOQ
             // summary surface computes the contract sum identically.
             boq.VatPct = TagConfig.GetConfigDouble("COST_VAT_PCT", 18.0);
             boq.MarkupModeName = TagConfig.GetConfigString("COST_MARKUP_MODE", "cascade");
+            // Phase C.1 — VAT on PC/provisional sums (default on). 0 ⇒ off.
+            boq.VatOnPcSums = TagConfig.GetConfigDouble("COST_VAT_ON_PC_SUMS", 1.0) != 0.0;
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 

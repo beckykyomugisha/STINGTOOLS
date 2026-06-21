@@ -183,6 +183,10 @@ namespace StingTools.BOQ
         /// <summary>FIX #3 — markup application mode: "cascade" (NRM-aligned,
         /// default) or "flat" (legacy additive). Set from COST_MARKUP_MODE.</summary>
         public string MarkupModeName = "cascade";
+        /// <summary>Phase C.1 — whether VAT applies to the PC/provisional-sum
+        /// portion. Default true (spent PC sums are VATable works). Set from
+        /// COST_VAT_ON_PC_SUMS.</summary>
+        public bool VatOnPcSums = true;
         /// <summary>
         /// Measurement standard ID — "nrm2" / "cesmm4" / "pomi" / "icms3" /
         /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
@@ -201,12 +205,17 @@ namespace StingTools.BOQ
         /// not marked up twice.</summary>
         public double OhpBaseWorksUGX => AllItems.Where(i => !i.RateIncludesOhp).Sum(i => i.TotalUGX);
 
+        /// <summary>Phase C.1 — Σ of Provisional / Prime-Cost-sum line totals
+        /// (e.g. Owner-procured FF&amp;E priced from the Fohlio register). Carried
+        /// outside the preliminaries + contingency markup base.</summary>
+        public double ProvisionalSumUGX => AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).Sum(i => i.TotalUGX);
+
         /// <summary>FIX #3/#4 — the one place markups + VAT are applied. Every
         /// summary figure below reads from this so the model, the basic export,
         /// the tender export and the snapshot list agree to the shilling.</summary>
         public BoqTotalsResult Totals() => BoqTotals.Compute(
             SubtotalUGX, OhpBaseWorksUGX, PrelimPct, OverheadPct, ContingencyPct, VatPct,
-            BoqTotals.ParseMode(MarkupModeName));
+            BoqTotals.ParseMode(MarkupModeName), ProvisionalSumUGX, VatOnPcSums);
 
         public double PreliminariesUGX => Totals().Preliminaries;
         public double OverheadProfitUGX => Totals().OverheadProfit;

@@ -3,6 +3,29 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase C.1: PC sums out of the prelims + contingency base)
+
+Closes review Finding 1 from the Phase D code review. A `pcSum` FF&E line (the KUT
+default for Owner-procured items priced from Fohlio) was correctly excluded from the
+OH&P base via `RateIncludesOhp`, but **still attracted preliminaries + contingency**,
+because `BoqTotals` applied those to the full net works. NRM2 prices contractor
+attendance/profit on PC sums as separate items and puts contingency on measured
+works — so a fixed Owner-procured allowance should earn neither.
+
+- `BoqTotals.Compute` gains optional `provisionalSumWorks` + `vatOnPcSums` params.
+  Markup base = `netWorks − provisionalSumWorks`; prelims/OH&P/contingency apply to
+  that base; PC sums are added back **after** the cascade, before VAT. With
+  `provisionalSumWorks == 0` every figure is **byte-identical** to pre-C.1
+  (verified by `ZeroProvisional_IsByteIdenticalToPreC1`). New result fields
+  `MarkupBase` + `ProvisionalSums`.
+- `BOQDocument` gains `ProvisionalSumUGX` (Σ of `ProvisionalSum`-source lines) and
+  `VatOnPcSums` (from `COST_VAT_ON_PC_SUMS`, default on); `Totals()` passes both.
+- Tender Grand Summary lists PC sums as a distinct un-marked-up line; the basic
+  export adds an informational PC-sum line. Both read the same `BoqTotals` figures.
+- 4 new xUnit tests; build clean against Revit 2025 (0 errors); 120/121 tests pass
+  (the 1 failure is the pre-existing, unrelated `ConcreteGradeCarbon`).
+- New config: `COST_VAT_ON_PC_SUMS` (default 1 = VAT on PC sums).
+
 #### Completed (KUT Lifecycle Integration — Phase E: one KUT dashboard + the lifecycle workflow)
 
 The four-ledger story lands on one board and one workflow.

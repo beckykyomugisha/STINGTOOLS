@@ -1552,9 +1552,11 @@ namespace StingTools.BOQ
             double ohpBase = boq.SubtotalUGX > 0
                 ? measured * (boq.OhpBaseWorksUGX / boq.SubtotalUGX)
                 : measured;
+            // Phase C.1 — PC/provisional sums (Owner-procured FF&E from Fohlio) are
+            // carried outside the prelims + contingency markup base.
             var totals = BoqTotals.Compute(measured, ohpBase,
                 m.PrelimPct, m.OverheadPct, m.ContingencyPct, m.VatPct,
-                BoqTotals.ParseMode(boq.MarkupModeName));
+                BoqTotals.ParseMode(boq.MarkupModeName), boq.ProvisionalSumUGX, boq.VatOnPcSums);
             double prelims = totals.Preliminaries;
             double contingency = totals.Contingency;
             double overhead = totals.OverheadProfit;
@@ -1566,17 +1568,23 @@ namespace StingTools.BOQ
             int r = 5;
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>
             {
-                ("A", "Total Measured Works (from Collections)", measured, false),
+                ("A", "Total Measured Works (from Collections)", totals.MarkupBase, false),
                 ("B", $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
                 ("C", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}% — {modeLabel})", overhead, false),
                 ("D", $"Contingency ({m.ContingencyPct:F1}% — {modeLabel})", contingency, false),
-                (null, null, null, false),
-                ("",  "SUB-TOTAL EXCLUSIVE OF TAX", subTotal, true),
-                (null, null, null, false),
-                ("E", $"Value-Added Tax ({m.VatPct:F1}%)", vat, false),
-                (null, null, null, false),
-                ("",  "CONTRACT SUM", contractSum, true),
             };
+            // Phase C.1 — PC/provisional sums sit BELOW the markups (no prelims /
+            // OH&P / contingency earned on a fixed Owner-procured allowance).
+            if (totals.ProvisionalSums > 0)
+                lines.Add(("E", "Provisional / Prime-Cost Sums (Fohlio FF&E register — excl. markup)", totals.ProvisionalSums, false));
+            string vatCode = totals.ProvisionalSums > 0 ? "F" : "E";
+            string vatNote = boq.VatOnPcSums ? "" : ", excl. PC sums";
+            lines.Add((null, null, null, false));
+            lines.Add(("",  "SUB-TOTAL EXCLUSIVE OF TAX", subTotal, true));
+            lines.Add((null, null, null, false));
+            lines.Add((vatCode, $"Value-Added Tax ({m.VatPct:F1}%{vatNote})", vat, false));
+            lines.Add((null, null, null, false));
+            lines.Add(("",  "CONTRACT SUM", contractSum, true));
 
             foreach (var (code, label, amt, heavy) in lines)
             {

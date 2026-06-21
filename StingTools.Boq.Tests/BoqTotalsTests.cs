@@ -77,5 +77,53 @@ namespace StingTools.Boq.Tests
             Assert.Equal(Net, t.SubTotalExclVat, 0);
             Assert.Equal(Net, t.ContractSum, 0);
         }
+
+        // ── Phase C.1 — PC/provisional sums out of the prelims+contingency base ──
+
+        [Fact]
+        public void PcSums_ExcludedFromPrelimsAndContingency()
+        {
+            // 200,000 of the 1,000,000 net is an Owner-procured PC sum (it carries
+            // RateIncludesOhp, so it is already out of the 800,000 OH&P base).
+            var t = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade,
+                provisionalSumWorks: 200_000, vatOnPcSums: true);
+            Assert.Equal(800_000, t.MarkupBase, 0);
+            Assert.Equal(200_000, t.ProvisionalSums, 0);
+            Assert.Equal(96_000, t.Preliminaries, 0);              // 12% of 800,000 (not 1,000,000)
+            Assert.Equal(71_680, t.OverheadProfit, 0);            // 8% of (800,000 × 1.12)
+            Assert.Equal(96_768, t.Contingency, 0);               // 10% of (800,000+96,000+71,680)
+            // markupBase + markups + PC sum back = 800,000+96,000+71,680+96,768+200,000
+            Assert.Equal(1_264_448, t.SubTotalExclVat, 0);
+        }
+
+        [Fact]
+        public void PcSums_LowerTheBillVsTreatingThemAsMeasured()
+        {
+            var asPc = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade, 200_000, true);
+            var asMeasured = BoqTotals.Compute(Net, Net, 12, 8, 10, 18, MarkupMode.Cascade);
+            // Pulling the PC sum out of the prelims+contingency base must reduce the bill.
+            Assert.True(asPc.SubTotalExclVat < asMeasured.SubTotalExclVat);
+        }
+
+        [Fact]
+        public void VatOnPcSums_FalseTaxesOnlyTheMeasuredAndMarkups()
+        {
+            var incl = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade, 200_000, vatOnPcSums: true);
+            var excl = BoqTotals.Compute(Net, 800_000, 12, 8, 10, 18, MarkupMode.Cascade, 200_000, vatOnPcSums: false);
+            Assert.True(excl.Vat < incl.Vat);
+            // excl VAT base = subTotal − PC sum = 1,264,448 − 200,000 = 1,064,448 → 18% = 191,600.64
+            Assert.Equal(191_601, excl.Vat, 0);
+        }
+
+        [Fact]
+        public void ZeroProvisional_IsByteIdenticalToPreC1()
+        {
+            var withParam = BoqTotals.Compute(Net, Net, 12, 8, 10, 18, MarkupMode.Cascade, 0, true);
+            var withoutParam = BoqTotals.Compute(Net, Net, 12, 8, 10, 18, MarkupMode.Cascade);
+            Assert.Equal(withoutParam.SubTotalExclVat, withParam.SubTotalExclVat, 0);
+            Assert.Equal(withoutParam.Preliminaries, withParam.Preliminaries, 0);
+            Assert.Equal(withoutParam.Contingency, withParam.Contingency, 0);
+            Assert.Equal(withoutParam.ContractSum, withParam.ContractSum, 0);
+        }
     }
 }
