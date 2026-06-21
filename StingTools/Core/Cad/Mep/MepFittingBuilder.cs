@@ -32,6 +32,8 @@ namespace StingTools.Core.Cad.Mep
         /// <summary>P1.4 — risers whose base connected to a horizontal run vs left floating.</summary>
         public int JoinedRisers { get; set; }
         public int FloatingRisers { get; set; }
+        /// <summary>P5 — element ids of the fitting families created (for stamping + Replace cleanup).</summary>
+        public List<ElementId> CreatedIds { get; } = new List<ElementId>();
         public List<string> Warnings { get; } = new List<string>();
         public int Created => Elbows + Tees + Crosses + Unions;
     }
@@ -161,9 +163,9 @@ namespace StingTools.Core.Cad.Mep
 
         private void TryElbowOrUnion(EndRef a, EndRef b, MepFittingBuildResult result)
         {
-            try { _doc.Create.NewElbowFitting(a.Conn, b.Conn); result.Elbows++; return; }
+            try { var f = _doc.Create.NewElbowFitting(a.Conn, b.Conn); Track(result, f); result.Elbows++; return; }
             catch { /* fall through to a co-located union / direct connect */ }
-            try { a.Conn.ConnectTo(b.Conn); result.Unions++; }
+            try { a.Conn.ConnectTo(b.Conn); result.Unions++; }   // union: no new element to track
             catch (Exception ex) { result.Failed++; if (result.Warnings.Count < 30) result.Warnings.Add($"Elbow/union: {ex.Message}"); }
         }
 
@@ -179,14 +181,19 @@ namespace StingTools.Core.Cad.Mep
                     if (dot < best) { best = dot; mi = i; mj = j; }
                 }
             int bi = Enumerable.Range(0, ends.Count).First(k => k != mi && k != mj);
-            try { _doc.Create.NewTeeFitting(ends[mi].Conn, ends[mj].Conn, ends[bi].Conn); result.Tees++; }
+            try { var f = _doc.Create.NewTeeFitting(ends[mi].Conn, ends[mj].Conn, ends[bi].Conn); Track(result, f); result.Tees++; }
             catch (Exception ex) { result.Failed++; if (result.Warnings.Count < 30) result.Warnings.Add($"Tee: {ex.Message}"); }
         }
 
         private void TryCross(List<EndRef> ends, MepFittingBuildResult result)
         {
-            try { _doc.Create.NewCrossFitting(ends[0].Conn, ends[1].Conn, ends[2].Conn, ends[3].Conn); result.Crosses++; }
+            try { var f = _doc.Create.NewCrossFitting(ends[0].Conn, ends[1].Conn, ends[2].Conn, ends[3].Conn); Track(result, f); result.Crosses++; }
             catch (Exception ex) { result.Failed++; if (result.Warnings.Count < 30) result.Warnings.Add($"Cross: {ex.Message}"); }
+        }
+
+        private static void Track(MepFittingBuildResult result, Element fitting)
+        {
+            if (fitting?.Id != null && fitting.Id != ElementId.InvalidElementId) result.CreatedIds.Add(fitting.Id);
         }
 
         // ── P3.2 routing-preference pre-flight (read-only) ───────────────────

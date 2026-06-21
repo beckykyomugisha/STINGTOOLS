@@ -22,6 +22,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Cad.Mep;
+using StingTools.Core.Storage;
 using StingTools.UI;
 
 namespace StingTools.Model
@@ -83,6 +84,100 @@ namespace StingTools.Model
             // P1.4 — report which risers joined a horizontal run.
             if (riser.CreatedIds.Count > 0) fitB.CountRiserJoins(riser.CreatedIds, fit);
             return new PlaceOutcome { Fixtures = fx, Runs = run, Risers = riser, Fittings = fit };
+        }
+
+        // ── P5 1.1/1.2 — re-run guard + atomic pass ──────────────────────────
+        public struct ConversionRun { public bool Cancelled; public PlaceOutcome Outcome; public string Preface; }
+
+        /// <summary>Stable key for "the same import" — prefer the CAD type (DWG file) name.</summary>
+        public static string ImportKey(Document doc, ImportInstance import)
+        {
+            if (import == null) return "import";
+            try { if (doc.GetElement(import.GetTypeId()) is ElementType t && !string.IsNullOrEmpty(t.Name)) return t.Name; }
+            catch { }
+            try { if (!string.IsNullOrEmpty(import.Name)) return import.Name; } catch { }
+            return import.UniqueId ?? "import";
+        }
+
+        public static List<ElementId> AllCreatedIds(PlaceOutcome o)
+        {
+            var ids = new List<ElementId>();
+            ids.AddRange(o.Fixtures.CreatedIds);
+            ids.AddRange(o.Runs.CreatedIds);
+            ids.AddRange(o.Risers.CreatedIds);
+            ids.AddRange(o.Fittings.CreatedIds);
+            return ids;
+        }
+
+        /// <summary>The whole conversion as ONE undo/rollback unit (TransactionGroup), with a
+        /// re-run guard: a prior conversion of the same import offers Replace / Add / Skip,
+        /// and every created element is stamped with the import key for next time.</summary>
+        public static ConversionRun RunConversion(Document doc, MepDetectionResult detection, Level level, bool hostSnap, ImportInstance import)
+        {
+            var run = new ConversionRun { Preface = "" };
+            string key = ImportKey(doc, import);
+            var prior = StingMepCadStampSchema.FindStamped(doc, key);
+            bool replace = false;
+            if (prior.Count > 0)
+            {
+                var td = new TaskDialog("MEP CAD → Model")
+                {
+                    MainInstruction = $"'{key}' was already converted",
+                    MainContent = $"Found {prior.Count} MEP element(s) from a previous conversion of this import. Choose how to proceed:",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    AllowCancellation = true
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Replace", $"Delete the {prior.Count} previous element(s), then convert again");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Add anyway", "Convert again without deleting (this will duplicate)");
+                var r = td.Show();
+                if (r == TaskDialogResult.Cancel) { run.Cancelled = true; run.Preface = "Skipped — existing conversion left in place."; return run; }
+                replace = r == TaskDialogResult.CommandLink1;
+            }
+
+            using (var tg = new TransactionGroup(doc, "STING MEP CAD → Model"))
+            {
+                tg.Start();
+                try
+                {
+                    if (replace) DeleteElements(doc, prior);
+                    run.Outcome = PlaceAll(doc, detection, level, hostSnap);
+                    StampAll(doc, key, AllCreatedIds(run.Outcome));
+                    tg.Assimilate();
+                }
+                catch (Exception ex)
+                {
+                    tg.RollBack();
+                    StingLog.Error("MepCad RunConversion", ex);
+                    run.Cancelled = true;
+                    run.Preface = "Conversion failed and was rolled back: " + ex.Message;
+                    return run;
+                }
+            }
+            run.Preface = replace ? $"Replaced {prior.Count} prior element(s). "
+                : prior.Count > 0 ? "Added alongside the existing conversion. " : "";
+            return run;
+        }
+
+        private static void DeleteElements(Document doc, List<ElementId> ids)
+        {
+            if (ids == null || ids.Count == 0) return;
+            using (var t = new Transaction(doc, "STING MEP CAD: Remove previous conversion"))
+            {
+                t.Start();
+                try { doc.Delete(ids.Where(id => doc.GetElement(id) != null).ToList()); t.Commit(); }
+                catch (Exception ex) { t.RollBack(); StingLog.Warn($"Remove previous conversion: {ex.Message}"); }
+            }
+        }
+
+        private static void StampAll(Document doc, string key, List<ElementId> ids)
+        {
+            if (ids == null || ids.Count == 0) return;
+            using (var t = new Transaction(doc, "STING MEP CAD: Stamp conversion"))
+            {
+                t.Start();
+                foreach (var id in ids) { var el = doc.GetElement(id); if (el != null) StingMepCadStampSchema.Stamp(el, key); }
+                t.Commit();
+            }
         }
 
         /// <summary>Human-readable result block shared by the Convert command + the wizard.</summary>
@@ -299,10 +394,18 @@ namespace StingTools.Model
             confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Place fixtures + runs + risers + fittings");
             if (confirm.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
 
-            var outcome = MepCadShared.PlaceAll(doc, detection, level, hostSnap: true);
+            // P5 1.1/1.2 — re-run guard + atomic (one TransactionGroup + stamp).
+            var conv = MepCadShared.RunConversion(doc, detection, level, hostSnap: true, import);
+            if (conv.Cancelled)
+            {
+                if (!string.IsNullOrEmpty(conv.Preface)) TaskDialog.Show("MEP CAD → Model", conv.Preface);
+                return Result.Cancelled;
+            }
+            var outcome = conv.Outcome;
 
             var sb = new StringBuilder();
             sb.AppendLine($"Level: {level.Name}   DWG imports: {importCount}");
+            if (!string.IsNullOrEmpty(conv.Preface)) sb.AppendLine(conv.Preface);
             sb.AppendLine();
             sb.Append(MepCadShared.Report(outcome));
 
@@ -353,10 +456,18 @@ namespace StingTools.Model
             if (level == null) { TaskDialog.Show("MEP CAD Wizard", "No level selected / available."); return Result.Failed; }
 
             var filtered = wiz.ApplyTo(detection);
-            var outcome = MepCadShared.PlaceAll(doc, filtered, level, wiz.HostSnap);
+            // P5 1.1/1.2 — re-run guard + atomic (one TransactionGroup + stamp).
+            var conv = MepCadShared.RunConversion(doc, filtered, level, wiz.HostSnap, import);
+            if (conv.Cancelled)
+            {
+                if (!string.IsNullOrEmpty(conv.Preface)) TaskDialog.Show("MEP CAD Wizard", conv.Preface);
+                return Result.Cancelled;
+            }
+            var outcome = conv.Outcome;
 
             var sb = new StringBuilder();
             sb.AppendLine($"Level: {level.Name}   Host-snap: {(wiz.HostSnap ? "on" : "off")}");
+            if (!string.IsNullOrEmpty(conv.Preface)) sb.AppendLine(conv.Preface);
             sb.AppendLine();
             sb.Append(MepCadShared.Report(outcome));
 

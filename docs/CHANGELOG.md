@@ -3,6 +3,27 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P5 §1: safety — idempotent re-run + atomic pass)
+
+The two near-blocking safety gaps before real use. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Idempotency / re-run guard** — every element created by Mep_CadToModel /
+  Mep_CadWizard is now stamped (`StingMepCadStampSchema`, ES) with the source
+  import key (DWG file/type name). On re-run, `FindStamped` (an
+  `ExtensibleStorageFilter` quick-filter — `TODO-VERIFY-API`) detects a prior
+  conversion of the same import and offers **Replace** (delete the prior
+  elements first), **Add anyway**, or **Skip (Cancel)**. Fixtures, runs, risers
+  AND fitting families are all stamped, so Replace cleans the whole prior pass.
+- **1.2 Atomic pass** — `MepCadShared.RunConversion` wraps delete-prior + fixtures
+  + runs + risers + fittings + stamping in a single `TransactionGroup`
+  (`Assimilate` on success, `RollBack` on a hard failure) so the conversion is
+  one Ctrl-Z and one rollback unit instead of four separate transactions that
+  could leave a half-converted model.
+
+Both the Convert command and the Wizard route through `RunConversion`; the result
+panel reports "Replaced N prior element(s)" / "Added alongside…" / "Skipped".
+
 #### Completed (MEP-from-DWG — preview honesty + housekeeping)
 
 Carry-over block before the P5 gap-closure pass. **Compile-verified against
