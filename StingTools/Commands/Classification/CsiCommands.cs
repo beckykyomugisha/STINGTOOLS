@@ -59,6 +59,28 @@ namespace StingTools.Commands.Classification
 
         public static List<Element> Scope(UIDocument uidoc, Document doc, out string label)
             => StingTools.Tags.TagSchemeCommandHelper.CollectScope(uidoc, doc, out label);
+
+        // ── Phase A (KUT lifecycle) — CSI section → NRM2 bridge cache ──────────
+        // BuildLineItemFromElement calls SectionToNrm2 once per element; the
+        // per-document cache keeps the CSV load to once per BuildBOQDocument run
+        // (mirrors RateProviderRegistry's per-PathName caching). Invalidate is
+        // wired alongside RateProviderRegistry.Invalidate on Cost_ReloadRules.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, string>> _nrm2Cache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Normalised CSI section → NRM2 work-section code, from the
+        /// corporate map + project overlay. Empty when no rule carries an Nrm2.</summary>
+        public static Dictionary<string, string> SectionToNrm2(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            return _nrm2Cache.GetOrAdd(key, _unused =>
+            {
+                var rules = Load(doc, out int _, out int _);
+                return CsiMasterFormat.BuildSectionToNrm2(rules);
+            });
+        }
+
+        public static void Invalidate() => _nrm2Cache.Clear();
     }
 
     [Transaction(TransactionMode.Manual)]

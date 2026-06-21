@@ -175,17 +175,18 @@ namespace StingTools.BOQ
             // Row 7 — column headers
             int hr = 7;
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
-                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note" };
+                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note",
+                "Spec ref (CSI)" };
             for (int i = 0; i < cols.Length; i++)
             {
                 ws.Cell(hr, i + 1).Value = cols[i];
             }
-            ws.Range(hr, 1, hr, 13).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+            ws.Range(hr, 1, hr, 14).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
                 .Fill.SetBackgroundColor(HeaderFill);
             ws.SheetView.FreezeRows(hr);
 
             // Column widths
-            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22 };
+            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22, 30 };
             for (int i = 0; i < widths.Length; i++) ws.Column(i + 1).Width = widths[i];
 
             // Data rows — section headers + items
@@ -193,7 +194,7 @@ namespace StingTools.BOQ
             foreach (var sec in boq.Sections)
             {
                 ws.Cell(row, 1).Value = $"§{sec.NRM2Section} — {sec.Name}";
-                ws.Range(row, 1, row, 13).Merge().Style.Font.SetBold().Font.SetFontSize(11)
+                ws.Range(row, 1, row, 14).Merge().Style.Font.SetBold().Font.SetFontSize(11)
                     .Fill.SetBackgroundColor(DisciplineColor(sec.Discipline));
                 row++;
 
@@ -217,7 +218,8 @@ namespace StingTools.BOQ
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
                     ws.Cell(row, 13).Value = (!item.QuantityMeasured ? "⚠ UNMEASURED (qty is a 1.0 placeholder) " : "") + (item.Note ?? "");
-                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 13).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
+                    ws.Cell(row, 14).Value = SpecRef(item);
+                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 14).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
                     row++;
                 }
             }
@@ -519,6 +521,13 @@ namespace StingTools.BOQ
             if (!string.IsNullOrEmpty(it.Level) && !string.IsNullOrEmpty(it.Location))
                 return $"{it.Level} / {it.Location}";
             return !string.IsNullOrEmpty(it.Level) ? it.Level : it.Location ?? "";
+        }
+
+        // Phase A (KUT lifecycle) — CSI MasterFormat spec reference for the row.
+        private static string SpecRef(BOQLineItem it)
+        {
+            if (string.IsNullOrEmpty(it?.CsiSection)) return "";
+            return string.IsNullOrEmpty(it.CsiTitle) ? it.CsiSection : $"{it.CsiSection} — {it.CsiTitle}";
         }
 
         private string ExtractStatus(string note)

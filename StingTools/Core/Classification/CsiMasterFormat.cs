@@ -22,6 +22,11 @@ namespace StingTools.Core.Classification
         public string Sys { get; set; } = "";
         public string Section { get; set; } = "";
         public string Title { get; set; } = "";
+        /// <summary>Phase A (KUT lifecycle) — optional NRM2 work-section code so a
+        /// single CSI rule resolves both the CSI MasterFormat section AND the NRM2
+        /// section a BOQ line is billed under. Blank = let the BOQ engine derive the
+        /// NRM2 section from the category (BOQCostManager.DeriveNrm2Section).</summary>
+        public string Nrm2 { get; set; } = "";
 
         private Regex _famRx, _typeRx;
         private bool _compiled;
@@ -76,7 +81,10 @@ namespace StingTools.Core.Classification
                 if (string.IsNullOrWhiteSpace(raw)) continue;
                 string line = raw.TrimEnd('\r');
                 if (line.TrimStart().StartsWith("#")) continue;
-                var f = line.Split(new[] { ',' }, 6);
+                // Split into 7 so an optional 7th "Nrm2" column is read while the
+                // 6-column legacy rows keep working (Title absorbs no commas in the
+                // shipped map, so Title stays whole on the 6-field rows).
+                var f = line.Split(new[] { ',' }, 7);
                 if (f.Length < 6) continue;
                 string cat = f[0].Trim();
                 if (cat.Length == 0) continue;
@@ -90,6 +98,7 @@ namespace StingTools.Core.Classification
                     Sys = f[3].Trim(),
                     Section = f[4].Trim(),
                     Title = f[5].Trim(),
+                    Nrm2 = f.Length >= 7 ? f[6].Trim() : "",
                 });
             }
             return rules;
@@ -108,6 +117,23 @@ namespace StingTools.Core.Classification
                 if (s > bestScore) { bestScore = s; best = rules[i]; }
             }
             return bestScore >= 0 ? best : null;
+        }
+
+        /// <summary>Phase A (KUT lifecycle) — CSI section → NRM2 section bridge. Builds a
+        /// normalised-section → NRM2-code lookup from every rule that carries an Nrm2
+        /// value. Pure (host-free, unit-testable). The earliest rule wins on a section
+        /// collision so a project-overlay row (loaded first) overrides the corporate one.</summary>
+        public static Dictionary<string, string> BuildSectionToNrm2(IEnumerable<CsiRule> rules)
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in rules ?? Enumerable.Empty<CsiRule>())
+            {
+                if (r == null || string.IsNullOrWhiteSpace(r.Nrm2) || string.IsNullOrWhiteSpace(r.Section)) continue;
+                string key = NormalizeSection(r.Section);
+                if (key.Length == 0 || d.ContainsKey(key)) continue;
+                d[key] = r.Nrm2.Trim();
+            }
+            return d;
         }
 
         /// <summary>Canonical key for a CSI section number. Removes ALL whitespace (and

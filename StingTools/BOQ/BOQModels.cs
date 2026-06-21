@@ -60,9 +60,16 @@ namespace StingTools.BOQ
         public string Level;
         public string Location;             // room name or spatial code
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated"
+        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "Fohlio"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
+
+        /// <summary>Phase A (KUT lifecycle) — the element's CSI MasterFormat section
+        /// (CSI_SECTION_TXT) and title (CSI_TITLE_TXT), copied onto the line so the
+        /// bill carries a spec reference per row and the cost↔spec gap report can
+        /// join on it. Empty when the element was never CSI-assigned.</summary>
+        public string CsiSection;
+        public string CsiTitle;
 
         /// <summary>
         /// FIX #1 — false when <see cref="Quantity"/> is a 1.0 placeholder that
@@ -119,7 +126,9 @@ namespace StingTools.BOQ
                 RateConfidence = this.RateConfidence,
                 SortOrder = this.SortOrder,
                 QuantityMeasured = this.QuantityMeasured,
-                RateIncludesOhp = this.RateIncludesOhp
+                RateIncludesOhp = this.RateIncludesOhp,
+                CsiSection = this.CsiSection,
+                CsiTitle = this.CsiTitle
             };
         }
     }

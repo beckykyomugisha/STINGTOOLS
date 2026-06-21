@@ -230,6 +230,28 @@ namespace StingTools.BOQ
 
             string disc = DisciplineForCategory(catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
+
+            // (f) Spec reference + CSI↔NRM2 bridge (Phase A — KUT lifecycle).
+            // The element carries its CSI section/title once CSI_Assign has run;
+            // copy them onto the line so the bill shows a spec ref and the cost↔spec
+            // gap report can join on it. When the matched CSI rule declares an NRM2
+            // work-section it overrides the category-derived one so a SYS-specific
+            // row (e.g. Pipes+SAN → 32) bills consistently with its specification.
+            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION) ?? "";
+            string csiTitle = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var bridge = StingTools.Commands.Classification.CsiMap.SectionToNrm2(doc);
+                    if (bridge != null &&
+                        bridge.TryGetValue(StingTools.Core.Classification.CsiMasterFormat.NormalizeSection(csiSection), out string bridged) &&
+                        !string.IsNullOrEmpty(bridged))
+                        nrm2Section = bridged;
+                }
+                catch (Exception ex) { StingLog.Warn($"CSI↔NRM2 bridge: {ex.Message}"); }
+            }
+
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
 
@@ -259,7 +281,9 @@ namespace StingTools.BOQ
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
                 QuantityMeasured = quantityMeasured,
-                RateIncludesOhp = rateIncludesOhp
+                RateIncludesOhp = rateIncludesOhp,
+                CsiSection = csiSection,
+                CsiTitle = csiTitle
             };
 
             // Mark provisional sums on the element if configured via existing parameter.

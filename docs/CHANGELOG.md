@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase A: Spec ref on every BOQ line + CSI↔NRM2 bridge)
+
+First slice of the KUT (Kampala Uganda Temple) lifecycle integration —
+joining the four systems that already key off the same Revit element
+(SpecLink/CSI · BOQ · Fohlio · Niagara) so cost, spec, procurement and
+commissioning agree. Phase A is pure-internal (no new external link) and
+**compile-verified against Revit 2025 (0 errors, 0 warnings)**; the new
+pure logic is locked by 6 xUnit tests (`CsiNrm2BridgeTests`).
+
+- **CSI map gains an `Nrm2` column** (`Data/STING_CSI_MASTERFORMAT_MAP.csv`,
+  7th column; parser in `Core/Classification/CsiMasterFormat.cs` now splits
+  into 7 and reads the optional code). One rule resolves both the CSI
+  MasterFormat section and the NRM2 work-section. Authored for the full KUT
+  category set; blank = the BOQ engine still derives NRM2 from the category
+  (`DeriveNrm2Section`). The win is SYS-specific rows: `Pipes+SAN` bills under
+  plumbing (32) while `Pipes+CHW` bills under HVAC (33) — which the category
+  fallback alone cannot express.
+- **CSI↔NRM2 bridge** — new pure `CsiMasterFormat.BuildSectionToNrm2(rules)`
+  + per-document cache `CsiMap.SectionToNrm2(doc)` (mirrors the rate-registry
+  per-PathName caching; invalidated alongside `RateProviderRegistry` on
+  `Cost_ReloadRules`). `BuildLineItemFromElement` reads `CSI_SECTION_TXT` off
+  the element and, when the section maps to an NRM2 code, uses it for the
+  line's NRM2 section.
+- **Spec ref on every line** — `BOQLineItem` gains `CsiSection` / `CsiTitle`
+  (stamped from the element, carried through `Clone()`). The basic export
+  (`BOQExportCommand`) adds a dedicated **"Spec ref (CSI)"** column; the
+  professional QS bill (`BOQProfessionalExportCommand`) cites the CSI clause
+  under the item description (QS convention — avoids reflowing the styled
+  6-column bill).
+
+Pre-existing unrelated failure noted: `MaterialLookupPopulateTests.ConcreteGradeCarbon`
+fails on this branch independent of these changes (carbon-factor data, not
+touched here).
+
 #### Completed (Phase 195 — BOQ accuracy hardening for production sign-off)
 
 Closes ten accuracy findings from a production-readiness review of the

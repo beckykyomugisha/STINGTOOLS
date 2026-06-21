@@ -1200,6 +1200,11 @@ namespace StingTools.BOQ
                 string para = string.IsNullOrEmpty(item.ResolvedNRM2Paragraph)
                     ? $"Supply, fix and install {(item.Category ?? item.ItemName ?? "the Works").ToLowerInvariant()}."
                     : item.ResolvedNRM2Paragraph;
+                // Phase A (KUT lifecycle) — cite the CSI MasterFormat specification
+                // clause within the item description (QS convention) so the priced
+                // bill shows a spec ref per line without disturbing the QS column set.
+                string specRef = SpecRefText(item);
+                if (!string.IsNullOrEmpty(specRef)) para = para + "\n" + specRef;
                 ws.Cell(r, 3).Value = para;
                 ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                     .Alignment.SetWrapText(true).Alignment.SetVertical(XLAlignmentVerticalValues.Top);
@@ -1394,6 +1399,16 @@ namespace StingTools.BOQ
                 ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10).Font.SetItalic(true)
                     .Font.SetFontColor(XLColor.FromArgb(110, 110, 110));
             }
+        }
+
+        // Phase A (KUT lifecycle) — CSI MasterFormat specification reference cited
+        // under the item description in the QS bill.
+        private string SpecRefText(BOQLineItem it)
+        {
+            if (it == null || string.IsNullOrEmpty(it.CsiSection)) return "";
+            return string.IsNullOrEmpty(it.CsiTitle)
+                ? $"Specification: CSI {it.CsiSection}"
+                : $"Specification: CSI {it.CsiSection} — {it.CsiTitle}";
         }
 
         private string PrettifyUnit(string raw)

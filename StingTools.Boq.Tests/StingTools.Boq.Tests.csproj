@@ -20,6 +20,8 @@
     <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BoqTotals.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
+    <!-- Phase A (KUT lifecycle): pure CSI MasterFormat resolver + CSI↔NRM2 bridge. -->
+    <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +40,11 @@
     <!-- Z-24b: the long-format LOOKUP, copied so the populate test resolves
          the new metal/glass/timber rows against production data. -->
     <None Include="..\StingTools\Data\MATERIAL_LOOKUP.csv" Link="Data\MATERIAL_LOOKUP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Phase A (KUT lifecycle): the shipped CSI map, so the bridge test runs
+         against production rows (Pipes+SAN→32 vs Pipes+CHW→33). -->
+    <None Include="..\StingTools\Data\STING_CSI_MASTERFORMAT_MAP.csv" Link="Data\STING_CSI_MASTERFORMAT_MAP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
