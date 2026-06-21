@@ -31,15 +31,24 @@ namespace StingTools.Core.Cad.Mep
     public class MepDetectionResult
     {
         public List<MepDetectedFixture> Fixtures { get; } = new List<MepDetectedFixture>();
+        /// <summary>V2 — ExtractedLines classified as straight runs (Duct/Pipe/Conduit/Tray).</summary>
+        public List<MepRunCandidate> Runs { get; } = new List<MepRunCandidate>();
         /// <summary>Block names that matched no fixture rule, with occurrence counts.</summary>
         public Dictionary<string, int> UnmatchedBlockCounts { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> LayerCounts { get; set; } = new Dictionary<string, int>();
         public int TotalEntities { get; set; }
         public int TotalBlocks { get; set; }
+        public int TotalLines { get; set; }
 
         /// <summary>Detected fixtures grouped by Revit category, count descending.</summary>
         public IEnumerable<IGrouping<string, MepDetectedFixture>> ByCategory()
             => Fixtures.GroupBy(f => f.Category).OrderByDescending(g => g.Count());
+
+        /// <summary>Run candidates grouped by kind: count + total length (m), count descending.</summary>
+        public IEnumerable<(MepRunKind Kind, int Count, double TotalM)> RunsByKind()
+            => Runs.GroupBy(r => r.Kind)
+                   .Select(g => (g.Key, g.Count(), g.Sum(r => StingTools.Model.Units.ToMm(r.LengthFt) / 1000.0)))
+                   .OrderByDescending(t => t.Item2);
     }
 
     public class MepDetectionEngine
@@ -61,6 +70,25 @@ namespace StingTools.Core.Cad.Mep
             result.LayerCounts = extraction.LayerCounts ?? new Dictionary<string, int>();
             result.TotalEntities = extraction.TotalEntities;
             result.TotalBlocks = extraction.Blocks?.Count ?? 0;
+            result.TotalLines = extraction.Lines?.Count ?? 0;
+
+            // V2 — classify extracted lines on MEP layers into straight-run candidates.
+            // Length floor filters short fixture-internal lines; run-kind requires an
+            // explicit run keyword (or Ducts/Pipes category) so power-layer symbol
+            // lines are not misread as conduit.
+            foreach (var line in extraction.Lines ?? new List<ExtractedLine>())
+            {
+                if (line == null) continue;
+                if (StingTools.Model.Units.ToMm(line.Length) < MepRunClassifier.MinRunLengthMm) continue;
+                var kind = MepRunClassifier.DetectKind(line.LayerName, line.Category);
+                if (kind == null) continue;
+                result.Runs.Add(new MepRunCandidate
+                {
+                    Line = line,
+                    Kind = kind.Value,
+                    Size = MepRunClassifier.ParseSize(line.LayerName, kind.Value),
+                });
+            }
 
             var lib = MepFixtureMap.Get(_doc);
             foreach (var block in extraction.Blocks ?? new List<DetectedBlock>())
