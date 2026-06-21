@@ -206,6 +206,12 @@ namespace StingTools.Model
                 sb.AppendLine("   Systems assigned:");
                 foreach (var kv in run.BySystem.OrderByDescending(k => k.Value))
                     sb.AppendLine($"      {kv.Key,-26} {kv.Value}");
+                // P6-4.3 — conduit/tray carry no system in the Revit API; reconcile the
+                // ByKind table (which lists them) with the systems table (which can't).
+                run.ByKind.TryGetValue(MepRunKind.Conduit, out int nc);
+                run.ByKind.TryGetValue(MepRunKind.CableTray, out int nt);
+                if (nc + nt > 0)
+                    sb.AppendLine($"      {"Conduit / CableTray",-26} {nc + nt}   (no system — Revit API)");
             }
             if (run.ServiceDefaultedDuct > 0 || run.ServiceDefaultedPipe > 0)
                 sb.AppendLine($"   ⚠ Defaulted systems: {run.ServiceDefaultedDuct} duct(s) → Supply (no service keyword), {run.ServiceDefaultedPipe} pipe(s) → first-available (no token).");

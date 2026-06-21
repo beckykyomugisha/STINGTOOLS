@@ -56,8 +56,8 @@ namespace StingTools.Core.Cad.Mep
         public MepFittingBuilder(Document doc, double tolMm = 12.0)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
-            _tolFt = (tolMm > 0 ? tolMm : 12.0) / 304.8;
-            _nearMissFt = Math.Max(NearMissMm, tolMm * 2) / 304.8;
+            _tolFt = StingTools.Model.Units.Mm(tolMm > 0 ? tolMm : 12.0);
+            _nearMissFt = StingTools.Model.Units.Mm(Math.Max(NearMissMm, tolMm * 2));
         }
 
         private sealed class EndRef
@@ -244,7 +244,7 @@ namespace StingTools.Core.Cad.Mep
 
         // P6-2.1 — grid cell for the run-segment index (0.5 m; ≫ the 12 mm join tol so a
         // body within tol of p is always in p's 3×3 cell neighbourhood).
-        private const double SegGridCellFt = 500.0 / 304.8;
+        private static readonly double SegGridCellFt = StingTools.Model.Units.Mm(500.0);
 
         // The nearest run whose body passes within tol of p (interior, not at its own ends).
         // Queries only the grid candidates near p; picks the NEAREST body hit (deterministic
@@ -260,7 +260,7 @@ namespace StingTools.Core.Cad.Mep
                 if (!(mc.Location is LocationCurve lc) || !(lc.Curve is Line ln)) continue;
                 XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
                 if (p.DistanceTo(a) <= _tolFt || p.DistanceTo(b) <= _tolFt) continue; // that's an end-junction
-                var cp = ClosestPointOnSegment(a, b, p, out double t, out double dist);
+                var cp = MepGeom.ClosestPointOnSegment(a, b, p, out double t, out double dist);
                 if (dist <= _tolFt && t > 1e-3 && t < 1.0 - 1e-3 && dist < bestDist)
                 { bestDist = dist; bestId = id; breakPt = cp; }
             }
@@ -325,14 +325,6 @@ namespace StingTools.Core.Cad.Mep
             }
             catch { }
             return best;
-        }
-
-        private static XYZ ClosestPointOnSegment(XYZ a, XYZ b, XYZ p, out double t, out double dist)
-        {
-            var ab = b - a; double len2 = ab.DotProduct(ab);
-            t = len2 > 1e-12 ? (p - a).DotProduct(ab) / len2 : 0;
-            t = Math.Max(0, Math.Min(1, t));
-            var cp = a + t * ab; dist = cp.DistanceTo(p); return cp;
         }
 
         private static bool SafeOpen(Connector c)

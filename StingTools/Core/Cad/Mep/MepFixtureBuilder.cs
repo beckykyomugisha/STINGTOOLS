@@ -136,11 +136,7 @@ namespace StingTools.Core.Cad.Mep
                                 result.Warnings.Add($"'{fx.BlockName}' ({fx.Category}): {ex.Message}");
                         }
 
-                        if (i % 50 == 0 && EscapeChecker.IsEscapePressed())
-                        {
-                            result.Warnings.Add($"Cancelled by user after {i} fixtures.");
-                            break;
-                        }
+                        if (MepBatch.ShouldCancel(i, result.Warnings)) break;
                     }
                     tx.Commit();
                 }
@@ -156,11 +152,7 @@ namespace StingTools.Core.Cad.Mep
 
             // ISO 19650 auto-tag — same path native Placement-Center output uses,
             // so DWG-placed fixtures flow into tagging / BOQ / validation unchanged.
-            if (result.CreatedIds.Count > 0)
-            {
-                try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
-                catch (Exception ex) { StingLog.Warn($"MEP fixture auto-tag: {ex.Message}"); }
-            }
+            MepBatch.AutoTag(_doc, result.CreatedIds, n => result.Tagged = n);
 
             // Surface which families could not be resolved (closes the silent-skip gap).
             if (_resolver?.Missing != null && _resolver.Missing.Count > 0)
@@ -194,8 +186,8 @@ namespace StingTools.Core.Cad.Mep
 
         // ── V2 host-snapping ─────────────────────────────────────────────────
         private enum HostIntent { None, Wall, Ceiling }
-        private const double WallTolFt = 700.0 / 304.8;     // snap to a wall within ~700 mm
-        private const double CeilingFallbackFt = 1500.0 / 304.8;
+        private static readonly double WallTolFt = StingTools.Model.Units.Mm(700.0);     // snap to a wall within ~700 mm
+        private static readonly double CeilingFallbackFt = StingTools.Model.Units.Mm(1500.0);
 
         private static readonly HashSet<string> WallMount = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -326,7 +318,7 @@ namespace StingTools.Core.Cad.Mep
             Wall best = null; double bestD = tolFt; proj = p;
             foreach (var (w, ln) in walls.Near(p))   // grid candidates cover the tol radius
             {
-                var cp = ClosestPointOnSegment2D(ln.GetEndPoint(0), ln.GetEndPoint(1), p, out double d);
+                var cp = MepGeom.ClosestPointOnSegment(ln.GetEndPoint(0), ln.GetEndPoint(1), p, out _, out double d, planar: true);
                 if (d < bestD) { bestD = d; best = w; proj = new XYZ(cp.X, cp.Y, p.Z); }
             }
             return best;
@@ -384,14 +376,6 @@ namespace StingTools.Core.Cad.Mep
                 if (d < bestD) { bestD = d; nearest = c; }
             }
             return bestD <= CeilingFallbackFt ? nearest : null;
-        }
-
-        private static XYZ ClosestPointOnSegment2D(XYZ a, XYZ b, XYZ p, out double dist2D)
-        {
-            var a2 = new XYZ(a.X, a.Y, 0); var b2 = new XYZ(b.X, b.Y, 0); var p2 = new XYZ(p.X, p.Y, 0);
-            var ab = b2 - a2; double len2 = ab.DotProduct(ab);
-            double t = len2 > 1e-9 ? Math.Max(0, Math.Min(1, (p2 - a2).DotProduct(ab) / len2)) : 0;
-            var cp = a2 + t * ab; dist2D = cp.DistanceTo(p2); return cp;
         }
 
         /// <summary>Stamp mounting metadata so DWG-placed fixtures match native
