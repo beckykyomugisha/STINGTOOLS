@@ -1,0 +1,16 @@
+{
+  "name": "KUT Lifecycle Reconcile",
+  "description": "Kampala Uganda Temple — the end-to-end lifecycle reconcile that joins the four systems keyed off the same Revit element: SpecLink/CSI (specified) → BOQ (measured/priced) → Fohlio (procured) → Niagara (commissioned). Pulls the latest Fohlio FF&E procurement data in, assigns CSI sections, rebuilds the priced BOQ, reconciles spec ↔ cost gaps, exports + reconciles the BMS point list, joins all four ledgers into the unified asset register, and finishes on the KUT KPI dashboard which now headlines the cross-ledger join metrics. File-dependent steps (Fohlio export, SpecLink ToC, Niagara station export) are optional — Cancel skips that step without failing the run.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "Fohlio_Import", "label": "1. Pull Fohlio FF&E procurement (ref + unit cost + currency)", "optional": true },
+    { "commandTag": "CSI_Assign", "label": "2. Assign CSI MasterFormat sections (specified)" },
+    { "commandTag": "BOQRefresh", "label": "3. Rebuild the priced BOQ from the live model (measured + PC sums)" },
+    { "commandTag": "SpecLink_Reconcile", "label": "4. Spec ↔ cost gaps (priced-unspecified / specified-unpriced)", "optional": true },
+    { "commandTag": "Niagara_ExportPoints", "label": "5. Export the Niagara BMS point list (controls submittal)" },
+    { "commandTag": "Niagara_Reconcile", "label": "6. Reconcile model BMS devices vs the station export", "optional": true },
+    { "commandTag": "KUT_LifecycleReconcile", "label": "7. Four-ledger join — unified asset register + commissioning gaps", "optional": true },
+    { "commandTag": "KUT_KpiDashboard", "label": "8. KUT KPI dashboard — four-ledger join metrics (HTML + CSV)" }
+  ]
+}

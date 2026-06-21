@@ -3,6 +3,25 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase E: one KUT dashboard + the lifecycle workflow)
+
+The four-ledger story lands on one board and one workflow.
+**Compile-verified Revit 2025 (0/0).**
+
+- **`KutKpiSnapshot` join metrics** (no single ledger produces these):
+  `FfePricedFromFohlioPct`, `PricedUnspecifiedValueUGX` (priced lines with no
+  CSI), `PricedNoBmsPointCount` (priced monitorable lines with no BMS point),
+  and `BoqVsFohlioVarianceUGX` (STING FF&E total − Fohlio register total, works
+  basis excl VAT per decision #4). `Gather` builds the BOQ once (read-only) for
+  the priced metrics and accumulates the Fohlio register total (USD→UGX via the
+  doc FX). Rendered with **RAG bands** in the HTML report, the `StingResultPanel`
+  ("Lifecycle join" section) and the CSV.
+- **`WORKFLOW_KUT_LifecycleReconcile.json`** — Fohlio_Import → CSI_Assign →
+  BOQRefresh → SpecLink_Reconcile → Niagara_ExportPoints → Niagara_Reconcile →
+  KUT_LifecycleReconcile → KUT_KpiDashboard (file-dependent steps optional so a
+  Cancel skips rather than fails). `WORKFLOW_KUT_MonthlyReport.json` now
+  references it and adds the four-ledger register as a read-only step.
+
 #### Completed (KUT Lifecycle Integration — Phase D: Niagara join — commissioning gaps + unified register)
 
 New read-only `KUT_LifecycleReconcile` command joins all four ledgers

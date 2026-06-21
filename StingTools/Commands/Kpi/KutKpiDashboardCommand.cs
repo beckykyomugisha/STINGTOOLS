@@ -29,6 +29,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Clash;
 using StingTools.Core.Storage;
@@ -64,12 +65,27 @@ namespace StingTools.Commands.Kpi
         public double SpecCoveragePct => SpecTotal > 0 ? 100.0 * SpecAssigned / SpecTotal : 0;
         public int BmsPoints { get; set; }
         public int BmsNoEndpoint { get; set; }
+
+        // Phase E — cross-ledger join metrics (no single ledger produces these).
+        public int FfePricedFromFohlio { get; set; }
+        public double FfePricedFromFohlioPct => FfeTotal > 0 ? 100.0 * FfePricedFromFohlio / FfeTotal : 0;
+        public double PricedUnspecifiedValueUGX { get; set; }   // priced lines with no CSI section
+        public int PricedNoBmsPointCount { get; set; }          // priced monitorable lines with no BMS point
+        public double BoqVsFohlioVarianceUGX { get; set; }      // STING FF&E total − Fohlio register total
     }
 
     public static class KutKpiEngine
     {
         // Health-score normalisation caps (documented, tunable).
         private const double ClashCap = 200.0, WarningCap = 500.0, StaleCap = 100.0;
+
+        // Categories that typically carry a BMS / IoT point (PRICED_NO_BMS_POINT scope).
+        private static readonly HashSet<string> Monitorable = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Lighting Devices",
+            "Air Terminals", "Duct Accessory", "Plumbing Fixtures", "Fire Alarm Devices",
+            "Security Devices", "Communication Devices", "Data Devices", "Nurse Call Devices", "Sprinklers"
+        };
 
         public static KutKpiSnapshot Gather(Document doc)
         {
@@ -104,11 +120,26 @@ namespace StingTools.Commands.Kpi
             // Single combined pass over taggable categories: SpecLink CSI coverage (all
             // taggable cats) + Fohlio FF&E coverage (mapped cats only). Folds what were
             // two separate collector iterations into one (#13).
+            // FX for the Fohlio register total (Phase E). Fohlio quotes USD by default.
+            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+            double ToUgx(double amt, string cur)
+            {
+                switch ((cur ?? "").Trim().ToUpperInvariant())
+                {
+                    case "GBP": return amt * ugxPerGbp;
+                    case "UGX": return amt;
+                    default: return amt * ugxPerUsd; // USD or unspecified
+                }
+            }
+
             int ffeTotal = 0, ffeLinked = 0, ffeStale = 0;
             int specTotal = 0, specAssigned = 0;
+            int ffePricedFromFohlio = 0;
+            double fohlioRegisterUgx = 0;   // Σ Fohlio unit cost × Fohlio qty, in UGX
             try
             {
-                var map = FohlioMap.Load(doc);
+                var map = FohlioMap.Cached(doc);
                 var ffeCats = new HashSet<string>(map.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
                 var writeParams = map.Columns.Where(c => c.WriteBack && !FohlioMap.IsPseudo(c.Param)).Select(c => c.Param).ToList();
 
@@ -143,6 +174,17 @@ namespace StingTools.Commands.Kpi
                                 if (!string.Equals(ParameterHelpers.GetString(el, p), snapV ?? "", StringComparison.Ordinal)) { ffeStale++; break; }
                             }
                         }
+
+                        // Phase E — Fohlio-priced coverage + register total (variance vs the bill).
+                        double fcost = ParameterHelpers.GetDouble(el, ParamRegistry.FOHLIO_UNIT_COST, 0);
+                        string fcur = ParameterHelpers.GetString(el, ParamRegistry.FOHLIO_CURRENCY);
+                        double fqty = 1;
+                        if (snap != null)
+                        {
+                            if (fcost <= 0 && snap.UnitCost > 0) { fcost = snap.UnitCost; if (string.IsNullOrEmpty(fcur)) fcur = snap.Currency; }
+                            if (snap.QtyFromFohlio > 0) fqty = snap.QtyFromFohlio;
+                        }
+                        if (fcost > 0) { ffePricedFromFohlio++; fohlioRegisterUgx += ToUgx(fcost * fqty, fcur); }
                     }
                 }
             }
@@ -156,6 +198,38 @@ namespace StingTools.Commands.Kpi
                 bmsNoEndpoint = devs.Count(d => string.IsNullOrEmpty(d.EndpointAddress));
             }
             catch (Exception ex) { StingLog.Warn("KUT KPI BMS: " + ex.Message); }
+
+            // Phase E — BOQ-side join metrics: priced-unspecified value (priced, no CSI),
+            // priced-no-BMS count (priced monitorable line with no BMS point), and the STING
+            // FF&E total vs the Fohlio register (variance, works basis — excl VAT, decision #4).
+            double pricedUnspecifiedUgx = 0, stingFfeTotalUgx = 0;
+            int pricedNoBmsCount = 0;
+            try
+            {
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                if (boq != null)
+                {
+                    var ffeCats = new HashSet<string>(FohlioMap.Cached(doc)?.Categories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                    var devByElem = new Dictionary<long, IoTDeviceRef>();
+                    foreach (var d in new IoTDeviceRegistry(doc).All())
+                        if (d?.BimElementId != null) devByElem[d.BimElementId.Value] = d;
+
+                    foreach (var it in boq.AllItems)
+                    {
+                        if (it == null || it.TotalUGX <= 0) continue;
+                        if (string.IsNullOrEmpty(it.CsiSection)) pricedUnspecifiedUgx += it.TotalUGX;
+                        if (ffeCats.Contains(it.Category ?? "")) stingFfeTotalUgx += it.TotalUGX;
+                        if (it.RevitElementId >= 0 && Monitorable.Contains(it.Category ?? ""))
+                        {
+                            devByElem.TryGetValue(it.RevitElementId, out var dev);
+                            if (dev == null || string.IsNullOrEmpty(dev.DeviceId) || string.IsNullOrEmpty(dev.EndpointAddress))
+                                pricedNoBmsCount++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("KUT KPI BOQ join: " + ex.Message); }
+            double boqVsFohlioVarianceUgx = stingFfeTotalUgx - fohlioRegisterUgx;
 
             double compliance = cs.TotalElements > 0 ? cs.CompliancePercent : 0;
             double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / ClashCap));
@@ -179,6 +253,10 @@ namespace StingTools.Commands.Kpi
                 FfeTotal = ffeTotal, FfeLinked = ffeLinked, FfeStale = ffeStale,
                 SpecTotal = specTotal, SpecAssigned = specAssigned,
                 BmsPoints = bmsPoints, BmsNoEndpoint = bmsNoEndpoint,
+                FfePricedFromFohlio = ffePricedFromFohlio,
+                PricedUnspecifiedValueUGX = Math.Round(pricedUnspecifiedUgx, 0),
+                PricedNoBmsPointCount = pricedNoBmsCount,
+                BoqVsFohlioVarianceUGX = Math.Round(boqVsFohlioVarianceUgx, 0),
             };
         }
 
@@ -245,6 +323,16 @@ namespace StingTools.Commands.Kpi
                 Row(sb, "SpecLink CSI coverage", $"{s.SpecCoveragePct:F1}% ({s.SpecAssigned}/{s.SpecTotal})", Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 Row(sb, "BMS points (Niagara)", $"{s.BmsPoints} ({s.BmsNoEndpoint} no endpoint)", Delta(s.BmsPoints, prev?.BmsPoints, ""));
                 sb.Append("</table>");
+
+                // Phase E — cross-ledger join metrics with RAG bands.
+                sb.Append("<h3>Lifecycle join (cross-ledger)</h3>");
+                sb.Append("<table><tr><th>Metric</th><th>Value</th></tr>");
+                RagRow(sb, "FF&E priced from Fohlio", $"{s.FfePricedFromFohlioPct:F1}% ({s.FfePricedFromFohlio}/{s.FfeTotal})", RagPct(s.FfePricedFromFohlioPct));
+                RagRow(sb, "Priced but unspecified (no CSI)", $"UGX {s.PricedUnspecifiedValueUGX:N0}", s.PricedUnspecifiedValueUGX <= 0 ? Green : Amber);
+                RagRow(sb, "Priced, no BMS point", s.PricedNoBmsPointCount.ToString(), s.PricedNoBmsPointCount == 0 ? Green : Amber);
+                RagRow(sb, "BOQ vs Fohlio FF&E variance (works, excl VAT)", $"UGX {s.BoqVsFohlioVarianceUGX:N0}", Math.Abs(s.BoqVsFohlioVarianceUGX) < 1 ? Green : Amber);
+                sb.Append("</table>");
+
                 if (s.OpenClashBySeverity.Count > 0)
                 {
                     sb.Append("<h3>Open clashes by severity</h3><table><tr><th>Severity</th><th>Open</th></tr>");
@@ -262,6 +350,12 @@ namespace StingTools.Commands.Kpi
 
         private static void Row(StringBuilder sb, string k, string v, string d)
             => sb.Append($"<tr><td>{Esc(k)}</td><td>{Esc(v)}</td><td>{Esc(d)}</td></tr>");
+
+        // Phase E — RAG-coloured row (value cell tinted). Green ≥80 / Amber ≥50 / Red.
+        private const string Green = "#C8E6C9", Amber = "#FFE0B2", Red = "#FFCDD2";
+        private static string RagPct(double pct) => pct >= 80 ? Green : pct >= 50 ? Amber : Red;
+        private static void RagRow(StringBuilder sb, string k, string v, string bg)
+            => sb.Append($"<tr><td>{Esc(k)}</td><td style='background:{bg}'>{Esc(v)}</td></tr>");
 
         public static string Delta(double now, double? prev, string unit, bool invert = false)
         {
@@ -358,6 +452,16 @@ namespace StingTools.Commands.Kpi
                      snap.BmsPoints == 0 ? "none tagged — populate ICT_HEALTHIOT_* on BMS controllers"
                                          : $"{snap.BmsNoEndpoint} without endpoint");
 
+            // Lifecycle join (cross-ledger) — Phase E. Metrics no single ledger produces.
+            b.AddSection("Lifecycle join (cross-ledger)")
+             .RAGBar(snap.FfePricedFromFohlioPct, $"FF&E priced from Fohlio {snap.FfePricedFromFohlioPct:F1}% ({snap.FfePricedFromFohlio}/{snap.FfeTotal})")
+             .Metric("Priced but unspecified (no CSI)", $"UGX {snap.PricedUnspecifiedValueUGX:N0}",
+                     snap.PricedUnspecifiedValueUGX <= 0 ? "all priced work is classified" : "value at risk — run SpecLink Reconcile")
+             .Metric("Priced, no BMS point", snap.PricedNoBmsPointCount.ToString(),
+                     snap.PricedNoBmsPointCount == 0 ? "all monitorable priced assets have a point" : "handover gap — run KUT Lifecycle Reconcile")
+             .Metric("BOQ vs Fohlio FF&E variance", $"UGX {snap.BoqVsFohlioVarianceUGX:N0}",
+                     "STING FF&E total − Fohlio register (works, excl VAT)");
+
             // Trend
             b.AddSection("Trend (30-day)")
              .Metric("Compliance trend", trendDir, $"{(trendDelta >= 0 ? "+" : "")}{trendDelta:F1} pp over window");
@@ -390,6 +494,10 @@ namespace StingTools.Commands.Kpi
                 R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", KutKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 R("BMS points (Niagara)", $"{s.BmsPoints}", "");
                 R("BMS points without endpoint", $"{s.BmsNoEndpoint}", "");
+                R("FF&E priced from Fohlio %", $"{s.FfePricedFromFohlioPct:F1}", "");
+                R("Priced but unspecified (UGX)", $"{s.PricedUnspecifiedValueUGX:F0}", "");
+                R("Priced, no BMS point", $"{s.PricedNoBmsPointCount}", "");
+                R("BOQ vs Fohlio FF&E variance (UGX)", $"{s.BoqVsFohlioVarianceUGX:F0}", "");
                 foreach (var kv in s.OpenClashBySeverity.OrderByDescending(k => k.Value))
                     R($"Open clashes — {kv.Key}", kv.Value.ToString(), "");
                 string path = OutputLocationHelper.GetOutputPath(doc, $"STING_KUT_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
