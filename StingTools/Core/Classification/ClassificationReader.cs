@@ -78,6 +78,10 @@ namespace StingTools.Core.Classification
         /// <summary>Drop the cached policy so an edited classification_policy.json is re-read.</summary>
         public static void InvalidatePolicy() => _policyCache.Clear();
 
+        /// <summary>Phase 199 — the project's active OmniClass table number ("21" / "13" / …),
+        /// from classification_policy.json (default "21"). Read by OmniClass_Assign + the BOQ.</summary>
+        public static string OmniClassTable(Document doc) => PolicyFor(doc).OmniClassTableNumber;
+
         /// <summary>
         /// Pack 126 / Gap J — single canonical fallback chain used by BOQ /
         /// COBie / handover / IFC export. Phase 196: the order is now driven by

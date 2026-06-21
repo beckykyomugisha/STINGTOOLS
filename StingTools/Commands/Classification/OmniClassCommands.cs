@@ -32,7 +32,10 @@ namespace StingTools.Commands.Classification
 {
     internal static class OmniClassMap
     {
-        public static List<CsiRule> Load(Document doc, out int corp, out int overlay)
+        /// <summary>Load the rules for the active OmniClass table: corporate
+        /// STING_OMNICLASS_&lt;table&gt;_MAP.csv + the table-agnostic project overlay
+        /// _BIM_COORD/omniclass_map.csv (loaded first so it wins ties).</summary>
+        public static List<CsiRule> Load(Document doc, OmniClassTableInfo table, out int corp, out int overlay)
         {
             corp = 0; overlay = 0;
             var rules = new List<CsiRule>();
@@ -54,14 +57,14 @@ namespace StingTools.Commands.Classification
 
             try
             {
-                string c = StingToolsApp.FindDataFile("STING_OMNICLASS_MAP.csv");
+                string c = StingToolsApp.FindDataFile(table.MapFile);
                 if (!string.IsNullOrEmpty(c) && File.Exists(c))
                 {
                     var r = CsiMasterFormat.ParseCsvLines(File.ReadAllLines(c));
                     corp = r.Count; rules.AddRange(r);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"OmniClass corporate load: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"OmniClass corporate load ({table.MapFile}): {ex.Message}"); }
 
             return rules;
         }
@@ -77,18 +80,23 @@ namespace StingTools.Commands.Classification
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var rules = OmniClassMap.Load(doc, out int corp, out int overlay);
+            // Phase 199 — the active OmniClass table (default 21 Elements; switchable
+            // to 13 Spaces / 23 Products via classification_policy.json).
+            var table = OmniClassTables.Resolve(ClassificationReader.OmniClassTable(doc));
+            var rules = OmniClassMap.Load(doc, table, out int corp, out int overlay);
             if (rules.Count == 0)
             {
-                TaskDialog.Show("OmniClass Assign", "No OmniClass map found. Ship STING_OMNICLASS_MAP.csv in data/ " +
-                    "or add _BIM_COORD/omniclass_map.csv.");
+                TaskDialog.Show("OmniClass Assign", $"No OmniClass map found for {table.Label}. Ship " +
+                    $"{table.MapFile} in data/ or add _BIM_COORD/omniclass_map.csv.");
                 return Result.Succeeded;
             }
 
             var picker = new TaskDialog("OmniClass Assign")
             {
-                MainInstruction = "Write OmniClass code to elements",
-                MainContent = $"{rules.Count} rules ({corp} corporate + {overlay} project). Choose write mode:",
+                MainInstruction = $"Write OmniClass {table.Label} code to elements",
+                MainContent = $"{rules.Count} rules ({corp} corporate + {overlay} project). " +
+                    (table.IsSpatial ? "Spatial table — elements inherit their host room's space code. " : "") +
+                    "Choose write mode:",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true
             };
@@ -108,14 +116,31 @@ namespace StingTools.Commands.Classification
                 foreach (var el in scope)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    string fam = ParameterHelpers.GetFamilyName(el);
-                    string type = ParameterHelpers.GetFamilySymbolName(el);
-                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
+                    CsiRule rule;
+                    string unmappedKey;
+                    if (table.IsSpatial)
+                    {
+                        // Table 13 (Spaces) — classify the element's HOST ROOM by function.
+                        // Feed the room name as the match input; the spatial map keys its
+                        // FamilyRegex against it (Category "*").
+                        var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                        string roomName = room?.Name ?? "";
+                        unmappedKey = string.IsNullOrEmpty(roomName) ? "(no room)" : roomName;
+                        rule = string.IsNullOrEmpty(roomName) ? null
+                            : CsiMasterFormat.Resolve(rules, "*", roomName, roomName, "");
+                    }
+                    else
+                    {
+                        string fam = ParameterHelpers.GetFamilyName(el);
+                        string type = ParameterHelpers.GetFamilySymbolName(el);
+                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        unmappedKey = cat;
+                        rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
+                    }
                     if (rule == null)
                     {
                         unresolved++;
-                        unmappedCats.TryGetValue(cat, out int c); unmappedCats[cat] = c + 1;
+                        unmappedCats.TryGetValue(unmappedKey, out int c); unmappedCats[unmappedKey] = c + 1;
                         continue;
                     }
                     if (!overwrite && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS)))
@@ -133,6 +158,7 @@ namespace StingTools.Commands.Classification
             }
 
             var sb = new StringBuilder();
+            sb.AppendLine($"OmniClass {table.Label}");
             sb.AppendLine($"Scope: {scopeLabel}   Mode: {(overwrite ? "overwrite" : "fill empty")}");
             sb.AppendLine($"Assigned:        {assigned}");
             sb.AppendLine($"Skipped (set):   {skippedSet}");
@@ -140,16 +166,18 @@ namespace StingTools.Commands.Classification
             if (unmappedCats.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("Unmapped categories (add rows to _BIM_COORD/omniclass_map.csv):");
+                sb.AppendLine(table.IsSpatial
+                    ? "Unmapped rooms (add rows to _BIM_COORD/omniclass_map.csv):"
+                    : "Unmapped categories (add rows to _BIM_COORD/omniclass_map.csv):");
                 foreach (var kv in unmappedCats.OrderByDescending(k => k.Value).Take(15))
                     sb.AppendLine($"   {kv.Value,5}  {kv.Key}");
             }
             new TaskDialog("OmniClass Assign")
             {
-                MainInstruction = $"{assigned} element(s) assigned an OmniClass code",
+                MainInstruction = $"{assigned} element(s) assigned an OmniClass {table.Label} code",
                 MainContent = sb.ToString()
             }.Show();
-            StingLog.Info($"OmniClass_Assign: {assigned} assigned, {unresolved} unresolved ({scopeLabel})");
+            StingLog.Info($"OmniClass_Assign ({table.Label}): {assigned} assigned, {unresolved} unresolved ({scopeLabel})");
             return Result.Succeeded;
         }
     }

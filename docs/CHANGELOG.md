@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199 — OmniClass table switching)
+
+Phase 198 hardwired the OmniClass column to Table 21 (Elements). This makes the
+**active OmniClass table a per-project selector**, so a project can switch the
+single OmniClass column between tables without re-authoring anything.
+
+- **`ClassificationPolicy.OmniClassTable`** — a new field in
+  `classification_policy.json` (`"omniClassTable": "21" | "13" | "23"`),
+  normalised via `OmniClassTableNumber` ("Table 21"/"T21"/"21" → "21", default
+  "21"). `Parse` keeps it even when a policy sets only the table (no `order`).
+  `ClassificationReader.OmniClassTable(doc)` exposes it (cached with the policy).
+- **`OmniClassTables`** (host-free registry) — table number → name, corporate map
+  file, and the critical **element-vs-spatial** flag. Table 21 (Elements) + 23
+  (Products) classify the element; Table 13 (Spaces) classifies the element's
+  **host room** by function. `TableOf(code)` reads the table from a code's prefix.
+- **`OmniClass_Assign` is now table-aware** — loads `STING_OMNICLASS_<table>_MAP.csv`
+  for the active table; for a spatial table it resolves each element's host room
+  (`GetRoomAtElement`) and classifies the room name, giving a "cost by space
+  function" cut. The dialog/report name the active table; the unmapped-key report
+  switches between "categories" and "rooms".
+- **Maps** — `STING_OMNICLASS_MAP.csv` renamed to `STING_OMNICLASS_21_MAP.csv`
+  (Elements); new `STING_OMNICLASS_13_MAP.csv` (Spaces, keyed on room-name regex
+  with a temple-aware religious-space row). A project can swap to Table 23 or
+  refine any table via the `_BIM_COORD/omniclass_map.csv` overlay.
+- **BOQ column header names the active table** — `BOQDocument.OmniClassTableLabel`
+  is set during build from the policy; the export header reads
+  "OmniClass (Table 21 — Elements)" etc.
+- **KUT policy** ships `"omniClassTable": "21"` with an inline comment on switching
+  to 13.
+- **4 new tests** (Table-13 room-name resolution + comma-trap, element-vs-spatial
+  registry, prefix `TableOf`, policy parse/normalise). Suite 172/173 (the 1
+  failure is the pre-existing `ConcreteGradeCarbon` regression); plugin builds
+  clean vs Revit 2025.
+
 #### Completed (Phase 198 — OmniClass rule-driven assigner)
 
 Phase 197 added the OmniClass column to the BOQ but left it blank until OmniClass

@@ -174,9 +174,10 @@ namespace StingTools.BOQ
 
             // Row 7 — column headers
             int hr = 7;
+            string omniHeader = "OmniClass (" + (string.IsNullOrEmpty(boq.OmniClassTableLabel) ? "Table 21 — Elements" : boq.OmniClassTableLabel) + ")";
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note",
-                "MasterFormat (CSI §)", "OmniClass" };
+                "MasterFormat (CSI §)", omniHeader };
             for (int i = 0; i < cols.Length; i++)
             {
                 ws.Cell(hr, i + 1).Value = cols[i];

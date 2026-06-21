@@ -1,0 +1,32 @@
+# STING OmniClass Table 13 (Spaces by Function) map (Phase 199). Active when
+# classification_policy.json sets "omniClassTable": "13". Unlike the element
+# tables (21 / 23), this is a SPATIAL table: OmniClass_Assign classifies each
+# element's HOST ROOM by function and stamps the room's space code onto the
+# element — giving a "cost by space function" cut on the BOQ.
+#
+# Because the match is on the room, the grammar is reused with the ROOM NAME fed
+# into the FamilyRegex column and Category left as "*" (any):
+#   Category    "*" (the element's own category is irrelevant for a spatial table)
+#   FamilyRegex regex tested against the HOST ROOM NAME (case-insensitive)
+#   TypeRegex   also tested against the room name (redundant; leave blank)
+#   Sys         leave blank
+#   Section     OmniClass Table 13 number (e.g. 13-25 00 00)
+#   Title       OmniClass space title (NO commas)
+# Most-specific row wins (more matched qualifiers = higher score; ties: first).
+# Starter baseline — codes are common approximations to be confirmed against the
+# published OmniClass Table 13. Projects extend/override via
+# _BIM_COORD/omniclass_map.csv (loaded first so it wins ties); a temple/owner
+# can add ordinance/sealing/baptistry rooms there.
+Category,FamilyRegex,TypeRegex,Sys,Section,Title
+*,(?i)hall|auditorium|assembly|multipurpose|gather,,,13-11 00 00,Assembly Space
+*,(?i)chapel|ordinance|sealing|baptistry|endowment|celestial|worship|prayer|temple,,,13-61 00 00,Religious Space
+*,(?i)office|admin|reception|registry|workstation,,,13-15 00 00,Office Space
+*,(?i)meeting|conference|board\s*room|seminar,,,13-15 00 00,Office Space
+*,(?i)corridor|lobby|foyer|stair|circulation|vestibule|hallway|atrium,,,13-21 00 00,Circulation Space
+*,(?i)toilet|\bwc\b|restroom|washroom|bathroom|lavatory|shower|changing,,,13-25 00 00,Sanitary Space
+*,(?i)store|storage|closet|cupboard|archive,,,13-31 00 00,Storage Space
+*,(?i)plant|mechanical|electrical\s*room|elec\s*room|riser|switch|comms|server|boiler,,,13-41 00 00,Mechanical Space
+*,(?i)kitchen|pantry|dining|cafe|canteen|servery,,,13-45 00 00,Food Service Space
+*,(?i)classroom|training|learning|nursery|library|study,,,13-51 00 00,Educational Space
+*,(?i)patient|exam|treatment|consult|ward|clinic|surgery,,,13-55 00 00,Healthcare Space
+*,(?i)parking|garage|car\s*park|loading,,,13-71 00 00,Parking Space

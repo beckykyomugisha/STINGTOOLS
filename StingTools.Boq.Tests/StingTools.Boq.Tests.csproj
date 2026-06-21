@@ -33,6 +33,7 @@
     <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
     <!-- Phase 196: pure host-free classification-order overlay (classification_policy.json). -->
     <Compile Include="..\StingTools\Core\Classification\ClassificationPolicy.cs" Link="Classification\ClassificationPolicy.cs" />
+    <Compile Include="..\StingTools\Core\Classification\OmniClassTables.cs" Link="Classification\OmniClassTables.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,9 +59,13 @@
     <None Include="..\StingTools\Data\STING_CSI_MASTERFORMAT_MAP.csv" Link="Data\STING_CSI_MASTERFORMAT_MAP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Phase 198: the shipped OmniClass Table 21 map, so the resolver test runs
-         against production rows + catches the comma-in-title parser trap. -->
-    <None Include="..\StingTools\Data\STING_OMNICLASS_MAP.csv" Link="Data\STING_OMNICLASS_MAP.csv">
+    <!-- Phase 198/199: the shipped OmniClass maps (Table 21 Elements + Table 13
+         Spaces), so the resolver tests run against production rows + catch the
+         comma-in-title parser trap. -->
+    <None Include="..\StingTools\Data\STING_OMNICLASS_21_MAP.csv" Link="Data\STING_OMNICLASS_21_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_13_MAP.csv" Link="Data\STING_OMNICLASS_13_MAP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

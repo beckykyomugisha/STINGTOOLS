@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Classification
@@ -56,6 +57,27 @@ namespace StingTools.Core.Classification
     {
         [JsonProperty("order")]
         public List<ClassificationSource> Order { get; set; } = new List<ClassificationSource>();
+
+        /// <summary>
+        /// Phase 199 — the active OmniClass TABLE the OmniClass column / OmniClass_Assign
+        /// classifies by. "21" = Elements (default), "13" = Spaces by Function, "23" =
+        /// Products. Accepts "Table 21" / "T21" / "21" (normalised by <see cref="OmniClassTableNumber"/>).
+        /// Switching is a one-line change here; the assigner loads the matching corporate
+        /// map (STING_OMNICLASS_&lt;table&gt;_MAP.csv) and the BOQ column names the table.
+        /// </summary>
+        [JsonProperty("omniClassTable")]
+        public string OmniClassTable { get; set; } = "21";
+
+        /// <summary>Normalised active table number — "Table 21"/"T21"/"21" → "21". Default "21".</summary>
+        [JsonIgnore]
+        public string OmniClassTableNumber => NormalizeTable(OmniClassTable);
+
+        private static string NormalizeTable(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "21";
+            var digits = new string(raw.Where(char.IsDigit).ToArray());
+            return digits.Length > 0 ? digits : "21";
+        }
 
         /// <summary>
         /// The compiled-in default: the exact order ResolveFallback used before
@@ -88,7 +110,10 @@ namespace StingTools.Core.Classification
             try
             {
                 var p = JsonConvert.DeserializeObject<ClassificationPolicy>(json);
-                if (p?.Order == null || p.Order.Count == 0) return Default;
+                if (p == null) return Default;
+                // A policy may set only omniClassTable (no order) — keep it, use the
+                // default classification order.
+                if (p.Order == null || p.Order.Count == 0) { p.Order = Default.Order; return p; }
                 return Normalize(p);
             }
             catch
@@ -141,7 +166,7 @@ namespace StingTools.Core.Classification
             }
             // Guarantee a terminal native rung so ResolveFallback always yields a key.
             if (!hasNative) cleaned.Add(new ClassificationSource { Id = "native" });
-            return new ClassificationPolicy { Order = cleaned };
+            return new ClassificationPolicy { Order = cleaned, OmniClassTable = p.OmniClassTable };
         }
 
         private static string PrefixFromId(ClassificationSource s)

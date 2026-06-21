@@ -226,6 +226,13 @@ namespace StingTools.BOQ
         /// </summary>
         public string MeasurementStandardId = "nrm2";
 
+        /// <summary>Phase 199 — the active OmniClass table label ("Table 21 — Elements"
+        /// by default; "Table 13 — Spaces by Function" / "Table 23 — Products" when
+        /// switched via classification_policy.json). Drives the OmniClass column
+        /// header in the BOQ export. Set during build from
+        /// <c>ClassificationReader.OmniClassTable(doc)</c>.</summary>
+        public string OmniClassTableLabel = "Table 21 — Elements";
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();

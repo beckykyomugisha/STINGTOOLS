@@ -73,6 +73,14 @@ namespace StingTools.BOQ
                 SnapshotDate = DateTime.UtcNow
             };
 
+            // Phase 199 — the active OmniClass table label for the OmniClass column header.
+            try
+            {
+                boq.OmniClassTableLabel = StingTools.Core.Classification.OmniClassTables
+                    .Resolve(StingTools.Core.Classification.ClassificationReader.OmniClassTable(doc)).Label;
+            }
+            catch { /* default "Table 21 — Elements" */ }
+
             // ── STEP 1: Load config ──────────────────────────────────────
             boq.PrelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
             boq.ContingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
