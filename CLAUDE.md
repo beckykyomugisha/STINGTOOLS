@@ -358,21 +358,82 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ## BOQ — Bill of Quantities (Enhanced)
 
-**Status**: `StingTools/BOQ/` (11 files · 7,228 lines).
+**Status**: `StingTools/BOQ/` (35 files · ~13,846 lines across root + 4 subdirectories + 3 UI files).
+
+### Root files (`BOQ/` — 19 files · 8,776 lines)
 
 | Class | Lines | Purpose |
 |---|---|---|
-| `BOQCostManager.cs` | ~800 | Core cost management engine: rate lookup, cost aggregation, VAT, contingency |
+| `BOQCostManager.cs` | 2,026 | Core cost management engine: rate lookup, cost aggregation, VAT, contingency, carbon, waste |
+| `BOQProfessionalExportCommand.cs` | 1,871 | Professional-grade export with company branding + NRM2 compliance + Word merge |
 | `BOQParagraphEnhancer.cs` | 850 | Natural-language paragraph generation (NBS / NRM2 style) |
-| `BOQModels.cs` | ~400 | POCOs: BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate |
-| `BOQExportCommand.cs` | ~300 | Primary export: ClosedXML XLSX with NRM2 grouping + labour columns |
-| `BOQProfessionalExportCommand.cs` | ~250 | PDF-quality export via Word merge |
-| `BOQTemplateLibraryExtensions.cs` | ~200 | Client vocabulary substitution from `BOQ_CLIENT_VOCABULARY.json` |
-| `BOQRateSourceHeatMapCommand.cs` | ~150 | Heatmap view showing rate-book vs. custom override coverage |
-| `BOQSupportCommands.cs` | ~200 | `BOQ_RateAudit`, `BOQ_DeltaReport`, `BOQ_Validate` |
-| `BOQTenderConfig.cs` | ~120 | Tender configuration POCO |
+| `BOQBccBridge.cs` | 637 | Bridge for BIM Coordination Center BOQ data refresh |
+| `BOQExportCommand.cs` | 597 | Primary export: ClosedXML XLSX with NRM2 grouping + labour + carbon columns |
+| `BOQTemplateLibraryExtensions.cs` | 586 | Client vocabulary substitution from `BOQ_CLIENT_VOCABULARY.json` |
+| `BOQSupportCommands.cs` | 506 | `BOQ_RateAudit`, `BOQ_DeltaReport`, `BOQ_Validate` |
+| `BOQModels.cs` | 354 | POCOs: BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate |
+| `CostStamp.cs` | 232 | Writes `CST_*` + `ASS_BOQ_*` shared parameters onto modelled elements |
+| `IfcQuantitySetWriter.cs` | 171 | Writes IFC `Qto_*` quantity sets from BOQ line items |
+| `BOQByMaterialView.cs` | 170 | Pivots BOQ output by material classification |
+| `BOQTenderConfig.cs` | 148 | Tender configuration POCO + project-scoped overrides |
+| `CarbonFactorResolver.cs` | 132 | Resolves embodied carbon factors (ICE DB + project override) per material/category |
+| `BOQRateSourceHeatMapCommand.cs` | 121 | Heatmap view showing rate-book vs. custom override coverage |
+| `CarbonPivotByPhaseLevel.cs` | 91 | Pivots carbon output by RIBA stage and level |
 | `BOQPrepForExportCommand.cs` | 93 | Pre-export data normalization |
-| `UI/BOQCostManagerPanel.cs` + `BOQCostManagerWindow.cs` + `BOQTenderDialog.cs` | ~600 | WPF cost manager panel + tender configuration dialog |
+| `WasteFactor.cs` | 75 | Per-material waste percentage lookup (NRM2 / project override) |
+| `BiogenicCarbon.cs` | 61 | Biogenic carbon sequestration credit calculation |
+| `MeasuredAddition.cs` | 55 | Manual measured-addition rows not backed by model elements |
+
+### Subdirectory: `MeasurementStandard/` (3 files · 550 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `MeasurementStandards.cs` | 303 | NRM2 / SMM7 / CESMM rule set implementations; resolves unit, description, grouping per item |
+| `Icms3PhaseMap.cs` | 192 | Maps STING BOQ sections to ICMS 3rd edition cost breakdown structure |
+| `IMeasurementStandard.cs` | 55 | Interface contract: `MeasureItem`, `GroupItems`, `ResolveParagraph` |
+
+### Subdirectory: `Rates/` (7 files · 785 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `RateProviders.cs` | 291 | Composite rate-provider pipeline: BCIS → project rate card → material library → manual override |
+| `RateProviderRegistry.cs` | 209 | Per-document loader; layers project overrides over corporate baseline |
+| `IRateProvider.cs` | 121 | Interface: `GetRate(boqItem)` → `RateResult` (unit rate, source label, confidence) |
+| `MaterialLibraryRateProvider.cs` | 106 | Looks up rates from `MATERIAL_LOOKUP.csv` by material + category |
+| `Providers/BcisHttpRateProvider.cs` | 161 | REST client for live BCIS (Building Cost Information Service) API rates |
+| `Providers/ProjectRateCardProvider.cs` | 97 | Project-scoped rate card loaded from `_BIM_COORD/boq_rate_card.json` |
+
+### Subdirectory: `Sync/` (2 files · 363 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `BoqSyncCoordinator.cs` | 237 | Coordinates BOQ snapshot sync: change detection, conflict resolution, push/pull with Planscape Server |
+| `BoqSnapshotHasher.cs` | 126 | SHA-256 content hash per BOQ line item for efficient change detection |
+
+### Subdirectory: `Takeoff/` (1 file · 256 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `TakeoffRule.cs` | 256 | Data-driven takeoff rules: category → quantity parameter → unit → NRM2 ref mapping |
+
+### UI files (`UI/` — 3 files · 2,916 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `UI/BOQCostManagerPanel.cs` | 2,186 | WPF dockable cost manager panel — rate grid, carbon chart, budget vs. actual, filter bar |
+| `UI/BOQTenderDialog.cs` | 671 | WPF tender configuration dialog — VAT, contingency, prelims, profit, phasing |
+| `UI/BOQCostManagerWindow.cs` | 59 | Lightweight window host for the cost manager panel |
+
+### BOQ Data files (under `Data/`)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `BOQ_TEMPLATE.csv` | 268 | Bill of Quantities template structure (NRM2 section headings + default units) |
+| `BOQ_DESCRIPTIONS.json` | 218 | NRM2 natural-language description library keyed by section code |
+| `BOQ_CLIENT_VOCABULARY.json` | 42 | Client-specific term substitution map used by `BOQTemplateLibraryExtensions` |
+| `WORKFLOW_BOQ_TenderPack.json` | 49 | Workflow preset: full tender-pack production chain |
+| `WORKFLOW_BOQ_FullRefresh.json` | 44 | Workflow preset: rebuild BOQ from live model + re-export |
+| `WORKFLOW_BOQ_QuickValuation.json` | 34 | Workflow preset: fast cost-check without full NRM2 paragraph resolution |
 
 ---
 
@@ -659,38 +720,53 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 
 **Status**: Built across multiple phases (Phases 6–9 of the BOQ sub-plan). Located
 in `StingTools/BOQ/`. Full NRM2-structured bill of quantities with multi-sheet XLSX
-export, provisional sums reconciliation, snapshot comparison, and BIM parameter
-write-back.
+export, provisional sums reconciliation, snapshot comparison, BIM parameter
+write-back, live BCIS rate integration, IFC quantity sets, carbon tracking, and
+Planscape Server sync.
 
-### New folder
+### New folders
 
-`StingTools/BOQ/` — 11 files.
+`StingTools/BOQ/` — 35 files · ~13,846 lines across root (19 files) + `MeasurementStandard/` (3) + `Rates/` (7) + `Sync/` (2) + `Takeoff/` (1) + UI (3 files under `UI/`).
 
-**Commands (15)**:
+**Commands (14)**:
 
 | Class | Description |
 |---|---|
 | `BOQExportCommand` | Multi-sheet XLSX: BOQ + material schedule + provisional sums + NRM2 ref + carbon + audit + comparison |
-| `BOQProfessionalExportCommand` | Professional-grade export with company branding + NRM2 compliance |
-| `BOQPrepForExportCommand` | Pre-export: write `CST_*` + `ASS_BOQ_*` params onto modelled elements |
-| `BOQRefreshCommand` | Rebuild BOQ from live model |
+| `BOQProfessionalExportCommand` | Professional-grade export with company branding + NRM2 compliance + Word merge |
+| `BOQPrepForExportCommand` | Pre-export: write `CST_*` + `ASS_BOQ_*` params onto modelled elements via `CostStamp` |
+| `BOQRefreshCommand` | Rebuild BOQ from live model using `TakeoffRule` data-driven quantity extraction |
 | `BOQSetBudgetCommand` | Set project budget target |
-| `BOQSnapshotSaveCommand` | Save BOQ snapshot to JSON |
-| `BOQSnapshotCompareCommand` | Compare two BOQ snapshots |
-| `BOQAddManualRowCommand` | Add provisional sum / manual row |
+| `BOQSnapshotSaveCommand` | Save BOQ snapshot to JSON (hashed by `BoqSnapshotHasher`) |
+| `BOQSnapshotCompareCommand` | Compare two BOQ snapshots; highlights line-item deltas |
+| `BOQAddManualRowCommand` | Add provisional sum / manual row (`MeasuredAddition`) |
 | `BOQSelectInRevitCommand` | Select elements for a BOQ line item |
 | `BOQImportCommand` | Import BOQ from XLSX (round-trip) |
 | `BOQReconcileProvisionalsCommand` | Reconcile provisional sums against outturn costs |
-| `BOQWriteItemParamsCommand` | Write BOQ classification params to elements |
+| `BOQWriteItemParamsCommand` | Write BOQ classification params to elements + IFC Qto sets |
 | `BOQRateSourceHeatMapCommand` | Heat-map view by rate source (PC / sub / estimate) |
-| `BOQBccRefreshCommand` | Refresh BOQ data in BIM Coordination Center |
+| `BOQBccRefreshCommand` | Refresh BOQ data in BIM Coordination Center via `BOQBccBridge` |
 
-**Supporting classes**: `BOQCostManager` (build + aggregate), `BOQModels` (POCOs),
-`BOQParagraphEnhancer` (NRM2 paragraph resolution), `BOQTemplateLibraryExtensions`
-(template registry integration), `BOQTenderConfig` (tender-level settings).
+**Supporting classes**:
+- `BOQCostManager` — build + aggregate + rate pipeline
+- `BOQModels` — POCOs (BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate)
+- `BOQParagraphEnhancer` — NRM2 paragraph resolution + LLM fallback
+- `BOQTemplateLibraryExtensions` — client vocabulary substitution
+- `BOQTenderConfig` — tender-level settings (VAT, contingency, prelims, profit)
+- `CostStamp` — shared-parameter writer (`CST_*` + `ASS_BOQ_*`)
+- `IfcQuantitySetWriter` — IFC `Qto_*` quantity set writer
+- `CarbonFactorResolver` — ICE DB embodied carbon factors + project override
+- `WasteFactor` / `BiogenicCarbon` / `CarbonPivotByPhaseLevel` — carbon sub-calculators
+- `BOQByMaterialView` / `MeasuredAddition` — alternate pivot view + manual rows
+- `MeasurementStandards` / `Icms3PhaseMap` / `IMeasurementStandard` — NRM2/SMM7/CESMM/ICMS rule sets
+- `RateProviderRegistry` + `IRateProvider` + `RateProviders` — composite rate pipeline (BCIS → rate card → material library → manual)
+- `BcisHttpRateProvider` / `ProjectRateCardProvider` / `MaterialLibraryRateProvider` — rate source implementations
+- `BoqSyncCoordinator` / `BoqSnapshotHasher` — Planscape Server snapshot sync
+- `TakeoffRule` — data-driven category → quantity-parameter → unit → NRM2-ref mapping
 
-**Caveats**: Paragraph-coverage gate warns when < 80% of items have resolved NRM2
-descriptions. `BOQTenderConfig` fields are project-scoped overrides.
+**BOQ Data files** (under `Data/`): `BOQ_TEMPLATE.csv` (268 lines) · `BOQ_DESCRIPTIONS.json` (218 lines) · `BOQ_CLIENT_VOCABULARY.json` (42 lines) · `WORKFLOW_BOQ_TenderPack.json` · `WORKFLOW_BOQ_FullRefresh.json` · `WORKFLOW_BOQ_QuickValuation.json`
+
+**Caveats**: Paragraph-coverage gate warns when < 80% of items have resolved NRM2 descriptions. `BcisHttpRateProvider` requires a BCIS API key set in `appsettings.json` (`BCIS__ApiKey`). `IfcQuantitySetWriter` outputs IFC 4 `Qto_*` sets; older IFC 2×3 exports omit quantity sets.
 
 ## Clash Detection Engine
 
@@ -2464,7 +2540,7 @@ STINGTOOLS/
     ├── Temp/                           # Template commands (22 files, 120+ commands)
     ├── Model/                          # Auto-modeling engine (26 files, 130+ commands)
     ├── BIMManager/                     # ISO 19650 BIM management (14 files, 120+ commands)
-    ├── BOQ/                            # Bill of Quantities system (11 files · 7,228 lines)
+    ├── BOQ/                            # Bill of Quantities system (35 files · ~13,846 lines; root + MeasurementStandard/ + Rates/ + Sync/ + Takeoff/ + UI)
     ├── ExLink/                         # External data link (8 files · 5,723 lines)
     ├── Presets/                        # Preset combination engine (2 files)
     ├── Photometrics/                   # IES/LDT photometric parsers (4 files · 633 lines)
