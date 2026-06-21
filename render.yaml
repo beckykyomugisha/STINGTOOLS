@@ -75,9 +75,10 @@ services:
       # Set Converter__BaseUrl to the deployed converter-sidecar URL to enable
       # server-side IFC→GLB conversion on model upload. When unset, IFC uploads
       # are rejected with a "convert to GLB first" message (no behaviour change).
-      # Converter__Token must match the sidecar's CONVERTER_TOKEN. The sidecar
-      # also needs API_BASE (this API) + API_BEARER (an Admin/Owner/Coordinator
-      # token with project access) to publish the GLB back.
+      # Converter__Token must match the sidecar's CONVERTER_TOKEN. The /ifc-to-glb
+      # path streams the GLB back to the API (which stores it with correct
+      # tenancy) — it needs NO API_BEARER. (The separate /chunk path still uses
+      # the sidecar's own API_BASE/API_BEARER env.)
       - key: Converter__BaseUrl
         sync: false
       - key: Converter__Token
