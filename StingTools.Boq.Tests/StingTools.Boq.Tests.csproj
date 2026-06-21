@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
   </ItemGroup>
@@ -24,6 +25,8 @@
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
     <!-- Phase C (KUT lifecycle): pure FF&E BOQ-treatment resolution. -->
     <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
+    <!-- Phase H1 (KUT lifecycle): pure SpecLink section store reader. -->
+    <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
   </ItemGroup>
 
   <ItemGroup>

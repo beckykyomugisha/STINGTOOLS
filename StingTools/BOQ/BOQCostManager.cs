@@ -306,6 +306,52 @@ namespace StingTools.BOQ
                 CsiTitle = csiTitle
             };
 
+            // Phase H1 (KUT lifecycle) — the SPEC writes the bill. When the element's
+            // CSI section is described by an issued SpecLink section store, that text
+            // becomes the line description (single source of truth) and its preferred
+            // measurement basis is carried as an advisory. Pure no-op when the store is
+            // absent (the dominant case) — only changes behaviour once a project runs
+            // SpecLink_ImportFolder. Unit is NOT auto-overridden: the rate's unit must
+            // match the quantity's, so a spec/Unit disagreement is surfaced as QA, not
+            // silently re-measured.
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var spec = StingTools.BOQ.SpecStore.Get(
+                        StingTools.Commands.Classification.CsiMap.SpecSections(doc), csiSection);
+                    if (spec != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(spec.Description))
+                        {
+                            line.ResolvedNRM2Paragraph = spec.Description;
+                            line.SpecSourced = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(spec.Unit)) line.CsiUnit = spec.Unit;
+                    }
+                    // Bridge unit fallback: when the rate gave no opinion (generic "each")
+                    // but the CSI map declares a measured unit, carry it as advisory too.
+                    if (string.IsNullOrWhiteSpace(line.CsiUnit))
+                    {
+                        var unitMap = StingTools.Commands.Classification.CsiMap.SectionToUnit(doc);
+                        if (unitMap != null && unitMap.TryGetValue(
+                                StingTools.Core.Classification.CsiMasterFormat.NormalizeSection(csiSection),
+                                out string cu) && !string.IsNullOrWhiteSpace(cu))
+                            line.CsiUnit = cu;
+                    }
+                    // QA signal: spec measures this section in a different basis than the
+                    // rate prices it. Flag for the QS; do not re-measure (dimension mismatch).
+                    if (!string.IsNullOrWhiteSpace(line.CsiUnit) && !string.IsNullOrWhiteSpace(line.Unit) &&
+                        !string.Equals(BoqUnits.Normalise(line.CsiUnit), BoqUnits.Normalise(line.Unit),
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        string m = $"Measurement-vs-spec: priced per {line.Unit}, specified per {line.CsiUnit}";
+                        line.Note = string.IsNullOrEmpty(line.Note) ? m : line.Note + "; " + m;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Spec-text bridge: {ex.Message}"); }
+            }
+
             // Mark provisional sums on the element if configured via existing parameter.
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;

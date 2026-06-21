@@ -81,7 +81,41 @@ namespace StingTools.Commands.Classification
             });
         }
 
-        public static void Invalidate() => _nrm2Cache.Clear();
+        public static void Invalidate() { _nrm2Cache.Clear(); _unitCache.Clear(); _specCache.Clear(); }
+
+        // ── Phase H1 (KUT lifecycle) — CSI section → preferred-unit + spec store ──
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, string>> _unitCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, StingTools.BOQ.SpecSection>> _specCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, StingTools.BOQ.SpecSection>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Normalised CSI section → preferred measurement unit (advisory).</summary>
+        public static Dictionary<string, string> SectionToUnit(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            return _unitCache.GetOrAdd(key, _unused =>
+                CsiMasterFormat.BuildSectionToUnit(Load(doc, out int _, out int _)));
+        }
+
+        /// <summary>Normalised CSI section → issued SpecLink section text, from
+        /// <project>/_BIM_COORD/speclink/sections.json. Empty when the store is absent
+        /// (the dominant case — projects that haven't run SpecLink_ImportFolder yet).</summary>
+        public static Dictionary<string, StingTools.BOQ.SpecSection> SpecSections(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            return _specCache.GetOrAdd(key, _unused =>
+            {
+                try
+                {
+                    string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                    if (string.IsNullOrEmpty(dir)) return new Dictionary<string, StingTools.BOQ.SpecSection>(StringComparer.Ordinal);
+                    string p = Path.Combine(dir, "_BIM_COORD", "speclink", "sections.json");
+                    if (!File.Exists(p)) return new Dictionary<string, StingTools.BOQ.SpecSection>(StringComparer.Ordinal);
+                    return StingTools.BOQ.SpecStore.Parse(File.ReadAllText(p));
+                }
+                catch (Exception ex) { StingLog.Warn($"Spec store load: {ex.Message}"); return new Dictionary<string, StingTools.BOQ.SpecSection>(StringComparer.Ordinal); }
+            });
+        }
     }
 
     [Transaction(TransactionMode.Manual)]

@@ -71,6 +71,17 @@ namespace StingTools.BOQ
         public string CsiSection;
         public string CsiTitle;
 
+        /// <summary>Phase H1 (KUT lifecycle) — true when ResolvedNRM2Paragraph was
+        /// taken verbatim from the issued SpecLink section text (single source of
+        /// truth) rather than a generated NRM2 template. Surfaced in the export so a
+        /// QS can see which lines are spec-backed.</summary>
+        public bool SpecSourced;
+        /// <summary>Phase H1 — the spec's preferred measurement basis for this line's
+        /// CSI section (advisory). When non-empty and it disagrees with <see cref="Unit"/>
+        /// the export flags a measurement-vs-spec mismatch — a QA signal, not an
+        /// auto-correction (the rate's unit must match the quantity's unit).</summary>
+        public string CsiUnit;
+
         /// <summary>
         /// FIX #1 — false when <see cref="Quantity"/> is a 1.0 placeholder that
         /// DeriveQuantity fell back to because a MEASURED unit (m²/m³/m/kg/tonne)

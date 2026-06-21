@@ -16,8 +16,8 @@
 # Most-specific row wins (more matched qualifiers = higher score; ties: first).
 # Starter baseline — codes are common approximations to be confirmed against the
 # project's RIB SpecLink spec. Projects extend/override via _BIM_COORD/csi_map.csv.
-Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2
-Doors,,,,08 11 00,Metal Doors and Frames,20
+Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2,Unit
+Doors,,,,08 11 00,Metal Doors and Frames,20,each
 Doors,(?i)wood,,,08 14 00,Wood Doors and Frames,20
 Doors,(?i)glass|alum|storefront,,,08 41 00,Entrances and Storefronts,20
 Doors,(?i)overhead|coiling|roller,,,08 33 00,Coiling Doors and Grilles,20

@@ -27,6 +27,10 @@ namespace StingTools.Core.Classification
         /// section a BOQ line is billed under. Blank = let the BOQ engine derive the
         /// NRM2 section from the category (BOQCostManager.DeriveNrm2Section).</summary>
         public string Nrm2 { get; set; } = "";
+        /// <summary>Phase H1 (KUT lifecycle) — optional spec measurement basis
+        /// (m2/m3/m/kg/each) for the section, so the spec can drive the BOQ
+        /// measurement-basis advisory. Blank = no opinion.</summary>
+        public string Unit { get; set; } = "";
 
         private Regex _famRx, _typeRx;
         private bool _compiled;
@@ -81,10 +85,10 @@ namespace StingTools.Core.Classification
                 if (string.IsNullOrWhiteSpace(raw)) continue;
                 string line = raw.TrimEnd('\r');
                 if (line.TrimStart().StartsWith("#")) continue;
-                // Split into 7 so an optional 7th "Nrm2" column is read while the
-                // 6-column legacy rows keep working (Title absorbs no commas in the
-                // shipped map, so Title stays whole on the 6-field rows).
-                var f = line.Split(new[] { ',' }, 7);
+                // Split into 8 so optional 7th "Nrm2" + 8th "Unit" columns are read
+                // while the 6-column legacy rows keep working (Title absorbs no commas
+                // in the shipped map, so Title stays whole on the shorter rows).
+                var f = line.Split(new[] { ',' }, 8);
                 if (f.Length < 6) continue;
                 string cat = f[0].Trim();
                 if (cat.Length == 0) continue;
@@ -99,6 +103,7 @@ namespace StingTools.Core.Classification
                     Section = f[4].Trim(),
                     Title = f[5].Trim(),
                     Nrm2 = f.Length >= 7 ? f[6].Trim() : "",
+                    Unit = f.Length >= 8 ? f[7].Trim() : "",
                 });
             }
             return rules;
@@ -132,6 +137,22 @@ namespace StingTools.Core.Classification
                 string key = NormalizeSection(r.Section);
                 if (key.Length == 0 || d.ContainsKey(key)) continue;
                 d[key] = r.Nrm2.Trim();
+            }
+            return d;
+        }
+
+        /// <summary>Phase H1 (KUT lifecycle) — CSI section → preferred measurement unit.
+        /// Same shape as BuildSectionToNrm2; lets the spec drive the BOQ measurement-basis
+        /// advisory. Earliest rule wins on a section collision (project overlay first).</summary>
+        public static Dictionary<string, string> BuildSectionToUnit(IEnumerable<CsiRule> rules)
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in rules ?? Enumerable.Empty<CsiRule>())
+            {
+                if (r == null || string.IsNullOrWhiteSpace(r.Unit) || string.IsNullOrWhiteSpace(r.Section)) continue;
+                string key = NormalizeSection(r.Section);
+                if (key.Length == 0 || d.ContainsKey(key)) continue;
+                d[key] = r.Unit.Trim();
             }
             return d;
         }

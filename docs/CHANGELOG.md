@@ -3,6 +3,54 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT Lifecycle Integration — Phase H1/H2: spec writes the bill + tender gate)
+
+Two pure-internal automation wins that need no external credentials — the
+single highest-leverage, lowest-risk step of the Niagara/SpecLink BOQ-automation
+roadmap. **Spec→description** and **spec→measurement** make the issued
+specification the source of truth for the bill; the **spec-completeness gate**
+stops a tender going out with money against unspecified items. Built clean
+against Revit 2025 (0 warnings); 131/132 BOQ unit tests pass (the 1 failure is
+the pre-existing `ConcreteGradeCarbon` carbon-data regression, untouched here).
+
+**H1 — the spec writes the bill** (`BOQ/SpecStore.cs` + `Core/Classification/CsiMasterFormat.cs` + `BOQCostManager.cs`):
+
+- New pure `SpecStore` reads `<project>/_BIM_COORD/speclink/sections.json`
+  (normalised CSI section → `{ title, description, unit }`) — the issued
+  SpecLink project manual, exported by `SpecLink_ImportFolder` (Phase H4) or
+  authored by hand. Tolerant parser (object- or array-shaped JSON, `text`
+  aliases `description`, bad JSON → empty).
+- `CsiMasterFormat` gains an 8th optional `Unit` column + `BuildSectionToUnit`,
+  mirroring the Phase-A `Nrm2` bridge. `STING_CSI_MASTERFORMAT_MAP.csv` header
+  extended; 6/7/8-column rows all still parse (back-compatible).
+- `CsiMap` gains per-document `SpecSections(doc)` + `SectionToUnit(doc)` caches
+  (same shape as `SectionToNrm2`), invalidated alongside it on `Cost_ReloadRules`.
+- `BuildLineItemFromElement`: when a priced element's CSI section is described
+  by the spec store, the issued spec text **becomes** the BOQ line description
+  (`ResolvedNRM2Paragraph`), replacing `BOQParagraphEnhancer` template-guessing
+  for spec'd items, and stamps `BOQLineItem.SpecSourced = true`. The spec's
+  preferred measurement basis is carried as `BOQLineItem.CsiUnit` (advisory).
+  When the rate's unit disagrees with the spec's, a `Measurement-vs-spec` QA
+  note is appended to the line (a signal — never an auto re-measure, because the
+  rate's unit must match the quantity's). **Pure no-op when the store is absent**
+  (the dominant case) — only changes behaviour once a project imports a spec.
+
+**H2 — spec-completeness tender gate** (`BOQ/SpecCompletenessGate.cs` + `BOQProfessionalExportCommand.cs`):
+
+- New pure `SpecCompletenessGate.Evaluate(boq)` counts PRICED_UNSPECIFIED lines
+  (modelled, priced, not owner-procured FF&E, no CSI section) + their value +
+  share of priced value. Mirrors the `SpecLink_Reconcile` Phase-B definition so
+  gate and report agree.
+- The professional (tender) export consults the gate before writing: warns with
+  an "Export anyway / Cancel and fix spec coverage" choice (default) or **blocks**
+  issue-for-tender when `COST_REQUIRE_SPEC_FOR_TENDER = 1` on ProjectInformation.
+  Top-8 unspecified lines (by value) are listed so the QS knows what to spec.
+
+Tests: `SpecStoreTests` (6 cases — array/object parse, `text` alias, bad-JSON
+tolerance, unit-column back-compat, earliest-wins tie). `SpecCompletenessGate`
+is build-verified only (its `BOQDocument`/`BOQLineItem` dependency carries a
+Revit `using`, so it can't link host-free into the test project).
+
 #### Completed (KUT Lifecycle Integration — Phase G: lifecycle gaps → ACC Issues)
 
 Closes the loop between the four-ledger lifecycle reconcile and the coordination

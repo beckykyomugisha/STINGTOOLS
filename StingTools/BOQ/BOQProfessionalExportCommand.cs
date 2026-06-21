@@ -75,6 +75,45 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
+                // Phase H2 (KUT lifecycle) — spec-completeness gate. The professional
+                // export IS the tender bill; money in it for items the spec doesn't
+                // describe (PRICED_UNSPECIFIED) invites scope disputes. Warn (default)
+                // or block (COST_REQUIRE_SPEC_FOR_TENDER = 1 on ProjectInformation).
+                {
+                    var gate = SpecCompletenessGate.Evaluate(boq);
+                    if (!gate.Passes)
+                    {
+                        bool block = ParameterHelpers.GetInt(doc.ProjectInformation,
+                            "COST_REQUIRE_SPEC_FOR_TENDER", 0) == 1;
+                        var top = SpecCompletenessGate.TopUnspecified(boq, 8);
+                        string list = string.Join("\n",
+                            top.Select(li => $"  • {li.ItemName} ({li.Unit}) — UGX {li.TotalUGX:N0}"));
+                        string body =
+                            $"{gate.PricedUnspecifiedCount} priced line(s) carry no CSI/spec reference " +
+                            $"(UGX {gate.PricedUnspecifiedValueUGX:N0}, " +
+                            $"{gate.UnspecifiedValueFraction:P1} of priced value).\n\n" +
+                            "Run CSI_Assign + SpecLink_ImportFolder so the bill cites a specification " +
+                            "for every priced item.\n\nTop unspecified:\n" + list;
+                        if (block)
+                        {
+                            TaskDialog.Show("Tender gate — blocked",
+                                body + "\n\nIssue-for-tender is blocked while spec coverage is incomplete " +
+                                "(COST_REQUIRE_SPEC_FOR_TENDER = 1).");
+                            return Result.Cancelled;
+                        }
+                        var td = new TaskDialog("Tender gate — spec incomplete")
+                        {
+                            MainInstruction = "Priced items have no specification",
+                            MainContent = body,
+                            CommonButtons = TaskDialogCommonButtons.None,
+                            AllowCancellation = true
+                        };
+                        td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export anyway");
+                        td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel and fix spec coverage");
+                        if (td.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
+                    }
+                }
+
                 // Phase 108h / 108j — tender config acquisition.
                 // When invoked from the inline-panel flow on BOQCostManagerPanel
                 // the caller has already persisted config values to
