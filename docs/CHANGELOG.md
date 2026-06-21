@@ -35,6 +35,21 @@ Phase 195 rate-policy pattern.
   `StingTools.Boq.Tests`. Suite 164/165 (the 1 failure is the pre-existing
   `ConcreteGradeCarbon` regression, unrelated). Main plugin builds clean vs
   Revit 2025.
+- **MasterFormat map coverage extended for the structural / site gap.** The
+  starter `STING_CSI_MASTERFORMAT_MAP.csv` was MEP- and architecture-strong but
+  had no Division 05 Metals / structural framing, Division 14 conveying, or
+  Division 31–32 sitework — exactly the categories a temple model leans on, which
+  would fall through CSI on a MasterFormat-primary project. Added 29 rows
+  (Structural Framing / Columns / Trusses / Foundations / Rebar with steel /
+  concrete / timber variants → Div 03/05; structural-slab Floors; Stairs /
+  Railings / Ramps; metal + steep-slope roofing; elevators on Specialty +
+  Mechanical Equipment → Div 14; Topography / Pads / Roads / Parking / Planting /
+  Site → Div 31–32), each NRM2-bridged (5 in-situ concrete · 15 structural
+  metalwork · 16 carpentry · 17 envelope · 20 doors/windows/stairs · 4 earthworks)
+  so the existing CSI↔NRM2 bridge + `CsiNrm2BridgeTests` (every row must carry an
+  NRM2 code) stay green. Codes remain "starter approximations" per the file
+  header — confirm against the project SpecLink; projects refine via
+  `_BIM_COORD/csi_map.csv`.
 
 #### Completed (KUT Lifecycle Integration — Phase 195: rate re-rank, latest-wins SpecLink, unified BMS source)
 

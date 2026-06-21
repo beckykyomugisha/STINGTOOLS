@@ -103,3 +103,37 @@ Security Devices,,,,28 20 00,Electronic Surveillance,36
 Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance,36
 Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection,36
 Nurse Call Devices,,,,28 17 00,Nurse Call Systems,36
+# Phase 196 — structural frame / substructure (Div 03 & 05), vertical circulation,
+# conveying (Div 14) and site / external works (Div 31-32). Adds the categories a
+# temple / general-building model leans on that the MEP-and-architecture starter
+# baseline omitted, so MasterFormat-primary projects (KUT) classify the whole model
+# instead of falling through to the OmniClass / Uniclass / native fallbacks.
+Structural Framing,,,,05 12 00,Structural Steel Framing,15
+Structural Framing,(?i)concrete|precast,,,03 30 00,Cast-in-Place Concrete,5
+Structural Framing,(?i)wood|timber|glulam|truss,,,06 17 00,Shop-Fabricated Structural Wood,16
+Structural Columns,,,,05 12 00,Structural Steel Framing,15
+Structural Columns,(?i)concrete|precast,,,03 30 00,Cast-in-Place Concrete,5
+Structural Trusses,,,,05 12 00,Structural Steel Framing,15
+Structural Trusses,(?i)wood|timber,,,06 17 00,Shop-Fabricated Structural Wood,16
+Structural Foundations,,,,03 30 00,Cast-in-Place Concrete,5
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5
+Structural Rebar,,,,03 21 00,Reinforcing Steel,5
+Floors,(?i)\bslab\b|structural,,,03 30 00,Cast-in-Place Concrete,5
+Stairs,,,,05 51 00,Metal Stairs,20
+Stairs,(?i)concrete|precast,,,03 30 00,Cast-in-Place Concrete,5
+Stairs,(?i)wood|timber,,,06 43 00,Wood Stairs and Railings,16
+Railings,,,,05 52 00,Metal Railings,20
+Railings,(?i)wood|timber|glass,,,06 43 00,Wood Stairs and Railings,16
+Ramps,,,,03 30 00,Cast-in-Place Concrete,5
+Roofs,(?i)metal|standing seam,,,07 41 13,Metal Roof Panels,17
+Roofs,(?i)tile|slate|shingle|shake|steep,,,07 31 00,Steep Slope Roofing,17
+Specialty Equipment,(?i)elevator|lift|escalator,,,14 20 00,Elevators,33
+Mechanical Equipment,(?i)elevator|lift|escalator,,,14 20 00,Elevators,33
+Topography,,,,31 00 00,Earthwork,4
+Pads,,,,31 22 00,Grading,4
+Roads,,,,32 12 16,Asphalt Paving,4
+Roads,(?i)concrete|paver|rigid,,,32 13 00,Rigid Paving,4
+Parking,,,,32 13 00,Rigid Paving,4
+Planting,,,,32 90 00,Planting,4
+Planting,(?i)tree,,,32 93 43,Trees,4
+Site,,,,32 00 00,Exterior Improvements,4
