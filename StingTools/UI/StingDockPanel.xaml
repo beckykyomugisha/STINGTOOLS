@@ -1969,6 +1969,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Auto Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Sync Filt" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Sync Filters — mirror host visibility onto symbol tags"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Std Audit — drift + coverage report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Content Cov" Tag="Content_Coverage" Click="Cmd_Click" ToolTip="Content Coverage — tag-family + model-seed ledger: built vs needs-build / needs-spec gaps, with CSV to _BIM_COORD"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Remove In View — delete every STING symbol overlay from the active view"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm All" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Remove All Views — delete every STING symbol overlay project-wide (chunked)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Clear MEP" Tag="Symbols_ClearMepDetail" Click="Cmd_Click" ToolTip="Clear MEP Symbols — remove all STING MEP detail symbols from the active view"/>
@@ -2657,6 +2658,13 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Prereqs" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Prerequisites — check loaded families and project readiness"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Type Catalog — browse loaded structural families with extracted dimensions"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="DWG → MEP (fixtures)" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="★ MEP Wizard" Tag="Mep_CadWizard" Click="Cmd_Click" FontWeight="Bold" ToolTip="MEP CAD Wizard — per-layer mapping: pick level + host-snap, include/exclude layers, override run kind + elevation, then place fixtures + runs."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="Mep_CadPreview" Click="Cmd_Click" ToolTip="MEP CAD Preview — audit DWG blocks (which place as which fixture vs skip) + straight-run candidates (Duct/Pipe/Conduit/Tray) from lines. Read-only."/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Convert" Tag="Mep_CadToModel" Click="Cmd_Click" ToolTip="MEP CAD → Model — place MEP fixtures (host-snapped to wall/ceiling) AND straight runs from DWG via STING_DWG_FIXTURE_MAP + layer recognition; auto-tagged. (Fittings/risers/slope are V3.)"/>
                                     </WrapPanel>
                                 </Expander>
                                 <Expander Header="Structural analysis" FontSize="10" Margin="0,2,0,0">

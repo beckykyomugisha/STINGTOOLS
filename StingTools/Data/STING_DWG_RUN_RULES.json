@@ -1,0 +1,19 @@
+{
+  "Version": "v1",
+  "Description": "STING DWG→MEP run rules. Moves the run engine's hardcoded policy into data: per-kind default size + run elevation + riser default size, the wall-mount category set, the fitting coincidence tolerance, and the drainage fall bands. Corporate baseline; projects override at <project>/_BIM_COORD/dwg_run_rules.json (per-field; project wins) — same loader pattern as STING_DWG_FIXTURE_MAP.json. The shipped values reproduce the previous hardcoded defaults EXACTLY, so an un-customised project converts byte-for-byte unchanged. ServiceRules is an OVERRIDE surface only: when empty the corporate service→MEPSystemClassification mapping in MepServiceClassifier (proven, in code) is used; project entries add/override it. DrainageSlopeBands ships a single flat 1.25% (1:80) band = the previous behaviour; projects wanting BS EN 12056 graduated falls (e.g. DN≤50 → 2.5% / 1:40, DN≤75 → 1:60, DN≤100 → 1:80, larger → 1:100) add bands here. RiserDefaultSize is consumed by the riser builder (a stack is larger than a branch default).",
+  "FittingToleranceMm": 12.0,
+  "Kinds": {
+    "Duct":      { "DefaultSize": { "IsRound": false, "WidthMm": 300, "HeightMm": 200 }, "OffsetMm": 2700, "RiserDefaultSize": { "IsRound": false, "WidthMm": 400, "HeightMm": 250 } },
+    "Pipe":      { "DefaultSize": { "IsRound": true,  "DiameterMm": 50 },                "OffsetMm": 2500, "RiserDefaultSize": { "IsRound": true,  "DiameterMm": 100 } },
+    "Conduit":   { "DefaultSize": { "IsRound": true,  "DiameterMm": 25 },                "OffsetMm": 2800, "RiserDefaultSize": { "IsRound": true,  "DiameterMm": 50 } },
+    "CableTray": { "DefaultSize": { "IsRound": false, "WidthMm": 150, "HeightMm": 50 },  "OffsetMm": 2900, "RiserDefaultSize": { "IsRound": false, "WidthMm": 300, "HeightMm": 100 } }
+  },
+  "WallMountCategories": [
+    "Electrical Fixtures", "Data Devices", "Communication Devices",
+    "Security Devices", "Fire Alarm Devices", "Nurse Call Devices"
+  ],
+  "DrainageSlopeBands": [
+    { "MaxDiaMm": 100000, "SlopePercent": 1.25 }
+  ],
+  "ServiceRules": []
+}

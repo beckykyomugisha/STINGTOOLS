@@ -194,6 +194,9 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // MEP-from-DWG P6-2.3: drop the per-import detection cache on ANY model
+                // change so a Preview→Convert cache hit always reflects the current model.
+                application.ControlledApplication.DocumentChanged += OnDocumentChangedMepCache;
                 // BUG-05: Also clear param cache on document open to prevent cross-document
                 // cache collisions when switching between documents.
                 application.ControlledApplication.DocumentOpened += OnDocumentOpened;
@@ -298,6 +301,14 @@ namespace StingTools.Core
         /// These become invalid when a document closes and cause native crashes if used
         /// against a different document.
         /// </summary>
+        // MEP-from-DWG P6-2.3 — invalidate the per-import detection cache on any model change.
+        private static void OnDocumentChangedMepCache(object sender,
+            Autodesk.Revit.DB.Events.DocumentChangedEventArgs e)
+        {
+            try { Core.Cad.Mep.MepDetectionEngine.InvalidateCache(e.GetDocument()); }
+            catch { /* never let cache housekeeping disturb the edit */ }
+        }
+
         private static void OnDocumentClosing(object sender,
             Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
         {
@@ -348,6 +359,14 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
+                // MEP-from-DWG: drop the per-document fixture-map cache so a re-open
+                // re-reads the corporate baseline + project _BIM_COORD override.
+                try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }
+                catch (Exception cEx) { StingLog.Warn($"MEP fixture-map invalidate: {cEx.Message}"); }
+                try { Core.Cad.Mep.MepDetectionEngine.InvalidateCache(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP detection cache invalidate: {cEx.Message}"); }
+                try { Core.Cad.Mep.MepRunRulesRegistry.Invalidate(); }
+                catch (Exception cEx) { StingLog.Warn($"MEP run-rules invalidate: {cEx.Message}"); }
                 // PBR Material Hub: drop per-document PBR state cache.
                 try { UI.MaterialHubPanel.DropDocumentCache(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"PBR state cache drop: {cEx.Message}"); }
@@ -2216,7 +2235,8 @@ namespace StingTools.Core
                 ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
-                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
+                ("ExportCenter",         "Export Center", "EC", DrawingColor.DarkSlateBlue,  typeof(HubExportCenterCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2630,6 +2650,14 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "AutoTag", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "ExportCenter", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

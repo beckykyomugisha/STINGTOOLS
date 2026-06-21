@@ -1,0 +1,163 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY - Furniture",
+  "_notes": [
+    "Seed for the Furniture category. Standard STING_SEED_* / ASS_* parameters + per-product type variants.",
+    "Draft schematic seed - swap to a manufacturer family via Symbols_SwapToManufacturer when product data is available."
+],
+  "symbols": [
+{
+    "id":  "STING_SEED_Furniture",
+    "name":  "STING Seed - Furniture",
+    "category":  "Furniture",
+    "familyType":  "SeedFamily",
+    "discipline":  "Architecture",
+    "subcategory":  "STING_SEED",
+    "isSeed":  true,
+    "protectExisting":  true,
+    "hosting":  "Standalone",
+    "symbolSize":  4,
+    "parameters":  [
+                       {
+                           "name":  "STING_SEED_FAMILY_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "STING_SEED_Furniture"
+                       },
+                       {
+                           "name":  "STING_DESIGN_REF_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  ""
+                       },
+                       {
+                           "name":  "STING_SWAP_HISTORY_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  ""
+                       },
+                       {
+                           "name":  "ASS_TAG_1",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true
+                       },
+                       {
+                           "name":  "ASS_DISCIPLINE_COD_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "A"
+                       },
+                       {
+                           "name":  "ASS_PRODCT_COD_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "DESK"
+                       }
+                   ],
+    "geometry":  {
+                     "lines":  [
+                                   {
+                                       "x1":  -0.5,
+                                       "y1":  -0.5,
+                                       "x2":  0.5,
+                                       "y2":  -0.5
+                                   },
+                                   {
+                                       "x1":  0.5,
+                                       "y1":  -0.5,
+                                       "x2":  0.5,
+                                       "y2":  0.5
+                                   },
+                                   {
+                                       "x1":  0.5,
+                                       "y1":  0.5,
+                                       "x2":  -0.5,
+                                       "y2":  0.5
+                                   },
+                                   {
+                                       "x1":  -0.5,
+                                       "y1":  0.5,
+                                       "x2":  -0.5,
+                                       "y2":  -0.5
+                                   }
+                               ],
+                     "arcs":  [
+                                  {
+                                      "cx":  0,
+                                      "cy":  0,
+                                      "r":  0.18,
+                                      "startDeg":  0,
+                                      "endDeg":  360
+                                  },
+                                  {
+                                      "cx":  0,
+                                      "cy":  0,
+                                      "r":  0.3,
+                                      "startDeg":  0,
+                                      "endDeg":  180
+                                  }
+                              ]
+                 },
+    "solid3D":  {
+                    "type":  "Box",
+                    "widthMm":  800,
+                    "depthMm":  800,
+                    "heightMm":  750
+                },
+    "swapCandidates":  [
+                           {
+                               "label":  "Manufacturer family (primary)",
+                               "familyPath":  "",
+                               "variantPattern":  "*",
+                               "priority":  1,
+                               "autoLoad":  false
+                           },
+                           {
+                               "label":  "Manufacturer family (fallback)",
+                               "familyPath":  "",
+                               "variantPattern":  "*",
+                               "priority":  2,
+                               "autoLoad":  false
+                           }
+                       ],
+    "typeVariants":  [
+                         {
+                             "name":  "Desk",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "DESK"
+                                        }
+                         },
+                         {
+                             "name":  "Chair",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "CHAIR"
+                                        }
+                         },
+                         {
+                             "name":  "Table",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "TABLE"
+                                        }
+                         },
+                         {
+                             "name":  "Cabinet",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "CAB"
+                                        }
+                         },
+                         {
+                             "name":  "Sofa",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "SOFA"
+                                        }
+                         }
+                     ]
+}
+  ]
+}

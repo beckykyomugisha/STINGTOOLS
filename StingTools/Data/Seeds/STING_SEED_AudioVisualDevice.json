@@ -1,0 +1,163 @@
+{
+  "version": "1.0",
+  "standard": "STING SEED FAMILY - Audio Visual Devices",
+  "_notes": [
+    "Seed for the Audio Visual Devices category. Standard STING_SEED_* / ASS_* parameters + per-product type variants.",
+    "Draft schematic seed - swap to a manufacturer family via Symbols_SwapToManufacturer when product data is available."
+],
+  "symbols": [
+{
+    "id":  "STING_SEED_AudioVisualDevice",
+    "name":  "STING Seed - Audio Visual Devices",
+    "category":  "Audio Visual Devices",
+    "familyType":  "SeedFamily",
+    "discipline":  "Electrical",
+    "subcategory":  "STING_SEED",
+    "isSeed":  true,
+    "protectExisting":  true,
+    "hosting":  "FaceBased",
+    "symbolSize":  4,
+    "parameters":  [
+                       {
+                           "name":  "STING_SEED_FAMILY_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "STING_SEED_AudioVisualDevice"
+                       },
+                       {
+                           "name":  "STING_DESIGN_REF_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  ""
+                       },
+                       {
+                           "name":  "STING_SWAP_HISTORY_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  ""
+                       },
+                       {
+                           "name":  "ASS_TAG_1",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true
+                       },
+                       {
+                           "name":  "ASS_DISCIPLINE_COD_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "E"
+                       },
+                       {
+                           "name":  "ASS_PRODCT_COD_TXT",
+                           "type":  "Text",
+                           "shared":  true,
+                           "isInstance":  true,
+                           "default":  "PROJ"
+                       }
+                   ],
+    "geometry":  {
+                     "lines":  [
+                                   {
+                                       "x1":  -0.5,
+                                       "y1":  -0.5,
+                                       "x2":  0.5,
+                                       "y2":  -0.5
+                                   },
+                                   {
+                                       "x1":  0.5,
+                                       "y1":  -0.5,
+                                       "x2":  0.5,
+                                       "y2":  0.5
+                                   },
+                                   {
+                                       "x1":  0.5,
+                                       "y1":  0.5,
+                                       "x2":  -0.5,
+                                       "y2":  0.5
+                                   },
+                                   {
+                                       "x1":  -0.5,
+                                       "y1":  0.5,
+                                       "x2":  -0.5,
+                                       "y2":  -0.5
+                                   }
+                               ],
+                     "arcs":  [
+                                  {
+                                      "cx":  0,
+                                      "cy":  0,
+                                      "r":  0.18,
+                                      "startDeg":  0,
+                                      "endDeg":  360
+                                  },
+                                  {
+                                      "cx":  0,
+                                      "cy":  0,
+                                      "r":  0.3,
+                                      "startDeg":  0,
+                                      "endDeg":  180
+                                  }
+                              ]
+                 },
+    "solid3D":  {
+                    "type":  "Box",
+                    "widthMm":  200,
+                    "depthMm":  100,
+                    "heightMm":  200
+                },
+    "swapCandidates":  [
+                           {
+                               "label":  "Manufacturer family (primary)",
+                               "familyPath":  "",
+                               "variantPattern":  "*",
+                               "priority":  1,
+                               "autoLoad":  false
+                           },
+                           {
+                               "label":  "Manufacturer family (fallback)",
+                               "familyPath":  "",
+                               "variantPattern":  "*",
+                               "priority":  2,
+                               "autoLoad":  false
+                           }
+                       ],
+    "typeVariants":  [
+                         {
+                             "name":  "Projector",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "PROJ"
+                                        }
+                         },
+                         {
+                             "name":  "Speaker",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "SPK"
+                                        }
+                         },
+                         {
+                             "name":  "Screen",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "SCR"
+                                        }
+                         },
+                         {
+                             "name":  "Display",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "DISP"
+                                        }
+                         },
+                         {
+                             "name":  "FloorAvBox",
+                             "params":  {
+                                            "ASS_PRODCT_COD_TXT":  "AV-FB"
+                                        }
+                         }
+                     ]
+}
+  ]
+}
