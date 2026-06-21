@@ -53,6 +53,12 @@ namespace StingTools.Core.Cad.Mep
             => Runs.GroupBy(r => r.Kind)
                    .Select(g => (g.Key, g.Count(), g.Sum(r => StingTools.Model.Units.ToMm(r.LengthFt) / 1000.0)))
                    .OrderByDescending(t => t.Item2);
+
+        /// <summary>P1.1 — runs grouped by parsed service classification (preview).</summary>
+        public IEnumerable<(string Service, int Count)> RunsByService()
+            => Runs.GroupBy(r => r.Classification.ToString())
+                   .Select(g => (g.Key, g.Count()))
+                   .OrderByDescending(t => t.Item2);
     }
 
     public class MepDetectionEngine
@@ -96,6 +102,7 @@ namespace StingTools.Core.Cad.Mep
                     Size = MepRunClassifier.ParseSize(line.LayerName, kind.Value),
                     Drainage = drainage,
                     SlopePercent = drainage ? MepRunClassifier.DefaultDrainageSlopePercent : 0,
+                    Classification = MepServiceClassifier.Classify(line.LayerName, kind.Value),
                 });
             }
 
@@ -108,13 +115,16 @@ namespace StingTools.Core.Cad.Mep
                 if (RiserRx.IsMatch(block.BlockName))
                 {
                     var rk = MepRunClassifier.DetectKind(block.LayerName, block.InferredCategory) ?? MepRunKind.Pipe;
+                    bool up = !Regex.IsMatch(block.BlockName, @"(?i)\b(dn|down)\b");
                     result.Risers.Add(new MepRiserCandidate
                     {
                         Point = block.InsertionPoint,
                         Kind = rk,
                         Size = MepRunClassifier.Default(rk),
-                        Up = !Regex.IsMatch(block.BlockName, @"(?i)\b(dn|down)\b"),
+                        Up = up,
                         BlockName = block.BlockName,
+                        Classification = MepServiceClassifier.Classify(block.LayerName, rk),
+                        DrainageStack = !up || MepRunClassifier.IsDrainage(block.LayerName),
                     });
                     continue;
                 }

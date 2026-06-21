@@ -29,6 +29,9 @@ namespace StingTools.Core.Cad.Mep
         public int Unions { get; set; }
         public int Failed { get; set; }
         public int Junctions { get; set; }
+        /// <summary>P1.4 — risers whose base connected to a horizontal run vs left floating.</summary>
+        public int JoinedRisers { get; set; }
+        public int FloatingRisers { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public int Created => Elbows + Tees + Crosses + Unions;
     }
@@ -133,6 +136,27 @@ namespace StingTools.Core.Cad.Mep
         private static bool SafeOpen(Connector c)
         {
             try { return c != null && !c.IsConnected; } catch { return false; }
+        }
+
+        /// <summary>P1.4 — read-only count of risers whose base/top end now connects to a run.
+        /// Run after Build (which joins coincident ends): a riser based at the run elevation
+        /// and sharing a run's XY will have been joined; otherwise it is floating.</summary>
+        public void CountRiserJoins(IEnumerable<ElementId> riserIds, MepFittingBuildResult result)
+        {
+            if (riserIds == null) return;
+            foreach (var id in riserIds)
+            {
+                if (id == null || id == ElementId.InvalidElementId) continue;
+                if (!(_doc.GetElement(id) is MEPCurve mc) || mc.ConnectorManager == null) continue;
+                bool anyConnected = false;
+                try
+                {
+                    foreach (Connector c in mc.ConnectorManager.Connectors)
+                        if (c.ConnectorType == ConnectorType.End && c.IsConnected) { anyConnected = true; break; }
+                }
+                catch { }
+                if (anyConnected) result.JoinedRisers++; else result.FloatingRisers++;
+            }
         }
 
         private void TryElbowOrUnion(EndRef a, EndRef b, MepFittingBuildResult result)

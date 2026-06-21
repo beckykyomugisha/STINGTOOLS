@@ -74,10 +74,14 @@ namespace StingTools.Model
         {
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
             var fx = new MepFixtureBuilder(doc).Place(detection, level, hostSnap);
-            var run = new MepRunBuilder(doc).Build(detection.Runs, level);
+            // P1.3 — pass riser/stack candidates so drainage chains fall toward a stack.
+            var run = new MepRunBuilder(doc).Build(detection.Runs, level, null, detection.Risers);
             var riser = new MepRunBuilder(doc).BuildRisers(detection.Risers, level, levels);
             var ids = run.CreatedIds.Concat(riser.CreatedIds).ToList();
-            var fit = ids.Count > 1 ? new MepFittingBuilder(doc).Build(ids) : new MepFittingBuildResult();
+            var fitB = new MepFittingBuilder(doc);
+            var fit = ids.Count > 1 ? fitB.Build(ids) : new MepFittingBuildResult();
+            // P1.4 — report which risers joined a horizontal run.
+            if (riser.CreatedIds.Count > 0) fitB.CountRiserJoins(riser.CreatedIds, fit);
             return new PlaceOutcome { Fixtures = fx, Runs = run, Risers = riser, Fittings = fit };
         }
 
@@ -96,9 +100,17 @@ namespace StingTools.Model
             sb.AppendLine($"   Created: {run.Created}  (failed {run.Failed})");
             foreach (var kv in run.ByKind.OrderByDescending(k => k.Value))
                 sb.AppendLine($"      {kv.Key,-10} {kv.Value}");
+            if (run.BySystem.Count > 0)
+            {
+                sb.AppendLine("   Systems assigned:");
+                foreach (var kv in run.BySystem.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"      {kv.Key,-26} {kv.Value}");
+            }
+            if (run.DrainageDirectionUnverified > 0)
+                sb.AppendLine($"   ⚠ {run.DrainageDirectionUnverified} drainage run(s) — fall direction unverified (no stack); confirm fall.");
             sb.AppendLine();
             sb.AppendLine("RISERS");
-            sb.AppendLine($"   Created: {riser.Created}  (failed {riser.Failed})");
+            sb.AppendLine($"   Created: {riser.Created}  (failed {riser.Failed}; joined-to-run {fit.JoinedRisers}, floating {fit.FloatingRisers})");
             sb.AppendLine();
             sb.AppendLine("FITTINGS");
             sb.AppendLine($"   Junctions: {fit.Junctions}   Elbows {fit.Elbows} · Tees {fit.Tees} · Crosses {fit.Crosses} · Unions {fit.Unions} · failed {fit.Failed}");
@@ -161,8 +173,14 @@ namespace StingTools.Model
                 sb.AppendLine("   (none — no lines on duct/pipe/conduit/tray layers above the 0.5 m floor)");
             foreach (var (kind, count, totalM) in detection.RunsByKind())
                 sb.AppendLine($"   {kind,-10} {count,4}   {totalM:F1} m");
+            if (detection.Runs.Count > 0)
+            {
+                sb.AppendLine("   Service (→ MEP system at placement):");
+                foreach (var (service, count) in detection.RunsByService())
+                    sb.AppendLine($"      {service,-26} {count}");
+            }
             if (detection.DrainageRunCount > 0)
-                sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall)");
+                sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall toward the nearest stack)");
             sb.AppendLine($"Risers (UP/DN/RISER blocks → vertical segments): {detection.Risers.Count}");
 
             if (detection.UnmatchedBlockCounts.Count > 0)

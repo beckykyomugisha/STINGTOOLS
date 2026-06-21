@@ -53,6 +53,9 @@ namespace StingTools.Core.Cad.Mep
         public bool Drainage { get; set; }
         /// <summary>V3 — fall to apply along a drainage run (% , e.g. 1.25 = 1:80). 0 = flat.</summary>
         public double SlopePercent { get; set; }
+        /// <summary>P1.1 — service classification parsed from the layer (drives the
+        /// MEP system type at Create). Undefined → the builder uses the fallback.</summary>
+        public MEPSystemClassification Classification { get; set; } = MEPSystemClassification.UndefinedSystemClassification;
         public double LengthFt => Line?.Length ?? 0;
     }
 
@@ -64,6 +67,47 @@ namespace StingTools.Core.Cad.Mep
         public MepSize Size { get; set; }
         public bool Up { get; set; }            // true = rises (UP), false = drops (DN)
         public string BlockName { get; set; }
+        /// <summary>P1.1 — service classification (best-effort from the block layer).</summary>
+        public MEPSystemClassification Classification { get; set; } = MEPSystemClassification.UndefinedSystemClassification;
+        /// <summary>P1.3 — true when this riser is a drainage stack (a low-point sink for fall direction).</summary>
+        public bool DrainageStack { get; set; }
+    }
+
+    // ── Service classification (pure) ────────────────────────────────────────
+    // P1.1 — maps the service token in a layer name to a MEPSystemClassification
+    // so each run gets the right MEP system type instead of "first available".
+    // Approximate (DWG layer conventions vary); UndefinedSystemClassification ⇒
+    // the builder falls back to the first available system type.
+    public static class MepServiceClassifier
+    {
+        public static MEPSystemClassification Classify(string layerName, MepRunKind kind)
+        {
+            string l = (layerName ?? "").ToLowerInvariant();
+            if (kind == MepRunKind.Duct)
+            {
+                if (Regex.IsMatch(l, @"\b(ret|return|ra)\b|return")) return MEPSystemClassification.ReturnAir;
+                if (Regex.IsMatch(l, @"\b(exh?|exhaust|ea|toilet.?ext|kitchen.?ext)\b|exhaust")) return MEPSystemClassification.ExhaustAir;
+                // Outdoor / fresh air is supply-side — Revit has no distinct OutsideAir
+                // classification, so it routes onto SupplyAir. // TODO-VERIFY-API
+                if (Regex.IsMatch(l, @"\b(oa|osa|fa|fresh|outdoor|outside)\b|fresh.?air")) return MEPSystemClassification.SupplyAir;
+                return MEPSystemClassification.SupplyAir;            // default duct = supply
+            }
+            if (kind == MepRunKind.Pipe)
+            {
+                // Drainage first (most specific).
+                if (Regex.IsMatch(l, @"\b(svp|vp|vent)\b|\bvent")) return MEPSystemClassification.Vent;
+                if (Regex.IsMatch(l, @"\b(san|soil|foul|waste|wc)\b|sanitary|drainage")) return MEPSystemClassification.Sanitary;
+                if (Regex.IsMatch(l, @"\b(rwd|rwp|storm|swd)\b|rain|storm")) return MEPSystemClassification.OtherPipe; // no StormDrain class
+                // Domestic.
+                if (Regex.IsMatch(l, @"\b(dcw|mcw|cws?|cw)\b")) return MEPSystemClassification.DomesticColdWater;
+                if (Regex.IsMatch(l, @"\b(dhwr?|dhw|hws)\b")) return MEPSystemClassification.DomesticHotWater;
+                // Hydronic heating/cooling (supply vs return).
+                if (Regex.IsMatch(l, @"\b(chwr|hwr|lhwr|hhwr|lphwr|mphwr|cwr)\b")) return MEPSystemClassification.ReturnHydronic;
+                if (Regex.IsMatch(l, @"\b(chw|hhw|lhw|lphw|mphw|cwf)\b")) return MEPSystemClassification.SupplyHydronic;
+                if (Regex.IsMatch(l, @"\b(cond|condensate|cd)\b")) return MEPSystemClassification.OtherPipe;
+            }
+            return MEPSystemClassification.UndefinedSystemClassification;
+        }
     }
 
     public class MepRunBuildResult
@@ -73,8 +117,17 @@ namespace StingTools.Core.Cad.Mep
         public List<ElementId> CreatedIds { get; } = new List<ElementId>();
         public List<string> Warnings { get; } = new List<string>();
         public Dictionary<MepRunKind, int> ByKind { get; } = new Dictionary<MepRunKind, int>();
+        /// <summary>P1.1 — resolved system type name → run count, for the report.</summary>
+        public Dictionary<string, int> BySystem { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>P1.3 — drainage runs whose fall direction could not be verified against a stack.</summary>
+        public int DrainageDirectionUnverified { get; set; }
         public int Tagged { get; set; }
         public void Bump(MepRunKind k) { ByKind.TryGetValue(k, out int n); ByKind[k] = n + 1; }
+        public void BumpSystem(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            BySystem.TryGetValue(name, out int n); BySystem[name] = n + 1;
+        }
     }
 
     // ── Run-kind + size detection (pure, no Revit transaction) ───────────────
@@ -151,24 +204,126 @@ namespace StingTools.Core.Cad.Mep
         public const double DefaultDrainageSlopePercent = 1.25;
     }
 
+    // ── Drainage chaining + fall direction (pure, no Revit transaction) ──────
+    // P1.2/1.3 — stitch contiguous drainage segments into ordered polylines so a
+    // multi-segment drain falls continuously (cumulative invert) toward a stack
+    // instead of resetting to flat at every joint.
+    public static class MepDrainage
+    {
+        public struct Seg { public MepRunCandidate Cand; public XYZ S; public XYZ E; }
+
+        private static bool Near(XYZ a, XYZ b, double tolFt)
+        {
+            double dx = a.X - b.X, dy = a.Y - b.Y;
+            return Math.Sqrt(dx * dx + dy * dy) <= tolFt;
+        }
+
+        /// <summary>Greedily stitch segments sharing an endpoint (within tol) into ordered chains.</summary>
+        public static List<List<Seg>> Chain(IList<MepRunCandidate> drains, double tolFt)
+        {
+            var chains = new List<List<Seg>>();
+            if (drains == null) return chains;
+            var remaining = drains.Where(d => d?.Line != null).ToList();
+
+            while (remaining.Count > 0)
+            {
+                var seed = remaining[0]; remaining.RemoveAt(0);
+                var chain = new LinkedList<Seg>();
+                chain.AddFirst(new Seg { Cand = seed, S = seed.Line.Start, E = seed.Line.End });
+
+                bool grew = true;
+                while (grew)   // extend at the tail
+                {
+                    grew = false;
+                    XYZ tailE = chain.Last.Value.E;
+                    for (int k = 0; k < remaining.Count; k++)
+                    {
+                        var c = remaining[k];
+                        if (Near(c.Line.Start, tailE, tolFt)) chain.AddLast(new Seg { Cand = c, S = c.Line.Start, E = c.Line.End });
+                        else if (Near(c.Line.End, tailE, tolFt)) chain.AddLast(new Seg { Cand = c, S = c.Line.End, E = c.Line.Start });
+                        else continue;
+                        remaining.RemoveAt(k); grew = true; break;
+                    }
+                }
+                grew = true;
+                while (grew)   // extend at the head
+                {
+                    grew = false;
+                    XYZ headS = chain.First.Value.S;
+                    for (int k = 0; k < remaining.Count; k++)
+                    {
+                        var c = remaining[k];
+                        if (Near(c.Line.End, headS, tolFt)) chain.AddFirst(new Seg { Cand = c, S = c.Line.Start, E = c.Line.End });
+                        else if (Near(c.Line.Start, headS, tolFt)) chain.AddFirst(new Seg { Cand = c, S = c.Line.End, E = c.Line.Start });
+                        else continue;
+                        remaining.RemoveAt(k); grew = true; break;
+                    }
+                }
+                chains.Add(chain.ToList());
+            }
+            return chains;
+        }
+
+        /// <summary>Orient the chain so it FALLS toward the nearest stack (the low end ends
+        /// last). Returns false when no stack is found (caller flags those as unverified).</summary>
+        public static bool OrientFall(List<Seg> chain, IList<MepRiserCandidate> stacks, double tolFt)
+        {
+            if (chain == null || chain.Count == 0) return true;
+            var pts = (stacks ?? new List<MepRiserCandidate>())
+                .Where(r => r?.Point != null).Select(r => r.Point).ToList();
+            if (pts.Count == 0) return false;   // unverified — keep deterministic order
+
+            XYZ head = chain[0].S, tail = chain[chain.Count - 1].E;
+            double Dist(XYZ p) => pts.Min(s => { double dx = p.X - s.X, dy = p.Y - s.Y; return Math.Sqrt(dx * dx + dy * dy); });
+            if (Dist(head) < Dist(tail)) Reverse(chain);   // head is the low end → make it last
+            return true;
+        }
+
+        private static void Reverse(List<Seg> chain)
+        {
+            chain.Reverse();
+            for (int i = 0; i < chain.Count; i++)
+            {
+                var s = chain[i];
+                chain[i] = new Seg { Cand = s.Cand, S = s.E, E = s.S };
+            }
+        }
+    }
+
     public class MepRunBuilder
     {
         private readonly Document _doc;
 
         // Resolved once per build.
-        private ElementId _ductType, _mechSys, _pipeType, _pipeSys, _conduitType, _cableTrayType;
+        private ElementId _ductType, _pipeType, _conduitType, _cableTrayType;
+        // P1.1 — MEP system types by classification + a first-available fallback.
+        private Dictionary<MEPSystemClassification, ElementId> _mechByClass, _pipeByClass;
+        private ElementId _mechFallback, _pipeFallback;
 
         public MepRunBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
 
+        /// <summary>Coincidence tolerance (ft) for chaining drainage segments — matches
+        /// MepFittingBuilder so chained ends still join.</summary>
+        internal const double TolFt = 12.0 / 304.8;
+
         /// <summary>Create runs for all candidates on the level. One transaction.
-        /// <paramref name="offsetByKind"/> overrides the per-kind default elevation when present.</summary>
+        /// <paramref name="offsetByKind"/> overrides the per-kind default elevation;
+        /// <paramref name="stacks"/> (riser/stack candidates) drives drainage fall direction.</summary>
         public MepRunBuildResult Build(IList<MepRunCandidate> runs, Level level,
-            IReadOnlyDictionary<MepRunKind, double> offsetByKind = null)
+            IReadOnlyDictionary<MepRunKind, double> offsetByKind = null,
+            IList<MepRiserCandidate> stacks = null)
         {
             var result = new MepRunBuildResult();
             if (runs == null || runs.Count == 0 || level == null) return result;
 
             ResolveTypes();
+
+            double OffMm(MepRunCandidate r) => r.OffsetMm
+                ?? (offsetByKind != null && offsetByKind.TryGetValue(r.Kind, out double o) ? o
+                : MepRunClassifier.DefaultOffsetMm(r.Kind));
+
+            var normal = runs.Where(r => r?.Line != null && !(r.Drainage && r.SlopePercent > 0)).ToList();
+            var drains = runs.Where(r => r?.Line != null && r.Drainage && r.SlopePercent > 0).ToList();
 
             using (var tx = new Transaction(_doc, "STING MODEL: Create MEP Runs from DWG"))
             {
@@ -176,45 +331,41 @@ namespace StingTools.Core.Cad.Mep
                 try
                 {
                     int i = 0;
-                    foreach (var run in runs)
+
+                    // (a) Non-drainage runs — flat at the per-kind elevation.
+                    foreach (var run in normal)
                     {
                         i++;
-                        if (run?.Line == null) continue;
-                        double offMm = run.OffsetMm                                   // per-run (wizard) wins
-                            ?? (offsetByKind != null && offsetByKind.TryGetValue(run.Kind, out double o) ? o
-                            : MepRunClassifier.DefaultOffsetMm(run.Kind));
-                        double z = level.Elevation + StingTools.Model.Units.Mm(offMm);
+                        double z = level.Elevation + StingTools.Model.Units.Mm(OffMm(run));
                         var a = new XYZ(run.Line.Start.X, run.Line.Start.Y, z);
-                        // V3 — gravity fall for drainage pipe: drop the End end by length × slope%.
-                        double bz = z;
-                        if (run.Drainage && run.SlopePercent > 0)
-                            bz = z - run.Line.Length * (run.SlopePercent / 100.0);
-                        var b = new XYZ(run.Line.End.X, run.Line.End.Y, bz);
-                        if (a.DistanceTo(b) < 0.01) continue;   // degenerate
+                        var b = new XYZ(run.Line.End.X, run.Line.End.Y, z);
+                        if (a.DistanceTo(b) >= 0.01) CreateOne(run, a, b, level.Id, result);
+                        if (Cancelled(i, result)) goto done;
+                    }
 
-                        try
+                    // (b) Drainage — chain contiguous segments and fall CONTINUOUSLY (each
+                    // segment Start Z = previous End Z) toward the nearest stack (P1.2/1.3).
+                    foreach (var chain in MepDrainage.Chain(drains, TolFt))
+                    {
+                        bool verified = MepDrainage.OrientFall(chain, stacks, TolFt);
+                        double cur = level.Elevation + StingTools.Model.Units.Mm(OffMm(chain[0].Cand));
+                        foreach (var seg in chain)
                         {
-                            Element el = CreateRun(run.Kind, a, b, level.Id, result);
-                            if (el == null) continue;
-                            ApplySize(el, run.Kind, run.Size, result);
-                            ModelWorksetAssigner.Assign(_doc, el);
-                            result.CreatedIds.Add(el.Id);
-                            result.Created++;
-                            result.Bump(run.Kind);
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Failed++;
-                            if (result.Warnings.Count < 30)
-                                result.Warnings.Add($"{run.Kind} on '{run.Line.LayerName}': {ex.Message}");
-                        }
-
-                        if (i % 50 == 0 && EscapeChecker.IsEscapePressed())
-                        {
-                            result.Warnings.Add($"Cancelled by user after {i} runs.");
-                            break;
+                            i++;
+                            double segLenFt = Planar(seg.S, seg.E);
+                            double endZ = cur - segLenFt * (seg.Cand.SlopePercent / 100.0);
+                            var a = new XYZ(seg.S.X, seg.S.Y, cur);
+                            var b = new XYZ(seg.E.X, seg.E.Y, endZ);
+                            cur = endZ;
+                            if (a.DistanceTo(b) >= 0.01)
+                            {
+                                var el = CreateOne(seg.Cand, a, b, level.Id, result);
+                                if (el != null && !verified) result.DrainageDirectionUnverified++;
+                            }
+                            if (Cancelled(i, result)) goto done;
                         }
                     }
+                    done:
                     tx.Commit();
                 }
                 catch (Exception ex)
@@ -227,12 +378,55 @@ namespace StingTools.Core.Cad.Mep
                 }
             }
 
+            if (result.DrainageDirectionUnverified > 0)
+                result.Warnings.Add($"{result.DrainageDirectionUnverified} drainage run(s): no stack found to set fall direction — confirm fall manually.");
+
             if (result.CreatedIds.Count > 0)
             {
                 try { result.Tagged = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedIds); }
                 catch (Exception ex) { StingLog.Warn($"MEP run auto-tag: {ex.Message}"); }
             }
             return result;
+        }
+
+        /// <summary>Create one run + size + workset + bookkeeping. Returns the element or null.</summary>
+        private Element CreateOne(MepRunCandidate run, XYZ a, XYZ b, ElementId levelId, MepRunBuildResult result)
+        {
+            try
+            {
+                Element el = CreateRun(run.Kind, run.Classification, a, b, levelId, result);
+                if (el == null) return null;
+                ApplySize(el, run.Kind, run.Size, result);
+                ModelWorksetAssigner.Assign(_doc, el);
+                result.CreatedIds.Add(el.Id);
+                result.Created++;
+                result.Bump(run.Kind);
+                return el;
+            }
+            catch (Exception ex)
+            {
+                result.Failed++;
+                if (result.Warnings.Count < 30)
+                    result.Warnings.Add($"{run.Kind} on '{run.Line?.LayerName}': {ex.Message}");
+                return null;
+            }
+        }
+
+        private static bool Cancelled(int i, MepRunBuildResult result)
+        {
+            if (i % 50 == 0 && EscapeChecker.IsEscapePressed())
+            {
+                result.Warnings.Add($"Cancelled by user after {i} runs.");
+                return true;
+            }
+            return false;
+        }
+
+        // Planar (XY) length in feet — DWG run lines are planar; ignore any Z noise.
+        private static double Planar(XYZ a, XYZ b)
+        {
+            double dx = a.X - b.X, dy = a.Y - b.Y;
+            return Math.Sqrt(dx * dx + dy * dy);
         }
 
         /// <summary>V3 — create a vertical run segment per riser block, spanning from the
@@ -256,16 +450,23 @@ namespace StingTools.Core.Cad.Mep
                     foreach (var r in risers)
                     {
                         if (r?.Point == null) continue;
+                        // P1.4 — base the riser at the RUN elevation (level + per-kind offset),
+                        // not the bare level, so its base end coincides with horizontal runs at
+                        // the same XY and the combined fitting pass can join them.
+                        double off = StingTools.Model.Units.Mm(MepRunClassifier.DefaultOffsetMm(r.Kind));
+                        double baseE = curE + off;
+                        var above = sorted.FirstOrDefault(l => l.Elevation > curE + 0.1);
+                        var below = sorted.LastOrDefault(l => l.Elevation < curE - 0.1);
                         double topE = r.Up
-                            ? (sorted.FirstOrDefault(l => l.Elevation > curE + 0.1)?.Elevation ?? curE + span3m)
-                            : (sorted.LastOrDefault(l => l.Elevation < curE - 0.1)?.Elevation ?? curE - span3m);
-                        var a = new XYZ(r.Point.X, r.Point.Y, curE);
+                            ? (above != null ? above.Elevation : curE + span3m) + off
+                            : (below != null ? below.Elevation : curE - span3m) + off;
+                        var a = new XYZ(r.Point.X, r.Point.Y, baseE);
                         var b = new XYZ(r.Point.X, r.Point.Y, topE);
                         if (a.DistanceTo(b) < 0.01) continue;
 
                         try
                         {
-                            var el = CreateRun(r.Kind, a, b, level.Id, result);
+                            var el = CreateRun(r.Kind, r.Classification, a, b, level.Id, result);
                             if (el == null) continue;
                             ApplySize(el, r.Kind, r.Size ?? MepRunClassifier.Default(r.Kind), result);
                             ModelWorksetAssigner.Assign(_doc, el);
@@ -300,16 +501,26 @@ namespace StingTools.Core.Cad.Mep
             return result;
         }
 
-        private Element CreateRun(MepRunKind kind, XYZ a, XYZ b, ElementId levelId, MepRunBuildResult result)
+        private Element CreateRun(MepRunKind kind, MEPSystemClassification cls, XYZ a, XYZ b, ElementId levelId, MepRunBuildResult result)
         {
             switch (kind)
             {
                 case MepRunKind.Duct:
-                    if (_ductType == null || _mechSys == null) { Miss(result, "DuctType / MechanicalSystemType"); return null; }
-                    return Duct.Create(_doc, _mechSys, _ductType, levelId, a, b);
+                {
+                    var sys = ResolveSystem(_mechByClass, _mechFallback, cls);
+                    if (_ductType == null || sys == null) { Miss(result, "DuctType / MechanicalSystemType"); return null; }
+                    var el = Duct.Create(_doc, sys, _ductType, levelId, a, b);
+                    RecordSystem(result, sys);
+                    return el;
+                }
                 case MepRunKind.Pipe:
-                    if (_pipeType == null || _pipeSys == null) { Miss(result, "PipeType / PipingSystemType"); return null; }
-                    return Pipe.Create(_doc, _pipeSys, _pipeType, levelId, a, b);
+                {
+                    var sys = ResolveSystem(_pipeByClass, _pipeFallback, cls);
+                    if (_pipeType == null || sys == null) { Miss(result, "PipeType / PipingSystemType"); return null; }
+                    var el = Pipe.Create(_doc, sys, _pipeType, levelId, a, b);
+                    RecordSystem(result, sys);
+                    return el;
+                }
                 case MepRunKind.Conduit:
                     if (_conduitType == null) { Miss(result, "ConduitType"); return null; }
                     return Conduit.Create(_doc, _conduitType, a, b, levelId);
@@ -318,6 +529,21 @@ namespace StingTools.Core.Cad.Mep
                     return CableTray.Create(_doc, _cableTrayType, a, b, levelId);
                 default: return null;
             }
+        }
+
+        // P1.1 — system type by classification, else the first-available fallback.
+        private static ElementId ResolveSystem(Dictionary<MEPSystemClassification, ElementId> byClass,
+            ElementId fallback, MEPSystemClassification cls)
+        {
+            if (byClass != null && cls != MEPSystemClassification.UndefinedSystemClassification &&
+                byClass.TryGetValue(cls, out var id) && id != null)
+                return id;
+            return fallback;
+        }
+
+        private void RecordSystem(MepRunBuildResult result, ElementId sysId)
+        {
+            try { result.BumpSystem(_doc.GetElement(sysId)?.Name); } catch { }
         }
 
         private void ApplySize(Element el, MepRunKind kind, MepSize size, MepRunBuildResult result)
@@ -362,12 +588,21 @@ namespace StingTools.Core.Cad.Mep
             _conduitType   = FirstId<ConduitType>();
             _cableTrayType = FirstId<CableTrayType>();
 
-            _mechSys = new FilteredElementCollector(_doc).OfClass(typeof(MechanicalSystemType))
-                .Cast<MechanicalSystemType>()
-                .OrderByDescending(s => s.SystemClassification == MEPSystemClassification.SupplyAir)
-                .FirstOrDefault()?.Id;
-            _pipeSys = new FilteredElementCollector(_doc).OfClass(typeof(PipingSystemType))
-                .Cast<PipingSystemType>().FirstOrDefault()?.Id;
+            // P1.1 — index every system type by its classification (first per class).
+            var mech = new FilteredElementCollector(_doc).OfClass(typeof(MechanicalSystemType))
+                .Cast<MechanicalSystemType>().ToList();
+            _mechByClass = new Dictionary<MEPSystemClassification, ElementId>();
+            foreach (var s in mech)
+                if (!_mechByClass.ContainsKey(s.SystemClassification)) _mechByClass[s.SystemClassification] = s.Id;
+            _mechFallback = (mech.FirstOrDefault(s => s.SystemClassification == MEPSystemClassification.SupplyAir)
+                             ?? mech.FirstOrDefault())?.Id;
+
+            var pipe = new FilteredElementCollector(_doc).OfClass(typeof(PipingSystemType))
+                .Cast<PipingSystemType>().ToList();
+            _pipeByClass = new Dictionary<MEPSystemClassification, ElementId>();
+            foreach (var s in pipe)
+                if (!_pipeByClass.ContainsKey(s.SystemClassification)) _pipeByClass[s.SystemClassification] = s.Id;
+            _pipeFallback = pipe.FirstOrDefault()?.Id;
         }
 
         private ElementId FirstId<T>() where T : Element
