@@ -448,9 +448,16 @@ namespace StingTools.Model
                         var category = LayerMapper.InferCategory(layerName)
                             ?? LayerMapper.InferCategory(blockName);
 
+                        // MEP-from-DWG V1: capture MEP blocks too (Ducts / Pipes /
+                        // Fire Protection / Equipment) so the MepDetectionEngine can
+                        // classify them by block name. Additive — existing consumers
+                        // (DetectColumns filters Columns; arch ignores blocks) are
+                        // unaffected; classification is by block name, not this category.
                         if (category == "Doors" || category == "Windows" ||
                             category == "Furniture" || category == "Electrical" ||
-                            category == "Plumbing" || category == "Columns")
+                            category == "Plumbing" || category == "Columns" ||
+                            category == "Ducts" || category == "Pipes" ||
+                            category == "Fire Protection" || category == "Equipment")
                         {
                             // Extract rotation angle from transform
                             double rotation = Math.Atan2(

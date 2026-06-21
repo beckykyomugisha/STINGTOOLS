@@ -16,6 +16,24 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 
 ---
 
+### MEP-from-DWG — V2 / V3 backlog
+
+V1 (MEP fixtures from DWG blocks) shipped — see `CHANGELOG.md`. Remaining:
+
+| Id | Item | Notes |
+|---|---|---|
+| MEPDWG-V2-1 | **Straight runs** — `MepRunBuilder`: `ExtractedLine` on an MEP layer → `Duct.Create` / `Pipe.Create` / `Conduit.Create` / `CableTray.Create`. Size from layer-name suffix (e.g. `M-DUCT-300x200`) or a per-type default; pluggable size resolver. | Endpoints come straight from `ExtractedLine`; reuse the V1 layer recognition. |
+| MEPDWG-V2-2 | **System assignment** — assign each run to a Mechanical / Piping / Electrical system; run elevation/Z from level + per-layer offset (reuse height standards). | |
+| MEPDWG-V2-3 | **Fixture host-snapping** — nearest-wall for sockets/switches, nearest-ceiling for luminaires/diffusers/sprinklers; fall back to unhosted when none found. | V1 places unhosted on the level. |
+| MEPDWG-V2-4 | **`MepCadWizard`** — per-layer category/type/level mapping UI modeled on `StructuralCADWizard`. | V1 uses the active level + the corporate/project map without a wizard. |
+| MEPDWG-V2-5 | **Native mounting-height param** — wire the numeric `MNT_HGT_MM` stamp once its exact name + unit (Length vs Number) is confirmed against Placement-Center output (V1 stamps only `MOUNTING_REFERENCE_TXT`; height is encoded in the instance Z). | `TODO-VERIFY-API` in `MepFixtureBuilder.StampMetadata`. |
+| MEPDWG-V3-1 | **Fittings** — junction/branch detection between runs → elbows/tees so runs form connected systems (investigate reuse of `Core/Routing` junction-box placer + A*). | |
+| MEPDWG-V3-2 | **Risers** — vertical lines / UP-DN blocks → vertical run segments. | |
+| MEPDWG-V3-3 | **Drainage slope** — slope handling for sanitary/drainage pipe. | |
+| MEPDWG-V1-note | V1 only captures fixture blocks whose layer/block name is recognised as MEP (the extraction whitelist). Fixtures on mislabelled layers with non-MEP block names are not captured — extend the layer mapper or rename layers. | Documented V1 limitation. |
+
+---
+
 ### Current Automation Gaps
 
 #### A. Gaps That Hinder Full Automation
