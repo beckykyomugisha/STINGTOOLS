@@ -118,8 +118,10 @@ namespace StingTools.V6
                     return Fail("Signed-upload response missing uploadKey/urls (file may be too large for single-part upload).");
 
                 // 3b. PUT the bytes to S3 (presigned — NO Authorization header).
-                byte[] bytes = File.ReadAllBytes(filePath);
-                using (var put = new HttpRequestMessage(HttpMethod.Put, signedUrl) { Content = new ByteArrayContent(bytes) })
+                // Stream straight from disk so a large model isn't buffered in
+                // memory; the seekable FileStream lets HttpClient set Content-Length.
+                using (var fs = File.OpenRead(filePath))
+                using (var put = new HttpRequestMessage(HttpMethod.Put, signedUrl) { Content = new StreamContent(fs) })
                 {
                     var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
                     if (!putResp.IsSuccessStatusCode)

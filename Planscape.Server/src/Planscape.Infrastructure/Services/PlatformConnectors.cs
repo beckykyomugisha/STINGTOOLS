@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +38,12 @@ public class AccConnector : IPlatformConnector
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<AccConnector> _logger;
 
+    // Serialize refreshes per connection id so parallel operations in THIS
+    // server instance don't race the rotating refresh token. (Single-instance
+    // guard only — full cross-instance safety would need a DB re-read under a
+    // distributed lock; tracked as a follow-up.)
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _refreshLocks = new();
+
     public AccConnector(IConfiguration config, IHttpClientFactory httpFactory, ILogger<AccConnector> logger)
     {
         _config = config;
@@ -46,9 +53,10 @@ public class AccConnector : IPlatformConnector
 
     public PlatformType Platform => PlatformType.ACC;
 
+    // IConfiguration already layers in environment variables (Acc__ClientId →
+    // Acc:ClientId), so a single indexer lookup covers both file and env config.
     private (string id, string secret) AppCreds() =>
-        (_config["Acc:ClientId"]     ?? Environment.GetEnvironmentVariable("Acc__ClientId")     ?? "",
-         _config["Acc:ClientSecret"] ?? Environment.GetEnvironmentVariable("Acc__ClientSecret") ?? "");
+        (_config["Acc:ClientId"] ?? "", _config["Acc:ClientSecret"] ?? "");
 
     public async Task<PlatformTokenResult> RefreshTokenAsync(PlatformConnection connection, CancellationToken ct = default)
     {
@@ -58,8 +66,17 @@ public class AccConnector : IPlatformConnector
         if (string.IsNullOrWhiteSpace(connection.RefreshToken))
             return new PlatformTokenResult(false, Error: "No refresh token — connect ACC via /api/acc/oauth/start first.");
 
+        var gate = _refreshLocks.GetOrAdd(connection.Id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
         try
         {
+            // Another op on this instance may have just refreshed this same
+            // tracked entity — reuse it rather than burning the refresh token again.
+            if (!string.IsNullOrEmpty(connection.AccessToken)
+                && connection.TokenExpiresAt.HasValue
+                && connection.TokenExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
+                return new PlatformTokenResult(true, connection.AccessToken, connection.RefreshToken, connection.TokenExpiresAt);
+
             var http = _httpFactory.CreateClient();
             using var req = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
             {
@@ -97,6 +114,7 @@ public class AccConnector : IPlatformConnector
             _logger.LogWarning(ex, "ACC token refresh failed");
             return new PlatformTokenResult(false, Error: ex.Message);
         }
+        finally { gate.Release(); }
     }
 
     /// <summary>Refresh the access token when missing or within 5 min of expiry.</summary>
