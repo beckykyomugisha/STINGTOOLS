@@ -358,20 +358,22 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ## BOQ — Bill of Quantities (Enhanced)
 
-**Status**: `StingTools/BOQ/` (35 files · ~13,846 lines across root + 4 subdirectories + 3 UI files).
+**Status**: `StingTools/BOQ/` (37 files · ~14,250 lines across root + 4 subdirectories + 3 UI files). Phase 195 hardened cost accuracy for production sign-off — see `docs/CHANGELOG.md` Phase 195.
 
-### Root files (`BOQ/` — 19 files · 8,776 lines)
+### Root files (`BOQ/` — 21 files · ~9,150 lines)
 
 | Class | Lines | Purpose |
 |---|---|---|
-| `BOQCostManager.cs` | 2,026 | Core cost management engine: rate lookup, cost aggregation, VAT, contingency, carbon, waste |
+| `BOQCostManager.cs` | 2,084 | Core cost management engine: rate lookup, quantity take-off (with measured/unmeasured flag), cost aggregation, carbon, waste |
+| `BoqTotals.cs` | 125 | **Single source of truth** for summary arithmetic — NRM markup cascade (default) / flat (opt-in) + VAT + contract sum; used by the model, basic export, tender export and snapshot list so they agree to the shilling (Phase 195) |
+| `BoqUnits.cs` | 68 | Pure unit normalisation — splits tonne from kg and scales a per-tonne rate ÷1000 (closes the latent 1000× bug, Phase 195) |
 | `BOQProfessionalExportCommand.cs` | 1,871 | Professional-grade export with company branding + NRM2 compliance + Word merge |
 | `BOQParagraphEnhancer.cs` | 850 | Natural-language paragraph generation (NBS / NRM2 style) |
 | `BOQBccBridge.cs` | 637 | Bridge for BIM Coordination Center BOQ data refresh |
 | `BOQExportCommand.cs` | 597 | Primary export: ClosedXML XLSX with NRM2 grouping + labour + carbon columns |
 | `BOQTemplateLibraryExtensions.cs` | 586 | Client vocabulary substitution from `BOQ_CLIENT_VOCABULARY.json` |
 | `BOQSupportCommands.cs` | 506 | `BOQ_RateAudit`, `BOQ_DeltaReport`, `BOQ_Validate` |
-| `BOQModels.cs` | 354 | POCOs: BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate |
+| `BOQModels.cs` | 398 | POCOs: BOQLineItem (+ QuantityMeasured / RateIncludesOhp), BOQSection, BOQDocument (cascade totals + VAT + ContractSum), snapshot/diff/health models |
 | `CostStamp.cs` | 232 | Writes `CST_*` + `ASS_BOQ_*` shared parameters onto modelled elements |
 | `IfcQuantitySetWriter.cs` | 171 | Writes IFC `Qto_*` quantity sets from BOQ line items |
 | `BOQByMaterialView.cs` | 170 | Pivots BOQ output by material classification |
@@ -726,7 +728,7 @@ Planscape Server sync.
 
 ### New folders
 
-`StingTools/BOQ/` — 35 files · ~13,846 lines across root (19 files) + `MeasurementStandard/` (3) + `Rates/` (7) + `Sync/` (2) + `Takeoff/` (1) + UI (3 files under `UI/`).
+`StingTools/BOQ/` — 37 files · ~14,250 lines across root (21 files) + `MeasurementStandard/` (3) + `Rates/` (7) + `Sync/` (2) + `Takeoff/` (1) + UI (3 files under `UI/`).
 
 **Commands (14)**:
 
@@ -2540,7 +2542,7 @@ STINGTOOLS/
     ├── Temp/                           # Template commands (22 files, 120+ commands)
     ├── Model/                          # Auto-modeling engine (26 files, 130+ commands)
     ├── BIMManager/                     # ISO 19650 BIM management (14 files, 120+ commands)
-    ├── BOQ/                            # Bill of Quantities system (35 files · ~13,846 lines; root + MeasurementStandard/ + Rates/ + Sync/ + Takeoff/ + UI)
+    ├── BOQ/                            # Bill of Quantities system (37 files · ~14,250 lines; root + MeasurementStandard/ + Rates/ + Sync/ + Takeoff/ + UI)
     ├── ExLink/                         # External data link (8 files · 5,723 lines)
     ├── Presets/                        # Preset combination engine (2 files)
     ├── Photometrics/                   # IES/LDT photometric parsers (4 files · 633 lines)
