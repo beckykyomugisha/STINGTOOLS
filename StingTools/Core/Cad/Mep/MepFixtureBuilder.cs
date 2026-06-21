@@ -54,8 +54,28 @@ namespace StingTools.Core.Cad.Mep
         private readonly Document _doc;
         private readonly Dictionary<string, FamilySymbol> _symbolCache
             = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+        // P6-2.4 — every FamilySymbol grouped by category, collected ONCE (collector order
+        // preserved so symbol selection is identical to the old per-category scan).
+        private Dictionary<string, List<FamilySymbol>> _symbolsByCategory;
 
         public MepFixtureBuilder(Document doc) => _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+
+        private void EnsureSymbolIndex()
+        {
+            if (_symbolsByCategory != null) return;
+            _symbolsByCategory = new Dictionary<string, List<FamilySymbol>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var fs in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
+                {
+                    var cat = fs.Category?.Name;
+                    if (string.IsNullOrEmpty(cat)) continue;
+                    if (!_symbolsByCategory.TryGetValue(cat, out var list)) _symbolsByCategory[cat] = list = new List<FamilySymbol>();
+                    list.Add(fs);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MEP symbol index: {ex.Message}"); }
+        }
 
         /// <summary>Place all detected fixtures on the target level. One transaction.
         /// <paramref name="hostSnap"/> enables best-effort wall/ceiling hosting.</summary>
@@ -64,8 +84,11 @@ namespace StingTools.Core.Cad.Mep
             var result = new MepBuildResult();
             if (detection == null || detection.Fixtures.Count == 0 || level == null) return result;
 
-            // Pre-collect potential hosts once (cheap nearest-XY search per fixture).
-            List<(Wall w, Line ln)> walls = hostSnap ? CollectWalls() : null;
+            // Pre-collect potential hosts once. P6-2.2 — walls go into a coarse XY grid
+            // (one cell = the snap tolerance) so each fixture queries only its cell ±1
+            // instead of scanning every wall; the nearest-within-tol result is identical.
+            // Ceilings stay a linear scan — a floor has a handful, not hundreds.
+            WallGrid walls = hostSnap ? new WallGrid(WallTolFt, CollectWalls()) : null;
             List<(Element c, BoundingBoxXYZ bb)> ceilings = hostSnap ? CollectCeilings() : null;
 
             using (var tx = new Transaction(_doc, "STING MODEL: Place MEP Fixtures from DWG"))
@@ -158,23 +181,19 @@ namespace StingTools.Core.Cad.Mep
             Regex famRx = BuildRx(rule.FamilyHint, "FamilyHint", rule.Id, result);
             Regex typeRx = BuildRx(rule.TypeHint, "TypeHint", rule.Id, result);
 
+            EnsureSymbolIndex();
             FamilySymbol picked = null, firstForCategory = null;
             try
             {
-                foreach (var fs in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
-                {
-                    if (fs.Category == null ||
-                        !string.Equals(fs.Category.Name, rule.Category, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (firstForCategory == null) firstForCategory = fs;
-
-                    string famName = fs.Family?.Name ?? "";
-                    if (famRx != null && !famRx.IsMatch(famName)) continue;
-                    if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
-
-                    picked = fs;
-                    break;
-                }
+                if (_symbolsByCategory.TryGetValue(rule.Category, out var list))
+                    foreach (var fs in list)   // collector order preserved → identical selection
+                    {
+                        if (firstForCategory == null) firstForCategory = fs;
+                        if (famRx != null && !famRx.IsMatch(fs.Family?.Name ?? "")) continue;
+                        if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
+                        picked = fs;
+                        break;
+                    }
             }
             catch (Exception ex) { result.Warnings.Add($"Resolve symbol for '{rule.Category}': {ex.Message}"); }
 
@@ -263,7 +282,7 @@ namespace StingTools.Core.Cad.Mep
         /// TODO-VERIFY-API: the host-overload behaviour (NewFamilyInstance(pt, symbol, host,
         /// level, NonStructural)) varies by family placement type — verify in Revit.</summary>
         private FamilyInstance PlaceWithHost(MepDetectedFixture fx, FamilySymbol symbol, Level level, XYZ p,
-            bool hostSnap, List<(Wall w, Line ln)> walls, List<(Element c, BoundingBoxXYZ bb)> ceilings, out bool hosted)
+            bool hostSnap, WallGrid walls, List<(Element c, BoundingBoxXYZ bb)> ceilings, out bool hosted)
         {
             hosted = false;
             if (hostSnap && IsHostable(symbol))
@@ -318,15 +337,56 @@ namespace StingTools.Core.Cad.Mep
             return list;
         }
 
-        private static Wall NearestWall(List<(Wall w, Line ln)> walls, XYZ p, double tolFt, out XYZ proj)
+        private static Wall NearestWall(WallGrid walls, XYZ p, double tolFt, out XYZ proj)
         {
             Wall best = null; double bestD = tolFt; proj = p;
-            foreach (var (w, ln) in walls)
+            foreach (var (w, ln) in walls.Near(p))   // grid candidates cover the tol radius
             {
                 var cp = ClosestPointOnSegment2D(ln.GetEndPoint(0), ln.GetEndPoint(1), p, out double d);
                 if (d < bestD) { bestD = d; best = w; proj = new XYZ(cp.X, cp.Y, p.Z); }
             }
             return best;
+        }
+
+        // P6-2.2 — coarse XY grid over wall segments (cell = snap tolerance). A wall whose
+        // nearest point is within tol of p is registered in a cell within ±1 of p's cell, so
+        // querying p's 3×3 neighbourhood yields the same nearest-within-tol wall as a full scan.
+        private sealed class WallGrid
+        {
+            private readonly double _cell;
+            private readonly Dictionary<(int, int), List<(Wall w, Line ln)>> _cells
+                = new Dictionary<(int, int), List<(Wall, Line)>>();
+
+            public WallGrid(double cellFt, List<(Wall w, Line ln)> walls)
+            {
+                _cell = cellFt > 1e-6 ? cellFt : 1.0;
+                foreach (var item in walls ?? new List<(Wall, Line)>())
+                {
+                    XYZ a = item.ln.GetEndPoint(0), b = item.ln.GetEndPoint(1);
+                    int x0 = C(Math.Min(a.X, b.X)), x1 = C(Math.Max(a.X, b.X));
+                    int y0 = C(Math.Min(a.Y, b.Y)), y1 = C(Math.Max(a.Y, b.Y));
+                    for (int x = x0; x <= x1; x++)
+                        for (int y = y0; y <= y1; y++)
+                        {
+                            var k = (x, y);
+                            if (!_cells.TryGetValue(k, out var l)) _cells[k] = l = new List<(Wall, Line)>();
+                            l.Add(item);
+                        }
+                }
+            }
+
+            private int C(double v) => (int)Math.Floor(v / _cell);
+
+            public IEnumerable<(Wall w, Line ln)> Near(XYZ p)
+            {
+                int cx = C(p.X), cy = C(p.Y);
+                var seen = new HashSet<ElementId>();
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        if (_cells.TryGetValue((cx + dx, cy + dy), out var l))
+                            foreach (var item in l)
+                                if (seen.Add(item.w.Id)) yield return item;
+            }
         }
 
         private static Element NearestCeiling(List<(Element c, BoundingBoxXYZ bb)> ceilings, XYZ p)

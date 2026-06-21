@@ -3,6 +3,32 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P6-2: performance — indexing/caching, identical outputs)
+
+Makes the pass usable on a real floor plate. **Compile-verified against Revit 2025
+(0 errors, 0 warnings).** Indexing/caching only — same elements/geometry/sizes/
+systems; only speed changed. Verify runtime in Revit before merge.
+
+- **2.1 Tap spatial index** — `BuildMidRunTaps.FindBodyHit` was O(branches × runs),
+  linear-scanning every run body per branch end. Now a coarse XY `SegGrid` (0.5 m
+  cells, segments rasterised along their length) is queried at the branch's 3×3
+  neighbourhood; rebuilt only after a `BreakCurve` mutates geometry. Picks the
+  NEAREST body hit (deterministic — the old scan returned an arbitrary first hit in
+  HashSet order; single-hit results, the normal case, are unchanged).
+- **2.2 Host-snap index** — walls go into a `WallGrid` (cell = the 700 mm snap
+  tolerance, bbox-registered) so each fixture queries its 3×3 cells instead of every
+  wall; the nearest-within-tolerance result is identical. Ceilings stay a linear scan
+  (a floor has a handful).
+- **2.3 Detection cache** — `MepDetectionEngine.Detect` caches per `(document, import)`
+  in a `ConditionalWeakTable` so Preview→Convert doesn't re-walk the ImportInstance
+  geometry twice. Invalidated on ANY `DocumentChanged` (sound — an edit between
+  Preview and Convert drops the entry) and on close. The wizard's `ApplyTo` now
+  overrides on a CLONE so it can't mutate the shared cached candidates.
+- **2.4 Resolve once** — `MepFixtureBuilder` collects all FamilySymbols into one
+  category→symbols index (was a full collector scan per category); `MepRunBuilder.
+  ResolveTypes` is idempotent and `PlaceAll` uses one builder instance for Build +
+  BuildRisers so types/systems resolve once.
+
 #### Completed (MEP-from-DWG — P6-1: accuracy reporting)
 
 Makes wrong-but-plausible output visible. **Compile-verified against Revit 2025

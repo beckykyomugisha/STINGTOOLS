@@ -189,9 +189,15 @@ namespace StingTools.Core.Cad.Mep
                 tx.Start();
                 try
                 {
+                    // P6-2.1 — index run segments in a coarse XY grid so each branch queries
+                    // only nearby segments (was O(branches × runs)). Rebuilt only after a
+                    // break mutates the geometry, so total cost is near-linear.
+                    var grid = new SegGrid(SegGridCellFt, _doc, ours);
+                    bool dirty = false;
                     foreach (var br in branches)
                     {
-                        var mainId = FindBodyHit(ours, br.owner, br.origin, out XYZ breakPt);
+                        if (dirty) { grid = new SegGrid(SegGridCellFt, _doc, ours); dirty = false; }
+                        var mainId = FindBodyHit(grid, ours, br.owner, br.origin, out XYZ breakPt);
                         if (mainId == null) continue;
                         result.TapsFound++;
 
@@ -207,6 +213,7 @@ namespace StingTools.Core.Cad.Mep
                                 : Autodesk.Revit.DB.Mechanical.MechanicalUtils.BreakCurve(_doc, mainId, breakPt); // TODO-VERIFY-API
                             if (newId == null || newId == ElementId.InvalidElementId) { result.Failed++; continue; }
                             ours.Add(newId);
+                            dirty = true;                   // geometry changed → rebuild the grid before the next query
                             result.CreatedIds.Add(newId);   // the new half is part of the conversion (stamp + Replace cleanup)
 
                             var c1 = EndConnectorNear(mainId, breakPt);
@@ -235,21 +242,72 @@ namespace StingTools.Core.Cad.Mep
             }
         }
 
-        // A main run whose body passes within tol of p (interior, not at its own ends).
-        private ElementId FindBodyHit(HashSet<ElementId> ours, ElementId branchOwner, XYZ p, out XYZ breakPt)
+        // P6-2.1 — grid cell for the run-segment index (0.5 m; ≫ the 12 mm join tol so a
+        // body within tol of p is always in p's 3×3 cell neighbourhood).
+        private const double SegGridCellFt = 500.0 / 304.8;
+
+        // The nearest run whose body passes within tol of p (interior, not at its own ends).
+        // Queries only the grid candidates near p; picks the NEAREST body hit (deterministic
+        // — the old linear scan returned an arbitrary first hit in HashSet order).
+        private ElementId FindBodyHit(SegGrid grid, HashSet<ElementId> ours, ElementId branchOwner, XYZ p, out XYZ breakPt)
         {
             breakPt = p;
-            foreach (var id in ours)
+            ElementId bestId = null; double bestDist = _tolFt;
+            foreach (var id in grid.Near(p))
             {
-                if (id == branchOwner) continue;
+                if (id == branchOwner || !ours.Contains(id)) continue;
                 if (!(_doc.GetElement(id) is MEPCurve mc)) continue;
                 if (!(mc.Location is LocationCurve lc) || !(lc.Curve is Line ln)) continue;
                 XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
                 if (p.DistanceTo(a) <= _tolFt || p.DistanceTo(b) <= _tolFt) continue; // that's an end-junction
                 var cp = ClosestPointOnSegment(a, b, p, out double t, out double dist);
-                if (dist <= _tolFt && t > 1e-3 && t < 1.0 - 1e-3) { breakPt = cp; return id; }
+                if (dist <= _tolFt && t > 1e-3 && t < 1.0 - 1e-3 && dist < bestDist)
+                { bestDist = dist; bestId = id; breakPt = cp; }
             }
-            return null;
+            return bestId;
+        }
+
+        // Coarse XY grid over run segments — each segment rasterised along its length at
+        // ≤ half-cell steps so every cell it crosses is registered (never misses a hit).
+        private sealed class SegGrid
+        {
+            private readonly double _cell;
+            private readonly Dictionary<(int, int), HashSet<ElementId>> _cells
+                = new Dictionary<(int, int), HashSet<ElementId>>();
+
+            public SegGrid(double cellFt, Document doc, IEnumerable<ElementId> ids)
+            {
+                _cell = cellFt > 1e-6 ? cellFt : 1.0;
+                foreach (var id in ids ?? Enumerable.Empty<ElementId>())
+                {
+                    if (!(doc.GetElement(id) is MEPCurve mc)) continue;
+                    if (!(mc.Location is LocationCurve lc) || !(lc.Curve is Line ln)) continue;
+                    XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                    double len = a.DistanceTo(b);
+                    int n = Math.Max(1, (int)Math.Ceiling(len / (_cell * 0.5)));
+                    for (int k = 0; k <= n; k++)
+                    {
+                        double t = (double)k / n;
+                        XYZ pt = a + t * (b - a);
+                        var key = (C(pt.X), C(pt.Y));
+                        if (!_cells.TryGetValue(key, out var set)) _cells[key] = set = new HashSet<ElementId>();
+                        set.Add(id);
+                    }
+                }
+            }
+
+            private int C(double v) => (int)Math.Floor(v / _cell);
+
+            public IEnumerable<ElementId> Near(XYZ p)
+            {
+                int cx = C(p.X), cy = C(p.Y);
+                var seen = new HashSet<ElementId>();
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        if (_cells.TryGetValue((cx + dx, cy + dy), out var set))
+                            foreach (var id in set)
+                                if (seen.Add(id)) yield return id;
+            }
         }
 
         private Connector EndConnectorNear(ElementId id, XYZ pt)
