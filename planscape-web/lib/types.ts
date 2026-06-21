@@ -37,3 +37,56 @@ export interface IssueComment {
   source?: string;
   createdAt: string;
 }
+
+// ── Clashes ──
+export type ClashSeverity = 'CRITICAL' | 'MAJOR' | 'MINOR';
+export type ClashStatus = 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED' | 'CLOSED';
+
+export interface ClashRecord {
+  id: string;
+  status: ClashStatus;
+  severity: ClashSeverity;
+  discipline?: string;
+  kind?: string;
+  elementAGuid: string;
+  elementAName?: string;
+  elementAType?: string;
+  elementBGuid: string;
+  elementBName?: string;
+  elementBType?: string;
+  centreX: number;
+  centreY: number;
+  centreZ: number;
+  overlapVolumeMm3: number;
+  distanceMm?: number;
+  assignedTo?: string;
+  resolutionNote?: string;
+  issueId?: string;
+  detectedAt?: string;
+}
+
+export interface ClashListResponse {
+  total: number;
+  aggregates?: {
+    byStatus?: Array<{ status: string; count: number }>;
+    bySeverity?: Array<{ severity: string; count: number }>;
+  };
+  items: ClashRecord[];
+}
+
+export interface ClashDetectionResult {
+  scannedPairs?: number;
+  found?: number;
+  created?: number;
+  critical?: number;
+}
+
+// ── Models ──
+export interface ProjectModel {
+  id: string;
+  name: string;
+  discipline?: string;
+  format?: string;
+  revision?: string;
+  uploadedAt?: string;
+}

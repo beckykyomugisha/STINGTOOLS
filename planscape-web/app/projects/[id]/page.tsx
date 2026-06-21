@@ -46,12 +46,26 @@ export default function ProjectPage() {
           <h1 className="text-xl font-semibold">{project?.name ?? 'Project'}</h1>
           {project?.code && <p className="text-xs text-slate-400">{project.code}</p>}
         </div>
-        <Link
-          href={`/projects/${projectId}/issues/new`}
-          className="shrink-0 rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          New issue
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href={`/projects/${projectId}/clashes`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Clashes
+          </Link>
+          <Link
+            href={`/projects/${projectId}/viewer`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            3D model
+          </Link>
+          <Link
+            href={`/projects/${projectId}/issues/new`}
+            className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            New issue
+          </Link>
+        </div>
       </div>
 
       <div className="mb-3 flex flex-wrap gap-2">
