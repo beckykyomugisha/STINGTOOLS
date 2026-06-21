@@ -114,9 +114,26 @@ namespace StingTools.Core.Content
         [JsonProperty("members")] public List<string> Members { get; set; } = new List<string>();
     }
 
+    /// <summary>Seed-coverage summary against the REAL denominator: the categories
+    /// an engine resolves a family for (placement + DWG + swap), not the 206 tag
+    /// list. Baked by the generator; displayed by Content_Coverage.</summary>
+    public class ContentCoverage
+    {
+        [JsonProperty("engineRequiredCount")] public int EngineRequiredCount { get; set; }
+        [JsonProperty("seededLoadableCount")] public int SeededLoadableCount { get; set; }
+        [JsonProperty("needsSpecCount")] public int NeedsSpecCount { get; set; }
+        [JsonProperty("needsSpec")] public List<string> NeedsSpec { get; set; } = new List<string>();
+        [JsonProperty("excludedSystemDatum")] public List<string> ExcludedSystemDatum { get; set; } = new List<string>();
+        [JsonProperty("note")] public string Note { get; set; }
+    }
+
     public class ContentManifest
     {
         [JsonProperty("libraryVersion")] public string LibraryVersion { get; set; } = "0.0.0";
+
+        /// <summary>Seed-coverage summary (engine-required denominator). May be null
+        /// for older manifests.</summary>
+        [JsonProperty("coverage")] public ContentCoverage Coverage { get; set; }
 
         /// <summary>"projectFirst" (reproducibility — a frozen project ignores firm
         /// updates) | "sharedFirst" (legacy symbol-engine order). Consumed by

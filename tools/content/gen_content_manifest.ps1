@@ -53,8 +53,9 @@ function Normalize-Core([string]$s) {
 # complete canonical set (flat) to the deployed plugin's data/TagFamilies; source
 # control's Data/TagFamilies/Seeds holds an older subset. Pick whichever has more.
 $tagCandidates = @(
-    (Join-Path $repo 'CompiledPlugin\data\TagFamilies'),
-    $tagDir
+    (Join-Path $dataDir 'TagFamilies'),                  # source flat (synced canonical 206)
+    (Join-Path $repo 'CompiledPlugin\data\TagFamilies'), # deployed
+    $tagDir                                              # source Seeds subset (legacy)
 ) | Where-Object { Test-Path $_ }
 $tagSrc = $tagCandidates |
     Sort-Object { @(Get-ChildItem (Join-Path $_ '*.rfa') -ErrorAction SilentlyContinue).Count } -Descending |
@@ -127,61 +128,93 @@ Get-ChildItem (Join-Path $symDir '*.json') | Sort-Object Name | ForEach-Object {
     }
 }
 
-# ── Model-family seeds: BUILT (have a spec) + GAPS (needs-spec) ───────────
-function SeedSpec($id,$cat,$disc,$spec) {
-    [ordered]@{ id=$id; kind='modelFamily'; category=$cat; discipline=$disc;
-                buildSpec=$spec; familyFile=("STING Seed - {0}.rfa" -f ($cat)); checksum=$null;
-                status='spec'; protected=$true; origin='corporate' }
+# ── Model-family seeds: enumerate Data/Seeds (status=spec, buildable via
+#    SymbolLibraryCreator). Id is derived from the spec FILENAME (unique) - many
+#    seeds can share a category (e.g. the 5 Specialty Equipment seeds), so the id
+#    cannot be category-derived. Discipline is read from ASS_DISCIPLINE_COD_TXT.
+function Get-SeedId([string]$stem) {
+    $k = ($stem -creplace '(?<=[a-z0-9])(?=[A-Z])','-').ToLowerInvariant()
+    return 'seed-' + ($k -replace '[^a-z0-9-]','')
 }
-function SeedGap($id,$cat,$disc,$note) {
-    [ordered]@{ id=$id; kind='modelFamily'; category=$cat; discipline=$disc;
-                buildSpec=$null; familyFile=$null; checksum=$null;
-                status='needs-spec'; protected=$false; origin='corporate'; notes=$note }
+$symbols = @()
+$seedCats = @{}
+Get-ChildItem (Join-Path $seedDir '*.json') | Sort-Object Name | ForEach-Object {
+    try {
+        $j = Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        $sym = $j.symbols[0]
+        if (-not $sym) { return }
+        $cat = $sym.category
+        $dp  = $sym.parameters | Where-Object { $_.name -eq 'ASS_DISCIPLINE_COD_TXT' } | Select-Object -First 1
+        $disc = if ($dp -and $dp.default) { $dp.default } else { '*' }
+        $stem = $_.BaseName -replace '^STING_SEED_',''
+        $symbols += [ordered]@{
+            id=(Get-SeedId $stem); kind='modelFamily'; category=$cat; discipline=$disc;
+            buildSpec=$_.Name; familyFile=("STING Seed - {0}.rfa" -f $cat); checksum=$null;
+            status='spec'; protected=$true; origin='corporate' }
+        $seedCats[$cat] = $true
+    } catch { Write-Host ("  seed parse skip: {0} - {1}" -f $_.Name, $_.Exception.Message) }
 }
 
-$symbols = @(
-    # 16 specs in Data/Seeds (status=spec → buildable via SymbolLibraryCreator)
-    (SeedSpec 'seed-mech-equipment'      'Mechanical Equipment'  'M'  'STING_SEED_MechanicalEquipment.json'),
-    (SeedSpec 'seed-air-terminal'        'Air Terminals'         'M'  'STING_SEED_AirTerminal.json'),
-    (SeedSpec 'seed-sprinkler'           'Sprinklers'            'FP' 'STING_SEED_Sprinkler.json'),
-    (SeedSpec 'seed-elec-equipment'      'Electrical Equipment'  'E'  'STING_SEED_ElectricalEquipment.json'),
-    (SeedSpec 'seed-junction-box'        'Electrical Equipment'  'E'  'STING_SEED_JunctionBox.json'),
-    (SeedSpec 'seed-elec-fixture'        'Electrical Fixtures'   'E'  'STING_SEED_ElectricalFixture.json'),
-    (SeedSpec 'seed-comm-device'         'Communication Devices' 'LV' 'STING_SEED_CommunicationDevice.json'),
-    (SeedSpec 'seed-fire-alarm'          'Fire Alarm Devices'    'FP' 'STING_SEED_FireAlarmDevice.json'),
-    (SeedSpec 'seed-plumbing-fixture'    'Plumbing Fixtures'     'P'  'STING_SEED_PlumbingFixture.json'),
-    (SeedSpec 'seed-plumbing-equipment'  'Plumbing Equipment'    'P'  'STING_SEED_PlumbingEquipment.json'),
-    (SeedSpec 'seed-lighting-fixture'    'Lighting Fixtures'     'E'  'STING_SEED_LightingFixture.json'),
-    (SeedSpec 'seed-lab-fixture'         'Specialty Equipment'   'H'  'STING_SEED_LabFixture.json'),
-    (SeedSpec 'seed-acoustic-seal'       'Specialty Equipment'   'M'  'STING_SEED_AcousticSeal.json'),
-    (SeedSpec 'seed-medgas-outlet'       'Specialty Equipment'   'MG' 'STING_SEED_MedGasOutlet.json'),
-    (SeedSpec 'seed-fire-damper'         'Specialty Equipment'   'M'  'STING_SEED_FireDamper.json'),
-    (SeedSpec 'seed-speciality-equipment' 'Specialty Equipment'  '*'  'STING_SEED_SpecialityEquipment.json'),
+# ── COMPUTED needs-spec against the REAL denominator ─────────────────────
+# The categories that actually need a model-family seed are the ones an engine
+# resolves a family for: placement-rule CategoryFilter + DWG fixture-map Category
+# + swap-registry category. needs-spec = that union MINUS seeded MINUS system/
+# datum families (never seeded) MINUS categories served by another seed. This
+# tracks the right denominator automatically - add a placement rule for a new
+# category and it surfaces here without editing this script.
+function Read-Cats($glob, $pattern) {
+    $set = New-Object System.Collections.Generic.HashSet[string]
+    Get-ChildItem $glob -ErrorAction SilentlyContinue | ForEach-Object {
+        [regex]::Matches((Get-Content $_.FullName -Raw -Encoding UTF8), $pattern) |
+            ForEach-Object { if ($_.Groups[1].Value) { [void]$set.Add($_.Groups[1].Value) } }
+    }
+    return $set
+}
+$engineReq = New-Object System.Collections.Generic.HashSet[string]
+(Read-Cats (Join-Path $dataDir 'Placement\STING_PLACEMENT_RULES*.json') '"CategoryFilter"\s*:\s*"([^"]+)"') | ForEach-Object { [void]$engineReq.Add($_) }
+(Read-Cats (Join-Path $dataDir 'STING_DWG_FIXTURE_MAP.json')            '"Category"\s*:\s*"([^"]+)"')        | ForEach-Object { [void]$engineReq.Add($_) }
+(Read-Cats (Join-Path $dataDir 'STING_FAMILY_SWAP_REGISTRY.json')       '"category"\s*:\s*"([^"]+)"')        | ForEach-Object { [void]$engineReq.Add($_) }
 
-    # GAPS - loadable component categories placed by MEP/placement/healthcare
-    # that have a TAG but no model-family seed yet. Tracked, not silent.
-    (SeedGap 'seed-data-devices'         'Data Devices'             'LV' 'LV outlet / data point - wall-mount; placed by MEP-from-DWG.'),
-    (SeedGap 'seed-security-devices'     'Security Devices'         'LV' 'CCTV / access control - wall/ceiling-mount.'),
-    (SeedGap 'seed-nurse-call'           'Nurse Call Devices'       'H'  'Healthcare nurse-call points - wall-mount.'),
-    (SeedGap 'seed-telephone-devices'    'Telephone Devices'        'LV' 'Telephone outlets - wall-mount.'),
-    (SeedGap 'seed-av-devices'           'Audio Visual Devices'     'LV' 'AV plates / projectors.'),
-    (SeedGap 'seed-lighting-devices'     'Lighting Devices'         'E'  'Switches / sensors (distinct from Lighting Fixtures).'),
-    (SeedGap 'seed-mech-control'         'Mechanical Control Devices' 'M' 'Thermostats / BMS sensors.'),
-    (SeedGap 'seed-medical-equipment'    'Medical Equipment'        'H'  'Healthcare clinical equipment seed.'),
-    (SeedGap 'seed-duct-accessory'       'Duct Accessories'         'M'  'Dampers / in-line VAV - needed for MEP coordination.'),
-    (SeedGap 'seed-pipe-accessory'       'Pipe Accessories'         'P'  'Valves / strainers - needed for MEP coordination.'),
-    (SeedGap 'seed-fire-protection'      'Fire Protection'          'FP' 'Extinguishers / hose reels (distinct from Sprinklers).'),
-    (SeedGap 'seed-food-service'         'Food Service Equipment'   'A'  'FF&E - lower priority.'),
-    (SeedGap 'seed-furniture'            'Furniture'                'A'  'FF&E - lower priority.'),
-    (SeedGap 'seed-casework'             'Casework'                 'A'  'FF&E - lower priority.')
-)
+# System-family / datum / annotation categories that never take a model-family seed.
+$excludeSystem = @('Walls','Floors','Roofs','Ceilings','Ducts','Flex Ducts','Pipes','Flex Pipes',
+    'Conduits','Cable Trays','Duct Fittings','Pipe Fittings','Conduit Fittings','Cable Tray Fittings',
+    'Duct Insulations','Pipe Insulations','Duct Linings','Stairs','Railings','Ramps','Roads','Rooms',
+    'Areas','Spaces','Zones','Grids','Levels','Materials','Sheets','Model Groups','Parts','Assemblies',
+    'RVT Links','Property Lines','Property Line Segments','Curtain Panels','Curtain Wall Mullions',
+    'Toposolid','Pads')
+# Loadable categories served by a different seed's category (not a distinct gap).
+$coveredByOther = @{ 'Junction Boxes' = 'Electrical Equipment' }
+
+$gapList = @()
+foreach ($c in ($engineReq | Sort-Object)) {
+    if ($seedCats.ContainsKey($c)) { continue }
+    if ($excludeSystem -contains $c) { continue }
+    if ($coveredByOther.ContainsKey($c)) { continue }
+    $gapList += $c
+}
+foreach ($c in $gapList) {
+    $symbols += [ordered]@{ id=('seed-'+(Get-Slug $c)); kind='modelFamily'; category=$c; discipline='*';
+        buildSpec=$null; familyFile=$null; checksum=$null; status='needs-spec'; protected=$false; origin='corporate';
+        notes='Engine-required (placement/DWG/swap) loadable category with no model-family seed yet.' }
+}
+
+# Coverage summary baked into the manifest so Content_Coverage can show the
+# real denominator at runtime (regenerated whenever rules/seeds change).
+$coverage = [ordered]@{
+    engineRequiredCount = $engineReq.Count
+    seededLoadableCount = @($engineReq | Where-Object { $seedCats.ContainsKey($_) }).Count
+    needsSpecCount      = $gapList.Count
+    needsSpec           = @($gapList)
+    excludedSystemDatum = @($engineReq | Where-Object { $excludeSystem -contains $_ } | Sort-Object)
+    note                = 'Seed denominator = categories an engine resolves a family for (placement CategoryFilter + DWG fixture-map Category + swap registry), minus system/datum families. NOT the 206 tag list.'
+}
 
 # ── Bundles (scoped load/seed targets) ──────────────────────────────────
 $bundles = @(
-    [ordered]@{ id='mep-core'; members=@('seed-mech-equipment','seed-air-terminal','seed-plumbing-fixture','seed-plumbing-equipment','seed-elec-fixture','seed-lighting-fixture','sym-mep','tag-ducts','tag-pipes','tag-mechanical-equipment','tag-air-terminals') },
-    [ordered]@{ id='mep-fixtures'; members=@('seed-air-terminal','seed-sprinkler','seed-elec-fixture','seed-lighting-fixture','seed-comm-device','seed-fire-alarm') },
-    [ordered]@{ id='electrical'; members=@('seed-elec-equipment','seed-junction-box','seed-elec-fixture','seed-lighting-fixture','sym-elec','sym-lighting','sym-sld') },
-    [ordered]@{ id='healthcare'; members=@('seed-medgas-outlet','seed-nurse-call','seed-medical-equipment','seed-lab-fixture') },
+    [ordered]@{ id='mep-core'; members=@('seed-mechanical-equipment','seed-air-terminal','seed-plumbing-fixture','seed-plumbing-equipment','seed-electrical-fixture','seed-lighting-fixture','sym-mep','tag-ducts','tag-pipes','tag-mechanical-equipment','tag-air-terminals') },
+    [ordered]@{ id='mep-fixtures'; members=@('seed-air-terminal','seed-sprinkler','seed-electrical-fixture','seed-lighting-fixture','seed-communication-device','seed-fire-alarm-device') },
+    [ordered]@{ id='electrical'; members=@('seed-electrical-equipment','seed-junction-box','seed-electrical-fixture','seed-lighting-fixture','sym-elec','sym-lighting','sym-sld') },
+    [ordered]@{ id='healthcare'; members=@('seed-med-gas-outlet','seed-nurse-call-device','seed-lab-fixture') },
     [ordered]@{ id='tags-all';  members=@($tagFamilies | ForEach-Object { $_.id }) }
 )
 
@@ -189,7 +222,8 @@ $bundles = @(
 $manifest = [ordered]@{
     libraryVersion   = '2026.6.1'
     rootPrecedence   = 'projectFirst'
-    _coverageNote    = 'tagFamilies = the canonical 206-family list from LABEL_DEFINITIONS.category_labels (NOT the on-disk .rfa count). status=built has a generated .rfa; status=needs-build is a canonical family whose .rfa has not been generated yet. Model-family seeds cover LOADABLE component categories only: system families (Walls/Floors/Roofs/Ceilings/Ducts/Pipes/Conduits/Cable Trays/Stairs/Railings) and datum/annotation categories (Rooms/Areas/Grids/Levels) have NO model-family seed by design - they are project types, not loadable .rfa content. status=needs-spec is a category with a tag but no model-family seed yet. needs-build / needs-spec are tracked coverage gaps, not errors.'
+    _coverageNote    = 'tagFamilies = the canonical 206-family list from LABEL_DEFINITIONS.category_labels (NOT the on-disk .rfa count); all built. symbols = model-family seeds enumerated from Data/Seeds (status=spec, buildable via SymbolLibraryCreator). Model-family seeds cover LOADABLE component categories only: system families (Walls/Floors/Roofs/Ceilings/Ducts/Pipes/Conduits/Cable Trays/Stairs/Railings) and datum/annotation categories (Rooms/Areas/Grids/Levels) have NO seed by design - they are project types, not loadable .rfa content. Medical Equipment is modeled under Specialty Equipment (no separate Revit category). needs-build / needs-spec, where present, are tracked coverage gaps, not errors.'
+    coverage         = $coverage
     symbols          = $symbols
     symbolCatalogues = $symbolCatalogues
     tagFamilies      = $tagFamilies
@@ -207,4 +241,5 @@ Write-Host ("Wrote {0}" -f $outPath)
 Write-Host ("  tagFamilies      : {0} ({1} built, {2} needs-build)" -f $tagFamilies.Count, ($tagFamilies | Where-Object {$_.status -eq 'built'}).Count, ($tagFamilies | Where-Object {$_.status -eq 'needs-build'}).Count)
 Write-Host ("  symbolCatalogues : {0}" -f $symbolCatalogues.Count)
 Write-Host ("  symbols (seeds)  : {0} ({1} spec, {2} needs-spec)" -f $symbols.Count, ($symbols | Where-Object {$_.status -eq 'spec'}).Count, ($symbols | Where-Object {$_.status -eq 'needs-spec'}).Count)
+Write-Host ("  engine-required  : {0} loadable categories -> {1} seeded, {2} needs-spec (system/datum excluded)" -f $coverage.engineRequiredCount, $coverage.seededLoadableCount, $coverage.needsSpecCount)
 Write-Host ("  bundles          : {0}" -f $bundles.Count)
