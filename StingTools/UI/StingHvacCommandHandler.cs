@@ -142,6 +142,9 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Mep.MepInspectSystemTypesCommand>(app); break;
                     case "MEP_ReloadSystemTypes":
                         Run<StingTools.Commands.Mep.MepReloadSystemTypesCommand>(app); break;
+                    // Phase B — MEP System Instance Builder.
+                    case "MEP_BuildSystems":
+                        Run<StingTools.Commands.Mep.MepBuildSystemsCommand>(app); break;
                     case "Hvac_AutoFireDamper":
                     case "Routing_AutoFireDamper":
                         Run<StingTools.Commands.RoutingExt.AutoFireDamperCommand>(app); break;
