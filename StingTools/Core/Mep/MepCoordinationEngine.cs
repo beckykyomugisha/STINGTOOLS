@@ -26,6 +26,9 @@ using StingTools.Core.Drawing;
 
 namespace StingTools.Core.Mep
 {
+    /// <summary>Restrict coordination colouring to one MEP domain (for per-discipline views).</summary>
+    public enum MepDomain { All, Duct, Pipe }
+
     /// <summary>A distinct MEP system present in the model.</summary>
     public sealed class PresentSystem
     {
@@ -145,7 +148,7 @@ namespace StingTools.Core.Mep
         // ── apply ────────────────────────────────────────────────────────────
 
         /// <summary>Apply the resolved colour filters to <paramref name="view"/>. Requires an open transaction.</summary>
-        public static MepCoordResult ApplyToView(Document doc, View view)
+        public static MepCoordResult ApplyToView(Document doc, View view, MepDomain domain = MepDomain.All)
         {
             var result = new MepCoordResult();
             if (doc == null || view == null) { result.Warnings.Add("No document / view."); return result; }
@@ -156,6 +159,8 @@ namespace StingTools.Core.Mep
             }
 
             var systems = PresentSystems(doc);
+            if (domain == MepDomain.Duct) systems = systems.Where(s => s.IsDuct).ToList();
+            else if (domain == MepDomain.Pipe) systems = systems.Where(s => !s.IsDuct).ToList();
             if (systems.Count == 0)
             {
                 result.Warnings.Add("No duct/pipe members carry a system yet — run MEP_BuildSystems (Phase B) first.");

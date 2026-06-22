@@ -154,6 +154,11 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Mep.MepApplyMepCoordinationCommand>(app); break;
                     case "MEP_InspectMepCoordination":
                         Run<StingTools.Commands.Mep.MepInspectMepCoordinationCommand>(app); break;
+                    // Phase E — per-discipline view production + electrical circuits.
+                    case "MEP_ProduceMepViews":
+                        Run<StingTools.Commands.Mep.MepProduceMepViewsCommand>(app); break;
+                    case "MEP_BuildCircuits":
+                        Run<StingTools.Commands.Mep.MepBuildCircuitsCommand>(app); break;
                     case "Hvac_AutoFireDamper":
                     case "Routing_AutoFireDamper":
                         Run<StingTools.Commands.RoutingExt.AutoFireDamperCommand>(app); break;

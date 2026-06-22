@@ -1415,6 +1415,8 @@ namespace StingTools.Core
                 case "MEP_GenerateSystemFilters": return new Commands.Mep.MepGenerateSystemFiltersCommand();
                 case "MEP_ApplyMepCoordination": return new Commands.Mep.MepApplyMepCoordinationCommand();
                 case "MEP_InspectMepCoordination": return new Commands.Mep.MepInspectMepCoordinationCommand();
+                case "MEP_ProduceMepViews": return new Commands.Mep.MepProduceMepViewsCommand();
+                case "MEP_BuildCircuits": return new Commands.Mep.MepBuildCircuitsCommand();
 
                 // Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
