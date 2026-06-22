@@ -1,15 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
-import { listDocuments, documentDownloadUrl } from '@/lib/data';
+import { listDocuments, documentDownloadUrl, uploadDocument, transitionDocument } from '@/lib/data';
 import type { ProjectDocument } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const CDE = ['ALL', 'WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'] as const;
+
+// First valid forward transition per CDE state + the suitability it implies
+// (server enforces the full matrix; this is the common-path shortcut).
+const NEXT_STATE: Record<string, { to: string; suitability: string; label: string } | undefined> = {
+  WIP: { to: 'SHARED', suitability: 'S2', label: 'Share' },
+  SHARED: { to: 'PUBLISHED', suitability: 'S4', label: 'Publish' },
+  PUBLISHED: { to: 'ARCHIVE', suitability: 'S7', label: 'Archive' },
+};
 
 const cdeClass: Record<string, string> = {
   WIP: 'bg-slate-100 text-slate-600',
@@ -35,6 +43,11 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [discipline, setDiscipline] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     setDocs(null);
@@ -49,6 +62,40 @@ export default function DocumentsPage() {
 
   useEffect(load, [load]);
 
+  async function onUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await uploadDocument(projectId, file, { discipline: discipline.trim() || undefined });
+      setNotice('Document uploaded (WIP).');
+      setFile(null);
+      setDiscipline('');
+      if (fileRef.current) fileRef.current.value = '';
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onTransition(d: ProjectDocument) {
+    const n = NEXT_STATE[d.cdeStatus];
+    if (!n) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await transitionDocument(projectId, d.id, { newState: n.to, suitabilityCode: n.suitability });
+      setNotice(`${d.fileName} → ${n.to}.`);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transition failed');
+    }
+  }
+
   return (
     <AppShell>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -59,6 +106,28 @@ export default function DocumentsPage() {
           <h1 className="text-xl font-semibold">Documents</h1>
         </div>
       </div>
+
+      <form onSubmit={onUpload} className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3">
+        <input
+          ref={fileRef}
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="text-sm"
+        />
+        <input
+          value={discipline}
+          onChange={(e) => setDiscipline(e.target.value)}
+          placeholder="Discipline (e.g. A)"
+          className="w-32 rounded border border-slate-300 px-2 py-1 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={!file || busy}
+          className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {busy ? 'Uploading…' : 'Upload (WIP)'}
+        </button>
+      </form>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {CDE.map((s) => (
@@ -89,6 +158,7 @@ export default function DocumentsPage() {
       </div>
 
       {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {notice && <p className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
       {!docs && !error && <p className="text-slate-400">Loading…</p>}
       {docs && docs.length === 0 && <p className="text-slate-500">No documents.</p>}
 
@@ -112,14 +182,24 @@ export default function DocumentsPage() {
                   {d.scanStatus && d.scanStatus !== 'CLEAN' && d.scanStatus !== 'SKIPPED' ? ` · ${d.scanStatus}` : ''}
                 </div>
               </div>
-              <a
-                href={documentDownloadUrl(projectId, d.id)}
-                className="shrink-0 text-sm text-blue-600 hover:underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Download
-              </a>
+              <div className="flex shrink-0 items-center gap-2">
+                {NEXT_STATE[d.cdeStatus] && (
+                  <button
+                    onClick={() => onTransition(d)}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+                  >
+                    {NEXT_STATE[d.cdeStatus]!.label}
+                  </button>
+                )}
+                <a
+                  href={documentDownloadUrl(projectId, d.id)}
+                  className="text-sm text-blue-600 hover:underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Download
+                </a>
+              </div>
             </li>
           ))}
         </ul>

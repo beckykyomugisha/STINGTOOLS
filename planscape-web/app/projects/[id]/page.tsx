@@ -71,6 +71,18 @@ export default function ProjectPage() {
             Documents
           </Link>
           <Link
+            href={`/projects/${projectId}/transmittals`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Transmittals
+          </Link>
+          <Link
+            href={`/projects/${projectId}/photos`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Photos
+          </Link>
+          <Link
             href={`/projects/${projectId}/members`}
             className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >
