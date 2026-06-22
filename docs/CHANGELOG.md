@@ -3,6 +3,37 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase A: System Type Materializer)
+
+Closes the gap surfaced by the "can we batch-create MEP systems integrated with
+Drawing Types / Style Packs / Filters?" review: StingTools created MEP *elements*
+but never the system *types* the AEC filters + System Browser key off. Phase A
+makes the duct/pipe system types data-driven, idempotent, and materializable in
+one command — the first half of the create-systems → coordinated-drawing pipeline.
+**Built and verified with `dotnet build` against the Revit 2025 API (0 warnings,
+0 errors)** — not the usual unverified-sandbox caveat.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Data/STING_MEP_SYSTEM_TYPES.json` | Corporate baseline — 21 canonical duct + pipe system types (air, hydronic, domestic water, drainage/vent, fire, gas) each with `classification` (the `MEPSystemClassification` the 19 MEP filters in `STING_AEC_FILTERS.json` match on via `RBS_SYSTEM_CLASSIFICATION_PARAM`), `abbreviation`, STING `sys`/`func` tag tokens, `lineColor`/`lineWeight`/`linePattern`/`material`. Project override at `<project>/_BIM_COORD/mep_system_types.json`. |
+| `StingTools/Core/Mep/MepSystemTypeRegistry.cs` | Layered baseline + project-override loader (merge by `id`, project wins), per-document cache, `Get`/`Reload`/`Reload(doc)` — mirrors `MepSizingRegistry` exactly. |
+| `StingTools/Core/Mep/MepSystemTypeMaterializer.cs` | Idempotent engine: `duct → MechanicalSystemType.Create(doc, classification, name)`, `pipe → PipingSystemType.Create(...)`, matches existing by name (never duplicates), stamps `Abbreviation` + graphic overrides (`LineColor`/`LineWeight`/`LinePatternId`/`MaterialId`) each in its own try/catch. Caller owns the transaction (same contract as `AecFilterFactory.FindOrCreate`). New types always stamped; existing types restamped only on `overwriteGraphics`. |
+| `StingTools/Commands/Mep/MepSystemTypeCommands.cs` | `MEP_BuildSystemTypes` (create missing + stamp new), `MEP_RestyleSystemTypes` (also re-apply baseline graphics to existing), `MEP_InspectSystemTypes` (read-only present-vs-missing inventory), `MEP_ReloadSystemTypes` (cache drop). `StingResultPanel` reporting with created/updated/skipped/failed + a NEXT section pointing at `AecFilters_Create` + coordination Style Pack. |
+
+**Wiring**: dispatch cases added to `StingHvacCommandHandler` (SYS tab) and to
+`WorkflowEngine.ResolveCommand` so the three build/restyle/inspect commands are
+chainable in workflow presets. `Data/**` auto-copies to the output `data/` dir —
+no `.csproj` change needed.
+
+**Classification safety**: unknown `MEPSystemClassification` names are warned +
+skipped (not thrown), so the JSON degrades gracefully across Revit versions.
+Materializing these types is what lets the existing MEP colour filters and the
+System Browser resolve real data — the integration hook. Phase B (system *instance*
+builder over connector graphs) and Phase C (MEP-discipline-aware drawing routing)
+complete the loop.
+
 #### Completed (MEP-from-DWG — P7-3: riser sizing + drainage-fall visibility)
 
 **Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
