@@ -32,6 +32,15 @@ export function getProject(id: string): Promise<Project> {
   return api<Project>(`/api/projects/${id}`);
 }
 
+export function createProject(body: {
+  name: string;
+  code?: string;
+  description?: string;
+  phase?: string;
+}): Promise<Project> {
+  return api<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) });
+}
+
 // ── Issues ──
 export async function listIssues(projectId: string, status?: string): Promise<BimIssue[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
@@ -321,13 +330,15 @@ export function getLiveKitToken(
 // ── Documents (CDE) ──
 export async function listDocuments(
   projectId: string,
-  opts: { cdeStatus?: string; discipline?: string; documentType?: string; search?: string } = {},
+  opts: { cdeStatus?: string; discipline?: string; documentType?: string; search?: string; page?: number; pageSize?: number } = {},
 ): Promise<ProjectDocument[]> {
   const params = new URLSearchParams();
   if (opts.cdeStatus) params.set('cdeStatus', opts.cdeStatus);
   if (opts.discipline) params.set('discipline', opts.discipline);
   if (opts.documentType) params.set('documentType', opts.documentType);
   if (opts.search) params.set('search', opts.search);
+  if (opts.page) params.set('page', String(opts.page));
+  if (opts.pageSize) params.set('pageSize', String(opts.pageSize));
   const qs = params.toString();
   const raw = await api<DocumentListResponse | ProjectDocument[]>(
     `/api/projects/${projectId}/documents${qs ? `?${qs}` : ''}`,

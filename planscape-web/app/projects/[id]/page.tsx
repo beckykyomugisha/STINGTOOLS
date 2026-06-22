@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { RagBadge } from '@/components/RagBadge';
 import { getProject, listIssues } from '@/lib/data';
 import { useProjectRealtime } from '@/lib/realtime';
 import type { Project, BimIssue, IssueStatus } from '@/lib/types';
@@ -55,7 +56,10 @@ export default function ProjectPage() {
           <Link href="/projects" className="text-sm text-slate-400 hover:underline">
             ← Projects
           </Link>
-          <h1 className="text-xl font-semibold">{project?.name ?? 'Project'}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold">{project?.name ?? 'Project'}</h1>
+            {project && <RagBadge rag={project.ragStatus} percent={project.compliancePercent} />}
+          </div>
           {project?.code && <p className="text-xs text-slate-400">{project.code}</p>}
           {live && (
             <span className="mt-1 inline-flex items-center gap-1 text-xs text-green-600">

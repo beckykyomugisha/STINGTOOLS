@@ -48,6 +48,13 @@ export default function DocumentsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [discipline, setDiscipline] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+
+  const PAGE_SIZE = 50;
+  const filters = () => ({
+    cdeStatus: cde === 'ALL' ? undefined : cde,
+    search: query || undefined,
+  });
 
   const load = useCallback(() => {
     setDocs(null);
@@ -55,12 +62,29 @@ export default function DocumentsPage() {
     listDocuments(projectId, {
       cdeStatus: cde === 'ALL' ? undefined : cde,
       search: query || undefined,
+      page: 1,
+      pageSize: PAGE_SIZE,
     })
-      .then(setDocs)
+      .then((d) => {
+        setDocs(d);
+        setHasMore(d.length === PAGE_SIZE);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load documents'));
   }, [projectId, cde, query]);
 
   useEffect(load, [load]);
+
+  async function loadMore() {
+    if (!docs) return;
+    const page = Math.floor(docs.length / PAGE_SIZE) + 1;
+    try {
+      const more = await listDocuments(projectId, { ...filters(), page, pageSize: PAGE_SIZE });
+      setDocs([...docs, ...more]);
+      setHasMore(more.length === PAGE_SIZE);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load more');
+    }
+  }
 
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -203,6 +227,17 @@ export default function DocumentsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hasMore && (
+        <div className="mt-3 text-center">
+          <button
+            onClick={loadMore}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Load more
+          </button>
+        </div>
       )}
     </AppShell>
   );
