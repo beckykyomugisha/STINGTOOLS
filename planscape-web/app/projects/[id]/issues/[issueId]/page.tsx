@@ -18,13 +18,38 @@ export default function IssueDetailPage() {
   const [comments, setComments] = useState<IssueComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [assignee, setAssignee] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [savingAssign, setSavingAssign] = useState(false);
 
   useEffect(() => {
     getIssue(projectId, issueId)
-      .then(setIssue)
+      .then((i) => {
+        setIssue(i);
+        setAssignee(i.assignee ?? '');
+        setDueDate(i.dueDate ? i.dueDate.slice(0, 10) : '');
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load issue'));
     listComments(projectId, issueId).then(setComments).catch(() => {});
   }, [projectId, issueId]);
+
+  async function saveAssignment() {
+    if (!issue) return;
+    setSavingAssign(true);
+    setError(null);
+    try {
+      const body: Partial<BimIssue> = {
+        assignee: assignee.trim(),
+        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+      };
+      const updated = await updateIssue(projectId, issueId, body);
+      setIssue(updated);
+    } catch {
+      setError('Failed to save assignment');
+    } finally {
+      setSavingAssign(false);
+    }
+  }
 
   async function changeStatus(s: IssueStatus) {
     if (!issue || issue.status === s) return;
@@ -91,6 +116,34 @@ export default function IssueDetailPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-200">
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Assignee</span>
+              <input
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                placeholder="name or email"
+                className="mt-1 block w-56 rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Due date</span>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="mt-1 block rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              onClick={saveAssignment}
+              disabled={savingAssign}
+              className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+            >
+              {savingAssign ? 'Saving…' : 'Save'}
+            </button>
           </div>
 
           <section className="mt-8">

@@ -249,3 +249,37 @@ export interface SearchResponse {
   count: number;
   results: SearchResult[];
 }
+
+// ── Transmittals ──
+export interface Transmittal {
+  id: string;
+  transmittalCode: string;
+  recipient: string;
+  status: string; // DRAFT | SENT | ACKNOWLEDGED | RESPONDED
+  notes?: string | null;
+  createdBy?: string;
+  createdAt?: string;
+  sentAt?: string | null;
+  acknowledgedAt?: string | null;
+  respondedAt?: string | null;
+  responseNotes?: string | null;
+}
+
+// ── Site photos ──
+export interface SitePhoto {
+  id: string;
+  projectId: string;
+  reason?: string;
+  audience?: string; // Internal | PendingReview | Approved | ClientPortal | Withdrawn
+  blurStatus?: string;
+  watermarkApplied?: boolean;
+  caption?: string | null;
+  capturedAt?: string;
+  capturedByName?: string | null;
+  levelCode?: string | null;
+  zoneCode?: string | null;
+  discipline?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectedReason?: string | null;
+}

@@ -19,6 +19,8 @@ import type {
   ProjectMember,
   Iso19650Role,
   SearchResponse,
+  Transmittal,
+  SitePhoto,
 } from './types';
 
 // ── Projects ──
@@ -374,4 +376,126 @@ export function search(q: string, types?: string[], limit = 25): Promise<SearchR
   const params = new URLSearchParams({ q, limit: String(limit) });
   if (types && types.length) params.set('type', types.join(','));
   return api<SearchResponse>(`/api/search?${params.toString()}`);
+}
+
+// ── Document upload + CDE transition ──
+/** Multipart document upload (file + ISO 19650 metadata). Role-gated server-side. */
+export async function uploadDocument(
+  projectId: string,
+  file: File,
+  meta: { documentType?: string; discipline?: string; revision?: string; description?: string } = {},
+): Promise<ProjectDocument> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  if (meta.documentType) form.append('documentType', meta.documentType);
+  if (meta.discipline) form.append('discipline', meta.discipline);
+  if (meta.revision) form.append('revision', meta.revision);
+  if (meta.description) form.append('description', meta.description);
+
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`); // browser sets multipart boundary
+
+  const res = await fetch(`${API_BASE}/api/projects/${projectId}/documents/upload`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  if (res.status === 401) {
+    setToken(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') window.location.href = '/login';
+    throw new ApiError(401, 'Session expired — please sign in again.');
+  }
+  if (!res.ok) {
+    let message = `Upload failed (HTTP ${res.status})`;
+    try {
+      const b = await res.json();
+      message = b.message || b.error || message;
+    } catch {
+      /* non-JSON */
+    }
+    throw new ApiError(res.status, message);
+  }
+  return (await res.json()) as ProjectDocument;
+}
+
+/** CDE state transition (WIP→SHARED→PUBLISHED→ARCHIVE…). Role/suitability/approval
+ *  gated server-side — a 400/403 surfaces as ApiError with the reason. */
+export function transitionDocument(
+  projectId: string,
+  docId: string,
+  body: { newState: string; suitabilityCode?: string; revision?: string },
+): Promise<ProjectDocument> {
+  return api<ProjectDocument>(`/api/projects/${projectId}/documents/${docId}/state`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+// ── Transmittals ──
+export async function listTransmittals(projectId: string): Promise<Transmittal[]> {
+  const raw = await api<{ transmittals?: Transmittal[] } | Transmittal[]>(
+    `/api/projects/${projectId}/transmittals`,
+  );
+  if (Array.isArray(raw)) return raw;
+  return raw.transmittals ?? [];
+}
+
+export function createTransmittal(
+  projectId: string,
+  body: { recipient: string; notes?: string; documentIds?: string[] },
+): Promise<Transmittal> {
+  return api<Transmittal>(`/api/projects/${projectId}/transmittals`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function transmittalAction(
+  projectId: string,
+  txId: string,
+  action: 'send' | 'acknowledge' | 'respond',
+  body?: { responseNotes?: string },
+): Promise<Transmittal> {
+  return api<Transmittal>(`/api/projects/${projectId}/transmittals/${txId}/${action}`, {
+    method: 'PUT',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+// ── Site photos ──
+export async function listSitePhotos(
+  projectId: string,
+  opts: { reason?: string; audience?: string } = {},
+): Promise<SitePhoto[]> {
+  const params = new URLSearchParams();
+  if (opts.reason) params.set('reason', opts.reason);
+  if (opts.audience) params.set('audience', opts.audience);
+  const qs = params.toString();
+  const raw = await api<{ items?: SitePhoto[] } | SitePhoto[]>(
+    `/api/projects/${projectId}/photos${qs ? `?${qs}` : ''}`,
+  );
+  if (Array.isArray(raw)) return raw;
+  return raw.items ?? [];
+}
+
+/** Authenticated photo bytes URL (original or redacted), token via query. */
+export function photoFileUrl(projectId: string, photoId: string): string {
+  const token = getToken();
+  const base = `${API_BASE}/api/projects/${projectId}/photos/${photoId}/file`;
+  return token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+}
+
+export function approvePhoto(projectId: string, photoId: string, caption: string): Promise<unknown> {
+  return api(`/api/projects/${projectId}/photos/${photoId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ caption }),
+  });
+}
+
+export function rejectPhoto(projectId: string, photoId: string, reason: string): Promise<unknown> {
+  return api(`/api/projects/${projectId}/photos/${photoId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 }
