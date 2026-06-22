@@ -133,6 +133,15 @@ namespace StingTools.UI
                     // ── SYS tab ────────────────────────────────────────────
                     case "Hvac_SystemAudit":
                         Run<StingTools.Temp.MEPSystemAuditCommand>(app); break;
+                    // Phase A — MEP System Type Materializer.
+                    case "MEP_BuildSystemTypes":
+                        Run<StingTools.Commands.Mep.MepBuildSystemTypesCommand>(app); break;
+                    case "MEP_RestyleSystemTypes":
+                        Run<StingTools.Commands.Mep.MepRestyleSystemTypesCommand>(app); break;
+                    case "MEP_InspectSystemTypes":
+                        Run<StingTools.Commands.Mep.MepInspectSystemTypesCommand>(app); break;
+                    case "MEP_ReloadSystemTypes":
+                        Run<StingTools.Commands.Mep.MepReloadSystemTypesCommand>(app); break;
                     case "Hvac_AutoFireDamper":
                     case "Routing_AutoFireDamper":
                         Run<StingTools.Commands.RoutingExt.AutoFireDamperCommand>(app); break;
