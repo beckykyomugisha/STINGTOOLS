@@ -1,4 +1,4 @@
-import { api, API_BASE, getToken } from './api';
+import { api, API_BASE, getToken, ApiError } from './api';
 import type {
   Project,
   BimIssue,
@@ -7,6 +7,7 @@ import type {
   ClashListResponse,
   ClashDetectionResult,
   ProjectModel,
+  SceneManifest,
 } from './types';
 
 // ── Projects ──
@@ -94,4 +95,28 @@ export function modelFileUrl(projectId: string, modelId: string): string {
   const token = getToken();
   const base = `${API_BASE}/api/projects/${projectId}/models/${modelId}/file`;
   return token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+}
+
+// ── Federation ──
+/** Multi-discipline scene manifest. Returns null when the project has no scene
+ *  chunks yet (404) so callers can fall back to the single-model path. */
+export async function getSceneManifest(
+  projectId: string,
+  disciplines?: string[],
+): Promise<SceneManifest | null> {
+  const q = disciplines && disciplines.length ? `?disciplines=${disciplines.join(',')}` : '';
+  try {
+    return await api<SceneManifest>(`/api/projects/${projectId}/scene${q}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null; // no chunks published
+    throw e;
+  }
+}
+
+/** Authenticated absolute URL for a scene chunk. The manifest gives a relative
+ *  path (/api/v1/scene-nodes/{id}/file); the iframe needs the token in the query. */
+export function chunkFileUrl(relativeUrl: string): string {
+  const token = getToken();
+  const base = `${API_BASE}${relativeUrl}`;
+  return token ? `${base}${base.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(token)}` : base;
 }

@@ -90,3 +90,29 @@ export interface ProjectModel {
   revision?: string;
   uploadedAt?: string;
 }
+
+// Federation — one Draco/GLB chunk per discipline (+level/system), produced by
+// the converter sidecar and served by SceneNodesController
+// (GET /api/projects/{id}/scene). The mobile chunked loader consumes the same shape.
+export interface SceneChunk {
+  id: string;
+  discipline: string;
+  levelCode?: string;
+  systemCode?: string;
+  url: string;          // relative, e.g. /api/v1/scene-nodes/{id}/file
+  hash?: string;
+  sizeBytes?: number;
+  vertexCount?: number;
+  compression?: string;
+  minX: number; minY: number; minZ: number;
+  maxX: number; maxY: number; maxZ: number;
+}
+
+export interface SceneManifest {
+  projectId: string;
+  generatedAt?: string;
+  chunks: SceneChunk[];
+  minX: number; minY: number; minZ: number;
+  maxX: number; maxY: number; maxZ: number;
+  disciplines: string[];
+}
