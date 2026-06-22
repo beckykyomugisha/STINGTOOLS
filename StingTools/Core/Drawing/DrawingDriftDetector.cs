@@ -550,16 +550,10 @@ namespace StingTools.Core.Drawing
                     ? null
                     : ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
 
-                // ACC-10: profile wins; only fall back to pack when the
-                // profile is null. An empty-string profile.ColorScheme is
-                // treated as "leave as-is" rather than as a falsy → pack
-                // cascade, so a deliberately-cleared profile slot doesn't
-                // silently re-inherit the pack's scheme.
-                string expectedScheme;
-                if (profile != null && profile.ColorScheme != null)
-                    expectedScheme = profile.ColorScheme;
-                else
-                    expectedScheme = pack?.TagColorScheme;
+                // Tag style/colour scheme is single-sourced in the ViewStylePack
+                // (the per-profile ColorScheme field was removed), so the expected
+                // view-tag-style scheme comes from the bound pack only.
+                string expectedScheme = pack?.TagColorScheme;
                 if (!string.IsNullOrEmpty(expectedScheme))
                 {
                     string actual = ReadStringParam(v, ParamRegistry.VIEW_TAG_STYLE);

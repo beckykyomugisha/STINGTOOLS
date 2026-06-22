@@ -55,12 +55,16 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || dt == null) return r;
             if (view.IsTemplate) return r;
 
-            // Resolve effective values: profile > pack > null
+            // Resolve effective values: profile > pack > null.
+            // Tag STYLE is single-sourced in the pack — the per-profile style
+            // triple (TagSize/TagStyle/TagColor) and view ColorScheme were
+            // removed, so appearance comes only from the ViewStylePack
+            // (TagColorScheme / DefaultTagStyle / CategoryTagStyles).
             var profile  = dt.TokenProfile;
-            string scheme   = profile?.ColorScheme ?? pack?.TagColorScheme;
-            string size     = profile?.TagSize;
-            string style    = profile?.TagStyle;
-            string colour   = profile?.TagColor;
+            string scheme   = pack?.TagColorScheme;
+            string size     = null;
+            string style    = null;
+            string colour   = null;
             int?   depth    = profile?.ParaDepth;
             string preset   = profile?.PresentationMode;
             string segMask  = profile?.SegmentMask;
