@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199f — optional MasterFormat/classification code stamped on tags)
+
+Off the KUT review: "can we have drawings with the MasterFormat code stamped on elements,
+as a flexible/sustainable option?" Built as a **data-driven, per-project setting** rather
+than hardcoding MasterFormat or rebuilding the 149-block tag-family/label system.
+
+- **`tagClassifications` policy field** (`ClassificationPolicy` + `classification_policy.json`)
+  — a flat list of classification shared-parameter names to stamp into the element's TAG7
+  rich narrative (Section A): e.g. `["CSI_SECTION_TXT"]` for MasterFormat, `["ASS_OMNICLASS_TXT"]`
+  for OmniClass, or both. **Empty by default** ⇒ no change for existing projects. Flexible
+  (any axis by param name — Uniclass, a bespoke owner code, anything), sustainable (data-only,
+  no recompile, no tag-family rebuild), and **decoupled from the BOQ `order`** so a project can
+  bill by one axis and annotate by another (or none).
+- **Narrative stamp** (`TagConfig.Tag7.BuildTag7Sections` Section A) — reads
+  `ClassificationReader.TagClassifications(doc)`, reads each listed param **type-first**, and
+  appends "classified as MasterFormat <code>; OmniClass <code>" to the plain + marked-up
+  narrative. Skips empties. `ClassificationReader.ClassificationLabel` maps CSI/OmniClass/
+  Uniformat/Uniclass param names to readable labels, with a tidy fallback for unknown axes.
+  Because it rides the existing TAG7 narrative container, **no tag-family regeneration is
+  needed** — re-run Auto Tag / Build Tags to refresh.
+- **`Classification on Tags…` command + dock button** (BIM tab / CSI-SPECLINK) — TaskDialog
+  presets (MasterFormat / OmniClass / both / none) that write `tagClassifications` into the
+  project policy (JObject merge preserves the `order` + `omniClassTable`) and invalidate the
+  cached policy. Full flexibility (e.g. Uniclass) stays available by listing params in the JSON.
+- **KUT project template** seeded with `"tagClassifications": ["CSI_SECTION_TXT"]` so new KUT
+  projects annotate by MasterFormat out of the box.
+- +1 test (policy round-trips `tagClassifications`, defaults empty, coexists with `order`).
+  Suite 179/180 (pre-existing carbon failure only); builds clean vs Revit 2025.
+
 #### Completed (Phase 199e — in-Revit OmniClass table selector + KUT parameter-file audit)
 
 Two follow-ups off the live KUT session.

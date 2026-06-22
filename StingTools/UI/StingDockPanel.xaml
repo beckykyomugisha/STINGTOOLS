@@ -3667,6 +3667,8 @@
                                             ToolTip="Read-only dry-run: % classified, unmapped keys, and ambiguous (tied-rule) elements for the active OmniClass table — CSV + summary. Run before Assign to see the holes"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
                                             ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification on Tags…" Tag="ClassificationTags_Set" Click="Cmd_Click"
+                                            ToolTip="Optionally stamp a classification code (MasterFormat / OmniClass / both / none) into each element's rich TAG7 narrative so it shows on drawings. Per-project, data-driven (classification_policy.json), off by default. Re-run Auto Tag / Build Tags to refresh"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

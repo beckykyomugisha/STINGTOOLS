@@ -500,4 +500,95 @@ namespace StingTools.Commands.Classification
             return Result.Succeeded;
         }
     }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClassificationTagsSetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string dir = "";
+            try { dir = Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
+            if (string.IsNullOrEmpty(dir))
+            {
+                TaskDialog.Show("Classification on Tags", "Save the project first — the setting lives in " +
+                    "<project>/_BIM_COORD/classification_policy.json.");
+                return Result.Cancelled;
+            }
+
+            var current = ClassificationReader.TagClassifications(doc);
+            string curLabel = current.Count == 0 ? "none"
+                : string.Join(" + ", current.Select(p => ClassificationReader.ClassificationLabel(p)));
+
+            var picker = new TaskDialog("Classification on Tags")
+            {
+                MainInstruction = "Stamp classification code(s) on the tag narrative",
+                MainContent = $"Adds the chosen classification code into each element's rich TAG7 " +
+                    $"narrative, so it shows on drawings. Currently: {curLabel}.\n\n" +
+                    "Pick the common presets below, or list any classification parameter(s) in " +
+                    "classification_policy.json \"tagClassifications\" for full flexibility " +
+                    "(e.g. Uniclass). Re-run Auto Tag / Build Tags afterwards to refresh the narrative.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "MasterFormat (CSI)", "Stamp CSI_SECTION_TXT");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "OmniClass", "Stamp ASS_OMNICLASS_TXT");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MasterFormat + OmniClass", "Stamp both codes");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "None (off)", "Don't stamp any classification on tags");
+            var res = picker.Show();
+
+            List<string> chosen;
+            switch (res)
+            {
+                case TaskDialogResult.CommandLink1: chosen = new List<string> { "CSI_SECTION_TXT" }; break;
+                case TaskDialogResult.CommandLink2: chosen = new List<string> { "ASS_OMNICLASS_TXT" }; break;
+                case TaskDialogResult.CommandLink3: chosen = new List<string> { "CSI_SECTION_TXT", "ASS_OMNICLASS_TXT" }; break;
+                case TaskDialogResult.CommandLink4: chosen = new List<string>(); break;
+                default: return Result.Cancelled;
+            }
+
+            try
+            {
+                string bim = Path.Combine(dir, "_BIM_COORD");
+                Directory.CreateDirectory(bim);
+                string path = Path.Combine(bim, "classification_policy.json");
+                Newtonsoft.Json.Linq.JObject root;
+                if (File.Exists(path))
+                {
+                    try { root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path)); }
+                    catch { root = new Newtonsoft.Json.Linq.JObject(); }
+                }
+                else root = new Newtonsoft.Json.Linq.JObject();
+                root["tagClassifications"] = new Newtonsoft.Json.Linq.JArray(chosen);
+                File.WriteAllText(path, root.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClassificationTags_Set write", ex);
+                TaskDialog.Show("Classification on Tags", "Could not write classification_policy.json: " + ex.Message);
+                return Result.Failed;
+            }
+
+            ClassificationReader.InvalidatePolicy();
+
+            string newLabel = chosen.Count == 0 ? "none (off)"
+                : string.Join(" + ", chosen.Select(p => ClassificationReader.ClassificationLabel(p)));
+            new TaskDialog("Classification on Tags")
+            {
+                MainInstruction = $"Tag classification → {newLabel}",
+                MainContent = (chosen.Count == 0
+                        ? "No classification will be stamped on tags."
+                        : "The code(s) will appear in the element's rich TAG7 narrative (Section A) — " +
+                          "make sure you've run the matching assign (CSI Assign / OmniClass Assign) so the " +
+                          "values exist.") +
+                    "\n\nRe-run Auto Tag / Build Tags to refresh the narrative on existing elements."
+            }.Show();
+            StingLog.Info($"ClassificationTags_Set: [{string.Join(",", chosen)}]");
+            return Result.Succeeded;
+        }
+    }
 }

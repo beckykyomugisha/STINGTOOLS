@@ -902,6 +902,32 @@ namespace StingTools.Core
                 identityMarked.Append($" \u00ABL\u00BBsized at\u00AB/L\u00BB \u00ABV\u00BB{size}\u00AB/V\u00BB");
             }
 
+            // Phase 199f \u2014 policy-driven classification stamp. classification_policy.json
+            // "tagClassifications" lists which classification axes (param names) to annotate
+            // on the tag (e.g. ["CSI_SECTION_TXT"] for MasterFormat). Empty \u21D2 nothing added.
+            // Flexible (any axis) + sustainable (data-only, no family rebuild).
+            try
+            {
+                var clsParams = StingTools.Core.Classification.ClassificationReader.TagClassifications(doc);
+                if (clsParams != null && clsParams.Count > 0)
+                {
+                    var clsParts = new System.Collections.Generic.List<string>();
+                    foreach (var pn in clsParams)
+                    {
+                        string cv = StingTools.Core.Classification.ClassificationReader.ReadClassificationValue(el, pn);
+                        if (string.IsNullOrWhiteSpace(cv)) continue;
+                        clsParts.Add($"{StingTools.Core.Classification.ClassificationReader.ClassificationLabel(pn)} {cv}");
+                    }
+                    if (clsParts.Count > 0)
+                    {
+                        string clsText = string.Join("; ", clsParts);
+                        identityPlain.Append($" classified as {clsText}");
+                        identityMarked.Append($" \u00ABL\u00BBclassified as\u00AB/L\u00BB \u00ABV\u00BB{clsText}\u00AB/V\u00BB");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag7 classification stamp: {ex.Message}"); }
+
             result.SectionA = identityPlain.ToString().Trim();
             markedSections.Add(identityMarked.ToString().Trim());
 

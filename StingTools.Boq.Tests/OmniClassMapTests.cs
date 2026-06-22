@@ -126,6 +126,20 @@ namespace StingTools.Boq.Tests
             Assert.Equal("23", ClassificationPolicy.Parse("{ \"omniClassTable\": \"T23\" }").OmniClassTableNumber);
         }
 
+        [Fact]
+        public void Policy_TagClassifications_ParsesAndDefaultsEmpty()
+        {
+            // Default + a table-only policy ⇒ no tag classifications (opt-in).
+            Assert.Empty(ClassificationPolicy.Default.TagClassifications);
+            Assert.Empty(ClassificationPolicy.Parse("{ \"omniClassTable\": \"23\" }").TagClassifications);
+            // Explicit list survives parse + normalise; coexists with the BOQ order.
+            var p = ClassificationPolicy.Parse(
+                "{ \"tagClassifications\": [\"CSI_SECTION_TXT\", \"ASS_OMNICLASS_TXT\"], " +
+                "\"order\": [ { \"id\": \"csi\", \"param\": \"CSI_SECTION_TXT\" }, { \"id\": \"native\" } ] }");
+            Assert.Equal(new[] { "CSI_SECTION_TXT", "ASS_OMNICLASS_TXT" }, p.TagClassifications.ToArray());
+            Assert.NotEmpty(p.Order);
+        }
+
         // ── Phase 199c — Table 23 (Products) + Table 41 (Materials) maps ────
 
         [Fact]

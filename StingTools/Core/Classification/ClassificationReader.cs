@@ -82,6 +82,45 @@ namespace StingTools.Core.Classification
         /// from classification_policy.json (default "21"). Read by OmniClass_Assign + the BOQ.</summary>
         public static string OmniClassTable(Document doc) => PolicyFor(doc).OmniClassTableNumber;
 
+        /// <summary>Phase 199f — the classification parameter(s) the project stamps into the
+        /// TAG7 narrative (so they show on drawings). Empty list ⇒ none. Read by the tag
+        /// narrative builder.</summary>
+        public static System.Collections.Generic.IReadOnlyList<string> TagClassifications(Document doc)
+            => PolicyFor(doc).TagClassifications ?? new System.Collections.Generic.List<string>();
+
+        /// <summary>Human label for a classification parameter, for the tag narrative
+        /// ("CSI_SECTION_TXT" → "MasterFormat"). Sustainable: unknown params fall back to a
+        /// tidied name so a new axis still stamps with a readable label.</summary>
+        public static string ClassificationLabel(string paramName)
+        {
+            switch ((paramName ?? "").ToUpperInvariant())
+            {
+                case "CSI_SECTION_TXT":
+                case "CSI_TITLE_TXT":        return "MasterFormat";
+                case "ASS_OMNICLASS_TXT":
+                case "CLS_OMNICLASS_TITLE_TXT": return "OmniClass";
+                case "ASS_UNIFORMAT_TXT":
+                case "ASS_UNIFORMAT_DESC_TXT": return "Uniformat";
+                case "UNICLASS_PR_TXT":      return "Uniclass Pr";
+                case "UNICLASS_SS_TXT":      return "Uniclass Ss";
+                case "UNICLASS_EF_TXT":      return "Uniclass EF";
+                default:
+                    string n = (paramName ?? "").Trim();
+                    if (n.EndsWith("_TXT", StringComparison.OrdinalIgnoreCase)) n = n.Substring(0, n.Length - 4);
+                    return n.Replace('_', ' ');
+            }
+        }
+
+        /// <summary>Read a classification value type-first (classification is usually authored on
+        /// the type) then instance — used by the tag narrative stamp.</summary>
+        public static string ReadClassificationValue(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return "";
+            Element type = null;
+            try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+            return TypeFirst(el, type, paramName);
+        }
+
         /// <summary>
         /// Pack 126 / Gap J — single canonical fallback chain used by BOQ /
         /// COBie / handover / IFC export. Phase 196: the order is now driven by

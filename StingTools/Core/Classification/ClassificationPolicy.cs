@@ -73,6 +73,19 @@ namespace StingTools.Core.Classification
         [JsonProperty("omniClassTable")]
         public string OmniClassTable { get; set; } = "21";
 
+        /// <summary>
+        /// Phase 199f — which classification code(s) get stamped into the element's
+        /// TAG7 rich narrative (so they appear on drawings). A flat list of shared-parameter
+        /// names, e.g. ["CSI_SECTION_TXT"] for MasterFormat, ["ASS_OMNICLASS_TXT"] for
+        /// OmniClass, or both. EMPTY by default ⇒ nothing stamped (no change for existing
+        /// projects). Data-driven + sustainable: name ANY classification text parameter and
+        /// it stamps with a sensible label — no recompile, no tag-family rebuild. Decoupled
+        /// from the BOQ `order`, so a project can bill by one axis but annotate by another
+        /// (or none). Set via the "Classification on Tags…" command or this file.
+        /// </summary>
+        [JsonProperty("tagClassifications")]
+        public List<string> TagClassifications { get; set; } = new List<string>();
+
         /// <summary>Normalised active table number — "Table 21"/"T21"/"21" → "21". Default "21".</summary>
         [JsonIgnore]
         public string OmniClassTableNumber => NormalizeTable(OmniClassTable);
@@ -171,7 +184,12 @@ namespace StingTools.Core.Classification
             }
             // Guarantee a terminal native rung so ResolveFallback always yields a key.
             if (!hasNative) cleaned.Add(new ClassificationSource { Id = "native" });
-            return new ClassificationPolicy { Order = cleaned, OmniClassTable = p.OmniClassTable };
+            return new ClassificationPolicy
+            {
+                Order = cleaned,
+                OmniClassTable = p.OmniClassTable,
+                TagClassifications = p.TagClassifications ?? new List<string>()
+            };
         }
 
         private static string PrefixFromId(ClassificationSource s)
