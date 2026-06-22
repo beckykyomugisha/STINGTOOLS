@@ -223,9 +223,19 @@ namespace StingTools.Model
                 sb.AppendLine($"   ⚠ {run.DrainageDirectionUnverified} drainage run(s) — fall direction unverified (no stack); confirm fall.");
             if (run.DrainageDirectionAmbiguous > 0)
                 sb.AppendLine($"   ⚠ {run.DrainageDirectionAmbiguous} drainage run(s) — fall target ambiguous (≥2 stacks equally near); confirm.");
+            // P7-3.2a — flat-fall visibility: the flat 1.25% stays the default (changing it
+            // silently would move invert geometry); surface the BS EN 12056 opt-in.
+            if (run.DrainageFlatDefault)
+                sb.AppendLine($"   ℹ drainage fall is flat {MepRunClassifier.DefaultDrainageSlopePercent:0.##}% (not diameter-graded) — populate DrainageSlopeBands in dwg_run_rules.json for BS EN 12056 graduated falls.");
             sb.AppendLine();
             sb.AppendLine("RISERS");
             sb.AppendLine($"   Created: {riser.Created}  (failed {riser.Failed}; joined-to-run {fit.JoinedRisers}, floating {fit.FloatingRisers})");
+            // P7-3.3 — prove RiserDefaultSize is live: how many risers took the per-kind
+            // RiserDefaultSize (vs a size parsed off the block/layer), and flag any left unsized.
+            if (riser.RisersSizedFromDefault > 0)
+                sb.AppendLine($"   {riser.RisersSizedFromDefault} riser(s) sized from RiserDefaultSize (no size parsed off the block/layer).");
+            if (riser.RisersUnsized > 0)
+                sb.AppendLine($"   ⚠ {riser.RisersUnsized} riser(s) still unsized — no size parsed and RiserDefaultSize empty; used the branch default.");
             sb.AppendLine();
             sb.AppendLine("FITTINGS");
             sb.AppendLine($"   Junctions: {fit.Junctions}   Elbows {fit.Elbows} · Tees {fit.Tees} · Crosses {fit.Crosses} · Unions {fit.Unions} · failed {fit.Failed}");
@@ -339,7 +349,12 @@ namespace StingTools.Model
             if (detection.RectCoercedRunCount > 0)
                 sb.AppendLine($"   ⚠ {detection.RectCoercedRunCount} pipe/conduit run(s) — a W×H layer size was coerced to a diameter (larger dim); confirm.");
             if (detection.DrainageRunCount > 0)
+            {
                 sb.AppendLine($"   (of which {detection.DrainageRunCount} drainage pipe(s) get a gravity fall toward the nearest stack)");
+                // P7-3.2a — flat-fall visibility (preview): same opt-in note as the convert report.
+                if (MepRunRulesRegistry.Get(doc).IsFlatDrainageDefault)
+                    sb.AppendLine($"   ℹ drainage fall is flat {MepRunClassifier.DefaultDrainageSlopePercent:0.##}% (not diameter-graded) — populate DrainageSlopeBands in dwg_run_rules.json for BS EN 12056 graduated falls.");
+            }
             if (detection.MirroredFixtureCount > 0)
                 sb.AppendLine($"   ⚠ {detection.MirroredFixtureCount} mirrored (negative-scale) block(s) — placement rotation may be wrong; check orientation.");
             sb.AppendLine($"Risers (UP/DN/RISER blocks → vertical segments): {detection.Risers.Count}");

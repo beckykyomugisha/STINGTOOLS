@@ -167,6 +167,12 @@ namespace StingTools.Core.Cad.Mep
         public int SizeSnapped { get; set; }
         /// <summary>P7-2.2 — runs whose STING SYS token was set from the parsed DWG service.</summary>
         public int SysFromService { get; set; }
+        /// <summary>P7-3.3 — risers sized from the per-kind RiserDefaultSize (no size parsed off the block/layer).</summary>
+        public int RisersSizedFromDefault { get; set; }
+        /// <summary>P7-3.3 — risers where no size parsed AND RiserDefaultSize was empty/zero (left at the branch default).</summary>
+        public int RisersUnsized { get; set; }
+        /// <summary>P7-3.2a — drainage fall used the flat single-band default, not diameter-graded BS EN 12056 falls.</summary>
+        public bool DrainageFlatDefault { get; set; }
         public int Tagged { get; set; }
         public void Bump(MepRunKind k) { ByKind.TryGetValue(k, out int n); ByKind[k] = n + 1; }
         public void BumpSystem(string name)
@@ -456,6 +462,13 @@ namespace StingTools.Core.Cad.Mep
                 }
             }
 
+            // P7-3.2a — surface (don't change) the flat-fall default: when DrainageSlopeBands
+            // is the single full-range band, every drain fell at the flat 1.25 %. The flat
+            // default STAYS the default (graduating it silently would move invert geometry on
+            // every existing project) — this only tells the user how to opt into BS EN 12056
+            // graduated falls. Reported via run.DrainageFlatDefault in MepCadShared.Report.
+            if (drains.Count > 0 && Rules.IsFlatDrainageDefault) result.DrainageFlatDefault = true;
+
             if (result.DrainageDirectionUnverified > 0)
                 result.Warnings.Add($"{result.DrainageDirectionUnverified} drainage run(s): no stack found to set fall direction — confirm fall manually.");
             if (result.DrainageDirectionAmbiguous > 0)
@@ -556,7 +569,23 @@ namespace StingTools.Core.Cad.Mep
                         {
                             var el = CreateRun(r.Kind, r.Classification, a, b, level.Id, result);
                             if (el == null) continue;
-                            ApplySize(el, r.Kind, r.Size ?? MepRunClassifier.Default(r.Kind), result);
+                            // P7-3.3 — a riser whose size was parsed off the block/layer keeps it;
+                            // otherwise it takes the per-kind RiserDefaultSize (a stack is larger
+                            // than a branch DefaultSize), NOT the branch default. Count both so the
+                            // RiserDefaultSize field cannot ship inert; flag any left truly unsized.
+                            bool fromRiserDefault = !(r.Size != null && r.Size.FromLayer);
+                            MepSize rsize = fromRiserDefault ? Rules.RiserDefaultSize(r.Kind) : r.Size;
+                            double dim = rsize == null ? 0 : (rsize.IsRound ? rsize.DiameterMm : Math.Max(rsize.WidthMm, rsize.HeightMm));
+                            if (dim <= 0)   // malformed/empty RiserDefaultSize override → fall back + flag
+                            {
+                                result.RisersUnsized++;
+                                if (result.Warnings.Count < 30)
+                                    result.Warnings.Add($"Riser '{r.BlockName}' ({r.Kind}): no size parsed and RiserDefaultSize empty — used branch default.");
+                                rsize = MepRunClassifier.Default(r.Kind);
+                                fromRiserDefault = false;
+                            }
+                            ApplySize(el, r.Kind, rsize, result);
+                            if (fromRiserDefault) result.RisersSizedFromDefault++;
                             StampSys(el, r.Classification, result);
                             ModelWorksetAssigner.Assign(_doc, el);
                             result.CreatedIds.Add(el.Id);

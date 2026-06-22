@@ -223,11 +223,17 @@ namespace StingTools.Core.Cad.Mep
                 {
                     var rk = MepRunClassifier.DetectKind(block.LayerName, block.InferredCategory) ?? MepRunKind.Pipe;
                     bool up = !Regex.IsMatch(block.BlockName, @"(?i)\b(dn|down)\b");
+                    // P7-3.3 — try to parse a real size off the riser's block name, then its
+                    // layer. When nothing parses the result carries FromLayer=false, so
+                    // BuildRisers applies the per-kind RiserDefaultSize (stack > branch) rather
+                    // than the branch default. Don't substitute a branch default here.
+                    var rsize = MepRunClassifier.ParseSize(block.BlockName, rk);
+                    if (!rsize.FromLayer) rsize = MepRunClassifier.ParseSize(block.LayerName, rk);
                     result.Risers.Add(new MepRiserCandidate
                     {
                         Point = block.InsertionPoint,
                         Kind = rk,
-                        Size = MepRunClassifier.Default(rk),
+                        Size = rsize,
                         Up = up,
                         BlockName = block.BlockName,
                         Classification = rules.Classify(block.LayerName, rk, out _),
