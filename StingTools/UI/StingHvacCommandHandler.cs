@@ -145,7 +145,11 @@ namespace StingTools.UI
                     // Phase B — MEP System Instance Builder.
                     case "MEP_BuildSystems":
                         Run<StingTools.Commands.Mep.MepBuildSystemsCommand>(app); break;
-                    // Phase C — MEP-aware drawing coordination.
+                    case "MEP_BuildSystemsForce":
+                        Run<StingTools.Commands.Mep.MepBuildSystemsForceCommand>(app); break;
+                    // Phase C/D — MEP-aware drawing coordination + system filters.
+                    case "MEP_GenerateSystemFilters":
+                        Run<StingTools.Commands.Mep.MepGenerateSystemFiltersCommand>(app); break;
                     case "MEP_ApplyMepCoordination":
                         Run<StingTools.Commands.Mep.MepApplyMepCoordinationCommand>(app); break;
                     case "MEP_InspectMepCoordination":

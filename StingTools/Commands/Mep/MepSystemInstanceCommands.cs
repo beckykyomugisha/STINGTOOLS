@@ -22,7 +22,25 @@ namespace StingTools.Commands.Mep
     [Regeneration(RegenerationOption.Manual)]
     public class MepBuildSystemsCommand : IExternalCommand
     {
+        // Default: type / name / stamp the systems Revit already formed (the reliable,
+        // high-value path). Orphan creation (NewMechanicalSystem/NewPipingSystem) is
+        // opt-in via MEP_BuildSystemsForce because it depends on a valid source
+        // equipment + consistent flow direction + tree topology.
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => MepBuildSystemsRunner.Run(commandData, ref message, attemptCreateOrphans: false);
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class MepBuildSystemsForceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => MepBuildSystemsRunner.Run(commandData, ref message, attemptCreateOrphans: true);
+    }
+
+    internal static class MepBuildSystemsRunner
+    {
+        public static Result Run(ExternalCommandData commandData, ref string message, bool attemptCreateOrphans)
         {
             try
             {
@@ -35,11 +53,12 @@ namespace StingTools.Commands.Mep
                 bool scopedToSelection = sel != null && sel.Count > 0;
 
                 MepSystemBuildResult res;
-                using (var t = new Transaction(doc, "STING Build MEP Systems"))
+                using (var t = new Transaction(doc,
+                    attemptCreateOrphans ? "STING Build MEP Systems (force)" : "STING Build MEP Systems"))
                 {
                     t.Start();
                     res = MepSystemInstanceBuilder.Build(doc, scopedToSelection ? sel : null,
-                                                         attemptCreateOrphans: true);
+                                                         attemptCreateOrphans);
                     t.Commit();
                 }
 
@@ -47,7 +66,8 @@ namespace StingTools.Commands.Mep
                 panel.SetSubtitle(
                     $"{res.Networks} network(s) · {res.Typed} typed · {res.Created} created · " +
                     $"{res.Stamped} stamped · {res.Skipped} skipped · {res.Failed} failed " +
-                    $"({(scopedToSelection ? "selection" : "whole project")})");
+                    $"({(scopedToSelection ? "selection" : "whole project")} · " +
+                    $"{(attemptCreateOrphans ? "force-create orphans" : "type/name/stamp only")})");
 
                 panel.AddSection("SUMMARY")
                      .Metric("Networks found",      res.Networks.ToString())
@@ -78,18 +98,19 @@ namespace StingTools.Commands.Mep
                 }
 
                 panel.AddSection("NEXT");
-                panel.Text("Systems now carry the STING type + classification — run AecFilters_Create " +
-                           "and apply a coordination View Style Pack to colour them, then produce MEP " +
-                           "drawings (Phase C: discipline + classification routing).");
+                panel.Text("Systems now carry the STING type + classification + name — run " +
+                           "MEP_GenerateSystemFilters then MEP_ApplyMepCoordination to colour the view by " +
+                           "system (Phase D). Orphan networks with a valid source can be force-built via " +
+                           "MEP_BuildSystemsForce.");
                 panel.Show();
 
                 StingLog.Info($"MEP build systems: networks={res.Networks} typed={res.Typed} " +
-                              $"created={res.Created} stamped={res.Stamped} skipped={res.Skipped}");
+                              $"created={res.Created} stamped={res.Stamped} skipped={res.Skipped} force={attemptCreateOrphans}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                StingLog.Error("MepBuildSystemsCommand", ex);
+                StingLog.Error("MepBuildSystemsRunner", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
