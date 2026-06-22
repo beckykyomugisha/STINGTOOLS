@@ -1,4 +1,4 @@
-import { api, API_BASE, getToken } from './api';
+import { api, API_BASE, getToken, setToken, ApiError } from './api';
 import type {
   Project,
   BimIssue,
@@ -94,4 +94,55 @@ export function modelFileUrl(projectId: string, modelId: string): string {
   const token = getToken();
   const base = `${API_BASE}/api/projects/${projectId}/models/${modelId}/file`;
   return token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+}
+
+export interface UploadModelResult {
+  id?: string;
+  duplicate?: boolean;
+  converting?: boolean;
+  message?: string;
+}
+
+/** Upload a model (GLB/glTF) as multipart/form-data. Uses fetch directly rather
+ *  than the JSON api() wrapper so the browser sets the multipart boundary, and
+ *  bearer auth rides in the header (not the iframe ?access_token= trick). The
+ *  endpoint is role-gated (Admin/Owner/Coordinator) — a 403 surfaces as ApiError. */
+export async function uploadModel(
+  projectId: string,
+  file: File,
+  opts: { name?: string; discipline?: string; description?: string } = {},
+): Promise<UploadModelResult> {
+  const form = new FormData();
+  form.append('File', file, file.name);
+  if (opts.name) form.append('Name', opts.name);
+  if (opts.discipline) form.append('Discipline', opts.discipline);
+  if (opts.description) form.append('Description', opts.description);
+
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`); // no Content-Type — browser sets the boundary
+
+  const res = await fetch(`${API_BASE}/api/projects/${projectId}/models`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+
+  if (res.status === 401) {
+    setToken(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') window.location.href = '/login';
+    throw new ApiError(401, 'Session expired — please sign in again.');
+  }
+  if (!res.ok) {
+    let message = `Upload failed (HTTP ${res.status})`;
+    try {
+      const b = await res.json();
+      message = b.message || b.error || message;
+    } catch {
+      /* non-JSON */
+    }
+    throw new ApiError(res.status, message);
+  }
+  if (res.status === 204) return {};
+  return (await res.json()) as UploadModelResult;
 }
