@@ -15,10 +15,11 @@
 #   - planscape-web        web      Next.js browser app (planscape-web/)
 #   - planscape-converter  pserv    IFC→GLB converter sidecar (private/internal)
 #   - planscape-redis      keyvalue JWT revocation + rate-limit + SignalR backplane
+#   - planscape-minio      pserv    S3-compatible object storage on a disk
+#                                   (models, photos, documents, IFC→GLB, scene-nodes)
 #   - planscape-db         postgres PostgreSQL 16 (managed)
 #
 # EXTERNAL (not Render-provisionable — set in the env group, see runbook):
-#   - Object storage: AWS S3 / Cloudflare R2 / MinIO (Storage__S3__*)
 #   - LiveKit Cloud (or self-host) for meeting video (LiveKit__*)
 #   - Firebase project for push (Firebase__*)
 #   - Resend (or SMTP) for transactional email (Email__* / Resend__*)
@@ -159,6 +160,33 @@ services:
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []             # empty = internal connections only (no public access)
 
+  # ── MinIO — S3-compatible object storage (provisioned by this Blueprint) ────
+  # Render can't give managed S3, so we run single-node MinIO on a persistent
+  # disk as a private service. The API auto-creates the bucket on startup
+  # (S3FileStorageService.EnsureBucketAsync). Good for launch; for redundancy/
+  # scale switch Storage__S3__* to Cloudflare R2 or AWS S3 and drop this service.
+  # NOTE: single disk ⇒ single instance, no HA — back the disk up or migrate to
+  # R2/S3 before serious data volume.
+  - type: pserv
+    name: planscape-minio
+    runtime: image
+    image:
+      url: docker.io/minio/minio:latest
+    dockerCommand: server /data --console-address ":9001"
+    branch: main
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /minio/health/live    # MinIO liveness (port 9000)
+    disk:
+      name: minio-data
+      mountPath: /data
+      sizeGB: 10                # ~$0.25/GB/mo; grow as model/photo volume grows
+    envVars:
+      - key: MINIO_ROOT_USER
+        sync: false             # = Storage__S3__AccessKey in the group below
+      - key: MINIO_ROOT_PASSWORD
+        sync: false             # = Storage__S3__SecretKey in the group below
+
 # ── Shared env group — referenced by planscape-api AND planscape-worker ──────
 # (Groups can't hold fromDatabase/fromService refs, so the DB + Redis + Converter
 # URL wiring stays inline on each service above; everything else lives here once.)
@@ -179,22 +207,23 @@ envVarGroups:
       - key: PLANSCAPE_OWNER_PASSWORD
         sync: false             # required to make the owner loginable on first boot
 
-      # ── Storage — object store (S3 / R2 / MinIO). REQUIRED in prod for models,
-      # site photos, documents, IFC→GLB output, and scene-node federation. ──
+      # ── Storage — object store. Defaults target the provisioned planscape-minio
+      # service above; switch ServiceUrl/keys to Cloudflare R2 or AWS S3 for a
+      # managed/redundant store (then ForcePathStyle=false + the right Region). ──
       - key: Storage__Provider
         value: S3
       - key: Storage__S3__BucketName
-        sync: false
+        value: planscape          # auto-created on first boot
       - key: Storage__S3__Region
-        sync: false             # e.g. eu-west-2 (AWS) or auto (R2)
+        value: us-east-1          # MinIO default region; for AWS use e.g. eu-west-2
       - key: Storage__S3__ServiceUrl
-        sync: false             # R2/MinIO endpoint; leave blank for AWS S3
+        sync: false               # planscape-minio internal URL, e.g. http://planscape-minio:9000 (blank for AWS S3)
       - key: Storage__S3__AccessKey
-        sync: false
+        sync: false               # = MINIO_ROOT_USER (or R2/S3 access key)
       - key: Storage__S3__SecretKey
-        sync: false
+        sync: false               # = MINIO_ROOT_PASSWORD (or R2/S3 secret key)
       - key: Storage__S3__ForcePathStyle
-        value: "true"           # true for MinIO/R2; "false" for AWS S3
+        value: "true"             # true for MinIO/R2; "false" for AWS S3
 
       # ── LiveKit — meeting video/WebRTC (LiveKit Cloud free tier or self-host) ──
       - key: LiveKit__ApiKey
@@ -256,8 +285,9 @@ databases:
     plan: starter               # £6/mo — 1GB storage, daily backups
 
 # ── Indicative cost (Frankfurt starter tiers) ───────────────────────────────
-# api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + db £6 ≈ £36/mo.
-# External: Cloudflare R2 (free tier covers launch), LiveKit Cloud (free tier),
-# Firebase (free), Resend (free tier). Drop planscape-worker + planscape-converter
-# to halve cost if you don't need IFC conversion or photo redaction yet (the API
-# degrades gracefully without them).
+# api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + minio £6 + 10GB disk
+# ~£2 + db £6 ≈ £44/mo. External: LiveKit Cloud (free tier), Firebase (free),
+# Resend (free tier). Drop planscape-worker + planscape-converter to save ~£12
+# if you don't need IFC conversion / photo redaction yet (the API degrades
+# gracefully). Swap planscape-minio for Cloudflare R2 (free tier) to remove the
+# storage service + disk cost and gain redundancy.

@@ -24,7 +24,7 @@ credentials handy — you'll paste them into the Render env group in step 3.
 
 | Service | Why | What you need |
 |---|---|---|
-| **Object storage** (Cloudflare R2 *recommended*, or AWS S3 / MinIO) | Models, site photos, documents, IFC→GLB output, scene-node federation | Bucket name, region, endpoint URL (R2/MinIO only), access key, secret key |
+| **Object storage** | Models, site photos, documents, IFC→GLB output, scene-node federation | **Provisioned by the Blueprint** (`planscape-minio` on a disk) — you only choose a `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`. *Or* switch to Cloudflare R2 / AWS S3 (managed + redundant) — then you need bucket, region, endpoint, access key, secret key. |
 | **LiveKit** (LiveKit Cloud free tier, or self-host) | Meeting video/WebRTC | API key, API secret, `wss://…` server URL |
 | **Firebase project** | Push notifications (FCM) | Project ID + service-account JSON |
 | **Resend** (or SMTP) | Invites / password reset / owner reset email | Resend API key; verify `planscape.build` as a sending domain |
@@ -78,7 +78,7 @@ sync needs **no** migration (it reuses `ConfigJson`).
    (branch `main`). Render reads `/render.yaml` and proposes:
    - `planscape-api` (web), `planscape-worker` (worker), `planscape-web` (web),
      `planscape-converter` (private), `planscape-redis` (key value),
-     `planscape-db` (Postgres).
+     `planscape-minio` (private, S3 storage + disk), `planscape-db` (Postgres).
 2. Click **Apply**. The first build of the API/worker images is ~5–10 min.
    `planscape-converter` build downloads IfcConvert (non-fatal if the URL is stale).
 3. The services will **fail health checks until you set the secrets** (step 3) —
@@ -97,11 +97,9 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 |---|---|
 | `Jwt__Key` | the `openssl rand -base64 48` output |
 | `PLANSCAPE_OWNER_PASSWORD` | the owner login password |
-| `Storage__S3__BucketName` | your bucket |
-| `Storage__S3__Region` | e.g. `eu-west-2` (AWS) / `auto` (R2) |
-| `Storage__S3__ServiceUrl` | R2/MinIO endpoint URL; **leave blank for AWS S3** |
-| `Storage__S3__AccessKey` / `Storage__S3__SecretKey` | storage credentials |
-| `Storage__S3__ForcePathStyle` | `true` for R2/MinIO, `false` for AWS S3 (default `true`) |
+| `Storage__S3__ServiceUrl` | **MinIO default:** the `planscape-minio` internal URL (Render → planscape-minio → Connect → Internal URL, e.g. `http://planscape-minio:9000`). **R2/S3:** their endpoint, or blank for AWS S3. |
+| `Storage__S3__AccessKey` | **= `MINIO_ROOT_USER`** (same value as 3d) — or the R2/S3 access key |
+| `Storage__S3__SecretKey` | **= `MINIO_ROOT_PASSWORD`** (same value as 3d) — or the R2/S3 secret key |
 | `LiveKit__ApiKey` / `LiveKit__ApiSecret` | LiveKit credentials |
 | `LiveKit__ServerUrl` / `LiveKit__Url` | your `wss://….livekit.cloud` (set both) |
 | `Firebase__ProjectId` | Firebase project id |
@@ -111,7 +109,12 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 | `Converter__Token` | a strong random string (must match 3c) |
 | `Acc__ClientId` / `Acc__ClientSecret` | APS app creds (optional; blank disables ACC) |
 
-`Storage__Provider=S3`, `Jwt__Issuer/Audience`, `Acc__CallbackUrl`,
+`Storage__Provider=S3`, `Storage__S3__BucketName=planscape` (auto-created on
+boot), `Storage__S3__Region=us-east-1`, `Storage__S3__ForcePathStyle=true` are
+preset for the provisioned MinIO — only change them if you switch to AWS S3
+(`ForcePathStyle=false` + real region) or R2.
+
+`Jwt__Issuer/Audience`, `Acc__CallbackUrl`,
 `Cors__Origins__*`, `Serilog__*`, `PLANSCAPE_OWNER_EMAIL` are already set to
 working defaults in the Blueprint — leave them.
 
@@ -130,6 +133,13 @@ Blueprint (fromDatabase / fromService) — nothing to set.
   (check the [IfcOpenShell releases](https://github.com/IfcOpenShell/IfcOpenShell/releases)).
 - `API_BASE` = `planscape-api` internal URL (only used by the `/chunk` path).
 - `API_BEARER` = leave blank unless you use `/chunk`.
+
+### 3d. `planscape-minio` (per-service) — skip if using R2/S3
+- `MINIO_ROOT_USER` = an access key string — **set `Storage__S3__AccessKey` (3a) to the same value**.
+- `MINIO_ROOT_PASSWORD` = a strong secret — **set `Storage__S3__SecretKey` (3a) to the same value**.
+
+If you chose Cloudflare R2 / AWS S3 instead, suspend or delete `planscape-minio`
+(and its disk) and point `Storage__S3__*` at the external store.
 
 After setting secrets, **Manual Deploy → Clear build cache & deploy** (or just
 redeploy) each service so it picks them up.
@@ -194,13 +204,17 @@ Optional feature smoke tests:
   the env var.
 - `planscape-db` is on the starter plan (1 GB, daily backups) — upgrade before
   real data volume grows.
+- `planscape-minio` is **single-node on one disk (no HA)**. Back the disk up, or
+  migrate to Cloudflare R2 / AWS S3 (redundant, managed) before serious volume —
+  it's a drop-in `Storage__S3__*` swap.
 
 ---
 
 ## Cost / scaling notes
 
 Frankfurt starter tiers: api £6 + worker £6 + web £6 + converter £6 + redis ~£6 +
-db £6 ≈ **£36/mo**, plus free-tier R2/LiveKit/Firebase/Resend.
+minio £6 + 10 GB disk ~£2 + db £6 ≈ **£44/mo**, plus free-tier LiveKit/Firebase/Resend.
+Swapping MinIO for R2 (free tier) removes the storage service + disk (~£8) and adds redundancy.
 
 To launch leaner, you can **omit `planscape-worker` and `planscape-converter`**
 (remove them from `render.yaml` or suspend in Render): the API degrades
