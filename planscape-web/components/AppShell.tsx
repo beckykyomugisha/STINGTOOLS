@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import { NotificationBell } from '@/components/NotificationBell';
 
 /** Protected app chrome: gates on auth (redirect to /login), renders the header + content. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           Planscape
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <NotificationBell />
           <span className="text-slate-500">{user.email}</span>
           <button
             onClick={() => {
