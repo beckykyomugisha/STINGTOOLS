@@ -292,6 +292,10 @@ else
 {
     builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// #4 follow-up — IFC→GLB converter sidecar client + conversion job. No-ops
+// gracefully when Converter:BaseUrl is unset (IsConfigured == false).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IConverterClient, Planscape.Infrastructure.Services.ConverterClient>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IfcToGlbConversionJob>();
 // Phase 175 audit P1-15-tx — atomic per-key counter (transmittals,
 // future RFIs / NCRs). Scoped because it shares the request DbContext.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ISequenceCounterService,

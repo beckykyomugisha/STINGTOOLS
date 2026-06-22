@@ -50,9 +50,12 @@ app.post('/ifc-to-glb', async (req, res) => {
   if (CONVERTER_TOKEN && req.headers['x-converter-token'] !== CONVERTER_TOKEN) {
     return res.status(401).json({ error: 'unauthorised' });
   }
-  const { sourceUrl, projectId, fileName, discipline } = req.body || {};
-  if (!sourceUrl || !projectId) {
-    return res.status(400).json({ error: 'sourceUrl and projectId are required' });
+  // The caller stores the GLB itself, so we only need the source IFC URL +
+  // an output name. (projectId/tenantId are no longer needed here — they were
+  // for the retired POST-back-to-/models path.)
+  const { sourceUrl, fileName, discipline } = req.body || {};
+  if (!sourceUrl) {
+    return res.status(400).json({ error: 'sourceUrl is required' });
   }
 
   const work = await mkdtemp(path.join(os.tmpdir(), 'ifc-'));
@@ -81,20 +84,21 @@ app.post('/ifc-to-glb', async (req, res) => {
       });
     }
 
-    // 3. Publish the GLB as a renderable ProjectModel.
+    // 3. Stream the GLB back to the caller (the API's IfcToGlbConversionJob),
+    //    which stores it with correct tenancy and creates the ProjectModel row.
+    //    We deliberately do NOT POST back into the authed /models endpoint: that
+    //    would require a single shared platform bearer with Admin/Owner/Coordinator
+    //    + project access across every tenant. SHA-256 + byte count ride in
+    //    headers so the API hashes in zero extra passes.
     const glb = await readFile(outPath);
-    const fd = new FormData();
-    fd.append('File', new Blob([glb], { type: 'model/gltf-binary' }), outName);
-    fd.append('Name', outName);
-    if (discipline) fd.append('Discipline', discipline);
-    const pubResp = await fetch(`${API_BASE}/api/projects/${projectId}/models`, {
-      method: 'POST',
-      headers: API_BEARER ? { Authorization: `Bearer ${API_BEARER}` } : {},
-      body: fd,
+    const sha = crypto.createHash('sha256').update(glb).digest('hex');
+    res.set({
+      'Content-Type': 'model/gltf-binary',
+      'X-Glb-Sha256': sha,
+      'X-Glb-Bytes': String(glb.length),
+      'X-Glb-Name': outName,
     });
-    if (!pubResp.ok) throw new Error(`publish failed: HTTP ${pubResp.status} ${await pubResp.text()}`);
-    const row = await pubResp.json();
-    res.json({ ok: true, modelId: row.id ?? row.modelId ?? null, name: outName, glbBytes: glb.length });
+    res.send(glb);
   } catch (err) {
     console.error('ifc-to-glb failed', err);
     res.status(500).json({ error: String(err) });
