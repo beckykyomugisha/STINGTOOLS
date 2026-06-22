@@ -34,6 +34,13 @@ panel schedules, not silent authority. The final design call stays with the engi
 **Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`
 (`MEP_ProduceMepViewsByLevel`, `MEP_AutoGroupCircuits`).
 
+**UI surfacing**: all 13 MEP-systems commands (Phases A–F) now have buttons in a new
+**"STING MEP SYSTEMS"** section at the foot of the HVAC panel's **SYS** tab, grouped
+by phase (System types / Instances / Coordination / Views &amp; circuits), reusing the
+existing `HvacPrimaryBtn` / `HvacActionBtn` / `HvacWarnBtn` styles and the `Cmd_Click`
+→ `StingHvacCommandHandler.SetCommand` dispatch. The validation workflow preset stays
+the one-click "run the whole chain" path.
+
 **Still honest**: sheet layout is one-view-per-sheet (multi-view packing is the
 Sheet Manager's job — these views are ready for it); auto-grouping defaults
 (8/30 m) are corporate sensible, not yet project-overridable; runtime behaviour of

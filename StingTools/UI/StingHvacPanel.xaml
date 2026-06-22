@@ -443,6 +443,67 @@
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Audit topology"
                                     Tag="Mep_SystemAnalyse" Click="Cmd_Click" ToolTip="Run system-level connectivity analysis"/>
                         </WrapPanel>
+
+                        <!-- ===== STING MEP Systems pipeline (Phases A–F) ===== -->
+                        <Separator Margin="0,10,0,4"/>
+                        <TextBlock Text="STING MEP SYSTEMS" Style="{StaticResource HvacSectionHeader}"/>
+                        <TextBlock Text="Types → instances → coordination → views, from one data source."
+                                   Style="{StaticResource HvacLabel}" Opacity="0.75" Margin="0,0,0,2" TextWrapping="Wrap"/>
+
+                        <TextBlock Text="System types (A)" Style="{StaticResource HvacLabel}" Margin="0,2,0,0"/>
+                        <WrapPanel Margin="0,0,0,2">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Build types"
+                                    Tag="MEP_BuildSystemTypes" Click="Cmd_Click"
+                                    ToolTip="Phase A — create / update the duct &amp; pipe system TYPES from STING_MEP_SYSTEM_TYPES.json (idempotent, no duplicates)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Restyle"
+                                    Tag="MEP_RestyleSystemTypes" Click="Cmd_Click"
+                                    ToolTip="Phase A — re-apply the baseline graphic colours to existing STING system types"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Inspect"
+                                    Tag="MEP_InspectSystemTypes" Click="Cmd_Click"
+                                    ToolTip="Phase A — read-only: which type definitions are present vs still to build"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Reload"
+                                    Tag="MEP_ReloadSystemTypes" Click="Cmd_Click"
+                                    ToolTip="Phase A — drop the registry cache so an edit to the JSON / project override is picked up"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Instances (B)" Style="{StaticResource HvacLabel}" Margin="0,2,0,0"/>
+                        <WrapPanel Margin="0,0,0,2">
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Build systems"
+                                    Tag="MEP_BuildSystems" Click="Cmd_Click"
+                                    ToolTip="Phase B — type / name / stamp the systems Revit already formed (selection if any, else whole project)"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Force build"
+                                    Tag="MEP_BuildSystemsForce" Click="Cmd_Click"
+                                    ToolTip="Phase B — also best-effort CREATE MechanicalSystem / PipingSystem for orphan networks with a valid source (review after)"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Coordination (C / D)" Style="{StaticResource HvacLabel}" Margin="0,2,0,0"/>
+                        <WrapPanel Margin="0,0,0,2">
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Gen filters"
+                                    Tag="MEP_GenerateSystemFilters" Click="Cmd_Click"
+                                    ToolTip="Phase D — generate abbreviation-keyed AEC filters from the system types and persist them to the project (so packs / drawing types can use them)"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Colour view"
+                                    Tag="MEP_ApplyMepCoordination" Click="Cmd_Click"
+                                    ToolTip="Phase C — colour the ACTIVE view by system + apply the resolved MEP coordination DrawingType"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Inspect"
+                                    Tag="MEP_InspectMepCoordination" Click="Cmd_Click"
+                                    ToolTip="Phase C / D — read-only dry run of the system → filter → DrawingType resolution"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Views &amp; circuits (E / F)" Style="{StaticResource HvacLabel}" Margin="0,2,0,0"/>
+                        <WrapPanel Margin="0,0,0,2">
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Build circuits"
+                                    Tag="MEP_BuildCircuits" Click="Cmd_Click"
+                                    ToolTip="Phase E — name + stamp every electrical circuit; create one from the current selection (devices + a panel)"/>
+                            <Button Style="{StaticResource HvacWarnBtn}" Content="Auto-group circuits"
+                                    Tag="MEP_AutoGroupCircuits" Click="Cmd_Click"
+                                    ToolTip="Phase F — FIRST PASS: group uncircuited devices by nearest panel into power circuits (no load balancing — review in the panel schedules)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Produce views"
+                                    Tag="MEP_ProduceMepViews" Click="Cmd_Click"
+                                    ToolTip="Phase E — duplicate the ACTIVE plan once per present discipline (M / E / P), coloured + typed"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Per-level + sheets"
+                                    Tag="MEP_ProduceMepViewsByLevel" Click="Cmd_Click"
+                                    ToolTip="Phase F — one coordinated plan per level × discipline, each placed on its own sheet"/>
+                        </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
