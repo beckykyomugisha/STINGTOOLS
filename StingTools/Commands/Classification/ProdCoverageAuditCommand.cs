@@ -44,6 +44,8 @@ namespace StingTools.Commands.Classification
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
+                TagConfig.ReloadProdRules(); // reflect any on-disk prod_codes.csv edits this session
+
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
                 var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                 var catEnums = SharedParamGuids.AllCategoryEnums;
@@ -52,7 +54,7 @@ namespace StingTools.Commands.Classification
 
                 var rolls = new SortedDictionary<string, CatRoll>(StringComparer.OrdinalIgnoreCase);
                 var rows = new List<string> { "Category,Family,Type,PROD,Source,Specific" };
-                int scanned = 0, specific = 0;
+                int scanned = 0, specific = 0, specificEqualsDefault = 0;
 
                 foreach (Element el in collector)
                 {
@@ -66,6 +68,9 @@ namespace StingTools.Commands.Classification
 
                     bool isSpecific = source == "project" || source == "corporate" || source == "lps" || source == "sleeve";
                     if (isSpecific) specific++;
+                    if ((source == "project" || source == "corporate") &&
+                        string.Equals(prod, TagConfig.CategoryProdDefault(cat), StringComparison.OrdinalIgnoreCase))
+                        specificEqualsDefault++;
 
                     if (!rolls.TryGetValue(cat, out var r)) rolls[cat] = r = new CatRoll();
                     r.Total++;
@@ -123,6 +128,10 @@ namespace StingTools.Commands.Classification
                 sb.AppendLine();
                 sb.AppendLine("Fix: run Prod_GenerateRules, then add/curate FAMILY_PATTERN rows for the families above,");
                 sb.AppendLine("and re-run Tag & Combine (Skip mode) to fill the now-specific PROD codes.");
+                sb.AppendLine();
+                sb.AppendLine("Note: \"specific %\" counts every project/corporate/LPS/sleeve match (a generous");
+                sb.AppendLine($"measure) and does not credit material-suffix differentiation; of those, {specificEqualsDefault}");
+                sb.AppendLine("resolve to a code equal to the category default (specific rule, generic-looking code).");
                 if (path != null) { sb.AppendLine(); sb.AppendLine("Per-element CSV: " + path); }
 
                 new TaskDialog("PROD Coverage Audit")

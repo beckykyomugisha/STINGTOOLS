@@ -198,3 +198,7 @@ OPL,Lighting Fixtures,*Operating Light*|*Theatre Light*|*Surgical Light*|*Examin
 # Radiation Protection (RP) / behavioural
 LDR,Doors,*Lead*|*X-Ray Door*|*Shielded Door*|*Radiation Door*,Lead-Lined Door,RP,GEN,NCRP 147
 ALD,Doors,*Anti-Ligature Door*|*Anti-Barricade*,Anti-Ligature / Anti-Barricade Door,H,GEN,HBN 03-01
+# ── Residual gap-fill (families the removed hardcoded branches once caught) ──
+IND,Mechanical Equipment,*Induction Unit*|*Induction Diffuser*,Induction Unit,M,HVAC,BS EN 14518
+VSD,Mechanical Equipment,*VFD*|*VSD*|*Inverter Drive*|*Variable Speed Drive*,Variable Speed Drive,M,HVAC,BS EN 61800
+TRV,Pipe Accessories,*TRV*|*Radiator Valve*|*Thermostatic Radiator*,Thermostatic Radiator Valve,M,HWS,BS EN 215

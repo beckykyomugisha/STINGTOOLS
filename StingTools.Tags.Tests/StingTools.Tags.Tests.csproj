@@ -29,6 +29,7 @@
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
+    <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
   </ItemGroup>
 
 </Project>

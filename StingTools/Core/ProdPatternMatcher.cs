@@ -24,6 +24,8 @@ namespace StingTools.Core
     ///   • plain substring            "AIR HANDLING"            → Contains
     ///   • leading/trailing wildcard  "*FCU*" / "FCU*" / "*FCU" → glob
     ///   • embedded wildcard          "VRV*UNIT"                → glob
+    ///   • single-char wildcard       "DN2?"                    → glob (? = any one char)
+    ///   • character class            "DN20-PN1[06]"            → glob ([…] as in regex)
     ///   • alternation                "*SPLIT*|*PACKAGED*"      → any branch wins
     /// </summary>
     public static class ProdPatternMatcher
@@ -64,20 +66,63 @@ namespace StingTools.Core
                 string alt = altRaw.Trim();
                 if (alt.Length == 0) continue;
 
-                if (alt.IndexOf('*') < 0)
+                if (alt.IndexOfAny(GlobChars) < 0)
                 {
                     list.Add(new Alt { Sub = alt }); // bare substring — fast path
                     continue;
                 }
 
-                string rx = "^" + Regex.Escape(alt).Replace("\\*", ".*") + "$";
                 try
                 {
+                    string rx = GlobToRegex(alt);
                     list.Add(new Alt { Rx = new Regex(rx, RegexOptions.Compiled | RegexOptions.CultureInvariant) });
                 }
                 catch { /* malformed glob — skip this alternative */ }
             }
             return list.ToArray();
+        }
+
+        private static readonly char[] GlobChars = { '*', '?', '[' };
+
+        /// <summary>
+        /// Translate a glob (<c>*</c> = any run, <c>?</c> = any one char,
+        /// <c>[…]</c> = regex char class) into an anchored regex. Everything
+        /// outside the wildcards is regex-escaped so literal punctuation
+        /// (<c>- ( ) / .</c>) in family names matches verbatim.
+        /// </summary>
+        private static string GlobToRegex(string glob)
+        {
+            var sb = new System.Text.StringBuilder(glob.Length + 8);
+            sb.Append('^');
+            for (int i = 0; i < glob.Length; i++)
+            {
+                char c = glob[i];
+                switch (c)
+                {
+                    case '*': sb.Append(".*"); break;
+                    case '?': sb.Append('.'); break;
+                    case '[':
+                        int close = glob.IndexOf(']', i + 1);
+                        if (close < 0) { sb.Append("\\["); break; } // unterminated → literal '['
+                        sb.Append('[');
+                        int j = i + 1;
+                        if (j < close && (glob[j] == '!' || glob[j] == '^')) { sb.Append('^'); j++; }
+                        for (; j < close; j++)
+                        {
+                            char cc = glob[j];
+                            if (cc == '\\' || cc == ']' || cc == '^') sb.Append('\\');
+                            sb.Append(cc);
+                        }
+                        sb.Append(']');
+                        i = close; // resume after ']'
+                        break;
+                    default:
+                        sb.Append(Regex.Escape(c.ToString()));
+                        break;
+                }
+            }
+            sb.Append('$');
+            return sb.ToString();
         }
     }
 }

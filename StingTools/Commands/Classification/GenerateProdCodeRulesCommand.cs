@@ -57,7 +57,13 @@ namespace StingTools.Commands.Classification
                 const string SEP = "";
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var rows = new List<(string cat, string fam, string prod, string disc, string sample)>();
-                int scanned = 0;
+                // GAP-ONLY: a row is written only when the family resolves to the GENERIC
+                // category default (source = category | gen). Families that already get a
+                // specific code (project / corporate / LPS / sleeve) are skipped —
+                // duplicating them into the overlay would shadow the corporate baseline
+                // (project wins first-match) and freeze future improvements.
+                int specificCount = 0;
+                var specificSamples = new List<string>();
 
                 foreach (Element el in collector)
                 {
@@ -67,22 +73,37 @@ namespace StingTools.Commands.Classification
                     string fam = ParameterHelpers.GetFamilyName(el);
                     if (string.IsNullOrEmpty(fam)) continue;
 
-                    scanned++;
                     if (!seen.Add(cat + SEP + fam)) continue; // first representative per (cat, family)
 
-                    string prod;
-                    try { prod = TagConfig.GetFamilyAwareProdCode(el, cat); }
-                    catch (Exception ex) { StingLog.Warn($"GenerateProdRules: PROD resolve failed for {el.Id}: {ex.Message}"); prod = "GEN"; }
-                    if (string.IsNullOrEmpty(prod)) prod = "GEN";
+                    string prod, src;
+                    try { prod = TagConfig.GetFamilyAwareProdCode(el, cat, out src); }
+                    catch (Exception ex) { StingLog.Warn($"GenerateProdRules: PROD resolve failed for {el.Id}: {ex.Message}"); prod = "GEN"; src = "gen"; }
+                    if (string.IsNullOrEmpty(prod)) { prod = "GEN"; src = "gen"; }
+
+                    bool isSpecific = src == "project" || src == "corporate" || src == "lps" || src == "sleeve";
+                    if (isSpecific)
+                    {
+                        specificCount++;
+                        if (specificSamples.Count < 12) specificSamples.Add($"{cat} / {fam} -> {prod} ({src})");
+                        continue; // already covered — don't duplicate into the overlay
+                    }
 
                     string disc = TagConfig.DiscMap.TryGetValue(cat, out var d) ? d : "";
                     rows.Add((cat, fam, prod, disc, ParameterHelpers.GetFamilySymbolName(el) ?? ""));
                 }
 
-                if (rows.Count == 0)
+                int totalFamilies = seen.Count;
+                if (totalFamilies == 0)
                 {
                     TaskDialog.Show("Generate PROD Rules",
                         "No taggable families found in the model. Place some elements (or check the category map) and re-run.");
+                    return Result.Succeeded;
+                }
+                if (rows.Count == 0)
+                {
+                    TaskDialog.Show("Generate PROD Rules",
+                        $"All {totalFamilies} distinct family(ies) already resolve to a specific PROD code via " +
+                        "the corporate baseline / LPS / sleeve rules — no gaps to curate. Nothing written.");
                     return Result.Succeeded;
                 }
 
@@ -100,8 +121,16 @@ namespace StingTools.Commands.Classification
                 var sb = new StringBuilder();
                 sb.AppendLine("PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,DISCIPLINE,SYSTEM,STANDARD_REF");
                 sb.AppendLine("# Generated live from the model by Prod_GenerateRules. Curate freely.");
-                sb.AppendLine("# FAMILY_PATTERN supports bare substrings, *globs* and a|b alternation (matched against FAMILY + TYPE name, case-insensitive).");
-                sb.AppendLine("# Project rows WIN over the corporate STING_PROD_CODES.csv. PROD is filled fill-empty-only by Tag & Combine (non-destructive).");
+                sb.AppendLine("# GAPS ONLY: these families currently get the GENERIC category default. Curate the");
+                sb.AppendLine("#   PROD_CODE / FAMILY_PATTERN columns, then Tag & Combine (Skip mode) fills empty PROD.");
+                sb.AppendLine("# FAMILY_PATTERN supports bare substrings, *globs*, ? , [..] and a|b alternation (vs FAMILY + TYPE, case-insensitive).");
+                sb.AppendLine("# Project rows WIN over the corporate STING_PROD_CODES.csv (first-match).");
+                if (specificCount > 0)
+                {
+                    sb.AppendLine($"# {specificCount} family(ies) already resolve to a specific code and were OMITTED (kept on the corporate baseline). Examples:");
+                    foreach (var s in specificSamples)
+                        sb.AppendLine("#   " + s.Replace('\r', ' ').Replace('\n', ' '));
+                }
                 foreach (var r in rows.OrderBy(x => x.cat, StringComparer.OrdinalIgnoreCase)
                                       .ThenBy(x => x.fam, StringComparer.OrdinalIgnoreCase))
                 {
@@ -116,10 +145,13 @@ namespace StingTools.Commands.Classification
                 }
 
                 File.WriteAllText(target, sb.ToString(), Encoding.UTF8);
-                StingLog.Info($"Prod_GenerateRules: {rows.Count} rules from {scanned} elements -> {target}");
+                TagConfig.ReloadProdRules(); // drop the cache so a same-session Tag & Combine sees the new overlay
+                StingLog.Info($"Prod_GenerateRules: {rows.Count} gap rule(s) ({specificCount} already-specific omitted) from {totalFamilies} families -> {target}");
 
                 var msg = new StringBuilder();
-                msg.AppendLine($"Derived {rows.Count} PROD rule(s) from {scanned} taggable element(s).");
+                msg.AppendLine($"Derived {rows.Count} PROD GAP rule(s) from {totalFamilies} distinct family(ies).");
+                if (specificCount > 0)
+                    msg.AppendLine($"({specificCount} already resolve to a specific code via the corporate baseline and were omitted.)");
                 msg.AppendLine();
                 if (wroteSuggested)
                 {

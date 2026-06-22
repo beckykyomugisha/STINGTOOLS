@@ -1762,6 +1762,21 @@ namespace StingTools.Core
         private static readonly HashSet<string> _projProdLoaded = new(StringComparer.OrdinalIgnoreCase);
         private static readonly object _prodRulesLock = new object();
 
+        /// <summary>
+        /// Public entry to drop the PROD rule caches so the next lookup re-reads
+        /// from disk. Call after writing a project <c>prod_codes.csv</c> (e.g.
+        /// Prod_GenerateRules) or before a fresh audit so on-disk edits are
+        /// reflected in the same session without a config reload / Revit restart.
+        /// </summary>
+        public static void ReloadProdRules() => InvalidateProdRulesCache();
+
+        /// <summary>The generic category-default PROD code (no family match), or
+        /// "GEN" when the category isn't mapped. Used by the coverage audit to
+        /// tell "genuinely specific" from "happens to equal the default".</summary>
+        public static string CategoryProdDefault(string categoryName)
+            => (!string.IsNullOrEmpty(categoryName) && ProdMap != null &&
+                ProdMap.TryGetValue(categoryName, out string p)) ? p : "GEN";
+
         /// <summary>Drop the corporate + project PROD rule caches so the next
         /// lookup re-reads from disk (called on config reload).</summary>
         private static void InvalidateProdRulesCache()
@@ -1891,89 +1906,25 @@ namespace StingTools.Core
 
         private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
         {
-            source = "category";
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
-            // Combined name checks both family AND type name for broader pattern matching
-            string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
-            // Data-driven PROD is the SINGLE SOURCE for category→PROD mappings:
-            // the project overlay (<project>/_BIM_COORD/prod_codes.csv) WINS over
-            // the corporate STING_PROD_CODES.csv; patterns are glob/alternation-
-            // aware. The only built-in C# paths kept below are the two cases a
-            // category-keyed CSV can't express: the LPS cross-category set and
-            // the Generic-Models sleeve case.
+            // Data-driven, single-source PROD resolution. The per-category rule
+            // lists are fetched from Revit here (project overlay + corporate CSV);
+            // the precedence chain (project → corporate → LPS → sleeve → category
+            // default → GEN), the glob matching, and the LPS/sleeve special cases
+            // all live in the pure, unit-tested ProdResolver.
             EnsureProdRulesLoaded();
+            List<(string Pattern, string ProdCode)> projForCat = null;
+            List<(string Pattern, string ProdCode)> corpForCat = null;
             if (!string.IsNullOrEmpty(familyName))
             {
                 var projRules = GetProjectProdRules(el?.Document);
-                if (projRules != null && projRules.TryGetValue(categoryName, out var pRules))
-                {
-                    foreach (var (pattern, prodCode) in pRules)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "project"; return prodCode; }
-                }
-                if (_csvProdRules != null && _csvProdRules.TryGetValue(categoryName, out var csvRules))
-                {
-                    foreach (var (pattern, prodCode) in csvRules)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "corporate"; return prodCode; }
-                }
+                projRules?.TryGetValue(categoryName, out projForCat);
+                _csvProdRules?.TryGetValue(categoryName, out corpForCat);
             }
-
-            // Built-in special cases a category-keyed CSV can't express.
-            // (The former 6 per-category branches — Mechanical / Electrical /
-            // Lighting / Plumbing Fixtures / Fire Alarm / Pipe Accessories — were
-            // removed: STING_PROD_CODES.csv now covers those categories
-            // comprehensively and is the single, editable source of truth.)
-            if (!string.IsNullOrEmpty(familyName))
-            {
-                string upper = combinedName;
-
-                // ── Lightning Protection System (BS EN 62305) — CROSS-category ──
-                // LPS elements appear in Electrical Equipment / Generic Models /
-                // Conduits / Specialty Equipment; family-name (not category)
-                // discriminates the sub-element kind, so this stays in code.
-                if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
-                    upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                    upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                    upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                    upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                    upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
-                {
-                    source = "lps";
-                    if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD")) return "ATR";
-                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE")) return "AMS";
-                    if (upper.Contains("CATENARY")) return "ACT";
-                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") || upper.Contains("DESCENT")) return "DCN";
-                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH")) return "ERD";
-                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING")) return "ERG";
-                    if (upper.Contains("FOUNDATION EARTH")) return "EFE";
-                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH")) return "EME";
-                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE")) return "ERD";
-                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR")) return "BBR";
-                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL")) return "BCN";
-                    if (upper.Contains("SPARK GAP")) return "BSG";
-                    if (upper.Contains("TYPE 1") && upper.Contains("SPD")) return "SPD1";
-                    if (upper.Contains("TYPE 2") && upper.Contains("SPD")) return "SPD2";
-                    if (upper.Contains("TYPE 3") && upper.Contains("SPD")) return "SPD3";
-                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT")) return "TCL";
-                    return "LPS"; // generic LPS fallback
-                }
-
-                // ── Generic Models — MEP sleeves / firestops (not a CSV category) ──
-                if (categoryName == "Generic Models" &&
-                    (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
-                     || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")))
-                {
-                    source = "sleeve";
-                    return "SLV";
-                }
-            }
-
-            // Category default — last resort (generic, not family-specific).
-            if (ProdMap.TryGetValue(categoryName, out string prod)) { source = "category"; return prod; }
-            source = "gen";
-            return "GEN";
+            return ProdResolver.Resolve(familyName, symbolName, categoryName,
+                                        projForCat, corpForCat, ProdMap, out source);
         }
 
         /// <summary>

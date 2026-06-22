@@ -52,5 +52,26 @@ namespace StingTools.Tags.Tests
             Assert.False(ProdPatternMatcher.Matches("FAN COIL", "*AHU*|"));
             Assert.True(ProdPatternMatcher.Matches("AHU-1", "*AHU*|"));
         }
+
+        [Theory]
+        // '?' = exactly one char
+        [InlineData("DN20", "DN2?", true)]
+        [InlineData("DN2", "DN2?", false)]      // nothing for the '?' to match
+        [InlineData("DN200", "DN2?", false)]    // anchored — too long
+        // character class
+        [InlineData("DN20-PN16", "DN20-PN1[06]", true)]
+        [InlineData("DN20-PN10", "DN20-PN1[06]", true)]
+        [InlineData("DN20-PN13", "DN20-PN1[06]", false)]
+        // class combined with glob
+        [InlineData("VALVE PN16 BRONZE", "*PN1[06]*", true)]
+        // literal punctuation outside wildcards stays literal (regex chars escaped)
+        [InlineData("TYPE (A) UNIT", "*(A)*", true)]
+        [InlineData("TYPE A UNIT", "*(A)*", false)]
+        // unterminated '[' treated as a literal, not a crash
+        [InlineData("ROW [1", "ROW [1", true)]
+        public void Matches_handles_question_mark_and_char_classes(string name, string pattern, bool expected)
+        {
+            Assert.Equal(expected, ProdPatternMatcher.Matches(name, pattern));
+        }
     }
 }
