@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199e — in-Revit OmniClass table selector + KUT parameter-file audit)
+
+Two follow-ups off the live KUT session.
+
+- **OmniClass table selector (`OmniClass_SetTable`)** — a new dock button ("OmniClass
+  Table…") in the BIM tab's CSI/SPECLINK section. Picks the active OmniClass table via
+  a TaskDialog (21 Elements / 23 Products / 41 Materials / 13 Spaces — the four that
+  ship corporate maps), writes `omniClassTable` into `_BIM_COORD/classification_policy.json`
+  (preserving any existing classification `order` via JObject merge), and invalidates the
+  cached policy so OmniClass Assign / Audit + the BOQ OmniClass column immediately use the
+  new table. Previously table switching was per-project but **JSON-edit-only**; now it's a
+  button. The other 11 OmniClass tables still resolve via a project map and are set by
+  editing the policy file. `OmniClassTables` gains `All` (ordered list), `MappedTableNumbers`,
+  and `ShipsMap(n)`; +1 test (15 tables, 4 mapped). Suite 178/179 (pre-existing carbon
+  failure only); builds clean vs Revit 2025.
+- **KUT parameter-file audit (verification, no code change)** — confirmed every shared
+  parameter the KUT lifecycle work writes is present in BOTH `MR_PARAMETERS.txt` and
+  `MR_PARAMETERS.csv`: Fohlio (`FOHLIO_REF_TXT` / `FOHLIO_CURRENCY_TXT` / `FOHLIO_UNIT_COST_NR`),
+  CSI/SpecLink (`CSI_SECTION_TXT` / `CSI_TITLE_TXT`), OmniClass (`ASS_OMNICLASS_TXT` /
+  `CLS_OMNICLASS_TITLE_TXT`), ACC (`ACC_ISSUE_ID_TXT` / `ACC_SYNC_STATUS_TXT`), Niagara/BMS
+  (`ICT_HEALTHIOT_DEVICE_ID_TXT` / `_ENDPOINT_TXT` / `_PROTOCOL_TXT` / `_ALERT_BAND_TXT`),
+  and cost (`ASS_CST_FX_DATE_DT`). The `BMS_*_TXT` names are read-only fallback aliases
+  (STING reads `ICT_HEALTHIOT_*` first, falls back to `BMS_*` only if a third-party export
+  authored them) — never written by STING, so intentionally not in the parameter file.
+
 #### Completed (Phase 199d — classification robustness/accuracy sweep: native-first + audit + material-read + hardening)
 
 A review of the classification subsystem (resolver + assigner + maps) for "how do we

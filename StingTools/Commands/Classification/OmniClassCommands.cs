@@ -409,4 +409,95 @@ namespace StingTools.Commands.Classification
             return Result.Succeeded;
         }
     }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class OmniClassSetTableCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string dir = "";
+            try { dir = Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
+            if (string.IsNullOrEmpty(dir))
+            {
+                TaskDialog.Show("OmniClass Table", "Save the project first — the active table is stored in " +
+                    "<project>/_BIM_COORD/classification_policy.json.");
+                return Result.Cancelled;
+            }
+
+            string current = ClassificationReader.OmniClassTable(doc);
+
+            // The four tables that ship a corporate map are the meaningful out-of-the-box
+            // choices (CommandLinks 1-4). The other 11 OmniClass tables resolve too but need
+            // a project map — set those by editing classification_policy.json directly.
+            string[] choices = { "21", "23", "41", "13" };   // Elements / Products / Materials / Spaces
+            var picker = new TaskDialog("OmniClass Table")
+            {
+                MainInstruction = "Choose the active OmniClass table",
+                MainContent = $"Drives OmniClass Assign / Audit + the BOQ OmniClass column. " +
+                    $"Current: {OmniClassTables.Resolve(current).Label}.\n\n" +
+                    "These four ship corporate maps. The other 11 tables resolve via a project " +
+                    "map (_BIM_COORD/omniclass_map.csv) — set those in classification_policy.json.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Table 21 — Elements" + (current == "21" ? "   (current)" : ""), "Classify each element by its own category / family / type / system");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Table 23 — Products" + (current == "23" ? "   (current)" : ""), "Classify by product type; honours a native OmniClass code authored on the type");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Table 41 — Materials" + (current == "41" ? "   (current)" : ""), "Classify by the element's actual material name");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Table 13 — Spaces by Function" + (current == "13" ? "   (current)" : ""), "Classify the element's HOST ROOM by function (spatial axis)");
+            var res = picker.Show();
+            int idx = res - TaskDialogResult.CommandLink1;
+            if (idx < 0 || idx >= choices.Length) return Result.Cancelled;
+            string number = choices[idx];
+            if (number == current)
+            {
+                TaskDialog.Show("OmniClass Table", $"Already set to {OmniClassTables.Resolve(number).Label}.");
+                return Result.Succeeded;
+            }
+
+            // Write omniClassTable into the project policy, PRESERVING any existing
+            // classification order. JObject merge keeps unknown keys intact.
+            try
+            {
+                string bim = Path.Combine(dir, "_BIM_COORD");
+                Directory.CreateDirectory(bim);
+                string path = Path.Combine(bim, "classification_policy.json");
+                Newtonsoft.Json.Linq.JObject root;
+                if (File.Exists(path))
+                {
+                    try { root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path)); }
+                    catch { root = new Newtonsoft.Json.Linq.JObject(); }
+                }
+                else root = new Newtonsoft.Json.Linq.JObject();
+                root["omniClassTable"] = number;
+                File.WriteAllText(path, root.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OmniClass_SetTable write", ex);
+                TaskDialog.Show("OmniClass Table", "Could not write classification_policy.json: " + ex.Message);
+                return Result.Failed;
+            }
+
+            ClassificationReader.InvalidatePolicy();   // next Assign/Audit/BOQ re-reads the file
+
+            var info = OmniClassTables.Resolve(number);
+            new TaskDialog("OmniClass Table")
+            {
+                MainInstruction = $"Active OmniClass table → {info.Label}",
+                MainContent = (OmniClassTables.ShipsMap(number)
+                        ? "This table ships a corporate map — run OmniClass Audit to see coverage, then OmniClass Assign."
+                        : $"⚠ Table {number} has no corporate map. Add rows to _BIM_COORD/omniclass_map.csv " +
+                          "(matchOn directive optional) or nothing will classify.") +
+                    "\n\nStored in _BIM_COORD/classification_policy.json. The BOQ OmniClass column + " +
+                    "OmniClass Assign/Audit now use this table."
+            }.Show();
+            StingLog.Info($"OmniClass_SetTable: {current} → {number} ({info.Label})");
+            return Result.Succeeded;
+        }
+    }
 }

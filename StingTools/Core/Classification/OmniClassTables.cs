@@ -16,6 +16,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Classification
 {
@@ -81,6 +82,19 @@ namespace StingTools.Core.Classification
                 MapFile = $"STING_OMNICLASS_{n}_MAP.csv"
             };
         }
+
+        /// <summary>The tables that ship a corporate STING_OMNICLASS_&lt;n&gt;_MAP.csv out of
+        /// the box (so OmniClass_Assign / Audit work with no project overlay). Other tables
+        /// resolve but need their map supplied via _BIM_COORD/omniclass_map.csv.</summary>
+        public static readonly HashSet<string> MappedTableNumbers =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "21", "23", "41", "13" };
+
+        /// <summary>All known OmniClass tables, ordered by number, for a UI selector.</summary>
+        public static IReadOnlyList<OmniClassTableInfo> All =>
+            Known.Values.OrderBy(t => int.TryParse(t.Number, out int n) ? n : 999).ToList();
+
+        /// <summary>True if the table ships a corporate map.</summary>
+        public static bool ShipsMap(string number) => MappedTableNumbers.Contains((number ?? "").Trim());
 
         /// <summary>The table number a code belongs to, read from its numeric prefix
         /// ("21-04 30 00" → "21"). Empty when the code has no leading number.</summary>

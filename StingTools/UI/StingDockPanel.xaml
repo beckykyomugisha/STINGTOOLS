@@ -3659,6 +3659,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
                                             ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT (MasterFormat) from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="OmniClass Table…" Tag="OmniClass_SetTable" Click="Cmd_Click"
+                                            ToolTip="Pick the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces ship maps; the other 11 tables resolve via _BIM_COORD/omniclass_map.csv). Sets classification_policy.json — drives OmniClass Assign / Audit + the BOQ column"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="OmniClass Assign" Tag="OmniClass_Assign" Click="Cmd_Click"
                                             ToolTip="Resolve + write ASS_OMNICLASS_TXT for the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces, per classification_policy.json). Native-authored codes win; the map is the bootstrap"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="OmniClass Audit" Tag="OmniClass_Audit" Click="Cmd_Click"

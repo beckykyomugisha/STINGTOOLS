@@ -218,5 +218,22 @@ namespace StingTools.Boq.Tests
             Assert.True(OmniClassTables.Resolve("13").IsSpatial);
             Assert.False(OmniClassTables.Resolve("41").IsSpatial);               // material ≠ spatial
         }
+
+        [Fact]
+        public void TableRegistry_All_ListsEveryTable_FlagsMappedOnes()
+        {
+            var all = OmniClassTables.All;
+            Assert.Equal(15, all.Count);                              // the real OmniClass tables
+            Assert.Equal(new[] { "11", "12", "13", "14", "21" },     // ordered by number
+                all.Take(5).Select(t => t.Number).ToArray());
+            // Only 21/23/41/13 ship a corporate map out of the box.
+            Assert.True(OmniClassTables.ShipsMap("21"));
+            Assert.True(OmniClassTables.ShipsMap("23"));
+            Assert.True(OmniClassTables.ShipsMap("41"));
+            Assert.True(OmniClassTables.ShipsMap("13"));
+            Assert.False(OmniClassTables.ShipsMap("32"));
+            Assert.False(OmniClassTables.ShipsMap("99"));
+            Assert.Equal(4, OmniClassTables.MappedTableNumbers.Count);
+        }
     }
 }
