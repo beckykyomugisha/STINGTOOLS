@@ -71,6 +71,12 @@ export default function ProjectPage() {
             Clashes
           </Link>
           <Link
+            href={`/projects/${projectId}/meetings`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Meetings
+          </Link>
+          <Link
             href={`/projects/${projectId}/viewer`}
             className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >
