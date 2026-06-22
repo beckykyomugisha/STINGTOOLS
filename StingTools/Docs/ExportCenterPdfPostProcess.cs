@@ -133,25 +133,29 @@ namespace StingTools.Docs
 
                     double w = page.Width.Point;
                     double h = page.Height.Point;
-                    var size = gfx.MeasureString(pdf.WatermarkText, font);
+                    const double margin = 20;
+                    var area = new XRect(margin, margin, w - 2 * margin, h - 2 * margin);
 
                     gfx.Save();
-                    switch (pdf.WatermarkPosition)
+                    string pos = string.IsNullOrWhiteSpace(pdf.WatermarkPosition)
+                        ? "DiagonalCentre" : pdf.WatermarkPosition.Trim();
+
+                    if (pos == "DiagonalCentre")
                     {
-                        case "TopLeft":
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
-                                new XPoint(20, 20 + size.Height));
-                            break;
-                        case "BottomRight":
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
-                                new XPoint(w - size.Width - 20, h - 20));
-                            break;
-                        default: // DiagonalCentre
-                            gfx.TranslateTransform(w / 2, h / 2);
-                            gfx.RotateTransform(-30);
-                            gfx.DrawString(pdf.WatermarkText, font, brush,
-                                new XPoint(-size.Width / 2, size.Height / 2));
-                            break;
+                        // True page centre, rotated -30°. Translate to the centre and let
+                        // XStringFormats.Center place the string about the origin so it is
+                        // genuinely centred regardless of font metrics / baseline.
+                        gfx.TranslateTransform(w / 2.0, h / 2.0);
+                        gfx.RotateTransform(-30);
+                        gfx.DrawString(pdf.WatermarkText, font, brush,
+                            new XPoint(0, 0), XStringFormats.Center);
+                    }
+                    else
+                    {
+                        // Grid placement: anchor the string in the requested cell of the
+                        // page area using the matching alignment format.
+                        gfx.DrawString(pdf.WatermarkText, font, brush, area,
+                            ResolveStringFormat(pos));
                     }
                     gfx.Restore();
                 }
@@ -165,6 +169,28 @@ namespace StingTools.Docs
         }
 
         // ── Helpers ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Maps a watermark grid position id to the matching XStringFormat
+        /// (alignment within the page area). "DiagonalCentre" is handled
+        /// separately by the caller (rotated). Unknown values centre the text.
+        /// </summary>
+        private static XStringFormat ResolveStringFormat(string position)
+        {
+            switch (position)
+            {
+                case "TopLeft":      return XStringFormats.TopLeft;
+                case "TopCentre":    return XStringFormats.TopCenter;
+                case "TopRight":     return XStringFormats.TopRight;
+                case "MiddleLeft":   return XStringFormats.CenterLeft;
+                case "Centre":       return XStringFormats.Center;
+                case "MiddleRight":  return XStringFormats.CenterRight;
+                case "BottomLeft":   return XStringFormats.BottomLeft;
+                case "BottomCentre": return XStringFormats.BottomCenter;
+                case "BottomRight":  return XStringFormats.BottomRight;
+                default:             return XStringFormats.Center;
+            }
+        }
 
         private static string ResolveLevelLabel(View v)
         {
