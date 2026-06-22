@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase F: per-level fan-out + sheets + circuit auto-grouping)
+
+The two deferred conveniences from Phase E. **Built + verified with `dotnet build`
+against the Revit 2025 API (0 warnings, 0 errors)** — including the live
+`ViewPlan.Create` / `ViewSheet.Create` / `Viewport.Create` / `FamilySymbol.Activate`
+/ `MEPModel.GetElectricalSystems` / `ElectricalSystem.Create` calls.
+
+**1. Per-level fan-out + auto sheet-placement** (`Core/Mep/MepLevelViewProducer.cs`
++ `MEP_ProduceMepViewsByLevel`). For every Level that hosts MEP of a discipline
+(M = ducts, P = pipes, E = electrical devices) it creates a fresh floor plan via
+`ViewPlan.Create`, sets `View.Discipline`, applies the resolved MEP DrawingType +
+per-domain system colours, then drops the view onto its own sheet: resolves the
+title block from `DrawingType.TitleBlockFamily` (else first available, activated),
+numbers + names the sheet from `SheetNumberPattern` / `SheetNamePattern`
+(`{disc}`/`{discipline}`/`{lvl}`/`{purpose}`/`{seq:Dn}` substituted, uniqued against
+existing), and places a centred `Viewport` (guarded by `CanAddViewToSheet`). One
+command turns a model into a per-level M/E/P coordinated sheet set.
+
+**2. Electrical circuit auto-grouping** (`Core/Mep/MepCircuitBuilder.AutoGroup` +
+`MEP_AutoGroupCircuits`). Reconsidered the "user-driven only" stance into an
+**opt-in, reviewable first pass**: groups every *un-circuited* device (those whose
+`MEPModel.GetElectricalSystems()` is empty) by nearest panel — same level preferred,
+within 30 m — into power circuits of ≤8 devices, creates each via
+`ElectricalSystem.Create(PowerCircuit)` + `SelectPanel`, and stamps the STING name +
+tokens. The result panel leads with a **⚠ REVIEW REQUIRED** banner: it does no load
+balancing or phase allocation — it's a starting point an engineer rebalances in the
+panel schedules, not silent authority. The final design call stays with the engineer.
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`
+(`MEP_ProduceMepViewsByLevel`, `MEP_AutoGroupCircuits`).
+
+**Still honest**: sheet layout is one-view-per-sheet (multi-view packing is the
+Sheet Manager's job — these views are ready for it); auto-grouping defaults
+(8/30 m) are corporate sensible, not yet project-overridable; runtime behaviour of
+the view/sheet/circuit-creation paths still wants live-Revit verification.
+
 #### Completed (MEP Systems — Phase E: per-discipline view production + electrical circuits)
 
 The two remaining extensions. **Built + verified with `dotnet build` against the

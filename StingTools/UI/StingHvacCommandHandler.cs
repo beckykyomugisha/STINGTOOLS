@@ -159,6 +159,11 @@ namespace StingTools.UI
                         Run<StingTools.Commands.Mep.MepProduceMepViewsCommand>(app); break;
                     case "MEP_BuildCircuits":
                         Run<StingTools.Commands.Mep.MepBuildCircuitsCommand>(app); break;
+                    // Phase F — per-level fan-out + sheets, circuit auto-grouping.
+                    case "MEP_ProduceMepViewsByLevel":
+                        Run<StingTools.Commands.Mep.MepProduceMepViewsByLevelCommand>(app); break;
+                    case "MEP_AutoGroupCircuits":
+                        Run<StingTools.Commands.Mep.MepAutoGroupCircuitsCommand>(app); break;
                     case "Hvac_AutoFireDamper":
                     case "Routing_AutoFireDamper":
                         Run<StingTools.Commands.RoutingExt.AutoFireDamperCommand>(app); break;
