@@ -3,6 +3,30 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP-from-DWG — P7-3: riser sizing + drainage-fall visibility)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **3.3 `RiserDefaultSize` wired into `BuildRisers` (was inert).** P6-3 shipped a
+  per-kind `RiserDefaultSize` in `STING_DWG_RUN_RULES.json` (Duct 400×250 / Pipe
+  DN100 / Conduit DN50 / Tray 300×100) that nothing consumed — detection stamped
+  every riser with the *branch* `Default(kind)`, so the field was dead. Now:
+  detection (`MepDetectionEngine`) tries to parse a real size off the riser block
+  name then its layer (`ParseSize`); only when nothing parses does it leave the
+  result `FromLayer=false`. `MepRunBuilder.BuildRisers` then applies
+  `Rules.RiserDefaultSize(kind)` to any riser with no parsed size (a stack is
+  larger than a branch), **not** the branch default. Proven live in the report:
+  `N riser(s) sized from RiserDefaultSize`, plus a flag for any left unsized (no
+  parse **and** an empty/zero `RiserDefaultSize` override → branch-default fallback).
+- **3.2a Drainage flat-fall visibility (parity kept, choice surfaced).** The flat
+  1.25 % (1:80) `DrainageSlopeBands` single-band default **stays the default** —
+  graduating it silently would move invert geometry on every existing project.
+  New `MepRunRules.IsFlatDrainageDefault` (no bands, or one full-range band) drives
+  a preview + conversion report note: *"drainage fall is flat 1.25% (not
+  diameter-graded) — populate DrainageSlopeBands for BS EN 12056 graduated falls"*.
+  The opt-in (≥2 diameter-keyed bands) is documented in `DWG_TO_BIM_GUIDE.md` with
+  the worked band example (DN≤50 → 1:40, DN≤75 → 1:60, DN≤100 → 1:80, larger → 1:100).
+
 #### Completed (MEP-from-DWG — P7-2: alignment — first-class STING data)
 
 **Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.

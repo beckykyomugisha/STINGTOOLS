@@ -118,6 +118,14 @@ namespace StingTools.Core.Cad.Mep
             return MepRunClassifier.DefaultDrainageSlopePercent;
         }
 
+        /// <summary>P7-3.2a — true when drainage falls resolve to the flat single-band default
+        /// (no bands, or one full-range band) rather than diameter-graded BS EN 12056 falls.
+        /// Reporting only: the flat 1.25 % stays the default (changing it silently would move
+        /// invert geometry on every existing project). Projects opt into graduated falls by
+        /// populating DrainageSlopeBands with ≥2 bands.</summary>
+        public bool IsFlatDrainageDefault
+            => DrainageSlopeBands == null || DrainageSlopeBands.Count <= 1;
+
         /// <summary>Service token → classification. Project ServiceRules win when one matches;
         /// otherwise the corporate MepServiceClassifier mapping (in code) is used.</summary>
         public MEPSystemClassification Classify(string layer, MepRunKind kind, out bool defaulted)
