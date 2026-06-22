@@ -144,3 +144,34 @@ EVC,Specialty Equipment,*EV Charger*|*Charging Point*,Electric Vehicle Charging 
 SOL,Mechanical Equipment,*Solar*|*PV*|*Photovoltaic*,Solar PV Panel / Array,E,LV,BS EN 61730
 BAT,Electrical Equipment,*Battery*|*ESS*|*Energy Storage*,Battery Energy Storage System,E,LV,BS EN 62619
 WTB,Mechanical Equipment,*Wind Turbine*,Wind Turbine,M,HVAC,BS EN 61400
+# ── Curated gap-fill rows (Phase: post hardcoded-branch migration) ──
+# Appended AFTER existing rows so existing specific patterns still win first.
+# Plumbing Fixtures
+BDT,Plumbing Fixtures,*Bidet*,Bidet,P,SAN,BS EN 14528
+GIT,Plumbing Fixtures,*Grease Trap*|*Grease Interceptor*|*Grease Separator*,Grease Interceptor,P,SAN,BS EN 1825
+EYW,Plumbing Fixtures,*Eyewash*|*Eye Wash*,Emergency Eyewash,P,DCW,BS EN 15154
+MOP,Plumbing Fixtures,*Mop Sink*|*Cleaner*|*Janitorial*|*Bucket Sink*|*Belfast*,Cleaner's / Mop Sink,P,SAN,BS 6465-2
+WCL,Plumbing Fixtures,*Water Cooler*|*Chilled Water Dispenser*,Water Cooler,P,DCW,BS EN 16361
+# Mechanical Equipment
+VAV,Mechanical Equipment,*VAV*|*Variable Air Volume*,VAV Terminal Box,M,HVAC,BS EN 16798
+CBM,Mechanical Equipment,*Chilled Beam*|*Active Beam*|*Passive Beam*,Chilled Beam,M,HVAC,BS EN 14518
+RAD,Mechanical Equipment,*Radiator*|*Radiant Panel*|*Trench Heat*,Radiator / Radiant Panel,M,HWS,BS EN 442
+CAS,Mechanical Equipment,*Cassette*,Ceiling Cassette Unit,M,HVAC,BS EN 14511
+FAN,Mechanical Equipment,*Extract Fan*|*Exhaust Fan*|*Supply Fan*|*Axial Fan*|*Centrifugal Fan*|*Jet Fan*,Fan,M,HVAC,BS EN ISO 5801
+HPU,Mechanical Equipment,*Heat Pump*|*ASHP*|*GSHP*|*Air Source*|*Ground Source*,Heat Pump,M,HVAC,BS EN 14511
+# Lighting Fixtures
+LTD,Lighting Fixtures,*Downlight*|*Down Light*,Downlight,E,LV,BS EN 12464-1
+LTO,Lighting Fixtures,*Spotlight*|*Spot Light*|*Projector*,Spotlight / Projector,E,LV,BS EN 12464-1
+LTB,Lighting Fixtures,*Bollard*,Bollard Luminaire,E,LV,BS EN 12464-1
+LTU,Lighting Fixtures,*Uplight*|*Uplighter*,Uplighter,E,LV,BS EN 12464-1
+LTL,Lighting Fixtures,*Flood*|*Floodlight*,Floodlight,E,LV,BS EN 12464-2
+LTH,Lighting Fixtures,*Chandelier*|*Decorative*|*Feature Light*,Decorative / Feature Luminaire,E,LV,BS EN 12464-1
+# Electrical Equipment
+SPD,Electrical Equipment,*Surge*|*SPD*,Surge Protection Device,E,LV,BS EN 62305-4
+ISL,Electrical Equipment,*Isolator*|*Disconnect*|*Isolation Switch*,Isolator / Disconnector,E,LV,BS EN 60947-3
+SFS,Electrical Equipment,*Soft Start*|*Softstarter*,Soft Starter,E,LV,BS EN 60947-4
+MST,Electrical Equipment,*DOL Starter*|*Star Delta*|*Motor Starter*,Motor Starter,E,LV,BS EN 60947-4
+# Pipe Accessories
+DRV,Pipe Accessories,*Balancing*|*Double Regulating*|*Commissioning Set*,Balancing / DRV Valve,M,HWS,BS 7350
+SAV,Pipe Accessories,*Safety Valve*|*Relief Valve*,Safety / Relief Valve,M,HWS,BS EN ISO 4126
+AAV,Pipe Accessories,*Air Vent*|*Auto Air Vent*,Automatic Air Vent,M,HWS,BS EN 12050
