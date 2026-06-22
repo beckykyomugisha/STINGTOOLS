@@ -730,7 +730,16 @@ namespace StingTools.Core
                 if (data.TryGetValue("SEQ_SCHEME", out object seqSchemeObj) && seqSchemeObj is string seqSchemeStr)
                 {
                     if (Enum.TryParse<SeqScheme>(seqSchemeStr, true, out var parsed))
+                    {
+                        // ZonePrefix / DiscPrefix are deprecated (they corrupt the
+                        // fixed 8-segment grammar). Heal a persisted value to Numeric.
+                        if (parsed == SeqScheme.ZonePrefix || parsed == SeqScheme.DiscPrefix)
+                        {
+                            StingLog.Warn($"SEQ scheme '{parsed}' is deprecated (breaks the 8-segment tag); using Numeric.");
+                            parsed = SeqScheme.Numeric;
+                        }
                         CurrentSeqScheme = parsed;
+                    }
                 }
                 if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
                 {
@@ -1071,7 +1080,7 @@ namespace StingTools.Core
                 ConfigSource = path;
                 // Reload CSV-derived lookup tables so project-specific additions survive config reload
                 // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
-                _csvProdRulesLoaded = false;
+                InvalidateProdRulesCache(); // clears corporate + project prod_codes overlays
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
@@ -1163,7 +1172,7 @@ namespace StingTools.Core
             // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
             ISO19650Validator.InvalidateValidatorCaches();
             // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
-            _csvProdRulesLoaded = false;
+            InvalidateProdRulesCache();
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -1744,16 +1753,81 @@ namespace StingTools.Core
         private static Dictionary<string, List<(string Pattern, string ProdCode)>> _csvProdRules;
         private static bool _csvProdRulesLoaded = false;
 
+        // Project-scoped PROD rule overlays, keyed by the project's _BIM_COORD dir.
+        // Mirrors the Fohlio / tag-scheme project-override pattern: a project
+        // <project>/_BIM_COORD/prod_codes.csv layers OVER the corporate
+        // STING_PROD_CODES.csv, and its rules WIN (checked first, first-match).
+        private static readonly Dictionary<string, Dictionary<string, List<(string Pattern, string ProdCode)>>>
+            _projProdRules = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> _projProdLoaded = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _prodRulesLock = new object();
+
+        /// <summary>Drop the corporate + project PROD rule caches so the next
+        /// lookup re-reads from disk (called on config reload).</summary>
+        private static void InvalidateProdRulesCache()
+        {
+            lock (_prodRulesLock)
+            {
+                _csvProdRulesLoaded = false;
+                _csvProdRules = null;
+                _projProdLoaded.Clear();
+                _projProdRules.Clear();
+            }
+        }
+
         private static void EnsureProdRulesLoaded()
         {
             if (_csvProdRulesLoaded) return;
-            _csvProdRulesLoaded = true;
-            _csvProdRules = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+            lock (_prodRulesLock)
+            {
+                if (_csvProdRulesLoaded) return;
+                _csvProdRules = LoadProdCsv(StingToolsApp.FindDataFile("STING_PROD_CODES.csv"))
+                                ?? new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+                _csvProdRulesLoaded = true;
+                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} corporate PROD category rule sets from STING_PROD_CODES.csv");
+            }
+        }
+
+        /// <summary>
+        /// Resolve the project-scoped PROD rule overlay for a document, if any.
+        /// Loaded from &lt;project&gt;/_BIM_COORD/prod_codes.csv and cached per
+        /// project dir. Returns null when the document is unsaved or no overlay
+        /// file exists. Project rules take precedence over the corporate baseline.
+        /// </summary>
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> GetProjectProdRules(Document doc)
+        {
+            string path = doc?.PathName;
+            if (string.IsNullOrEmpty(path)) return null;
+            string dir = System.IO.Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(dir)) return null;
+            string key = System.IO.Path.Combine(dir, "_BIM_COORD");
+            lock (_prodRulesLock)
+            {
+                if (_projProdLoaded.Contains(key))
+                    return _projProdRules.TryGetValue(key, out var cached) ? cached : null;
+                _projProdLoaded.Add(key);
+                var rules = LoadProdCsv(System.IO.Path.Combine(key, "prod_codes.csv"));
+                if (rules != null && rules.Count > 0)
+                {
+                    _projProdRules[key] = rules;
+                    StingLog.Info($"TagConfig: loaded {rules.Count} project PROD category rule sets from {key}");
+                }
+                return rules;
+            }
+        }
+
+        /// <summary>
+        /// Parse a STING_PROD_CODES.csv-format file into category → (pattern, prodCode)
+        /// rules. The FAMILY_PATTERN cell is stored upper-cased; matching is
+        /// glob/alternation-aware via <see cref="ProdPatternMatcher"/>. Returns null
+        /// when the file is missing or unreadable.
+        /// </summary>
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> LoadProdCsv(string csvPath)
+        {
+            if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return null;
+            var map = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                string csvPath = StingToolsApp.FindDataFile("STING_PROD_CODES.csv");
-                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
-
                 bool first = true;
                 foreach (string raw in System.IO.File.ReadLines(csvPath))
                 {
@@ -1769,13 +1843,13 @@ namespace StingTools.Core
                     string pattern  = cols[2].Trim().ToUpperInvariant();
                     if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
 
-                    if (!_csvProdRules.TryGetValue(category, out var list))
-                    { list = new List<(string, string)>(); _csvProdRules[category] = list; }
+                    if (!map.TryGetValue(category, out var list))
+                    { list = new List<(string, string)>(); map[category] = list; }
                     list.Add((pattern, prodCode));
                 }
-                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} category rule sets from STING_PROD_CODES.csv");
             }
-            catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"TagConfig: LoadProdCsv({csvPath}) failed: {ex.Message}"); return null; }
+            return map;
         }
 
         /// <summary>
@@ -1812,13 +1886,24 @@ namespace StingTools.Core
             // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
-            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches
+            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches.
+            // Precedence: project overlay (<project>/_BIM_COORD/prod_codes.csv) WINS over the
+            // corporate STING_PROD_CODES.csv. Patterns are glob/alternation-aware so the shipped
+            // *Air Handling* / *Split*|*Packaged* rows actually match.
             EnsureProdRulesLoaded();
-            if (!string.IsNullOrEmpty(familyName) && _csvProdRules != null
-                && _csvProdRules.TryGetValue(categoryName, out var csvRules))
+            if (!string.IsNullOrEmpty(familyName))
             {
-                foreach (var (pattern, prodCode) in csvRules)
-                    if (combinedName.Contains(pattern)) return prodCode;
+                var projRules = GetProjectProdRules(el?.Document);
+                if (projRules != null && projRules.TryGetValue(categoryName, out var pRules))
+                {
+                    foreach (var (pattern, prodCode) in pRules)
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) return prodCode;
+                }
+                if (_csvProdRules != null && _csvProdRules.TryGetValue(categoryName, out var csvRules))
+                {
+                    foreach (var (pattern, prodCode) in csvRules)
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) return prodCode;
+                }
             }
 
             // Only apply family-level overrides for categories with diverse equipment
@@ -2428,6 +2513,14 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
             }
+
+            // Keep ASS_DISPLAY_TXT (the presentational container that tag families
+            // read for refreshable token-depth) populated with the full canonical
+            // tag right after tagging. Depth masking is applied non-destructively
+            // and on demand by RefreshTagDisplayCommand, which re-masks
+            // ASS_DISPLAY_TXT from this canonical ASS_TAG_1_TXT — so the full tag
+            // is always recoverable. No-op when ASS_DISPLAY_TXT isn't bound.
+            ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
