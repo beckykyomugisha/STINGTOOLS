@@ -65,6 +65,18 @@ export default function ProjectPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
+            href={`/projects/${projectId}/documents`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Documents
+          </Link>
+          <Link
+            href={`/projects/${projectId}/members`}
+            className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          >
+            Members
+          </Link>
+          <Link
             href={`/projects/${projectId}/clashes`}
             className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >

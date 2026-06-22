@@ -90,3 +90,60 @@ export interface ProjectModel {
   revision?: string;
   uploadedAt?: string;
 }
+
+// ── Documents (CDE) ──
+export interface ProjectDocument {
+  id: string;
+  fileName: string;
+  description?: string | null;
+  documentType?: string;
+  cdeStatus: string; // WIP | SHARED | PUBLISHED | ARCHIVE | SUPERSEDED | WITHDRAWN | OBSOLETE
+  suitabilityCode?: string; // S0–S7 | CR | AB
+  revision?: string | null;
+  discipline?: string | null;
+  originator?: string | null;
+  fileSizeBytes?: number;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  scanStatus?: string; // PENDING | CLEAN | INFECTED | SKIPPED
+}
+
+export interface DocumentListResponse {
+  items: ProjectDocument[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// ── Project members ──
+export interface ProjectMember {
+  id: string; // member row id
+  userId: string;
+  email: string;
+  displayName: string;
+  projectRole: string; // Viewer | Contributor | Coordinator | Manager | Owner | Admin
+  iso19650Role?: string;
+  joinedAt?: string | null;
+  invitedBy?: string | null;
+}
+
+export interface Iso19650Role {
+  code: string;
+  label: string;
+}
+
+// ── Cross-project search ──
+export interface SearchResult {
+  type: 'tag' | 'issue' | 'document' | 'meeting';
+  id: string;
+  label: string;
+  detail: string;
+  projectId: string;
+  projectName: string;
+}
+
+export interface SearchResponse {
+  query: string;
+  count: number;
+  results: SearchResult[];
+}

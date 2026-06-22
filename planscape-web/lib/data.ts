@@ -7,6 +7,11 @@ import type {
   ClashListResponse,
   ClashDetectionResult,
   ProjectModel,
+  ProjectDocument,
+  DocumentListResponse,
+  ProjectMember,
+  Iso19650Role,
+  SearchResponse,
 } from './types';
 
 // ── Projects ──
@@ -94,4 +99,64 @@ export function modelFileUrl(projectId: string, modelId: string): string {
   const token = getToken();
   const base = `${API_BASE}/api/projects/${projectId}/models/${modelId}/file`;
   return token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+}
+
+// ── Documents (CDE) ──
+export async function listDocuments(
+  projectId: string,
+  opts: { cdeStatus?: string; discipline?: string; documentType?: string; search?: string } = {},
+): Promise<ProjectDocument[]> {
+  const params = new URLSearchParams();
+  if (opts.cdeStatus) params.set('cdeStatus', opts.cdeStatus);
+  if (opts.discipline) params.set('discipline', opts.discipline);
+  if (opts.documentType) params.set('documentType', opts.documentType);
+  if (opts.search) params.set('search', opts.search);
+  const qs = params.toString();
+  const raw = await api<DocumentListResponse | ProjectDocument[]>(
+    `/api/projects/${projectId}/documents${qs ? `?${qs}` : ''}`,
+  );
+  return Array.isArray(raw) ? raw : (raw.items ?? []);
+}
+
+/** Authenticated download URL — token as a query param (global ?access_token=
+ *  auth), so a plain anchor download carries the bearer. */
+export function documentDownloadUrl(projectId: string, docId: string): string {
+  const token = getToken();
+  const base = `${API_BASE}/api/projects/${projectId}/documents/${docId}/download`;
+  return token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+}
+
+// ── Project members ──
+export function listMembers(projectId: string): Promise<ProjectMember[]> {
+  return api<ProjectMember[]>(`/api/projects/${projectId}/members`);
+}
+
+export function listProjectRoles(projectId: string): Promise<Iso19650Role[]> {
+  return api<Iso19650Role[]>(`/api/projects/${projectId}/members/roles`);
+}
+
+export function inviteMember(
+  projectId: string,
+  body: { email: string; displayName?: string; projectRole?: string; iso19650Role?: string },
+): Promise<{ message?: string; isPending?: boolean; emailSent?: boolean }> {
+  return api(`/api/projects/${projectId}/members/invite`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function updateMemberRole(
+  projectId: string,
+  memberId: string,
+  body: { projectRole?: string; iso19650Role?: string },
+): Promise<{ id: string; projectRole: string; iso19650Role?: string }> {
+  return api(`/api/projects/${projectId}/members/${memberId}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export function removeMember(projectId: string, memberId: string): Promise<void> {
+  return api(`/api/projects/${projectId}/members/${memberId}`, { method: 'DELETE' });
+}
+
+// ── Cross-project search ──
+export function search(q: string, types?: string[], limit = 25): Promise<SearchResponse> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  if (types && types.length) params.set('type', types.join(','));
+  return api<SearchResponse>(`/api/search?${params.toString()}`);
 }

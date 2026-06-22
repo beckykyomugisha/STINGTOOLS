@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 export function AppShell({ children }: { children: ReactNode }) {
   const { ready, user, logout } = useAuth();
   const router = useRouter();
+  const [q, setQ] = useState('');
 
   useEffect(() => {
     if (ready && !user) router.replace('/login');
@@ -25,6 +26,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           Planscape
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (q.trim().length >= 2) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+            }}
+          >
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search…"
+              aria-label="Search"
+              className="w-40 rounded border border-slate-300 px-2 py-1 text-sm focus:w-56"
+            />
+          </form>
           <span className="text-slate-500">{user.email}</span>
           <button
             onClick={() => {
