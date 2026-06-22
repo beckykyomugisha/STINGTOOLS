@@ -3,6 +3,37 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase C: MEP-aware drawing coordination)
+
+Closes the create-systems → coordinated-drawing loop. Reads the MEP system
+**classifications** actually present in the model (the same `RBS_SYSTEM_CLASSIFICATION`
+the Phase A types carry and Phase B stamps onto elements), resolves the matching
+corporate AEC filter from `STING_AEC_FILTERS.json` **auto-matched by the live
+classification value** (no manual enum map to drift), lazy-creates it via
+`AecFilterFactory`, and applies it to a view with the filter's own discipline colour —
+on top of the MEP DrawingType's template + style pack resolved through
+`DrawingDispatcher`. **Built + verified with `dotnet build` against the Revit 2025
+API (0 warnings, 0 errors)** — including the live `View.AddFilter` /
+`SetFilterOverrides` / `DrawingTypePresentation.Apply` calls.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/Mep/MepCoordinationEngine.cs` | `PresentClassifications(doc)` reads distinct system-classification strings straight off duct/pipe members; `ApplyToView(doc, view)` matches each to its `STING_AEC_FILTERS.json` definition (`RBS_SYSTEM_CLASSIFICATION_PARAM equals "<value>"`), `FindOrCreate`s the filter, adds it to the view, and applies the filter's hex colour override (solid surface + projection/cut lines). Caller owns the transaction. |
+| `StingTools/Commands/Mep/MepCoordinationCommands.cs` | `MEP_ApplyMepCoordination` — resolves the MEP coordination/plan DrawingType via `DrawingDispatcher`, applies its presentation to the active view, then overlays the classification colour filters. `MEP_InspectMepCoordination` — read-only dry run: present classifications → resolved filter + DrawingType. |
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`.
+
+**The deep integration**: one classification chain end-to-end — Phase A colour on the
+system *type* (project-wide) → Phase B classification stamped on the *element* →
+Phase C filter override on the *view*. Supply Air reads GSA-blue, Return Air green,
+CHW navy, etc., with zero manual per-view setup. Classifications with no matching AEC
+filter are reported (add one to `STING_AEC_FILTERS.json`); flow-vs-return / CHW-vs-LTHW
+splits that share one `MEPSystemClassification` are a known Revit limitation surfaced
+honestly. Full per-discipline view *production* (duplicate/create plans per system) is
+the natural next extension on top of this engine.
+
 #### Completed (MEP Systems — Phase B: System Instance Builder)
 
 Builds on Phase A: walks the MEP connector graph (same traversal as
