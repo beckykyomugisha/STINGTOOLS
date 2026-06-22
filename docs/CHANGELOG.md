@@ -35,6 +35,37 @@ defaults to type/name/stamp only (zero fragile API calls); the best-effort
 `Commands/Mep/MepSystemInstanceCommands.cs` (opt-in split), `Commands/Mep/MepCoordinationCommands.cs`
 (plan-based display), `StingHvacCommandHandler` + `WorkflowEngine.ResolveCommand` (4 new tags).
 
+**Review hardening (alignment / accuracy / consistency / integration)** — fixes from
+a full code-review pass across Drawing Types / Styles / Tagging / Worksets:
+
+- **[accuracy] Deterministic, service-preserving typing.** `BuildTypeIndex` now picks
+  the first STING type per classification by name-order (was arbitrary collector order —
+  CHW pipes could be typed LTHW since both are `SupplyHydronic`); `ProcessNetwork` no
+  longer retypes a system whose current type is already a STING type.
+- **[accuracy] Idempotent system naming.** The `<abbr>-NN` counter is primed from
+  existing systems and an already-STING-named system keeps its name, so re-runs continue
+  the sequence instead of colliding.
+- **[integration · tagging] SYS / FUNC tag tokens written.** Phase B now stamps
+  `ASS_SYSTEM_TYPE_TXT` (SYS) and `ASS_FUNC_TXT` (FUNC) from the def's `stingSysCode` /
+  `stingFuncCode` via `SetIfEmpty`, so AutoTag/BatchTag inherit the right tokens instead
+  of the generic category fallback.
+- **[integration · worksets] New system objects placed on their source equipment's
+  workset** (workshared only); existing members are never moved.
+- **[integration · drawing types] DrawingType routing fixed.** The coordination command
+  now queries docType `"COORD"` first — the value the corporate routing table actually
+  uses for `mep-coord-A1-1to50` — so the rule resolves deterministically instead of
+  falling through to a purpose scan.
+- **[consistency] `MepSystemFilterGenerator.SysNameParam` now references
+  `ParamRegistry.MEP_SYS_NAME`** (was a duplicated literal); `MepSystemTypeRegistry`
+  added to `OnDocumentClosing` cache invalidation alongside the other registries.
+- **[accuracy] LTHW flow recoloured orange** `[255,120,0]` (was dark red, clashing with
+  the fire-sprinkler red).
+
+Deferred with rationale: auto-appending the generated filters to the `corp-coordination`
+View Style Pack (the project-override merge is replace-by-id, so a partial write risks
+stripping the corporate pack's other settings — the registry persistence already makes
+the filters pack-referenceable, which is the safe enabler).
+
 **Still honest**: runtime behaviour of the force-create path needs live-Revit
 verification; per-discipline view *production* remains the next extension; electrical
 circuits remain a separate mechanism.

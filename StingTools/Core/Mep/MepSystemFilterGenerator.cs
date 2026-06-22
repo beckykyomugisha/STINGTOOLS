@@ -29,8 +29,9 @@ namespace StingTools.Core.Mep
 {
     public static class MepSystemFilterGenerator
     {
-        public const string IdPrefix    = "sting-sys-";
-        public const string SysNameParam = "ASS_MEP_SYS_NAME_TXT"; // == ParamRegistry.MEP_SYS_NAME
+        public const string IdPrefix = "sting-sys-";
+        // Single source of truth — same shared param Phase B stamps the system name onto.
+        public static readonly string SysNameParam = ParamRegistry.MEP_SYS_NAME;
 
         private static readonly string[] DuctCats =
         {

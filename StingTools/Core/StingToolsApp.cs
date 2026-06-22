@@ -334,6 +334,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Climate cache invalidate: {cEx.Message}"); }
                 try { Core.Mep.MepSizingRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"MEP sizing cache invalidate: {cEx.Message}"); }
+                try { Core.Mep.MepSystemTypeRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"MEP system-type cache invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
                 try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }

@@ -69,13 +69,13 @@
     {
       "id": "pipe-lthw-flow", "name": "STING LTHW Flow", "discipline": "pipe",
       "classification": "SupplyHydronic", "abbreviation": "LTHWF", "stingSysCode": "HVAC", "stingFuncCode": "HTG",
-      "lineColor": [192, 0, 0], "lineWeight": 4,
+      "lineColor": [255, 120, 0], "lineWeight": 4,
       "uniclass": "Ss_55_30_10", "cibse": "CIBSE-HT01"
     },
     {
       "id": "pipe-lthw-return", "name": "STING LTHW Return", "discipline": "pipe",
       "classification": "ReturnHydronic", "abbreviation": "LTHWR", "stingSysCode": "HVAC", "stingFuncCode": "HTG",
-      "lineColor": [255, 80, 80], "lineWeight": 4, "linePattern": "Dash",
+      "lineColor": [255, 175, 90], "lineWeight": 4, "linePattern": "Dash",
       "uniclass": "Ss_55_30_10", "cibse": "CIBSE-HT01"
     },
     {

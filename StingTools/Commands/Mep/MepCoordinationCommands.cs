@@ -89,7 +89,11 @@ namespace StingTools.Commands.Mep
         {
             try
             {
-                return DrawingDispatcher.Resolve(doc, "M", "*", "Coordination")
+                // "COORD" is the docType the corporate routing table uses for
+                // mep-coord-A1-1to50; try it first so the rule resolves deterministically,
+                // then the longer aliases, then a purpose-based candidate scan.
+                return DrawingDispatcher.Resolve(doc, "M", "*", "COORD")
+                    ?? DrawingDispatcher.Resolve(doc, "M", "*", "Coordination")
                     ?? DrawingDispatcher.Resolve(doc, "*", "*", "MEP")
                     ?? DrawingDispatcher.CandidatesForDiscipline(doc, "M")
                         .FirstOrDefault(d => d.Purpose == DrawingPurpose.Coordination
