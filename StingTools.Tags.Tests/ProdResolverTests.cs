@@ -105,5 +105,29 @@ namespace StingTools.Tags.Tests
             Assert.Equal("ERX", code);
             Assert.Equal("corporate", src);
         }
+
+        [Theory]
+        [InlineData("project", true)]
+        [InlineData("corporate", true)]
+        [InlineData("lps", true)]
+        [InlineData("sleeve", true)]
+        [InlineData("category", false)]
+        [InlineData("gen", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void IsSpecific_classifies_source_tiers(string source, bool expected)
+        {
+            Assert.Equal(expected, ProdResolver.IsSpecific(source));
+        }
+
+        [Fact]
+        public void Source_constants_match_emitted_strings()
+        {
+            // Guards against the constants drifting from what Resolve actually emits.
+            ProdResolver.Resolve("Bidet", "", "Plumbing Fixtures", Rules(("*BIDET*", "BDT")), null, ProdMap, out var s);
+            Assert.Equal(ProdResolver.Sources.Project, s);
+            Assert.True(ProdResolver.IsSpecific(ProdResolver.Sources.Corporate));
+            Assert.False(ProdResolver.IsSpecific(ProdResolver.Sources.Gen));
+        }
     }
 }

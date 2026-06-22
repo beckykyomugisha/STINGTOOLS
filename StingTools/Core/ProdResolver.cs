@@ -15,6 +15,29 @@ namespace StingTools.Core
     /// </summary>
     public static class ProdResolver
     {
+        /// <summary>The source tiers <see cref="Resolve"/> reports via its
+        /// <c>out source</c>. Single definition so callers never hand-spell them.</summary>
+        public static class Sources
+        {
+            public const string Project = "project";
+            public const string Corporate = "corporate";
+            public const string Lps = "lps";
+            public const string Sleeve = "sleeve";
+            public const string Category = "category";
+            public const string Gen = "gen";
+        }
+
+        /// <summary>
+        /// True when a source tier is a genuine family-aware PROD code (project /
+        /// corporate CSV rule, or the LPS / sleeve special case) as opposed to the
+        /// generic category default. Single source of truth for the "specific vs
+        /// generic" split used by Prod_GenerateRules (gap filter) and
+        /// Prod_CoverageAudit (coverage %).
+        /// </summary>
+        public static bool IsSpecific(string source)
+            => source == Sources.Project || source == Sources.Corporate
+            || source == Sources.Lps || source == Sources.Sleeve;
+
         /// <param name="familyName">Element family name (may be null/empty).</param>
         /// <param name="typeName">Element type/symbol name (may be null).</param>
         /// <param name="categoryName">Revit category name.</param>
@@ -38,22 +61,22 @@ namespace StingTools.Core
                 // 1. Project overlay wins.
                 if (projRulesForCategory != null)
                     foreach (var (pattern, prodCode) in projRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "project"; return prodCode; }
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Project; return prodCode; }
 
                 // 2. Corporate baseline.
                 if (corpRulesForCategory != null)
                     foreach (var (pattern, prodCode) in corpRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "corporate"; return prodCode; }
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Corporate; return prodCode; }
 
                 // 3. Lightning Protection System (BS EN 62305) — CROSS-category;
                 //    family-name (not category) discriminates the sub-element kind.
                 string lps = ResolveLps(combinedName);
-                if (lps != null) { source = "lps"; return lps; }
+                if (lps != null) { source = Sources.Lps; return lps; }
 
                 // 4. Generic-Models sleeves / firestops (not a CSV category).
                 if (categoryName == "Generic Models" && IsSleeve(combinedName))
                 {
-                    source = "sleeve";
+                    source = Sources.Sleeve;
                     return "SLV";
                 }
             }
@@ -62,10 +85,10 @@ namespace StingTools.Core
             if (prodMap != null && categoryName != null &&
                 prodMap.TryGetValue(categoryName, out string prod))
             {
-                source = "category";
+                source = Sources.Category;
                 return prod;
             }
-            source = "gen";
+            source = Sources.Gen;
             return "GEN";
         }
 

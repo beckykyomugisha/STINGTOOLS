@@ -38,6 +38,8 @@ namespace StingTools.Commands.Classification
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
+                TagConfig.ReloadProdRules(); // compute gaps against the latest on-disk overlay (parity with the audit)
+
                 string projPath = doc.PathName;
                 if (string.IsNullOrEmpty(projPath))
                 {
@@ -80,7 +82,7 @@ namespace StingTools.Commands.Classification
                     catch (Exception ex) { StingLog.Warn($"GenerateProdRules: PROD resolve failed for {el.Id}: {ex.Message}"); prod = "GEN"; src = "gen"; }
                     if (string.IsNullOrEmpty(prod)) { prod = "GEN"; src = "gen"; }
 
-                    bool isSpecific = src == "project" || src == "corporate" || src == "lps" || src == "sleeve";
+                    bool isSpecific = ProdResolver.IsSpecific(src);
                     if (isSpecific)
                     {
                         specificCount++;
@@ -145,7 +147,10 @@ namespace StingTools.Commands.Classification
                 }
 
                 File.WriteAllText(target, sb.ToString(), Encoding.UTF8);
-                TagConfig.ReloadProdRules(); // drop the cache so a same-session Tag & Combine sees the new overlay
+                // Only the live overlay (prod_codes.csv) feeds resolution. When an existing one
+                // was preserved and we wrote a *_suggested_* file instead, there's nothing new to
+                // load — skip the reload so the dialog's "live now" implication stays honest.
+                if (!wroteSuggested) TagConfig.ReloadProdRules();
                 StingLog.Info($"Prod_GenerateRules: {rows.Count} gap rule(s) ({specificCount} already-specific omitted) from {totalFamilies} families -> {target}");
 
                 var msg = new StringBuilder();

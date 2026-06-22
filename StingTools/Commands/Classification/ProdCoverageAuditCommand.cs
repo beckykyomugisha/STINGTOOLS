@@ -66,9 +66,9 @@ namespace StingTools.Commands.Classification
                     try { prod = TagConfig.GetFamilyAwareProdCode(el, cat, out source); }
                     catch (Exception ex) { StingLog.Warn($"ProdCoverageAudit resolve {el.Id}: {ex.Message}"); prod = "GEN"; source = "gen"; }
 
-                    bool isSpecific = source == "project" || source == "corporate" || source == "lps" || source == "sleeve";
+                    bool isSpecific = ProdResolver.IsSpecific(source);
                     if (isSpecific) specific++;
-                    if ((source == "project" || source == "corporate") &&
+                    if ((source == ProdResolver.Sources.Project || source == ProdResolver.Sources.Corporate) &&
                         string.Equals(prod, TagConfig.CategoryProdDefault(cat), StringComparison.OrdinalIgnoreCase))
                         specificEqualsDefault++;
 
