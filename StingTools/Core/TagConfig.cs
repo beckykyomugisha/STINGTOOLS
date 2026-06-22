@@ -1773,6 +1773,7 @@ namespace StingTools.Core
                 _projProdLoaded.Clear();
                 _projProdRules.Clear();
             }
+            ProdPatternMatcher.Reset(); // drop compiled-glob cache so edited patterns recompile
         }
 
         private static void EnsureProdRulesLoaded()
@@ -1861,8 +1862,17 @@ namespace StingTools.Core
         /// when no material rule matches.
         /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
+            => GetFamilyAwareProdCode(el, categoryName, out _);
+
+        /// <summary>
+        /// Resolve PROD and report which tier produced it (for the coverage
+        /// audit). <paramref name="source"/> ∈ project | corporate | lps |
+        /// sleeve | category | gen. The material-suffix pass below doesn't
+        /// change the source — it only appends -STL/-CON/… to the base code.
+        /// </summary>
+        public static string GetFamilyAwareProdCode(Element el, string categoryName, out string source)
         {
-            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName, out source);
             try
             {
                 string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
@@ -1879,17 +1889,20 @@ namespace StingTools.Core
             return baseProd;
         }
 
-        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
         {
+            source = "category";
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
             // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
-            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches.
-            // Precedence: project overlay (<project>/_BIM_COORD/prod_codes.csv) WINS over the
-            // corporate STING_PROD_CODES.csv. Patterns are glob/alternation-aware so the shipped
-            // *Air Handling* / *Split*|*Packaged* rows actually match.
+            // Data-driven PROD is the SINGLE SOURCE for category→PROD mappings:
+            // the project overlay (<project>/_BIM_COORD/prod_codes.csv) WINS over
+            // the corporate STING_PROD_CODES.csv; patterns are glob/alternation-
+            // aware. The only built-in C# paths kept below are the two cases a
+            // category-keyed CSV can't express: the LPS cross-category set and
+            // the Generic-Models sleeve case.
             EnsureProdRulesLoaded();
             if (!string.IsNullOrEmpty(familyName))
             {
@@ -1897,26 +1910,28 @@ namespace StingTools.Core
                 if (projRules != null && projRules.TryGetValue(categoryName, out var pRules))
                 {
                     foreach (var (pattern, prodCode) in pRules)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) return prodCode;
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "project"; return prodCode; }
                 }
                 if (_csvProdRules != null && _csvProdRules.TryGetValue(categoryName, out var csvRules))
                 {
                     foreach (var (pattern, prodCode) in csvRules)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) return prodCode;
+                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = "corporate"; return prodCode; }
                 }
             }
 
-            // Only apply family-level overrides for categories with diverse equipment
+            // Built-in special cases a category-keyed CSV can't express.
+            // (The former 6 per-category branches — Mechanical / Electrical /
+            // Lighting / Plumbing Fixtures / Fire Alarm / Pipe Accessories — were
+            // removed: STING_PROD_CODES.csv now covers those categories
+            // comprehensively and is the single, editable source of truth.)
             if (!string.IsNullOrEmpty(familyName))
             {
-                // Search both family name and combined (family + type) name for patterns
                 string upper = combinedName;
 
-                // ── Lightning Protection System (BS EN 62305) ────────────────
-                // LPS elements may be modelled in Electrical Equipment, Generic Models,
-                // Conduits, or Specialty Equipment. Family-name discriminates the
-                // 6 LPS sub-element kinds (12 PROD codes) regardless of category.
-                // Phase 176 — wired into LPS tag families #54 to #59.
+                // ── Lightning Protection System (BS EN 62305) — CROSS-category ──
+                // LPS elements appear in Electrical Equipment / Generic Models /
+                // Conduits / Specialty Equipment; family-name (not category)
+                // discriminates the sub-element kind, so this stays in code.
                 if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
                     upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
                     upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
@@ -1924,142 +1939,41 @@ namespace StingTools.Core
                     upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
                     upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
                 {
+                    source = "lps";
                     if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD"))
-                        return "ATR";  // Air terminal rod
-                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE"))
-                        return "AMS";  // Air mesh section
-                    if (upper.Contains("CATENARY"))
-                        return "ACT";  // Air catenary
-                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                        upper.Contains("DESCENT"))
-                        return "DCN";  // Down conductor
-                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH"))
-                        return "ERD";  // Earth rod
-                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING"))
-                        return "ERG";  // Ring earth
-                    if (upper.Contains("FOUNDATION EARTH"))
-                        return "EFE";  // Foundation earth
-                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH"))
-                        return "EME";  // Mesh earth
-                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE"))
-                        return "ERD";
-                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL"))
-                        return "BCN";  // Bond conductor (default)
-                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR"))
-                        return "BBR";
-                    if (upper.Contains("SPARK GAP"))
-                        return "BSG";
-                    if (upper.Contains("TYPE 1") && upper.Contains("SPD"))
-                        return "SPD1";
-                    if (upper.Contains("TYPE 2") && upper.Contains("SPD"))
-                        return "SPD2";
-                    if (upper.Contains("TYPE 3") && upper.Contains("SPD"))
-                        return "SPD3";
-                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
-                        return "TCL";
-                    // Generic LPS fallback — always return some LPS PROD code
-                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING"))
-                        return "LPS";
+                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD")) return "ATR";
+                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE")) return "AMS";
+                    if (upper.Contains("CATENARY")) return "ACT";
+                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") || upper.Contains("DESCENT")) return "DCN";
+                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH")) return "ERD";
+                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING")) return "ERG";
+                    if (upper.Contains("FOUNDATION EARTH")) return "EFE";
+                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH")) return "EME";
+                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE")) return "ERD";
+                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR")) return "BBR";
+                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL")) return "BCN";
+                    if (upper.Contains("SPARK GAP")) return "BSG";
+                    if (upper.Contains("TYPE 1") && upper.Contains("SPD")) return "SPD1";
+                    if (upper.Contains("TYPE 2") && upper.Contains("SPD")) return "SPD2";
+                    if (upper.Contains("TYPE 3") && upper.Contains("SPD")) return "SPD3";
+                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT")) return "TCL";
+                    return "LPS"; // generic LPS fallback
                 }
 
-                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
-                if (categoryName == "Mechanical Equipment")
+                // ── Generic Models — MEP sleeves / firestops (not a CSV category) ──
+                if (categoryName == "Generic Models" &&
+                    (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
+                     || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")))
                 {
-                    if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
-                    if (upper.Contains("VAV") || upper.Contains("VARIABLE AIR")) return "VAV";
-                    if (upper.Contains("CHILLER") || upper.Contains("CHR")) return "CHR";
-                    if (upper.Contains("BOILER") || upper.Contains("BLR")) return "BLR";
-                    if (upper.Contains("PUMP") || upper.Contains("PMP")) return "PMP";
-                    if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
-                    if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
-                    if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
-                    if (upper.Contains("INDUCTION")) return "IND";
-                    if (upper.Contains("RADIANT") || upper.Contains("RAD PANEL")) return "RAD";
-                    if (upper.Contains("DAMPER") || upper.Contains("DAM")) return "DAM";
-                    if (upper.Contains("COOLING TOWER") || upper.Contains("CLT")) return "CLT";
-                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("INVERTER")) return "VFD";
-                    if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
-                }
-                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN, etc.
-                else if (categoryName == "Electrical Equipment")
-                {
-                    if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
-                    if (upper.Contains("MSB") || upper.Contains("MAIN SWITCH")) return "MSB";
-                    if (upper.Contains("SWB") || upper.Contains("SWITCHBOARD")) return "SWB";
-                    if (upper.Contains("UPS") || upper.Contains("UNINTERRUPT")) return "UPS";
-                    if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
-                    if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
-                    if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
-                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("DRIVE")) return "VFD";
-                    if (upper.Contains("SPD") || upper.Contains("SURGE")) return "SPD";
-                    if (upper.Contains("RCD") || upper.Contains("RESIDUAL")) return "RCD";
-                    if (upper.Contains("ISOLAT") || upper.Contains("DISCONNECT")) return "ISO";
-                    if (upper.Contains("SOFT START")) return "SFS";
-                    if (upper.Contains("BATTERY") || upper.Contains("BKP")) return "BKP";
-                    if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
-                }
-                // Lighting — distinguish LUM, EML, DEC, TRK, DWN, LIN, SPT, etc.
-                else if (categoryName == "Lighting Fixtures")
-                {
-                    if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
-                    if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
-                    if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
-                    if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
-                    if (upper.Contains("LINEAR") || upper.Contains("CONTINUOUS") || upper.Contains("BATTEN")) return "LIN";
-                    if (upper.Contains("SPOTLIGHT") || upper.Contains("PROJECTOR")) return "SPT";
-                    if (upper.Contains("WALL") && (upper.Contains("WASH") || upper.Contains("LIGHT"))) return "WSH";
-                    if (upper.Contains("BOLLARD")) return "BOL";
-                    if (upper.Contains("UPLIGHT") || upper.Contains("UPLIGHTER")) return "UPL";
-                    if (upper.Contains("FLOOD") || upper.Contains("FLOODLIGHT")) return "FLD";
-                }
-                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH, etc.
-                else if (categoryName == "Plumbing Fixtures")
-                {
-                    if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
-                    if (upper.Contains("WHB") || upper.Contains("WASH HAND") || upper.Contains("BASIN")) return "WHB";
-                    if (upper.Contains("URINAL") || upper.Contains("URN")) return "URN";
-                    if (upper.Contains("SINK") || upper.Contains("SNK")) return "SNK";
-                    if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
-                    if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
-                    if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
-                    if (upper.Contains("COOLER") || upper.Contains("WATER COOLER")) return "CWL";
-                    if (upper.Contains("GREASE") || upper.Contains("TRAP")) return "TRP";
-                    if (upper.Contains("BIDET")) return "BID";
-                    if (upper.Contains("EYEWASH") || upper.Contains("EYE WASH")) return "EWS";
-                    if (upper.Contains("MOP") && upper.Contains("SINK")) return "MOP";
-                }
-                // Fire Alarm — distinguish FAD, SML, MCP, BLL, STB, etc.
-                else if (categoryName == "Fire Alarm Devices")
-                {
-                    if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
-                    if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
-                    if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
-                    if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
-                    if (upper.Contains("HEAT") && upper.Contains("DETECT")) return "HTD";
-                    if (upper.Contains("INTERFACE") || upper.Contains("MODULE")) return "FIM";
-                }
-                // Pipe Accessories — distinguish valve types
-                else if (categoryName == "Pipe Accessories")
-                {
-                    if (upper.Contains("BALANCING") || upper.Contains("BLV")) return "BLV";
-                    if (upper.Contains("TRV") || upper.Contains("THERMOSTATIC") || upper.Contains("RADIATOR VALVE")) return "TRV";
-                    if (upper.Contains("ISOLATION") || upper.Contains("GATE") || upper.Contains("BALL")) return "IVL";
-                    if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
-                    if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
-                    if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
-                }
-                // Generic Models — MEP Sleeves (fire-rated penetration elements)
-                else if (categoryName == "Generic Models")
-                {
-                    if (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
-                        || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")) return "SLV";
+                    source = "sleeve";
+                    return "SLV";
                 }
             }
 
-            // Fall back to category-based PROD code
-            string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
-            return fallbackProd;
+            // Category default — last resort (generic, not family-specific).
+            if (ProdMap.TryGetValue(categoryName, out string prod)) { source = "category"; return prod; }
+            source = "gen";
+            return "GEN";
         }
 
         /// <summary>
