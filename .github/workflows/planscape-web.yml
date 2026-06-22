@@ -1,4 +1,4 @@
-name: Planscape Web — Type-check & Build
+name: Planscape Web — Type-check, Test & Build
 
 on:
   push:
@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   build:
-    name: Type-check + Build
+    name: Type-check + Test + Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,9 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build
