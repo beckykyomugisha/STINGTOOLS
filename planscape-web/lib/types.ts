@@ -116,3 +116,79 @@ export interface SceneManifest {
   maxX: number; maxY: number; maxZ: number;
   disciplines: string[];
 }
+
+// ── Meetings ── (mirrors MeetingsController DTOs; see mobile meetingsCore.ts)
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  meetingType?: string;
+  scheduledAt: string;
+  durationMinutes?: number | null;
+  location?: string | null;
+  meetingUrl?: string | null;
+  status: string; // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  minutes?: string | null;
+  organiser?: string;
+  createdBy?: string;
+  createdAt?: string;
+  actionItemCount?: number;
+  liveSessionId?: string | null;
+}
+
+export interface MeetingAttendee {
+  id: string;
+  meetingId: string;
+  userId?: string | null;
+  name: string;
+  email?: string | null;
+  company?: string | null;
+  discipline?: string | null;
+  role: string; // CHAIR | SECRETARY | ATTENDEE | NOTIFIED
+  attendanceStatus: string; // INVITED | CONFIRMED | ATTENDED | ABSENT | APOLOGY
+}
+
+export interface MeetingAgendaItem {
+  id: string;
+  meetingId: string;
+  orderIndex: number;
+  title: string;
+  description?: string | null;
+  durationMinutes?: number | null;
+  presenter?: string | null;
+  outcome?: string | null;
+  decision?: string | null;
+  status: string; // PENDING | DISCUSSED | DEFERRED | RESOLVED
+}
+
+export interface MeetingActionItem {
+  id: string;
+  meetingId?: string;
+  meetingTitle?: string;
+  description: string;
+  notes?: string | null;
+  assignee?: string | null;
+  assigneeUserId?: string | null;
+  dueDate?: string | null;
+  priority?: string; // CRITICAL | HIGH | MEDIUM | LOW
+  status?: string; // OPEN | IN_PROGRESS | COMPLETE | ESCALATED | CLOSED
+  linkedIssueId?: string | null;
+  isOverdue?: boolean;
+}
+
+export interface StartLiveSession {
+  sessionId: string;
+  meetingId: string;
+  isNew: boolean;
+  status: string;
+  modelId?: string | null;
+  hostUserId?: string | null;
+}
+
+export interface LiveKitToken {
+  token: string;
+  url: string;
+  identity: string;
+  room: string;
+  isPresenter: boolean;
+}

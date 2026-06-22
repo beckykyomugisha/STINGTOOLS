@@ -8,6 +8,12 @@ import type {
   ClashDetectionResult,
   ProjectModel,
   SceneManifest,
+  Meeting,
+  MeetingAttendee,
+  MeetingAgendaItem,
+  MeetingActionItem,
+  StartLiveSession,
+  LiveKitToken,
 } from './types';
 
 // ── Projects ──
@@ -170,4 +176,137 @@ export async function uploadModel(
   }
   if (res.status === 204) return {};
   return (await res.json()) as UploadModelResult;
+}
+
+// ── Meetings ──
+const mBase = (projectId: string) => `/api/projects/${projectId}/meetings`;
+
+export function listMeetings(projectId: string, status?: string): Promise<Meeting[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api<Meeting[]>(`${mBase(projectId)}${qs}`);
+}
+
+export function getMeeting(projectId: string, meetingId: string): Promise<Meeting> {
+  return api<Meeting>(`${mBase(projectId)}/${meetingId}`);
+}
+
+export interface CreateMeetingBody {
+  title: string;
+  meetingType?: string;
+  scheduledAt: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingUrl?: string;
+}
+
+export function createMeeting(projectId: string, body: CreateMeetingBody): Promise<Meeting> {
+  return api<Meeting>(mBase(projectId), { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function updateMeeting(projectId: string, meetingId: string, body: Partial<Meeting>): Promise<Meeting> {
+  return api<Meeting>(`${mBase(projectId)}/${meetingId}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export function logMeetingMinutes(
+  projectId: string,
+  meetingId: string,
+  minutes: string,
+  status?: string,
+): Promise<Meeting> {
+  return api<Meeting>(`${mBase(projectId)}/${meetingId}/minutes`, {
+    method: 'PUT',
+    body: JSON.stringify({ minutes, status }),
+  });
+}
+
+export function listAttendees(projectId: string, meetingId: string): Promise<MeetingAttendee[]> {
+  return api<MeetingAttendee[]>(`${mBase(projectId)}/${meetingId}/attendees`);
+}
+
+export function addAgendaItem(
+  projectId: string,
+  meetingId: string,
+  body: { title: string; description?: string; durationMinutes?: number; presenter?: string },
+): Promise<MeetingAgendaItem> {
+  return api<MeetingAgendaItem>(`${mBase(projectId)}/${meetingId}/agenda`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAgendaItem(
+  projectId: string,
+  meetingId: string,
+  itemId: string,
+  body: Partial<MeetingAgendaItem>,
+): Promise<MeetingAgendaItem> {
+  return api<MeetingAgendaItem>(`${mBase(projectId)}/${meetingId}/agenda/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function addAction(
+  projectId: string,
+  meetingId: string,
+  body: { description: string; assignee?: string; dueDate?: string; priority?: string; notes?: string },
+): Promise<MeetingActionItem> {
+  return api<MeetingActionItem>(`${mBase(projectId)}/${meetingId}/actions`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAction(
+  projectId: string,
+  meetingId: string,
+  actionId: string,
+  body: Partial<MeetingActionItem>,
+): Promise<MeetingActionItem> {
+  return api<MeetingActionItem>(`${mBase(projectId)}/${meetingId}/actions/${actionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Agenda + actions aren't returned by getMeeting — fetch them from the detail
+ *  endpoint payload. The server embeds them under the meeting; we expose typed
+ *  getters that read the same GET /meetings/{id} response. */
+export async function getMeetingDetail(
+  projectId: string,
+  meetingId: string,
+): Promise<{ meeting: Meeting; agenda: MeetingAgendaItem[]; actions: MeetingActionItem[] }> {
+  const raw = await api<
+    Meeting & { agendaItems?: MeetingAgendaItem[]; agenda?: MeetingAgendaItem[]; actions?: MeetingActionItem[]; actionItems?: MeetingActionItem[] }
+  >(`${mBase(projectId)}/${meetingId}`);
+  return {
+    meeting: raw,
+    agenda: raw.agendaItems ?? raw.agenda ?? [],
+    actions: raw.actionItems ?? raw.actions ?? [],
+  };
+}
+
+// ── Live session + LiveKit ──
+export function startLiveSession(
+  projectId: string,
+  meetingId: string,
+  body: { modelId?: string; displayName?: string; surface?: string } = {},
+): Promise<StartLiveSession> {
+  return api<StartLiveSession>(`${mBase(projectId)}/${meetingId}/live-session`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Mint a LiveKit access token + room URL for a live session. The server
+ *  returns 501 when LiveKit isn't configured — the caller degrades to view-only. */
+export function getLiveKitToken(
+  projectId: string,
+  sessionId: string,
+  displayName?: string,
+): Promise<LiveKitToken> {
+  return api<LiveKitToken>(`/api/projects/${projectId}/meeting-sessions/${sessionId}/livekit-token`, {
+    method: 'POST',
+    body: JSON.stringify({ displayName }),
+  });
 }
