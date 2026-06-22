@@ -1,19 +1,29 @@
-# render.yaml — Render.com Blueprint (Infrastructure-as-Code) for Planscape Server.
+# render.yaml — Render.com Blueprint (Infrastructure-as-Code) for Planscape.
 #
 # MUST live at the REPOSITORY ROOT — Render only auto-detects a blueprint here,
 # and the Docker build context (and the Dockerfile's COPY paths) are relative to
-# the repo root. The Dockerfile copies both Planscape/assets/viewer/** and
-# Planscape.Server/src/** from the monorepo root, so dockerContext is "." (root)
-# and dockerfilePath points into the subfolder.
+# the repo root. The API Dockerfile copies both Planscape/assets/viewer/** and
+# Planscape.Server/src/** from the monorepo root, so its dockerContext is "."
+# (root) and dockerfilePath points into the subfolder.
 #
-# Deploy:
-#   1. Render dashboard → Blueprints → New Blueprint Instance → connect this repo.
-#   2. Render provisions planscape-api (web) + planscape-db (Postgres) from below.
-#   3. Set the two secrets (sync:false) in the service's Environment tab:
-#        Jwt__Key                 — 32+ byte random (e.g. `openssl rand -base64 48`)
-#        PLANSCAPE_OWNER_PASSWORD — the davis@planscape.build login password
-#   4. Add the custom domain api.planscape.build (service → Settings → Custom Domains)
-#      and the matching CNAME at the planscape.build registrar.
+# WHAT THIS PROVISIONS (see docs/DEPLOY_RUNBOOK.md for the step-by-step):
+#   - planscape-api        web      ASP.NET Core 8 API (also serves the demo
+#                                   dashboard + coordination viewer + viewer.html)
+#   - planscape-worker     worker   same image, PLANSCAPE_ROLE=worker — runs the
+#                                   "heavy" Hangfire queue (IFC→GLB convert,
+#                                   photo redaction, DB backup, derivatives)
+#   - planscape-web        web      Next.js browser app (planscape-web/)
+#   - planscape-converter  pserv    IFC→GLB converter sidecar (private/internal)
+#   - planscape-redis      keyvalue JWT revocation + rate-limit + SignalR backplane
+#   - planscape-minio      pserv    S3-compatible object storage on a disk
+#                                   (models, photos, documents, IFC→GLB, scene-nodes)
+#   - planscape-db         postgres PostgreSQL 16 (managed)
+#
+# EXTERNAL (not Render-provisionable — set in the env group, see runbook):
+#   - LiveKit Cloud (or self-host) for meeting video (LiveKit__*)
+#   - Firebase project for push (Firebase__*)
+#   - Resend (or SMTP) for transactional email (Email__* / Resend__*)
+#   - Autodesk APS app for server-side ACC (Acc__*)
 #
 # Docs: https://render.com/docs/infrastructure-as-code
 
@@ -27,43 +37,224 @@ services:
     branch: main
     region: frankfurt           # eu-central-1 — closest to UK/Europe clients
     plan: starter               # £6/mo — upgrade to standard when >60 concurrent users
-
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-
       - key: ASPNETCORE_URLS
         value: http://+:8080
-
-      # ── Database (injected automatically from the planscape-db below) ──
+      # Database — injected automatically from planscape-db below.
       - key: ConnectionStrings__Default
         fromDatabase:
           name: planscape-db
           property: connectionString
+      # Redis — auto-wired from the planscape-redis Key Value instance below.
+      - key: Redis__Connection
+        fromService:
+          type: keyvalue
+          name: planscape-redis
+          property: connectionString
+      # Converter sidecar internal URL. Set after first deploy: Render →
+      # planscape-converter → Connect → Internal URL (e.g. http://planscape-converter:7700).
+      # Left sync:false so an unset value cleanly disables IFC→GLB (no behaviour change).
+      - key: Converter__BaseUrl
+        sync: false
+      # Everything else (secrets + shared config) comes from the group below.
+      - fromGroup: planscape-shared
 
-      # ── JWT — secret, set in the Render dashboard ──
+  # ── Planscape Worker (same image, heavy Hangfire queue) ─────────────────────
+  # PLANSCAPE_ROLE=worker makes the process subscribe to the worker-only queues
+  # ("photo-redaction", "heavy", …). Without this service those jobs NEVER run:
+  # IFC→GLB conversion, photo blur/watermark redaction, nightly DB backup, model
+  # derivatives. See Program.cs (Phase 178 worker/API split).
+  - type: worker
+    name: planscape-worker
+    runtime: docker
+    dockerfilePath: ./Planscape.Server/docker/Dockerfile
+    dockerContext: .
+    branch: main
+    region: frankfurt
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080          # Kestrel still binds; the worker just isn't HTTP-routed
+      - key: PLANSCAPE_ROLE
+        value: worker
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: planscape-db
+          property: connectionString
+      - key: Redis__Connection
+        fromService:
+          type: keyvalue
+          name: planscape-redis
+          property: connectionString
+      - key: Converter__BaseUrl
+        sync: false
+      - fromGroup: planscape-shared
+
+  # ── Planscape Web (Next.js 14 browser app) ──────────────────────────────────
+  - type: web
+    name: planscape-web
+    runtime: node
+    rootDir: planscape-web
+    branch: main
+    region: frankfurt
+    plan: starter
+    buildCommand: npm install && npm run build   # no lockfile committed → install, not ci
+    startCommand: npm start                       # next start, binds $PORT (Render sets it)
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Baked into the client bundle at build time. Must match the API origin.
+      - key: NEXT_PUBLIC_API_BASE
+        value: https://api.planscape.build
+    # After first deploy add the custom domain app.planscape.build (Settings →
+    # Custom Domains) + CNAME at the registrar. It's already in the API CORS list.
+
+  # ── IFC→GLB converter sidecar (private service) ─────────────────────────────
+  # Internal-only (pserv) — reached by the API/worker over Render's private
+  # network, never exposed publicly. Builds from the sidecar Dockerfile; the
+  # IFCCONVERT_URL env is passed through as a Docker build-arg (Render exposes
+  # service env vars to the build). Install is non-fatal: a bad URL leaves GLB
+  # chunking working and /ifc-to-glb returning 501.
+  - type: pserv
+    name: planscape-converter
+    runtime: docker
+    dockerfilePath: ./Planscape.Server/src/converter-sidecar/Dockerfile
+    dockerContext: ./Planscape.Server/src/converter-sidecar
+    branch: main
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "7700"
+      # MUST equal the API's Converter__Token (in the planscape-shared group).
+      - key: CONVERTER_TOKEN
+        sync: false
+      # Current linux64 IfcConvert zip — verify at deploy (ifcopenshell-builds
+      # uses content-hashed filenames that drift per release).
+      - key: IFCCONVERT_URL
+        value: https://s3.amazonaws.com/ifcopenshell-builds/IfcConvert-v0.8.0-linux64.zip
+      # Only used by the separate /chunk path. Paste planscape-api internal URL.
+      - key: API_BASE
+        sync: false
+      - key: API_BEARER
+        sync: false
+
+  # ── Redis / Key Value (JWT revocation, rate limit, SignalR backplane) ───────
+  - type: keyvalue
+    name: planscape-redis
+    region: frankfurt
+    plan: starter
+    # Cache-style eviction: rate-limit + revocation entries are reconstructable
+    # and the app fails open, so LRU is safe and avoids OOM. Switch to
+    # noeviction if you later treat the revocation list as authoritative.
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []             # empty = internal connections only (no public access)
+
+  # ── MinIO — S3-compatible object storage (provisioned by this Blueprint) ────
+  # Render can't give managed S3, so we run single-node MinIO on a persistent
+  # disk as a private service. The API auto-creates the bucket on startup
+  # (S3FileStorageService.EnsureBucketAsync). Good for launch; for redundancy/
+  # scale switch Storage__S3__* to Cloudflare R2 or AWS S3 and drop this service.
+  # NOTE: single disk ⇒ single instance, no HA — back the disk up or migrate to
+  # R2/S3 before serious data volume.
+  - type: pserv
+    name: planscape-minio
+    runtime: image
+    image:
+      url: docker.io/minio/minio:latest
+    dockerCommand: server /data --console-address ":9001"
+    branch: main
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /minio/health/live    # MinIO liveness (port 9000)
+    disk:
+      name: minio-data
+      mountPath: /data
+      sizeGB: 10                # ~$0.25/GB/mo; grow as model/photo volume grows
+    envVars:
+      - key: MINIO_ROOT_USER
+        sync: false             # = Storage__S3__AccessKey in the group below
+      - key: MINIO_ROOT_PASSWORD
+        sync: false             # = Storage__S3__SecretKey in the group below
+
+# ── Shared env group — referenced by planscape-api AND planscape-worker ──────
+# (Groups can't hold fromDatabase/fromService refs, so the DB + Redis + Converter
+# URL wiring stays inline on each service above; everything else lives here once.)
+envVarGroups:
+  - name: planscape-shared
+    envVars:
+      # ── JWT (secret) ──
       - key: Jwt__Key
-        sync: false             # Must be set manually in Render — never commit secrets
+        sync: false             # 32+ random bytes: openssl rand -base64 48
       - key: Jwt__Issuer
         value: Planscape
       - key: Jwt__Audience
         value: Planscape.Client
 
-      # ── Platform Owner bootstrap (PlatformOwnerSeeder) ──
-      # The operator/founder login, seeded idempotently on startup. The email is
-      # safe to declare here; the password is a secret set in the Render dashboard.
-      # Seeding is a one-time bootstrap — after first boot, rotate the password via
-      # change-password / forgot-password, not by editing this var. For multiple
-      # operators, set PLANSCAPE_OWNER_EMAILS (comma-separated) instead.
+      # ── Platform owner bootstrap (PlatformOwnerSeeder, idempotent) ──
       - key: PLANSCAPE_OWNER_EMAIL
         value: davis@planscape.build
       - key: PLANSCAPE_OWNER_PASSWORD
-        sync: false             # Set in Render → Environment (secret). Required to make the Owner loginable.
+        sync: false             # required to make the owner loginable on first boot
+
+      # ── Storage — object store. Defaults target the provisioned planscape-minio
+      # service above; switch ServiceUrl/keys to Cloudflare R2 or AWS S3 for a
+      # managed/redundant store (then ForcePathStyle=false + the right Region). ──
+      - key: Storage__Provider
+        value: S3
+      - key: Storage__S3__BucketName
+        value: planscape          # auto-created on first boot
+      - key: Storage__S3__Region
+        value: us-east-1          # MinIO default region; for AWS use e.g. eu-west-2
+      - key: Storage__S3__ServiceUrl
+        sync: false               # planscape-minio internal URL, e.g. http://planscape-minio:9000 (blank for AWS S3)
+      - key: Storage__S3__AccessKey
+        sync: false               # = MINIO_ROOT_USER (or R2/S3 access key)
+      - key: Storage__S3__SecretKey
+        sync: false               # = MINIO_ROOT_PASSWORD (or R2/S3 secret key)
+      - key: Storage__S3__ForcePathStyle
+        value: "true"             # true for MinIO/R2; "false" for AWS S3
+
+      # ── LiveKit — meeting video/WebRTC (LiveKit Cloud free tier or self-host) ──
+      - key: LiveKit__ApiKey
+        sync: false
+      - key: LiveKit__ApiSecret
+        sync: false
+      - key: LiveKit__ServerUrl
+        sync: false             # wss://<your>.livekit.cloud
+      - key: LiveKit__Url
+        sync: false             # alias read in some call sites; set to the same wss URL
+
+      # ── Firebase — push notifications (FCM) ──
+      - key: Firebase__ProjectId
+        sync: false
+      - key: Firebase__ServiceAccountJson
+        sync: false             # paste the service-account JSON (single line)
+
+      # ── Email — invites / password reset / owner reset. Without it, mail is
+      # only logged. Resend (HTTP) is easiest; verify planscape.build as sender. ──
+      - key: Email__Provider
+        sync: false             # "resend" (recommended) or "smtp"
+      - key: Resend__ApiKey
+        sync: false             # required when Email__Provider=resend
+      - key: Smtp__Host
+        sync: false             # required when Email__Provider=smtp
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
 
       # ── ACC (Autodesk Construction Cloud) — optional server-side connector ──
-      # Set these in the Render dashboard only if you want the team-shared,
-      # server-mediated ACC connection (AccConnector + /api/acc/oauth/*). The
-      # plugin's own ACC integration doesn't need them.
       - key: Acc__ClientId
         sync: false
       - key: Acc__ClientSecret
@@ -71,55 +262,19 @@ services:
       - key: Acc__CallbackUrl
         value: https://api.planscape.build/api/acc/oauth/callback
 
-      # ── Converter sidecar (IFC→GLB) — optional ──
-      # Set Converter__BaseUrl to the deployed converter-sidecar URL to enable
-      # server-side IFC→GLB conversion on model upload. When unset, IFC uploads
-      # are rejected with a "convert to GLB first" message (no behaviour change).
-      # Converter__Token must match the sidecar's CONVERTER_TOKEN. The /ifc-to-glb
-      # path streams the GLB back to the API (which stores it with correct
-      # tenancy) — it needs NO API_BEARER. (The separate /chunk path still uses
-      # the sidecar's own API_BASE/API_BEARER env.)
-      - key: Converter__BaseUrl
-        sync: false
+      # ── Converter shared token — MUST equal planscape-converter's CONVERTER_TOKEN ──
       - key: Converter__Token
         sync: false
 
-      # ── CORS — web dashboard / app origins ──
+      # ── CORS — web origins allowed to call the API ──
       - key: Cors__Origins__0
         value: https://planscape.build
       - key: Cors__Origins__1
         value: https://app.planscape.build
 
-      # ── Email — REQUIRED for invites, password reset, and the owner-account
-      # reset path to actually send. Easiest is Resend (HTTP, no SMTP ports):
-      # set Email__Provider=resend + Resend__ApiKey, and verify planscape.build
-      # as a sending domain in Resend. (Alternatively Email__Provider=smtp +
-      # Smtp__Host/Username/Password.) Without these, mail is only logged, never
-      # delivered. FromAddress defaults to noreply@planscape.build in code.
-      - key: Email__Provider
-        sync: false            # "resend" (recommended) or "smtp"
-      - key: Resend__ApiKey
-        sync: false            # required when Email__Provider=resend
-      - key: Smtp__Host
-        sync: false            # required when Email__Provider=smtp
-      - key: Smtp__Username
-        sync: false
-      - key: Smtp__Password
-        sync: false
-
-      # ── Redis (optional but recommended) — backs JWT revocation, rate
-      # limiting and refresh-token activity tracking. The app FAILS OPEN without
-      # it (degraded security, not broken). To enable: create a Render Key Value
-      # instance and paste its internal connection string here.
-      - key: Redis__Connection
-        sync: false
-
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
         value: Warning
-
-    healthCheckPath: /health
-    autoDeploy: true
 
 databases:
   # ── PostgreSQL 16 (managed by Render) ──────────────────────────────────────
@@ -129,7 +284,10 @@ databases:
     region: frankfurt
     plan: starter               # £6/mo — 1GB storage, daily backups
 
-# ── Cost at launch (3 projects, ~60 users): API £6 + DB £6 = £12/month ──
-# Redis is optional — the API runs without it (refresh-token tracking + JTI
-# blacklist degrade gracefully). Add a Render Key Value instance + a
-# `Redis__Connection` env var later if you want those hardening features.
+# ── Indicative cost (Frankfurt starter tiers) ───────────────────────────────
+# api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + minio £6 + 10GB disk
+# ~£2 + db £6 ≈ £44/mo. External: LiveKit Cloud (free tier), Firebase (free),
+# Resend (free tier). Drop planscape-worker + planscape-converter to save ~£12
+# if you don't need IFC conversion / photo redaction yet (the API degrades
+# gracefully). Swap planscape-minio for Cloudflare R2 (free tier) to remove the
+# storage service + disk cost and gain redundancy.
