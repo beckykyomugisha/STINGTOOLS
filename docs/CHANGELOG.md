@@ -3,6 +3,41 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase E: per-discipline view production + electrical circuits)
+
+The two remaining extensions. **Built + verified with `dotnet build` against the
+Revit 2025 API (0 warnings, 0 errors)** — including the live `ElectricalSystem.Create`
+/ `SelectPanel` / `ViewDiscipline` / `View.Duplicate` calls.
+
+**1. Per-discipline view production** (`Core/Mep/MepViewProducer.cs` + `MEP_ProduceMepViews`).
+Duplicates the active plan once per MEP discipline *present* in the model — M (ducts),
+P (pipes), E (circuits) — sets `View.Discipline`, resolves the MEP DrawingType via
+`DrawingDispatcher` (docTypes `COORD` / `DRAINAGE` / `POWER` — the corporate routing
+keys), applies its template + style pack, and overlays the system-classification colours
+**filtered to that domain** (new `MepDomain` arg on `MepCoordinationEngine.ApplyToView` —
+the M view colours only ducts, the P view only pipes; E inherits colour from the elec
+pack). This is the final link of create-systems → coordinated drawing: one command turns
+a blank plan into M/E/P coordinated sheets-ready views.
+
+**2. Electrical circuits** (`Core/Mep/MepCircuitBuilder.cs` + `MEP_BuildCircuits`).
+Electrical uses `ElectricalSystem`, not a user-creatable system type, so this mirrors
+Phase B's *reliable* path rather than forcing creation: `BuildExisting` names every
+circuit `<Panel>-<Circuit>` and stamps `ASS_MEP_SYS_NAME_TXT` + the DISC/SYS/FUNC tag
+tokens (`E` / `LV` / `PWR`|`LTG`) on the circuit and its members, so circuits tag +
+schedule like duct/pipe systems. `CreateFromSelection` is the safe, user-driven creation
+path: select electrical devices (+ optionally a panel) and it builds a `PowerCircuit` via
+`ElectricalSystem.Create` and assigns the panel via `SelectPanel`.
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`
+(`MEP_ProduceMepViews`, `MEP_BuildCircuits`).
+
+**Still honest**: view production duplicates the active plan (a sensible single-source
+default); multi-level fan-out (one view per level per discipline) and automatic sheet
+placement are the next conveniences. Circuit *auto-grouping* (deciding which loose devices
+share a circuit) stays user-driven by design — that's a load-balancing/design decision,
+not a mechanical one. Runtime behaviour of the new-circuit + force-create paths still
+wants live-Revit verification.
+
 #### Completed (MEP Systems — Phase D: hardening — abbreviation filters + auto-author + opt-in orphans)
 
 Turns the three Phase B/C caveats into capabilities. **Built + verified with
