@@ -1260,6 +1260,21 @@ namespace StingTools.Core
                 classPlain.Append(keynote);
                 classMarked.Append($"\u00ABV\u00BB{keynote}\u00AB/V\u00BB");
             }
+            // Phase H \u2014 CSI MasterFormat section (from CSI_Assign) in the classification narrative.
+            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION);
+            string csiTitle   = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE);
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(", CSI section "); classMarked.Append(", \u00ABL\u00BBCSI section\u00AB/L\u00BB "); }
+                else { classPlain.Append("CSI section "); classMarked.Append("\u00ABL\u00BBCSI section\u00AB/L\u00BB "); }
+                classPlain.Append(csiSection);
+                classMarked.Append($"\u00ABV\u00BB{csiSection}\u00AB/V\u00BB");
+                if (!string.IsNullOrEmpty(csiTitle))
+                {
+                    classPlain.Append($" ({csiTitle})");
+                    classMarked.Append($" ({csiTitle})");
+                }
+            }
             if (!string.IsNullOrEmpty(typeMark))
             {
                 if (classPlain.Length > 0) { classPlain.Append(", identified as type mark "); classMarked.Append(", identified as \u00ABL\u00BBtype mark\u00AB/L\u00BB "); }
