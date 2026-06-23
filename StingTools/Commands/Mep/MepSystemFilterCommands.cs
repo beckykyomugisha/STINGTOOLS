@@ -128,7 +128,11 @@ namespace StingTools.Commands.Mep
             foreach (var d in defs) byId[d.Id] = d;
             lib.Filters = byId.Values.ToList();
 
-            File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
+            // Atomic write — a crash mid-write must not corrupt the project filter override.
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonConvert.SerializeObject(lib, Formatting.Indented));
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
             return defs.Count;
         }
     }

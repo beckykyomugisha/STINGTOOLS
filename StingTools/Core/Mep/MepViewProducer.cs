@@ -85,6 +85,15 @@ namespace StingTools.Core.Mep
                 var row = new MepViewRow { Discipline = disc.Label };
                 result.Rows.Add(row);
 
+                // Idempotent: skip if this discipline's coordination view already exists.
+                string canonicalName = $"{source.Name} - {disc.Label} Coordination";
+                if (existingNames.Contains(canonicalName))
+                {
+                    row.ViewName = canonicalName;
+                    row.Note = "exists — skipped (re-run safe)";
+                    continue;
+                }
+
                 try
                 {
                     var dupId = source.Duplicate(ViewDuplicateOption.WithDetailing);
@@ -93,7 +102,7 @@ namespace StingTools.Core.Mep
 
                     try { v.Discipline = disc.ViewDisc; } catch (Exception ex) { result.Warnings.Add($"{disc.Code}: set discipline: {ex.Message}"); }
 
-                    string name = UniqueName(existingNames, $"{source.Name} - {disc.Label} Coordination");
+                    string name = UniqueName(existingNames, canonicalName);
                     try { v.Name = name; } catch (Exception ex) { result.Warnings.Add($"{disc.Code}: rename: {ex.Message}"); }
                     existingNames.Add(v.Name);
                     row.ViewName = v.Name;

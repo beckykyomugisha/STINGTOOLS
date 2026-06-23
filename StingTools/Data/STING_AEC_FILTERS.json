@@ -2301,7 +2301,7 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "MTHW-F"
+        "value": "MTHWF"
       },
       "override": {
         "projColor": "#C80000",
@@ -2326,7 +2326,7 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "MTHW-R"
+        "value": "MTHWR"
       },
       "override": {
         "projColor": "#780000",

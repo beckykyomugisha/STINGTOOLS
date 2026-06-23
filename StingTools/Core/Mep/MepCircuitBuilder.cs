@@ -142,7 +142,7 @@ namespace StingTools.Core.Mep
             var r = new CircuitGroupResult();
             if (doc == null) { r.Warnings.Add("No document."); return r; }
             if (maxPerCircuit < 1) maxPerCircuit = 8;
-            double maxFt = (maxDistM <= 0 ? 30.0 : maxDistM) / 0.3048;
+            double maxFt = (maxDistM <= 0 ? 30.0 : maxDistM) / 0.3048; // metres → Revit internal feet (1 ft = 0.3048 m)
 
             var panels = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
