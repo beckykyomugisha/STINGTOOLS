@@ -604,6 +604,54 @@
           "projWeight": 4,
           "surfFgColor": "#999900",
           "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: Chilled Water Flow",
+          "visible": true,
+          "projColor": "#002060",
+          "projWeight": 4,
+          "surfFgColor": "#002060",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: Chilled Water Return",
+          "visible": true,
+          "projColor": "#0070C0",
+          "projWeight": 4,
+          "surfFgColor": "#0070C0",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: LTHW Flow",
+          "visible": true,
+          "projColor": "#FF7800",
+          "projWeight": 4,
+          "surfFgColor": "#FF7800",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: LTHW Return",
+          "visible": true,
+          "projColor": "#FFAF5A",
+          "projWeight": 4,
+          "surfFgColor": "#FFAF5A",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: Condenser Water Flow",
+          "visible": true,
+          "projColor": "#008080",
+          "projWeight": 4,
+          "surfFgColor": "#008080",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: Condenser Water Return",
+          "visible": true,
+          "projColor": "#40A0A0",
+          "projWeight": 4,
+          "surfFgColor": "#40A0A0",
+          "transparency": 15
         }
       ]
     },

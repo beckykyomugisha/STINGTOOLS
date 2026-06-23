@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase H: abbreviation-format unification + CSI tag label)
+
+The two Phase G follow-ups. **Built + verified with `dotnet build` against the Revit
+2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**1. Abbreviation-format unification.** The corporate per-service hydronic filters keyed
+on `RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM = "CHW-F"` (dashed), but the STING system types
+stamp Revit's System Abbreviation as `"CHWF"` (no dash — the format Phase B's `<abbr>-NN`
+naming requires, since the name parser splits on `-`). So the corporate filters never matched
+STING-built hydronic systems. Fix: changed the six per-service filter rule values to the
+no-dash form (`CHW-F → CHWF`, `LTHW-F → LTHWF`, `CW-F → CWF`, + returns) and reconciled their
+colours to the system-type colours (CHW navy, LTHW orange, CW teal). One canonical abbreviation
+now flows everywhere: system-type `Abbreviation` = the value Revit stamps = the filter rule =
+the `MEP_SYS_NAME` prefix. Added the six to `corp-coordination` (now **12 MEP filters** — air
++ water by classification, hydronic by service), so the drawing-type pipeline colours CHW vs
+LTHW vs CW distinctly without the extra Apply step.
+
+**2. CSI on tags.** `TagConfig.Tag7.cs` Section F (the classification narrative) now includes
+the CSI MasterFormat section + title (`CSI section 23 31 00 (HVAC Ducts and Casings)`) alongside
+Uniformat / OmniClass / keynote — so CSI surfaces on the rich TAG7 tag. `LABEL_DEFINITIONS.json`
+gains a `CSI_SECTION_TXT` render entry (`parameter_text`) + a `tier_5` (spec/procurement) CSI
+label row on the 15 representative MEP categories (Pipes, Ducts, fittings, equipment, fixtures,
+trays, conduits, sprinklers), so the dedicated tag families show CSI too. Completes the
+classification → keynote → tag chain from Phase G.
+
+**Still honest**: the `tier_5` CSI label is on the 15 core MEP categories, not all 138 — the
+full rollout + tag-family regeneration is a bulk data follow-up; the TAG7 narrative path covers
+every category already.
+
 #### Completed (MEP Systems — Phase G: VG/colour reconciliation + classification selectability + CSI↔keynote)
 
 Closes the three gaps from the alignment review. **Built + verified with `dotnet build`

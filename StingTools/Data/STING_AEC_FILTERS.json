@@ -2244,12 +2244,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "LTHW-F"
+        "value": "LTHWF"
       },
       "override": {
-        "projColor": "#FF3232",
-        "cutColor": "#FF3232",
-        "cutWeight": 4
+        "projColor": "#FF7800",
+        "cutColor": "#FF7800",
+        "cutWeight": 4,
+        "surfFgColor": "#FF7800",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
@@ -2271,12 +2273,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "LTHW-R"
+        "value": "LTHWR"
       },
       "override": {
-        "projColor": "#A01E1E",
-        "cutColor": "#A01E1E",
-        "cutWeight": 4
+        "projColor": "#FFAF5A",
+        "cutColor": "#FFAF5A",
+        "cutWeight": 4,
+        "surfFgColor": "#FFAF5A",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
@@ -2348,12 +2352,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "CHW-F"
+        "value": "CHWF"
       },
       "override": {
-        "projColor": "#0000FF",
-        "cutColor": "#0000FF",
-        "cutWeight": 4
+        "projColor": "#002060",
+        "cutColor": "#002060",
+        "cutWeight": 4,
+        "surfFgColor": "#002060",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
@@ -2375,12 +2381,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "CHW-R"
+        "value": "CHWR"
       },
       "override": {
-        "projColor": "#000096",
-        "cutColor": "#000096",
-        "cutWeight": 4
+        "projColor": "#0070C0",
+        "cutColor": "#0070C0",
+        "cutWeight": 4,
+        "surfFgColor": "#0070C0",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
@@ -2401,12 +2409,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "CW-F"
+        "value": "CWF"
       },
       "override": {
-        "projColor": "#0064C8",
-        "cutColor": "#0064C8",
-        "cutWeight": 4
+        "projColor": "#008080",
+        "cutColor": "#008080",
+        "cutWeight": 4,
+        "surfFgColor": "#008080",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
@@ -2426,12 +2436,14 @@
       "rule": {
         "param": "RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM",
         "op": "equals",
-        "value": "CW-R"
+        "value": "CWR"
       },
       "override": {
-        "projColor": "#003C82",
-        "cutColor": "#003C82",
-        "cutWeight": 4
+        "projColor": "#40A0A0",
+        "cutColor": "#40A0A0",
+        "cutWeight": 4,
+        "surfFgColor": "#40A0A0",
+        "surfFgPattern": "Solid fill"
       },
       "tags": [
         "mech",
