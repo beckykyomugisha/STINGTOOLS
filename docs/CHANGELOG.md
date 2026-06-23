@@ -3,6 +3,73 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase D: hardening — abbreviation filters + auto-author + opt-in orphans)
+
+Turns the three Phase B/C caveats into capabilities. **Built + verified with
+`dotnet build` against the Revit 2025 API (0 warnings, 0 errors).**
+
+**1. Abbreviation-keyed filters (fixes the flow/return ambiguity).** The Phase A
+abbreviation + Phase B instance name (`ASS_MEP_SYS_NAME_TXT` = `<abbr>-NN`) are the
+disambiguator Revit's classification can't provide. `Core/Mep/MepSystemFilterGenerator.cs`
+generates one AEC filter per Phase A def keyed on `ASS_MEP_SYS_NAME_TXT begins-with
+"<abbr>-"`, coloured from the same Phase A colour — so CHWF / LTHWF / CWF (all
+`SupplyHydronic`) finally read as three different colours. `MEP_GenerateSystemFilters`
+persists them to `<project>/_BIM_COORD/aec_filters.json` (first-class: visible to the
+AEC filter registry, **View Style Packs**, and **Drawing Types**) and creates the
+`ParameterFilterElement`s in the model.
+
+**2. Auto-author missing filters (every present system always colours).**
+`MepCoordinationEngine` now resolves each present system by priority — (1) abbreviation
+filter, (2) corporate classification filter from `STING_AEC_FILTERS.json`, (3) a filter
+**synthesised on the fly from the matching Phase A def's colour**. A `BuildPlan(doc)`
+method shares the exact resolution between `MEP_ApplyMepCoordination` and
+`MEP_InspectMepCoordination`, so the dry run and the real run can't drift.
+
+**3. Opt-in orphan creation (de-risks the default flow).** `MEP_BuildSystems` now
+defaults to type/name/stamp only (zero fragile API calls); the best-effort
+`NewMechanicalSystem`/`NewPipingSystem` path moved behind an explicit
+`MEP_BuildSystemsForce`.
+
+**New files**: `Core/Mep/MepSystemFilterGenerator.cs`, `Commands/Mep/MepSystemFilterCommands.cs`.
+**Changed**: `Core/Mep/MepCoordinationEngine.cs` (priority resolution + `PresentSystems`/`BuildPlan`),
+`Commands/Mep/MepSystemInstanceCommands.cs` (opt-in split), `Commands/Mep/MepCoordinationCommands.cs`
+(plan-based display), `StingHvacCommandHandler` + `WorkflowEngine.ResolveCommand` (4 new tags).
+
+**Review hardening (alignment / accuracy / consistency / integration)** — fixes from
+a full code-review pass across Drawing Types / Styles / Tagging / Worksets:
+
+- **[accuracy] Deterministic, service-preserving typing.** `BuildTypeIndex` now picks
+  the first STING type per classification by name-order (was arbitrary collector order —
+  CHW pipes could be typed LTHW since both are `SupplyHydronic`); `ProcessNetwork` no
+  longer retypes a system whose current type is already a STING type.
+- **[accuracy] Idempotent system naming.** The `<abbr>-NN` counter is primed from
+  existing systems and an already-STING-named system keeps its name, so re-runs continue
+  the sequence instead of colliding.
+- **[integration · tagging] SYS / FUNC tag tokens written.** Phase B now stamps
+  `ASS_SYSTEM_TYPE_TXT` (SYS) and `ASS_FUNC_TXT` (FUNC) from the def's `stingSysCode` /
+  `stingFuncCode` via `SetIfEmpty`, so AutoTag/BatchTag inherit the right tokens instead
+  of the generic category fallback.
+- **[integration · worksets] New system objects placed on their source equipment's
+  workset** (workshared only); existing members are never moved.
+- **[integration · drawing types] DrawingType routing fixed.** The coordination command
+  now queries docType `"COORD"` first — the value the corporate routing table actually
+  uses for `mep-coord-A1-1to50` — so the rule resolves deterministically instead of
+  falling through to a purpose scan.
+- **[consistency] `MepSystemFilterGenerator.SysNameParam` now references
+  `ParamRegistry.MEP_SYS_NAME`** (was a duplicated literal); `MepSystemTypeRegistry`
+  added to `OnDocumentClosing` cache invalidation alongside the other registries.
+- **[accuracy] LTHW flow recoloured orange** `[255,120,0]` (was dark red, clashing with
+  the fire-sprinkler red).
+
+Deferred with rationale: auto-appending the generated filters to the `corp-coordination`
+View Style Pack (the project-override merge is replace-by-id, so a partial write risks
+stripping the corporate pack's other settings — the registry persistence already makes
+the filters pack-referenceable, which is the safe enabler).
+
+**Still honest**: runtime behaviour of the force-create path needs live-Revit
+verification; per-discipline view *production* remains the next extension; electrical
+circuits remain a separate mechanism.
+
 #### Completed (MEP Systems — Phase C: MEP-aware drawing coordination)
 
 Closes the create-systems → coordinated-drawing loop. Reads the MEP system

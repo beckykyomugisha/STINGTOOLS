@@ -60,9 +60,9 @@ namespace StingTools.Commands.Mep
                     ? $"{dt.Id}  ({dt.Discipline}/{dt.Purpose}) — template + style pack applied"
                     : "No MEP coordination/plan DrawingType resolved — filters applied without a template.");
 
-                panel.AddSection("SYSTEM CLASSIFICATIONS");
+                panel.AddSection("SYSTEMS → FILTER");
                 foreach (var r in res.Rows)
-                    panel.Text($"{(r.Applied ? "✓" : "·")} {r.Classification,-22} {r.FilterName,-30} {r.Note}");
+                    panel.Text($"{(r.Applied ? "✓" : "·")} {Label(r),-26} [{r.Source,-13}] {r.FilterName,-28} {r.Note}");
 
                 if (res.Warnings.Count > 0)
                 {
@@ -82,11 +82,18 @@ namespace StingTools.Commands.Mep
             }
         }
 
+        private static string Label(MepCoordRow r)
+            => string.IsNullOrEmpty(r.Abbreviation) ? r.Classification : $"{r.Abbreviation} ({r.Classification})";
+
         internal static DrawingType ResolveMepDrawingType(Document doc)
         {
             try
             {
-                return DrawingDispatcher.Resolve(doc, "M", "*", "Coordination")
+                // "COORD" is the docType the corporate routing table uses for
+                // mep-coord-A1-1to50; try it first so the rule resolves deterministically,
+                // then the longer aliases, then a purpose-based candidate scan.
+                return DrawingDispatcher.Resolve(doc, "M", "*", "COORD")
+                    ?? DrawingDispatcher.Resolve(doc, "M", "*", "Coordination")
                     ?? DrawingDispatcher.Resolve(doc, "*", "*", "MEP")
                     ?? DrawingDispatcher.CandidatesForDiscipline(doc, "M")
                         .FirstOrDefault(d => d.Purpose == DrawingPurpose.Coordination
@@ -108,28 +115,37 @@ namespace StingTools.Commands.Mep
                 var doc = ctx?.Doc;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                var present = MepCoordinationEngine.PresentClassifications(doc);
-                var defs = AecFilterRegistry.ListAll(doc);
+                // Same resolution the Apply command uses (no writes) — keeps the
+                // dry run and the real run perfectly consistent.
+                var plan = MepCoordinationEngine.BuildPlan(doc);
                 var dt = MepApplyMepCoordinationCommand.ResolveMepDrawingType(doc);
 
                 var panel = StingResultPanel.Create("MEP — Coordination Inspect (dry run)");
-                panel.SetSubtitle($"{present.Count} system classification(s) present · " +
+                int resolvable = plan.Count(r => r.Source != "none");
+                panel.SetSubtitle($"{plan.Count} system(s) present · {resolvable} resolvable · " +
                                   (dt != null ? $"DrawingType '{dt.Id}'" : "no DrawingType matched"));
 
-                panel.AddSection("CLASSIFICATION → FILTER");
-                if (present.Count == 0)
-                    panel.Text("No duct/pipe members carry a classification yet — run MEP_BuildSystems (Phase B).");
-                foreach (var cls in present)
+                panel.AddSection("SYSTEM → FILTER (source)");
+                if (plan.Count == 0)
+                    panel.Text("No duct/pipe members carry a system yet — run MEP_BuildSystems (Phase B).");
+                foreach (var r in plan)
                 {
-                    var def = defs.FirstOrDefault(d => RuleHas(d?.Rule, cls));
-                    panel.Text($"{(def != null ? "✓" : "·")} {cls,-22} {(def != null ? def.Name : "(no matching AEC filter)")}");
+                    string label = string.IsNullOrEmpty(r.Abbreviation) ? r.Classification : $"{r.Abbreviation} ({r.Classification})";
+                    bool ok = r.Source != "none";
+                    string filter = ok ? r.FilterName : "(no filter & no Phase A colour)";
+                    panel.Text($"{(ok ? "✓" : "·")} {label,-26} [{r.Source,-13}] {filter}");
                 }
+
+                panel.AddSection("LEGEND");
+                panel.Text("abbreviation = distinguishes services that share a classification (CHWF vs LTHWF) · " +
+                           "classification = corporate STING_AEC_FILTERS.json · synthesised = auto-authored from Phase A colour.");
 
                 panel.AddSection("DRAWING TYPE");
                 panel.Text(dt != null
                     ? $"{dt.Id}  ({dt.Discipline}/{dt.Purpose})  pack='{dt.ViewStylePackId}'"
                     : "No MEP coordination/plan DrawingType resolved.");
-                panel.Text("Run MEP_ApplyMepCoordination on the target view to apply the template + colours.");
+                panel.Text("Generate the abbreviation filters with MEP_GenerateSystemFilters, then " +
+                           "MEP_ApplyMepCoordination on the target view to apply the template + colours.");
                 panel.Show();
                 return Result.Succeeded;
             }
@@ -139,17 +155,6 @@ namespace StingTools.Commands.Mep
                 message = ex.Message;
                 return Result.Failed;
             }
-        }
-
-        private static bool RuleHas(AecFilterRule rule, string value)
-        {
-            if (rule == null) return false;
-            if (rule.IsLeaf)
-                return string.Equals(rule.Param, "RBS_SYSTEM_CLASSIFICATION_PARAM", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals((rule.Value ?? "").Trim(), value, StringComparison.OrdinalIgnoreCase);
-            if (rule.Rules != null)
-                foreach (var c in rule.Rules) if (RuleHas(c, value)) return true;
-            return false;
         }
     }
 }
