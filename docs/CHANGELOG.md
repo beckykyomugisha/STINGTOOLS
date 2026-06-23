@@ -3,6 +3,49 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase I: cross-check hardening fixes)
+
+A two-stream adversarial review (engine logic + data/integration) over the whole A–H
+feature surfaced 17 + 9 findings; the real ones are fixed here. **Built + verified with
+`dotnet build` against the Revit 2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**Bugs**
+- **View/sheet re-run duplication** (`MepViewProducer`, `MepLevelViewProducer`) — re-running
+  the producers created `… (2)` / `… (3)` views *and a fresh sheet each time*. Now idempotent:
+  if the canonical `<level/source> - <discipline> Coordination` view exists, it's skipped.
+- **`SeedNameSeq` regex** (`MepSystemInstanceBuilder`) — `^([A-Za-z]+)-` dropped digit-bearing
+  abbreviations (`DCW2`, `CO2`, `R410A`), so re-runs collided their names. Now `[A-Za-z0-9]+`.
+- **Misleading "Updated" count** (`MepSystemTypeMaterializer`) — untouched existing types reported
+  as Updated; now Skipped, so the counter reflects what actually changed.
+- **Basement level-code** (`MepLevelViewProducer.LevelCode`) — every basement returned `B1`;
+  Sub-Basement 2 now returns `B2`.
+
+**Edge / consistency**
+- Unsaved-document cache key (`MepSystemTypeRegistry`, `ClassificationStandard`) — two unsaved
+  projects shared one `<no-doc>` slot; now keyed per document.
+- Abbreviation-with-dash warning in `MepSystemTypeRegistry` (Phase D name parsing splits on `-`).
+- Fragmented-network warning (`MepSystemInstanceBuilder`) — a network spanning >1 MEPSystem now
+  warns to merge the rest, instead of silently typing only the first.
+
+**Performance**
+- `MepCoordinationEngine.PresentSystems` — replaced the per-element `doc.GetElement(typeId)` with
+  a one-pass system-type-id → classification map (collected from the two concrete `MEPSystemType`
+  subclasses, since the base is abstract).
+
+**Robustness**
+- Atomic JSON writes (`MepGenerateSystemFiltersCommand`, `ClassificationStandard.Set`) — temp-file
+  + move so a crash mid-write can't corrupt the project override.
+
+**Data**
+- Resolved the two orphaned filters the audit found: `hvac-mthw-flow/return` rule values unified to
+  the no-dash format (`MTHW-F → MTHWF`), and three missing system types added — **MTHW Flow/Return +
+  Refrigerant** (colours matched to the existing filters) — so they're no longer orphaned. Added all
+  three to `corp-coordination` (now **15 MEP filters**, 23 system types).
+
+**Deferred (with reason)**: classification filters keyed on the localised display string (matches the
+entire corporate filter library; English is the deployment target) · abbreviation+classification filter
+co-existence precedence (rare mixed-state, low impact) · minor multi-collector perf in the level producer.
+
 #### Completed (MEP Systems — Phase H: abbreviation-format unification + CSI tag label)
 
 The two Phase G follow-ups. **Built + verified with `dotnet build` against the Revit

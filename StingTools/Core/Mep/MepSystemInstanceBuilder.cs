@@ -144,9 +144,16 @@ namespace StingTools.Core.Mep
             result.Rows.Add(row);
 
             // Existing MEPSystem? Any member MEPCurve that already belongs to one.
-            MEPSystem existing = els.OfType<MEPCurve>()
+            // A fragmented network can carry more than one — retype/rename the first
+            // (canonical) and warn so the user can merge the rest in the System Browser.
+            var memberSystems = els.OfType<MEPCurve>()
                 .Select(c => { try { return c.MEPSystem; } catch { return null; } })
-                .FirstOrDefault(s => s != null);
+                .Where(s => s != null)
+                .GroupBy(s => s.Id).Select(g => g.First()).ToList();
+            MEPSystem existing = memberSystems.FirstOrDefault();
+            if (memberSystems.Count > 1)
+                result.Warnings.Add($"{row.Network}: network spans {memberSystems.Count} MEP systems — " +
+                                    "only the first was typed/named; merge the rest in the System Browser.");
 
             MEPSystem system = existing;
             bool created = false;
@@ -389,7 +396,7 @@ namespace StingTools.Core.Mep
         private static Dictionary<string, int> SeedNameSeq(Document doc)
         {
             var seq = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var rx = new Regex(@"^([A-Za-z]+)-(\d+)$");
+            var rx = new Regex(@"^([A-Za-z0-9]+)-(\d+)$"); // allow digit-bearing abbreviations (DCW2, CO2, R410A)
             void Scan<T>() where T : Element
             {
                 foreach (var s in new FilteredElementCollector(doc).OfClass(typeof(T)).Cast<T>())

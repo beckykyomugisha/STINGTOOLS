@@ -652,6 +652,30 @@
           "projWeight": 4,
           "surfFgColor": "#40A0A0",
           "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: MTHW Flow",
+          "visible": true,
+          "projColor": "#C80000",
+          "projWeight": 4,
+          "surfFgColor": "#C80000",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: MTHW Return",
+          "visible": true,
+          "projColor": "#780000",
+          "projWeight": 4,
+          "surfFgColor": "#780000",
+          "transparency": 15
+        },
+        {
+          "name": "STING - HVAC: Refrigerant",
+          "visible": true,
+          "projColor": "#9600C8",
+          "projWeight": 4,
+          "surfFgColor": "#9600C8",
+          "transparency": 15
         }
       ]
     },

@@ -29,16 +29,16 @@ namespace StingTools.Core.Classification
 
         /// <summary>Active standard for the document (cached). Defaults to Uniclass.</summary>
         public static ClassStandard Active(Document doc)
-        {
-            string key = doc?.PathName ?? "<no-doc>";
-            return _cache.GetOrAdd(key, _ => Load(doc));
-        }
+            => _cache.GetOrAdd(DocKey(doc), _ => Load(doc));
 
         public static void Reload() => _cache.Clear();
         public static void Reload(Document doc)
         {
-            if (doc != null) _cache.TryRemove(doc.PathName ?? "<no-doc>", out _);
+            if (doc != null) _cache.TryRemove(DocKey(doc), out _);
         }
+
+        private static string DocKey(Document doc)
+            => !string.IsNullOrEmpty(doc?.PathName) ? doc.PathName : $"<unsaved:{doc?.GetHashCode() ?? 0}>";
 
         /// <summary>Persist the choice to the project config file. Returns the path written.</summary>
         public static string Set(Document doc, ClassStandard std)
@@ -49,7 +49,11 @@ namespace StingTools.Core.Classification
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, "sting_classification.json");
             var j = new JObject { ["standard"] = std.ToString(), ["_note"] = "STING classification standard (Phase G). Values: Uniclass | CSI | OmniClass | Native." };
-            File.WriteAllText(path, j.ToString());
+            // Atomic write — a crash mid-write must not leave a corrupt config.
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, j.ToString());
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
             _cache[doc.PathName] = std;
             return path;
         }

@@ -88,13 +88,23 @@ namespace StingTools.Core.Mep
                     var row = new MepLevelViewRow { Level = lvl.Name, Discipline = disc.Label };
                     result.Rows.Add(row);
 
+                    // Idempotent: if this level×discipline coordination view already
+                    // exists (prior run), skip it — don't proliferate "(2)" views + sheets.
+                    string canonicalName = $"{lvl.Name} - {disc.Label} Coordination";
+                    if (existingViewNames.Contains(canonicalName))
+                    {
+                        row.ViewName = canonicalName;
+                        row.Note = "exists — skipped (re-run safe)";
+                        continue;
+                    }
+
                     try
                     {
                         var v = ViewPlan.Create(doc, vft.Id, lvl.Id);
                         if (v == null) { row.Note = "ViewPlan.Create returned null"; continue; }
                         try { v.Discipline = disc.ViewDisc; } catch { }
 
-                        v.Name = Unique(existingViewNames, $"{lvl.Name} - {disc.Label} Coordination");
+                        v.Name = Unique(existingViewNames, canonicalName);
                         existingViewNames.Add(v.Name);
                         row.ViewName = v.Name;
                         row.ViewCreated = true;
@@ -273,7 +283,11 @@ namespace StingTools.Core.Mep
             var up = n.ToUpperInvariant();
             if (up.Contains("GROUND")) return "GF";
             if (up.Contains("ROOF")) return "RF";
-            if (up.Contains("BASEMENT")) return "B1";
+            if (up.Contains("BASEMENT"))
+            {
+                var bd = new string(n.Where(char.IsDigit).ToArray());
+                return string.IsNullOrEmpty(bd) ? "B1" : "B" + bd; // Sub-Basement 2 -> B2, not B1
+            }
             var digits = new string(n.Where(char.IsDigit).ToArray());
             if (!string.IsNullOrEmpty(digits)) return "L" + digits;
             return n.Length <= 4 ? n.Replace(" ", "") : n.Substring(0, 4);

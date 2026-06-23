@@ -80,6 +80,17 @@ namespace StingTools.Core.Mep
             var byKey = new Dictionary<string, PresentSystem>(StringComparer.OrdinalIgnoreCase);
             if (doc == null) return new List<PresentSystem>();
 
+            // Pre-build a system-type-id → classification map once (PERF — avoids a
+            // doc.GetElement(typeId) per duct/pipe on large models). MEPSystemType is
+            // abstract, so collect the two concrete subclasses.
+            var clsByType = new Dictionary<ElementId, string>();
+            foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Mechanical.MechanicalSystemType))
+                         .Cast<MEPSystemType>())
+                try { clsByType[t.Id] = t.SystemClassification.ToString(); } catch { }
+            foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipingSystemType))
+                         .Cast<MEPSystemType>())
+                try { clsByType[t.Id] = t.SystemClassification.ToString(); } catch { }
+
             var collector = new FilteredElementCollector(doc)
                 .WherePasses(new ElementMulticategoryFilter(new[]
                 {
@@ -94,7 +105,7 @@ namespace StingTools.Core.Mep
                 {
                     string display = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM)?.AsValueString()?.Trim() ?? "";
                     string abbr = AbbrevFromSysName(el.LookupParameter(MepSystemFilterGenerator.SysNameParam)?.AsString());
-                    string enumCls = EnumClassification(doc, el);
+                    string enumCls = EnumClassification(el, clsByType);
                     if (string.IsNullOrEmpty(display) && string.IsNullOrEmpty(abbr)) continue;
 
                     var ps = new PresentSystem
@@ -244,14 +255,13 @@ namespace StingTools.Core.Mep
             return dash > 0 ? sysName.Substring(0, dash).Trim() : "";
         }
 
-        private static string EnumClassification(Document doc, Element el)
+        private static string EnumClassification(Element el, Dictionary<ElementId, string> clsByType)
         {
             try
             {
                 var sys = (el as MEPCurve)?.MEPSystem;
                 if (sys == null) return "";
-                var t = doc.GetElement(sys.GetTypeId()) as MEPSystemType;
-                return t?.SystemClassification.ToString() ?? "";
+                return clsByType.TryGetValue(sys.GetTypeId(), out var cls) ? cls : "";
             }
             catch { return ""; }
         }
