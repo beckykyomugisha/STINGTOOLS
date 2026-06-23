@@ -334,9 +334,10 @@ namespace StingTools.Model
         public static void WriteToElement(Element el, FoundationSizingResult r)
         {
             if (el == null || r == null) return;
-            ParameterHelpers.SetString(el, "FOUND_WIDTH_MM_TXT",   r.PadWidth_mm.ToString("F0"),   overwrite: true);
-            ParameterHelpers.SetString(el, "FOUND_LENGTH_MM_TXT",  r.PadLength_mm.ToString("F0"),  overwrite: true);
-            ParameterHelpers.SetString(el, "FOUND_DEPTH_MM_TXT",   r.PadDepth_mm.ToString("F0"),   overwrite: true);
+            // Write the canonical structural params the Foundation tag + validators read
+            // (consolidates the former FOUND_WIDTH/LENGTH/DEPTH duplicates of STR_FDN_*).
+            ParameterHelpers.SetString(el, "STR_FDN_SIZE_MM",  $"{r.PadWidth_mm:F0}x{r.PadLength_mm:F0}", overwrite: true);
+            ParameterHelpers.SetString(el, "STR_FDN_DEPTH_MM", r.PadDepth_mm.ToString("F0"),               overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_SOIL_CLASS_TXT", FoundationSizingEngine.SoilClassName(r.Soil), overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_BEAR_UTIL_TXT",  r.BearingUtilisation.ToString("P0"), overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_SUMMARY_TXT",    r.Summary ?? "", overwrite: true);

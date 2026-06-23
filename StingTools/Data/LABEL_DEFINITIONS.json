@@ -1507,6 +1507,46 @@
       "prefix": "NR:",
       "suffix": "",
       "label": "Cln Noise Nr Nr"
+    },
+    "FOUND_SOIL_CLASS_TXT": {
+      "prefix": "Soil:",
+      "suffix": "",
+      "label": "Found Soil Class Txt"
+    },
+    "FOUND_BEAR_UTIL_TXT": {
+      "prefix": "Util:",
+      "suffix": "",
+      "label": "Found Bear Util Txt"
+    },
+    "FOUND_SUMMARY_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Found Summary Txt"
+    },
+    "MGS_OUTLET_ZONE_TXT": {
+      "prefix": "Zone:",
+      "suffix": "",
+      "label": "Mgs Outlet Zone Txt"
+    },
+    "MGS_WORKING_PRESSURE_KPA": {
+      "prefix": "P:",
+      "suffix": " kPa",
+      "label": "Mgs Working Pressure Kpa"
+    },
+    "EV_CHARGER_TYPE_TXT": {
+      "prefix": "EV:",
+      "suffix": "",
+      "label": "Ev Charger Type Txt"
+    },
+    "EV_CHARGER_KW": {
+      "prefix": "",
+      "suffix": " kW",
+      "label": "Ev Charger Kw"
+    },
+    "EV_CHARGER_CIRCUIT_REF": {
+      "prefix": "Ckt:",
+      "suffix": "",
+      "label": "Ev Charger Circuit Ref"
     }
   },
   "tier_style_defaults": {
@@ -31072,6 +31112,32 @@
           "size": "2.0"
         },
         {
+          "param": "FOUND_SOIL_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Soil:"
+        },
+        {
+          "param": "FOUND_BEAR_UTIL_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Util:"
+        },
+        {
+          "param": "FOUND_SUMMARY_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
           "param": "RGL_STD_TXT",
           "spaces": 0,
           "break": true,
@@ -55492,6 +55558,33 @@
           "style": "NOM",
           "color": "BLACK",
           "size": "2.0"
+        },
+        {
+          "param": "EV_CHARGER_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "EV:"
+        },
+        {
+          "param": "EV_CHARGER_KW",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "suffix_override": " kW"
+        },
+        {
+          "param": "EV_CHARGER_CIRCUIT_REF",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Ckt:"
         },
         {
           "param": "RGL_STD_TXT",
@@ -80679,6 +80772,25 @@
           "color": "BLACK",
           "size": "2.0",
           "prefix_override": "Gas:"
+        },
+        {
+          "param": "MGS_OUTLET_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Zone:"
+        },
+        {
+          "param": "MGS_WORKING_PRESSURE_KPA",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "P:",
+          "suffix_override": " kPa"
         },
         {
           "param": "RGL_STD_TXT",
