@@ -1,0 +1,22 @@
+{
+  "name": "MEP Systems Validate",
+  "description": "One-pass live-Revit validation of the whole MEP Systems chain (Phases A-F). Open a floor plan that shows ducts/pipes/electrical first, then run. Every step is optional so the chain runs to completion even if one path has nothing to act on; each command shows its own result panel. Choose 'Keep' at the end to inspect, or 'Roll back' to leave the model untouched.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "MEP_BuildSystemTypes",      "label": "A — materialize duct/pipe system types",          "optional": true },
+    { "commandTag": "MEP_BuildSystems",          "label": "B — type / name / stamp existing systems",        "optional": true },
+    { "commandTag": "MEP_GenerateSystemFilters", "label": "D — generate abbreviation-keyed filters",         "optional": true },
+    { "commandTag": "MEP_ApplyMepCoordination",  "label": "C — colour the ACTIVE view by system",            "optional": true },
+    { "commandTag": "MEP_AutoGroupCircuits",     "label": "F — auto-group loose electrical devices (review)", "optional": true },
+    { "commandTag": "MEP_BuildCircuits",         "label": "E — name / stamp every electrical circuit",       "optional": true },
+    { "commandTag": "MEP_ProduceMepViewsByLevel","label": "F — per-level M/E/P views + sheets",               "optional": true },
+    { "commandTag": "MEP_InspectMepCoordination","label": "Audit — final dry-run of the resolution plan",     "optional": true }
+  ],
+  "_notes": [
+    "Discovered automatically by WorkflowEngine.AppendUserPresets (any data/WORKFLOW_*.json).",
+    "Run via the STING Run-Workflow picker → 'MEP Systems Validate'.",
+    "Force-create orphan systems (MEP_BuildSystemsForce) and create-from-selection circuits are",
+    "deliberately NOT in the chain — run those manually after pre-selecting elements (see the PR recipe)."
+  ]
+}

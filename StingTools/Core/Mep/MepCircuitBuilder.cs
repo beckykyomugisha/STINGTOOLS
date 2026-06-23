@@ -30,6 +30,15 @@ namespace StingTools.Core.Mep
         public List<string> Warnings { get; } = new List<string>();
     }
 
+    public sealed class CircuitGroupResult
+    {
+        public int Groups { get; set; }       // panels that received circuits
+        public int Created { get; set; }       // circuits created
+        public int Unreachable { get; set; }   // devices with no panel in range
+        public List<string> Rows { get; } = new List<string>();
+        public List<string> Warnings { get; } = new List<string>();
+    }
+
     public static class MepCircuitBuilder
     {
         /// <summary>Name + stamp every existing electrical circuit. Requires an open transaction.</summary>
@@ -121,7 +130,107 @@ namespace StingTools.Core.Mep
             }
         }
 
+        /// <summary>
+        /// Best-effort FIRST PASS: group every UN-circuited electrical device by its
+        /// nearest panel (same level preferred) into power circuits of at most
+        /// <paramref name="maxPerCircuit"/> devices, create them, and assign the panel.
+        /// A starting point for an engineer to rebalance — it does NOT do load
+        /// balancing or phase allocation. Requires an open transaction.
+        /// </summary>
+        public static CircuitGroupResult AutoGroup(Document doc, int maxPerCircuit, double maxDistM)
+        {
+            var r = new CircuitGroupResult();
+            if (doc == null) { r.Warnings.Add("No document."); return r; }
+            if (maxPerCircuit < 1) maxPerCircuit = 8;
+            double maxFt = (maxDistM <= 0 ? 30.0 : maxDistM) / 0.3048;
+
+            var panels = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                .OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                .Where(p => HasElectricalConnector(p) && Pt(p) != null).ToList();
+            if (panels.Count == 0) { r.Warnings.Add("No electrical panels (OST_ElectricalEquipment) to circuit to."); return r; }
+
+            var byPanel = new Dictionary<ElementId, List<ElementId>>();
+            var panelById = panels.ToDictionary(p => p.Id, p => p);
+            var deviceCats = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_ElectricalFixtures, BuiltInCategory.OST_LightingFixtures,
+                BuiltInCategory.OST_LightingDevices
+            });
+            foreach (var fi in new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                         .WherePasses(deviceCats).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>())
+            {
+                try
+                {
+                    if (!HasElectricalConnector(fi)) continue;
+                    var existing = fi.MEPModel?.GetElectricalSystems();
+                    if (existing != null && existing.Count > 0) continue; // already on a circuit
+                    var pt = Pt(fi); if (pt == null) continue;
+
+                    var nearest = panels
+                        .Select(p => new { p, d = Pt(p).DistanceTo(pt), sameLvl = SameLevel(fi, p) })
+                        .Where(x => x.d <= maxFt)
+                        .OrderByDescending(x => x.sameLvl).ThenBy(x => x.d)
+                        .FirstOrDefault();
+                    if (nearest == null) { r.Unreachable++; continue; }
+
+                    if (!byPanel.TryGetValue(nearest.p.Id, out var list))
+                        byPanel[nearest.p.Id] = list = new List<ElementId>();
+                    list.Add(fi.Id);
+                }
+                catch (Exception ex) { r.Warnings.Add($"Device {fi.Id}: {ex.Message}"); }
+            }
+
+            foreach (var kv in byPanel)
+            {
+                var panel = panelById[kv.Key];
+                string panelName = SafeInstName(panel);
+                int circuitOnPanel = 0;
+                foreach (var chunk in Chunk(kv.Value, maxPerCircuit))
+                {
+                    circuitOnPanel++;
+                    try
+                    {
+                        var circuit = ElectricalSystem.Create(doc, chunk, ElectricalSystemType.PowerCircuit);
+                        if (circuit == null) { r.Warnings.Add($"{panelName}: Create returned null"); continue; }
+                        try { circuit.SelectPanel(panel); } catch (Exception ex) { r.Warnings.Add($"{panelName}: SelectPanel: {ex.Message}"); }
+                        string name = $"{panelName}-AG{circuitOnPanel:D2}";
+                        StampTokens(circuit, name, "PWR");
+                        foreach (var id in chunk)
+                            try { StampTokens(doc.GetElement(id), name, "PWR"); } catch { }
+                        r.Created++;
+                        if (r.Rows.Count < 80) r.Rows.Add($"✚ {name}  ({chunk.Count} device(s))");
+                    }
+                    catch (Exception ex) { r.Warnings.Add($"{panelName}: circuit create: {ex.Message}"); }
+                }
+            }
+            r.Groups = byPanel.Count;
+            return r;
+        }
+
         // ── helpers ─────────────────────────────────────────────────────────
+
+        private static IEnumerable<List<ElementId>> Chunk(List<ElementId> ids, int size)
+        {
+            for (int i = 0; i < ids.Count; i += size)
+                yield return ids.GetRange(i, Math.Min(size, ids.Count - i));
+        }
+
+        private static XYZ Pt(Element el)
+        {
+            try { return (el.Location as LocationPoint)?.Point; } catch { return null; }
+        }
+
+        private static bool SameLevel(Element a, Element b)
+        {
+            try { return a.LevelId != ElementId.InvalidElementId && a.LevelId == b.LevelId; }
+            catch { return false; }
+        }
+
+        private static string SafeInstName(Element el)
+        {
+            try { return el.Name; } catch { return "PANEL"; }
+        }
 
         private static void StampTokens(Element el, string name, string func)
         {

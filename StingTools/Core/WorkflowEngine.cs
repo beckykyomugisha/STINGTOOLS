@@ -1417,6 +1417,8 @@ namespace StingTools.Core
                 case "MEP_InspectMepCoordination": return new Commands.Mep.MepInspectMepCoordinationCommand();
                 case "MEP_ProduceMepViews": return new Commands.Mep.MepProduceMepViewsCommand();
                 case "MEP_BuildCircuits": return new Commands.Mep.MepBuildCircuitsCommand();
+                case "MEP_ProduceMepViewsByLevel": return new Commands.Mep.MepProduceMepViewsByLevelCommand();
+                case "MEP_AutoGroupCircuits": return new Commands.Mep.MepAutoGroupCircuitsCommand();
 
                 // Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
