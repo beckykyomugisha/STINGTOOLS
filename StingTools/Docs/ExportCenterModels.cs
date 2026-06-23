@@ -104,6 +104,13 @@ namespace StingTools.Docs
         public int WatermarkFontSize { get; set; } = 96;
         public string WatermarkColourHex { get; set; } = "#999999";
 
+        /// <summary>Repeat the watermark in a grid across the whole page.</summary>
+        public bool WatermarkTile { get; set; }
+        /// <summary>Tile grid columns (used when WatermarkTile is true).</summary>
+        public int WatermarkTileColumns { get; set; } = 3;
+        /// <summary>Tile grid rows (used when WatermarkTile is true).</summary>
+        public int WatermarkTileRows { get; set; } = 4;
+
         /// <summary>User-defined groups (CustomGroups mode). Map of group name → list of sheet ids (as strings).</summary>
         public Dictionary<string, List<string>> CustomGroups { get; set; } = new();
 
