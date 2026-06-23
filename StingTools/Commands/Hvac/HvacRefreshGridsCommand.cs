@@ -85,7 +85,7 @@ namespace StingTools.Commands.Hvac
                     try
                     {
                         var sym = fi.Symbol;
-                        string tag    = fi.LookupParameter("ASS_TAG_1")?.AsString() ?? $"#{fi.Id.Value}";
+                        string tag    = fi.LookupParameter("ASS_TAG_1_TXT")?.AsString() ?? $"#{fi.Id.Value}";
                         string type   = sym?.Family?.Name ?? fi.Name ?? "";
                         string sysNm  = SystemNameOf(fi);
                         double capKw  = ReadDouble(fi, "HVC_CAPACITY_KW");

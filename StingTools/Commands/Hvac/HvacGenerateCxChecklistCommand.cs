@@ -86,7 +86,7 @@ namespace StingTools.Commands.Hvac
                 {
                     try
                     {
-                        string tag    = fi.LookupParameter("ASS_TAG_1")?.AsString() ?? $"#{fi.Id.Value}";
+                        string tag    = fi.LookupParameter("ASS_TAG_1_TXT")?.AsString() ?? $"#{fi.Id.Value}";
                         string family = fi.Symbol?.Family?.Name ?? fi.Name ?? "";
                         string type   = fi.Symbol?.Name ?? "";
                         string system = SystemNameOf(fi);
