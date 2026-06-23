@@ -127,25 +127,75 @@ namespace StingTools.Docs
                 int fontSize = Math.Max(24, pdf.WatermarkFontSize);
                 var font = new XFont("Arial", fontSize, XFontStyleEx.Bold);
 
+                bool geomLogged = false;
                 foreach (PdfPage page in doc.Pages)
                 {
                     using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
 
-                    double w = page.Width.Point;
-                    double h = page.Height.Point;
+                    if (!geomLogged)
+                    {
+                        var mb = page.MediaBox; var cb = page.CropBox;
+                        StingLog.Info(
+                            $"InjectWatermark geom {Path.GetFileName(pdfPath)}: Rotate={page.Rotate} " +
+                            $"Media=[{mb.X1:0},{mb.Y1:0},{mb.X2:0},{mb.Y2:0}] " +
+                            $"Crop=[{cb.X1:0},{cb.Y1:0},{cb.X2:0},{cb.Y2:0}] " +
+                            $"Width={page.Width.Point:0} Height={page.Height.Point:0} pos={pdf.WatermarkPosition}");
+                        geomLogged = true;
+                    }
+
+                    // Derive placement from the page's ACTUAL MediaBox. PdfSharp's
+                    // XGraphics assumes a 0-based MediaBox origin, but Revit can export
+                    // sheets whose MediaBox is centred on (0,0) — e.g. A1 as
+                    // [-1684,-1191,1684,1191]. In that case (w/2, h/2) maps to the
+                    // top-right corner, not the centre. Map the true page centre +
+                    // extents into PdfSharp's drawing space: drawing-x = user-x, and
+                    // drawing-y = pageHeight - user-y (PdfSharp's Y flip).
+                    var mbox = page.MediaBox;
+                    double mx1 = Math.Min(mbox.X1, mbox.X2), mx2 = Math.Max(mbox.X1, mbox.X2);
+                    double my1 = Math.Min(mbox.Y1, mbox.Y2), my2 = Math.Max(mbox.Y1, mbox.Y2);
+                    double pageW = mx2 - mx1;
+                    double pageH = my2 - my1;
+                    double centreX = (mx1 + mx2) / 2.0;          // drawing-x = user-x
+                    double centreY = pageH - (my1 + my2) / 2.0;  // drawing-y = H - user-y
                     const double margin = 20;
-                    var area = new XRect(margin, margin, w - 2 * margin, h - 2 * margin);
+                    var area = new XRect(mx1 + margin, (pageH - my2) + margin,
+                                         pageW - 2 * margin, pageH - 2 * margin);
 
                     gfx.Save();
                     string pos = string.IsNullOrWhiteSpace(pdf.WatermarkPosition)
                         ? "DiagonalCentre" : pdf.WatermarkPosition.Trim();
 
-                    if (pos == "DiagonalCentre")
+                    if (pdf.WatermarkTile)
+                    {
+                        // Tiled: repeat the watermark rotated -30° in a cols×rows grid
+                        // across the page. Each tile is centred in its own cell.
+                        int cols = Math.Max(1, pdf.WatermarkTileColumns);
+                        int rows = Math.Max(1, pdf.WatermarkTileRows);
+                        double cellW = pageW / cols;
+                        double cellH = pageH / rows;
+                        for (int c = 0; c < cols; c++)
+                        {
+                            for (int r = 0; r < rows; r++)
+                            {
+                                // Cell centre in drawing space (drawing-y origin is the
+                                // top of the MediaBox: pageH - my2).
+                                double tx = mx1 + (c + 0.5) * cellW;
+                                double ty = (pageH - my2) + (r + 0.5) * cellH;
+                                gfx.Save();
+                                gfx.TranslateTransform(tx, ty);
+                                gfx.RotateTransform(-30);
+                                gfx.DrawString(pdf.WatermarkText, font, brush,
+                                    new XPoint(0, 0), XStringFormats.Center);
+                                gfx.Restore();
+                            }
+                        }
+                    }
+                    else if (pos == "DiagonalCentre")
                     {
                         // True page centre, rotated -30°. Translate to the centre and let
                         // XStringFormats.Center place the string about the origin so it is
                         // genuinely centred regardless of font metrics / baseline.
-                        gfx.TranslateTransform(w / 2.0, h / 2.0);
+                        gfx.TranslateTransform(centreX, centreY);
                         gfx.RotateTransform(-30);
                         gfx.DrawString(pdf.WatermarkText, font, brush,
                             new XPoint(0, 0), XStringFormats.Center);
