@@ -1,0 +1,4 @@
+{
+  "standard": "Uniclass",
+  "_note": "KUT (Kampala Uganda Temple) authoritative classification standard — Uniclass 2015. Read by StingTools ClassificationStandard (Phase G); leads the BOQ / COBie / handover / IFC grouping cascade (Uniclass Pr -> Ss -> Ef, then CSI, OmniClass, Native). Set via the Classification_SetStandard command, or edit this file. Values: Uniclass | CSI | OmniClass | Native."
+}

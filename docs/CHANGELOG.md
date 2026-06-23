@@ -3,6 +3,49 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase G: VG/colour reconciliation + classification selectability + CSI↔keynote)
+
+Closes the three gaps from the alignment review. **Built + verified with `dotnet build`
+against the Revit 2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**1. MEP colour reconciliation + pack wiring (drawing-style alignment).** The audit found
+the corporate `corp-coordination` style pack painted *all* ducts blue / *all* pipes green
+via category VG and carried **no filters**, so the drawing-type-alone path lost per-system
+colour; and the legacy classification filters had colour drift from the Phase A system
+types (exhaust olive vs orange, return neon vs forest green, etc.). Fix: recoloured the six
+classification-keyed MEP filters (`hvac-supply/return/exhaust-air`, `plumb-dcw/dhws/vent`)
+to **exactly match the system-type colours**, and **wired them into `corp-coordination`**
+as `filters[]` (kept the generic duct/pipe `vgOverrides` as the unclassified fallback —
+filters beat category VG, so per-system colours now win in the standard pipeline). Finer
+per-service hydronic distinction (CHW vs LTHW vs CW) still comes from `MEP_ApplyMepCoordination`'s
+abbreviation filters; unifying the corporate per-service filters' abbreviation format
+(`CHW-F` vs `CHWF`) is a documented follow-up.
+
+**2. Classification standard selectability.** New `Core/Classification/ClassificationStandard.cs`
++ `Classification_SetStandard` command — a per-project choice (`Uniclass | CSI | OmniClass |
+Native`) stored at `<project>/_BIM_COORD/sting_classification.json` (file-based, no shared-param
+binding). `ClassificationReader.ResolveFallback` now leads the BOQ/COBie/handover/IFC cascade
+with the chosen standard (Uniclass default preserves the historic order exactly; CSI is now
+*in* the cascade for the first time). Cache invalidated on document close.
+
+**3. CSI ↔ keynote integration.** `KeynoteSync` now also emits the CSI MasterFormat sections
+present in the model (`CSI_SECTION_TXT` → `"23 31 00  HVAC Ducts and Casings"`), and a new
+`Keynote_Assign` command fills the keynote (native `KEYNOTE_PARAM` + STING `ASS_KEYNOTE_TXT`)
+from each element's CSI section (else its SYS token) so keynote tags resolve against the
+generated table and TAG7 Section F shows it. Closes the "classification and keynotes are
+independent" gap end-to-end (assign CSI → sync table → assign keynotes → tag).
+
+**4. KUT → Uniclass 2015.** `GUIDES/KUT_BEP_TEMPLATE.md` classification set to Uniclass 2015
+(was `[FILL]`); new `project-templates/KUT/_BIM_COORD/sting_classification.json` (`Uniclass`).
+The live KUT2026 BEP and a staged project config were also updated directly in the project
+folder (outside the repo).
+
+**Wiring**: `WorkflowEngine.ResolveCommand` (`Classification_SetStandard`, `Keynote_Assign`).
+
+**Still honest**: corporate per-service hydronic filters use a different abbreviation format
+than the STING system types (full unification deferred); a tag-family *label* showing CSI on
+the drawing (vs only in TAG7) is the remaining keynote-integration follow-up.
+
 #### Completed (MEP Systems — Phase F: per-level fan-out + sheets + circuit auto-grouping)
 
 The two deferred conveniences from Phase E. **Built + verified with `dotnet build`

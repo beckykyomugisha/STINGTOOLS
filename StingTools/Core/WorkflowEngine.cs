@@ -1534,6 +1534,8 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "Classification_SetStandard": return new Commands.Classification.ClassificationSetStandardCommand();
+                case "Keynote_Assign": return new Commands.Classification.KeynoteAssignCommand();
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();
