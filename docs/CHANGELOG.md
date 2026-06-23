@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase B: System Instance Builder)
+
+Builds on Phase A: walks the MEP connector graph (same traversal as
+`MepSystemTracerCommand`), groups elements into connected networks, and for each
+network assigns the STING (Phase A) system **type**, a meaningful **name**
+(`<abbreviation>-NN`), and stamps `ParamRegistry.MEP_SYS_NAME` on every member —
+then runs `MepCrossStampOrchestrator` to populate `HVC_*`/`PLM_*`/`ELC_*` from the
+native flow/voltage params. **Built + verified with `dotnet build` against the
+Revit 2025 API (0 warnings, 0 errors)** — including the live `NewMechanicalSystem`
+/ `NewPipingSystem` / `ChangeTypeId` / `DuctSystemType` / `PipeSystemType` calls.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/Mep/MepSystemInstanceBuilder.cs` | Connector-graph network grouping + per-network type/name/stamp. Reliable path: networks Revit has already systemized get the STING type + name + params. Best-effort path: orphan networks with a detectable source-equipment connector get a real `MechanicalSystem`/`PipingSystem` via `doc.Create.NewMechanicalSystem`/`NewPipingSystem`. Networks that don't satisfy Revit's source/flow/tree requirement are **reported, not forced** (members still stamped). Caller owns the transaction. |
+| `StingTools/Commands/Mep/MepSystemInstanceCommands.cs` | `MEP_BuildSystems` — scope = selection when present, else whole project; `StingResultPanel` reports networks / typed / created / stamped / skipped / failed + the HVC/PLM/ELC cross-stamp counts. |
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`.
+
+**Honest scope**: `NewMechanicalSystem`/`NewPipingSystem` require a valid source
+equipment + consistent flow direction + tree topology; on rough/imported models
+that often isn't satisfiable, so creation is best-effort and the high-value,
+reliable work is typing + naming + stamping the systems Revit already formed.
+Electrical circuits (`ElectricalSystem`) use a different power-connector mechanism
+and are out of Phase B scope. Phase C wires discipline + classification into
+`DrawingDispatcher` to close the create→drawing loop. **Runtime behaviour of the
+orphan-creation path should still be verified against a live Revit model.**
+
 #### Completed (MEP Systems — Phase A: System Type Materializer)
 
 Closes the gap surfaced by the "can we batch-create MEP systems integrated with

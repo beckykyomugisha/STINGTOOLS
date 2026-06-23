@@ -1410,6 +1410,7 @@ namespace StingTools.Core
                 case "MEP_BuildSystemTypes": return new Commands.Mep.MepBuildSystemTypesCommand();
                 case "MEP_RestyleSystemTypes": return new Commands.Mep.MepRestyleSystemTypesCommand();
                 case "MEP_InspectSystemTypes": return new Commands.Mep.MepInspectSystemTypesCommand();
+                case "MEP_BuildSystems": return new Commands.Mep.MepBuildSystemsCommand();
 
                 // Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
