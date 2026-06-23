@@ -1406,6 +1406,11 @@ namespace StingTools.Core
                 case "CreateDucts": return new Temp.CreateDuctsCommand();
                 case "CreatePipes": return new Temp.CreatePipesCommand();
 
+                // MEP System Type Materializer (Phase A) — chainable in workflows.
+                case "MEP_BuildSystemTypes": return new Commands.Mep.MepBuildSystemTypesCommand();
+                case "MEP_RestyleSystemTypes": return new Commands.Mep.MepRestyleSystemTypesCommand();
+                case "MEP_InspectSystemTypes": return new Commands.Mep.MepInspectSystemTypesCommand();
+
                 // Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
                 case "BatchSchedules": return new Temp.BatchSchedulesCommand();
