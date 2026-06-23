@@ -266,7 +266,7 @@ namespace StingTools.Commands.Electrical
             if (!string.IsNullOrEmpty(d.ConductorMat))
                 ParameterHelpers.SetString(conduit, "ELC_WIRE_COND_MAT_TXT", d.ConductorMat, false);
             if (!string.IsNullOrEmpty(d.CircuitNumber))
-                ParameterHelpers.SetString(conduit, "ELC_CIRCUIT_NR_TXT", d.CircuitNumber, true);
+                ParameterHelpers.SetString(conduit, "ELC_CKT_NR", d.CircuitNumber, true);
             if (!string.IsNullOrEmpty(d.PanelName))
                 ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", d.PanelName, false);
             if (!string.IsNullOrEmpty(d.CircuitType))

@@ -2772,7 +2772,7 @@ namespace StingTools.Commands.Lightning
             {
                 try
                 {
-                    string tag = ParameterHelpers.GetString(fi, "ASS_TAG_1");
+                    string tag = ParameterHelpers.GetString(fi, "ASS_TAG_1_TXT");
                     if (string.IsNullOrWhiteSpace(tag)) tag = $"LPS-{fi.Id.Value}";
                     string typeName = fi.Symbol?.Name ?? fi.Symbol?.FamilyName ?? "";
                     string room = "";
