@@ -287,10 +287,22 @@ namespace StingTools.Docs
         /// for sanitising disallowed characters and appending the format extension.
         /// </summary>
         public static string ResolveNaming(Document doc, View view, string template, OutputSettings outSettings)
+            => ResolveNaming(doc, view, template, outSettings, null);
+
+        /// <summary>
+        /// As <see cref="ResolveNaming(Document, View, string, OutputSettings)"/> but lets the
+        /// caller override individual tokens — used by the combined-PDF path so the
+        /// ISO 19650 filename carries set-level identity (e.g. the sheet-number slot
+        /// holds the set label) instead of the first sheet's specifics.
+        /// </summary>
+        public static string ResolveNaming(Document doc, View view, string template,
+            OutputSettings outSettings, Dictionary<string, string> overrides)
         {
             if (string.IsNullOrEmpty(template)) template = "{SheetNumber} - {SheetTitle}";
 
             var tokens = BuildTokenContext(doc, view);
+            if (overrides != null)
+                foreach (var kv in overrides) tokens[kv.Key] = kv.Value;
             return Regex.Replace(template, @"\{(?<key>[A-Za-z0-9_]+)(?::(?<fmt>[^}]+))?\}", m =>
             {
                 string key = m.Groups["key"].Value;
@@ -778,14 +790,14 @@ namespace StingTools.Docs
                     foreach (var g in groups)
                     {
                         if (cancel != null && cancel()) return;
-                        ExportCombinedPdf(doc, g.ToList<View>(), profile, result, g.Key);
+                        ExportCombinedPdf(doc, g.ToList<View>(), profile, result, g.Key, PdfCombineMode.OnePerDiscipline);
                         tick?.Invoke($"PDF (combined): {g.Key}");
                     }
                     break;
                 }
 
                 case PdfCombineMode.OnePerSet:
-                    ExportCombinedPdf(doc, sheets, profile, result, "All");
+                    ExportCombinedPdf(doc, sheets, profile, result, "All", PdfCombineMode.OnePerSet);
                     tick?.Invoke("PDF (combined): All");
                     break;
 
@@ -796,7 +808,7 @@ namespace StingTools.Docs
                             .Select(idText => long.TryParse(idText, out var n) ? doc.GetElement(new ElementId(n)) : null)
                             .OfType<View>().ToList();
                         if (groupSheets.Count == 0) continue;
-                        ExportCombinedPdf(doc, groupSheets, profile, result, kv.Key);
+                        ExportCombinedPdf(doc, groupSheets, profile, result, kv.Key, PdfCombineMode.CustomGroups);
                         tick?.Invoke($"PDF (custom): {kv.Key}");
                     }
                     break;
@@ -817,20 +829,42 @@ namespace StingTools.Docs
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
+                // NOTE: In Revit 2022+ the PDFExportOptions.FileName property is
+                // ONLY honoured when Combine == true. With Combine == false Revit
+                // names every file via its own naming rule (e.g. "Sheet - <name>"),
+                // so File.Exists(stem.pdf) was always false and the export was
+                // reported as a failure even though a PDF had been written. Export
+                // the single view with Combine == true so the requested filename is
+                // produced exactly. (A single-view "combine" is just a 1-page PDF.)
                 var opts = new PDFExportOptions
                 {
                     FileName = stem,
-                    Combine = false,
+                    Combine = true,
                     AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster",
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
 
-                bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
-                row.OutputPath = Path.Combine(folder, stem + ".pdf");
-                row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
-                else row.Error = "PDF export returned false";
+                var singleView = new List<View> { view };
+                bool ok = RobustPdfExport(doc, new List<ElementId> { view.Id }, folder, stem, opts,
+                    out string finalPath, out long bytes, out int pageCount, out string err,
+                    tmp =>
+                    {
+                        // Post-process the verified temp file BEFORE the atomic move,
+                        // so a configured watermark / bookmark lands on every
+                        // OnePerSheet output and the published PDF is final in one step.
+                        if (profile.Pdf.AddBookmarks)  TryInjectBookmarks(tmp, singleView, profile, result);
+                        if (profile.Pdf.ApplyWatermark) TryInjectWatermark(tmp, profile.Pdf, result);
+                    });
+                row.OutputPath = finalPath;
+                row.Success = ok;
+                if (ok)
+                {
+                    row.FileSizeBytes = bytes;
+                    if (pageCount != 1)
+                        result.Warnings.Add($"{row.SheetNumber}: PDF has {pageCount} page(s), expected 1.");
+                }
+                else row.Error = err;
             }
             catch (Exception ex)
             {
@@ -841,7 +875,8 @@ namespace StingTools.Docs
         }
 
         private static void ExportCombinedPdf(Document doc, List<View> views,
-            ExportProfile profile, ExportRunResult result, string groupName)
+            ExportProfile profile, ExportRunResult result, string groupName,
+            PdfCombineMode mode)
         {
             var row = new ExportResultRow
             {
@@ -853,9 +888,30 @@ namespace StingTools.Docs
             try
             {
                 string folder = SubFolderFor(profile, "PDF", profile.Output.SplitByDisciplineSubFolder ? groupName : null);
+
+                // Combined PDFs carry SET-level identity rather than the first
+                // sheet's specifics. The sheet-number slot of the ISO 19650 name
+                // becomes a set label, the level becomes "XX" (spans levels), and
+                // discipline/role reflect the group — so we get a clean
+                // "…-XX-DR-A-ALL-S2-P01.pdf" instead of "…-A002-S2-P01_All.pdf".
+                string repl = profile.Output.IllegalCharReplacement;
+                bool isAllSet = mode == PdfCombineMode.OnePerSet;
+                bool isDisc   = mode == PdfCombineMode.OnePerDiscipline;
+                string setLabel = (isAllSet || isDisc) ? "ALL" : Sanitise(groupName, repl);
+                var nameOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["SheetNumber"]   = setLabel,
+                    ["DrawingNumber"] = setLabel,
+                    ["SheetTitle"]    = isAllSet ? "All Sheets" : groupName,
+                    ["DrawingTitle"]  = isAllSet ? "All Sheets" : groupName,
+                    ["Level"]         = "XX",
+                };
+                if (isDisc) { nameOverrides["Discipline"] = groupName; nameOverrides["Role"] = groupName; }
+                else if (isAllSet) { nameOverrides["Discipline"] = "Z"; nameOverrides["Role"] = "Z"; }
+
                 string stem = Sanitise(
-                    ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
-                    profile.Output.IllegalCharReplacement);
+                    ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output, nameOverrides),
+                    repl);
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
@@ -870,18 +926,22 @@ namespace StingTools.Docs
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
 
-                bool ok = doc.Export(folder, ordered.Select(v => v.Id).ToList(), opts);
-                row.OutputPath = Path.Combine(folder, stem + ".pdf");
-                row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success)
+                bool ok = RobustPdfExport(doc, ordered.Select(v => v.Id).ToList(), folder, stem, opts,
+                    out string finalPath, out long bytes, out int pageCount, out string err,
+                    tmp =>
+                    {
+                        if (profile.Pdf.AddBookmarks)  TryInjectBookmarks(tmp, ordered, profile, result);
+                        if (profile.Pdf.ApplyWatermark) TryInjectWatermark(tmp, profile.Pdf, result);
+                    });
+                row.OutputPath = finalPath;
+                row.Success = ok;
+                if (ok)
                 {
-                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
-                    if (profile.Pdf.AddBookmarks)
-                        TryInjectBookmarks(row.OutputPath, ordered, profile, result);
-                    if (profile.Pdf.ApplyWatermark)
-                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                    row.FileSizeBytes = bytes;
+                    if (pageCount != ordered.Count)
+                        result.Warnings.Add($"Combined '{groupName}': PDF has {pageCount} page(s), expected {ordered.Count}.");
                 }
-                else row.Error = "Combined PDF export returned false";
+                else row.Error = err;
             }
             catch (Exception ex)
             {
@@ -941,6 +1001,148 @@ namespace StingTools.Docs
             "BlackAndWhite" => ColorDepthType.BlackLine,
             _               => ColorDepthType.Color,
         };
+
+        // ── Robust PDF export (atomic write + verification + retry) ──────────────
+
+        // A genuinely-rendered single-sheet PDF is several KB; anything below this
+        // is an empty / failed render masquerading as a success.
+        private const long MinValidPdfBytes = 600;
+
+        /// <summary>
+        /// Export PDF robustly: render into a sibling temp folder, verify the
+        /// output (non-zero bytes + opens + page count), run any post-processing
+        /// on the verified temp file, then atomically rename it into place. The
+        /// target is checked for locks up-front and the whole render is retried
+        /// with backoff on transient I/O so a sheet open in Bluebeam/Acrobat or a
+        /// momentarily-busy printer doesn't fail the batch. Revit failure messages
+        /// raised during the export are captured and surfaced instead of the bare
+        /// "returned false".
+        /// </summary>
+        private static bool RobustPdfExport(Document doc, List<ElementId> ids, string folder,
+            string stem, PDFExportOptions opts, out string finalPath, out long bytes,
+            out int pageCount, out string error, Action<string> preMovePostProcess)
+        {
+            finalPath = Path.Combine(folder, stem + ".pdf");
+            bytes = 0; pageCount = 0; error = null;
+
+            // Fail fast (and clearly) if the destination is open in a viewer.
+            if (IsFileLocked(finalPath))
+            {
+                error = "target file is open in another application — close it " +
+                        "(Bluebeam / Acrobat) and re-run";
+                return false;
+            }
+
+            string tempDir  = Path.Combine(folder, ".sting_export_tmp");
+            string tempPath = Path.Combine(tempDir, stem + ".pdf");
+            opts.FileName = stem;
+
+            const int maxAttempts = 3;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    Directory.CreateDirectory(tempDir);
+                    TryDeleteFile(tempPath);
+
+                    var captured = new List<string>();
+                    void OnFail(object s, Autodesk.Revit.DB.Events.FailuresProcessingEventArgs e)
+                    {
+                        try
+                        {
+                            foreach (var m in e.GetFailuresAccessor().GetFailureMessages())
+                                captured.Add(m.GetDescriptionText());
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    }
+
+                    bool ok;
+                    doc.Application.FailuresProcessing += OnFail;
+                    try { ok = doc.Export(tempDir, ids, opts); }
+                    finally { doc.Application.FailuresProcessing -= OnFail; }
+
+                    if (!ok || !File.Exists(tempPath))
+                    {
+                        error = "Revit PDF export returned false"
+                            + (captured.Count > 0
+                                ? ": " + string.Join("; ", captured.Distinct())
+                                : " (no file produced)");
+                        // may be transient — fall through to the backoff + retry
+                    }
+                    else if (!VerifyPdf(tempPath, out bytes, out pageCount, out error))
+                    {
+                        // corrupt / empty output is not transient — stop now
+                        TryDeleteFile(tempPath); TryDeleteTempDir(tempDir);
+                        return false;
+                    }
+                    else
+                    {
+                        try { preMovePostProcess?.Invoke(tempPath); }
+                        catch (Exception ex) { StingLog.Warn($"PDF post-process: {ex.Message}"); }
+
+                        File.Move(tempPath, finalPath, true); // same-volume atomic rename
+                        try { bytes = new FileInfo(finalPath).Length; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        TryDeleteTempDir(tempDir);
+                        return true;
+                    }
+                }
+                catch (IOException ioex) { error = ioex.Message; }                 // transient lock → retry
+                catch (UnauthorizedAccessException uaex) { error = uaex.Message; } // transient lock → retry
+                catch (Autodesk.Revit.Exceptions.ApplicationException rex) { error = rex.Message; }
+                catch (Exception ex)
+                {
+                    error = ex.Message;
+                    TryDeleteFile(tempPath); TryDeleteTempDir(tempDir);
+                    return false;
+                }
+
+                if (attempt < maxAttempts) System.Threading.Thread.Sleep(400 * attempt);
+            }
+
+            TryDeleteFile(tempPath); TryDeleteTempDir(tempDir);
+            return false;
+        }
+
+        private static bool VerifyPdf(string path, out long bytes, out int pageCount, out string error)
+        {
+            bytes = 0; pageCount = 0; error = null;
+            if (!File.Exists(path)) { error = "no output file produced"; return false; }
+            bytes = new FileInfo(path).Length;
+            if (bytes < MinValidPdfBytes)
+            {
+                error = $"output is only {bytes} bytes — likely empty/corrupt";
+                return false;
+            }
+            return ExportCenterPdfPostProcess.TryReadPdfInfo(path, out pageCount, out error);
+        }
+
+        private static bool IsFileLocked(string path)
+        {
+            if (!File.Exists(path)) return false;
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return false;
+            }
+            catch (IOException) { return true; }
+            catch (UnauthorizedAccessException) { return true; }
+        }
+
+        private static void TryDeleteFile(string p)
+        {
+            try { if (File.Exists(p)) File.Delete(p); }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        private static void TryDeleteTempDir(string dir)
+        {
+            try
+            {
+                if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+                    Directory.Delete(dir);
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
 
         // ── DWG pipeline ────────────────────────────────────────────────────────
 
