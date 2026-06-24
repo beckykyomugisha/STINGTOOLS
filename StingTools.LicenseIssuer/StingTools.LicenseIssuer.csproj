@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>StingLicenseIssuer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\Licensing\LicensePayload.cs" Link="LicensePayload.cs" />
+    <Compile Include="..\StingTools\Core\Licensing\LicenseCrypto.cs" Link="LicenseCrypto.cs" />
+  </ItemGroup>
+</Project>

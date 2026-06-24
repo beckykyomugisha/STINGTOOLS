@@ -23,6 +23,12 @@ Planscape.Server/src/Planscape.API/storage/
 # NuGet
 packages/
 
+# Licensing — never commit the signing key or issued licenses
+private.pem
+public.pem
+issued-licenses.csv
+*.lic
+
 # OS
 .DS_Store
 Thumbs.db
