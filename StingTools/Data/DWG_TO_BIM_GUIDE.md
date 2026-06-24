@@ -251,6 +251,69 @@ var result = pipeline.RunFullPipelineWithConfig(importInstance, config);
 | Elements at wrong level | Verify **Base Level** and **Top Level** are set correctly. |
 | Numbering not applied | Ensure elements have the target parameter (e.g., Mark) and it's not read-only. |
 
+## MEP-from-DWG Run Rules (`dwg_run_rules.json`)
+
+The MEP-from-DWG path (`Mep_CadPreview` / `Mep_CadToModel` / `Mep_CadWizard`)
+turns lines on MEP layers into straight Duct / Pipe / Conduit / CableTray runs
+and `UP`/`DN`/`RISER` blocks into vertical riser segments. Its policy —
+per-kind default size + run elevation + **riser default size**, the fitting
+coincidence tolerance, and the **drainage fall bands** — lives in
+`Data/STING_DWG_RUN_RULES.json` (corporate baseline) with a per-field
+project override at `<project>/_BIM_COORD/dwg_run_rules.json` (project wins).
+The shipped corporate values reproduce the engine's previous hardcoded
+defaults exactly, so an un-customised project converts byte-for-byte unchanged.
+
+### Riser sizing — `RiserDefaultSize`
+
+A riser whose size is parsed off its block name or layer (e.g. a block named
+`RISER-DUCT-400x250` or sitting on a `M-DUCT-Ø150` layer) keeps that parsed
+size. A riser with **no** parsed size takes the per-kind `RiserDefaultSize`
+(a stack is larger than a branch run), **not** the branch `DefaultSize`:
+
+| Kind | Branch `DefaultSize` | `RiserDefaultSize` |
+|------|----------------------|--------------------|
+| Duct | 300×250 → 300×200 | **400×250** |
+| Pipe | Ø50 | **Ø100** |
+| Conduit | Ø25 | **Ø50** |
+| CableTray | 150×50 | **300×100** |
+
+The conversion report proves this is live — it counts
+`N riser(s) sized from RiserDefaultSize` and flags any left unsized (no parse
+**and** an empty/zero `RiserDefaultSize` override → falls back to the branch
+default).
+
+### Drainage falls — `DrainageSlopeBands` (opt-in)
+
+By default every drainage / sanitary pipe falls at a **flat 1.25 % (1:80)** —
+`DrainageSlopeBands` ships as a single full-range band:
+
+```json
+"DrainageSlopeBands": [ { "MaxDiaMm": 100000, "SlopePercent": 1.25 } ]
+```
+
+This flat default **stays the default** — graduating it silently would move
+invert geometry on every existing project. When a drain uses the flat default,
+the preview and conversion report surface a note:
+
+> ℹ drainage fall is flat 1.25% (not diameter-graded) — populate
+> DrainageSlopeBands in dwg_run_rules.json for BS EN 12056 graduated falls.
+
+To opt into BS EN 12056 graduated falls, populate `DrainageSlopeBands` with
+≥2 diameter-keyed bands (lowest `MaxDiaMm` wins for a given bore) in the
+project override. Worked example:
+
+```json
+"DrainageSlopeBands": [
+  { "MaxDiaMm": 50,     "SlopePercent": 2.5  },   // DN≤50  → 1:40
+  { "MaxDiaMm": 75,     "SlopePercent": 1.66 },   // DN≤75  → 1:60
+  { "MaxDiaMm": 100,    "SlopePercent": 1.25 },   // DN≤100 → 1:80
+  { "MaxDiaMm": 100000, "SlopePercent": 1.0  }    // larger → 1:100
+]
+```
+
+Once ≥2 bands are present the flat-default note disappears and each drain
+falls at the band matching its bore.
+
 ## Files
 
 | File | Lines | Description |
@@ -258,4 +321,8 @@ var result = pipeline.RunFullPipelineWithConfig(importInstance, config);
 | `Model/StructuralCADWizard.cs` | ~1,718 | Single-page WPF dialog + NumberingEngine + DWGConversionConfig |
 | `Model/StructuralCADPipeline.cs` | ~2,400 | Detection algorithms + element creation + enhanced pipeline |
 | `Model/StructuralModelingCommands.cs` | — | `StrCADWizardCommand` (launches wizard and runs pipeline) |
+| `Model/MepCadCommands.cs` | — | MEP-from-DWG commands (`Mep_CadPreview` / `Mep_CadToModel` / `Mep_CadWizard`) + shared report |
+| `Core/Cad/Mep/MepRunBuilder.cs` | — | Straight runs + risers (consumes `RiserDefaultSize`); drainage chaining + fall |
+| `Core/Cad/Mep/MepRunRules.cs` | — | Data-driven run policy loader (`dwg_run_rules.json`): sizes, offsets, fall bands |
+| `Data/STING_DWG_RUN_RULES.json` | — | Corporate baseline MEP run rules (per-field project override in `_BIM_COORD/`) |
 | `Data/DWG_TO_BIM_GUIDE.md` | — | This documentation file |

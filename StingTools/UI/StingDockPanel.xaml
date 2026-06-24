@@ -2661,6 +2661,13 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Type Catalog — browse loaded structural families with extracted dimensions"/>
                                     </WrapPanel>
                                 </Expander>
+                                <Expander Header="DWG → MEP (fixtures)" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="★ MEP Wizard" Tag="Mep_CadWizard" Click="Cmd_Click" FontWeight="Bold" ToolTip="MEP CAD Wizard — per-layer mapping: pick level + host-snap, include/exclude layers, override run kind + elevation, then place fixtures + runs."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="Mep_CadPreview" Click="Cmd_Click" ToolTip="MEP CAD Preview — audit DWG blocks (which place as which fixture vs skip) + straight-run candidates (Duct/Pipe/Conduit/Tray) from lines. Read-only."/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Convert" Tag="Mep_CadToModel" Click="Cmd_Click" ToolTip="MEP CAD → Model — place MEP fixtures (host-snapped to wall/ceiling) AND straight runs from DWG via STING_DWG_FIXTURE_MAP + layer recognition; auto-tagged. (Fittings/risers/slope are V3.)"/>
+                                    </WrapPanel>
+                                </Expander>
                                 <Expander Header="Structural analysis" FontSize="10" Margin="0,2,0,0">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource ActionBtn}" Content="System Type" Tag="StrClassifySystem" Click="Cmd_Click" ToolTip="Auto-classify: frame, braced, shear wall, dual, flat slab"/>
