@@ -480,38 +480,12 @@ namespace StingTools.Core.Drawing
         [JsonProperty("sectionVisibility", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, bool> SectionVisibility { get; set; }
 
-        /// <summary>
-        /// Tag size preset — "2", "2.5", "3", "3.5". Combined with
-        /// <see cref="TagStyle"/> + <see cref="TagColor"/> to pick the
-        /// active TAG_{size}{style}_{color}_BOOL. Null = leave as-is.
-        /// </summary>
-        [JsonProperty("tagSize", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagSize { get; set; }
-
-        /// <summary>
-        /// Tag style preset — "NOM" / "BOLD" / "ITALIC" / "BOLDITALIC".
-        /// Null = leave as-is.
-        /// </summary>
-        [JsonProperty("tagStyle", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagStyle { get; set; }
-
-        /// <summary>
-        /// Tag colour preset — "BLACK" / "BLUE" / "GREEN" / "RED" /
-        /// "ORANGE" / "GREY" / "PURPLE" / "YELLOW". Null = leave as-is.
-        /// </summary>
-        [JsonProperty("tagColor", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagColor { get; set; }
-
-        /// <summary>
-        /// Per-view variable colour scheme to write into
-        /// STING_VIEW_TAG_STYLE — picks up TagStyleEngine's
-        /// VariableSchemes (System / Status / Zone / Level / Location
-        /// / Function) or BuiltInSchemes (Discipline / Warm / Cool /
-        /// Red / Yellow / Blue / Mono / Dark). Null = leave the view
-        /// param alone.
-        /// </summary>
-        [JsonProperty("colorScheme", NullValueHandling = NullValueHandling.Ignore)]
-        public string ColorScheme { get; set; }
+        // Tag STYLE is single-sourced in the ViewStylePack (DefaultTagStyle /
+        // CategoryTagStyles / TagColorScheme). The former per-profile style
+        // fields — tagSize / tagStyle / tagColor / colorScheme — were removed so
+        // appearance isn't authored in two places. Drawing types own token DEPTH
+        // (ParaDepth / CategoryDepths / SegmentMask / SectionVisibility / …); the
+        // bound pack owns appearance. Any legacy JSON keys are ignored on load.
 
         /// <summary>
         /// 8-segment tag mask string of 1/0 chars selecting which

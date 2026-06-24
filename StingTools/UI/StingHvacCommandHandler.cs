@@ -133,6 +133,37 @@ namespace StingTools.UI
                     // ── SYS tab ────────────────────────────────────────────
                     case "Hvac_SystemAudit":
                         Run<StingTools.Temp.MEPSystemAuditCommand>(app); break;
+                    // Phase A — MEP System Type Materializer.
+                    case "MEP_BuildSystemTypes":
+                        Run<StingTools.Commands.Mep.MepBuildSystemTypesCommand>(app); break;
+                    case "MEP_RestyleSystemTypes":
+                        Run<StingTools.Commands.Mep.MepRestyleSystemTypesCommand>(app); break;
+                    case "MEP_InspectSystemTypes":
+                        Run<StingTools.Commands.Mep.MepInspectSystemTypesCommand>(app); break;
+                    case "MEP_ReloadSystemTypes":
+                        Run<StingTools.Commands.Mep.MepReloadSystemTypesCommand>(app); break;
+                    // Phase B — MEP System Instance Builder.
+                    case "MEP_BuildSystems":
+                        Run<StingTools.Commands.Mep.MepBuildSystemsCommand>(app); break;
+                    case "MEP_BuildSystemsForce":
+                        Run<StingTools.Commands.Mep.MepBuildSystemsForceCommand>(app); break;
+                    // Phase C/D — MEP-aware drawing coordination + system filters.
+                    case "MEP_GenerateSystemFilters":
+                        Run<StingTools.Commands.Mep.MepGenerateSystemFiltersCommand>(app); break;
+                    case "MEP_ApplyMepCoordination":
+                        Run<StingTools.Commands.Mep.MepApplyMepCoordinationCommand>(app); break;
+                    case "MEP_InspectMepCoordination":
+                        Run<StingTools.Commands.Mep.MepInspectMepCoordinationCommand>(app); break;
+                    // Phase E — per-discipline view production + electrical circuits.
+                    case "MEP_ProduceMepViews":
+                        Run<StingTools.Commands.Mep.MepProduceMepViewsCommand>(app); break;
+                    case "MEP_BuildCircuits":
+                        Run<StingTools.Commands.Mep.MepBuildCircuitsCommand>(app); break;
+                    // Phase F — per-level fan-out + sheets, circuit auto-grouping.
+                    case "MEP_ProduceMepViewsByLevel":
+                        Run<StingTools.Commands.Mep.MepProduceMepViewsByLevelCommand>(app); break;
+                    case "MEP_AutoGroupCircuits":
+                        Run<StingTools.Commands.Mep.MepAutoGroupCircuitsCommand>(app); break;
                     case "Hvac_AutoFireDamper":
                     case "Routing_AutoFireDamper":
                         Run<StingTools.Commands.RoutingExt.AutoFireDamperCommand>(app); break;

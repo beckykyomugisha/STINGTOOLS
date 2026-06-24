@@ -1406,6 +1406,20 @@ namespace StingTools.Core
                 case "CreateDucts": return new Temp.CreateDuctsCommand();
                 case "CreatePipes": return new Temp.CreatePipesCommand();
 
+                // MEP System Type Materializer (Phase A) — chainable in workflows.
+                case "MEP_BuildSystemTypes": return new Commands.Mep.MepBuildSystemTypesCommand();
+                case "MEP_RestyleSystemTypes": return new Commands.Mep.MepRestyleSystemTypesCommand();
+                case "MEP_InspectSystemTypes": return new Commands.Mep.MepInspectSystemTypesCommand();
+                case "MEP_BuildSystems": return new Commands.Mep.MepBuildSystemsCommand();
+                case "MEP_BuildSystemsForce": return new Commands.Mep.MepBuildSystemsForceCommand();
+                case "MEP_GenerateSystemFilters": return new Commands.Mep.MepGenerateSystemFiltersCommand();
+                case "MEP_ApplyMepCoordination": return new Commands.Mep.MepApplyMepCoordinationCommand();
+                case "MEP_InspectMepCoordination": return new Commands.Mep.MepInspectMepCoordinationCommand();
+                case "MEP_ProduceMepViews": return new Commands.Mep.MepProduceMepViewsCommand();
+                case "MEP_BuildCircuits": return new Commands.Mep.MepBuildCircuitsCommand();
+                case "MEP_ProduceMepViewsByLevel": return new Commands.Mep.MepProduceMepViewsByLevelCommand();
+                case "MEP_AutoGroupCircuits": return new Commands.Mep.MepAutoGroupCircuitsCommand();
+
                 // Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
                 case "BatchSchedules": return new Temp.BatchSchedulesCommand();
@@ -1520,6 +1534,8 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "Classification_SetStandard": return new Commands.Classification.ClassificationSetStandardCommand();
+                case "Keynote_Assign": return new Commands.Classification.KeynoteAssignCommand();
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
                 case "Fohlio_Import": return new ExLink.FohlioImportCommand();
                 case "Fohlio_Audit": return new ExLink.FohlioAuditCommand();

@@ -1,0 +1,435 @@
+{
+  "_notes": [
+    "STING MEP System Types \u00e2\u20ac\u201d corporate baseline (Phase A: System Type Materializer).",
+    "Single source of truth for the Revit MEP *system types* STING creates/maintains in a project:",
+    "  duct systems  -> MechanicalSystemType.Create(doc, classification, name)",
+    "  pipe systems  -> PipingSystemType.Create(doc, classification, name)",
+    "Materialized idempotently by MEP_BuildSystemTypes (match by name; never duplicates).",
+    "",
+    "Each entry carries the Revit system CLASSIFICATION (the enum the 19 MEP AEC filters in",
+    "STING_AEC_FILTERS.json key off via RBS_SYSTEM_CLASSIFICATION_PARAM) PLUS the STING tag",
+    "tokens (stingSysCode / stingFuncCode). Materializing these is what makes the existing",
+    "system-colour filters and the System Browser light up \u00e2\u20ac\u201d the integration hook for the",
+    "Drawing Types / View Style Packs / AEC Filters pipeline.",
+    "",
+    "Layered like every other STING registry:",
+    "  corporate baseline -> Data/STING_MEP_SYSTEM_TYPES.json (this file)",
+    "  project override   -> <project>/_BIM_COORD/mep_system_types.json (merged by id, project wins)",
+    "",
+    "Fields:",
+    "  id             stable key (used to merge project overrides)",
+    "  name           the Revit system-type NAME to create/maintain (the System Browser label)",
+    "  discipline     'duct' (MechanicalSystemType) | 'pipe' (PipingSystemType)",
+    "  classification MEPSystemClassification enum name; unknown values are warned + skipped",
+    "  abbreviation   MEPSystemType.Abbreviation \u00e2\u20ac\u201d the prefix Revit uses to auto-name systems",
+    "  stingSysCode   STING SYS token (ties the type back to the ISO 19650 tag grammar)",
+    "  stingFuncCode  STING FUNC token",
+    "  lineColor      [r,g,b] -> MEPSystemType.LineColor graphic override (0..255)",
+    "  lineWeight     1..16   -> MEPSystemType.LineWeight (omit/0 = leave default)",
+    "  linePattern    line-pattern NAME -> MEPSystemType.LinePatternId (omit = solid/default)",
+    "  material       material NAME -> MEPSystemType.MaterialId (omit = leave default)",
+    "  uniclass/cibse reference only (documentation / BOQ calibration)",
+    "  enabled        false to keep a definition on file without materializing it (default true)",
+    "",
+    "Project teams extend / recolour by dropping a mep_system_types.json override \u00e2\u20ac\u201d no recompile."
+  ],
+  "systemTypes": [
+    {
+      "id": "duct-supply-air",
+      "name": "STING Supply Air",
+      "discipline": "duct",
+      "classification": "SupplyAir",
+      "abbreviation": "SA",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "SUP",
+      "lineColor": [
+        0,
+        112,
+        192
+      ],
+      "lineWeight": 5,
+      "uniclass": "Ss_55_30_36",
+      "cibse": "CIBSE-HV01"
+    },
+    {
+      "id": "duct-return-air",
+      "name": "STING Return Air",
+      "discipline": "duct",
+      "classification": "ReturnAir",
+      "abbreviation": "RA",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "RET",
+      "lineColor": [
+        0,
+        176,
+        80
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_27",
+      "cibse": "CIBSE-HV02"
+    },
+    {
+      "id": "duct-extract-air",
+      "name": "STING Extract Air",
+      "discipline": "duct",
+      "classification": "ExhaustAir",
+      "abbreviation": "EA",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "EXT",
+      "lineColor": [
+        255,
+        128,
+        0
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_27",
+      "cibse": "CIBSE-HV02"
+    },
+    {
+      "id": "duct-fresh-air",
+      "name": "STING Fresh Air",
+      "discipline": "duct",
+      "classification": "SupplyAir",
+      "abbreviation": "FA",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "SUP",
+      "lineColor": [
+        0,
+        176,
+        240
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_36",
+      "cibse": "CIBSE-HV03"
+    },
+    {
+      "id": "duct-smoke-extract",
+      "name": "STING Smoke Extract",
+      "discipline": "duct",
+      "classification": "ExhaustAir",
+      "abbreviation": "SMK",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "EXT",
+      "lineColor": [
+        127,
+        0,
+        0
+      ],
+      "lineWeight": 5,
+      "uniclass": "Ss_55_30_70",
+      "cibse": "CIBSE-HV04"
+    },
+    {
+      "id": "pipe-lthw-flow",
+      "name": "STING LTHW Flow",
+      "discipline": "pipe",
+      "classification": "SupplyHydronic",
+      "abbreviation": "LTHWF",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "HTG",
+      "lineColor": [
+        255,
+        120,
+        0
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_10",
+      "cibse": "CIBSE-HT01"
+    },
+    {
+      "id": "pipe-lthw-return",
+      "name": "STING LTHW Return",
+      "discipline": "pipe",
+      "classification": "ReturnHydronic",
+      "abbreviation": "LTHWR",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "HTG",
+      "lineColor": [
+        255,
+        175,
+        90
+      ],
+      "lineWeight": 4,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_30_10",
+      "cibse": "CIBSE-HT01"
+    },
+    {
+      "id": "pipe-chw-flow",
+      "name": "STING CHW Flow",
+      "discipline": "pipe",
+      "classification": "SupplyHydronic",
+      "abbreviation": "CHWF",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "CLG",
+      "lineColor": [
+        0,
+        32,
+        96
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_15",
+      "cibse": "CIBSE-CL01"
+    },
+    {
+      "id": "pipe-chw-return",
+      "name": "STING CHW Return",
+      "discipline": "pipe",
+      "classification": "ReturnHydronic",
+      "abbreviation": "CHWR",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "CLG",
+      "lineColor": [
+        0,
+        112,
+        192
+      ],
+      "lineWeight": 4,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_30_15",
+      "cibse": "CIBSE-CL01"
+    },
+    {
+      "id": "pipe-condenser-flow",
+      "name": "STING Condenser Water Flow",
+      "discipline": "pipe",
+      "classification": "SupplyHydronic",
+      "abbreviation": "CWF",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "CLG",
+      "lineColor": [
+        0,
+        128,
+        128
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_15",
+      "cibse": "CIBSE-CL02"
+    },
+    {
+      "id": "pipe-condenser-return",
+      "name": "STING Condenser Water Return",
+      "discipline": "pipe",
+      "classification": "ReturnHydronic",
+      "abbreviation": "CWR",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "CLG",
+      "lineColor": [
+        64,
+        160,
+        160
+      ],
+      "lineWeight": 4,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_30_15",
+      "cibse": "CIBSE-CL02"
+    },
+    {
+      "id": "pipe-dcw",
+      "name": "STING Domestic Cold Water",
+      "discipline": "pipe",
+      "classification": "DomesticColdWater",
+      "abbreviation": "DCW",
+      "stingSysCode": "DCW",
+      "stingFuncCode": "DCW",
+      "lineColor": [
+        0,
+        176,
+        240
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_70_21",
+      "cibse": "CIBSE-PH01"
+    },
+    {
+      "id": "pipe-dhw",
+      "name": "STING Domestic Hot Water",
+      "discipline": "pipe",
+      "classification": "DomesticHotWater",
+      "abbreviation": "DHW",
+      "stingSysCode": "DHW",
+      "stingFuncCode": "DHW",
+      "lineColor": [
+        255,
+        0,
+        0
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_40_25",
+      "cibse": "CIBSE-PH02"
+    },
+    {
+      "id": "pipe-dhwr",
+      "name": "STING DHW Circulation",
+      "discipline": "pipe",
+      "classification": "DomesticHotWater",
+      "abbreviation": "DHWR",
+      "stingSysCode": "DHW",
+      "stingFuncCode": "DHW",
+      "lineColor": [
+        255,
+        128,
+        128
+      ],
+      "lineWeight": 3,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_40_25",
+      "cibse": "CIBSE-PH02"
+    },
+    {
+      "id": "pipe-soil",
+      "name": "STING Soil and Waste",
+      "discipline": "pipe",
+      "classification": "Sanitary",
+      "abbreviation": "SAN",
+      "stingSysCode": "SAN",
+      "stingFuncCode": "SAN",
+      "lineColor": [
+        102,
+        51,
+        0
+      ],
+      "lineWeight": 5,
+      "uniclass": "Ss_50_30_70",
+      "cibse": "CIBSE-PH03"
+    },
+    {
+      "id": "pipe-vent",
+      "name": "STING Soil Vent",
+      "discipline": "pipe",
+      "classification": "Vent",
+      "abbreviation": "SVP",
+      "stingSysCode": "SAN",
+      "stingFuncCode": "SAN",
+      "lineColor": [
+        153,
+        153,
+        0
+      ],
+      "lineWeight": 3,
+      "uniclass": "Ss_50_30_70",
+      "cibse": "CIBSE-PH03"
+    },
+    {
+      "id": "pipe-rainwater",
+      "name": "STING Rainwater",
+      "discipline": "pipe",
+      "classification": "OtherPipe",
+      "abbreviation": "RWD",
+      "stingSysCode": "RWD",
+      "stingFuncCode": "RWD",
+      "lineColor": [
+        0,
+        153,
+        153
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_50_30_67",
+      "cibse": "CIBSE-PH04"
+    },
+    {
+      "id": "pipe-fire-wet",
+      "name": "STING Sprinkler (Wet)",
+      "discipline": "pipe",
+      "classification": "FireProtectWet",
+      "abbreviation": "SPR",
+      "stingSysCode": "FP",
+      "stingFuncCode": "FP",
+      "lineColor": [
+        192,
+        0,
+        0
+      ],
+      "lineWeight": 5,
+      "uniclass": "Ss_55_70_30",
+      "cibse": "CIBSE-FP01"
+    },
+    {
+      "id": "pipe-fire-dry",
+      "name": "STING Sprinkler (Dry)",
+      "discipline": "pipe",
+      "classification": "FireProtectDry",
+      "abbreviation": "SPRD",
+      "stingSysCode": "FP",
+      "stingFuncCode": "FP",
+      "lineColor": [
+        192,
+        80,
+        0
+      ],
+      "lineWeight": 5,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_70_30",
+      "cibse": "CIBSE-FP01"
+    },
+    {
+      "id": "pipe-natural-gas",
+      "name": "STING Natural Gas",
+      "discipline": "pipe",
+      "classification": "OtherPipe",
+      "abbreviation": "GAS",
+      "stingSysCode": "GAS",
+      "stingFuncCode": "GAS",
+      "lineColor": [
+        255,
+        192,
+        0
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_70_38",
+      "cibse": "CIBSE-GS01"
+    },
+    {
+      "id": "pipe-mthw-flow",
+      "name": "STING MTHW Flow",
+      "discipline": "pipe",
+      "classification": "SupplyHydronic",
+      "abbreviation": "MTHWF",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "HTG",
+      "lineColor": [
+        200,
+        0,
+        0
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_10",
+      "cibse": "CIBSE-HT02"
+    },
+    {
+      "id": "pipe-mthw-return",
+      "name": "STING MTHW Return",
+      "discipline": "pipe",
+      "classification": "ReturnHydronic",
+      "abbreviation": "MTHWR",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "HTG",
+      "lineColor": [
+        120,
+        0,
+        0
+      ],
+      "lineWeight": 4,
+      "linePattern": "Dash",
+      "uniclass": "Ss_55_30_10",
+      "cibse": "CIBSE-HT02"
+    },
+    {
+      "id": "pipe-refrigerant",
+      "name": "STING Refrigerant",
+      "discipline": "pipe",
+      "classification": "OtherPipe",
+      "abbreviation": "REF",
+      "stingSysCode": "HVAC",
+      "stingFuncCode": "CLG",
+      "lineColor": [
+        150,
+        0,
+        200
+      ],
+      "lineWeight": 4,
+      "uniclass": "Ss_55_30_93",
+      "cibse": "CIBSE-HV05"
+    }
+  ]
+}

@@ -738,7 +738,16 @@ namespace StingTools.Core
                 if (data.TryGetValue("SEQ_SCHEME", out object seqSchemeObj) && seqSchemeObj is string seqSchemeStr)
                 {
                     if (Enum.TryParse<SeqScheme>(seqSchemeStr, true, out var parsed))
+                    {
+                        // ZonePrefix / DiscPrefix are deprecated (they corrupt the
+                        // fixed 8-segment grammar). Heal a persisted value to Numeric.
+                        if (parsed == SeqScheme.ZonePrefix || parsed == SeqScheme.DiscPrefix)
+                        {
+                            StingLog.Warn($"SEQ scheme '{parsed}' is deprecated (breaks the 8-segment tag); using Numeric.");
+                            parsed = SeqScheme.Numeric;
+                        }
                         CurrentSeqScheme = parsed;
+                    }
                 }
                 if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
                 {
@@ -1087,7 +1096,7 @@ namespace StingTools.Core
                 ConfigSource = path;
                 // Reload CSV-derived lookup tables so project-specific additions survive config reload
                 // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
-                _csvProdRulesLoaded = false;
+                InvalidateProdRulesCache(); // clears corporate + project prod_codes overlays
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
@@ -1179,7 +1188,7 @@ namespace StingTools.Core
             // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
             ISO19650Validator.InvalidateValidatorCaches();
             // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
-            _csvProdRulesLoaded = false;
+            InvalidateProdRulesCache();
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -1761,16 +1770,97 @@ namespace StingTools.Core
         private static Dictionary<string, List<(string Pattern, string ProdCode)>> _csvProdRules;
         private static bool _csvProdRulesLoaded = false;
 
+        // Project-scoped PROD rule overlays, keyed by the project's _BIM_COORD dir.
+        // Mirrors the Fohlio / tag-scheme project-override pattern: a project
+        // <project>/_BIM_COORD/prod_codes.csv layers OVER the corporate
+        // STING_PROD_CODES.csv, and its rules WIN (checked first, first-match).
+        private static readonly Dictionary<string, Dictionary<string, List<(string Pattern, string ProdCode)>>>
+            _projProdRules = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> _projProdLoaded = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _prodRulesLock = new object();
+
+        /// <summary>
+        /// Public entry to drop the PROD rule caches so the next lookup re-reads
+        /// from disk. Call after writing a project <c>prod_codes.csv</c> (e.g.
+        /// Prod_GenerateRules) or before a fresh audit so on-disk edits are
+        /// reflected in the same session without a config reload / Revit restart.
+        /// </summary>
+        public static void ReloadProdRules() => InvalidateProdRulesCache();
+
+        /// <summary>The generic category-default PROD code (no family match), or
+        /// "GEN" when the category isn't mapped. Used by the coverage audit to
+        /// tell "genuinely specific" from "happens to equal the default".</summary>
+        public static string CategoryProdDefault(string categoryName)
+            => (!string.IsNullOrEmpty(categoryName) && ProdMap != null &&
+                ProdMap.TryGetValue(categoryName, out string p)) ? p : "GEN";
+
+        /// <summary>Drop the corporate + project PROD rule caches so the next
+        /// lookup re-reads from disk (called on config reload).</summary>
+        private static void InvalidateProdRulesCache()
+        {
+            lock (_prodRulesLock)
+            {
+                _csvProdRulesLoaded = false;
+                _csvProdRules = null;
+                _projProdLoaded.Clear();
+                _projProdRules.Clear();
+            }
+            ProdPatternMatcher.Reset(); // drop compiled-glob cache so edited patterns recompile
+        }
+
         private static void EnsureProdRulesLoaded()
         {
             if (_csvProdRulesLoaded) return;
-            _csvProdRulesLoaded = true;
-            _csvProdRules = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+            lock (_prodRulesLock)
+            {
+                if (_csvProdRulesLoaded) return;
+                _csvProdRules = LoadProdCsv(StingToolsApp.FindDataFile("STING_PROD_CODES.csv"))
+                                ?? new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+                _csvProdRulesLoaded = true;
+                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} corporate PROD category rule sets from STING_PROD_CODES.csv");
+            }
+        }
+
+        /// <summary>
+        /// Resolve the project-scoped PROD rule overlay for a document, if any.
+        /// Loaded from &lt;project&gt;/_BIM_COORD/prod_codes.csv and cached per
+        /// project dir. Returns null when the document is unsaved or no overlay
+        /// file exists. Project rules take precedence over the corporate baseline.
+        /// </summary>
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> GetProjectProdRules(Document doc)
+        {
+            string path = doc?.PathName;
+            if (string.IsNullOrEmpty(path)) return null;
+            string dir = System.IO.Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(dir)) return null;
+            string key = System.IO.Path.Combine(dir, "_BIM_COORD");
+            lock (_prodRulesLock)
+            {
+                if (_projProdLoaded.Contains(key))
+                    return _projProdRules.TryGetValue(key, out var cached) ? cached : null;
+                _projProdLoaded.Add(key);
+                var rules = LoadProdCsv(System.IO.Path.Combine(key, "prod_codes.csv"));
+                if (rules != null && rules.Count > 0)
+                {
+                    _projProdRules[key] = rules;
+                    StingLog.Info($"TagConfig: loaded {rules.Count} project PROD category rule sets from {key}");
+                }
+                return rules;
+            }
+        }
+
+        /// <summary>
+        /// Parse a STING_PROD_CODES.csv-format file into category → (pattern, prodCode)
+        /// rules. The FAMILY_PATTERN cell is stored upper-cased; matching is
+        /// glob/alternation-aware via <see cref="ProdPatternMatcher"/>. Returns null
+        /// when the file is missing or unreadable.
+        /// </summary>
+        private static Dictionary<string, List<(string Pattern, string ProdCode)>> LoadProdCsv(string csvPath)
+        {
+            if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return null;
+            var map = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                string csvPath = StingToolsApp.FindDataFile("STING_PROD_CODES.csv");
-                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
-
                 bool first = true;
                 foreach (string raw in System.IO.File.ReadLines(csvPath))
                 {
@@ -1786,13 +1876,13 @@ namespace StingTools.Core
                     string pattern  = cols[2].Trim().ToUpperInvariant();
                     if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
 
-                    if (!_csvProdRules.TryGetValue(category, out var list))
-                    { list = new List<(string, string)>(); _csvProdRules[category] = list; }
+                    if (!map.TryGetValue(category, out var list))
+                    { list = new List<(string, string)>(); map[category] = list; }
                     list.Add((pattern, prodCode));
                 }
-                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} category rule sets from STING_PROD_CODES.csv");
             }
-            catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"TagConfig: LoadProdCsv({csvPath}) failed: {ex.Message}"); return null; }
+            return map;
         }
 
         /// <summary>
@@ -1804,8 +1894,17 @@ namespace StingTools.Core
         /// when no material rule matches.
         /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
+            => GetFamilyAwareProdCode(el, categoryName, out _);
+
+        /// <summary>
+        /// Resolve PROD and report which tier produced it (for the coverage
+        /// audit). <paramref name="source"/> ∈ project | corporate | lps |
+        /// sleeve | category | gen. The material-suffix pass below doesn't
+        /// change the source — it only appends -STL/-CON/… to the base code.
+        /// </summary>
+        public static string GetFamilyAwareProdCode(Element el, string categoryName, out string source)
         {
-            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName, out source);
             try
             {
                 string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
@@ -1822,176 +1921,27 @@ namespace StingTools.Core
             return baseProd;
         }
 
-        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
-            // Combined name checks both family AND type name for broader pattern matching
-            string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
-            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches
+            // Data-driven, single-source PROD resolution. The per-category rule
+            // lists are fetched from Revit here (project overlay + corporate CSV);
+            // the precedence chain (project → corporate → LPS → sleeve → category
+            // default → GEN), the glob matching, and the LPS/sleeve special cases
+            // all live in the pure, unit-tested ProdResolver.
             EnsureProdRulesLoaded();
-            if (!string.IsNullOrEmpty(familyName) && _csvProdRules != null
-                && _csvProdRules.TryGetValue(categoryName, out var csvRules))
-            {
-                foreach (var (pattern, prodCode) in csvRules)
-                    if (combinedName.Contains(pattern)) return prodCode;
-            }
-
-            // Only apply family-level overrides for categories with diverse equipment
+            List<(string Pattern, string ProdCode)> projForCat = null;
+            List<(string Pattern, string ProdCode)> corpForCat = null;
             if (!string.IsNullOrEmpty(familyName))
             {
-                // Search both family name and combined (family + type) name for patterns
-                string upper = combinedName;
-
-                // ── Lightning Protection System (BS EN 62305) ────────────────
-                // LPS elements may be modelled in Electrical Equipment, Generic Models,
-                // Conduits, or Specialty Equipment. Family-name discriminates the
-                // 6 LPS sub-element kinds (12 PROD codes) regardless of category.
-                // Phase 176 — wired into LPS tag families #54 to #59.
-                if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
-                    upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                    upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                    upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                    upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                    upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
-                {
-                    if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD"))
-                        return "ATR";  // Air terminal rod
-                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE"))
-                        return "AMS";  // Air mesh section
-                    if (upper.Contains("CATENARY"))
-                        return "ACT";  // Air catenary
-                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                        upper.Contains("DESCENT"))
-                        return "DCN";  // Down conductor
-                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH"))
-                        return "ERD";  // Earth rod
-                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING"))
-                        return "ERG";  // Ring earth
-                    if (upper.Contains("FOUNDATION EARTH"))
-                        return "EFE";  // Foundation earth
-                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH"))
-                        return "EME";  // Mesh earth
-                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE"))
-                        return "ERD";
-                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL"))
-                        return "BCN";  // Bond conductor (default)
-                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR"))
-                        return "BBR";
-                    if (upper.Contains("SPARK GAP"))
-                        return "BSG";
-                    if (upper.Contains("TYPE 1") && upper.Contains("SPD"))
-                        return "SPD1";
-                    if (upper.Contains("TYPE 2") && upper.Contains("SPD"))
-                        return "SPD2";
-                    if (upper.Contains("TYPE 3") && upper.Contains("SPD"))
-                        return "SPD3";
-                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
-                        return "TCL";
-                    // Generic LPS fallback — always return some LPS PROD code
-                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING"))
-                        return "LPS";
-                }
-
-                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
-                if (categoryName == "Mechanical Equipment")
-                {
-                    if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
-                    if (upper.Contains("VAV") || upper.Contains("VARIABLE AIR")) return "VAV";
-                    if (upper.Contains("CHILLER") || upper.Contains("CHR")) return "CHR";
-                    if (upper.Contains("BOILER") || upper.Contains("BLR")) return "BLR";
-                    if (upper.Contains("PUMP") || upper.Contains("PMP")) return "PMP";
-                    if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
-                    if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
-                    if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
-                    if (upper.Contains("INDUCTION")) return "IND";
-                    if (upper.Contains("RADIANT") || upper.Contains("RAD PANEL")) return "RAD";
-                    if (upper.Contains("DAMPER") || upper.Contains("DAM")) return "DAM";
-                    if (upper.Contains("COOLING TOWER") || upper.Contains("CLT")) return "CLT";
-                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("INVERTER")) return "VFD";
-                    if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
-                }
-                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN, etc.
-                else if (categoryName == "Electrical Equipment")
-                {
-                    if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
-                    if (upper.Contains("MSB") || upper.Contains("MAIN SWITCH")) return "MSB";
-                    if (upper.Contains("SWB") || upper.Contains("SWITCHBOARD")) return "SWB";
-                    if (upper.Contains("UPS") || upper.Contains("UNINTERRUPT")) return "UPS";
-                    if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
-                    if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
-                    if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
-                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("DRIVE")) return "VFD";
-                    if (upper.Contains("SPD") || upper.Contains("SURGE")) return "SPD";
-                    if (upper.Contains("RCD") || upper.Contains("RESIDUAL")) return "RCD";
-                    if (upper.Contains("ISOLAT") || upper.Contains("DISCONNECT")) return "ISO";
-                    if (upper.Contains("SOFT START")) return "SFS";
-                    if (upper.Contains("BATTERY") || upper.Contains("BKP")) return "BKP";
-                    if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
-                }
-                // Lighting — distinguish LUM, EML, DEC, TRK, DWN, LIN, SPT, etc.
-                else if (categoryName == "Lighting Fixtures")
-                {
-                    if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
-                    if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
-                    if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
-                    if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
-                    if (upper.Contains("LINEAR") || upper.Contains("CONTINUOUS") || upper.Contains("BATTEN")) return "LIN";
-                    if (upper.Contains("SPOTLIGHT") || upper.Contains("PROJECTOR")) return "SPT";
-                    if (upper.Contains("WALL") && (upper.Contains("WASH") || upper.Contains("LIGHT"))) return "WSH";
-                    if (upper.Contains("BOLLARD")) return "BOL";
-                    if (upper.Contains("UPLIGHT") || upper.Contains("UPLIGHTER")) return "UPL";
-                    if (upper.Contains("FLOOD") || upper.Contains("FLOODLIGHT")) return "FLD";
-                }
-                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH, etc.
-                else if (categoryName == "Plumbing Fixtures")
-                {
-                    if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
-                    if (upper.Contains("WHB") || upper.Contains("WASH HAND") || upper.Contains("BASIN")) return "WHB";
-                    if (upper.Contains("URINAL") || upper.Contains("URN")) return "URN";
-                    if (upper.Contains("SINK") || upper.Contains("SNK")) return "SNK";
-                    if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
-                    if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
-                    if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
-                    if (upper.Contains("COOLER") || upper.Contains("WATER COOLER")) return "CWL";
-                    if (upper.Contains("GREASE") || upper.Contains("TRAP")) return "TRP";
-                    if (upper.Contains("BIDET")) return "BID";
-                    if (upper.Contains("EYEWASH") || upper.Contains("EYE WASH")) return "EWS";
-                    if (upper.Contains("MOP") && upper.Contains("SINK")) return "MOP";
-                }
-                // Fire Alarm — distinguish FAD, SML, MCP, BLL, STB, etc.
-                else if (categoryName == "Fire Alarm Devices")
-                {
-                    if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
-                    if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
-                    if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
-                    if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
-                    if (upper.Contains("HEAT") && upper.Contains("DETECT")) return "HTD";
-                    if (upper.Contains("INTERFACE") || upper.Contains("MODULE")) return "FIM";
-                }
-                // Pipe Accessories — distinguish valve types
-                else if (categoryName == "Pipe Accessories")
-                {
-                    if (upper.Contains("BALANCING") || upper.Contains("BLV")) return "BLV";
-                    if (upper.Contains("TRV") || upper.Contains("THERMOSTATIC") || upper.Contains("RADIATOR VALVE")) return "TRV";
-                    if (upper.Contains("ISOLATION") || upper.Contains("GATE") || upper.Contains("BALL")) return "IVL";
-                    if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
-                    if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
-                    if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
-                }
-                // Generic Models — MEP Sleeves (fire-rated penetration elements)
-                else if (categoryName == "Generic Models")
-                {
-                    if (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
-                        || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")) return "SLV";
-                }
+                var projRules = GetProjectProdRules(el?.Document);
+                projRules?.TryGetValue(categoryName, out projForCat);
+                _csvProdRules?.TryGetValue(categoryName, out corpForCat);
             }
-
-            // Fall back to category-based PROD code
-            string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
-            return fallbackProd;
+            return ProdResolver.Resolve(familyName, symbolName, categoryName,
+                                        projForCat, corpForCat, ProdMap, out source);
         }
 
         /// <summary>
@@ -2445,6 +2395,14 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
             }
+
+            // Keep ASS_DISPLAY_TXT (the presentational container that tag families
+            // read for refreshable token-depth) populated with the full canonical
+            // tag right after tagging. Depth masking is applied non-destructively
+            // and on demand by RefreshTagDisplayCommand, which re-masks
+            // ASS_DISPLAY_TXT from this canonical ASS_TAG_1_TXT — so the full tag
+            // is always recoverable. No-op when ASS_DISPLAY_TXT isn't bound.
+            ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry

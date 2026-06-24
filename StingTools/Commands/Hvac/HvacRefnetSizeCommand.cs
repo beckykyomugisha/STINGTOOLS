@@ -77,7 +77,7 @@ namespace StingTools.Commands.Hvac
                     var leaf = new RefrigTreeNode
                     {
                         Id         = $"IDU-{idx++}",
-                        Label      = idu.LookupParameter("ASS_TAG_1")?.AsString()
+                        Label      = idu.LookupParameter("ASS_TAG_1_TXT")?.AsString()
                                      ?? $"#{idu.Id.Value} {idu.Symbol?.Family?.Name}",
                         CapacityKw = capKw
                     };

@@ -114,7 +114,7 @@
 | Topic | Standard |
 |---|---|
 | Information management | ISO 19650-1/-2/-3/-5 |
-| Classification | `[FILL: Uniclass 2015 / other]` |
+| Classification | Uniclass 2015 (Ss systems · Pr products · EF elements); CSI MasterFormat as a secondary cross-reference where the Owner's specification requires it |
 | Naming | ISO 19650 field-based (see §4.2) |
 | Quantities/cost | `[FILL: NRM2 / other]` |
 | Handover | COBie 2.4 |

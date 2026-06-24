@@ -74,17 +74,17 @@ namespace StingTools.Tags.Tests
             Assert.Equal(expected, SeqAssigner.BuildSeqString(n, SeqScheme.Alpha, 4));
         }
 
+        // ZonePrefix / DiscPrefix are deprecated — they injected the tag
+        // separator into the SEQ segment and duplicated the ZONE/DISC tokens,
+        // breaking the fixed 8-segment grammar. They now behave as Numeric so a
+        // persisted scheme self-heals and the canonical tag can't be corrupted.
         [Fact]
-        public void BuildSeqString_zone_prefix_uses_first_two_chars()
-            => Assert.Equal("Z0-0042", SeqAssigner.BuildSeqString(42, SeqScheme.ZonePrefix, 4, "Z01"));
+        public void BuildSeqString_zone_prefix_deprecated_falls_back_to_numeric()
+            => Assert.Equal("0042", SeqAssigner.BuildSeqString(42, SeqScheme.ZonePrefix, 4, "Z01"));
 
         [Fact]
-        public void BuildSeqString_zone_prefix_fallback_when_context_short()
-            => Assert.Equal("Z1-0042", SeqAssigner.BuildSeqString(42, SeqScheme.ZonePrefix, 4, "X"));
-
-        [Fact]
-        public void BuildSeqString_disc_prefix()
-            => Assert.Equal("M-0042", SeqAssigner.BuildSeqString(42, SeqScheme.DiscPrefix, 4, "M"));
+        public void BuildSeqString_disc_prefix_deprecated_falls_back_to_numeric()
+            => Assert.Equal("0042", SeqAssigner.BuildSeqString(42, SeqScheme.DiscPrefix, 4, "M"));
 
         // ── AssignNext: basic allocation ────────────────────────────────
         [Fact]

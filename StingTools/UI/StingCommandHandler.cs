@@ -240,6 +240,8 @@ namespace StingTools.UI
                     // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
                     case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+                    case "Prod_GenerateRules":       RunCommand<Commands.Classification.GenerateProdCodeRulesCommand>(app); break;
+                    case "Prod_CoverageAudit":       RunCommand<Commands.Classification.ProdCoverageAuditCommand>(app); break;
 
                     // ── Phase 192 (B4): Device coordination ──
                     case "DeviceCoord_Audit":        RunCommand<Commands.Validation.DeviceCoordinationCommand>(app); break;
@@ -1546,6 +1548,7 @@ namespace StingTools.UI
                     case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
                     case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+                    case "RefreshTagDisplay": RunCommand<Tags.RefreshTagDisplayCommand>(app); break;
                     case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
                     case "TagSheets": RunCommand<Tags.TagSheetsCommand>(app); break;
 

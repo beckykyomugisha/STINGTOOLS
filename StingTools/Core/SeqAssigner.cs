@@ -116,14 +116,18 @@ namespace StingTools.Core
             {
                 case SeqScheme.Alpha:
                     return ToAlpha(n);
+                // ZonePrefix / DiscPrefix are DEPRECATED. They emitted a SEQ
+                // string like "Z1-0042" / "M-0042" — which (1) injects the tag
+                // separator '-' into the SEQ segment, turning the fixed
+                // 8-segment ISO 19650 tag into 9 segments, and (2) duplicates
+                // the ZONE (seg 3) and DISC (seg 1) tokens that already have
+                // their own segments. The net effect on the assembled tag was
+                // "DISC shows twice / SEQ replaced by the discipline code".
+                // They now fall through to Numeric so the canonical tag can
+                // never be corrupted and any project that persisted one of
+                // these schemes self-heals on the next re-sequence.
                 case SeqScheme.ZonePrefix:
-                    string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
-                        ? zoneOrDisc.Substring(0, 2)
-                        : "Z1";
-                    return $"{zPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.DiscPrefix:
-                    string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
-                    return $"{dPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.Numeric:
                 default:
                     return n.ToString().PadLeft(pad, '0');
