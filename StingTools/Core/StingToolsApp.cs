@@ -2239,7 +2239,8 @@ namespace StingTools.Core
                 ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
-                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
+                ("ExportCenter",         "Export Center", "EC", DrawingColor.DarkSlateBlue,  typeof(HubExportCenterCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2263,14 +2264,19 @@ namespace StingTools.Core
 
             try
             {
-                // Index-agnostic: stack 3 at a time, then AddItem() any
-                // remainder (1 or 2). Covers ALL buttons regardless of count
-                // — the old hard-coded buttons[0..11] silently dropped the
-                // 13th+ buttons.
+                // Stack 3 at a time. A trailing pair MUST be added as a 2-item
+                // stacked column, NOT as two separate AddItem() large buttons:
+                // Revit renders the first trailing large button but silently
+                // drops a second consecutive one (this dropped the 14th button,
+                // "Export Center", from the hub). A lone trailing single is fine
+                // as a large AddItem.
                 int i = 0;
                 for (; i + 3 <= buttons.Count; i += 3)
                     panel.AddStackedItems(buttons[i], buttons[i + 1], buttons[i + 2]);
-                for (; i < buttons.Count; i++)
+                int rem = buttons.Count - i;
+                if (rem == 2)
+                    panel.AddStackedItems(buttons[i], buttons[i + 1]);
+                else if (rem == 1)
                     panel.AddItem(buttons[i]);
             }
             catch (Exception ex)
@@ -2653,6 +2659,14 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "AutoTag", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "ExportCenter", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

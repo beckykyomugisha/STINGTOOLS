@@ -575,6 +575,57 @@ namespace StingTools.UI
             wmText.TextChanged += (_, __) => _profile.Pdf.WatermarkText = wmText.Text;
             sp.Children.Add(LabelFor("Watermark text", wmText));
 
+            // Watermark position — friendly label → engine position id
+            var wmPositions = new (string Label, string Value)[]
+            {
+                ("Diagonal (centre)", "DiagonalCentre"),
+                ("Centre",            "Centre"),
+                ("Top left",          "TopLeft"),
+                ("Top centre",        "TopCentre"),
+                ("Top right",         "TopRight"),
+                ("Middle left",       "MiddleLeft"),
+                ("Middle right",      "MiddleRight"),
+                ("Bottom left",       "BottomLeft"),
+                ("Bottom centre",     "BottomCentre"),
+                ("Bottom right",      "BottomRight"),
+            };
+            var wmPos = new ComboBox();
+            foreach (var (label, value) in wmPositions)
+                wmPos.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+            wmPos.SelectedIndex = Math.Max(0, Array.FindIndex(wmPositions,
+                p => string.Equals(p.Value, _profile.Pdf.WatermarkPosition, StringComparison.OrdinalIgnoreCase)));
+            wmPos.SelectionChanged += (_, __) =>
+            {
+                if (wmPos.SelectedItem is ComboBoxItem item && item.Tag is string v)
+                    _profile.Pdf.WatermarkPosition = v;
+            };
+            sp.Children.Add(LabelFor("Watermark position", wmPos));
+
+            // Watermark scale (font size in points)
+            var wmSize = new ComboBox { IsEditable = true };
+            foreach (int s in new[] { 48, 72, 96, 144, 200, 300 }) wmSize.Items.Add(s);
+            wmSize.Text = _profile.Pdf.WatermarkFontSize.ToString();
+            wmSize.SelectionChanged += (_, __) => { if (int.TryParse(wmSize.SelectedItem?.ToString(), out int n) && n > 0) _profile.Pdf.WatermarkFontSize = n; };
+            wmSize.LostFocus      += (_, __) => { if (int.TryParse(wmSize.Text, out int n) && n > 0) _profile.Pdf.WatermarkFontSize = n; };
+            sp.Children.Add(LabelFor("Watermark scale (pt)", wmSize));
+
+            // Watermark opacity (transparency) — 0 = invisible, 100 = solid
+            var wmOpacity = new ComboBox { IsEditable = true };
+            foreach (int o in new[] { 10, 20, 30, 40, 50, 60, 75, 100 }) wmOpacity.Items.Add(o);
+            wmOpacity.Text = _profile.Pdf.WatermarkOpacityPct.ToString();
+            wmOpacity.SelectionChanged += (_, __) => { if (int.TryParse(wmOpacity.SelectedItem?.ToString(), out int n)) _profile.Pdf.WatermarkOpacityPct = Math.Clamp(n, 0, 100); };
+            wmOpacity.LostFocus      += (_, __) => { if (int.TryParse(wmOpacity.Text, out int n)) _profile.Pdf.WatermarkOpacityPct = Math.Clamp(n, 0, 100); };
+            sp.Children.Add(LabelFor("Watermark opacity %", wmOpacity));
+
+            // Tiling — repeat the watermark in a grid across the page
+            sp.Children.Add(BindCheck("Tile across page", () => _profile.Pdf.WatermarkTile, v => _profile.Pdf.WatermarkTile = v));
+            var wmCols = new TextBox { Text = _profile.Pdf.WatermarkTileColumns.ToString() };
+            wmCols.TextChanged += (_, __) => { if (int.TryParse(wmCols.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileColumns = n; };
+            sp.Children.Add(LabelFor("Tile columns", wmCols));
+            var wmRows = new TextBox { Text = _profile.Pdf.WatermarkTileRows.ToString() };
+            wmRows.TextChanged += (_, __) => { if (int.TryParse(wmRows.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileRows = n; };
+            sp.Children.Add(LabelFor("Tile rows", wmRows));
+
             return card;
         }
 
