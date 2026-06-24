@@ -3299,3 +3299,39 @@ Generic Models,HEALTH_SCORE_LAST_NR_DISP_TXT,7c4f149b-46cf-50d7-9c10-8fbd2bdd80f
 Ducts,HVC_DCT_INSULATION_THK_MM_DISP_TXT,20cf7cbd-bedc-5889-9a10-d742250717c2,TEXT,HVC_SYSTEMS,Instance,Duct insulation thickness mm — TEXT display mirror for tag labels,False,,,MECHANICAL,1,0
 Generic Models,HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT,76586c57-4c2c-5391-aecc-7e4e52182a3d,TEXT,HVC_SYSTEMS,Type,Equipment refrigerant charge mass in kg [BS EN 378-2:2016] — TEXT display mirror for tag labels,False,,,MULTI,1,0
 Generic Models,STR_BOLT_TORQUE_NM_NR_DISP_TXT,1da0151c-391f-5abe-a3ff-b15574113003,TEXT,BLE_STRUCTURE,Type,Bolt installation tightening torque in Nm [BS EN 1090-2:2018] — TEXT display mirror for tag labels,False,,,MULTI,1,0
+Multiple,CLN_DESIGN_ACH_INT,08f57959-5176-5c5f-b063-94c5b1904e64,INTEGER,CLN_CLINICAL,Instance,Cln Design Ach Int [STING],False,,,MULTI,1,0
+Multiple,CLN_DESIGN_PRESSURE_DELTA_PA_INT,53c1b8af-57a1-5954-80ca-d66b7255a42d,INTEGER,CLN_CLINICAL,Instance,Cln Design Pressure Delta Pa Int [STING],False,,,MULTI,1,0
+Multiple,CLN_DESIGN_RH_PCT_INT,dabc6b68-6368-5f61-949c-3128f5d85ed7,INTEGER,CLN_CLINICAL,Instance,Cln Design Rh Pct Int [STING],False,,,MULTI,1,0
+Multiple,CLN_DESIGN_TEMP_C_DBL,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0,NUMBER,CLN_CLINICAL,Instance,Cln Design Temp C Dbl [STING],False,,,MULTI,1,0
+Multiple,ATEX_CLASSIFICATION_OK,b5a3c98d-24d8-5e0d-91ae-3d93cc979fda,TEXT,ELC_PWR,Instance,Atex Classification Ok [STING],False,,,MULTI,1,0
+Multiple,ELC_CDT_SOFFIT_OFFSET_MM,797c6467-9945-5c83-adc6-298c86972144,TEXT,ELC_PWR,Instance,Elc Cdt Soffit Offset Mm [STING],False,,,MULTI,1,0
+Multiple,ELC_JB_UPSTREAM_REF_TXT,192509d7-20af-52c2-a233-06044f9008d5,TEXT,ELC_PWR,Instance,Elc Jb Upstream Ref Txt [STING],False,,,MULTI,1,0
+Multiple,ELC_LIGHTING_GRID_SPC_MM,596a2056-f6ca-5fe4-836d-d59b6c1bfc91,TEXT,ELC_PWR,Instance,Elc Lighting Grid Spc Mm [STING],False,,,MULTI,1,0
+Multiple,ELC_LIGHTING_ROOM_TYPE,efb5c19c-cefa-59f2-9fe6-112b3d433ca6,TEXT,ELC_PWR,Instance,Elc Lighting Room Type [STING],False,,,MULTI,1,0
+Multiple,ELC_LIGHTING_TARGET_LUX_TXT,b3ac3945-ce70-524a-8e28-fd34e41f519e,TEXT,ELC_PWR,Instance,Elc Lighting Target Lux Txt [STING],False,,,MULTI,1,0
+Multiple,ELC_PANEL_REF_TXT,38f0a592-c77d-5f8d-be01-ef8c996b6f85,TEXT,ELC_PWR,Instance,Elc Panel Ref Txt [STING],False,,,MULTI,1,0
+Multiple,ELC_TRANSFER_LOAD_OK,d97abf37-af03-52db-ab48-8e03c54f9a1d,TEXT,ELC_PWR,Instance,Elc Transfer Load Ok [STING],False,,,MULTI,1,0
+Multiple,ELC_WIRE_PROFILE_ID_TXT,a5e7f427-2563-5a53-8195-71620e81f240,TEXT,ELC_PWR,Instance,Elc Wire Profile Id Txt [STING],False,,,MULTI,1,0
+Multiple,EV_CHARGER_CIRCUIT_REF,1b3a8f5f-d06a-5c47-acca-eac04518564d,TEXT,ELC_PWR,Instance,Ev Charger Circuit Ref [STING],False,,,MULTI,1,0
+Multiple,EV_CHARGER_KW,30bdac5c-4d1e-50d7-af4c-7f6ab8c5aa72,TEXT,ELC_PWR,Instance,Ev Charger Kw [STING],False,,,MULTI,1,0
+Multiple,EV_CHARGER_TYPE_TXT,3c9c4837-a8a1-553c-8b45-27e0fdca8551,TEXT,ELC_PWR,Instance,Ev Charger Type Txt [STING],False,,,MULTI,1,0
+Multiple,IPS_BRANCH_COMPLIANT,8dde49a8-dd4f-5fb4-9c25-c37dfe111228,TEXT,ELC_PWR,Instance,Ips Branch Compliant [STING],False,,,MULTI,1,0
+Multiple,PV_PANEL_KWP,73339254-5479-5ebf-b362-f4621572c9f2,TEXT,ELC_PWR,Instance,Pv Panel Kwp [STING],False,,,MULTI,1,0
+Multiple,PV_SYSTEM_TYPE_TXT,5fc11222-86d7-5064-a334-f3b2f1e37aaa,TEXT,ELC_PWR,Instance,Pv System Type Txt [STING],False,,,MULTI,1,0
+Multiple,STING_CIRCUIT_FILTER_TXT,cae6c5b9-c109-59c5-97c9-32121162052e,TEXT,ELC_PWR,Instance,Sting Circuit Filter Txt [STING],False,,,MULTI,1,0
+Multiple,FOUND_BEAR_UTIL_TXT,69e6d020-d164-56af-aca6-709ff2abb6e0,TEXT,BLE_STRUCTURE,Instance,Found Bear Util Txt [STING],False,,,MULTI,1,0
+Multiple,FOUND_SOIL_CLASS_TXT,c6fbbc6f-e48d-5e6b-9de6-5d021862781f,TEXT,BLE_STRUCTURE,Instance,Found Soil Class Txt [STING],False,,,MULTI,1,0
+Multiple,FOUND_SUMMARY_TXT,e8ce5329-7af7-5f69-95d7-1c8d6e634258,TEXT,BLE_STRUCTURE,Instance,Found Summary Txt [STING],False,,,MULTI,1,0
+Multiple,HVC_FLOW_LS,a7690660-5909-51cb-90a9-9c4f6584d72c,TEXT,HVC_SYSTEMS,Instance,Hvc Flow Ls [STING],False,,,MULTI,1,0
+Multiple,PLM_PIPE_INS_THK_MM,cd552e21-c6a9-560e-88d0-7b14765ae979,TEXT,PLM_DRN,Instance,Plm Pipe Ins Thk Mm [STING],False,,,MULTI,1,0
+Multiple,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,MGS_SYSTEMS,Instance,Mgs Outlet Zone Txt [STING],False,,,MULTI,1,0
+Multiple,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,MGS_SYSTEMS,Instance,Mgs Working Pressure Kpa [STING],False,,,MULTI,1,0
+Multiple,MNT_DURATION_TXT,5af47f5b-5e51-5b30-b2f1-599ddd75302c,TEXT,COMMISSIONING,Instance,Mnt Duration Txt [STING],False,,,MULTI,1,0
+Multiple,MNT_TASK_DESC_TXT,caef2806-33cc-5b87-9366-308472d53fb3,TEXT,COMMISSIONING,Instance,Mnt Task Desc Txt [STING],False,,,MULTI,1,0
+Multiple,MNT_TASK_NAME_TXT,3b419f66-131a-52a2-a9c7-cd68220dcb0c,TEXT,COMMISSIONING,Instance,Mnt Task Name Txt [STING],False,,,MULTI,1,0
+Multiple,MOUNTING_REFERENCE_TXT,af9b68ed-1359-5fa5-ad7f-9f9955a52b00,TEXT,ASS_MNG,Instance,Mounting Reference Txt [STING],False,,,MULTI,1,0
+Multiple,TAG_PARA_DEPTH_INT,f45c68fd-b569-5259-9085-f83b7c8de2da,INTEGER,STINGTags_ISO19650,Instance,Tag Para Depth Int [STING],False,,,MULTI,1,0
+Multiple,STING_MASTER_SETUP_TS,98edec6a-cfd6-5ce7-9080-50e3f3fae0ba,TEXT,PRJ_INFORMATION,Instance,Sting Master Setup Ts [STING],False,,,MULTI,1,0
+Multiple,STING_RETROFIT_TS,f5f8e898-1b01-5f00-94c5-0b24dd00e1bc,TEXT,PRJ_INFORMATION,Instance,Sting Retrofit Ts [STING],False,,,MULTI,1,0
+Multiple,STING_P6_PCT_TXT,7ed7e5cb-2dde-536b-89b6-76bff797358c,TEXT,ASBUILT,Instance,Sting P6 Pct Txt [STING],False,,,MULTI,1,0
+Multiple,PLM_FLOW_LS,4db709a2-5fa2-5161-97f6-907df588c9ef,TEXT,PLM_DRN,Instance,Plm Flow Ls [STING],False,,,MULTI,1,0

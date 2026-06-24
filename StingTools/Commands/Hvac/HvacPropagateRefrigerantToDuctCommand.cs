@@ -95,7 +95,7 @@ namespace StingTools.Commands.Hvac
 
                             // Q (m³/s) = Q_W / (ρ·cp·ΔT). Convert to L/s.
                             double flowLs = (capKw * 1000.0 / (rho * AirCpJperKgK * DefaultSupplyDtK)) * 1000.0;
-                            string tag = idu.LookupParameter("ASS_TAG_1")?.AsString() ?? $"#{idu.Id.Value}";
+                            string tag = idu.LookupParameter("ASS_TAG_1_TXT")?.AsString() ?? $"#{idu.Id.Value}";
                             string provenance = $"{tag}: capacity={capKw:F1} kW → flow={flowLs:F0} L/s @ ΔT={DefaultSupplyDtK} K";
 
                             // Walk every HVAC connector outward through the duct tree.

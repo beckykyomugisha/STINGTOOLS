@@ -3,6 +3,297 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MEP Systems — Phase I: cross-check hardening fixes)
+
+A two-stream adversarial review (engine logic + data/integration) over the whole A–H
+feature surfaced 17 + 9 findings; the real ones are fixed here. **Built + verified with
+`dotnet build` against the Revit 2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**Bugs**
+- **View/sheet re-run duplication** (`MepViewProducer`, `MepLevelViewProducer`) — re-running
+  the producers created `… (2)` / `… (3)` views *and a fresh sheet each time*. Now idempotent:
+  if the canonical `<level/source> - <discipline> Coordination` view exists, it's skipped.
+- **`SeedNameSeq` regex** (`MepSystemInstanceBuilder`) — `^([A-Za-z]+)-` dropped digit-bearing
+  abbreviations (`DCW2`, `CO2`, `R410A`), so re-runs collided their names. Now `[A-Za-z0-9]+`.
+- **Misleading "Updated" count** (`MepSystemTypeMaterializer`) — untouched existing types reported
+  as Updated; now Skipped, so the counter reflects what actually changed.
+- **Basement level-code** (`MepLevelViewProducer.LevelCode`) — every basement returned `B1`;
+  Sub-Basement 2 now returns `B2`.
+
+**Edge / consistency**
+- Unsaved-document cache key (`MepSystemTypeRegistry`, `ClassificationStandard`) — two unsaved
+  projects shared one `<no-doc>` slot; now keyed per document.
+- Abbreviation-with-dash warning in `MepSystemTypeRegistry` (Phase D name parsing splits on `-`).
+- Fragmented-network warning (`MepSystemInstanceBuilder`) — a network spanning >1 MEPSystem now
+  warns to merge the rest, instead of silently typing only the first.
+
+**Performance**
+- `MepCoordinationEngine.PresentSystems` — replaced the per-element `doc.GetElement(typeId)` with
+  a one-pass system-type-id → classification map (collected from the two concrete `MEPSystemType`
+  subclasses, since the base is abstract).
+
+**Robustness**
+- Atomic JSON writes (`MepGenerateSystemFiltersCommand`, `ClassificationStandard.Set`) — temp-file
+  + move so a crash mid-write can't corrupt the project override.
+
+**Data**
+- Resolved the two orphaned filters the audit found: `hvac-mthw-flow/return` rule values unified to
+  the no-dash format (`MTHW-F → MTHWF`), and three missing system types added — **MTHW Flow/Return +
+  Refrigerant** (colours matched to the existing filters) — so they're no longer orphaned. Added all
+  three to `corp-coordination` (now **15 MEP filters**, 23 system types).
+
+**Deferred (with reason)**: classification filters keyed on the localised display string (matches the
+entire corporate filter library; English is the deployment target) · abbreviation+classification filter
+co-existence precedence (rare mixed-state, low impact) · minor multi-collector perf in the level producer.
+
+#### Completed (MEP Systems — Phase H: abbreviation-format unification + CSI tag label)
+
+The two Phase G follow-ups. **Built + verified with `dotnet build` against the Revit
+2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**1. Abbreviation-format unification.** The corporate per-service hydronic filters keyed
+on `RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM = "CHW-F"` (dashed), but the STING system types
+stamp Revit's System Abbreviation as `"CHWF"` (no dash — the format Phase B's `<abbr>-NN`
+naming requires, since the name parser splits on `-`). So the corporate filters never matched
+STING-built hydronic systems. Fix: changed the six per-service filter rule values to the
+no-dash form (`CHW-F → CHWF`, `LTHW-F → LTHWF`, `CW-F → CWF`, + returns) and reconciled their
+colours to the system-type colours (CHW navy, LTHW orange, CW teal). One canonical abbreviation
+now flows everywhere: system-type `Abbreviation` = the value Revit stamps = the filter rule =
+the `MEP_SYS_NAME` prefix. Added the six to `corp-coordination` (now **12 MEP filters** — air
++ water by classification, hydronic by service), so the drawing-type pipeline colours CHW vs
+LTHW vs CW distinctly without the extra Apply step.
+
+**2. CSI on tags.** `TagConfig.Tag7.cs` Section F (the classification narrative) now includes
+the CSI MasterFormat section + title (`CSI section 23 31 00 (HVAC Ducts and Casings)`) alongside
+Uniformat / OmniClass / keynote — so CSI surfaces on the rich TAG7 tag. `LABEL_DEFINITIONS.json`
+gains a `CSI_SECTION_TXT` render entry (`parameter_text`) + a `tier_5` (spec/procurement) CSI
+label row on the 15 representative MEP categories (Pipes, Ducts, fittings, equipment, fixtures,
+trays, conduits, sprinklers), so the dedicated tag families show CSI too. Completes the
+classification → keynote → tag chain from Phase G.
+
+**Still honest**: the `tier_5` CSI label is on the 15 core MEP categories, not all 138 — the
+full rollout + tag-family regeneration is a bulk data follow-up; the TAG7 narrative path covers
+every category already.
+
+#### Completed (MEP Systems — Phase G: VG/colour reconciliation + classification selectability + CSI↔keynote)
+
+Closes the three gaps from the alignment review. **Built + verified with `dotnet build`
+against the Revit 2025 API (0 warnings, 0 errors)**; JSON validated.
+
+**1. MEP colour reconciliation + pack wiring (drawing-style alignment).** The audit found
+the corporate `corp-coordination` style pack painted *all* ducts blue / *all* pipes green
+via category VG and carried **no filters**, so the drawing-type-alone path lost per-system
+colour; and the legacy classification filters had colour drift from the Phase A system
+types (exhaust olive vs orange, return neon vs forest green, etc.). Fix: recoloured the six
+classification-keyed MEP filters (`hvac-supply/return/exhaust-air`, `plumb-dcw/dhws/vent`)
+to **exactly match the system-type colours**, and **wired them into `corp-coordination`**
+as `filters[]` (kept the generic duct/pipe `vgOverrides` as the unclassified fallback —
+filters beat category VG, so per-system colours now win in the standard pipeline). Finer
+per-service hydronic distinction (CHW vs LTHW vs CW) still comes from `MEP_ApplyMepCoordination`'s
+abbreviation filters; unifying the corporate per-service filters' abbreviation format
+(`CHW-F` vs `CHWF`) is a documented follow-up.
+
+**2. Classification standard selectability.** New `Core/Classification/ClassificationStandard.cs`
++ `Classification_SetStandard` command — a per-project choice (`Uniclass | CSI | OmniClass |
+Native`) stored at `<project>/_BIM_COORD/sting_classification.json` (file-based, no shared-param
+binding). `ClassificationReader.ResolveFallback` now leads the BOQ/COBie/handover/IFC cascade
+with the chosen standard (Uniclass default preserves the historic order exactly; CSI is now
+*in* the cascade for the first time). Cache invalidated on document close.
+
+**3. CSI ↔ keynote integration.** `KeynoteSync` now also emits the CSI MasterFormat sections
+present in the model (`CSI_SECTION_TXT` → `"23 31 00  HVAC Ducts and Casings"`), and a new
+`Keynote_Assign` command fills the keynote (native `KEYNOTE_PARAM` + STING `ASS_KEYNOTE_TXT`)
+from each element's CSI section (else its SYS token) so keynote tags resolve against the
+generated table and TAG7 Section F shows it. Closes the "classification and keynotes are
+independent" gap end-to-end (assign CSI → sync table → assign keynotes → tag).
+
+**4. KUT → Uniclass 2015.** `GUIDES/KUT_BEP_TEMPLATE.md` classification set to Uniclass 2015
+(was `[FILL]`); new `project-templates/KUT/_BIM_COORD/sting_classification.json` (`Uniclass`).
+The live KUT2026 BEP and a staged project config were also updated directly in the project
+folder (outside the repo).
+
+**Wiring**: `WorkflowEngine.ResolveCommand` (`Classification_SetStandard`, `Keynote_Assign`).
+
+**Still honest**: corporate per-service hydronic filters use a different abbreviation format
+than the STING system types (full unification deferred); a tag-family *label* showing CSI on
+the drawing (vs only in TAG7) is the remaining keynote-integration follow-up.
+
+#### Completed (MEP Systems — Phase F: per-level fan-out + sheets + circuit auto-grouping)
+
+The two deferred conveniences from Phase E. **Built + verified with `dotnet build`
+against the Revit 2025 API (0 warnings, 0 errors)** — including the live
+`ViewPlan.Create` / `ViewSheet.Create` / `Viewport.Create` / `FamilySymbol.Activate`
+/ `MEPModel.GetElectricalSystems` / `ElectricalSystem.Create` calls.
+
+**1. Per-level fan-out + auto sheet-placement** (`Core/Mep/MepLevelViewProducer.cs`
++ `MEP_ProduceMepViewsByLevel`). For every Level that hosts MEP of a discipline
+(M = ducts, P = pipes, E = electrical devices) it creates a fresh floor plan via
+`ViewPlan.Create`, sets `View.Discipline`, applies the resolved MEP DrawingType +
+per-domain system colours, then drops the view onto its own sheet: resolves the
+title block from `DrawingType.TitleBlockFamily` (else first available, activated),
+numbers + names the sheet from `SheetNumberPattern` / `SheetNamePattern`
+(`{disc}`/`{discipline}`/`{lvl}`/`{purpose}`/`{seq:Dn}` substituted, uniqued against
+existing), and places a centred `Viewport` (guarded by `CanAddViewToSheet`). One
+command turns a model into a per-level M/E/P coordinated sheet set.
+
+**2. Electrical circuit auto-grouping** (`Core/Mep/MepCircuitBuilder.AutoGroup` +
+`MEP_AutoGroupCircuits`). Reconsidered the "user-driven only" stance into an
+**opt-in, reviewable first pass**: groups every *un-circuited* device (those whose
+`MEPModel.GetElectricalSystems()` is empty) by nearest panel — same level preferred,
+within 30 m — into power circuits of ≤8 devices, creates each via
+`ElectricalSystem.Create(PowerCircuit)` + `SelectPanel`, and stamps the STING name +
+tokens. The result panel leads with a **⚠ REVIEW REQUIRED** banner: it does no load
+balancing or phase allocation — it's a starting point an engineer rebalances in the
+panel schedules, not silent authority. The final design call stays with the engineer.
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`
+(`MEP_ProduceMepViewsByLevel`, `MEP_AutoGroupCircuits`).
+
+**UI surfacing**: all 13 MEP-systems commands (Phases A–F) now have buttons in a new
+**"STING MEP SYSTEMS"** section at the foot of the HVAC panel's **SYS** tab, grouped
+by phase (System types / Instances / Coordination / Views &amp; circuits), reusing the
+existing `HvacPrimaryBtn` / `HvacActionBtn` / `HvacWarnBtn` styles and the `Cmd_Click`
+→ `StingHvacCommandHandler.SetCommand` dispatch. The validation workflow preset stays
+the one-click "run the whole chain" path.
+
+**Still honest**: sheet layout is one-view-per-sheet (multi-view packing is the
+Sheet Manager's job — these views are ready for it); auto-grouping defaults
+(8/30 m) are corporate sensible, not yet project-overridable; runtime behaviour of
+the view/sheet/circuit-creation paths still wants live-Revit verification.
+
+#### Completed (MEP Systems — Phase E: per-discipline view production + electrical circuits)
+
+The two remaining extensions. **Built + verified with `dotnet build` against the
+Revit 2025 API (0 warnings, 0 errors)** — including the live `ElectricalSystem.Create`
+/ `SelectPanel` / `ViewDiscipline` / `View.Duplicate` calls.
+
+**1. Per-discipline view production** (`Core/Mep/MepViewProducer.cs` + `MEP_ProduceMepViews`).
+Duplicates the active plan once per MEP discipline *present* in the model — M (ducts),
+P (pipes), E (circuits) — sets `View.Discipline`, resolves the MEP DrawingType via
+`DrawingDispatcher` (docTypes `COORD` / `DRAINAGE` / `POWER` — the corporate routing
+keys), applies its template + style pack, and overlays the system-classification colours
+**filtered to that domain** (new `MepDomain` arg on `MepCoordinationEngine.ApplyToView` —
+the M view colours only ducts, the P view only pipes; E inherits colour from the elec
+pack). This is the final link of create-systems → coordinated drawing: one command turns
+a blank plan into M/E/P coordinated sheets-ready views.
+
+**2. Electrical circuits** (`Core/Mep/MepCircuitBuilder.cs` + `MEP_BuildCircuits`).
+Electrical uses `ElectricalSystem`, not a user-creatable system type, so this mirrors
+Phase B's *reliable* path rather than forcing creation: `BuildExisting` names every
+circuit `<Panel>-<Circuit>` and stamps `ASS_MEP_SYS_NAME_TXT` + the DISC/SYS/FUNC tag
+tokens (`E` / `LV` / `PWR`|`LTG`) on the circuit and its members, so circuits tag +
+schedule like duct/pipe systems. `CreateFromSelection` is the safe, user-driven creation
+path: select electrical devices (+ optionally a panel) and it builds a `PowerCircuit` via
+`ElectricalSystem.Create` and assigns the panel via `SelectPanel`.
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`
+(`MEP_ProduceMepViews`, `MEP_BuildCircuits`).
+
+**Still honest**: view production duplicates the active plan (a sensible single-source
+default); multi-level fan-out (one view per level per discipline) and automatic sheet
+placement are the next conveniences. Circuit *auto-grouping* (deciding which loose devices
+share a circuit) stays user-driven by design — that's a load-balancing/design decision,
+not a mechanical one. Runtime behaviour of the new-circuit + force-create paths still
+wants live-Revit verification.
+
+#### Completed (MEP Systems — Phase D: hardening — abbreviation filters + auto-author + opt-in orphans)
+
+Turns the three Phase B/C caveats into capabilities. **Built + verified with
+`dotnet build` against the Revit 2025 API (0 warnings, 0 errors).**
+
+**1. Abbreviation-keyed filters (fixes the flow/return ambiguity).** The Phase A
+abbreviation + Phase B instance name (`ASS_MEP_SYS_NAME_TXT` = `<abbr>-NN`) are the
+disambiguator Revit's classification can't provide. `Core/Mep/MepSystemFilterGenerator.cs`
+generates one AEC filter per Phase A def keyed on `ASS_MEP_SYS_NAME_TXT begins-with
+"<abbr>-"`, coloured from the same Phase A colour — so CHWF / LTHWF / CWF (all
+`SupplyHydronic`) finally read as three different colours. `MEP_GenerateSystemFilters`
+persists them to `<project>/_BIM_COORD/aec_filters.json` (first-class: visible to the
+AEC filter registry, **View Style Packs**, and **Drawing Types**) and creates the
+`ParameterFilterElement`s in the model.
+
+**2. Auto-author missing filters (every present system always colours).**
+`MepCoordinationEngine` now resolves each present system by priority — (1) abbreviation
+filter, (2) corporate classification filter from `STING_AEC_FILTERS.json`, (3) a filter
+**synthesised on the fly from the matching Phase A def's colour**. A `BuildPlan(doc)`
+method shares the exact resolution between `MEP_ApplyMepCoordination` and
+`MEP_InspectMepCoordination`, so the dry run and the real run can't drift.
+
+**3. Opt-in orphan creation (de-risks the default flow).** `MEP_BuildSystems` now
+defaults to type/name/stamp only (zero fragile API calls); the best-effort
+`NewMechanicalSystem`/`NewPipingSystem` path moved behind an explicit
+`MEP_BuildSystemsForce`.
+
+**New files**: `Core/Mep/MepSystemFilterGenerator.cs`, `Commands/Mep/MepSystemFilterCommands.cs`.
+**Changed**: `Core/Mep/MepCoordinationEngine.cs` (priority resolution + `PresentSystems`/`BuildPlan`),
+`Commands/Mep/MepSystemInstanceCommands.cs` (opt-in split), `Commands/Mep/MepCoordinationCommands.cs`
+(plan-based display), `StingHvacCommandHandler` + `WorkflowEngine.ResolveCommand` (4 new tags).
+
+**Review hardening (alignment / accuracy / consistency / integration)** — fixes from
+a full code-review pass across Drawing Types / Styles / Tagging / Worksets:
+
+- **[accuracy] Deterministic, service-preserving typing.** `BuildTypeIndex` now picks
+  the first STING type per classification by name-order (was arbitrary collector order —
+  CHW pipes could be typed LTHW since both are `SupplyHydronic`); `ProcessNetwork` no
+  longer retypes a system whose current type is already a STING type.
+- **[accuracy] Idempotent system naming.** The `<abbr>-NN` counter is primed from
+  existing systems and an already-STING-named system keeps its name, so re-runs continue
+  the sequence instead of colliding.
+- **[integration · tagging] SYS / FUNC tag tokens written.** Phase B now stamps
+  `ASS_SYSTEM_TYPE_TXT` (SYS) and `ASS_FUNC_TXT` (FUNC) from the def's `stingSysCode` /
+  `stingFuncCode` via `SetIfEmpty`, so AutoTag/BatchTag inherit the right tokens instead
+  of the generic category fallback.
+- **[integration · worksets] New system objects placed on their source equipment's
+  workset** (workshared only); existing members are never moved.
+- **[integration · drawing types] DrawingType routing fixed.** The coordination command
+  now queries docType `"COORD"` first — the value the corporate routing table actually
+  uses for `mep-coord-A1-1to50` — so the rule resolves deterministically instead of
+  falling through to a purpose scan.
+- **[consistency] `MepSystemFilterGenerator.SysNameParam` now references
+  `ParamRegistry.MEP_SYS_NAME`** (was a duplicated literal); `MepSystemTypeRegistry`
+  added to `OnDocumentClosing` cache invalidation alongside the other registries.
+- **[accuracy] LTHW flow recoloured orange** `[255,120,0]` (was dark red, clashing with
+  the fire-sprinkler red).
+
+Deferred with rationale: auto-appending the generated filters to the `corp-coordination`
+View Style Pack (the project-override merge is replace-by-id, so a partial write risks
+stripping the corporate pack's other settings — the registry persistence already makes
+the filters pack-referenceable, which is the safe enabler).
+
+**Still honest**: runtime behaviour of the force-create path needs live-Revit
+verification; per-discipline view *production* remains the next extension; electrical
+circuits remain a separate mechanism.
+
+#### Completed (MEP Systems — Phase C: MEP-aware drawing coordination)
+
+Closes the create-systems → coordinated-drawing loop. Reads the MEP system
+**classifications** actually present in the model (the same `RBS_SYSTEM_CLASSIFICATION`
+the Phase A types carry and Phase B stamps onto elements), resolves the matching
+corporate AEC filter from `STING_AEC_FILTERS.json` **auto-matched by the live
+classification value** (no manual enum map to drift), lazy-creates it via
+`AecFilterFactory`, and applies it to a view with the filter's own discipline colour —
+on top of the MEP DrawingType's template + style pack resolved through
+`DrawingDispatcher`. **Built + verified with `dotnet build` against the Revit 2025
+API (0 warnings, 0 errors)** — including the live `View.AddFilter` /
+`SetFilterOverrides` / `DrawingTypePresentation.Apply` calls.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Core/Mep/MepCoordinationEngine.cs` | `PresentClassifications(doc)` reads distinct system-classification strings straight off duct/pipe members; `ApplyToView(doc, view)` matches each to its `STING_AEC_FILTERS.json` definition (`RBS_SYSTEM_CLASSIFICATION_PARAM equals "<value>"`), `FindOrCreate`s the filter, adds it to the view, and applies the filter's hex colour override (solid surface + projection/cut lines). Caller owns the transaction. |
+| `StingTools/Commands/Mep/MepCoordinationCommands.cs` | `MEP_ApplyMepCoordination` — resolves the MEP coordination/plan DrawingType via `DrawingDispatcher`, applies its presentation to the active view, then overlays the classification colour filters. `MEP_InspectMepCoordination` — read-only dry run: present classifications → resolved filter + DrawingType. |
+
+**Wiring**: `StingHvacCommandHandler` (SYS tab) + `WorkflowEngine.ResolveCommand`.
+
+**The deep integration**: one classification chain end-to-end — Phase A colour on the
+system *type* (project-wide) → Phase B classification stamped on the *element* →
+Phase C filter override on the *view*. Supply Air reads GSA-blue, Return Air green,
+CHW navy, etc., with zero manual per-view setup. Classifications with no matching AEC
+filter are reported (add one to `STING_AEC_FILTERS.json`); flow-vs-return / CHW-vs-LTHW
+splits that share one `MEPSystemClassification` are a known Revit limitation surfaced
+honestly. Full per-discipline view *production* (duplicate/create plans per system) is
+the natural next extension on top of this engine.
+
 #### Completed (MEP Systems — Phase B: System Instance Builder)
 
 Builds on Phase A: walks the MEP connector graph (same traversal as

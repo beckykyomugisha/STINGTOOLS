@@ -124,7 +124,7 @@ namespace StingTools.Commands.Hvac
                         byClass[klass] = (cur.count + 1, cur.kw + kw, cur.kgCo2 + embodied + refrigCo2);
 
                         double total = embodied + refrigCo2;
-                        string tag = ParameterHelpers.GetString(e, "ASS_TAG_1");
+                        string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
                         if (string.IsNullOrEmpty(tag)) tag = $"#{e.Id.Value}";
                         topOffenders.Add((tag, total,
                             $"{klass} {kw:F1} kW × {factor:F0} = {embodied:F0}" +

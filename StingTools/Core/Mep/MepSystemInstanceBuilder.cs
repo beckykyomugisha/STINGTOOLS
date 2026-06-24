@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
@@ -78,8 +79,9 @@ namespace StingTools.Core.Mep
             var mechTypeByClass = BuildTypeIndex<MechanicalSystemType>(doc);
             var pipeTypeByClass = BuildTypeIndex<PipingSystemType>(doc);
 
-            // Per-classification running counter for system names.
-            var nameSeq = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // Per-abbreviation name counter, primed from existing "<abbr>-NN" systems
+            // so a second run continues the sequence rather than colliding.
+            var nameSeq = SeedNameSeq(doc);
 
             // Seeds: explicit selection, else every duct + pipe in the project.
             var seeds = (seedIds != null && seedIds.Count > 0)
@@ -142,9 +144,16 @@ namespace StingTools.Core.Mep
             result.Rows.Add(row);
 
             // Existing MEPSystem? Any member MEPCurve that already belongs to one.
-            MEPSystem existing = els.OfType<MEPCurve>()
+            // A fragmented network can carry more than one — retype/rename the first
+            // (canonical) and warn so the user can merge the rest in the System Browser.
+            var memberSystems = els.OfType<MEPCurve>()
                 .Select(c => { try { return c.MEPSystem; } catch { return null; } })
-                .FirstOrDefault(s => s != null);
+                .Where(s => s != null)
+                .GroupBy(s => s.Id).Select(g => g.First()).ToList();
+            MEPSystem existing = memberSystems.FirstOrDefault();
+            if (memberSystems.Count > 1)
+                result.Warnings.Add($"{row.Network}: network spans {memberSystems.Count} MEP systems — " +
+                                    "only the first was typed/named; merge the rest in the System Browser.");
 
             MEPSystem system = existing;
             bool created = false;
@@ -153,7 +162,7 @@ namespace StingTools.Core.Mep
             {
                 if (!attemptCreateOrphans)
                 {
-                    StampMembers(doc, els, null, row);
+                    StampMembers(doc, els, null, null, row);
                     row.Outcome = MepSystemBuildOutcome.Stamped;
                     row.Note = "orphan network (no system) — members stamped; enable create to build a system";
                     return;
@@ -162,7 +171,7 @@ namespace StingTools.Core.Mep
                 if (system == null)
                 {
                     // Could not create — still stamp members so tags/params land.
-                    StampMembers(doc, els, null, row);
+                    StampMembers(doc, els, null, null, row);
                     row.Outcome = MepSystemBuildOutcome.Skipped;
                     if (string.IsNullOrEmpty(row.Note))
                         row.Note = "no valid source-equipment connector to anchor a system";
@@ -170,40 +179,54 @@ namespace StingTools.Core.Mep
                 }
             }
 
-            // Resolve classification from the system's current type.
+            // Resolve classification + read whether the current type is already a
+            // STING type (so we don't retype a correctly-assigned CHW system to LTHW
+            // just because both are SupplyHydronic).
             MEPSystemClassification cls = MEPSystemClassification.UndefinedSystemClassification;
-            try
-            {
-                var curType = doc.GetElement(system.GetTypeId()) as MEPSystemType;
-                if (curType != null) cls = curType.SystemClassification;
-            }
+            var curTypeEl = doc.GetElement(system.GetTypeId()) as MEPSystemType;
+            bool currentIsSting = (curTypeEl?.Name ?? "").StartsWith("STING", StringComparison.OrdinalIgnoreCase);
+            try { if (curTypeEl != null) cls = curTypeEl.SystemClassification; }
             catch (Exception ex) { result.Warnings.Add($"{row.Network}: classification read: {ex.Message}"); }
             row.Classification = cls.ToString();
 
-            // Assign the STING (Phase A) system type for this classification.
+            // Assign the STING (Phase A) type for this classification — but only when
+            // the current type isn't already a STING type (preserve service identity).
             var typeIndex = hasDuct ? mechTypeByClass : pipeTypeByClass;
-            if (typeIndex.TryGetValue(cls, out var stingTypeId) && stingTypeId != system.GetTypeId())
+            if (!currentIsSting && typeIndex.TryGetValue(cls, out var stingTypeId) && stingTypeId != system.GetTypeId())
             {
-                try { system.ChangeTypeId(stingTypeId); }
+                try { system.ChangeTypeId(stingTypeId); currentIsSting = true; }
                 catch (Exception ex) { result.Warnings.Add($"{row.Network}: ChangeTypeId: {ex.Message}"); }
             }
 
-            // Name it <abbreviation>-<NN> from the matching Phase A definition.
+            // Abbreviation: from the system's (now-STING) type first, else the Phase A
+            // def by classification, else a domain default.
             var def = rules.Enabled.FirstOrDefault(d =>
                 string.Equals(d.Classification, cls.ToString(), StringComparison.OrdinalIgnoreCase) &&
                 (hasDuct ? d.IsDuct : d.IsPipe));
-            string abbr = def?.Abbreviation;
-            if (string.IsNullOrWhiteSpace(abbr))
-                try { abbr = (doc.GetElement(system.GetTypeId()) as MEPSystemType)?.Abbreviation; } catch { }
+            string abbr = null;
+            try { abbr = (doc.GetElement(system.GetTypeId()) as MEPSystemType)?.Abbreviation; } catch { }
+            if (string.IsNullOrWhiteSpace(abbr)) abbr = def?.Abbreviation;
             if (string.IsNullOrWhiteSpace(abbr)) abbr = hasDuct ? "DUCT" : "PIPE";
 
-            int seq = nameSeq.TryGetValue(abbr, out var n) ? n + 1 : 1;
-            nameSeq[abbr] = seq;
-            string sysName = $"{abbr}-{seq:D2}";
+            // Idempotent naming: keep an existing "<abbr>-NN" name; otherwise mint the
+            // next sequence number (the counter was primed from existing systems).
+            string existingName = null; try { existingName = system.Name; } catch { }
+            string sysName;
+            if (!string.IsNullOrEmpty(existingName) &&
+                Regex.IsMatch(existingName, $"^{Regex.Escape(abbr)}-\\d+$", RegexOptions.IgnoreCase))
+            {
+                sysName = existingName; // already STING-named — leave it
+            }
+            else
+            {
+                int seq = (nameSeq.TryGetValue(abbr, out var n) ? n : 0) + 1;
+                nameSeq[abbr] = seq;
+                sysName = $"{abbr}-{seq:D2}";
+                TrySetSystemName(system, sysName, result.Warnings, row.Network);
+            }
             row.SystemName = sysName;
 
-            TrySetSystemName(system, sysName, result.Warnings, row.Network);
-            StampMembers(doc, els, sysName, row);
+            StampMembers(doc, els, sysName, def, row);
 
             row.Outcome = created ? MepSystemBuildOutcome.Created : MepSystemBuildOutcome.Typed;
             if (string.IsNullOrEmpty(row.Note))
@@ -256,20 +279,20 @@ namespace StingTools.Core.Mep
 
             try
             {
+                MEPSystem result;
                 if (isDuct)
                 {
                     var dst = MapDuctSystemType(baseConn);
-                    var ms = doc.Create.NewMechanicalSystem(baseConn, members, dst);
-                    created = ms != null;
-                    return ms;
+                    result = doc.Create.NewMechanicalSystem(baseConn, members, dst);
                 }
                 else
                 {
                     var pst = MapPipeSystemType(baseConn);
-                    var ps = doc.Create.NewPipingSystem(baseConn, members, pst);
-                    created = ps != null;
-                    return ps;
+                    result = doc.Create.NewPipingSystem(baseConn, members, pst);
                 }
+                created = result != null;
+                PlaceSystemOnSourceWorkset(doc, result, baseConn); // workset integration — new object only
+                return result;
             }
             catch (Exception ex)
             {
@@ -279,9 +302,29 @@ namespace StingTools.Core.Mep
             }
         }
 
+        /// <summary>
+        /// Put a newly-created system object on the same workset as its source
+        /// equipment so it lives with its network rather than the active workset.
+        /// Members are never moved — that stays the coordinator's call.
+        /// </summary>
+        private static void PlaceSystemOnSourceWorkset(Document doc, MEPSystem system, Connector baseConn)
+        {
+            try
+            {
+                if (system == null || baseConn?.Owner == null || !doc.IsWorkshared) return;
+                var src = baseConn.Owner.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                var dst = system.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                if (src != null && dst != null && !dst.IsReadOnly &&
+                    src.StorageType == StorageType.Integer && dst.StorageType == StorageType.Integer)
+                    dst.Set(src.AsInteger());
+            }
+            catch { /* non-critical */ }
+        }
+
         // ── helpers ─────────────────────────────────────────────────────────
 
-        private static void StampMembers(Document doc, List<Element> els, string sysName, MepSystemBuildRow row)
+        private static void StampMembers(
+            Document doc, List<Element> els, string sysName, MepSystemTypeDef def, MepSystemBuildRow row)
         {
             if (string.IsNullOrEmpty(sysName))
             {
@@ -295,6 +338,16 @@ namespace StingTools.Core.Mep
             {
                 try { ParameterHelpers.SetString(el, ParamRegistry.MEP_SYS_NAME, sysName, overwrite: true); }
                 catch { }
+                // Feed the ISO 19650 tag grammar: write the SYS / FUNC tokens from the
+                // Phase A definition so AutoTag/BatchTag inherit them instead of falling
+                // back to the generic category code. SetIfEmpty preserves manual edits.
+                if (def != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(def.StingSysCode))
+                        try { ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, def.StingSysCode); } catch { }
+                    if (!string.IsNullOrWhiteSpace(def.StingFuncCode))
+                        try { ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, def.StingFuncCode); } catch { }
+                }
             }
         }
 
@@ -314,16 +367,51 @@ namespace StingTools.Core.Mep
         private static Dictionary<MEPSystemClassification, ElementId> BuildTypeIndex<T>(Document doc)
             where T : MEPSystemType
         {
+            // Deterministic: the FIRST STING type per classification (ordered by name)
+            // wins; a non-STING type only fills a classification that has no STING
+            // type. Without the ordering FilteredElementCollector order is arbitrary,
+            // so when several STING types share a classification (CHW/LTHW/CW Flow are
+            // all SupplyHydronic) a re-run could type the same pipes differently.
             var dict = new Dictionary<MEPSystemClassification, ElementId>();
-            foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(T)).Cast<T>())
+            var stingClaimed = new HashSet<MEPSystemClassification>();
+            foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(T)).Cast<T>()
+                         .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
             {
                 MEPSystemClassification cls;
                 try { cls = t.SystemClassification; } catch { continue; }
-                // Prefer a STING (Phase A) type when several share a classification.
                 bool isSting = (t.Name ?? "").StartsWith("STING", StringComparison.OrdinalIgnoreCase);
-                if (!dict.ContainsKey(cls) || isSting) dict[cls] = t.Id;
+                if (isSting)
+                {
+                    if (stingClaimed.Add(cls)) dict[cls] = t.Id;
+                }
+                else if (!dict.ContainsKey(cls)) dict[cls] = t.Id;
             }
             return dict;
+        }
+
+        /// <summary>
+        /// Prime the per-abbreviation name counter from existing "&lt;abbr&gt;-NN"
+        /// system names so re-runs continue the sequence instead of colliding.
+        /// </summary>
+        private static Dictionary<string, int> SeedNameSeq(Document doc)
+        {
+            var seq = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var rx = new Regex(@"^([A-Za-z0-9]+)-(\d+)$"); // allow digit-bearing abbreviations (DCW2, CO2, R410A)
+            void Scan<T>() where T : Element
+            {
+                foreach (var s in new FilteredElementCollector(doc).OfClass(typeof(T)).Cast<T>())
+                {
+                    string name; try { name = s.Name; } catch { continue; }
+                    if (string.IsNullOrEmpty(name)) continue;
+                    var m = rx.Match(name);
+                    if (!m.Success) continue;
+                    string abbr = m.Groups[1].Value;
+                    if (int.TryParse(m.Groups[2].Value, out int n) &&
+                        (!seq.TryGetValue(abbr, out int cur) || n > cur)) seq[abbr] = n;
+                }
+            }
+            try { Scan<MechanicalSystem>(); Scan<PipingSystem>(); } catch { }
+            return seq;
         }
 
         // Map a connector's classification onto the DuctSystemType / PipeSystemType

@@ -85,7 +85,7 @@ namespace StingTools.Core.Mep
         /// <summary>Resolve the active definitions for a Revit document (cached by project file path).</summary>
         public static MepSystemTypeRules Get(Document doc)
         {
-            string key = doc?.PathName ?? "<no-doc>";
+            string key = !string.IsNullOrEmpty(doc?.PathName) ? doc.PathName : $"<unsaved:{doc?.GetHashCode() ?? 0}>";
             return _cache.GetOrAdd(key, _ => Load(doc));
         }
 
@@ -95,7 +95,7 @@ namespace StingTools.Core.Mep
         /// <summary>Force a reload for a single document (e.g. after Save As).</summary>
         public static void Reload(Document doc)
         {
-            string key = doc?.PathName ?? "<no-doc>";
+            string key = !string.IsNullOrEmpty(doc?.PathName) ? doc.PathName : $"<unsaved:{doc?.GetHashCode() ?? 0}>";
             _cache.TryRemove(key, out _);
         }
 
@@ -146,6 +146,9 @@ namespace StingTools.Core.Mep
                 def.Discipline    = (string)t["discipline"]     ?? def.Discipline;
                 def.Classification= (string)t["classification"] ?? def.Classification;
                 def.Abbreviation  = (string)t["abbreviation"]   ?? def.Abbreviation;
+                if (def.Abbreviation != null && def.Abbreviation.Contains('-'))
+                    StingLog.Warn($"MepSystemTypeRegistry: '{id}' abbreviation '{def.Abbreviation}' contains a dash — " +
+                                  "Phase D name parsing splits on '-', so use alphanumeric abbreviations only.");
                 def.StingSysCode  = (string)t["stingSysCode"]   ?? def.StingSysCode;
                 def.StingFuncCode = (string)t["stingFuncCode"]  ?? def.StingFuncCode;
                 def.LinePattern   = (string)t["linePattern"]    ?? def.LinePattern;

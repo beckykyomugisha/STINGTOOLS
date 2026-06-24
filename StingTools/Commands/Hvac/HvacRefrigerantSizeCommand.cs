@@ -187,7 +187,7 @@ namespace StingTools.Commands.Hvac
                     double cap = ReadDouble(fi, "HVC_CAPACITY_KW");
                     if (cap > 0 && designKw > 0 &&
                         (cap < designKw * 0.5 || cap > designKw * 1.5)) continue;
-                    string tag = fi.LookupParameter("ASS_TAG_1")?.AsString() ?? $"#{fi.Id.Value}";
+                    string tag = fi.LookupParameter("ASS_TAG_1_TXT")?.AsString() ?? $"#{fi.Id.Value}";
                     list.Add($"{tag} · {fi.Symbol?.Family?.Name} / {fi.Symbol?.Name} · capacity {cap:F1} kW");
                     if (list.Count >= 20) break;
                 }

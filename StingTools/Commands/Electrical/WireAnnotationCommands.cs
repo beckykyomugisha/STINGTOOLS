@@ -371,7 +371,7 @@ namespace StingTools.Commands.Electrical
         {
             string phase   = ParameterHelpers.GetString(conduit, "ELC_WIRE_PHASE_TXT");
             string mat     = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
-            string circ    = ParameterHelpers.GetString(conduit, "ELC_CIRCUIT_NR_TXT");
+            string circ    = ParameterHelpers.GetString(conduit, "ELC_CKT_NR");
             string panel   = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
             string circType= ParameterHelpers.GetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT");
             string instMeth= ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");

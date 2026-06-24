@@ -120,7 +120,11 @@ namespace StingTools.Core.Mep
                     bool stampGraphics = created || overwriteGraphics;
                     int applied = ApplyGraphics(doc, st, def, stampGraphics, result.Warnings);
 
-                    row.Action = created ? MepTypeAction.Created : MepTypeAction.Updated;
+                    // Untouched existing types report as Skipped (not Updated) so the
+                    // counter reflects reality — "updated" only when graphics were re-applied.
+                    row.Action = created ? MepTypeAction.Created
+                               : stampGraphics ? MepTypeAction.Updated
+                               : MepTypeAction.Skipped;
                     row.Note = created
                         ? $"created ({applied} graphic prop(s) set)"
                         : (stampGraphics ? $"updated ({applied} graphic prop(s) re-applied)"

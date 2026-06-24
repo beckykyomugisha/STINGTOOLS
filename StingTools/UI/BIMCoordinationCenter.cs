@@ -5207,10 +5207,19 @@ namespace StingTools.UI
 
             var clientIdBox  = (System.Windows.Controls.TextBox)     AddField("Client ID:",         creds.ClientId,         false, "APS (Forge) application Client ID");
             var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "APS application Client Secret — held only on this machine");
-            var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Delegated 3-legged OAuth refresh token (data:read data:write). Obtain it via your APS auth flow.");
+            var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Auto-filled by “Sign in with Autodesk”. Only paste one manually if you obtained it via your own APS 3-legged flow.");
             var projectIdBox = (System.Windows.Controls.TextBox)     AddField("Issues Project ID:", creds.ProjectId,        false, "ACC project / Issues container id (the 'b.<guid>' container)");
             var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
             var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "ACC issue type id used when escalating clashes (optional — ACC may reject without it)");
+            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", creds.FolderUrn,        false, "ACC Docs folder to upload models into (urn:adsk.wipprod:fs.folder:...). Leave blank to auto-use the project's “Project Files” folder.");
+
+            // One-time APS setup hint for the in-plugin sign-in flow.
+            detailStack.Children.Add(new TextBlock
+            {
+                Text = $"Register this callback URL in your APS app, then use “Sign in with Autodesk”: {V6.AccOAuthFlow.RedirectUri()}",
+                FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
 
             // Buttons row 1 — credentials
             var credBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
@@ -5223,8 +5232,28 @@ namespace StingTools.UI
                 c.ProjectId        = projectIdBox.Text.Trim();
                 c.CoordContainerId = coordIdBox.Text.Trim();
                 c.IssueTypeId      = issueTypeBox.Text.Trim();
+                c.FolderUrn        = folderUrnBox.Text.Trim();
                 return c;
             }
+
+            // Sign in with Autodesk — 3-legged OAuth in the plugin (no manual refresh token).
+            var signInBtn = new Button { Content = "🔓 Sign in with Autodesk", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Open the Autodesk sign-in page in your browser and capture the tokens automatically. Requires Client ID + Client Secret above and the callback URL registered in your APS app." };
+            signInBtn.Click += async (s, e) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
+                { ShowStatus("Enter Client ID and Client Secret first."); return; }
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus("Opening Autodesk sign-in in your browser…");
+                    var r = await V6.AccOAuthFlow.SignInAsync(c).ConfigureAwait(true);
+                    ShowStatus(r.Ok ? "Signed in to Autodesk — tokens stored." : $"Autodesk sign-in failed: {r.Message}");
+                    ShowPlatformDetail("ACC");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC sign-in: {ex.Message}"); ShowStatus($"Autodesk sign-in error: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(signInBtn);
 
             var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save these credentials to %APPDATA%\\Planscape\\acc_credentials.json (this machine only)." };
             saveAccBtn.Click += (s, e) =>
@@ -5264,7 +5293,32 @@ namespace StingTools.UI
             }
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
-            AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into an ACC-ready upload bundle.");
+            AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
+
+            // Live upload to ACC Docs via the APS Data Management API (pure HTTP —
+            // runs inline like Sign-in; no Revit transaction needed).
+            var uploadBtn = new Button { Content = "⬆ Upload Model to ACC", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0xE6, 0x5F, 0x00)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Upload a model/deliverable file straight into the ACC Docs folder (storage → signed-S3 upload → create item). Requires data:create scope on your APS app." };
+            uploadBtn.Click += async (s, e) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ProjectId)) { ShowStatus("Set the Issues Project ID (the ACC project) first."); return; }
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Pick a model / deliverable to upload to ACC",
+                    Filter = "Model & doc files (*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg)|*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg|All files (*.*)|*.*"
+                };
+                if (dlg.ShowDialog() != true) return;
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus($"Uploading {System.IO.Path.GetFileName(dlg.FileName)} to ACC…");
+                    var r = await V6.AccModelUpload.UploadAsync(c, dlg.FileName).ConfigureAwait(true);
+                    ShowStatus(r.Ok ? r.Message : $"ACC upload failed: {r.Message}");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC upload: {ex.Message}"); ShowStatus($"ACC upload error: {ex.Message}"); }
+            };
+            actRow.Children.Add(uploadBtn);
+
             detailStack.Children.Add(actRow);
 
             // View logs / open credentials folder

@@ -292,6 +292,10 @@ else
 {
     builder.Services.AddScoped<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// #4 follow-up — IFC→GLB converter sidecar client + conversion job. No-ops
+// gracefully when Converter:BaseUrl is unset (IsConfigured == false).
+builder.Services.AddScoped<Planscape.Core.Interfaces.IConverterClient, Planscape.Infrastructure.Services.ConverterClient>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IfcToGlbConversionJob>();
 // Phase 175 audit P1-15-tx — atomic per-key counter (transmittals,
 // future RFIs / NCRs). Scoped because it shares the request DbContext.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ISequenceCounterService,
@@ -556,6 +560,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanup
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.MappingReconciliationJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
+// #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
+builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
 // Phase 178 — Site photo workflow: redaction worker + daily digest job.
@@ -1447,6 +1453,12 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
     Cron.Minutely);
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
+    "*/30 * * * *");
+// #3 — scheduled ACC issue push. Sibling to PlatformSyncJob (which is
+// element-centric + pull-only); this sweeps every active ACC connection and
+// pushes open Planscape issues → ACC, idempotent via the ConfigJson dedup map.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
+    "acc-issue-sync", "platform-sync", s => s.SyncAllActiveAsync(CancellationToken.None),
     "*/30 * * * *");
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
 // Phase 178b — moved to "heavy" queue (worker-only). pg_dump on a

@@ -2304,27 +2304,18 @@ namespace StingTools.UI
                 v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
                 tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
 
-            string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
-            string[] styles = new[] { "", "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
-            string[] colors = new[] { "", "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "GREY", "PURPLE", "YELLOW" };
-
-            body.Children.Add(LabeledCombo("Tag size",
-                sizes, tp.TagSize ?? "",
-                v => tp.TagSize = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Empty = inherit from pack DefaultTagStyle. mm text height."));
-            body.Children.Add(LabeledCombo("Tag style",
-                styles, tp.TagStyle ?? "",
-                v => tp.TagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-            body.Children.Add(LabeledCombo("Tag colour",
-                colors, tp.TagColor ?? "",
-                v => tp.TagColor = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-
-            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
-                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
-            body.Children.Add(LabeledCombo("View colour scheme (STING_VIEW_TAG_STYLE)",
-                schemes, tp.ColorScheme ?? "",
-                v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
+            // Tag STYLE (size / weight / colour / colour scheme) is single-sourced
+            // in the bound View Style Pack (Default tag style, Category tag styles,
+            // Tag colour scheme — see the View Style Packs tab). Drawing types own
+            // token DEPTH only, so the style controls were removed from this card.
+            body.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tag style (size / weight / colour / colour scheme) is set on the bound " +
+                       "View Style Pack — see the View Style Packs tab. This card controls token depth only.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Opacity = 0.75,
+                Margin = new System.Windows.Thickness(0, 4, 0, 8)
+            });
 
             // Phase 137 — Segment mask: 8 individual checkboxes (one per
             // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
@@ -2577,9 +2568,6 @@ namespace StingTools.UI
             var bits = new List<string>();
             if (!string.IsNullOrWhiteSpace(tp.PresentationMode)) bits.Add($"mode:{tp.PresentationMode}");
             if (tp.ParaDepth.HasValue) bits.Add($"depth:{tp.ParaDepth.Value}");
-            if (!string.IsNullOrWhiteSpace(tp.TagSize) || !string.IsNullOrWhiteSpace(tp.TagStyle) || !string.IsNullOrWhiteSpace(tp.TagColor))
-                bits.Add($"tag:{tp.TagSize ?? "·"}{tp.TagStyle ?? "·"}_{tp.TagColor ?? "·"}");
-            if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
             if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
             if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
             if (!string.IsNullOrWhiteSpace(tp.PatternMode)) bits.Add($"pattern:{tp.PatternMode}");
