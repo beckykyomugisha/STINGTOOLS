@@ -99,7 +99,7 @@ namespace StingTools.Docs
 
         public bool ApplyWatermark { get; set; }
         public string WatermarkText { get; set; } = "DRAFT";
-        public string WatermarkPosition { get; set; } = "DiagonalCentre";
+        public string WatermarkPosition { get; set; } = "Center";
         public int WatermarkOpacityPct { get; set; } = 30;
         public int WatermarkFontSize { get; set; } = 96;
         public string WatermarkColourHex { get; set; } = "#999999";

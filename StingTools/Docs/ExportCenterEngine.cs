@@ -495,6 +495,9 @@ namespace StingTools.Docs
                     var folder = profile.Output.LocalFolder;
                     if (string.IsNullOrEmpty(folder))
                         issues.Add(Err("NO_OUTPUT_FOLDER", "Output folder is empty."));
+                    else if (!Path.IsPathRooted(folder))
+                        issues.Add(Err("RELATIVE_PATH",
+                            $"Output folder must be an absolute path (e.g. C:\\Exports). Got: '{folder}'"));
                     else if (!Directory.Exists(folder))
                     {
                         if (profile.Output.CreateFolderIfMissing)
@@ -737,13 +740,17 @@ namespace StingTools.Docs
         {
             if (p.Output.Destination == ExportDestination.PlanscapeCde) return;
             var f = p.Output.LocalFolder;
-            if (!string.IsNullOrEmpty(f) && !Directory.Exists(f) && p.Output.CreateFolderIfMissing)
+            if (string.IsNullOrEmpty(f)) return;
+            if (!Path.IsPathRooted(f)) f = Path.GetFullPath(f);
+            if (!Directory.Exists(f) && p.Output.CreateFolderIfMissing)
                 Directory.CreateDirectory(f);
         }
 
         private static string SubFolderFor(ExportProfile p, string format, string discipline)
         {
             string root = p.Output.LocalFolder;
+            if (!string.IsNullOrEmpty(root) && !Path.IsPathRooted(root))
+                root = Path.GetFullPath(root);
             if (p.Output.SplitByFormatSubFolder) root = Path.Combine(root, format);
             if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(discipline))
                 root = Path.Combine(root, discipline);
@@ -829,8 +836,13 @@ namespace StingTools.Docs
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
                 row.OutputPath = Path.Combine(folder, stem + ".pdf");
                 row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
-                else row.Error = "PDF export returned false";
+                if (row.Success)
+                {
+                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                    if (profile.Pdf.ApplyWatermark)
+                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                }
+                else row.Error = $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
             }
             catch (Exception ex)
             {

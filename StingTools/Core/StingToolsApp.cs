@@ -2220,7 +2220,8 @@ namespace StingTools.Core
                 ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
-                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,    typeof(HubAutoTagCommand).FullName),
+                ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
+                ("ExportCenter",         "Export Center", "EC", DrawingColor.DarkSlateBlue,  typeof(HubExportCenterCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2634,6 +2635,14 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "AutoTag", ref message);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubExportCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "ExportCenter", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
