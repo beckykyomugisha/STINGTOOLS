@@ -131,15 +131,14 @@ namespace StingTools.Core.Drawing
             }
 #pragma warning restore CS0618
 
-            // Original sub-pass (`Run(doc, view, pack, options)`) became
-            // self-recursive after the merge collapsed signatures. The
-            // per-element tagging above already populated `stats`; nothing
-            // to merge in from a second pass.
-            var r = new AnnotationResult();
-            stats.TagsPlaced  = r.TagsPlaced;
-            stats.DimsCreated = r.DimsPlaced;
-            stats.Warnings.AddRange(r.Warnings);
-            if (!dense) { stats.Skipped++; stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{view.Scale} exceeds denseUntilScale 1:{pack.DenseUntilScale}."); }
+            // The legacy auto-tag / auto-dim passes above already populated
+            // `stats` (TagsPlaced / DimsCreated via TagCategory / DimGrids).
+            // A prior signature-collapsing merge left a block here that
+            // overwrote those counts with a fresh empty AnnotationResult — so
+            // every run reported 0 tags / 0 dims regardless of what was placed
+            // — and re-emitted the density-skip warning a second time (also
+            // firing it spuriously when tagging was skipped by option, not
+            // density). Both removed; the accumulated stats stand.
             return stats;
         }
 
