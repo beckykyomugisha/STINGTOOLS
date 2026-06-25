@@ -60,9 +60,20 @@ namespace StingTools.BOQ
         public string Level;
         public string Location;             // room name or spatial code
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated"
+        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
+
+        // ── P1 aggregation ─────────────────────────────────────────────────
+        // When several near-identical modelled elements collapse into one BOQ
+        // row, SimilarCount holds the element count and ConstituentElementIds
+        // every element id in the group (for drill-down / back-selection in
+        // Revit). RevitElementId/UniqueId remain the representative element.
+        // Defaults keep old snapshots deserialising unchanged (count = 1,
+        // empty list, null key — i.e. an un-aggregated single-element row).
+        public int SimilarCount = 1;
+        public List<long> ConstituentElementIds = new List<long>();
+        public string AggregationKey;       // grouping key used to collapse the row (debug/export)
 
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
@@ -99,7 +110,11 @@ namespace StingTools.BOQ
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
-                SortOrder = this.SortOrder
+                SortOrder = this.SortOrder,
+                SimilarCount = this.SimilarCount,
+                ConstituentElementIds = this.ConstituentElementIds != null
+                    ? new List<long>(this.ConstituentElementIds) : new List<long>(),
+                AggregationKey = this.AggregationKey
             };
         }
     }

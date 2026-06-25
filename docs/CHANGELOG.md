@@ -3,6 +3,65 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS Upgrade — P1: real takeoff — 2D exclusion + aggregation)
+
+First phase of the Quantity-Surveyor BOQ upgrade (P1 of the P1–P4 brief;
+P0 — reviving the dead Cost buttons — already merged on
+`claude/revive-cost-buttons`). Turns the per-element dump into an
+aggregated, measurable bill. Branch `claude/boq-p1-aggregation`.
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet
+Revit-runtime-verified.**
+
+**P1.1 — Takeoff exclusion filter** (`BOQCostManager.CollectCandidateElements`):
+- Non-measurable elements no longer reach takeoff. Hard-coded BIC
+  exclusion set `_defaultExcludedBic` rejects detail components, filled
+  regions, model/detail lines, sketch lines, generic annotation, text
+  notes, dimensions, Revit links and raster images; `ImportInstance`
+  (CAD imports) is rejected by type. Fixes the "Small Power legend.dwg
+  filled region × 275" class of noise rows.
+- Data-driven extension via config key `COST_TAKEOFF_EXCLUDE_CATEGORIES`
+  (comma-separated category display names), empty by default so the
+  baseline governs out of the box. Existing Rooms/Spaces/Areas skip and
+  `IsPhaseDemolished` logic preserved. One-line excluded-count log.
+
+**P1.2 — Aggregation layer** (`BOQCostManager.AggregateLineItems`):
+- `BOQLineItem` gains `SimilarCount` (default 1), `ConstituentElementIds`
+  (all element ids in the group, for P2 drill-down/back-selection) and
+  `AggregationKey`. Additive + defaulted, so old snapshots still
+  deserialise; `Clone()` copies them.
+- New STEP 6b between manual-row merge and `GroupIntoSections`: groups
+  Model-source rows by `NRM2Section | Category | Discipline | Family |
+  Type | Unit` (+ Level/Location when a spatial mode is active, an
+  `includeSpatialInKey` hook reserved for P2). 7 identical showers →
+  1 row, Qty 7. Σ quantity / carbon / lifecycle; `RateConfidence` = min;
+  Level/Location kept only when uniform else `(various)`. Rate
+  disagreement within a group → modal rate (most-confident breaks ties)
+  + rate-limited warning. Representative element = most-confident row.
+  Manual/PS rows never aggregated. Toggle via `COST_AGGREGATE_SIMILAR`
+  (default on).
+- `WriteElementParameters` made aggregation-aware: shared per-unit fields
+  (rate / source / section / paragraph / confidence) stamp every
+  constituent; quantity / total / carbon / lifecycle re-derived per
+  element so each keeps its own measured figure rather than the merged
+  sum. Single-element + manual rows keep exact prior behaviour.
+
+**Revit manual-test checklist (P1)**:
+1. Open a model with a placed CAD legend / filled regions → run BOQ
+   Refresh → confirm the filled-region/detail noise rows are gone and the
+   log reports an excluded count.
+2. Place ≥5 identical fixtures (e.g. showers) → Refresh → confirm one row
+   with Qty = count, Note "Aggregated N similar elements".
+3. Confirm BOQ line refs still number sequentially per section.
+4. Run a cost write-back (Export / WriteItemParams) → confirm CST_* rate
+   fields stamp on all constituent elements, each with its own
+   CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX.
+5. Load a pre-P1 snapshot → confirm it still opens (back-compat).
+
+**Known limitation**: `IfcQuantitySetWriter` still writes Qto sets keyed
+on the representative element only for aggregated rows (per-constituent
+Qto write deferred). The on-screen bill, Excel export and CST_* element
+write-back are all aggregation-correct.
+
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H
