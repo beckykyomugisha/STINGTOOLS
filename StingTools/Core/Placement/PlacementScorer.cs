@@ -203,7 +203,14 @@ namespace StingTools.Core.Placement
             double offsetZFt = rule.OffsetZMm * MmToFt;
 
             // PC-06 — mounting reference picks which datum MountingHeight is measured from.
-            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt) + (rule.MountingHeightMm * MmToFt) + offsetZFt;
+            // Phase 188 (review fix #6) — MountingHeightMm sign depends on the datum:
+            // FFL / SLAB measure UP from the floor; CEILING / SOFFIT measure DOWN from
+            // the ceiling/soffit face. The original code always added the height, so a
+            // ceiling-referenced fixture with a positive MountingHeightMm landed ABOVE
+            // the ceiling. OffsetZMm stays a signed trim either way.
+            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt)
+                           + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                           + offsetZFt;
 
             string anchor = (rule.AnchorType ?? "ROOM_CENTRE").ToUpperInvariant();
             switch (anchor)
@@ -308,6 +315,17 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"ResolveMountingDatumZ {room.Id}: {ex.Message}"); }
             return roomPt.Z;
+        }
+
+        /// <summary>
+        /// Phase 188 (review fix #6) — direction MountingHeightMm is applied from
+        /// the resolved datum. FFL / SLAB → +1 (measure up from floor);
+        /// CEILING / SOFFIT → −1 (measure down from the overhead face).
+        /// </summary>
+        private static double MountingHeightSign(PlacementRule rule)
+        {
+            string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
+            return (r == "CEILING" || r == "SOFFIT") ? -1.0 : 1.0;
         }
 
         // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.

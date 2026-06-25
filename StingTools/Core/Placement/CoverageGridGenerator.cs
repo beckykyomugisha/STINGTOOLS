@@ -5,6 +5,16 @@ using StingTools.Core;
 // Produces an evenly-spaced grid that fills the room polygon so every
 // floor point lies within CoverageRadiusMm of a placed device, honouring
 // MaxSpacingMm, MinSpacingMm, WallClearanceMm and ObstructionClearanceMm.
+//
+// ── DEFERRED (Phase 188 review fix #3a) ──────────────────────────────
+// This class is NOT YET wired into FixturePlacementEngine. The engine's
+// ComputeCap does not route GuaranteeCoverage rules through Generate(),
+// so the documented "fill until ≥99 % coverage" guarantee is not active;
+// GuaranteeCoverage currently only relaxes PlacementScorer's score
+// threshold. PlacementRuleLoader.ValidateRuleSet warns when a rule sets
+// GuaranteeCoverage=true. To activate, call Generate() from
+// ProcessRoomRule and feed its points into the candidate list. Until
+// then, treat this as a staged implementation, not live behaviour.
 
 using System;
 using System.Collections.Generic;

@@ -211,6 +211,35 @@ namespace StingTools.Core.Placement
                 return result;
             }
 
+            // Phase 188 (review fix #3b) — apply the project building profile so
+            // a run matches what the Placement Centre displays. FilterByProfile
+            // existed and the UI mirrored it, but the engine ran every rule
+            // regardless of building type. No-op when no
+            // _BIM_COORD/placement_profile.json is configured (empty BuildingType
+            // + ActiveStandards → FilterByProfile returns the set unchanged).
+            try
+            {
+                var profile = ProjectBuildingProfileIO.Load(doc.PathName);
+                bool profileActive = profile != null &&
+                    (!string.IsNullOrEmpty(profile.BuildingType) ||
+                     (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
+                if (profileActive)
+                {
+                    int before = rules.Count;
+                    rules = PlacementRuleLoader.FilterByProfile(new List<PlacementRule>(rules), profile);
+                    int removed = before - rules.Count;
+                    StingLog.Info($"FixturePlacementEngine: building-profile filter kept {rules.Count} of {before} rules (BuildingType='{profile.BuildingType}').");
+                    if (removed > 0)
+                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out {removed} of {before} rule(s) not matching the active building type / standards.");
+                    if (rules.Count == 0)
+                    {
+                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out ALL rules — nothing to place. Check the profile's BuildingType / ActiveStandards against your rule set.");
+                        return result;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: building-profile filter: {ex.Message}"); }
+
             // Phase 139.27 (C-03) — surface a one-shot warning at start
             // of run when the user enabled "Tag every placement" but
             // the reflection target is missing. RunFor() warns once per

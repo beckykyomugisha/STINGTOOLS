@@ -7165,3 +7165,29 @@ Remaining review items (GuaranteeCoverage/CoverageGridGenerator wiring,
 FilterByProfile at run time, ceiling/soffit mounting-reference sign, and
 the flexibility/minor batch) are deferred to follow-up branches per the
 review's recommended order.
+
+#### Completed (Phase 188 — Placement Center hardening, batch 2)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+4. **`GuaranteeCoverage` deprecate + warn (review fix #3a, Option B).**
+   `CoverageGridGenerator` implements the ≥99 % coverage fill but is not
+   wired into the engine; `GuaranteeCoverage` only relaxes the scorer's
+   threshold. Added a `DEFERRED` header note on the class and a
+   `PlacementRuleLoader.ValidateRuleSet` warning when a rule sets
+   `GuaranteeCoverage=true`. (`CoverageGridGenerator.cs`, `PlacementRuleLoader.cs`)
+
+5. **`FilterByProfile` now applied at run time (review fix #3b).** The
+   building-profile gate existed and the Centre mirrored it for display,
+   but the engine ran every rule regardless of building type. The engine
+   now loads `_BIM_COORD/placement_profile.json` and applies
+   `FilterByProfile` before ordering, warning with the removed count and
+   hard-stopping if the profile removes every rule. No-op when no profile
+   is configured. (`FixturePlacementEngine.cs`)
+
+6. **Ceiling/soffit mounting-reference sign (review fix #6).**
+   `MountingHeightMm` was always added to the datum, so a `CEILING`/`SOFFIT`
+   reference with a positive height landed the fixture *above* the ceiling.
+   New `MountingHeightSign` helper: FFL/SLAB → +1, CEILING/SOFFIT → −1.
+   `OffsetZMm` stays a signed trim. (`PlacementScorer.cs`)
