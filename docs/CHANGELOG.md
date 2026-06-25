@@ -7125,3 +7125,43 @@ section + connection + foundation set.
    the JSON files are read directly from `StingTools/Data/Symbols/`).
    Adding a project overlay layer matching the Drawing-Type project
    override mechanism would be the natural follow-up.
+
+#### Completed (Phase 188 — Placement Center categories/rules hardening, batch 1)
+
+Branch `claude/placement-rules-hardening`. First two fixes from the
+Placement Center categories-and-rules review. **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+1. **`PlacementScorer._doc` was never assigned (CRITICAL).** The
+   constructor `public PlacementScorer(Document doc) {}` discarded its
+   argument, leaving the `readonly` `_doc` field null for the scorer's
+   whole life. Because every `_doc` use is `try/catch → StingLog.Warn`,
+   obstruction collision scoring, `RejectInsideWall`, the door / window /
+   grid / column / MEP / curtain-panel anchors and manufacturer-resolution
+   scoring all silently no-op'd. Fixed by binding `_doc = doc;` plus a
+   null-doc warning. (`Core/Placement/PlacementScorer.cs`)
+
+2. **Per-candidate full-model scan (`ResolveSampleInstanceForRule`).**
+   `ApplyPlacementHints` runs once per candidate and the helper walked the
+   whole model with no category prefilter — harmless while `_doc` was null,
+   O(model × candidates) once fix #1 landed. Now category-prefiltered via
+   `FixturePlacementEngine.ResolveBuiltInCategoryByName` (promoted
+   `private`→`internal`) and doc-wide cached per category (negative-cached).
+   (`Core/Placement/PlacementScorer.cs`, `FixturePlacementEngine.cs`)
+
+3. **Density count ignored `PerBed` / `PerWorkstation` / `PerPupil` /
+   `PerToiletCubicle`.** `ComputeCap` only derived counts from `PerAreaM2`
+   and `PerOccupant`, so healthcare / education / office density rules
+   collapsed to one fixture per room despite the loader validating those
+   rates and the Centre + Excel exposing them. `ComputeCap` now takes the
+   max across every populated rate via a new `CountFromRoomRate` helper
+   reading `STING_BED_COUNT_INT` / `STING_WS_COUNT_INT` /
+   `STING_PUPIL_COUNT_INT` / `STING_TOILET_CUBICLE_COUNT_INT` (consistent
+   with the existing `STING_OCC_COUNT_INT` project-bound room-param
+   pattern; none are registered in `MR_PARAMETERS`).
+   (`Core/Placement/FixturePlacementEngine.cs`, `PlacementRule.cs`)
+
+Remaining review items (GuaranteeCoverage/CoverageGridGenerator wiring,
+FilterByProfile at run time, ceiling/soffit mounting-reference sign, and
+the flexibility/minor batch) are deferred to follow-up branches per the
+review's recommended order.

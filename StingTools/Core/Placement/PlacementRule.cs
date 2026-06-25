@@ -164,7 +164,7 @@ namespace StingTools.Core.Placement
         /// <summary>PC-12 — Density rule: 1 fixture per N pupils (education; read from room's STING_PUPIL_COUNT_INT).</summary>
         public double PerPupil { get; set; } = 0.0;
 
-        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules).</summary>
+        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules; read from room's STING_TOILET_CUBICLE_COUNT_INT).</summary>
         public double PerToiletCubicle { get; set; } = 0.0;
 
         /// <summary>PC-12 — Name of a room integer parameter to read occupancy from when PerOccupant is set. Defaults to STING_OCC_COUNT_INT.</summary>

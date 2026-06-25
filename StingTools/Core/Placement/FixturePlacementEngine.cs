@@ -780,32 +780,40 @@ namespace StingTools.Core.Placement
             {
                 case PlacementRuleKind.Density:
                 {
-                    int byArea = 0, byOcc = 0;
+                    // Phase 188 (review fix #2) — derive the count from EVERY
+                    // declared density rate, not just PerAreaM2 / PerOccupant.
+                    // PerBed / PerWorkstation / PerPupil / PerToiletCubicle are
+                    // first-class fields validated by the loader and surfaced in
+                    // the Centre + Excel export, but the engine never read them —
+                    // so healthcare / education / office density rules silently
+                    // collapsed to one fixture per room. cap = max across all
+                    // populated rates (a rule may set several; the binding one
+                    // wins).
+                    int byArea = 0;
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
                         try { areaM2 = room.Area * 0.3048 * 0.3048; } catch { }
                         if (areaM2 > 0) byArea = Math.Max(1, (int)Math.Ceiling(areaM2 / rule.PerAreaM2));
                     }
-                    if (rule.PerOccupant > 0)
-                    {
-                        int occ = 0;
-                        try
-                        {
-                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
-                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
-                            var p = room.LookupParameter(occParam);
-                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
-                        }
-                        catch { }
-                        if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
-                    }
-                    cap = Math.Max(byArea, byOcc);
-                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
-                    // (or with both = 0) used to fall through with cap=1, then later
-                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
-                    // as misconfigured: place at most one and warn upstream via the
-                    // rule-loader validation pass (#39 below).
+
+                    string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                        ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                    int byOcc    = CountFromRoomRate(room, occParam,                     rule.PerOccupant);
+                    int byBed    = CountFromRoomRate(room, "STING_BED_COUNT_INT",            rule.PerBed);
+                    int byWs     = CountFromRoomRate(room, "STING_WS_COUNT_INT",             rule.PerWorkstation);
+                    int byPupil  = CountFromRoomRate(room, "STING_PUPIL_COUNT_INT",          rule.PerPupil);
+                    int byCubicle= CountFromRoomRate(room, "STING_TOILET_CUBICLE_COUNT_INT", rule.PerToiletCubicle);
+
+                    cap = Math.Max(byArea,
+                          Math.Max(byOcc,
+                          Math.Max(byBed,
+                          Math.Max(byWs,
+                          Math.Max(byPupil, byCubicle)))));
+
+                    // Phase 139.4 — Density rule with no derivable rate falls
+                    // through with cap=1; the rule-loader validation pass warns
+                    // the user the rule is misconfigured.
                     if (cap == 0) cap = 1;
                     break;
                 }
@@ -838,6 +846,25 @@ namespace StingTools.Core.Placement
             if (rule.MaxPerRoom > 0)
                 cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
             return Math.Min(cap, candidateCount);
+        }
+
+        /// <summary>
+        /// Phase 188 (review fix #2) — read an integer room parameter and
+        /// derive a density count = ceil(count / rate). Returns 0 when the
+        /// rate is unset (≤ 0), the parameter is missing/empty, or the value
+        /// is ≤ 0 — so it contributes nothing to the Math.Max chain.
+        /// </summary>
+        private static int CountFromRoomRate(Room room, string paramName, double ratePerUnit)
+        {
+            if (ratePerUnit <= 0 || room == null || string.IsNullOrEmpty(paramName)) return 0;
+            int count = 0;
+            try
+            {
+                var p = room.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Integer) count = p.AsInteger();
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeCap: read room param '{paramName}': {ex.Message}"); }
+            return count > 0 ? Math.Max(1, (int)Math.Ceiling(count / ratePerUnit)) : 0;
         }
 
         /// <summary>
@@ -1632,7 +1659,10 @@ namespace StingTools.Core.Placement
             = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
         private static readonly object _bicByNameLock = new object();
 
-        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
+        // Phase 188 (review fix #1b) — promoted from private to internal so
+        // PlacementScorer can reuse the cached category-name → BuiltInCategory
+        // resolution for its sample-instance prefilter.
+        internal static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
             string path = "", title = "";

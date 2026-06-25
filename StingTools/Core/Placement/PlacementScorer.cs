@@ -82,7 +82,23 @@ namespace StingTools.Core.Placement
 
         public PlacementScorer(Document doc)
         {
+            // Phase 188 (review fix #1) — bind the document. The original
+            // constructor discarded its argument, leaving the readonly _doc
+            // field null for the scorer's whole life. Every _doc use is
+            // try/catch-wrapped, so collision scoring, RejectInsideWall,
+            // door/window/grid/column/MEP anchors and manufacturer scoring
+            // all silently no-op'd. Binding it here re-enables them.
+            _doc = doc;
+            if (_doc == null)
+                StingLog.Warn("PlacementScorer constructed with null document — Revit-querying anchors and collision scoring disabled.");
         }
+
+        // Phase 188 (review fix #1b) — doc-wide sample-instance cache keyed
+        // by category name (negative-cached). Replaces a full-model
+        // FilteredElementCollector that previously ran once per candidate
+        // inside ApplyPlacementHints.
+        private readonly Dictionary<string, Element> _sampleInstanceByCategory
+            = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
@@ -498,21 +514,44 @@ namespace StingTools.Core.Placement
         /// </summary>
         private Element ResolveSampleInstanceForRule(Room room, PlacementRule rule)
         {
-            if (rule == null || room == null) return null;
+            if (rule == null || _doc == null || string.IsNullOrEmpty(rule.CategoryFilter)) return null;
+
+            // Phase 188 (review fix #1b) — doc-wide cache + category prefilter.
+            // The sample is the first instance of the rule's category anywhere
+            // in the model (used only to read family-level placement hints), so
+            // it is the same regardless of room. Caching by category — and
+            // pre-filtering the collector with OfCategory — replaces the
+            // previous whole-model walk that ran once per candidate.
+            if (_sampleInstanceByCategory.TryGetValue(rule.CategoryFilter, out var cached))
+                return cached;
+
+            Element found = null;
             try
             {
-                var col = new FilteredElementCollector(_doc)
-                    .WhereElementIsNotElementType();
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                try { bic = FixturePlacementEngine.ResolveBuiltInCategoryByName(_doc, rule.CategoryFilter); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule BIC resolve '{rule.CategoryFilter}': {ex.Message}"); }
+
+                var col = (bic != BuiltInCategory.INVALID)
+                    ? new FilteredElementCollector(_doc).OfCategory(bic).WhereElementIsNotElementType()
+                    : new FilteredElementCollector(_doc).WhereElementIsNotElementType();
+
                 foreach (var el in col)
                 {
                     if (el.Category == null) continue;
                     if (!string.Equals(el.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    return el;
+                    found = el;
+                    break;
                 }
             }
-            catch { }
-            return null;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule '{rule.CategoryFilter}': {ex.Message}");
+            }
+
+            _sampleInstanceByCategory[rule.CategoryFilter] = found; // negative-cache null too
+            return found;
         }
 
         /// <summary>
