@@ -104,24 +104,19 @@ namespace StingTools.Core.Drawing
             int effectiveScale = (options?.ViewScale > 0) ? options.ViewScale : view.Scale;
             bool dense = !pack.DenseUntilScale.HasValue || effectiveScale <= pack.DenseUntilScale.Value;
 
-#pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
-            if (options?.SkipDims != true)
-            {
-                try { if (pack.AutoDimGrids)  DimGrids(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimGrids: " + ex.Message); }
-                try { if (pack.AutoDimLevels) DimLevels(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimLevels: " + ex.Message); }
-            }
-
+            // ── Tagging — Phase 137 Rules path. MigrateFromLegacy folds the
+            // legacy per-category bools into pack.Rules at load, so a single
+            // rule walk covers both old and new formats; routed through the
+            // proven TagCategory helper. Density-gated. (The previous body
+            // read the per-category bools directly — but those are zeroed by
+            // MigrateFromLegacy, so it was inert, and pack.Rules — used by 48
+            // shipped drawing types — was never processed at all.)
             if (options?.SkipTags != true)
             {
                 if (dense)
                 {
-                    try { if (pack.AutoTagRooms)     TagCategory(doc, view, pack, BuiltInCategory.OST_Rooms,                 "Rooms",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagRooms: " + ex.Message); }
-                    try { if (pack.AutoTagDoors)     TagCategory(doc, view, pack, BuiltInCategory.OST_Doors,                 "Doors",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagDoors: " + ex.Message); }
-                    try { if (pack.AutoTagWindows)   TagCategory(doc, view, pack, BuiltInCategory.OST_Windows,               "Windows",   stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWindows: " + ex.Message); }
-                    try { if (pack.AutoTagEquipment) TagEquipment(doc, view, pack, stats); }                                                          catch (Exception ex) { stats.Warnings.Add("AutoTagEquipment: " + ex.Message); }
-                    try { if (pack.AutoTagWelds)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Welds",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWelds: " + ex.Message); }
-                    try { if (pack.AutoTagBends)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Bends",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagBends: " + ex.Message); }
-                    try { if (pack.AutoTagSupports)  TagCategory(doc, view, pack, BuiltInCategory.OST_StructuralFraming,     "Supports",  stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagSupports: " + ex.Message); }
+                    try { TagByRules(doc, view, pack, stats); }
+                    catch (Exception ex) { stats.Warnings.Add("TagByRules: " + ex.Message); }
                 }
                 else
                 {
@@ -129,99 +124,89 @@ namespace StingTools.Core.Drawing
                     stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{effectiveScale} exceeds denseUntilScale 1:{pack.DenseUntilScale}.");
                 }
             }
-#pragma warning restore CS0618
 
-            // Original sub-pass (`Run(doc, view, pack, options)`) became
-            // self-recursive after the merge collapsed signatures. The
-            // per-element tagging above already populated `stats`; nothing
-            // to merge in from a second pass.
-            var r = new AnnotationResult();
-            stats.TagsPlaced  = r.TagsPlaced;
-            stats.DimsCreated = r.DimsPlaced;
-            stats.Warnings.AddRange(r.Warnings);
-            if (!dense) { stats.Skipped++; stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{view.Scale} exceeds denseUntilScale 1:{pack.DenseUntilScale}."); }
+            // ── Dimensioning — AutoDim + AutoDim/GridDim/LevelAnnotation rules.
+            if (options?.SkipDims != true)
+            {
+                try { DimByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("DimByRules: " + ex.Message); }
+            }
+
+            // ── Decorative (north arrow / scale bar / key plan / matchlines)
+            // + spot (elevation / coordinate) — additive Phase 137 passes that
+            // had no legacy equivalent and were never wired into Apply.
+            if (options?.SkipDecorative != true || options?.SkipSpots != true)
+            {
+                var aux = new AnnotationResult();
+                if (options?.SkipDecorative != true)
+                {
+                    try { RunDecorativeAnnotation(doc, view, pack, options, aux); }
+                    catch (Exception ex) { aux.Warnings.Add("Decorative: " + ex.Message); }
+                }
+                if (options?.SkipSpots != true)
+                {
+                    try { RunSpotAnnotation(doc, view, pack, options, aux); }
+                    catch (Exception ex) { aux.Warnings.Add("Spot: " + ex.Message); }
+                }
+                stats.DecorativePlaced += aux.DecorativePlaced + aux.SpotsPlaced;
+                stats.Warnings.AddRange(aux.Warnings);
+            }
+
             return stats;
         }
 
-        // ── Tag rules ──
+        // ─── Rules-based drivers (wire pack.Rules into the proven helpers) ──
 
-        private static void RunTagRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
+        private static readonly HashSet<string> _tagRuleKinds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "AutoTag", "RoomTag", "SpaceTag", "AreaTag", "MaterialTag", "KeynoteTag", "MultiCategoryTag" };
+
+        /// <summary>
+        /// Phase 137 Rules-based tagging. Walks pack.Rules (which, post-
+        /// MigrateFromLegacy, also holds the folded legacy per-category bools);
+        /// when Rules is empty and the general AutoTag bool is set, synthesises
+        /// one AutoTag rule per taggable category. Auto3DTag short-circuits to
+        /// Tag3DCommand (IndependentTag is 2D-only). Each resolved built-in
+        /// category is tagged at most once via the proven TagCategory helper;
+        /// custom (non-built-in) categories are skipped.
+        /// </summary>
+        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            // FG-02: handle every tag-like RuleType, not just bare "AutoTag".
-            // RoomTag / SpaceTag / AreaTag / MaterialTag / KeynoteTag /
-            // MultiCategoryTag are all variants of "tag this category" and
-            // should run via the same per-rule path; the differentiator is
-            // the resolved tag family (RoomTag uses Room tag families, etc.).
-            // RuleType is preserved on the rule so downstream callers can
-            // pick a tag family by purpose.
-            var tagRuleKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            if (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
+                    string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase)))
             {
-                "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
-                "MaterialTag", "KeynoteTag", "MultiCategoryTag",
-            };
-
-            // Phase 165 — Auto3DTag short-circuits to Tag3DCommand.PlaceTagsInView
-            // when the active view is a 3D view. Pulled out of the standard tag-rule
-            // path because IndependentTag is 2D-only; 3D tags are FamilyInstances of
-            // a Generic Model "tag bubble" carrying ASS_TAG_3D_TXT.
-            if (pack.Rules != null)
-            {
-                var auto3D = pack.Rules
-                    .Where(r => r != null && r.Enabled &&
-                                string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (auto3D.Count > 0)
+                try
                 {
                     if (view is View3D v3d)
                     {
-                        // Read the DrawingType profile's displayMode 6 hint via the
-                        // STING_DISPLAY_MODE view stamp; if 6, tag with TAG7 narrative.
                         bool useNarrative = false;
-                        try
-                        {
-                            int dispMode = StingTools.Core.ParameterHelpers
-                                .GetInt(view, StingTools.Core.ParamRegistry.DISPLAY_MODE, 0);
-                            useNarrative = dispMode == 6;
-                        }
+                        try { useNarrative = ParameterHelpers.GetInt(view, ParamRegistry.DISPLAY_MODE, 0) == 6; }
                         catch { /* defensive */ }
-
                         var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(doc, v3d, useNarrative);
-                        result.TagsPlaced += r3d.Placed;
-                        foreach (var w in r3d.Warnings) result.Warnings.Add($"Auto3DTag: {w}");
+                        stats.TagsPlaced += r3d.Placed;
+                        foreach (var w in r3d.Warnings) stats.Warnings.Add($"Auto3DTag: {w}");
                     }
                     else
                     {
-                        result.Warnings.Add($"Auto3DTag rule skipped — active view '{view.Name}' is not a 3D view.");
+                        stats.Warnings.Add($"Auto3DTag rule skipped — view '{view.Name}' is not a 3D view.");
                     }
                 }
+                catch (Exception ex) { stats.Warnings.Add("Auto3DTag: " + ex.Message); }
             }
 
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
-            {
                 effective = pack.Rules
-                    .Where(r => r != null && r.Enabled
-                                && tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .Where(r => r != null && r.Enabled && _tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
                     .ToList();
-            }
             else if (pack.AutoTag == true)
-            {
-                // KnownTaggableCategories list was lost to the merge — use the
-                // taxonomy from SharedParamGuids as the canonical source.
-                effective = SharedParamGuids.AllCategoryEnums.Select(bic => new AutoAnnotationRule
-                {
-                    RuleType = "AutoTag",
-                    Category = bic.ToString(),
-                    SkipIfTagged = true,
-                    DensityMode = "All"
-                }).ToList();
-            }
+                effective = SharedParamGuids.AllCategoryEnums
+                    .Select(bic => new AutoAnnotationRule { RuleType = "AutoTag", Category = bic.ToString() })
+                    .ToList();
             else
-            {
-                effective = new List<AutoAnnotationRule>();
-            }
+                return;
 
-            // Process each effective rule
+            var doneCats = new HashSet<long>(); // tag each category at most once
             foreach (var rule in effective)
             {
                 if (rule == null) continue;
@@ -229,14 +214,47 @@ namespace StingTools.Core.Drawing
                 {
                     var catId = ResolveCategoryId(doc, rule.Category);
                     if (catId == ElementId.InvalidElementId) continue;
-                    var bic = (BuiltInCategory)catId.Value;
-                    // TagCategory(doc, view, pack, bic, rule.Category, stats);
-                    // Note: stats is AnnotationRunStats, but we have result which is AnnotationResult
+                    long cv = catId.Value;
+                    if (!doneCats.Add(cv)) continue;
+                    if (!Enum.IsDefined(typeof(BuiltInCategory), unchecked((int)cv))) continue; // skip custom categories
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats);
                 }
-                catch (Exception ex)
+                catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Phase 137 Rules-based dimensioning. Honours AutoDim / GridDim /
+        /// LevelAnnotation rules — placing one grid chain and/or one level
+        /// chain — plus the general AutoDim bool fallback, via the proven
+        /// DimGrids / DimLevels helpers. Each chain is placed at most once.
+        /// </summary>
+        private static void DimByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            bool didGrids = false, didLevels = false;
+            if (pack.Rules != null)
+            {
+                foreach (var r in pack.Rules)
                 {
-                    result.Warnings.Add($"Rule '{rule.Category}': {ex.Message}");
+                    if (r == null || !r.Enabled) continue;
+                    var rt = r.RuleType ?? "";
+                    bool isDim = string.Equals(rt, "AutoDim", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(rt, "GridDim", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(rt, "LevelAnnotation", StringComparison.OrdinalIgnoreCase);
+                    if (!isDim) continue;
+                    bool isLevels = (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0;
+                    try
+                    {
+                        if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } }
+                        else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids = true; } }
+                    }
+                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.Category}': {ex.Message}"); }
                 }
+            }
+            if (pack.AutoDim == true && !didGrids)
+            {
+                try { DimGrids(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("AutoDim grids: " + ex.Message); }
             }
         }
 
@@ -310,23 +328,6 @@ namespace StingTools.Core.Drawing
                 if (dim != null) stats.DimsCreated++;
             }
             catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
-        }
-
-        /// <summary>
-        /// Tag all equipment categories (mechanical, electrical, plumbing, lighting).
-        /// </summary>
-        private static void TagEquipment(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
-        {
-            foreach (var bic in new[]
-            {
-                BuiltInCategory.OST_MechanicalEquipment,
-                BuiltInCategory.OST_ElectricalEquipment,
-                BuiltInCategory.OST_PlumbingFixtures,
-                BuiltInCategory.OST_LightingFixtures,
-            })
-            {
-                TagCategory(doc, view, pack, bic, bic.ToString(), stats);
-            }
         }
 
         // ─── Tagging ─────────────────────────────────────────────────────
@@ -449,27 +450,6 @@ namespace StingTools.Core.Drawing
             return null;
         }
 
-        private static int GetPackTagDepth(AnnotationRulePack pack, string category)
-        {
-            if (pack?.TagDepths == null) return 0;
-            if (pack.TagDepths.TryGetValue(category, out var d)) return d;
-            // Try by display name
-            var rc = RevitCategoryTree.FindByBic(category);
-            if (rc != null && pack.TagDepths.TryGetValue(rc.DisplayName, out var d2)) return d2;
-            return 0;
-        }
-
-        private static ElementId ResolveTagFamilySymbol(Document doc, AutoAnnotationRule rule, AnnotationRulePack pack, string category)
-        {
-            // Rule-level override
-            if (!string.IsNullOrEmpty(rule.TagFamily))
-            {
-                var s = FindFamilySymbolByName(doc, rule.TagFamily);
-                if (s != null) return s.Id;
-            }
-            return ElementId.InvalidElementId;
-        }
-
         // ─── Resolution helpers ──────────────────────────────────────────
 
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
@@ -543,120 +523,6 @@ namespace StingTools.Core.Drawing
                 .Cast<FamilySymbol>()
                 .FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase) ||
                                      string.Equals(s.FamilyName, name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static BuiltInCategory? MapCategoryToTagBic(BuiltInCategory model)
-        {
-            // Best-effort mapping from model BIC to its corresponding tag BIC.
-            switch (model)
-            {
-                case BuiltInCategory.OST_Doors:                return BuiltInCategory.OST_DoorTags;
-                case BuiltInCategory.OST_Windows:              return BuiltInCategory.OST_WindowTags;
-                case BuiltInCategory.OST_Rooms:                return BuiltInCategory.OST_RoomTags;
-                case BuiltInCategory.OST_Walls:                return BuiltInCategory.OST_WallTags;
-                case BuiltInCategory.OST_Floors:               return BuiltInCategory.OST_FloorTags;
-                case BuiltInCategory.OST_Ceilings:             return BuiltInCategory.OST_CeilingTags;
-                case BuiltInCategory.OST_Roofs:                return BuiltInCategory.OST_RoofTags;
-                case BuiltInCategory.OST_Stairs:               return BuiltInCategory.OST_StairsTags;
-                case BuiltInCategory.OST_StructuralColumns:    return BuiltInCategory.OST_StructuralColumnTags;
-                case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
-                case BuiltInCategory.OST_StructuralFoundation: return BuiltInCategory.OST_StructuralFoundationTags;
-                case BuiltInCategory.OST_Furniture:            return BuiltInCategory.OST_FurnitureTags;
-                case BuiltInCategory.OST_LightingFixtures:     return BuiltInCategory.OST_LightingFixtureTags;
-                case BuiltInCategory.OST_MechanicalEquipment:  return BuiltInCategory.OST_MechanicalEquipmentTags;
-                case BuiltInCategory.OST_PlumbingFixtures:     return BuiltInCategory.OST_PlumbingFixtureTags;
-                case BuiltInCategory.OST_DuctCurves:           return BuiltInCategory.OST_DuctTags;
-                case BuiltInCategory.OST_PipeCurves:           return BuiltInCategory.OST_PipeTags;
-                case BuiltInCategory.OST_Conduit:              return BuiltInCategory.OST_ConduitTags;
-                case BuiltInCategory.OST_CableTray:            return BuiltInCategory.OST_CableTrayTags;
-                case BuiltInCategory.OST_ElectricalEquipment:  return BuiltInCategory.OST_ElectricalEquipmentTags;
-                case BuiltInCategory.OST_ElectricalFixtures:   return BuiltInCategory.OST_ElectricalFixtureTags;
-                case BuiltInCategory.OST_GenericModel:         return BuiltInCategory.OST_GenericModelTags;
-                default: return null;
-            }
-        }
-
-        private static TagOrientation ParseOrientation(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return TagOrientation.Horizontal;
-            switch (s.Trim().ToLowerInvariant())
-            {
-                case "vertical": return TagOrientation.Vertical;
-                case "model":    return TagOrientation.AnyModelDirection;
-                default:         return TagOrientation.Horizontal;
-            }
-        }
-
-        // ── Dim rules ──
-
-        private static void RunDimRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
-        {
-            bool autoDim = pack.AutoDim == true ||
-                           (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
-                               string.Equals(r.RuleType, "AutoDim", StringComparison.OrdinalIgnoreCase)));
-            if (!autoDim) return;
-
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid))
-                .Cast<Grid>()
-                .ToList();
-            if (grids.Count >= 2)
-            {
-                try { CreateGridDim(doc, view, grids.Where(IsHorizontal).ToList(), result); } catch (Exception ex) { result.Warnings.Add("DimGrids horizontal: " + ex.Message); }
-                try { CreateGridDim(doc, view, grids.Where(IsVertical).ToList(),   result); } catch (Exception ex) { result.Warnings.Add("DimGrids vertical: " + ex.Message); }
-            }
-
-            DimensionType dt = ResolveDimensionType(doc, pack.DimensionStyle);
-            if (dt != null)
-            {
-                // Best-effort: ChangeTypeId on the most recently placed dimensions is non-trivial without tracking ids;
-                // skipped here, but the resolved dimension type is logged.
-            }
-        }
-
-        private static void CreateGridDim(Document doc, View view, List<Grid> grids, AnnotationResult result)
-        {
-            if (grids == null || grids.Count < 2) return;
-            try
-            {
-                var refArr = new ReferenceArray();
-                foreach (var g in grids)
-                {
-                    var c = g.Curve;
-                    if (c == null) continue;
-                    refArr.Append(new Reference(g));
-                }
-                if (refArr.Size < 2) return;
-                var first = grids[0].Curve;
-                if (first == null) return;
-                var p1 = first.GetEndPoint(0);
-                var p2 = first.GetEndPoint(1);
-                var line = Line.CreateBound(p1, p2);
-                doc.Create.NewDimension(view, line, refArr);
-                result.DimsPlaced++;
-            }
-            catch (Exception ex) { result.Warnings.Add("CreateGridDim: " + ex.Message); }
-        }
-
-        private static bool IsHorizontal(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.Y) > Math.Abs(d.X); }
-            catch { return false; }
-        }
-
-        private static bool IsVertical(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.X) >= Math.Abs(d.Y); }
-            catch { return false; }
-        }
-
-        private static DimensionType ResolveDimensionType(Document doc, string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(DimensionType))
-                .Cast<DimensionType>()
-                .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
         }
 
         // ── Decorative annotation: north arrow / scale bar / key plan / matchlines ──

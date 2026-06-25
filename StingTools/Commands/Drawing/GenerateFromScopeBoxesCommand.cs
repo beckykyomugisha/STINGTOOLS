@@ -87,7 +87,8 @@ namespace StingTools.Commands.Drawing
 
                             var v = CreateView(doc, dt, b, warnings);
                             if (v == null) { skipped++; continue; }
-                            DrawingTypePresentation.Apply(doc, v, dt);
+                            DrawingTypePresentation.Apply(doc, v, dt,
+                                new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch from scope boxes
                             StampScopeBoxTag(v, b, warnings);
                             created++;
                         }

@@ -3,6 +3,66 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Drawing Types / Style Packs — regression repair + registry hardening)
+
+A review of the Drawing Template Manager data + runtime found the corporate
+catalogue had **regressed** from the Phase 184j "90/22/289 all-green" state: a
+branch-consolidation merge re-appended a second batch of drawing types without
+de-duplication, and a duplicate id could crash drawing-type resolution on any
+project carrying an override. **Not `dotnet build`-verified** (Linux sandbox);
+JSON validated programmatically; C# adversarially reviewed.
+
+**Data — `STING_DRAWING_TYPES.json`**
+- Removed **15 duplicate drawing-type ids** (the re-appended second copy of each,
+  stripped of `titleBlockParams`; the richer first copy is kept). This also fixed
+  the `arch-screed-buildup-A3-1to10` A1/A3 title-block mismatch, which lived only
+  on the stripped duplicate.
+- **`Architecture` → `A`** on 8 routing rules — the plain `discipline` field used a
+  long-form name the dispatcher (exact string match) can never resolve against the
+  `A` short code (same class as the Phase 184i `Plumbing→P` fix).
+- Removed 4 routing rules pointing at 3 non-existent `elec-lps-*` drawing types.
+- Net: **105/90 → 90 drawing types · 117 → 113 routing rules**, 0 duplicates,
+  0 dangling targets, 0 true catch-all rules. (The 23 healthcare/presentation
+  routing rules that *look* like `*/*/*` are regex-narrowed by
+  `disciplineMatches`/`docTypeMatches` and were correctly left intact.)
+
+**Data — `STING_VIEW_STYLE_PACKS.json`**
+- Removed 2 duplicate pack ids; removed 3 `proj-*` packs (`origin: project` examples
+  misplaced in the corporate baseline); removed the dead `corp-elec-lps` pack-routing
+  rule (references a missing pack + missing drawing types); repointed `proj-structural`'s
+  dangling `extends`. Net: **36 → 31 packs**, 0 dups, 0 dangling extends. The 8 `pres-*`
+  palette packs are kept — a user-pickable palette library, intentionally unbound.
+
+**Code — `DrawingTypeRegistry.cs`**
+- `Merge()` no longer builds its by-id map with `ToDictionary` (which **throws** on a
+  duplicate key) — duplicate corporate ids used to crash drawing-type resolution on any
+  project carrying a `_BIM_COORD/drawing_types.json` or Extensible-Storage override.
+  Replaced with a dup-tolerant first-wins loop preserving corporate order + project
+  override + appended project-only ids.
+- New `DedupeById` collapses duplicate ids first-wins on both load paths, drops null
+  array elements (closing an NRE path through `Merge`/`Get`), records dropped corporate
+  dups for the validator, and warns via `StingLog`.
+- `MakeSchedule` built-in fallback now derives `PaperSize` from the id (was hardcoded `A2`).
+
+**Code — `DrawingTypeValidator.cs`** (new pre-flight checks, predicate-aware, 0 false
+positives on the corrected data)
+- `DT-101` duplicate drawing-type ids (from the registry recorder).
+- `DT-102` routing `discipline` no caller can match (long-form vs short code) — accepts
+  DT-declared disciplines ∪ canonical ISO codes.
+- `DT-103` true catch-all routing rule (pure `*/*/*` or a `.*`-style regex on every axis)
+  preceding other rules.
+
+**Code — `DrawingDispatcher.cs`** (wired two documented-but-dead features; additive — no
+live data uses them yet)
+- `ResolveTitleBlockVariant` now evaluates `TitleBlockVariantRules` (each rule's `When`
+  over phase / discipline / print colour-scheme / screen-vs-print, joined by
+  case-insensitive `AND`; discipline accepts short code or full name) and honours
+  `TitleBlockSymbolType` as the symbol fallback. Common case unchanged.
+- New option-aware `Resolve(..., optionName)` overload evaluates a routing rule's
+  `optionMatches` predicate via `DrawingOptionApplier.MatchesOptionPredicate`
+  (Phase 175 design-option routing now reachable); existing overloads default to the
+  "Main Model" label so option-scoped rules stay dormant on the baseline.
+
 #### Completed (MEP-from-DWG — P7-3: riser sizing + drainage-fall visibility)
 
 **Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.

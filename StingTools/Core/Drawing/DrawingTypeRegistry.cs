@@ -254,6 +254,47 @@ namespace StingTools.Core.Drawing
 
         // Loading --------------------------------------------------------
 
+        /// <summary>
+        /// Collapse duplicate-id DrawingTypes first-wins, in place. Returns the
+        /// number of dropped duplicates. Guards every downstream consumer that
+        /// assumes ids are unique — most critically <see cref="Merge"/>, whose
+        /// by-id map would otherwise throw on a duplicate key and sink the whole
+        /// corporate catalogue to the 15 built-in defaults. Also keeps pickers /
+        /// checksums / drift counts honest. First-wins matches <see cref="Get"/>,
+        /// which already resolves the first occurrence via FirstOrDefault.
+        /// </summary>
+        // Surfaced to DrawingTypeValidator (DT-101) so the on-demand Inspect
+        // diagnostic can report duplicates the loader silently collapsed —
+        // the validator reads the post-dedup library and would otherwise see
+        // none. Records the last corporate-scope dedup result process-wide.
+        private static volatile string[] _lastCorporateDuplicateIds = System.Array.Empty<string>();
+        public static IReadOnlyList<string> LastCorporateDuplicateIds => _lastCorporateDuplicateIds;
+
+        private static int DedupeById(DrawingTypeLibrary lib, string scope)
+        {
+            if (lib?.DrawingTypes == null || lib.DrawingTypes.Count == 0) return 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var kept = new List<DrawingType>(lib.DrawingTypes.Count);
+            var dropped = new List<string>();
+            foreach (var t in lib.DrawingTypes)
+            {
+                if (t == null) continue; // drop null array elements so they never reach Merge()/Get()
+                var id = t.Id ?? "";
+                if (string.IsNullOrEmpty(id) || seen.Add(id)) { kept.Add(t); continue; }
+                dropped.Add(id);
+            }
+            var distinct = dropped.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (string.Equals(scope, "corporate", StringComparison.OrdinalIgnoreCase))
+                _lastCorporateDuplicateIds = distinct;
+            if (kept.Count != lib.DrawingTypes.Count) // a duplicate and/or a null element was removed
+                lib.DrawingTypes = kept;
+            if (dropped.Count > 0)
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeRegistry: dropped {dropped.Count} duplicate {scope} drawing-type id(s) " +
+                    $"(first-wins): {string.Join(", ", distinct)}");
+            return dropped.Count;
+        }
+
         private static DrawingTypeLibrary LoadCorporate()
         {
             try
@@ -271,6 +312,7 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes)
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "corporate";
+                        DedupeById(lib, "corporate");
                         return lib;
                     }
                 }
@@ -299,6 +341,7 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                        DedupeById(lib, "project");
                     }
                     return lib;
                 }
@@ -315,6 +358,7 @@ namespace StingTools.Core.Drawing
                 {
                     foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
                         if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    DedupeById(libOnDisk, "project");
                 }
                 return libOnDisk;
             }
@@ -336,15 +380,24 @@ namespace StingTools.Core.Drawing
                 Routing = new List<DrawingRoutingRule>(baseLib?.Routing ?? new List<DrawingRoutingRule>()),
             };
 
-            // Project types win over corporate types sharing the same id
-            var byId = merged.DrawingTypes.ToDictionary(
-                t => t.Id ?? "", StringComparer.OrdinalIgnoreCase);
+            // Project types win over corporate types sharing the same id.
+            // First-wins build (NOT ToDictionary, which throws ArgumentException
+            // on a duplicate key) so a duplicate corporate id can never sink the
+            // whole merge — defence in depth alongside LoadCorporate's DedupeById.
+            var byId = new Dictionary<string, DrawingType>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            foreach (var t in merged.DrawingTypes)
+            {
+                var key = t?.Id ?? "";
+                if (!byId.ContainsKey(key)) { byId[key] = t; order.Add(key); }
+            }
             foreach (var t in over.DrawingTypes ?? new List<DrawingType>())
             {
-                if (string.IsNullOrWhiteSpace(t.Id)) continue;
-                byId[t.Id] = t;
+                if (t == null || string.IsNullOrWhiteSpace(t.Id)) continue;
+                if (!byId.ContainsKey(t.Id)) order.Add(t.Id);
+                byId[t.Id] = t; // project overrides corporate on same id
             }
-            merged.DrawingTypes = byId.Values.ToList();
+            merged.DrawingTypes = order.Select(k => byId[k]).ToList();
 
             // Project routing rules are prepended (first-match-wins semantics).
             // GAP-J: dedupe by the (discipline, phase, docType) triple plus
@@ -553,7 +606,8 @@ namespace StingTools.Core.Drawing
             var dt = new DrawingType
             {
                 Id = id, Name = name, Purpose = DrawingPurpose.Schedule, Discipline = disc,
-                PaperSize = "A2", Scale = 100, DetailLevel = "Medium",
+                PaperSize = id.Contains("A3") ? "A3" : id.Contains("A2") ? "A2" : "A1",
+                Scale = 100, DetailLevel = "Medium",
                 SheetNumberPattern = $"{disc}-SCH-{{seq:D3}}",
                 SheetNamePattern   = "{discipline} Schedule",
                 Crop = new DrawingCropStrategy { Kind = "None" },

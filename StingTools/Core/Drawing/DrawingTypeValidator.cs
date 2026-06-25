@@ -423,8 +423,15 @@ namespace StingTools.Core.Drawing
         private sealed class ValidationSnapshot
         {
             public bool? AnyStingSeedTemplate;
-            public HashSet<string> KnownPhaseFilters
-                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> KnownPhaseFilters    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // PERF: collected once in ValidateAll so the per-DrawingType Has*
+            // helpers don't each spin up a fresh FilteredElementCollector
+            // (90 types × ~5 lookups = hundreds of full-doc scans otherwise).
+            public HashSet<string> TitleBlockFamilies   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> TitleBlockSymbols    = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // "family|symbol"
+            public HashSet<string> ViewTemplates        = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> ViewportTypes        = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> FamilyNames          = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         public static List<ValidationReport> ValidateAll(Document doc)
@@ -433,16 +440,50 @@ namespace StingTools.Core.Drawing
             _snapshot = new ValidationSnapshot();
             try
             {
-                _snapshot.AnyStingSeedTemplate = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
+                // Views — one pass for both the seed-template flag and the
+                // template-name set consumed by HasViewTemplate.
+                bool anySeed = false;
+                foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
+                {
+                    if (!v.IsTemplate) continue;
+                    var vn = v.Name ?? "";
+                    if (vn.Length > 0) _snapshot.ViewTemplates.Add(vn);
+                    if (vn.StartsWith("STING - ", StringComparison.Ordinal)) anySeed = true;
+                }
+                _snapshot.AnyStingSeedTemplate = anySeed;
+
                 foreach (var pf in new FilteredElementCollector(doc)
-                    .OfClass(typeof(PhaseFilter))
-                    .Cast<PhaseFilter>())
+                    .OfClass(typeof(PhaseFilter)).Cast<PhaseFilter>())
                 {
                     if (!string.IsNullOrEmpty(pf.Name))
                         _snapshot.KnownPhaseFilters.Add(pf.Name);
+                }
+
+                // Title blocks — family names + family|symbol pairs.
+                foreach (var fs in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
+                {
+                    if (string.IsNullOrEmpty(fs.FamilyName)) continue;
+                    _snapshot.TitleBlockFamilies.Add(fs.FamilyName);
+                    if (!string.IsNullOrEmpty(fs.Name))
+                        _snapshot.TitleBlockSymbols.Add(fs.FamilyName + "|" + fs.Name);
+                }
+
+                // Viewport types (ElementType whose family name contains "Viewport").
+                foreach (var t in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ElementType)).Cast<ElementType>())
+                {
+                    if (!string.IsNullOrEmpty(t.Name) && t.FamilyName != null
+                        && t.FamilyName.IndexOf("Viewport", StringComparison.OrdinalIgnoreCase) >= 0)
+                        _snapshot.ViewportTypes.Add(t.Name);
+                }
+
+                // Family names (HasAnnotationFamily / section-marker checks).
+                foreach (var f in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family)).Cast<Family>())
+                {
+                    if (!string.IsNullOrEmpty(f.Name)) _snapshot.FamilyNames.Add(f.Name);
                 }
             }
             catch { /* validator never throws */ }
@@ -466,6 +507,104 @@ namespace StingTools.Core.Drawing
                     reports.Add(r);
                 }
             }
+
+            // DT-101 — duplicate drawing-type ids in the shipped corporate JSON.
+            // The loader collapses them first-wins (so the live library shows
+            // none), but records what it dropped so this diagnostic can flag a
+            // JSON that ships the same id twice (a merge that re-appended a
+            // batch). The duplicate just bloats pickers and, on a project-
+            // override merge, used to crash the by-id map.
+            try
+            {
+                // Touch the library first so the loader has run + recorded.
+                _ = DrawingTypeRegistry.GetLibrary(doc);
+                foreach (var dupId in DrawingTypeRegistry.LastCorporateDuplicateIds)
+                {
+                    var r = new ValidationReport { DrawingTypeId = dupId };
+                    r.Add(ValidationSeverity.Error, "DT-101",
+                        $"Drawing-type id '{dupId}' is declared more than once in STING_DRAWING_TYPES.json — only the first is used; the rest were dropped at load.",
+                        "Remove the duplicate entr(ies) from STING_DRAWING_TYPES.json.");
+                    reports.Add(r);
+                }
+            }
+            catch { /* validator never throws */ }
+
+            // DT-102 — routing discipline value that no drawing type declares.
+            // DrawingDispatcher matches discipline by exact case-insensitive
+            // equality, so a rule using "Architecture" can never resolve a
+            // drawing type that uses the short code "A". Catches the class of
+            // bug Phase 184i fixed for "Plumbing"->"P".
+            try
+            {
+                // Accept any discipline a drawing type declares, plus the
+                // canonical ISO short codes (a rule may legitimately route a
+                // discipline that has no drawing type of its own — routing
+                // matches the CALLER's discipline, not a DT's). Only a value
+                // outside both sets (a long-form name like "Architecture" or
+                // "Plumbing") can never match what callers pass.
+                var discInUse = new HashSet<string>(
+                    DrawingTypeRegistry.ListAll(doc)
+                        .Select(t => (t.Discipline ?? "").Trim())
+                        .Where(d => d.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+                discInUse.UnionWith(new[] { "A", "S", "M", "E", "P", "FP", "LV", "G", "H", "MG", "RP" });
+                foreach (var rule in DrawingTypeRegistry.ListRouting(doc))
+                {
+                    var d = (rule.Discipline ?? "").Trim();
+                    // "*" and predicate-driven rules are fine; only flag an
+                    // explicit literal that no drawing type matches.
+                    if (d.Length == 0 || d == "*") continue;
+                    if (!string.IsNullOrEmpty(rule.DisciplineMatches)) continue;
+                    if (!discInUse.Contains(d))
+                    {
+                        var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                        r.Add(ValidationSeverity.Error, "DT-102",
+                            $"Routing rule discipline '{d}' (-> {rule.DrawingTypeId}) is used by no drawing type; the dispatcher matches discipline by exact string, so this rule can never resolve.",
+                            "Use the short discipline code (A/S/M/E/P/H/MG/RP/FP/LV/G), or '*', to match the drawing types.");
+                        reports.Add(r);
+                    }
+                }
+            }
+            catch { /* validator never throws */ }
+
+            // DT-103 — a fully-wildcard routing rule (*/*/*) that precedes
+            // other rules. First-match-wins means it shadows everything below
+            // it, so the dispatcher only ever returns that one drawing type.
+            // A catch-all is only ever valid as the LAST rule.
+            try
+            {
+                var routing = DrawingTypeRegistry.ListRouting(doc).ToList();
+                // An axis matches everything when it has no narrowing: either
+                // the plain field is "*"/empty with no predicate, OR the
+                // predicate is a match-all regex. Catches both a pure */*/*
+                // rule and a `.*` regex catch-all — both shadow the rules after.
+                bool MatchAllRegex(string p) =>
+                    p == ".*" || p == "^.*$" || p == ".*?" || p == "^.+$" || p == ".+";
+                bool AxisAny(string plain, string pred) =>
+                    string.IsNullOrEmpty(pred)
+                        ? (string.IsNullOrEmpty(plain) || plain == "*")
+                        : MatchAllRegex(pred);
+                bool IsWildcard(DrawingRoutingRule x) =>
+                    AxisAny(x.Discipline, x.DisciplineMatches) &&
+                    AxisAny(x.Phase,      x.PhaseMatches) &&
+                    AxisAny(x.DocType,    x.DocTypeMatches) &&
+                    string.IsNullOrEmpty(x.LevelMatches) &&
+                    string.IsNullOrEmpty(x.ProjectCodeMatches);
+                for (int i = 0; i < routing.Count - 1; i++)
+                {
+                    if (IsWildcard(routing[i]))
+                    {
+                        var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                        r.Add(ValidationSeverity.Error, "DT-103",
+                            $"Catch-all routing rule (*/*/*) -> '{routing[i].DrawingTypeId}' at position {i} shadows the {routing.Count - 1 - i} rule(s) after it; the dispatcher will always return this one.",
+                            "Move the catch-all to the end of the routing list, narrow it with discipline/phase/docType, or remove it.");
+                        reports.Add(r);
+                        break; // one report is enough to surface the problem
+                    }
+                }
+            }
+            catch { /* validator never throws */ }
+
             return reports;
         }
 
@@ -473,6 +612,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockFamily(Document doc, string familyName)
         {
+            if (_snapshot != null) return _snapshot.TitleBlockFamilies.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -489,6 +629,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockSymbol(Document doc, string familyName, string symbolName)
         {
+            if (_snapshot != null)
+                return _snapshot.TitleBlockSymbols.Contains((familyName ?? "") + "|" + (symbolName ?? ""));
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -506,6 +648,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewTemplate(Document doc, string name)
         {
+            if (_snapshot != null) return _snapshot.ViewTemplates.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(View));
@@ -520,6 +663,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewportType(Document doc, string name)
         {
+            if (_snapshot != null) return _snapshot.ViewportTypes.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(ElementType));
@@ -536,6 +680,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasAnnotationFamily(Document doc, string familyName)
         {
+            if (_snapshot != null) return _snapshot.FamilyNames.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(Family));

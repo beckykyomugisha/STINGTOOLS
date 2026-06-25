@@ -488,7 +488,8 @@ namespace StingTools.Commands.Drawing
                                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                         var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
                                         {
-                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale }
+                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale },
+                                            SkipSymbolDriftCheck = true // batch produce
                                         });
                                         warnings.AddRange(ar.Warnings);
                                         DrawingTypeStamper.Stamp(view, dt.Id);
