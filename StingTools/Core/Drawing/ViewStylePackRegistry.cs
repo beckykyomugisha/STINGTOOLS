@@ -137,13 +137,25 @@ namespace StingTools.Core.Drawing
                 Version = Math.Max(baseLib?.Version ?? 1, over.Version),
                 Packs = new List<ViewStylePack>(baseLib?.Packs ?? new List<ViewStylePack>()),
             };
-            var byId = merged.Packs.ToDictionary(p => p.Id ?? "", StringComparer.OrdinalIgnoreCase);
+            // First-wins build (NOT ToDictionary, which throws on a duplicate
+            // key) so a duplicate corporate pack id can never crash pack
+            // resolution on projects carrying an override. Mirrors
+            // DrawingTypeRegistry.Merge; null elements are dropped.
+            var byId = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            foreach (var p in merged.Packs)
+            {
+                if (p == null) continue;
+                var key = p.Id ?? "";
+                if (!byId.ContainsKey(key)) { byId[key] = p; order.Add(key); }
+            }
             foreach (var p in over.Packs ?? new List<ViewStylePack>())
             {
-                if (string.IsNullOrWhiteSpace(p.Id)) continue;
-                byId[p.Id] = p;
+                if (p == null || string.IsNullOrWhiteSpace(p.Id)) continue;
+                if (!byId.ContainsKey(p.Id)) order.Add(p.Id);
+                byId[p.Id] = p; // project overrides corporate on same id
             }
-            merged.Packs = byId.Values.ToList();
+            merged.Packs = order.Select(k => byId[k]).ToList();
             return merged;
         }
 

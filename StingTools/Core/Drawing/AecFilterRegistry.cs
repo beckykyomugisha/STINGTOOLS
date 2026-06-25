@@ -134,12 +134,20 @@ namespace StingTools.Core.Drawing
             if (project?.Filters == null) return merged;
 
             // Project entries win by Id (replace) and any new ids append.
-            var byId = merged.Filters.ToDictionary(
-                f => f.Id ?? Guid.NewGuid().ToString(),
-                StringComparer.OrdinalIgnoreCase);
+            // First-wins build (NOT ToDictionary, which throws on a duplicate
+            // id) so duplicate corporate filter ids can't crash override
+            // projects. Null/empty ids get a unique key so they're all kept;
+            // null elements are dropped.
+            var byId = new Dictionary<string, AecFilterDefinition>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in merged.Filters)
+            {
+                if (f == null) continue;
+                var key = string.IsNullOrEmpty(f.Id) ? Guid.NewGuid().ToString() : f.Id;
+                if (!byId.ContainsKey(key)) byId[key] = f; // first-wins on duplicate id
+            }
             foreach (var pf in project.Filters)
             {
-                if (string.IsNullOrEmpty(pf.Id)) continue;
+                if (pf == null || string.IsNullOrEmpty(pf.Id)) continue;
                 byId[pf.Id] = pf;
             }
             merged.Filters = byId.Values.ToList();
