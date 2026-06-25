@@ -49,7 +49,10 @@ namespace StingTools.Core.Drawing
         // view assignment.
         private static readonly List<string> DefaultManagedFields = new List<string>
         {
-            "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter",
+            // "scale" intentionally excluded — VIEW_SCALE is owned per-profile
+            // by DrawingType.Scale (DrawingTypePresentation step 3), not the
+            // pack; and it is not in the Phase 137 managed-field whitelist.
+            "detailLevel", "discipline", "visualStyle", "phaseFilter",
             "tagColorScheme", "defaultTagStyle"
         };
 
@@ -197,8 +200,7 @@ namespace StingTools.Core.Drawing
             {
                 switch (f)
                 {
-                    case "scale":             probe[f] = pack.LineWeightScale; break; // pack carries no Scale itself; placeholder
-                    case "detailLevel":       probe[f] = pack.DimensionStyle; break;  // placeholder — pack has no detail-level field
+                    case "detailLevel":       probe[f] = pack.DetailLevel; break;
                     case "discipline":        probe[f] = pack.Discipline; break;
                     case "tagColorScheme":    probe[f] = pack.TagColorScheme; break;
                     case "defaultTagStyle":   probe[f] = pack.DefaultTagStyle; break;
@@ -392,6 +394,16 @@ namespace StingTools.Core.Drawing
                         case "filters":
                             ViewStylePackApplier.ApplyFilterRulesOnly(doc, template, pack, r);
                             break;
+                        case "detailLevel":
+                            // Managed mode: the pack's detail level is
+                            // authoritative for views bound to the template.
+                            // Propagation to assigned views depends on the
+                            // seed template controlling VIEW_DETAIL_LEVEL —
+                            // verify in Revit. SetIntBip no-ops on unknown /
+                            // read-only values.
+                            SetIntBip(template, BuiltInParameter.VIEW_DETAIL_LEVEL,
+                                ResolveDetailLevel(pack.DetailLevel), r, field);
+                            break;
                         case "discipline":
                             SetIntBip(template, BuiltInParameter.VIEW_DISCIPLINE,
                                 ResolveViewDiscipline(pack.Discipline), r, field);
@@ -560,6 +572,18 @@ namespace StingTools.Core.Drawing
         }
 
         // ── Helpers ──
+
+        private static int ResolveDetailLevel(string detailLevel)
+        {
+            if (string.IsNullOrEmpty(detailLevel)) return -1;
+            switch (detailLevel.Trim().ToLowerInvariant())
+            {
+                case "coarse": return (int)ViewDetailLevel.Coarse;
+                case "medium": return (int)ViewDetailLevel.Medium;
+                case "fine":   return (int)ViewDetailLevel.Fine;
+                default:       return -1; // SetIntBip skips negative -> no-op
+            }
+        }
 
         private static int ResolveViewDiscipline(string discipline)
         {
