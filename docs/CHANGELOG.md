@@ -7226,3 +7226,41 @@ against the Revit 2025 API — 0 warnings, 0 errors.**
     are process-global run config. The MergeKey-collision case is already
     surfaced by the existing `MergeRules` duplicate-key warning.
     (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 4: deep-review pass-2)
+
+Branch `claude/placement-center-fixes` (worktree-isolated). **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+12. **Primary placements now oriented (pass-2 #1).** `OrientPlacedInstance`
+    (applies `RotationDeg`, flips the family to face into the room, snaps it
+    off the wall centerline) was wired only into the `CoPlaceWith` path; the
+    main `ProcessRoomRule` loop never called it, so most placed fixtures
+    ignored rotation and sat on the wall centerline facing world-X. Now
+    invoked after `WriteAnchorParameters` on the main path too.
+    (`FixturePlacementEngine.cs`)
+
+13. **`NearestOf<T>` bounded by bbox (pass-2 #2).** The host search ran an
+    unbounded full-category `FilteredElementCollector` per placement; now
+    pre-filtered with a `BoundingBoxIntersectsFilter` around the point ±
+    search radius. (`PlacementHostPreflight.cs`)
+
+14. **Intra-rule `MinSpacingMm` enforced at selection (pass-2 #3).** Candidate
+    selection passed an empty placed-list to the scorer (SpacingScore always
+    1.0) and `Take(cap)` could pick points closer than `MinSpacingMm`. New
+    `SelectWithSpacing` greedily accepts ranked candidates clearing the
+    spacing from already-accepted ones. (`FixturePlacementEngine.cs`)
+
+15. **`ResolveView3D` cross-document hazard (pass-2 #4).** Cache keyed on
+    `doc.GetHashCode()` in a single static slot; now keyed by `PathName|Title`
+    with an `IsValidObject` + `Document` identity guard. (`PlacementHostPreflight.cs`)
+
+16. **`IsRegexLike` tightened (pass-2 #5).** A lone `$` or unbalanced `[` no
+    longer misclassifies a literal variant/type name as a regex; now requires
+    a real anchor / escape / quantifier / balanced class or group.
+    (`FixturePlacementEngine.cs`)
+
+17. **`WriteAnchorParameters` persists full transform (pass-2 #6).** Now also
+    writes `ASS_PLACE_OFFSET_Y_MM` / `_Z_MM` / `ASS_PLACE_ROTATION_DEG`
+    (best-effort; no-op when unbound) so placement intent round-trips.
+    (`FixturePlacementEngine.cs`)

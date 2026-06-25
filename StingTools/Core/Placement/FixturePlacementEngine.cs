@@ -641,7 +641,15 @@ namespace StingTools.Core.Placement
             int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
-            var chosen = candidates.Take(cap).ToList();
+            // Phase 188 (review pass-2 #3) — enforce intra-rule MinSpacingMm at
+            // selection. The scorer scores every candidate against an EMPTY
+            // already-placed list (placedPoints is filled only after placement),
+            // so SpacingScore is always 1.0 and a plain Take(cap) could pick
+            // adjacent candidates closer than MinSpacingMm (e.g. CEILING_TILE_CORNER
+            // emits points every 600 mm but the rule asks for 1000 mm). Greedily
+            // accept ranked candidates that clear MinSpacingMm from the ones
+            // already accepted. MinSpacingMm <= 0 ⇒ legacy Take(cap).
+            var chosen = SelectWithSpacing(candidates, cap, effRule.MinSpacingMm);
 
             if (dryRun)
             {
@@ -764,6 +772,15 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, effRule);
+                    // Phase 188 (review pass-2 #1) — orient the freshly-placed
+                    // instance. OrientPlacedInstance applies RotationDeg, flips
+                    // the family to face INTO the room, and snaps it off the wall
+                    // centerline onto the wall face. It was wired only into the
+                    // CoPlaceWith path (ProcessRoomRuleAtPoint), so the MAIN path —
+                    // where most fixtures are placed — left switches/sockets facing
+                    // world-X and sitting inside the wall. Run it here too.
+                    try { OrientPlacedInstance(doc, fi, effRule, room); }
+                    catch (Exception oex) { result.Warnings.Add($"Orient {rule.CategoryFilter} in {SafeRoomName(room)}: {oex.Message}"); }
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -886,6 +903,38 @@ namespace StingTools.Core.Placement
             if (rule.MaxPerRoom > 0)
                 cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
             return Math.Min(cap, candidateCount);
+        }
+
+        /// <summary>
+        /// Phase 188 (review pass-2 #3) — greedy spacing-aware selection. Walks
+        /// the ranked candidates and accepts up to <paramref name="cap"/> whose
+        /// position clears <paramref name="minSpacingMm"/> centre-to-centre from
+        /// every already-accepted candidate. minSpacingMm &lt;= 0 ⇒ plain Take(cap).
+        /// </summary>
+        private static List<PlacementCandidate> SelectWithSpacing(
+            List<PlacementCandidate> ranked, int cap, double minSpacingMm)
+        {
+            if (ranked == null || cap <= 0) return new List<PlacementCandidate>();
+            if (minSpacingMm <= 0) return ranked.Take(cap).ToList();
+
+            double minFt = minSpacingMm * MmToFt;
+            double minSq = minFt * minFt;
+            var accepted = new List<PlacementCandidate>(Math.Min(cap, ranked.Count));
+            foreach (var c in ranked)
+            {
+                if (accepted.Count >= cap) break;
+                if (c?.Position == null) continue;
+                bool tooClose = false;
+                foreach (var a in accepted)
+                {
+                    double dx = a.Position.X - c.Position.X;
+                    double dy = a.Position.Y - c.Position.Y;
+                    double dz = a.Position.Z - c.Position.Z;
+                    if (dx * dx + dy * dy + dz * dz < minSq) { tooClose = true; break; }
+                }
+                if (!tooClose) accepted.Add(c);
+            }
+            return accepted;
         }
 
         /// <summary>
@@ -1391,10 +1440,16 @@ namespace StingTools.Core.Placement
         private static bool IsRegexLike(string s)
         {
             if (string.IsNullOrEmpty(s)) return false;
+            // Phase 188 (review pass-2 #5) — tightened so literal variant/type
+            // names aren't misclassified as regex. A lone '$' or an unbalanced
+            // '[' (e.g. a literal type "A[1") no longer trips regex mode; we now
+            // require a real anchor / escape / quantifier / balanced char-class.
             return s.StartsWith("^", StringComparison.Ordinal)
-                || s.Contains("$")
-                || s.Contains("\\d")
-                || s.Contains("[");
+                || s.EndsWith("$", StringComparison.Ordinal)
+                || s.Contains("\\")                                   // escape (\d, \w, \., …)
+                || s.Contains(".*") || s.Contains(".+") || s.Contains(".?")
+                || (s.Contains("[") && s.Contains("]"))               // balanced char-class
+                || (s.Contains("(") && s.Contains(")"));              // group
         }
 
         private static void WriteAnchorParameters(FamilyInstance fi, PlacementRule rule)
@@ -1405,6 +1460,15 @@ namespace StingTools.Core.Placement
 
             // MNT_HGT_MM may be absent on some families; swallow failure.
             TrySetDoubleMm(fi, "MNT_HGT_MM", rule.MountingHeightMm);
+
+            // Phase 188 (review pass-2 #6) — persist the rest of the placement
+            // intent so audit / round-trip captures the full transform, not just
+            // X-offset. These shared params may not be bound (no registry
+            // constant); TrySet* no-ops gracefully when the param is absent, and
+            // activates automatically once a project binds them.
+            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Y_MM", rule.OffsetYMm);
+            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Z_MM", rule.OffsetZMm);
+            TrySetDoubleMm(fi, "ASS_PLACE_ROTATION_DEG", rule.RotationDeg);
         }
 
         /// <summary>
