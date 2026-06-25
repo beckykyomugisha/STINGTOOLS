@@ -46,7 +46,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
+                UIDocument uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
                 Document doc = uidoc?.Document;
                 if (doc == null)
                 {
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null)
                 {
                     message = "No active document.";
@@ -186,7 +186,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var presets = DiscoverBoqPresets();
@@ -315,7 +315,7 @@ namespace StingTools.Commands.Cost
             // configured external providers (BCIS, project rate card).
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc != null)
                 {
                     double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -370,7 +370,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 double fxRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -449,7 +449,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 int migrated = 0, skipped = 0, errors = 0;
