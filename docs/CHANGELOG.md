@@ -7191,3 +7191,38 @@ against the Revit 2025 API — 0 warnings, 0 errors.**
    reference with a positive height landed the fixture *above* the ceiling.
    New `MountingHeightSign` helper: FFL/SLAB → +1, CEILING/SOFFIT → −1.
    `OffsetZMm` stays a signed trim. (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 3: flexibility + minors)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+7. **`CategoryBic` locale-robust matching (review fix #5b).** New optional
+   `PlacementRule.CategoryBic` (e.g. `"OST_LightingFixtures"`). When set,
+   `ResolveSymbol` matches family symbols by `Category.Id` instead of the
+   localized `Category.Name`, so rules resolve on non-English Revit. Empty ⇒
+   legacy name match. Additive; needs in-Revit verification on a localized
+   install. (`PlacementRule.cs`, `FixturePlacementEngine.cs`)
+
+8. **Standards-gate inert warning (review fix #5a).** Shipped rules cite
+   standards via free-text `StandardRef`, not the structured
+   `ApplicableStandards` the profile gate keys off. The engine now warns when
+   a profile declares `ActiveStandards` but no rule populates
+   `ApplicableStandards` (the filter is then inert). (`FixturePlacementEngine.cs`)
+
+9. **Scope-filter regex caching (review fix #5c).** `RoomMatchesScope` ran
+   `Regex.IsMatch` uncompiled per call for dept/level/phase/workset/room
+   filters; now compiled + cached, matching the engine's RoomFilter handling.
+   (`PlacementScorer.cs`)
+
+10. **Bounded grid anchors (review fix #5d).** `CEILING_TILE_CORNER` /
+    `RAISED_FLOOR_TILE_EDGE` emitted an unbounded candidate grid in large
+    rooms; now capped at `MaxGridAnchorPoints` (2000) with a log on truncation.
+    (`PlacementScorer.AnchorTypes.cs`)
+
+11. **Minors (review fix #5e).** `ScoreManufacturerResolution` returns a
+    neutral 0.5 (was 0.0) for catalogue-less rules so they aren't docked
+    against `ScoreThreshold`; a note documents that `ScoreThreshold` + weights
+    are process-global run config. The MergeKey-collision case is already
+    surfaced by the existing `MergeRules` duplicate-key warning.
+    (`PlacementScorer.cs`)

@@ -42,6 +42,10 @@ namespace StingTools.Core.Placement
 
         // Phase 139.2 P — re-weighted scoring; coverage-contribution and
         // manufacturer-resolution scores added.  Sum = 1.00.
+        // NOTE (Phase 188 review #5e): ScoreThreshold (above) and these weights
+        // are process-global run configuration, not true constants — the weights
+        // are const today but ScoreThreshold is a mutable static set from the
+        // Centre's Run & Routing tab. Safe single-threaded; treat as shared config.
         private const double AnchorWeight       = 0.35;
         private const double SideWeight         = 0.22;
         private const double SpacingWeight      = 0.18;
@@ -609,7 +613,13 @@ namespace StingTools.Core.Placement
         private Dictionary<string, string> _loadedFamilyCategoryByName;
         private double ScoreManufacturerResolution(PlacementRule rule)
         {
-            if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
+            // Phase 188 (review fix #5e) — neutral 0.5 (was 0.0) when no
+            // catalogue is specified, matching ScoreCoverageContribution's
+            // neutral default. A constant 0.0 docked every catalogue-less rule
+            // ManufacturerWeight (0.03) of absolute score, which could tip
+            // borderline candidates below ScoreThreshold for no good reason.
+            if (rule == null) return 0.5;
+            if (string.IsNullOrEmpty(rule.CatalogueRef)) return 0.5;
             try
             {
                 var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
@@ -1493,17 +1503,38 @@ namespace StingTools.Core.Placement
             return true;
         }
 
+        // Phase 188 (review fix #5c) — compiled-regex cache for the room-scope
+        // filters (dept / level / phase / workset / room). RoomMatchesScope ran
+        // Regex.IsMatch uncompiled on every call; the engine already pre-compiles
+        // RoomFilter / ExcludeRoomFilter, so this brings the remaining scope
+        // filters up to the same standard.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> _scopeRxCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Regex>();
+
+        private static Regex GetScopeRegex(string pattern)
+        {
+            return _scopeRxCache.GetOrAdd(pattern, p =>
+            {
+                try { return new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer scope regex '{p}': {ex.Message}"); return null; }
+            });
+        }
+
         private static bool RegexAllow(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return true;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — fail closed (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer regex '{pattern}': {ex.Message}"); return false; }
         }
 
         private static bool RegexBlock(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return false;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — don't block (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer block regex '{pattern}': {ex.Message}"); return false; }
         }
     }

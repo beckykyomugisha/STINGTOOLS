@@ -53,6 +53,15 @@ namespace StingTools.Core.Placement
         public string CategoryFilter { get; set; } = "";
 
         /// <summary>
+        /// Phase 188 (review fix #5b) — optional BuiltInCategory name
+        /// (e.g. "OST_LightingFixtures"). When set, symbol resolution matches
+        /// on the category id rather than the localized Category.Name, so rules
+        /// resolve correctly on non-English Revit. Empty (default) ⇒ legacy
+        /// behaviour: match by CategoryFilter against Element.Category.Name.
+        /// </summary>
+        public string CategoryBic { get; set; } = "";
+
+        /// <summary>
         /// PC-08 — comma-separated fallback chain (FLUSH,SURFACE,RECESSED)
         /// or a single regex (^IP6[5-7]$). Engine tries each in order
         /// and falls back to the first symbol when nothing matches.
@@ -554,6 +563,7 @@ namespace StingTools.Core.Placement
                 RuleId               = this.RuleId,
                 RuleKind             = this.RuleKind,
                 CategoryFilter       = this.CategoryFilter,
+                CategoryBic          = this.CategoryBic,
                 VariantHint          = this.VariantHint,
                 FamilyTypeRegex      = this.FamilyTypeRegex,
                 RoomFilter           = this.RoomFilter,

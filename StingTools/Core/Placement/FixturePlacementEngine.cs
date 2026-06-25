@@ -225,6 +225,17 @@ namespace StingTools.Core.Placement
                      (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
                 if (profileActive)
                 {
+                    // Phase 188 (review fix #5a) — the standards gate keys off the
+                    // structured ApplicableStandards field, but shipped rules cite
+                    // standards via free-text StandardRef instead. Warn when the
+                    // profile declares active standards yet no rule populates
+                    // ApplicableStandards — the standards filter is then inert.
+                    if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0
+                        && !rules.Any(r => r != null && !string.IsNullOrEmpty(r.ApplicableStandards)))
+                    {
+                        result.Warnings.Add("Building profile declares ActiveStandards but no rule populates the structured ApplicableStandards field (rules cite standards via free-text StandardRef) — the standards filter is inert. Populate ApplicableStandards on rules to enable standards-based filtering.");
+                    }
+
                     int before = rules.Count;
                     rules = PlacementRuleLoader.FilterByProfile(new List<PlacementRule>(rules), profile);
                     int removed = before - rules.Count;
@@ -974,9 +985,10 @@ namespace StingTools.Core.Placement
             // by symbol name.
             string hint  = rule?.VariantHint ?? "";
             string ftrx  = rule?.FamilyTypeRegex ?? "";
-            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx)
+            string bicHint = rule?.CategoryBic ?? "";
+            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx) && string.IsNullOrEmpty(bicHint)
                 ? categoryName
-                : $"{categoryName}|{hint}|{ftrx}";
+                : $"{categoryName}|{hint}|{ftrx}|{bicHint}";
             if (cache.TryGetValue(cacheKey, out var cached)) return cached;
 
             // Build matcher and ordered fallback chain.
@@ -1004,8 +1016,22 @@ namespace StingTools.Core.Placement
                 // Phase 139.4 — apply OfCategory before OfClass so the
                 // collector pre-filters by category index (Revit's native
                 // index lookup) instead of walking every FamilySymbol.
+                // Phase 188 (review fix #5b) — when the rule sets CategoryBic,
+                // resolve the BuiltInCategory directly and match on the category
+                // id (locale-robust) instead of the localized Category.Name.
                 BuiltInCategory bic = BuiltInCategory.INVALID;
-                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                bool useBic = false;
+                if (!string.IsNullOrEmpty(bicHint)
+                    && Enum.TryParse<BuiltInCategory>(bicHint, true, out var parsedBic)
+                    && parsedBic != BuiltInCategory.INVALID)
+                {
+                    bic = parsedBic;
+                    useBic = true;
+                }
+                else
+                {
+                    try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                }
                 FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
                     ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
                     : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
@@ -1013,7 +1039,11 @@ namespace StingTools.Core.Placement
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
-                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    if (useBic)
+                    {
+                        if ((BuiltInCategory)fs.Category.Id.Value != bic) continue;
+                    }
+                    else if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // FamilyTypeRegex is an additional gate, applied to symbol name.
