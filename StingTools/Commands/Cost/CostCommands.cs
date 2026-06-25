@@ -325,11 +325,10 @@ namespace StingTools.Commands.Cost
                         new Dictionary<string, string>(),
                         ugxPerUsd, ugxPerGbp);
 
-                    // Always attempt project rate card — if rate_card.json
-                    // doesn't exist, the provider quietly stores zero
-                    // entries.
-                    registry.RegisterExternalProvider(
-                        StingTools.BOQ.Rates.Providers.ProjectRateCardProvider.Load(doc));
+                    // P3.4 — the project rate card (incl. QS-imported rates) is
+                    // now part of the default build chain (RateProviderRegistry.
+                    // Build → ProjectRateCardProvider.Load), so it no longer
+                    // needs re-registering here.
 
                     // BCIS HTTP — only if configured.
                     string bcisUrl = (TagConfig.GetConfigDouble("BCIS_ENABLED", 0.0) > 0)

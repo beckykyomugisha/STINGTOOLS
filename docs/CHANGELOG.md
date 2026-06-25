@@ -3,6 +3,75 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS Upgrade — P3: QS round-trip + hybrid bill)
+
+Third phase of the QS BOQ upgrade — the Excel exchange surface a Quantity
+Surveyor actually works in. Branch `claude/boq-p3-qs-roundtrip` (off P2).
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet Revit-
+runtime-verified.**
+
+**P3.1 — First-class manual / PS / daywork / PC-sum rows**:
+- `BOQRowSource` gains `Dayworks` + `PCSum`. New `BoqSourceUtil` (Label /
+  Parse / IsQsAuthored) gives one canonical spelling per source across
+  the export label, import parser and panel.
+- Panel: source colours + dot + "Src" label extended; context menu adds
+  "Mark as dayworks" / "Mark as PC sum"; Add-row flow prompts for the row
+  type. `BOQAddManualRowCommand` honours it. All non-Model rows persist to
+  the manual store (`PersistManualRows`) so they survive a model
+  re-takeoff and are never overwritten by it.
+
+**P3.2 — QS export (priced / unpriced)** (`BOQQsExportCommand`,
+tag `BOQQsExport`):
+- New single "QS Bill" sheet in NRM2 trade order: Ref / Description / Unit
+  / Qty / Rate / Amount, per-section **collections** + a grand summary
+  (subtotal → prelims → contingency → OH&P → grand total) reusing the
+  document's percentages. Amount is a `=Qty*Rate` formula so an **unpriced**
+  bill computes the moment the QS fills a rate.
+- Every row carries a **stable hidden `_key`** (`BoqRowKey`): `UID:<uniqueId>`
+  for model rows (what `ApplyModelOverrides` already matches on, so it
+  survives a rebuild + BOQ-ref renumber), `MAN:<id>` for QS-authored rows.
+
+**P3.3 — QS import with diff** (`BOQQsImportCommand`, tag `BOQQsImport`):
+- Reads the returned workbook, matches by `_key`, and shows a diff grid
+  (`StingDataGridDialog`): rate changes / new rows / **model-quantity
+  drift** / unmatched — with an Apply/Cancel gate.
+- On apply: model rates → per-element override sidecar with
+  `RateSource="QS"` (new `BOQModelOverride.RateSource`, honoured by
+  `ApplyModelOverrides`); manual/PS/daywork rates → manual store by Id;
+  QS-added rows → new Manual rows. **Model quantities are preserved** — a
+  QS quantity change is flagged on the row note for review, never silently
+  applied.
+
+**P3.4 — Rate library** layered through `RateProviderRegistry`:
+- `ProjectRateCardProvider` is now part of the **default** build chain
+  (was only registered by `Cost_ReloadRules`), so `<project>/_BIM_COORD/
+  rate_card.json` applies on every build. The QS import seeds that file
+  with category → modal rate, so the QS's prices feed future similar
+  elements through the existing provider pipeline.
+
+**Revit manual-test checklist (P3)**:
+1. Actions tab → Export QS Bill → Unpriced → open the xlsx; fill some
+   rates; confirm Amount auto-computes; the `_key` column is hidden.
+2. Import QS Bill → pick that file → diff grid lists the rate changes →
+   Apply → Refresh → rates show with Src=QS and survive a Refresh.
+3. Change a model element's geometry (so BOQ refs renumber) → re-import an
+   earlier priced bill → rates still land on the right rows (UID key).
+4. Add a Manual/PS/Dayworks/PC-sum row → Refresh (full rebuild) → it
+   survives.
+5. Export priced → edit a Qty in Excel → import → "Qty drift (model)"
+   flagged, model qty unchanged.
+6. After import, confirm `<project>/_BIM_COORD/rate_card.json` exists and a
+   fresh build picks up those category rates.
+
+**Caveats (P3)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. The import diff is whole-batch Apply/Cancel (no per-row accept/reject
+   checkboxes yet) — the preview grid lists every change for review first.
+3. `rate_card.json` seeding is category-grained (last-priced wins per
+   category); exact per-row fidelity comes from the override sidecar.
+4. The QS export always uses NRM2 work-section (trade) order regardless of
+   the panel's active grouping mode — correct for a tender bill.
+
 #### Completed (BOQ QS Upgrade — P2: location column, spatial grouping, print profiles)
 
 Second phase of the QS BOQ upgrade. Presentation + grouping layer on top

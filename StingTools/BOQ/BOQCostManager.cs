@@ -1475,6 +1475,7 @@ namespace StingTools.BOQ
                     if (ov.RateUSD.HasValue) existing.RateUSD = ov.RateUSD;
                     if (ov.NRM2Paragraph != null) existing.NRM2Paragraph = ov.NRM2Paragraph;
                     if (ov.Note != null) existing.Note = ov.Note;
+                    if (ov.RateSource != null) existing.RateSource = ov.RateSource;
                     existing.Modified = DateTime.UtcNow;
                     existing.ModifiedBy = Environment.UserName ?? "";
                     if (ov.ElementId > 0) existing.ElementId = ov.ElementId; // refresh the current-session id
@@ -1525,7 +1526,7 @@ namespace StingTools.BOQ
                 {
                     item.RateUGX = ov.RateUGX.Value;
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
-                    item.RateSource = "Override";
+                    item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
                 }
                 if (!string.IsNullOrEmpty(ov.NRM2Paragraph)) item.ResolvedNRM2Paragraph = ov.NRM2Paragraph;

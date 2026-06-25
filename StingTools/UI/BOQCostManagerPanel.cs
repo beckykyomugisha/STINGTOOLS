@@ -630,6 +630,22 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 0, 14)
             });
 
+            sp.Children.Add(BuildActionGroup("QS ROUND-TRIP (P3)",
+                "Hand the bill to a Quantity Surveyor in Excel and bring priced rates back. " +
+                "Rows carry a stable hidden key so rates land on the right rows after a rebuild.",
+                new[]
+                {
+                    ("★ Export QS Bill", "BOQQsExport",
+                     "Export the bill in NRM2 trade order (Ref/Description/Unit/Qty/Rate/Amount) with section " +
+                     "collections + grand summary. Choose priced or unpriced.", true),
+                    ("Import QS Bill", "BOQQsImport",
+                     "Re-import the QS's priced workbook. Shows a diff (rate changes / new rows / model-qty drift) " +
+                     "before applying. Model quantities preserved; QS rates land as RateSource=QS.", false),
+                    ("Add Manual / PS / Daywork", "BOQAddManualRow",
+                     "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
+                     "Survives a model rebuild.", false),
+                }));
+
             sp.Children.Add(BuildActionGroup("AUTOMATION (P2)",
                 "Run workflows, validate the model and toggle the stale-cost detector.",
                 new[]
@@ -1464,6 +1480,8 @@ namespace StingTools.UI
             Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
             Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
             Add("Mark as provisional sum",   () => ChangeSource(vm, BOQRowSource.ProvisionalSum));
+            Add("Mark as dayworks",          () => ChangeSource(vm, BOQRowSource.Dayworks));
+            Add("Mark as PC sum",            () => ChangeSource(vm, BOQRowSource.PCSum));
             ctx.Items.Add(new Separator());
             Add("Duplicate row",        () => DuplicateRow(vm));
             Add("Delete row",           () => DeleteRow(vm),
@@ -1955,6 +1973,7 @@ namespace StingTools.UI
             string rateStr = PromptString("Unit rate (UGX):", "0");
             string section = PromptString("Section number:", "22");
             string disc = PromptString("Discipline code (A/S/M/E/P/FP/PS):", "A");
+            string type = PromptString("Row type (Manual / PS / Dayworks / PC Sum):", "Manual");
 
             if (!double.TryParse(qtyStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double qty)) qty = 1;
             if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double rate)) rate = 0;
@@ -1965,6 +1984,7 @@ namespace StingTools.UI
             StingCommandHandler.SetExtraParam("ManualRowRate", rate.ToString("F0", CultureInfo.InvariantCulture));
             StingCommandHandler.SetExtraParam("ManualRowSection", section ?? "22");
             StingCommandHandler.SetExtraParam("ManualRowDisc", disc ?? "A");
+            StingCommandHandler.SetExtraParam("ManualRowSource", type ?? "Manual");
             DispatchAction("BOQAddManualRow");
         }
 
@@ -2309,6 +2329,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: return "PS";
                     case BOQRowSource.Manual:         return "Manual";
+                    case BOQRowSource.Dayworks:       return "Daywk";
+                    case BOQRowSource.PCSum:          return "PC";
                     default:                          return "Model";
                 }
             }
@@ -2331,6 +2353,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: c = Color.FromRgb(237, 231, 246); break;
                     case BOQRowSource.Manual:         c = Color.FromRgb(255, 251, 230); break;
+                    case BOQRowSource.Dayworks:       c = Color.FromRgb(230, 245, 252); break;
+                    case BOQRowSource.PCSum:          c = Color.FromRgb(245, 240, 230); break;
                     default:                          c = Color.FromArgb(0, 255, 255, 255); break;
                 }
                 var b = new SolidColorBrush(c); b.Freeze(); return b;
@@ -2346,6 +2370,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: c = Color.FromRgb(138, 120, 190); break;
                     case BOQRowSource.Manual:         c = Color.FromRgb(230, 160, 40);  break;
+                    case BOQRowSource.Dayworks:       c = Color.FromRgb(40, 150, 200);  break;
+                    case BOQRowSource.PCSum:          c = Color.FromRgb(170, 130, 60);  break;
                     default:                          c = Color.FromRgb(60, 130, 90);   break;
                 }
                 var b = new SolidColorBrush(c); b.Freeze(); return b;
