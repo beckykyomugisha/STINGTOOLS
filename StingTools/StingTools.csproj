@@ -103,6 +103,8 @@
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
     <!-- ExportCenterPdfPostProcess: PDF stamp / merge for export-centre deliverables. -->
     <PackageReference Include="PdfSharp" Version="6.1.1" />
+    <!-- Licensing: WMI hardware factors for the machine fingerprint. -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.
@@ -152,7 +154,7 @@
            (WindowsBase / Presentation* / mscorlib / netstandard / other System.*/Microsoft.*)
            are still removed. -->
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging' And '%(Filename)' != 'System.IO.Pipelines') Or
+        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging' And '%(Filename)' != 'System.IO.Pipelines' And '%(Filename)' != 'System.Management') Or
                    ($([System.String]::new('%(Filename)').StartsWith('Microsoft.')) And $([System.String]::new('%(Filename)').StartsWith('Microsoft.AspNetCore.')) != 'true' And $([System.String]::new('%(Filename)').StartsWith('Microsoft.Extensions.')) != 'true') Or
                    '%(Filename)' == 'WindowsBase' Or
                    '%(Filename)' == 'PresentationCore' Or
@@ -162,9 +164,16 @@
     </ItemGroup>
   </Target>
 
-  <!-- Copy data files to output directory alongside the DLL -->
+  <!-- Copy data files to output directory alongside the DLL.
+       Ship RUNTIME data only. Reference docs (*.md), the legacy ported
+       script (*.py), editor backups (*.bak) and the two superseded TAG
+       GUIDE spreadsheets stay in the repo but are NOT deployed — they are
+       never loaded by code. TAG_GUIDE_V3.csv (the live tag guide, loaded
+       at runtime) and all *.rfa / *.json / *.csv / *.txt data are kept. -->
   <ItemGroup>
-    <None Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
+    <None Include="Data\**\*"
+          Exclude="Data\**\*.md;Data\**\*.bak;Data\**\*.py;Data\TAG_GUIDE.xlsx;Data\TAG GUIDE V2.xlsx"
+          CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
   </ItemGroup>
 
 </Project>
