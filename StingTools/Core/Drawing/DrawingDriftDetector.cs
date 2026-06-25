@@ -135,6 +135,25 @@ namespace StingTools.Core.Drawing
                 cache.Valid = true;
             }
 
+            // PERF: build the (filter name → ParameterFilterElement) index at
+            // most once per Scan, the first time a non-managed pack with
+            // filters is actually encountered. AppendVgAndFilterDrift used to
+            // run a fresh FilteredElementCollector per filter rule per view
+            // (K filters × N views collector scans).
+            var filterIndex = new Lazy<Dictionary<string, ParameterFilterElement>>(() =>
+            {
+                var map = new Dictionary<string, ParameterFilterElement>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (var f in new FilteredElementCollector(doc)
+                        .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                        if (!string.IsNullOrEmpty(f.Name) && !map.ContainsKey(f.Name))
+                            map[f.Name] = f; // first-wins on duplicate names
+                }
+                catch { }
+                return map;
+            });
+
             foreach (var kv in cache.StampByViewId)
             {
                 if (!(doc.GetElement(new ElementId(kv.Key)) is View v) || v.IsTemplate) continue;
@@ -211,7 +230,7 @@ namespace StingTools.Core.Drawing
                 // VG / filter drift (non-managed packs only — managed
                 // packs are covered by AppendManagedTemplateDrift's
                 // checksum comparison against the STING:* template).
-                AppendVgAndFilterDrift(doc, v, dt, report);
+                AppendVgAndFilterDrift(doc, v, dt, report, filterIndex);
 
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
@@ -305,7 +324,8 @@ namespace StingTools.Core.Drawing
         // ALL mismatching attributes joined with semicolons so a single
         // re-apply heals every difference at once. (Phase 183 reported
         // only the first mismatch per category, masking the rest.)
-        private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report,
+            Lazy<Dictionary<string, ParameterFilterElement>> filterIndex)
         {
             try
             {
@@ -356,10 +376,7 @@ namespace StingTools.Core.Drawing
                     foreach (var rule in pack.Filters)
                     {
                         if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
-                        var filter = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ParameterFilterElement))
-                            .Cast<ParameterFilterElement>()
-                            .FirstOrDefault(f => string.Equals(f.Name, rule.FilterName, StringComparison.OrdinalIgnoreCase));
+                        filterIndex.Value.TryGetValue(rule.FilterName, out var filter);
                         if (filter == null)
                         {
                             // Filter not in document yet — pack-side issue, not view-side drift.

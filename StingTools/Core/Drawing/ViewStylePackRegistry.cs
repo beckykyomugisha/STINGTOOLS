@@ -22,14 +22,35 @@ namespace StingTools.Core.Drawing
         private static readonly object _lock = new object();
         private static readonly Dictionary<string, ViewStylePackLibrary> _cache
             = new Dictionary<string, ViewStylePackLibrary>(StringComparer.OrdinalIgnoreCase);
+        // Per-document memo of the extends-folded pack, mirroring
+        // DrawingTypeRegistry._resolvedCache. Get() previously re-walked the
+        // whole Extends chain on every call — DrawingDriftDetector.Scan
+        // resolves each view's pack up to 3× (managed / vg-filter / token),
+        // so an N-view scan paid 3N chain-folds. Cleared in Reload().
+        private static readonly Dictionary<string, Dictionary<string, ViewStylePack>> _resolvedCache
+            = new Dictionary<string, Dictionary<string, ViewStylePack>>(StringComparer.OrdinalIgnoreCase);
 
         public static ViewStylePack Get(Document doc, string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var lib = GetLibrary(doc);
+            string docKey = DocKey(doc);
+            lock (_lock)
+            {
+                if (_resolvedCache.TryGetValue(docKey, out var memoMap)
+                    && memoMap.TryGetValue(id, out var memo))
+                    return memo;
+            }
             var raw = lib.Packs.FirstOrDefault(
                 p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
-            return raw == null ? null : ResolveExtends(lib, raw);
+            var resolved = raw == null ? null : ResolveExtends(lib, raw);
+            lock (_lock)
+            {
+                if (!_resolvedCache.TryGetValue(docKey, out var memoMap))
+                    _resolvedCache[docKey] = memoMap = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+                memoMap[id] = resolved;
+            }
+            return resolved;
         }
 
         public static IReadOnlyList<ViewStylePack> ListAll(Document doc)
@@ -41,6 +62,7 @@ namespace StingTools.Core.Drawing
             {
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
+                if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
             // Phase 183 — snapshot + diff so Inspect / SyncStyles can
             // surface pack edits to the user. See LiveProfileSync.
