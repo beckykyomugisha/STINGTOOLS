@@ -37,7 +37,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Need 2 snapshots to diff. Pick A (older baseline) then B (newer).
@@ -322,7 +322,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Minimal build-up wizard — the WPF version comes in P5.4.
@@ -379,7 +379,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var paths = VariationEngine.ListVariations(doc);
                 if (paths.Count == 0)
@@ -453,7 +453,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Build a single period from live BOQ + actuals CSV.
@@ -549,7 +549,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
@@ -594,7 +594,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var reports = EvmCalculator.ListReports(doc);
                 if (reports.Count == 0)
@@ -666,7 +666,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = VariationEngine.ListVariations(doc);

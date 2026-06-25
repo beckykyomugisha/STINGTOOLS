@@ -30,7 +30,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var boq = BOQCostManager.BuildBOQDocument(doc);
@@ -71,7 +71,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var boq = BOQCostManager.BuildBOQDocument(doc);
