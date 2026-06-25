@@ -193,11 +193,17 @@ namespace StingTools.BOQ
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx?.UIDoc == null) return Result.Failed;
+                // P2 — accepts a single id or a comma-separated list (aggregated
+                // row drill-down: select every constituent element).
                 string raw = StingCommandHandler.GetExtraParam("SelectElementId") ?? "";
-                if (long.TryParse(raw, out long id))
+                var ids = new System.Collections.Generic.List<ElementId>();
+                foreach (var tok in raw.Split(','))
+                    if (long.TryParse(tok.Trim(), out long id) && id > 0)
+                        ids.Add(new ElementId(id));
+                if (ids.Count > 0)
                 {
-                    ctx.UIDoc.Selection.SetElementIds(new[] { new ElementId(id) });
-                    ctx.UIDoc.ShowElements(new[] { new ElementId(id) });
+                    ctx.UIDoc.Selection.SetElementIds(ids);
+                    ctx.UIDoc.ShowElements(ids);
                 }
                 return Result.Succeeded;
             }

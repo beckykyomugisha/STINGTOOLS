@@ -60,7 +60,8 @@ namespace StingTools.BOQ
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
-        internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null)
+        internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
+            BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
@@ -113,10 +114,12 @@ namespace StingTools.BOQ
             // Collapse 7 identical showers into 1 row (Qty 7), preserving the
             // constituent element ids for drill-down. Manual/PS rows pass
             // through untouched. Toggle off via COST_AGGREGATE_SIMILAR=false.
-            items = AggregateLineItems(items);
+            // The grouping mode feeds the aggregation key (P2.2) so similar
+            // items collapse within the active spatial dimension.
+            items = AggregateLineItems(items, grouping);
 
             // ── STEP 7: Group into sections ──────────────────────────────
-            boq.Sections = GroupIntoSections(items);
+            boq.Sections = GroupIntoSections(items, grouping);
 
             // ── STEP 7b (Phase 108f): apply persisted model-row overrides.
             // This runs AFTER the full line-item list is assembled so rate +
@@ -251,6 +254,7 @@ namespace StingTools.BOQ
                 UniqueId = el.UniqueId,
                 Level = GetLevelName(doc, el),
                 Location = GetLocationName(doc, el),
+                Zone = GetZoneName(el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence
@@ -1881,12 +1885,13 @@ namespace StingTools.BOQ
         //  the summed quantity + constituent element ids. Reversible: the
         //  panel drills down via ConstituentElementIds (P2). Manual/PS rows
         //  are NEVER aggregated — they pass through untouched.
-        //  includeSpatialInKey: when a spatial grouping mode is active (P2),
-        //  Level + Location join the key so similar items aggregate WITHIN a
-        //  level/room rather than across the whole project.
+        //  grouping: when a spatial grouping mode is active (P2.2) the matching
+        //  spatial field (Level / Zone / Location) joins the key so similar
+        //  items aggregate WITHIN a level/zone/room rather than across the
+        //  whole project.
         // ══════════════════════════════════════════════════════════════════
         internal static List<BOQLineItem> AggregateLineItems(
-            List<BOQLineItem> items, bool includeSpatialInKey = false)
+            List<BOQLineItem> items, BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
         {
             if (items == null || items.Count == 0) return items;
             if (!GetConfigBool("COST_AGGREGATE_SIMILAR", true)) return items;
@@ -1899,12 +1904,26 @@ namespace StingTools.BOQ
                 else result.Add(it);          // manual / PS pass through verbatim
             }
 
+            // The spatial portion of the aggregation key tracks the grouping
+            // dimension so a By-Level bill never merges identical items across
+            // two levels into one row.
+            string SpatialPart(BOQLineItem i)
+            {
+                switch (grouping)
+                {
+                    case BoqGroupingMode.Level:
+                    case BoqGroupingMode.LevelThenWorkSection: return i.Level ?? "";
+                    case BoqGroupingMode.Zone:                 return i.Zone ?? "";
+                    case BoqGroupingMode.Location:             return i.Location ?? "";
+                    default:                                   return "";
+                }
+            }
+
             string Key(BOQLineItem i) => string.Join("|", new[]
             {
                 i.NRM2Section ?? "", i.Category ?? "", i.Discipline ?? "",
                 i.FamilyName ?? "", i.TypeName ?? "", i.Unit ?? "",
-                includeSpatialInKey ? (i.Level ?? "") : "",
-                includeSpatialInKey ? (i.Location ?? "") : ""
+                SpatialPart(i)
             });
 
             double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -2001,7 +2020,42 @@ namespace StingTools.BOQ
             return defaultValue;
         }
 
-        private static List<BOQSection> GroupIntoSections(List<BOQLineItem> items)
+        // ══════════════════════════════════════════════════════════════════
+        //  P2.2 — Grouping strategies.
+        //  WorkSection = elemental NRM2 bill (default, unchanged). Level / Zone
+        //  / Location = locational bills. LevelThenWorkSection = the proper
+        //  NRM2 locational bill (level heading, NRM2 § within).
+        // ══════════════════════════════════════════════════════════════════
+        private static List<BOQSection> GroupIntoSections(
+            List<BOQLineItem> items, BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
+        {
+            switch (grouping)
+            {
+                case BoqGroupingMode.Level:
+                    return GroupBySpatial(items, i => Blank(i.Level, "(no level)"));
+                case BoqGroupingMode.Zone:
+                    return GroupBySpatial(items, i => Blank(i.Zone, "(no zone)"));
+                case BoqGroupingMode.Location:
+                    return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
+                case BoqGroupingMode.LevelThenWorkSection:
+                    return GroupByLevelThenSection(items);
+                case BoqGroupingMode.WorkSection:
+                default:
+                    return GroupByWorkSection(items);
+            }
+        }
+
+        private static string Blank(string s, string fallback)
+            => string.IsNullOrWhiteSpace(s) ? fallback : s;
+
+        private static List<BOQLineItem> OrderItemsForSection(IEnumerable<BOQLineItem> items)
+            => items.OrderBy(x => (int)x.Source)
+                    .ThenBy(x => ParseSectionInt(x.NRM2Section))
+                    .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+        private static List<BOQSection> GroupByWorkSection(List<BOQLineItem> items)
         {
             var groups = items
                 .GroupBy(i => (i.NRM2Section ?? "00", i.Discipline ?? "X"))
@@ -2011,17 +2065,65 @@ namespace StingTools.BOQ
             var sections = new List<BOQSection>();
             foreach (var g in groups)
             {
-                var section = new BOQSection
+                sections.Add(new BOQSection
                 {
                     NRM2Section = g.Key.Item1,
                     Discipline = g.Key.Item2,
                     Name = GuessSectionName(g.Key.Item1, g.First().Category),
-                    Items = g.OrderBy(x => (int)x.Source)
-                        .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
-                        .ToList()
-                };
-                sections.Add(section);
+                    Items = OrderItemsForSection(g)
+                });
+            }
+            return sections;
+        }
+
+        /// <summary>One section per spatial value (level / zone / location).
+        /// Items within a section read in NRM2 trade order. NRM2Section is left
+        /// blank so AssignBoqLineRefs uses an ordinal prefix.</summary>
+        private static List<BOQSection> GroupBySpatial(
+            List<BOQLineItem> items, Func<BOQLineItem, string> keySelector)
+        {
+            var groups = items
+                .GroupBy(keySelector)
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            var sections = new List<BOQSection>();
+            foreach (var g in groups)
+            {
+                var discs = g.Select(x => x.Discipline ?? "X")
+                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                sections.Add(new BOQSection
+                {
+                    NRM2Section = "",                       // ordinal ref prefix
+                    Discipline = discs.Count == 1 ? discs[0] : "*",
+                    Name = g.Key,
+                    Items = OrderItemsForSection(g)
+                });
+            }
+            return sections;
+        }
+
+        /// <summary>Locational NRM2 bill — level heading, NRM2 § within. Keeps
+        /// the numeric NRM2 ref prefix.</summary>
+        private static List<BOQSection> GroupByLevelThenSection(List<BOQLineItem> items)
+        {
+            var groups = items
+                .GroupBy(i => (Level: Blank(i.Level, "(no level)"),
+                               Sec: i.NRM2Section ?? "00",
+                               Disc: i.Discipline ?? "X"))
+                .OrderBy(g => g.Key.Level, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(g => ParseSectionInt(g.Key.Sec))
+                .ThenBy(g => g.Key.Disc, StringComparer.OrdinalIgnoreCase);
+
+            var sections = new List<BOQSection>();
+            foreach (var g in groups)
+            {
+                sections.Add(new BOQSection
+                {
+                    NRM2Section = g.Key.Sec,
+                    Discipline = g.Key.Disc,
+                    Name = $"{g.Key.Level} — {GuessSectionName(g.Key.Sec, g.First().Category)}",
+                    Items = OrderItemsForSection(g)
+                });
             }
             return sections;
         }
@@ -2065,13 +2167,21 @@ namespace StingTools.BOQ
 
         private static void AssignBoqLineRefs(BOQDocument boq)
         {
+            int secOrdinal = 0;
             foreach (var section in boq.Sections)
             {
+                secOrdinal++;
+                // Work-section bills keep the numeric NRM2 prefix (e.g. "14.1.3");
+                // spatial bills (blank NRM2Section) fall back to a document
+                // section ordinal so refs stay unique + sequential.
+                string prefix = string.IsNullOrWhiteSpace(section.NRM2Section)
+                    ? secOrdinal.ToString(CultureInfo.InvariantCulture)
+                    : section.NRM2Section;
                 int rowIndex = 1;
                 string sectionIndex = "1";
                 foreach (var item in section.Items)
                 {
-                    item.BOQLineRef = $"{section.NRM2Section}.{sectionIndex}.{rowIndex}";
+                    item.BOQLineRef = $"{prefix}.{sectionIndex}.{rowIndex}";
                     rowIndex++;
                 }
             }
@@ -2189,6 +2299,13 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"GetLocationName: {ex.Message}"); }
             return "";
+        }
+
+        private static string GetZoneName(Element el)
+        {
+            // P2.2 — zone grouping key. Prefer the ISO 19650 ZONE token.
+            string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+            return string.IsNullOrEmpty(zone) ? "" : zone;
         }
 
         private static string GetPrimaryMaterialName(Element el)

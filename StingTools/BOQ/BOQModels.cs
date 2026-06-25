@@ -17,6 +17,21 @@ namespace StingTools.BOQ
         ProvisionalSum
     }
 
+    /// <summary>
+    /// P2.2 — how a BOQ is grouped into sections. NRM2 supports both elemental
+    /// (work-section) and locational (level / zone) bills; this enum selects
+    /// the strategy used by BOQCostManager.GroupIntoSections (and feeds the
+    /// aggregation key so similar items collapse within the active dimension).
+    /// </summary>
+    public enum BoqGroupingMode
+    {
+        WorkSection,            // by NRM2 § + discipline (default — elemental bill)
+        Level,                  // by building level (flat locational bill)
+        Zone,                   // by ASS_ZONE_TXT zone
+        LevelThenWorkSection,   // by level, then NRM2 § within each level
+        Location               // by room / spatial location code
+    }
+
     public enum BOQChangeType
     {
         NoChange,
@@ -59,6 +74,7 @@ namespace StingTools.BOQ
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
         public string Level;
         public string Location;             // room name or spatial code
+        public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
         public DateTime LastCosted = DateTime.UtcNow;
         public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
@@ -107,6 +123,7 @@ namespace StingTools.BOQ
                 UniqueId = this.UniqueId,
                 Level = this.Level,
                 Location = this.Location,
+                Zone = this.Zone,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,

@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "_comment": "P2.3 BOQ print / export column profiles. 'columns' lists the VISIBLE canonical column keys. Core columns (Ref/Item/Qty/Unit/Rate/Total) are always shown; the toggleable set is Level, Location, Source, Confidence, Carbon, Note. Project override: <project>/_BIM_COORD/boq_print_profiles.json (matched + prepended by id).",
+  "profiles": [
+    {
+      "id": "internal",
+      "name": "Internal (all columns)",
+      "columns": ["Ref", "Item", "Qty", "Unit", "Rate", "Total", "Source", "Confidence", "Carbon", "Level", "Location", "Note"]
+    },
+    {
+      "id": "tender",
+      "name": "Tender (price-only)",
+      "columns": ["Ref", "Item", "Unit", "Qty", "Rate", "Total"]
+    },
+    {
+      "id": "locational",
+      "name": "Locational (level + location)",
+      "columns": ["Ref", "Item", "Unit", "Qty", "Rate", "Total", "Level", "Location"]
+    },
+    {
+      "id": "carbon",
+      "name": "Carbon review",
+      "columns": ["Ref", "Item", "Qty", "Unit", "Rate", "Total", "Carbon"]
+    }
+  ]
+}

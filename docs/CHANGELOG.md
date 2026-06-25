@@ -3,6 +3,74 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS Upgrade — P2: location column, spatial grouping, print profiles)
+
+Second phase of the QS BOQ upgrade. Presentation + grouping layer on top
+of P1's aggregation. Branch `claude/boq-p2-grouping` (off P1). **Built
+clean against Revit 2025 (0 warnings, 0 errors); not yet Revit-runtime-
+verified.**
+
+**P2.1 — Location / Level columns + visibility toggle** (`BOQCostManagerPanel`):
+- Item grid gains read-only `Level` + `Location` columns
+  (`BOQItemViewModel.LevelDisplay` / `LocationDisplay`).
+- New "▦ Columns" toolbar dropdown — checkable show/hide for the six
+  toggleable columns (Level / Location / Source / Confidence / CO₂ /
+  Note); core columns (Ref / Item / Qty / Unit / Rate / Total) always
+  shown. Hidden columns tracked in `_hiddenColumns`; grids rebuild on
+  toggle. The movable Note column is now edited by header
+  (`BeginEditCellByHeader`) since toggleable columns shift indices.
+
+**P2.2 — Grouping modes** (`BOQCostManager.GroupIntoSections` strategy):
+- New `BoqGroupingMode` enum (WorkSection / Level / Zone /
+  LevelThenWorkSection / Location). `GroupIntoSections` refactored from a
+  hard-coded `(NRM2, Discipline)` tuple into a strategy dispatch:
+  `GroupByWorkSection` (default, unchanged), `GroupBySpatial`,
+  `GroupByLevelThenSection`. `BuildBOQDocument` takes an optional
+  `BoqGroupingMode` (default WorkSection → existing callers unaffected).
+- The mode feeds the P1 aggregation key (`AggregateLineItems` now takes
+  the mode) so a By-Level bill aggregates within a level, never across.
+- `BOQLineItem` gains a `Zone` field (ASS_ZONE_TXT) for zone grouping;
+  additive + cloned. `AssignBoqLineRefs` falls back to a section ordinal
+  prefix for spatial bills (blank NRM2 §) while keeping the exact
+  numeric `14.1.x` refs for work-section bills.
+- Toolbar "Group:" dropdown; changing it re-aggregates + re-groups
+  (full `RefreshAsync`) and re-expands sections.
+
+**P2.3 — Print / export column profiles**
+(`BoqPrintProfile` + `STING_BOQ_PRINT_PROFILES.json`):
+- New `BoqPrintProfileRegistry` (mirrors `TakeoffRuleRegistry`):
+  corporate baseline in `Data/STING_BOQ_PRINT_PROFILES.json` + project
+  override `<project>/_BIM_COORD/boq_print_profiles.json` (prepended by
+  id). Ships 4 profiles: Internal (all), Tender (price-only), Locational
+  (level + location), Carbon review.
+- Toolbar "Profile:" dropdown sets the grid's visible-column set in one
+  click. The two existing exports already embody the two ends: **BOQ
+  Export** (Item Schedule sheet) is the full round-trip/internal bill;
+  **Professional Export** is the price-only tender bill.
+
+**P1 aggregation drill-down** (deferred from P1): right-click an
+aggregated row → "Select all N similar in Revit" selects every
+constituent element. `BOQSelectInRevitCommand` now accepts a
+comma-separated id list.
+
+**Revit manual-test checklist (P2)**:
+1. Switch "Group:" to Level → bill regroups into level sections; refs
+   stay unique; identical items aggregate within each level.
+2. Switch to Zone / Location → confirm grouping by ASS_ZONE_TXT / room.
+3. "▦ Columns" → hide Location → column disappears from every section
+   grid; show it again → returns.
+4. "Profile:" → Tender → only Ref/Item/Unit/Qty/Rate/Total show.
+5. Right-click an aggregated row → "Select all N similar in Revit" →
+   all constituent elements select + zoom.
+6. Edit a Note inline after hiding columns → still works (header-based).
+7. Professional Export → tender bill with no Location/CO₂ columns.
+
+**Caveats (P2)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. Active print-profile selection is session-scoped (resets on panel
+   reopen) — cross-session persistence + priced/unpriced export modes
+   land with the QS export rework in P3.
+
 #### Completed (BOQ QS Upgrade — P1: real takeoff — 2D exclusion + aggregation)
 
 First phase of the Quantity-Surveyor BOQ upgrade (P1 of the P1–P4 brief;
