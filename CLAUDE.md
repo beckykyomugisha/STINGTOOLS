@@ -2635,8 +2635,8 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (70+ files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (3,236 params, 34 groups, all data files cross-referenced — Phase 187-190 alignment incl. EC1-1-4 wind + EC8 seismic regional defaults + black-cotton drawing warning)
-        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.6 — 3,236 rows, identical param set as TXT)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (3,330 params, 34 groups, all data files cross-referenced — Phase 187-190 alignment incl. EC1-1-4 wind + EC8 seismic regional defaults + black-cotton drawing warning)
+        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.7 — 3,330 rows, identical param set + GUIDs as TXT)
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
         ├── MATERIAL_LOOKUP.csv         # 237-row material reference database (density, thermal, fire rating, acoustic, embodied carbon, cost)
@@ -3390,7 +3390,7 @@ All tagging commands delegate to `TagPipelineHelper.RunFullPipeline()` — a gua
 ### `ParamRegistry` (static) — `Core/ParamRegistry.cs`
 - **Single source of truth** for all parameter names, GUIDs, container definitions, and category bindings
 - Loads from `PARAMETER_REGISTRY.json` at runtime (thread-safe lazy init); falls back to hardcoded defaults
-- 2,555+ parameters across 33 groups (including new Group 33 `PEN_PENETRATION`)
+- 3,330 parameters across 34 groups (latest groups: 33 `Identity`, 34 `Routing`); `PEN_*` penetration params live in group 33 `Identity`
 - `GetGuid(paramName)` · `GetParamName(guid)` · `AllParamGuids` · `AllContainers` · `ContainersForCategory`
 
 ### `ParameterHelpers` (static) — `Core/ParameterHelpers.cs`
