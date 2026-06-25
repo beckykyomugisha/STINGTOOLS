@@ -324,6 +324,437 @@ per the brief — P4 depends only on P0). **Built clean against Revit 2025
 3. BCWS still comes from a QS-entered planned % (no 4D/cost-loaded-schedule
    wiring) — accurate but manual per period.
 
+#### Completed (Drawing Types / Style Packs — regression repair + registry hardening)
+
+A review of the Drawing Template Manager data + runtime found the corporate
+catalogue had **regressed** from the Phase 184j "90/22/289 all-green" state: a
+branch-consolidation merge re-appended a second batch of drawing types without
+de-duplication, and a duplicate id could crash drawing-type resolution on any
+project carrying an override. **Not `dotnet build`-verified** (Linux sandbox);
+JSON validated programmatically; C# adversarially reviewed.
+
+**Data — `STING_DRAWING_TYPES.json`**
+- Removed **15 duplicate drawing-type ids** (the re-appended second copy of each,
+  stripped of `titleBlockParams`; the richer first copy is kept). This also fixed
+  the `arch-screed-buildup-A3-1to10` A1/A3 title-block mismatch, which lived only
+  on the stripped duplicate.
+- **`Architecture` → `A`** on 8 routing rules — the plain `discipline` field used a
+  long-form name the dispatcher (exact string match) can never resolve against the
+  `A` short code (same class as the Phase 184i `Plumbing→P` fix).
+- Removed 4 routing rules pointing at 3 non-existent `elec-lps-*` drawing types.
+- Net: **105/90 → 90 drawing types · 117 → 113 routing rules**, 0 duplicates,
+  0 dangling targets, 0 true catch-all rules. (The 23 healthcare/presentation
+  routing rules that *look* like `*/*/*` are regex-narrowed by
+  `disciplineMatches`/`docTypeMatches` and were correctly left intact.)
+
+**Data — `STING_VIEW_STYLE_PACKS.json`**
+- Removed 2 duplicate pack ids; removed 3 `proj-*` packs (`origin: project` examples
+  misplaced in the corporate baseline); removed the dead `corp-elec-lps` pack-routing
+  rule (references a missing pack + missing drawing types); repointed `proj-structural`'s
+  dangling `extends`. Net: **36 → 31 packs**, 0 dups, 0 dangling extends. The 8 `pres-*`
+  palette packs are kept — a user-pickable palette library, intentionally unbound.
+
+**Code — `DrawingTypeRegistry.cs`**
+- `Merge()` no longer builds its by-id map with `ToDictionary` (which **throws** on a
+  duplicate key) — duplicate corporate ids used to crash drawing-type resolution on any
+  project carrying a `_BIM_COORD/drawing_types.json` or Extensible-Storage override.
+  Replaced with a dup-tolerant first-wins loop preserving corporate order + project
+  override + appended project-only ids.
+- New `DedupeById` collapses duplicate ids first-wins on both load paths, drops null
+  array elements (closing an NRE path through `Merge`/`Get`), records dropped corporate
+  dups for the validator, and warns via `StingLog`.
+- `MakeSchedule` built-in fallback now derives `PaperSize` from the id (was hardcoded `A2`).
+
+**Code — `DrawingTypeValidator.cs`** (new pre-flight checks, predicate-aware, 0 false
+positives on the corrected data)
+- `DT-101` duplicate drawing-type ids (from the registry recorder).
+- `DT-102` routing `discipline` no caller can match (long-form vs short code) — accepts
+  DT-declared disciplines ∪ canonical ISO codes.
+- `DT-103` true catch-all routing rule (pure `*/*/*` or a `.*`-style regex on every axis)
+  preceding other rules.
+
+**Code — `DrawingDispatcher.cs`** (wired two documented-but-dead features; additive — no
+live data uses them yet)
+- `ResolveTitleBlockVariant` now evaluates `TitleBlockVariantRules` (each rule's `When`
+  over phase / discipline / print colour-scheme / screen-vs-print, joined by
+  case-insensitive `AND`; discipline accepts short code or full name) and honours
+  `TitleBlockSymbolType` as the symbol fallback. Common case unchanged.
+- New option-aware `Resolve(..., optionName)` overload evaluates a routing rule's
+  `optionMatches` predicate via `DrawingOptionApplier.MatchesOptionPredicate`
+  (Phase 175 design-option routing now reachable); existing overloads default to the
+  "Main Model" label so option-scoped rules stay dormant on the baseline.
+
+#### Completed (MEP-from-DWG — P7-3: riser sizing + drainage-fall visibility)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **3.3 `RiserDefaultSize` wired into `BuildRisers` (was inert).** P6-3 shipped a
+  per-kind `RiserDefaultSize` in `STING_DWG_RUN_RULES.json` (Duct 400×250 / Pipe
+  DN100 / Conduit DN50 / Tray 300×100) that nothing consumed — detection stamped
+  every riser with the *branch* `Default(kind)`, so the field was dead. Now:
+  detection (`MepDetectionEngine`) tries to parse a real size off the riser block
+  name then its layer (`ParseSize`); only when nothing parses does it leave the
+  result `FromLayer=false`. `MepRunBuilder.BuildRisers` then applies
+  `Rules.RiserDefaultSize(kind)` to any riser with no parsed size (a stack is
+  larger than a branch), **not** the branch default. Proven live in the report:
+  `N riser(s) sized from RiserDefaultSize`, plus a flag for any left unsized (no
+  parse **and** an empty/zero `RiserDefaultSize` override → branch-default fallback).
+- **3.2a Drainage flat-fall visibility (parity kept, choice surfaced).** The flat
+  1.25 % (1:80) `DrainageSlopeBands` single-band default **stays the default** —
+  graduating it silently would move invert geometry on every existing project.
+  New `MepRunRules.IsFlatDrainageDefault` (no bands, or one full-range band) drives
+  a preview + conversion report note: *"drainage fall is flat 1.25% (not
+  diameter-graded) — populate DrainageSlopeBands for BS EN 12056 graduated falls"*.
+  The opt-in (≥2 diameter-keyed bands) is documented in `DWG_TO_BIM_GUIDE.md` with
+  the worked band example (DN≤50 → 1:40, DN≤75 → 1:60, DN≤100 → 1:80, larger → 1:100).
+
+#### Completed (MEP-from-DWG — P7-2: alignment — first-class STING data)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **2.1 Full tag pipeline — VERIFIED already satisfied (no change needed).** The
+  builders auto-tag via `MepBatch.AutoTag` → `ModelEngine.AutoTagCreatedElements`,
+  which already routes every created element through the canonical
+  `TagPipelineHelper.RunFullPipeline` (TypeTokenInherit → PopulateAll →
+  NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers →
+  WriteTag7 → GridRef). The "light path" the plan feared isn't present — converted
+  elements get the same full tagging as every other creation path.
+- **2.2 Service token → STING SYS tag** (the genuinely-open gap, now closed) —
+  `MepServiceClassifier.SysCodeFor` maps the parsed classification to a SYS code
+  (Supply/Return/Exhaust/Hydronic → HVAC, DCW, DHW, Sanitary/Vent → SAN; ambiguous
+  storm/condensate left to the pipeline). `MepRunBuilder` stamps `ASS_SYSTEM_TYPE_TXT`
+  on each run/riser BEFORE the post-commit pipeline (which runs `overwrite:false`, so
+  the value is preserved), so the **STING SYS tag now agrees with the Revit system**
+  instead of being inferred independently. Count reported.
+- **2.3 Compliance participation — partly already satisfied.**
+  `AutoTagCreatedElements` already calls `ComplianceScan.InvalidateCache()` (and runs
+  `WarningsEngine.ValidateModelElements`) after a conversion, so converted elements
+  show up in compliance. (The optional "offer to run RunAllValidators" UX prompt is
+  left for the geometry-moving P7-4/5 pass.)
+
+#### Completed (MEP-from-DWG — P6-4: consistency / DRY)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **4.1 Shared batch scaffold** — `MepBatch.ShouldCancel` (escape cadence) +
+  `MepBatch.AutoTag` (post-commit ISO 19650 auto-tag) replace the copy-pasted
+  scaffold in all three builders, and **fix the real drift bug: `BuildRisers` had
+  NO Escape-cancellation check** — it now has one. (The full single-loop
+  `BatchCreate<T>` was intentionally not forced onto `MepRunBuilder.Build`, whose
+  two-phase normal/drainage + chained-polyline loop doesn't fit one item list.)
+- **4.2 De-duplicated closest-point** — the 3D (`MepFittingBuilder`) and 2D
+  (`MepFixtureBuilder`) `ClosestPointOnSegment` copies collapse into one
+  `MepGeom.ClosestPointOnSegment(..., planar)`.
+- **4.3 Report reconciliation** — the systems table now shows
+  `Conduit / CableTray N (no system — Revit API)` so the ByKind and BySystem
+  tables reconcile instead of conduit/tray silently vanishing from the systems view.
+- **4.4 Cleanup** — inline `/304.8` literals replaced with `Units.Mm()` in the
+  fixture + fitting builders. (Two sub-items were *not* done because the codebase
+  doesn't match the assumption: there is no `ParamRegistry` constant for
+  `MOUNTING_REFERENCE_TXT` and adding one for a non-registry param is out of scope;
+  and `StingEsHelpers` exposes per-schema domain methods, not a generic
+  GetOrCreate/Read/Write facade, so `StingMepCadStampSchema` keeps the established
+  hand-rolled entity pattern it shares with `StingLpsSldStampSchema`.)
+
+#### Completed (MEP-from-DWG — P6-3: data-driven run rules)
+
+Moves the run engine's hardcoded policy into `Data/STING_DWG_RUN_RULES.json`
+(corporate) + `<project>/_BIM_COORD/dwg_run_rules.json` (per-field override) — same
+loader pattern as `STING_DWG_FIXTURE_MAP.json`. **Compile-verified Revit 2025
+(0/0).** Shipped corporate values reproduce the previous hardcoded defaults exactly,
+so an un-customised project converts byte-for-byte unchanged. Verify runtime in
+Revit before merge.
+
+- New `MepRunRules` POCO + `MepRunRulesRegistry` (per-doc cache, corporate + project
+  merge, invalidated on document close).
+- Externalised: per-kind default size + run elevation + riser default size,
+  the wall-mount category set, the fitting coincidence tolerance (now ONE source —
+  `MepRunBuilder` drainage chaining + `MepFittingBuilder` both read it), and the
+  drainage fall as a per-diameter band table (ships a single flat 1.25 % band =
+  previous behaviour; projects add BS EN 12056 graduated falls in their override).
+- `ServiceRules` is an override-only surface — the corporate service→
+  `MEPSystemClassification` mapping stays in `MepServiceClassifier` (proven, in code)
+  and projects add/override patterns via the data file.
+- Every accessor falls back to the original `MepRunClassifier` constant, so a
+  missing/partial file behaves identically. `RiserDefaultSize` is shipped in the
+  schema but consumed in P7-3.3 (riser sizing is intentionally output-changing).
+
+#### Completed (MEP-from-DWG — P6-2: performance — indexing/caching, identical outputs)
+
+Makes the pass usable on a real floor plate. **Compile-verified against Revit 2025
+(0 errors, 0 warnings).** Indexing/caching only — same elements/geometry/sizes/
+systems; only speed changed. Verify runtime in Revit before merge.
+
+- **2.1 Tap spatial index** — `BuildMidRunTaps.FindBodyHit` was O(branches × runs),
+  linear-scanning every run body per branch end. Now a coarse XY `SegGrid` (0.5 m
+  cells, segments rasterised along their length) is queried at the branch's 3×3
+  neighbourhood; rebuilt only after a `BreakCurve` mutates geometry. Picks the
+  NEAREST body hit (deterministic — the old scan returned an arbitrary first hit in
+  HashSet order; single-hit results, the normal case, are unchanged).
+- **2.2 Host-snap index** — walls go into a `WallGrid` (cell = the 700 mm snap
+  tolerance, bbox-registered) so each fixture queries its 3×3 cells instead of every
+  wall; the nearest-within-tolerance result is identical. Ceilings stay a linear scan
+  (a floor has a handful).
+- **2.3 Detection cache** — `MepDetectionEngine.Detect` caches per `(document, import)`
+  in a `ConditionalWeakTable` so Preview→Convert doesn't re-walk the ImportInstance
+  geometry twice. Invalidated on ANY `DocumentChanged` (sound — an edit between
+  Preview and Convert drops the entry) and on close. The wizard's `ApplyTo` now
+  overrides on a CLONE so it can't mutate the shared cached candidates.
+- **2.4 Resolve once** — `MepFixtureBuilder` collects all FamilySymbols into one
+  category→symbols index (was a full collector scan per category); `MepRunBuilder.
+  ResolveTypes` is idempotent and `PlaceAll` uses one builder instance for Build +
+  BuildRisers so types/systems resolve once.
+
+#### Completed (MEP-from-DWG — P6-1: accuracy reporting)
+
+Makes wrong-but-plausible output visible. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — verify runtime in Revit before merge. Reporting-only
+except one contained accuracy fix (1.3 rect-on-round), so a normal DWG converts to
+identical elements/geometry/sizes/systems with extra report lines.
+
+- **1.1 Silent system defaults flagged** — `MepServiceClassifier.Classify` gained an
+  `out bool defaulted` overload (return values unchanged); detection records it per
+  run. Preview + placement report now show "N duct(s) → Supply, M pipe(s) →
+  first-available (no service keyword)".
+- **1.2 Applied-vs-requested size** — `SetLen` reads the value back after setting it
+  (Revit snaps to the type's size catalog); `ApplySize` counts runs whose applied
+  size differs from requested and the report flags "N run(s) snapped to catalog".
+- **1.3 Edge-case accuracy** —
+  • a W×H size parsed onto a pipe/conduit layer is now coerced to a diameter
+    (larger dimension) and flagged, instead of silently using the first dimension as
+    the bore (the one behavioural change — only affects round-kind layers literally
+    carrying "NNNxNNN", which were already wrong);
+  • mirrored blocks (negative basis determinant) are detected (`DetectedBlock.Mirrored`)
+    and the preview flags them so the user checks orientation;
+  • `MepDrainage.OrientFall` now returns Verified/Unverified/**Ambiguous** and the
+    report flags drains where ≥2 stacks are equally near ("fall target ambiguous").
+
+#### Completed (MEP-from-DWG — P5 §2: topology — mid-run branch taps + near-miss reporting)
+
+Makes "fittings" represent real systems. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — fitting/break behaviour is runtime-fragile; verify in
+Revit before merge.
+
+- **2.1 Mid-run branch taps** (the biggest topology gap) — `MepFittingBuilder.
+  BuildMidRunTaps` detects an open run END that lands on ANOTHER run's BODY
+  (within tolerance, strictly interior), **splits the main** at that point
+  (`PlumbingUtils.BreakCurve` / `MechanicalUtils.BreakCurve` — `TODO-VERIFY-API`)
+  and `NewTeeFitting`s the three resulting ends. Pipe + Duct only (conduit/tray
+  have no BreakCurve and are counted "unsupported"). The new half-run is stamped
+  for idempotency/Replace. Report shows **taps teed / found**. Guarded — a
+  failure is counted, never thrown.
+- **2.2 Near-miss / gap handling** — the join tolerance is now a constructor
+  parameter (default 12 mm; data-driven default is P4) and `Build` reports
+  **"≈N junction(s) within 12–50 mm not joined — raise the fitting tolerance"**
+  so small DWG corner gaps are visible instead of silent.
+
+#### Completed (MEP-from-DWG — P5 §1: safety — idempotent re-run + atomic pass)
+
+The two near-blocking safety gaps before real use. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Idempotency / re-run guard** — every element created by Mep_CadToModel /
+  Mep_CadWizard is now stamped (`StingMepCadStampSchema`, ES) with the source
+  import key (DWG file/type name). On re-run, `FindStamped` (an
+  `ExtensibleStorageFilter` quick-filter — `TODO-VERIFY-API`) detects a prior
+  conversion of the same import and offers **Replace** (delete the prior
+  elements first), **Add anyway**, or **Skip (Cancel)**. Fixtures, runs, risers
+  AND fitting families are all stamped, so Replace cleans the whole prior pass.
+- **1.2 Atomic pass** — `MepCadShared.RunConversion` wraps delete-prior + fixtures
+  + runs + risers + fittings + stamping in a single `TransactionGroup`
+  (`Assimilate` on success, `RollBack` on a hard failure) so the conversion is
+  one Ctrl-Z and one rollback unit instead of four separate transactions that
+  could leave a half-converted model.
+
+Both the Convert command and the Wizard route through `RunConversion`; the result
+panel reports "Replaced N prior element(s)" / "Added alongside…" / "Skipped".
+
+#### Completed (MEP-from-DWG — preview honesty + housekeeping)
+
+Carry-over block before the P5 gap-closure pass. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **Hosted-family preview honesty** — MEP CAD Preview now resolves a
+  representative symbol per fixture category and reports how many fixtures
+  **will host** to a wall/ceiling vs are **forced unhosted** (the family is not a
+  hosted / work-plane type) vs placed free, so the preview matches what placement
+  will actually do. (`MepFixtureBuilder.PreviewResolveSymbol` / `HostIntentName`
+  / `FamilyIsHostable`.)
+- **Fitting routing-prefs pre-flight** — for each run kind present, preview
+  inspects the resolved run type's `RoutingPreferenceManager` and reports whether
+  it carries elbow + tee (junction) fitting families, so the user knows BEFORE
+  placing that junctions will (or won't) form. (`MepFittingBuilder.PreflightRoutingPrefs`;
+  `RoutingPreferenceManager`/`RoutingPreferenceRuleGroupType` marked
+  `TODO-VERIFY-API`.)
+- **Drainage fall-target filter (carry-over)** — `MepRunBuilder.Build` now passes
+  only `DrainageStack`-flagged risers to `MepDrainage.OrientFall`, so a drain
+  can't orient toward a supply/return riser that merely happens to be nearer.
+- **Cache-invalidation wiring** — `MepFixtureMap.Invalidate()` is now called from
+  `StingToolsApp.OnDocumentClosing`, alongside the HVAC/climate registries, so a
+  re-open re-reads the corporate baseline + project override.
+
+Still deferred (logged in ROADMAP): native numeric mounting-height param (blocked
+on the exact shared-param name/unit), per-layer type combo in the wizard, and
+collinear-segment merge.
+
+#### Completed (MEP-from-DWG — P2: matching precision — layer-corroborated fixtures + regex hardening)
+
+Reduces false positives on real consultant drawings and closes the run-vs-fixture
+asymmetry (runs already used layer+keyword+length; fixtures matched on block name
+alone). **Compile-verified against Revit 2025 (0 errors, 0 warnings).**
+
+- **2.1 Layer-corroborated fixture matching** — when a block matches a fixture
+  rule, its DWG layer discipline is inferred (`LayerMapper` → E/M/P/FP via
+  `MepFixtureDiscipline`) and compared to the discipline the matched category
+  implies. Disagreements (e.g. a `DB` block on a plumbing layer) are flagged
+  `LayerMismatch` and surfaced in MEP CAD Preview as **"low-confidence — confirm
+  before placing"** (E↔FP treated as compatible for shared fire-alarm layers).
+  Placement is not blocked — the user decides.
+- **2.2 Regex hardening** — removed the four highest-collision 2-letter tokens
+  that had clear longer discriminators (`SW`, `EL`, `FL`, `VF`) from
+  `STING_DWG_FIXTURE_MAP.json`; the remaining ambiguous abbreviations (DB / SD /
+  HD / EF / SF / SK / BT / UR …) stay broad and now lean on the 2.1 layer
+  corroboration, as documented in the JSON header (bumped to v1.1).
+
+#### Completed (MEP-from-DWG — P1: correctness — system assignment, drainage invert, fall direction, riser join)
+
+Turns "MEP-shaped geometry" into a coordinatable model so downstream
+system-based schedules/filters/validators work. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Service-aware system assignment** — `MepServiceClassifier` maps the
+  service token in the layer name to a `MEPSystemClassification` (duct:
+  supply/return/exhaust/OA; pipe: chw/hw hydronic supply/return, dcw/dhw
+  domestic, san/foul/waste→Sanitary, svp/vp→Vent, rwd/storm→OtherPipe,
+  condensate→OtherPipe). `MepRunBuilder` now indexes every Mechanical/Piping
+  `SystemType` by classification and resolves the system **per run** (first-
+  available fallback only when no class matches). Resolved system-type names are
+  reported; the parsed service is shown in preview. (OA→SupplyAir, storm→
+  OtherPipe: `// TODO-VERIFY-API` — no distinct Revit classification.)
+- **1.2 Drainage cumulative invert + chaining** — multi-segment drains were
+  resetting to flat at every segment start (sawtooth) and the sloped end no
+  longer met the next segment. `MepDrainage.Chain` stitches contiguous drainage
+  segments into ordered polylines; the builder tracks a **cumulative invert**
+  (each segment Start Z = previous End Z) so the drain falls continuously and the
+  chained ends stay coincident for the fitting pass. Single-segment drains
+  unchanged.
+- **1.3 Fall-direction heuristic** — `MepDrainage.OrientFall` orients each chain
+  to fall toward the nearest detected stack/riser; when none is found the run is
+  created with the deterministic drop and **flagged "fall direction unverified —
+  confirm fall"** in the report (count surfaced).
+- **1.4 Riser → horizontal join** — risers are now based at the *run* elevation
+  (level + per-kind offset) instead of the bare level, so their base end is
+  coincident with horizontal runs at the same XY and the combined fitting pass
+  joins them. The report counts **joined-to-run vs floating** risers
+  (`CountRiserJoins`). `// TODO-VERIFY-API`.
+
+#### Completed (MEP-from-DWG — V3: fittings + risers + drainage slope)
+
+Closes the MEP-from-DWG arc: runs now form connected systems, risers become
+vertical segments, and drainage pipe falls. Same shared extraction core.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — fitting
+creation is runtime-fragile, so verify in Revit before merge.
+
+**Fittings** (`MepFittingBuilder`): after runs/risers are placed, collects their
+open END connectors (`MEPCurve.ConnectorManager`), groups by coincident origin +
+matching domain, and inserts the fitting — 2 ends → `NewElbowFitting` (in-line →
+`Connector.ConnectTo` union fallback), 3 → `NewTeeFitting` (main pair = the two
+most anti-parallel connector directions; remainder = branch), 4 →
+`NewCrossFitting`. Every attempt is guarded + counted (elbows/tees/crosses/
+unions/failed); a failure is skipped, never thrown.
+
+**Risers** (`MepRiserCandidate` + `MepRunBuilder.BuildRisers`): DWG blocks whose
+name matches `riser|up|dn|down` become a vertical run at the block XY spanning
+the current level to the adjacent level above (UP) / below (DN), or ±3 m when
+there is none; kind inferred from the block layer. Detected in
+`MepDetectionEngine` (riser blocks no longer counted as unmatched fixtures).
+
+**Drainage slope** (`MepRunClassifier.IsDrainage` + run builder): pipe runs on a
+sanitary/drainage layer (`san|soil|waste|foul|drain|rwd|swd|storm|sewer|svp/vp`)
+get a gravity fall — the End end is dropped by length × slope% (default 1:80 ≈
+1.25 %). Surfaced in preview as the drainage-run count.
+
+`Mep_CadToModel` + the wizard now run the full pass (fixtures → runs → risers →
+fittings) via shared `MepCadShared.PlaceAll`/`Report`; preview reports risers +
+drainage. See `docs/ROADMAP.md` for the fitting/flow-direction caveats.
+
+#### Completed (MEP-from-DWG — V2: straight runs + host-snapping + per-layer wizard)
+
+Builds on V1 (fixtures from blocks). Same shared `CADToModelEngine` extraction
+core; new run pipeline + host-snapping + a per-layer mapping wizard.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — verify runtime
+behaviour in Revit before merge.
+
+**Straight runs** (`MepRunBuilder` + `MepRunClassifier`): `ExtractedLine` on an
+MEP layer → `Duct` / `Pipe` / `Conduit` / `CableTray` via the documented
+point-based `*.Create` APIs. Run kind from the layer name (explicit run keyword,
+or Ducts/Pipes category) with a 0.5 m length floor so fixture-symbol lines aren't
+misread; size from a layer suffix (`300x200` / `DN50`) or a per-kind default
+(pluggable resolver); elevation = level + per-kind offset. Duct/Pipe get a
+Mechanical/Piping **system type** at `Create`; sizes set on the instance (duct
+W/H, pipe Ø, tray W/H — conduit Ø is type-driven). Missing type/system → those
+runs skip with a warning. `MepDetectionEngine` now classifies lines into run
+candidates; `Mep_CadPreview` reports runs by kind + total length.
+
+**Fixture host-snapping** (`MepFixtureBuilder`): wall-mount categories snap to
+the nearest wall (≤ 700 mm, projected onto the wall line), ceiling-referenced
+fixtures to the containing/nearest ceiling — but **only** when the family is a
+hosted/work-plane placement type; any hosting failure falls back to an unhosted
+level-based instance (the fixture is never lost). Rotation is applied only to
+unhosted instances. Hosted count surfaced in the result.
+
+**`MepCadWizard`** (`UI/MepCadWizard.cs`) + `Mep_CadWizard` command: a compact
+per-layer mapping dialog (DataGrid of layers) — pick the target level, toggle
+host-snap, include/exclude each layer, override a run layer's kind, and set a
+per-run-layer elevation offset; then place fixtures + runs. New "★ MEP Wizard"
+button on the MODEL tab. (Per-layer family/run **type** selection stays
+"first available" — see ROADMAP MEPDWG-V2-type.)
+
+`Mep_CadToModel` now places fixtures **and** runs in one pass. Fittings, risers
+and drainage slope are V3.
+
+#### Completed (MEP-from-DWG — V1: MEP fixtures from DWG blocks)
+
+First slice of MEP DWG→BIM conversion (previously recognized-but-never-built).
+Reuses the shared `CADToModelEngine` extraction core via a NEW MEP discipline
+pipeline above it — no parallel re-extraction, no graft into the structural
+pipeline. **Compile-verified against Revit 2025 (0 errors, 0 warnings)** —
+not the usual Linux-sandbox caveat; verify runtime behaviour in Revit before
+merge.
+
+**New engine** (`Core/Cad/Mep/`):
+- `MepFixtureMap` — block-name (regex) → fixture rule {category, family/type
+  hint, mounting height + reference}. Corporate baseline
+  `Data/STING_DWG_FIXTURE_MAP.json` (24 rules) + project override
+  `<project>/_BIM_COORD/dwg_fixture_map.json` layered by id (project wins),
+  mirroring `AecFilterRegistry`. Replaces the scattered hardcoded name lists.
+- `MepDetectionEngine` — calls `CADToModelEngine.PreviewImport` (the shared
+  `ExtractGeometry`), classifies extracted blocks by name → a read-only plan
+  (fixtures by category + unmatched block names + layer counts). Resolves
+  mounting height from `STING_HEIGHT_STANDARDS.json` (preferred) or the rule.
+- `MepFixtureBuilder` — resolves a `FamilySymbol` (by category + family/type
+  hint), activates, places unhosted/level-based at the block insertion point
+  with block rotation and a mounting-height Z; workset-assigns + ISO 19650
+  auto-tags via the same path native Placement-Center output uses. No symbol
+  resolves → **skip + count** (never synthesises geometry).
+
+**New commands** (MODEL tab, peer to `StrCAD*`): `Mep_CadPreview` (ReadOnly
+audit — what would place vs skip, with no-family + unmatched-block reporting)
+and `Mep_CadToModel` (Manual — places fixtures with a confirm gate). Wired in
+`StingCommandHandler` + a "DWG → MEP (fixtures)" expander in the dock panel.
+
+**Shared-core touch-ups** (additive, low-risk): the block-capture whitelist in
+`CADToModelEngine.ProcessGeometryElement` now also captures Ducts/Pipes/Fire
+Protection/Equipment blocks (classification is by block name, so existing
+consumers are unaffected); `HeightStandardEntry` gains `PreferredMm`/`MountType`
+(already in the JSON); the doc-less DWG plan converter
+(`DWGImportCommands.ConvertBlockReference`) now consults the map first
+(`MepFixtureMap.ClassifyLegacy`) with the original regexes as a no-regression
+fallback.
+
+V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
+fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
+are V3 — see `docs/ROADMAP.md`.
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H
@@ -674,6 +1105,378 @@ Materializing these types is what lets the existing MEP colour filters and the
 System Browser resolve real data — the integration hook. Phase B (system *instance*
 builder over connector graphs) and Phase C (MEP-discipline-aware drawing routing)
 complete the loop.
+
+#### Completed (MEP-from-DWG — P7-3: riser sizing + drainage-fall visibility)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **3.3 `RiserDefaultSize` wired into `BuildRisers` (was inert).** P6-3 shipped a
+  per-kind `RiserDefaultSize` in `STING_DWG_RUN_RULES.json` (Duct 400×250 / Pipe
+  DN100 / Conduit DN50 / Tray 300×100) that nothing consumed — detection stamped
+  every riser with the *branch* `Default(kind)`, so the field was dead. Now:
+  detection (`MepDetectionEngine`) tries to parse a real size off the riser block
+  name then its layer (`ParseSize`); only when nothing parses does it leave the
+  result `FromLayer=false`. `MepRunBuilder.BuildRisers` then applies
+  `Rules.RiserDefaultSize(kind)` to any riser with no parsed size (a stack is
+  larger than a branch), **not** the branch default. Proven live in the report:
+  `N riser(s) sized from RiserDefaultSize`, plus a flag for any left unsized (no
+  parse **and** an empty/zero `RiserDefaultSize` override → branch-default fallback).
+- **3.2a Drainage flat-fall visibility (parity kept, choice surfaced).** The flat
+  1.25 % (1:80) `DrainageSlopeBands` single-band default **stays the default** —
+  graduating it silently would move invert geometry on every existing project.
+  New `MepRunRules.IsFlatDrainageDefault` (no bands, or one full-range band) drives
+  a preview + conversion report note: *"drainage fall is flat 1.25% (not
+  diameter-graded) — populate DrainageSlopeBands for BS EN 12056 graduated falls"*.
+  The opt-in (≥2 diameter-keyed bands) is documented in `DWG_TO_BIM_GUIDE.md` with
+  the worked band example (DN≤50 → 1:40, DN≤75 → 1:60, DN≤100 → 1:80, larger → 1:100).
+
+#### Completed (MEP-from-DWG — P7-2: alignment — first-class STING data)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **2.1 Full tag pipeline — VERIFIED already satisfied (no change needed).** The
+  builders auto-tag via `MepBatch.AutoTag` → `ModelEngine.AutoTagCreatedElements`,
+  which already routes every created element through the canonical
+  `TagPipelineHelper.RunFullPipeline` (TypeTokenInherit → PopulateAll →
+  NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers →
+  WriteTag7 → GridRef). The "light path" the plan feared isn't present — converted
+  elements get the same full tagging as every other creation path.
+- **2.2 Service token → STING SYS tag** (the genuinely-open gap, now closed) —
+  `MepServiceClassifier.SysCodeFor` maps the parsed classification to a SYS code
+  (Supply/Return/Exhaust/Hydronic → HVAC, DCW, DHW, Sanitary/Vent → SAN; ambiguous
+  storm/condensate left to the pipeline). `MepRunBuilder` stamps `ASS_SYSTEM_TYPE_TXT`
+  on each run/riser BEFORE the post-commit pipeline (which runs `overwrite:false`, so
+  the value is preserved), so the **STING SYS tag now agrees with the Revit system**
+  instead of being inferred independently. Count reported.
+- **2.3 Compliance participation — partly already satisfied.**
+  `AutoTagCreatedElements` already calls `ComplianceScan.InvalidateCache()` (and runs
+  `WarningsEngine.ValidateModelElements`) after a conversion, so converted elements
+  show up in compliance. (The optional "offer to run RunAllValidators" UX prompt is
+  left for the geometry-moving P7-4/5 pass.)
+
+#### Completed (MEP-from-DWG — P6-4: consistency / DRY)
+
+**Compile-verified Revit 2025 (0/0).** Verify runtime in Revit before merge.
+
+- **4.1 Shared batch scaffold** — `MepBatch.ShouldCancel` (escape cadence) +
+  `MepBatch.AutoTag` (post-commit ISO 19650 auto-tag) replace the copy-pasted
+  scaffold in all three builders, and **fix the real drift bug: `BuildRisers` had
+  NO Escape-cancellation check** — it now has one. (The full single-loop
+  `BatchCreate<T>` was intentionally not forced onto `MepRunBuilder.Build`, whose
+  two-phase normal/drainage + chained-polyline loop doesn't fit one item list.)
+- **4.2 De-duplicated closest-point** — the 3D (`MepFittingBuilder`) and 2D
+  (`MepFixtureBuilder`) `ClosestPointOnSegment` copies collapse into one
+  `MepGeom.ClosestPointOnSegment(..., planar)`.
+- **4.3 Report reconciliation** — the systems table now shows
+  `Conduit / CableTray N (no system — Revit API)` so the ByKind and BySystem
+  tables reconcile instead of conduit/tray silently vanishing from the systems view.
+- **4.4 Cleanup** — inline `/304.8` literals replaced with `Units.Mm()` in the
+  fixture + fitting builders. (Two sub-items were *not* done because the codebase
+  doesn't match the assumption: there is no `ParamRegistry` constant for
+  `MOUNTING_REFERENCE_TXT` and adding one for a non-registry param is out of scope;
+  and `StingEsHelpers` exposes per-schema domain methods, not a generic
+  GetOrCreate/Read/Write facade, so `StingMepCadStampSchema` keeps the established
+  hand-rolled entity pattern it shares with `StingLpsSldStampSchema`.)
+
+#### Completed (MEP-from-DWG — P6-3: data-driven run rules)
+
+Moves the run engine's hardcoded policy into `Data/STING_DWG_RUN_RULES.json`
+(corporate) + `<project>/_BIM_COORD/dwg_run_rules.json` (per-field override) — same
+loader pattern as `STING_DWG_FIXTURE_MAP.json`. **Compile-verified Revit 2025
+(0/0).** Shipped corporate values reproduce the previous hardcoded defaults exactly,
+so an un-customised project converts byte-for-byte unchanged. Verify runtime in
+Revit before merge.
+
+- New `MepRunRules` POCO + `MepRunRulesRegistry` (per-doc cache, corporate + project
+  merge, invalidated on document close).
+- Externalised: per-kind default size + run elevation + riser default size,
+  the wall-mount category set, the fitting coincidence tolerance (now ONE source —
+  `MepRunBuilder` drainage chaining + `MepFittingBuilder` both read it), and the
+  drainage fall as a per-diameter band table (ships a single flat 1.25 % band =
+  previous behaviour; projects add BS EN 12056 graduated falls in their override).
+- `ServiceRules` is an override-only surface — the corporate service→
+  `MEPSystemClassification` mapping stays in `MepServiceClassifier` (proven, in code)
+  and projects add/override patterns via the data file.
+- Every accessor falls back to the original `MepRunClassifier` constant, so a
+  missing/partial file behaves identically. `RiserDefaultSize` is shipped in the
+  schema but consumed in P7-3.3 (riser sizing is intentionally output-changing).
+
+#### Completed (MEP-from-DWG — P6-2: performance — indexing/caching, identical outputs)
+
+Makes the pass usable on a real floor plate. **Compile-verified against Revit 2025
+(0 errors, 0 warnings).** Indexing/caching only — same elements/geometry/sizes/
+systems; only speed changed. Verify runtime in Revit before merge.
+
+- **2.1 Tap spatial index** — `BuildMidRunTaps.FindBodyHit` was O(branches × runs),
+  linear-scanning every run body per branch end. Now a coarse XY `SegGrid` (0.5 m
+  cells, segments rasterised along their length) is queried at the branch's 3×3
+  neighbourhood; rebuilt only after a `BreakCurve` mutates geometry. Picks the
+  NEAREST body hit (deterministic — the old scan returned an arbitrary first hit in
+  HashSet order; single-hit results, the normal case, are unchanged).
+- **2.2 Host-snap index** — walls go into a `WallGrid` (cell = the 700 mm snap
+  tolerance, bbox-registered) so each fixture queries its 3×3 cells instead of every
+  wall; the nearest-within-tolerance result is identical. Ceilings stay a linear scan
+  (a floor has a handful).
+- **2.3 Detection cache** — `MepDetectionEngine.Detect` caches per `(document, import)`
+  in a `ConditionalWeakTable` so Preview→Convert doesn't re-walk the ImportInstance
+  geometry twice. Invalidated on ANY `DocumentChanged` (sound — an edit between
+  Preview and Convert drops the entry) and on close. The wizard's `ApplyTo` now
+  overrides on a CLONE so it can't mutate the shared cached candidates.
+- **2.4 Resolve once** — `MepFixtureBuilder` collects all FamilySymbols into one
+  category→symbols index (was a full collector scan per category); `MepRunBuilder.
+  ResolveTypes` is idempotent and `PlaceAll` uses one builder instance for Build +
+  BuildRisers so types/systems resolve once.
+
+#### Completed (MEP-from-DWG — P6-1: accuracy reporting)
+
+Makes wrong-but-plausible output visible. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — verify runtime in Revit before merge. Reporting-only
+except one contained accuracy fix (1.3 rect-on-round), so a normal DWG converts to
+identical elements/geometry/sizes/systems with extra report lines.
+
+- **1.1 Silent system defaults flagged** — `MepServiceClassifier.Classify` gained an
+  `out bool defaulted` overload (return values unchanged); detection records it per
+  run. Preview + placement report now show "N duct(s) → Supply, M pipe(s) →
+  first-available (no service keyword)".
+- **1.2 Applied-vs-requested size** — `SetLen` reads the value back after setting it
+  (Revit snaps to the type's size catalog); `ApplySize` counts runs whose applied
+  size differs from requested and the report flags "N run(s) snapped to catalog".
+- **1.3 Edge-case accuracy** —
+  • a W×H size parsed onto a pipe/conduit layer is now coerced to a diameter
+    (larger dimension) and flagged, instead of silently using the first dimension as
+    the bore (the one behavioural change — only affects round-kind layers literally
+    carrying "NNNxNNN", which were already wrong);
+  • mirrored blocks (negative basis determinant) are detected (`DetectedBlock.Mirrored`)
+    and the preview flags them so the user checks orientation;
+  • `MepDrainage.OrientFall` now returns Verified/Unverified/**Ambiguous** and the
+    report flags drains where ≥2 stacks are equally near ("fall target ambiguous").
+
+#### Completed (MEP-from-DWG — P5 §2: topology — mid-run branch taps + near-miss reporting)
+
+Makes "fittings" represent real systems. **Compile-verified against Revit 2025
+(0 errors, 0 warnings)** — fitting/break behaviour is runtime-fragile; verify in
+Revit before merge.
+
+- **2.1 Mid-run branch taps** (the biggest topology gap) — `MepFittingBuilder.
+  BuildMidRunTaps` detects an open run END that lands on ANOTHER run's BODY
+  (within tolerance, strictly interior), **splits the main** at that point
+  (`PlumbingUtils.BreakCurve` / `MechanicalUtils.BreakCurve` — `TODO-VERIFY-API`)
+  and `NewTeeFitting`s the three resulting ends. Pipe + Duct only (conduit/tray
+  have no BreakCurve and are counted "unsupported"). The new half-run is stamped
+  for idempotency/Replace. Report shows **taps teed / found**. Guarded — a
+  failure is counted, never thrown.
+- **2.2 Near-miss / gap handling** — the join tolerance is now a constructor
+  parameter (default 12 mm; data-driven default is P4) and `Build` reports
+  **"≈N junction(s) within 12–50 mm not joined — raise the fitting tolerance"**
+  so small DWG corner gaps are visible instead of silent.
+
+#### Completed (MEP-from-DWG — P5 §1: safety — idempotent re-run + atomic pass)
+
+The two near-blocking safety gaps before real use. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Idempotency / re-run guard** — every element created by Mep_CadToModel /
+  Mep_CadWizard is now stamped (`StingMepCadStampSchema`, ES) with the source
+  import key (DWG file/type name). On re-run, `FindStamped` (an
+  `ExtensibleStorageFilter` quick-filter — `TODO-VERIFY-API`) detects a prior
+  conversion of the same import and offers **Replace** (delete the prior
+  elements first), **Add anyway**, or **Skip (Cancel)**. Fixtures, runs, risers
+  AND fitting families are all stamped, so Replace cleans the whole prior pass.
+- **1.2 Atomic pass** — `MepCadShared.RunConversion` wraps delete-prior + fixtures
+  + runs + risers + fittings + stamping in a single `TransactionGroup`
+  (`Assimilate` on success, `RollBack` on a hard failure) so the conversion is
+  one Ctrl-Z and one rollback unit instead of four separate transactions that
+  could leave a half-converted model.
+
+Both the Convert command and the Wizard route through `RunConversion`; the result
+panel reports "Replaced N prior element(s)" / "Added alongside…" / "Skipped".
+
+#### Completed (MEP-from-DWG — preview honesty + housekeeping)
+
+Carry-over block before the P5 gap-closure pass. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **Hosted-family preview honesty** — MEP CAD Preview now resolves a
+  representative symbol per fixture category and reports how many fixtures
+  **will host** to a wall/ceiling vs are **forced unhosted** (the family is not a
+  hosted / work-plane type) vs placed free, so the preview matches what placement
+  will actually do. (`MepFixtureBuilder.PreviewResolveSymbol` / `HostIntentName`
+  / `FamilyIsHostable`.)
+- **Fitting routing-prefs pre-flight** — for each run kind present, preview
+  inspects the resolved run type's `RoutingPreferenceManager` and reports whether
+  it carries elbow + tee (junction) fitting families, so the user knows BEFORE
+  placing that junctions will (or won't) form. (`MepFittingBuilder.PreflightRoutingPrefs`;
+  `RoutingPreferenceManager`/`RoutingPreferenceRuleGroupType` marked
+  `TODO-VERIFY-API`.)
+- **Drainage fall-target filter (carry-over)** — `MepRunBuilder.Build` now passes
+  only `DrainageStack`-flagged risers to `MepDrainage.OrientFall`, so a drain
+  can't orient toward a supply/return riser that merely happens to be nearer.
+- **Cache-invalidation wiring** — `MepFixtureMap.Invalidate()` is now called from
+  `StingToolsApp.OnDocumentClosing`, alongside the HVAC/climate registries, so a
+  re-open re-reads the corporate baseline + project override.
+
+Still deferred (logged in ROADMAP): native numeric mounting-height param (blocked
+on the exact shared-param name/unit), per-layer type combo in the wizard, and
+collinear-segment merge.
+
+#### Completed (MEP-from-DWG — P2: matching precision — layer-corroborated fixtures + regex hardening)
+
+Reduces false positives on real consultant drawings and closes the run-vs-fixture
+asymmetry (runs already used layer+keyword+length; fixtures matched on block name
+alone). **Compile-verified against Revit 2025 (0 errors, 0 warnings).**
+
+- **2.1 Layer-corroborated fixture matching** — when a block matches a fixture
+  rule, its DWG layer discipline is inferred (`LayerMapper` → E/M/P/FP via
+  `MepFixtureDiscipline`) and compared to the discipline the matched category
+  implies. Disagreements (e.g. a `DB` block on a plumbing layer) are flagged
+  `LayerMismatch` and surfaced in MEP CAD Preview as **"low-confidence — confirm
+  before placing"** (E↔FP treated as compatible for shared fire-alarm layers).
+  Placement is not blocked — the user decides.
+- **2.2 Regex hardening** — removed the four highest-collision 2-letter tokens
+  that had clear longer discriminators (`SW`, `EL`, `FL`, `VF`) from
+  `STING_DWG_FIXTURE_MAP.json`; the remaining ambiguous abbreviations (DB / SD /
+  HD / EF / SF / SK / BT / UR …) stay broad and now lean on the 2.1 layer
+  corroboration, as documented in the JSON header (bumped to v1.1).
+
+#### Completed (MEP-from-DWG — P1: correctness — system assignment, drainage invert, fall direction, riser join)
+
+Turns "MEP-shaped geometry" into a coordinatable model so downstream
+system-based schedules/filters/validators work. **Compile-verified against
+Revit 2025 (0 errors, 0 warnings)** — verify runtime in Revit before merge.
+
+- **1.1 Service-aware system assignment** — `MepServiceClassifier` maps the
+  service token in the layer name to a `MEPSystemClassification` (duct:
+  supply/return/exhaust/OA; pipe: chw/hw hydronic supply/return, dcw/dhw
+  domestic, san/foul/waste→Sanitary, svp/vp→Vent, rwd/storm→OtherPipe,
+  condensate→OtherPipe). `MepRunBuilder` now indexes every Mechanical/Piping
+  `SystemType` by classification and resolves the system **per run** (first-
+  available fallback only when no class matches). Resolved system-type names are
+  reported; the parsed service is shown in preview. (OA→SupplyAir, storm→
+  OtherPipe: `// TODO-VERIFY-API` — no distinct Revit classification.)
+- **1.2 Drainage cumulative invert + chaining** — multi-segment drains were
+  resetting to flat at every segment start (sawtooth) and the sloped end no
+  longer met the next segment. `MepDrainage.Chain` stitches contiguous drainage
+  segments into ordered polylines; the builder tracks a **cumulative invert**
+  (each segment Start Z = previous End Z) so the drain falls continuously and the
+  chained ends stay coincident for the fitting pass. Single-segment drains
+  unchanged.
+- **1.3 Fall-direction heuristic** — `MepDrainage.OrientFall` orients each chain
+  to fall toward the nearest detected stack/riser; when none is found the run is
+  created with the deterministic drop and **flagged "fall direction unverified —
+  confirm fall"** in the report (count surfaced).
+- **1.4 Riser → horizontal join** — risers are now based at the *run* elevation
+  (level + per-kind offset) instead of the bare level, so their base end is
+  coincident with horizontal runs at the same XY and the combined fitting pass
+  joins them. The report counts **joined-to-run vs floating** risers
+  (`CountRiserJoins`). `// TODO-VERIFY-API`.
+
+#### Completed (MEP-from-DWG — V3: fittings + risers + drainage slope)
+
+Closes the MEP-from-DWG arc: runs now form connected systems, risers become
+vertical segments, and drainage pipe falls. Same shared extraction core.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — fitting
+creation is runtime-fragile, so verify in Revit before merge.
+
+**Fittings** (`MepFittingBuilder`): after runs/risers are placed, collects their
+open END connectors (`MEPCurve.ConnectorManager`), groups by coincident origin +
+matching domain, and inserts the fitting — 2 ends → `NewElbowFitting` (in-line →
+`Connector.ConnectTo` union fallback), 3 → `NewTeeFitting` (main pair = the two
+most anti-parallel connector directions; remainder = branch), 4 →
+`NewCrossFitting`. Every attempt is guarded + counted (elbows/tees/crosses/
+unions/failed); a failure is skipped, never thrown.
+
+**Risers** (`MepRiserCandidate` + `MepRunBuilder.BuildRisers`): DWG blocks whose
+name matches `riser|up|dn|down` become a vertical run at the block XY spanning
+the current level to the adjacent level above (UP) / below (DN), or ±3 m when
+there is none; kind inferred from the block layer. Detected in
+`MepDetectionEngine` (riser blocks no longer counted as unmatched fixtures).
+
+**Drainage slope** (`MepRunClassifier.IsDrainage` + run builder): pipe runs on a
+sanitary/drainage layer (`san|soil|waste|foul|drain|rwd|swd|storm|sewer|svp/vp`)
+get a gravity fall — the End end is dropped by length × slope% (default 1:80 ≈
+1.25 %). Surfaced in preview as the drainage-run count.
+
+`Mep_CadToModel` + the wizard now run the full pass (fixtures → runs → risers →
+fittings) via shared `MepCadShared.PlaceAll`/`Report`; preview reports risers +
+drainage. See `docs/ROADMAP.md` for the fitting/flow-direction caveats.
+
+#### Completed (MEP-from-DWG — V2: straight runs + host-snapping + per-layer wizard)
+
+Builds on V1 (fixtures from blocks). Same shared `CADToModelEngine` extraction
+core; new run pipeline + host-snapping + a per-layer mapping wizard.
+**Compile-verified against Revit 2025 (0 errors, 0 warnings)** — verify runtime
+behaviour in Revit before merge.
+
+**Straight runs** (`MepRunBuilder` + `MepRunClassifier`): `ExtractedLine` on an
+MEP layer → `Duct` / `Pipe` / `Conduit` / `CableTray` via the documented
+point-based `*.Create` APIs. Run kind from the layer name (explicit run keyword,
+or Ducts/Pipes category) with a 0.5 m length floor so fixture-symbol lines aren't
+misread; size from a layer suffix (`300x200` / `DN50`) or a per-kind default
+(pluggable resolver); elevation = level + per-kind offset. Duct/Pipe get a
+Mechanical/Piping **system type** at `Create`; sizes set on the instance (duct
+W/H, pipe Ø, tray W/H — conduit Ø is type-driven). Missing type/system → those
+runs skip with a warning. `MepDetectionEngine` now classifies lines into run
+candidates; `Mep_CadPreview` reports runs by kind + total length.
+
+**Fixture host-snapping** (`MepFixtureBuilder`): wall-mount categories snap to
+the nearest wall (≤ 700 mm, projected onto the wall line), ceiling-referenced
+fixtures to the containing/nearest ceiling — but **only** when the family is a
+hosted/work-plane placement type; any hosting failure falls back to an unhosted
+level-based instance (the fixture is never lost). Rotation is applied only to
+unhosted instances. Hosted count surfaced in the result.
+
+**`MepCadWizard`** (`UI/MepCadWizard.cs`) + `Mep_CadWizard` command: a compact
+per-layer mapping dialog (DataGrid of layers) — pick the target level, toggle
+host-snap, include/exclude each layer, override a run layer's kind, and set a
+per-run-layer elevation offset; then place fixtures + runs. New "★ MEP Wizard"
+button on the MODEL tab. (Per-layer family/run **type** selection stays
+"first available" — see ROADMAP MEPDWG-V2-type.)
+
+`Mep_CadToModel` now places fixtures **and** runs in one pass. Fittings, risers
+and drainage slope are V3.
+
+#### Completed (MEP-from-DWG — V1: MEP fixtures from DWG blocks)
+
+First slice of MEP DWG→BIM conversion (previously recognized-but-never-built).
+Reuses the shared `CADToModelEngine` extraction core via a NEW MEP discipline
+pipeline above it — no parallel re-extraction, no graft into the structural
+pipeline. **Compile-verified against Revit 2025 (0 errors, 0 warnings)** —
+not the usual Linux-sandbox caveat; verify runtime behaviour in Revit before
+merge.
+
+**New engine** (`Core/Cad/Mep/`):
+- `MepFixtureMap` — block-name (regex) → fixture rule {category, family/type
+  hint, mounting height + reference}. Corporate baseline
+  `Data/STING_DWG_FIXTURE_MAP.json` (24 rules) + project override
+  `<project>/_BIM_COORD/dwg_fixture_map.json` layered by id (project wins),
+  mirroring `AecFilterRegistry`. Replaces the scattered hardcoded name lists.
+- `MepDetectionEngine` — calls `CADToModelEngine.PreviewImport` (the shared
+  `ExtractGeometry`), classifies extracted blocks by name → a read-only plan
+  (fixtures by category + unmatched block names + layer counts). Resolves
+  mounting height from `STING_HEIGHT_STANDARDS.json` (preferred) or the rule.
+- `MepFixtureBuilder` — resolves a `FamilySymbol` (by category + family/type
+  hint), activates, places unhosted/level-based at the block insertion point
+  with block rotation and a mounting-height Z; workset-assigns + ISO 19650
+  auto-tags via the same path native Placement-Center output uses. No symbol
+  resolves → **skip + count** (never synthesises geometry).
+
+**New commands** (MODEL tab, peer to `StrCAD*`): `Mep_CadPreview` (ReadOnly
+audit — what would place vs skip, with no-family + unmatched-block reporting)
+and `Mep_CadToModel` (Manual — places fixtures with a confirm gate). Wired in
+`StingCommandHandler` + a "DWG → MEP (fixtures)" expander in the dock panel.
+
+**Shared-core touch-ups** (additive, low-risk): the block-capture whitelist in
+`CADToModelEngine.ProcessGeometryElement` now also captures Ducts/Pipes/Fire
+Protection/Equipment blocks (classification is by block name, so existing
+consumers are unaffected); `HeightStandardEntry` gains `PreferredMm`/`MountType`
+(already in the JSON); the doc-less DWG plan converter
+(`DWGImportCommands.ConvertBlockReference`) now consults the map first
+(`MepFixtureMap.ClassifyLegacy`) with the original regexes as a no-regression
+fallback.
+
+V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
+fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
+are V3 — see `docs/ROADMAP.md`.
 
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 
@@ -7446,3 +8249,142 @@ section + connection + foundation set.
    the JSON files are read directly from `StingTools/Data/Symbols/`).
    Adding a project overlay layer matching the Drawing-Type project
    override mechanism would be the natural follow-up.
+
+#### Completed (Phase 188 — Placement Center categories/rules hardening, batch 1)
+
+Branch `claude/placement-rules-hardening`. First two fixes from the
+Placement Center categories-and-rules review. **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+1. **`PlacementScorer._doc` was never assigned (CRITICAL).** The
+   constructor `public PlacementScorer(Document doc) {}` discarded its
+   argument, leaving the `readonly` `_doc` field null for the scorer's
+   whole life. Because every `_doc` use is `try/catch → StingLog.Warn`,
+   obstruction collision scoring, `RejectInsideWall`, the door / window /
+   grid / column / MEP / curtain-panel anchors and manufacturer-resolution
+   scoring all silently no-op'd. Fixed by binding `_doc = doc;` plus a
+   null-doc warning. (`Core/Placement/PlacementScorer.cs`)
+
+2. **Per-candidate full-model scan (`ResolveSampleInstanceForRule`).**
+   `ApplyPlacementHints` runs once per candidate and the helper walked the
+   whole model with no category prefilter — harmless while `_doc` was null,
+   O(model × candidates) once fix #1 landed. Now category-prefiltered via
+   `FixturePlacementEngine.ResolveBuiltInCategoryByName` (promoted
+   `private`→`internal`) and doc-wide cached per category (negative-cached).
+   (`Core/Placement/PlacementScorer.cs`, `FixturePlacementEngine.cs`)
+
+3. **Density count ignored `PerBed` / `PerWorkstation` / `PerPupil` /
+   `PerToiletCubicle`.** `ComputeCap` only derived counts from `PerAreaM2`
+   and `PerOccupant`, so healthcare / education / office density rules
+   collapsed to one fixture per room despite the loader validating those
+   rates and the Centre + Excel exposing them. `ComputeCap` now takes the
+   max across every populated rate via a new `CountFromRoomRate` helper
+   reading `STING_BED_COUNT_INT` / `STING_WS_COUNT_INT` /
+   `STING_PUPIL_COUNT_INT` / `STING_TOILET_CUBICLE_COUNT_INT` (consistent
+   with the existing `STING_OCC_COUNT_INT` project-bound room-param
+   pattern; none are registered in `MR_PARAMETERS`).
+   (`Core/Placement/FixturePlacementEngine.cs`, `PlacementRule.cs`)
+
+Remaining review items (GuaranteeCoverage/CoverageGridGenerator wiring,
+FilterByProfile at run time, ceiling/soffit mounting-reference sign, and
+the flexibility/minor batch) are deferred to follow-up branches per the
+review's recommended order.
+
+#### Completed (Phase 188 — Placement Center hardening, batch 2)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+4. **`GuaranteeCoverage` deprecate + warn (review fix #3a, Option B).**
+   `CoverageGridGenerator` implements the ≥99 % coverage fill but is not
+   wired into the engine; `GuaranteeCoverage` only relaxes the scorer's
+   threshold. Added a `DEFERRED` header note on the class and a
+   `PlacementRuleLoader.ValidateRuleSet` warning when a rule sets
+   `GuaranteeCoverage=true`. (`CoverageGridGenerator.cs`, `PlacementRuleLoader.cs`)
+
+5. **`FilterByProfile` now applied at run time (review fix #3b).** The
+   building-profile gate existed and the Centre mirrored it for display,
+   but the engine ran every rule regardless of building type. The engine
+   now loads `_BIM_COORD/placement_profile.json` and applies
+   `FilterByProfile` before ordering, warning with the removed count and
+   hard-stopping if the profile removes every rule. No-op when no profile
+   is configured. (`FixturePlacementEngine.cs`)
+
+6. **Ceiling/soffit mounting-reference sign (review fix #6).**
+   `MountingHeightMm` was always added to the datum, so a `CEILING`/`SOFFIT`
+   reference with a positive height landed the fixture *above* the ceiling.
+   New `MountingHeightSign` helper: FFL/SLAB → +1, CEILING/SOFFIT → −1.
+   `OffsetZMm` stays a signed trim. (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 3: flexibility + minors)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+7. **`CategoryBic` locale-robust matching (review fix #5b).** New optional
+   `PlacementRule.CategoryBic` (e.g. `"OST_LightingFixtures"`). When set,
+   `ResolveSymbol` matches family symbols by `Category.Id` instead of the
+   localized `Category.Name`, so rules resolve on non-English Revit. Empty ⇒
+   legacy name match. Additive; needs in-Revit verification on a localized
+   install. (`PlacementRule.cs`, `FixturePlacementEngine.cs`)
+
+8. **Standards-gate inert warning (review fix #5a).** Shipped rules cite
+   standards via free-text `StandardRef`, not the structured
+   `ApplicableStandards` the profile gate keys off. The engine now warns when
+   a profile declares `ActiveStandards` but no rule populates
+   `ApplicableStandards` (the filter is then inert). (`FixturePlacementEngine.cs`)
+
+9. **Scope-filter regex caching (review fix #5c).** `RoomMatchesScope` ran
+   `Regex.IsMatch` uncompiled per call for dept/level/phase/workset/room
+   filters; now compiled + cached, matching the engine's RoomFilter handling.
+   (`PlacementScorer.cs`)
+
+10. **Bounded grid anchors (review fix #5d).** `CEILING_TILE_CORNER` /
+    `RAISED_FLOOR_TILE_EDGE` emitted an unbounded candidate grid in large
+    rooms; now capped at `MaxGridAnchorPoints` (2000) with a log on truncation.
+    (`PlacementScorer.AnchorTypes.cs`)
+
+11. **Minors (review fix #5e).** `ScoreManufacturerResolution` returns a
+    neutral 0.5 (was 0.0) for catalogue-less rules so they aren't docked
+    against `ScoreThreshold`; a note documents that `ScoreThreshold` + weights
+    are process-global run config. The MergeKey-collision case is already
+    surfaced by the existing `MergeRules` duplicate-key warning.
+    (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 4: deep-review pass-2)
+
+Branch `claude/placement-center-fixes` (worktree-isolated). **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+12. **Primary placements now oriented (pass-2 #1).** `OrientPlacedInstance`
+    (applies `RotationDeg`, flips the family to face into the room, snaps it
+    off the wall centerline) was wired only into the `CoPlaceWith` path; the
+    main `ProcessRoomRule` loop never called it, so most placed fixtures
+    ignored rotation and sat on the wall centerline facing world-X. Now
+    invoked after `WriteAnchorParameters` on the main path too.
+    (`FixturePlacementEngine.cs`)
+
+13. **`NearestOf<T>` bounded by bbox (pass-2 #2).** The host search ran an
+    unbounded full-category `FilteredElementCollector` per placement; now
+    pre-filtered with a `BoundingBoxIntersectsFilter` around the point ±
+    search radius. (`PlacementHostPreflight.cs`)
+
+14. **Intra-rule `MinSpacingMm` enforced at selection (pass-2 #3).** Candidate
+    selection passed an empty placed-list to the scorer (SpacingScore always
+    1.0) and `Take(cap)` could pick points closer than `MinSpacingMm`. New
+    `SelectWithSpacing` greedily accepts ranked candidates clearing the
+    spacing from already-accepted ones. (`FixturePlacementEngine.cs`)
+
+15. **`ResolveView3D` cross-document hazard (pass-2 #4).** Cache keyed on
+    `doc.GetHashCode()` in a single static slot; now keyed by `PathName|Title`
+    with an `IsValidObject` + `Document` identity guard. (`PlacementHostPreflight.cs`)
+
+16. **`IsRegexLike` tightened (pass-2 #5).** A lone `$` or unbalanced `[` no
+    longer misclassifies a literal variant/type name as a regex; now requires
+    a real anchor / escape / quantifier / balanced class or group.
+    (`FixturePlacementEngine.cs`)
+
+17. **`WriteAnchorParameters` persists full transform (pass-2 #6).** Now also
+    writes `ASS_PLACE_OFFSET_Y_MM` / `_Z_MM` / `ASS_PLACE_ROTATION_DEG`
+    (best-effort; no-op when unbound) so placement intent round-trips.
+    (`FixturePlacementEngine.cs`)

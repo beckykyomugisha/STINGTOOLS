@@ -104,7 +104,8 @@ namespace StingTools.Commands.Drawing
                             AnnotationOptions = new AnnotationRunOptions
                             {
                                 SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            }
+                            },
+                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
                         });
                         if (applied.Warnings.Count > 0)
                             warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
@@ -210,7 +211,8 @@ namespace StingTools.Commands.Drawing
                             AnnotationOptions = new AnnotationRunOptions
                             {
                                 SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            }
+                            },
+                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
                         });
                         if (applied.ScaleApplied || applied.DetailLevelApplied
                             || applied.TemplateApplied || applied.PackApplied

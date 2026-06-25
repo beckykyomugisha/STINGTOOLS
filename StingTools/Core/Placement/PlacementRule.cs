@@ -53,6 +53,15 @@ namespace StingTools.Core.Placement
         public string CategoryFilter { get; set; } = "";
 
         /// <summary>
+        /// Phase 188 (review fix #5b) — optional BuiltInCategory name
+        /// (e.g. "OST_LightingFixtures"). When set, symbol resolution matches
+        /// on the category id rather than the localized Category.Name, so rules
+        /// resolve correctly on non-English Revit. Empty (default) ⇒ legacy
+        /// behaviour: match by CategoryFilter against Element.Category.Name.
+        /// </summary>
+        public string CategoryBic { get; set; } = "";
+
+        /// <summary>
         /// PC-08 — comma-separated fallback chain (FLUSH,SURFACE,RECESSED)
         /// or a single regex (^IP6[5-7]$). Engine tries each in order
         /// and falls back to the first symbol when nothing matches.
@@ -164,7 +173,7 @@ namespace StingTools.Core.Placement
         /// <summary>PC-12 — Density rule: 1 fixture per N pupils (education; read from room's STING_PUPIL_COUNT_INT).</summary>
         public double PerPupil { get; set; } = 0.0;
 
-        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules).</summary>
+        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules; read from room's STING_TOILET_CUBICLE_COUNT_INT).</summary>
         public double PerToiletCubicle { get; set; } = 0.0;
 
         /// <summary>PC-12 — Name of a room integer parameter to read occupancy from when PerOccupant is set. Defaults to STING_OCC_COUNT_INT.</summary>
@@ -554,6 +563,7 @@ namespace StingTools.Core.Placement
                 RuleId               = this.RuleId,
                 RuleKind             = this.RuleKind,
                 CategoryFilter       = this.CategoryFilter,
+                CategoryBic          = this.CategoryBic,
                 VariantHint          = this.VariantHint,
                 FamilyTypeRegex      = this.FamilyTypeRegex,
                 RoomFilter           = this.RoomFilter,

@@ -211,6 +211,46 @@ namespace StingTools.Core.Placement
                 return result;
             }
 
+            // Phase 188 (review fix #3b) — apply the project building profile so
+            // a run matches what the Placement Centre displays. FilterByProfile
+            // existed and the UI mirrored it, but the engine ran every rule
+            // regardless of building type. No-op when no
+            // _BIM_COORD/placement_profile.json is configured (empty BuildingType
+            // + ActiveStandards → FilterByProfile returns the set unchanged).
+            try
+            {
+                var profile = ProjectBuildingProfileIO.Load(doc.PathName);
+                bool profileActive = profile != null &&
+                    (!string.IsNullOrEmpty(profile.BuildingType) ||
+                     (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
+                if (profileActive)
+                {
+                    // Phase 188 (review fix #5a) — the standards gate keys off the
+                    // structured ApplicableStandards field, but shipped rules cite
+                    // standards via free-text StandardRef instead. Warn when the
+                    // profile declares active standards yet no rule populates
+                    // ApplicableStandards — the standards filter is then inert.
+                    if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0
+                        && !rules.Any(r => r != null && !string.IsNullOrEmpty(r.ApplicableStandards)))
+                    {
+                        result.Warnings.Add("Building profile declares ActiveStandards but no rule populates the structured ApplicableStandards field (rules cite standards via free-text StandardRef) — the standards filter is inert. Populate ApplicableStandards on rules to enable standards-based filtering.");
+                    }
+
+                    int before = rules.Count;
+                    rules = PlacementRuleLoader.FilterByProfile(new List<PlacementRule>(rules), profile);
+                    int removed = before - rules.Count;
+                    StingLog.Info($"FixturePlacementEngine: building-profile filter kept {rules.Count} of {before} rules (BuildingType='{profile.BuildingType}').");
+                    if (removed > 0)
+                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out {removed} of {before} rule(s) not matching the active building type / standards.");
+                    if (rules.Count == 0)
+                    {
+                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out ALL rules — nothing to place. Check the profile's BuildingType / ActiveStandards against your rule set.");
+                        return result;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: building-profile filter: {ex.Message}"); }
+
             // Phase 139.27 (C-03) — surface a one-shot warning at start
             // of run when the user enabled "Tag every placement" but
             // the reflection target is missing. RunFor() warns once per
@@ -601,7 +641,15 @@ namespace StingTools.Core.Placement
             int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
-            var chosen = candidates.Take(cap).ToList();
+            // Phase 188 (review pass-2 #3) — enforce intra-rule MinSpacingMm at
+            // selection. The scorer scores every candidate against an EMPTY
+            // already-placed list (placedPoints is filled only after placement),
+            // so SpacingScore is always 1.0 and a plain Take(cap) could pick
+            // adjacent candidates closer than MinSpacingMm (e.g. CEILING_TILE_CORNER
+            // emits points every 600 mm but the rule asks for 1000 mm). Greedily
+            // accept ranked candidates that clear MinSpacingMm from the ones
+            // already accepted. MinSpacingMm <= 0 ⇒ legacy Take(cap).
+            var chosen = SelectWithSpacing(candidates, cap, effRule.MinSpacingMm);
 
             if (dryRun)
             {
@@ -724,6 +772,15 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, effRule);
+                    // Phase 188 (review pass-2 #1) — orient the freshly-placed
+                    // instance. OrientPlacedInstance applies RotationDeg, flips
+                    // the family to face INTO the room, and snaps it off the wall
+                    // centerline onto the wall face. It was wired only into the
+                    // CoPlaceWith path (ProcessRoomRuleAtPoint), so the MAIN path —
+                    // where most fixtures are placed — left switches/sockets facing
+                    // world-X and sitting inside the wall. Run it here too.
+                    try { OrientPlacedInstance(doc, fi, effRule, room); }
+                    catch (Exception oex) { result.Warnings.Add($"Orient {rule.CategoryFilter} in {SafeRoomName(room)}: {oex.Message}"); }
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -780,32 +837,40 @@ namespace StingTools.Core.Placement
             {
                 case PlacementRuleKind.Density:
                 {
-                    int byArea = 0, byOcc = 0;
+                    // Phase 188 (review fix #2) — derive the count from EVERY
+                    // declared density rate, not just PerAreaM2 / PerOccupant.
+                    // PerBed / PerWorkstation / PerPupil / PerToiletCubicle are
+                    // first-class fields validated by the loader and surfaced in
+                    // the Centre + Excel export, but the engine never read them —
+                    // so healthcare / education / office density rules silently
+                    // collapsed to one fixture per room. cap = max across all
+                    // populated rates (a rule may set several; the binding one
+                    // wins).
+                    int byArea = 0;
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
                         try { areaM2 = room.Area * 0.3048 * 0.3048; } catch { }
                         if (areaM2 > 0) byArea = Math.Max(1, (int)Math.Ceiling(areaM2 / rule.PerAreaM2));
                     }
-                    if (rule.PerOccupant > 0)
-                    {
-                        int occ = 0;
-                        try
-                        {
-                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
-                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
-                            var p = room.LookupParameter(occParam);
-                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
-                        }
-                        catch { }
-                        if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
-                    }
-                    cap = Math.Max(byArea, byOcc);
-                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
-                    // (or with both = 0) used to fall through with cap=1, then later
-                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
-                    // as misconfigured: place at most one and warn upstream via the
-                    // rule-loader validation pass (#39 below).
+
+                    string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                        ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                    int byOcc    = CountFromRoomRate(room, occParam,                     rule.PerOccupant);
+                    int byBed    = CountFromRoomRate(room, "STING_BED_COUNT_INT",            rule.PerBed);
+                    int byWs     = CountFromRoomRate(room, "STING_WS_COUNT_INT",             rule.PerWorkstation);
+                    int byPupil  = CountFromRoomRate(room, "STING_PUPIL_COUNT_INT",          rule.PerPupil);
+                    int byCubicle= CountFromRoomRate(room, "STING_TOILET_CUBICLE_COUNT_INT", rule.PerToiletCubicle);
+
+                    cap = Math.Max(byArea,
+                          Math.Max(byOcc,
+                          Math.Max(byBed,
+                          Math.Max(byWs,
+                          Math.Max(byPupil, byCubicle)))));
+
+                    // Phase 139.4 — Density rule with no derivable rate falls
+                    // through with cap=1; the rule-loader validation pass warns
+                    // the user the rule is misconfigured.
                     if (cap == 0) cap = 1;
                     break;
                 }
@@ -838,6 +903,57 @@ namespace StingTools.Core.Placement
             if (rule.MaxPerRoom > 0)
                 cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
             return Math.Min(cap, candidateCount);
+        }
+
+        /// <summary>
+        /// Phase 188 (review pass-2 #3) — greedy spacing-aware selection. Walks
+        /// the ranked candidates and accepts up to <paramref name="cap"/> whose
+        /// position clears <paramref name="minSpacingMm"/> centre-to-centre from
+        /// every already-accepted candidate. minSpacingMm &lt;= 0 ⇒ plain Take(cap).
+        /// </summary>
+        private static List<PlacementCandidate> SelectWithSpacing(
+            List<PlacementCandidate> ranked, int cap, double minSpacingMm)
+        {
+            if (ranked == null || cap <= 0) return new List<PlacementCandidate>();
+            if (minSpacingMm <= 0) return ranked.Take(cap).ToList();
+
+            double minFt = minSpacingMm * MmToFt;
+            double minSq = minFt * minFt;
+            var accepted = new List<PlacementCandidate>(Math.Min(cap, ranked.Count));
+            foreach (var c in ranked)
+            {
+                if (accepted.Count >= cap) break;
+                if (c?.Position == null) continue;
+                bool tooClose = false;
+                foreach (var a in accepted)
+                {
+                    double dx = a.Position.X - c.Position.X;
+                    double dy = a.Position.Y - c.Position.Y;
+                    double dz = a.Position.Z - c.Position.Z;
+                    if (dx * dx + dy * dy + dz * dz < minSq) { tooClose = true; break; }
+                }
+                if (!tooClose) accepted.Add(c);
+            }
+            return accepted;
+        }
+
+        /// <summary>
+        /// Phase 188 (review fix #2) — read an integer room parameter and
+        /// derive a density count = ceil(count / rate). Returns 0 when the
+        /// rate is unset (≤ 0), the parameter is missing/empty, or the value
+        /// is ≤ 0 — so it contributes nothing to the Math.Max chain.
+        /// </summary>
+        private static int CountFromRoomRate(Room room, string paramName, double ratePerUnit)
+        {
+            if (ratePerUnit <= 0 || room == null || string.IsNullOrEmpty(paramName)) return 0;
+            int count = 0;
+            try
+            {
+                var p = room.LookupParameter(paramName);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Integer) count = p.AsInteger();
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeCap: read room param '{paramName}': {ex.Message}"); }
+            return count > 0 ? Math.Max(1, (int)Math.Ceiling(count / ratePerUnit)) : 0;
         }
 
         /// <summary>
@@ -918,9 +1034,10 @@ namespace StingTools.Core.Placement
             // by symbol name.
             string hint  = rule?.VariantHint ?? "";
             string ftrx  = rule?.FamilyTypeRegex ?? "";
-            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx)
+            string bicHint = rule?.CategoryBic ?? "";
+            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx) && string.IsNullOrEmpty(bicHint)
                 ? categoryName
-                : $"{categoryName}|{hint}|{ftrx}";
+                : $"{categoryName}|{hint}|{ftrx}|{bicHint}";
             if (cache.TryGetValue(cacheKey, out var cached)) return cached;
 
             // Build matcher and ordered fallback chain.
@@ -948,8 +1065,22 @@ namespace StingTools.Core.Placement
                 // Phase 139.4 — apply OfCategory before OfClass so the
                 // collector pre-filters by category index (Revit's native
                 // index lookup) instead of walking every FamilySymbol.
+                // Phase 188 (review fix #5b) — when the rule sets CategoryBic,
+                // resolve the BuiltInCategory directly and match on the category
+                // id (locale-robust) instead of the localized Category.Name.
                 BuiltInCategory bic = BuiltInCategory.INVALID;
-                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                bool useBic = false;
+                if (!string.IsNullOrEmpty(bicHint)
+                    && Enum.TryParse<BuiltInCategory>(bicHint, true, out var parsedBic)
+                    && parsedBic != BuiltInCategory.INVALID)
+                {
+                    bic = parsedBic;
+                    useBic = true;
+                }
+                else
+                {
+                    try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
+                }
                 FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
                     ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
                     : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
@@ -957,7 +1088,11 @@ namespace StingTools.Core.Placement
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
-                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    if (useBic)
+                    {
+                        if ((BuiltInCategory)fs.Category.Id.Value != bic) continue;
+                    }
+                    else if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // FamilyTypeRegex is an additional gate, applied to symbol name.
@@ -1305,10 +1440,16 @@ namespace StingTools.Core.Placement
         private static bool IsRegexLike(string s)
         {
             if (string.IsNullOrEmpty(s)) return false;
+            // Phase 188 (review pass-2 #5) — tightened so literal variant/type
+            // names aren't misclassified as regex. A lone '$' or an unbalanced
+            // '[' (e.g. a literal type "A[1") no longer trips regex mode; we now
+            // require a real anchor / escape / quantifier / balanced char-class.
             return s.StartsWith("^", StringComparison.Ordinal)
-                || s.Contains("$")
-                || s.Contains("\\d")
-                || s.Contains("[");
+                || s.EndsWith("$", StringComparison.Ordinal)
+                || s.Contains("\\")                                   // escape (\d, \w, \., …)
+                || s.Contains(".*") || s.Contains(".+") || s.Contains(".?")
+                || (s.Contains("[") && s.Contains("]"))               // balanced char-class
+                || (s.Contains("(") && s.Contains(")"));              // group
         }
 
         private static void WriteAnchorParameters(FamilyInstance fi, PlacementRule rule)
@@ -1319,6 +1460,15 @@ namespace StingTools.Core.Placement
 
             // MNT_HGT_MM may be absent on some families; swallow failure.
             TrySetDoubleMm(fi, "MNT_HGT_MM", rule.MountingHeightMm);
+
+            // Phase 188 (review pass-2 #6) — persist the rest of the placement
+            // intent so audit / round-trip captures the full transform, not just
+            // X-offset. These shared params may not be bound (no registry
+            // constant); TrySet* no-ops gracefully when the param is absent, and
+            // activates automatically once a project binds them.
+            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Y_MM", rule.OffsetYMm);
+            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Z_MM", rule.OffsetZMm);
+            TrySetDoubleMm(fi, "ASS_PLACE_ROTATION_DEG", rule.RotationDeg);
         }
 
         /// <summary>
@@ -1632,7 +1782,10 @@ namespace StingTools.Core.Placement
             = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
         private static readonly object _bicByNameLock = new object();
 
-        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
+        // Phase 188 (review fix #1b) — promoted from private to internal so
+        // PlacementScorer can reuse the cached category-name → BuiltInCategory
+        // resolution for its sample-instance prefilter.
+        internal static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
             string path = "", title = "";

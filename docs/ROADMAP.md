@@ -39,6 +39,29 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 
 ---
 
+### MEP-from-DWG — V2 / V3 backlog
+
+V1 (MEP fixtures from DWG blocks) shipped — see `CHANGELOG.md`. Remaining:
+
+| Id | Item | Notes |
+|---|---|---|
+| ~~MEPDWG-V2-1~~ | ~~**Straight runs** — line → Duct/Pipe/Conduit/CableTray; size from layer suffix or default.~~ | **DONE (V2)** — `MepRunBuilder` + `MepRunClassifier`. |
+| ~~MEPDWG-V2-2~~ | ~~**System assignment** + run elevation from level + per-layer offset.~~ | **DONE (V2)** — system TYPE at `Create`; per-kind / per-layer offset. |
+| ~~MEPDWG-V2-3~~ | ~~**Fixture host-snapping** — nearest wall/ceiling; fall back to unhosted.~~ | **DONE (V2)** — best-effort, hosted-family only. |
+| ~~MEPDWG-V2-4~~ | ~~**`MepCadWizard`** — per-layer mapping UI.~~ | **DONE (V2)** — per-layer include / run-kind / level / offset. |
+| MEPDWG-V2-5 | **Native mounting-height param** — wire the numeric `MNT_HGT_MM` stamp once its exact name + unit (Length vs Number) is confirmed against Placement-Center output (height is encoded in the instance Z; only `MOUNTING_REFERENCE_TXT` stamped). | `TODO-VERIFY-API` in `MepFixtureBuilder.StampMetadata`. |
+| MEPDWG-V2-type | **Per-layer family/run TYPE selection** in the wizard — V2 uses the first available type per category/kind. Add a per-layer type combo (enumerate types per category/kind) threaded into the builders. | |
+| MEPDWG-V2-host2 | **Ceiling face-hosting fidelity** — V2 uses the host-element overload; face-based (WorkPlaneBased) families may fall back to unhosted. Use a real face `Reference` for true face hosting. | `TODO-VERIFY-API` in `MepFixtureBuilder.PlaceWithHost`. |
+| ~~MEPDWG-V3-1~~ | ~~**Fittings** — junction detection → elbows/tees/crosses.~~ | **DONE (V3)** — `MepFittingBuilder`, best-effort + guarded. |
+| ~~MEPDWG-V3-2~~ | ~~**Risers** — UP/DN/RISER blocks → vertical run segments.~~ | **DONE (V3)** — span to adjacent level / ±3 m. |
+| ~~MEPDWG-V3-3~~ | ~~**Drainage slope** — sanitary/drainage pipe fall.~~ | **DONE (V3)** — End dropped by length × slope (1:80 default). |
+| MEPDWG-V3-fit2 | **Fitting robustness** — `New*Fitting` needs the type's routing preferences to carry a fitting family and matching size/system; mismatches fall to the guarded skip. Pre-flight routing prefs + a transition fitting on size change would raise the hit rate. | `TODO-VERIFY-API` in `MepFittingBuilder`. |
+| MEPDWG-V3-flow | **Drainage flow direction** — V3 drops the line's End end deterministically (no flow data from a 2D plan). Infer direction from connected stacks / gullies, or expose a per-run flip. | |
+| MEPDWG-V3-riser2 | **Riser connection** — risers are created as standalone vertical segments; auto-connect them to the horizontal run at the same XY (the fitting pass joins coincident ends but the riser base may sit at a different Z than the run). | |
+| MEPDWG-V1-note | V1 only captures fixture blocks whose layer/block name is recognised as MEP (the extraction whitelist). Fixtures on mislabelled layers with non-MEP block names are not captured — extend the layer mapper or rename layers. | Documented V1 limitation. |
+
+---
+
 ### Current Automation Gaps
 
 #### A. Gaps That Hinder Full Automation

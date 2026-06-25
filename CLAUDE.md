@@ -8,25 +8,15 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **215 source files** (212 C# + 3 XAML, ~254,000 lines of code) across 13 directories
-- **763+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **72 runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
-- **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
-- **Top-level workspace** ships 15 directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingTools.Clash.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `CompiledPlugin/` · `docs/` · `docs-site/` · `marketing-site/` · `tools/`
+- **1,204+ source files** (1,204 C# + 14 XAML, ~572,000 lines of code) across 38+ command directories
+- **1,580+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 4 `IDockablePaneProvider`s + 4+ `IUpdater`s
+- **100+ runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes template engine v1.1 pack (16 templates + 5 workflow definitions), HVAC/climate/RTS/acoustic data, CSI/MasterFormat maps, CTF coefficients, IDU catalogues, Cx task library, and more
+- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Top-level workspace** ships 30+ directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingBridge/` · `GUIDES/` · `StingTools.ArchiCAD/` · `Planscape.Desktop/` · `Planscape.Edge/` · `StingTools.Clash.Tests/` · `StingTools.Tags.Tests/` · `StingTools.Routing.Tests/` · `StingTools.Boq.Tests/` · `StingTools.Connectivity.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `docs/` · `docs-site/` · `marketing-site/` · `marketing-site-cron/` · `tools/` · `shared/` · `stingtools-bonsai/` · `stingtools-core/` · `ifc_drop/` · `project-templates/` · `planscape-site/`
 
 ### Phase 179 — Plumbing Center
 
-This branch (`claude/merge-branches-update-docs-SvA31`) absorbs every
-outstanding `claude/*` feature branch that had unique commits not yet in
-HEAD. Seventy-five branches were merged in a single pass, ranging from
-single-commit fix branches up to the 1,148-commit
-`document-missing-parameters-9tTAr` history. Conflict policy was
-`-X ours` (keep the Phase 168–173 baseline, take new files from the
-incoming branch); for `modify/delete` and `rename/delete` collisions the
-HEAD copy was kept. Sixty-four branches fast-forwarded or auto-merged
-cleanly; eleven required `ours` conflict resolution. After consolidation
-`git branch -r --no-merged HEAD` reports zero remote branches with
-unique commits not in HEAD. Verify in Revit before merging to `main`.
+The Plumbing Center (Phase 179) added the third standalone dockable panel with 8 tabs, 37 commands, and 15 engines under `Commands/Plumbing/` and `Core/Plumbing/`. All plumbing features described below under "Plumbing Center" are shipped in `main`. The codebase is currently at **Phase 194** — see `docs/CHANGELOG.md` for the full per-phase history from Phase 179 onward.
 
 ### Phase 185 — Family library readiness (placeholder review)
 
@@ -120,7 +110,7 @@ under namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`, so the
 
 | File | Purpose | When to edit |
 |---|---|---|
-| `CLAUDE.md` (this file) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
+| `CLAUDE.md` (this file, **1 file · ~4,875 lines**) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
 
@@ -368,21 +358,82 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ## BOQ — Bill of Quantities (Enhanced)
 
-**Status**: `StingTools/BOQ/` (11 files · 7,228 lines).
+**Status**: `StingTools/BOQ/` (35 files · ~13,846 lines across root + 4 subdirectories + 3 UI files).
+
+### Root files (`BOQ/` — 19 files · 8,776 lines)
 
 | Class | Lines | Purpose |
 |---|---|---|
-| `BOQCostManager.cs` | ~800 | Core cost management engine: rate lookup, cost aggregation, VAT, contingency |
+| `BOQCostManager.cs` | 2,026 | Core cost management engine: rate lookup, cost aggregation, VAT, contingency, carbon, waste |
+| `BOQProfessionalExportCommand.cs` | 1,871 | Professional-grade export with company branding + NRM2 compliance + Word merge |
 | `BOQParagraphEnhancer.cs` | 850 | Natural-language paragraph generation (NBS / NRM2 style) |
-| `BOQModels.cs` | ~400 | POCOs: BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate |
-| `BOQExportCommand.cs` | ~300 | Primary export: ClosedXML XLSX with NRM2 grouping + labour columns |
-| `BOQProfessionalExportCommand.cs` | ~250 | PDF-quality export via Word merge |
-| `BOQTemplateLibraryExtensions.cs` | ~200 | Client vocabulary substitution from `BOQ_CLIENT_VOCABULARY.json` |
-| `BOQRateSourceHeatMapCommand.cs` | ~150 | Heatmap view showing rate-book vs. custom override coverage |
-| `BOQSupportCommands.cs` | ~200 | `BOQ_RateAudit`, `BOQ_DeltaReport`, `BOQ_Validate` |
-| `BOQTenderConfig.cs` | ~120 | Tender configuration POCO |
+| `BOQBccBridge.cs` | 637 | Bridge for BIM Coordination Center BOQ data refresh |
+| `BOQExportCommand.cs` | 597 | Primary export: ClosedXML XLSX with NRM2 grouping + labour + carbon columns |
+| `BOQTemplateLibraryExtensions.cs` | 586 | Client vocabulary substitution from `BOQ_CLIENT_VOCABULARY.json` |
+| `BOQSupportCommands.cs` | 506 | `BOQ_RateAudit`, `BOQ_DeltaReport`, `BOQ_Validate` |
+| `BOQModels.cs` | 354 | POCOs: BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate |
+| `CostStamp.cs` | 232 | Writes `CST_*` + `ASS_BOQ_*` shared parameters onto modelled elements |
+| `IfcQuantitySetWriter.cs` | 171 | Writes IFC `Qto_*` quantity sets from BOQ line items |
+| `BOQByMaterialView.cs` | 170 | Pivots BOQ output by material classification |
+| `BOQTenderConfig.cs` | 148 | Tender configuration POCO + project-scoped overrides |
+| `CarbonFactorResolver.cs` | 132 | Resolves embodied carbon factors (ICE DB + project override) per material/category |
+| `BOQRateSourceHeatMapCommand.cs` | 121 | Heatmap view showing rate-book vs. custom override coverage |
+| `CarbonPivotByPhaseLevel.cs` | 91 | Pivots carbon output by RIBA stage and level |
 | `BOQPrepForExportCommand.cs` | 93 | Pre-export data normalization |
-| `UI/BOQCostManagerPanel.cs` + `BOQCostManagerWindow.cs` + `BOQTenderDialog.cs` | ~600 | WPF cost manager panel + tender configuration dialog |
+| `WasteFactor.cs` | 75 | Per-material waste percentage lookup (NRM2 / project override) |
+| `BiogenicCarbon.cs` | 61 | Biogenic carbon sequestration credit calculation |
+| `MeasuredAddition.cs` | 55 | Manual measured-addition rows not backed by model elements |
+
+### Subdirectory: `MeasurementStandard/` (3 files · 550 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `MeasurementStandards.cs` | 303 | NRM2 / SMM7 / CESMM rule set implementations; resolves unit, description, grouping per item |
+| `Icms3PhaseMap.cs` | 192 | Maps STING BOQ sections to ICMS 3rd edition cost breakdown structure |
+| `IMeasurementStandard.cs` | 55 | Interface contract: `MeasureItem`, `GroupItems`, `ResolveParagraph` |
+
+### Subdirectory: `Rates/` (7 files · 785 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `RateProviders.cs` | 291 | Composite rate-provider pipeline: BCIS → project rate card → material library → manual override |
+| `RateProviderRegistry.cs` | 209 | Per-document loader; layers project overrides over corporate baseline |
+| `IRateProvider.cs` | 121 | Interface: `GetRate(boqItem)` → `RateResult` (unit rate, source label, confidence) |
+| `MaterialLibraryRateProvider.cs` | 106 | Looks up rates from `MATERIAL_LOOKUP.csv` by material + category |
+| `Providers/BcisHttpRateProvider.cs` | 161 | REST client for live BCIS (Building Cost Information Service) API rates |
+| `Providers/ProjectRateCardProvider.cs` | 97 | Project-scoped rate card loaded from `_BIM_COORD/boq_rate_card.json` |
+
+### Subdirectory: `Sync/` (2 files · 363 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `BoqSyncCoordinator.cs` | 237 | Coordinates BOQ snapshot sync: change detection, conflict resolution, push/pull with Planscape Server |
+| `BoqSnapshotHasher.cs` | 126 | SHA-256 content hash per BOQ line item for efficient change detection |
+
+### Subdirectory: `Takeoff/` (1 file · 256 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `TakeoffRule.cs` | 256 | Data-driven takeoff rules: category → quantity parameter → unit → NRM2 ref mapping |
+
+### UI files (`UI/` — 3 files · 2,916 lines)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `UI/BOQCostManagerPanel.cs` | 2,186 | WPF dockable cost manager panel — rate grid, carbon chart, budget vs. actual, filter bar |
+| `UI/BOQTenderDialog.cs` | 671 | WPF tender configuration dialog — VAT, contingency, prelims, profit, phasing |
+| `UI/BOQCostManagerWindow.cs` | 59 | Lightweight window host for the cost manager panel |
+
+### BOQ Data files (under `Data/`)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `BOQ_TEMPLATE.csv` | 268 | Bill of Quantities template structure (NRM2 section headings + default units) |
+| `BOQ_DESCRIPTIONS.json` | 218 | NRM2 natural-language description library keyed by section code |
+| `BOQ_CLIENT_VOCABULARY.json` | 42 | Client-specific term substitution map used by `BOQTemplateLibraryExtensions` |
+| `WORKFLOW_BOQ_TenderPack.json` | 49 | Workflow preset: full tender-pack production chain |
+| `WORKFLOW_BOQ_FullRefresh.json` | 44 | Workflow preset: rebuild BOQ from live model + re-export |
+| `WORKFLOW_BOQ_QuickValuation.json` | 34 | Workflow preset: fast cost-check without full NRM2 paragraph resolution |
 
 ---
 
@@ -669,38 +720,53 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 
 **Status**: Built across multiple phases (Phases 6–9 of the BOQ sub-plan). Located
 in `StingTools/BOQ/`. Full NRM2-structured bill of quantities with multi-sheet XLSX
-export, provisional sums reconciliation, snapshot comparison, and BIM parameter
-write-back.
+export, provisional sums reconciliation, snapshot comparison, BIM parameter
+write-back, live BCIS rate integration, IFC quantity sets, carbon tracking, and
+Planscape Server sync.
 
-### New folder
+### New folders
 
-`StingTools/BOQ/` — 11 files.
+`StingTools/BOQ/` — 35 files · ~13,846 lines across root (19 files) + `MeasurementStandard/` (3) + `Rates/` (7) + `Sync/` (2) + `Takeoff/` (1) + UI (3 files under `UI/`).
 
-**Commands (15)**:
+**Commands (14)**:
 
 | Class | Description |
 |---|---|
 | `BOQExportCommand` | Multi-sheet XLSX: BOQ + material schedule + provisional sums + NRM2 ref + carbon + audit + comparison |
-| `BOQProfessionalExportCommand` | Professional-grade export with company branding + NRM2 compliance |
-| `BOQPrepForExportCommand` | Pre-export: write `CST_*` + `ASS_BOQ_*` params onto modelled elements |
-| `BOQRefreshCommand` | Rebuild BOQ from live model |
+| `BOQProfessionalExportCommand` | Professional-grade export with company branding + NRM2 compliance + Word merge |
+| `BOQPrepForExportCommand` | Pre-export: write `CST_*` + `ASS_BOQ_*` params onto modelled elements via `CostStamp` |
+| `BOQRefreshCommand` | Rebuild BOQ from live model using `TakeoffRule` data-driven quantity extraction |
 | `BOQSetBudgetCommand` | Set project budget target |
-| `BOQSnapshotSaveCommand` | Save BOQ snapshot to JSON |
-| `BOQSnapshotCompareCommand` | Compare two BOQ snapshots |
-| `BOQAddManualRowCommand` | Add provisional sum / manual row |
+| `BOQSnapshotSaveCommand` | Save BOQ snapshot to JSON (hashed by `BoqSnapshotHasher`) |
+| `BOQSnapshotCompareCommand` | Compare two BOQ snapshots; highlights line-item deltas |
+| `BOQAddManualRowCommand` | Add provisional sum / manual row (`MeasuredAddition`) |
 | `BOQSelectInRevitCommand` | Select elements for a BOQ line item |
 | `BOQImportCommand` | Import BOQ from XLSX (round-trip) |
 | `BOQReconcileProvisionalsCommand` | Reconcile provisional sums against outturn costs |
-| `BOQWriteItemParamsCommand` | Write BOQ classification params to elements |
+| `BOQWriteItemParamsCommand` | Write BOQ classification params to elements + IFC Qto sets |
 | `BOQRateSourceHeatMapCommand` | Heat-map view by rate source (PC / sub / estimate) |
-| `BOQBccRefreshCommand` | Refresh BOQ data in BIM Coordination Center |
+| `BOQBccRefreshCommand` | Refresh BOQ data in BIM Coordination Center via `BOQBccBridge` |
 
-**Supporting classes**: `BOQCostManager` (build + aggregate), `BOQModels` (POCOs),
-`BOQParagraphEnhancer` (NRM2 paragraph resolution), `BOQTemplateLibraryExtensions`
-(template registry integration), `BOQTenderConfig` (tender-level settings).
+**Supporting classes**:
+- `BOQCostManager` — build + aggregate + rate pipeline
+- `BOQModels` — POCOs (BOQItem, BOQSection, BOQPackage, TenderConfig, LabourRate)
+- `BOQParagraphEnhancer` — NRM2 paragraph resolution + LLM fallback
+- `BOQTemplateLibraryExtensions` — client vocabulary substitution
+- `BOQTenderConfig` — tender-level settings (VAT, contingency, prelims, profit)
+- `CostStamp` — shared-parameter writer (`CST_*` + `ASS_BOQ_*`)
+- `IfcQuantitySetWriter` — IFC `Qto_*` quantity set writer
+- `CarbonFactorResolver` — ICE DB embodied carbon factors + project override
+- `WasteFactor` / `BiogenicCarbon` / `CarbonPivotByPhaseLevel` — carbon sub-calculators
+- `BOQByMaterialView` / `MeasuredAddition` — alternate pivot view + manual rows
+- `MeasurementStandards` / `Icms3PhaseMap` / `IMeasurementStandard` — NRM2/SMM7/CESMM/ICMS rule sets
+- `RateProviderRegistry` + `IRateProvider` + `RateProviders` — composite rate pipeline (BCIS → rate card → material library → manual)
+- `BcisHttpRateProvider` / `ProjectRateCardProvider` / `MaterialLibraryRateProvider` — rate source implementations
+- `BoqSyncCoordinator` / `BoqSnapshotHasher` — Planscape Server snapshot sync
+- `TakeoffRule` — data-driven category → quantity-parameter → unit → NRM2-ref mapping
 
-**Caveats**: Paragraph-coverage gate warns when < 80% of items have resolved NRM2
-descriptions. `BOQTenderConfig` fields are project-scoped overrides.
+**BOQ Data files** (under `Data/`): `BOQ_TEMPLATE.csv` (268 lines) · `BOQ_DESCRIPTIONS.json` (218 lines) · `BOQ_CLIENT_VOCABULARY.json` (42 lines) · `WORKFLOW_BOQ_TenderPack.json` · `WORKFLOW_BOQ_FullRefresh.json` · `WORKFLOW_BOQ_QuickValuation.json`
+
+**Caveats**: Paragraph-coverage gate warns when < 80% of items have resolved NRM2 descriptions. `BcisHttpRateProvider` requires a BCIS API key set in `appsettings.json` (`BCIS__ApiKey`). `IfcQuantitySetWriter` outputs IFC 4 `Qto_*` sets; older IFC 2×3 exports omit quantity sets.
 
 ## Clash Detection Engine
 
@@ -2280,58 +2346,22 @@ a default `manifest.json` seeded from `ProjectInformation` and
 
 ```
 STINGTOOLS/
-├── CLAUDE.md                           # AI assistant guide (this file)
+├── CLAUDE.md                           # AI assistant guide (this file, ~4,875 lines)
 ├── StingTools.addin                    # Revit addin manifest (XML)
 ├── build.bat / extract_plugin.sh       # Build and deployment scripts
 │
-└── StingTools/                         # C# project root (823 .cs · 431,115 lines)
+└── StingTools/                         # C# project root (1,204+ .cs · 572,000+ lines)
     ├── StingTools.csproj               # .NET 8 project file
     ├── Properties/AssemblyInfo.cs      # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (22 sub-directories)
-    │   ├── StingToolsApp.cs            # IExternalApplication — 3 dockable panels + events + ribbon
-    │   ├── StingLog.cs                 # Thread-safe file logger + EscapeChecker
-    │   ├── ParamRegistry.cs            # Single source of truth for parameters (PARAMETER_REGISTRY.json)
-    │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + TokenAutoPopulator
-    │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry
-    │   ├── TagConfig.cs                # ISO 19650 tag lookup tables + TagIntelligence + TAG7 builder
-    │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + StingStaleMarker IUpdater
-    │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset chaining + 19 conditional operators
-    │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline breakdown
-    │   ├── WarningsManager.cs          # 150+ classification rules, 16 auto-fix strategies, SLA tracking
-    │   ├── ProjectFolderEngine.cs      # ISO 19650 project folder structure + CDE folder generation
-    │   ├── WorkflowMaturityEngine.cs   # Step dependency resolver + commissioning workflows
-    │   │
-    │   ├── Adjacency/                  # RoomGraphBuilder + CleanDirtyFlowSolver (healthcare)
-    │   ├── Branding/                   # BrandTokens + CorporateBrand (STING_CORPORATE_BRAND.json)
-    │   ├── Calc/                       # 15 engineering calc engines (voltage drop, conduit fill, Hardy Cross, hanger, slope, duct friction, cable segregation, circuit topology, network extractor, routing support)
-    │   ├── Classification/             # ClassificationReader + IfcPropertyMapper
-    │   ├── DesignOptions/              # 7 design options classes (registry, metadata, params, cost/carbon calc, cascade delete, context, dashboard data)
-    │   ├── Drawing/                    # Drawing Template Manager — 40+ files
-    │   ├── Electrical/                 # CableRouter + CableManifest + CircuitScheduleExporter + TrayFillCalculator
-    │   ├── Fabrication/                # Assembly fabrication engine (10 files)
-    │   ├── Lightning/                  # LpsEngine (IEC 62305-3 rolling sphere / mesh / LPZ)
-    │   ├── Mcp/                        # McpToolDescriptorGenerator (AI/MCP integration)
-    │   ├── MedGas/                     # MgasNetwork + MgasFlowSolver + MgasVerificationLog
-    │   ├── Mep/                        # SleeveEngine + SleeveParamRegistry + SleeveSizingRules
-    │   ├── Placement/                  # 25+ fixture placement engine files
-    │   ├── Plumbing/                   # 15 plumbing engineering engines (see Plumbing Center section)
-    │   ├── Radiation/                  # AdvancedRadShield + MriZoneEngine
-    │   ├── Routing/                    # 20+ auto-routing files (A*, ACO, 3-opt, voxel grid, 3 penetration detectors, FrpPenetrationPlacer, PenetrationProductSelector, JunctionBoxAutoPlacer)
-    │   ├── SLD/                        # Single Line Diagram engine (5 files · 872 lines)
-    │   ├── Storage/                    # Extensible Storage schemas (16 files · 2,093 lines)
-    │   ├── Symbols/                    # Symbol Library engine (15+ files · 3,925 lines)
-    │   ├── Twin/                       # IoTDeviceRegistry + TwinReadback (BACnet/OPC-UA stubs)
-    │   ├── Validation/                 # 18+ validators (v4 core + penetration + plumbing + structural + healthcare suite)
-    │   └── Visualization/              # AVF heatmap engine + metric adapters + preview sources
-    │
-    ├── Core/                           # Shared infrastructure (17 files, ~25,000 lines)
-    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate + morning briefing
+    ├── Core/                           # Shared infrastructure (38+ sub-directories)
+    │   ├── StingToolsApp.cs            # IExternalApplication — 4 dockable panels + events + ribbon + DocumentOpened quality gate + morning briefing
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker utility
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position + COBie/asset/style constants
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect + TypeTokenInherit + CopyTokensFromNearest + GetInt + SetInt + CommandExecutionContext
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
-    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder + SeqScheme variants + BuildDisplayTag
+    │   ├── TagConfig.cs                # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder + SeqScheme variants + BuildDisplayTag
+    │   ├── TagSchemeEngine.cs          # Phase 188 — data-driven tag-scheme renderer: loads STING_TAG_SCHEMES.json, renders canonical tokens → project-grammar tag strings, drift detection
     │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater + deferred queue
     │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + 19 conditional operators + result persistence + WorkflowTrendCommand + sector-specific presets
     │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline/phase breakdown + incremental update + compliance trend tracker
@@ -2340,9 +2370,50 @@ STINGTOOLS/
     │   ├── PerformanceTracker.cs       # Lightweight performance profiling engine for batch operations (per-element timing, LRU slowest tracking, CSV export)
     │   ├── WarningsManager.cs          # Comprehensive warnings management: 150+ classification rules, 16 auto-fix strategies, SLA tracking, deliverable impact analysis, baseline/trend + StingWarningHandler IFailuresPreprocessor
     │   ├── ProjectFolderEngine.cs      # ISO 19650 project folder structure management, CDE folder generation, file monitor
+    │   ├── UgandaRegionalDefaults.cs   # Phase 189 — Uganda structural/climate/code defaults (EC1-1-4 wind + EC8 seismic + black-cotton soil warnings)
+    │   ├── StingLlmService.cs          # Phase 193 — local LLM client stub (REST → Ollama / OpenAI); used by NLP + tag-intelligence commands
+    │   ├── PluginSchemaVersion.cs      # Phase 193 — schema version constant + migration runner (upgrades ES schemas between plugin versions)
+    │   ├── PluginTelemetry.cs          # Phase 193 — optional anonymised usage telemetry (command name + duration; PII-free)
+    │   ├── PluginUpdateChecker.cs      # Phase 193 — GitHub release poll; shows TaskDialog when newer version available
+    │   ├── StingOfflineConfig.cs       # Phase 193 — offline mode flag + local-only overrides (disables Planscape Server push when offline)
     │   ├── Phase74Enhancements.cs      # ModelCreationValidator, WarningPredictionEngine, DeliverableTracker, CoordinatorDailyPlanner, ComplianceFallDetector, ActionAuditLog
     │   ├── Phase75Enhancements.cs      # 29 workflow/coordination enhancements: WorkflowScheduler, cross-system automation, SLA monitoring, team activity tracking, role-based access, CDE state machine
-    │   └── WorkflowMaturityEngine.cs   # Step dependency resolver (DAG), partial rollback manager, commissioning workflows, workflow validator + metrics
+    │   ├── WorkflowMaturityEngine.cs   # Step dependency resolver (DAG), partial rollback manager, commissioning workflows, workflow validator + metrics
+    │   │
+    │   ├── Acoustic/                   # Phase 187 — NcPredictionEngine (VDI 2081 / ASHRAE A48) + OctaveBand + AcousticDataRegistry + STING_FAN_SPECTRA.json + STING_SILENCER_DATA.json
+    │   ├── Adjacency/                  # RoomGraphBuilder + CleanDirtyFlowSolver (healthcare)
+    │   ├── Behavioural/                # Phase 192 KUT — KutTagSchemeOverlay, OwnerSystemOverlay; project-grammar extensions for owner tag systems
+    │   ├── Branding/                   # BrandTokens + CorporateBrand (STING_CORPORATE_BRAND.json)
+    │   ├── Cad/                        # Phase 190 — CAD layer-to-BIM category mapper enhancements (MaterialGateCommands support)
+    │   ├── Calc/                       # 15+ engineering calc engines (voltage drop, conduit fill, Hardy Cross, hanger, slope, duct friction, cable segregation, circuit topology, network extractor, routing support)
+    │   ├── Classification/             # ClassificationReader + IfcPropertyMapper + CSI MasterFormat mapper (Phase 192C2)
+    │   ├── Climate/                    # Phase 187 — ClimateRegistry (41-city ASHRAE/CIBSE design days) + STING_CLIMATE_DATA.json + STING_CONSTRUCTION_PROFILES.json + STING_CTF_COEFFICIENTS.json
+    │   ├── CostPlan/                   # Phase 191 — CostPlanEngine + EbsCostMapper + CostPlanReport + ES schema StingCostPlanSchema
+    │   ├── DesignOptions/              # 7 design options classes (registry, metadata, params, cost/carbon calc, cascade delete, context, dashboard data)
+    │   ├── Drawing/                    # Drawing Template Manager — 40+ files (phases 113–184)
+    │   ├── Electrical/                 # CableRouter + CableManifest + CircuitScheduleExporter + TrayFillCalculator
+    │   ├── Evm/                        # Phase 191 — EarnedValueEngine (BCWS/BCWP/ACWP/SPI/CPI) + EvmDashboardCommand
+    │   ├── Fabrication/                # Assembly fabrication engine (10 files)
+    │   ├── Hvac/                       # Phase 187 — HVAC sub-engines: Loads/, Acoustic stubs, RefrigerantPipeSolver + RefrigerantState + RefrigerantVendorLimits + IduCatalogue + RefnetTreeSizer + CtfRtsRegistry + DcvVentilationCalc + BlockLoadEngine + RadiantTimeSeries + LoadInputs + LoadProfileRegistry
+    │   ├── Lightning/                  # LpsEngine (IEC 62305-3 rolling sphere / mesh / LPZ)
+    │   ├── Materials/                  # Phase 190 — PerFamilyTierMap (LOD material tiers) + MaterialRevisionCloudJob + MaterialRetagJob
+    │   ├── Mcp/                        # McpToolDescriptorGenerator (AI/MCP integration)
+    │   ├── MedGas/                     # MgasNetwork + MgasFlowSolver + MgasVerificationLog
+    │   ├── Mep/                        # SleeveEngine + SleeveParamRegistry + SleeveSizingRules + MepSizingRegistry + MepSizingRules (Phase 180/187)
+    │   ├── PaymentCert/                # Phase 191 — PaymentCertEngine + PaymentCertReport + ES schema StingPaymentCertSchema
+    │   ├── Placement/                  # 25+ fixture placement engine files + FamilyConformanceInspector (Phase 185)
+    │   ├── Plumbing/                   # 15 plumbing engineering engines (see Plumbing Center section)
+    │   ├── Radiation/                  # AdvancedRadShield + MriZoneEngine
+    │   ├── Refrigerant/                # Phase 187 — RefrigerantPipeSolver + RefrigerantState + RefrigerantVendorLimits + IduCatalogue + RefnetTreeSizer + RefrigerantChargeCalculator + RefrigerantVendorLimits
+    │   ├── Routing/                    # 20+ auto-routing files (A*, ACO, 3-opt, voxel grid, 3 penetration detectors, FrpPenetrationPlacer, PenetrationProductSelector, JunctionBoxAutoPlacer)
+    │   ├── SLD/                        # Single Line Diagram engine (5 files · 872 lines)
+    │   ├── Storage/                    # Extensible Storage schemas (16+ files · 2,093+ lines incl. StingCostPlanSchema, StingPaymentCertSchema, StingVariationSchema, StingViewCropSchema added phases 184/191)
+    │   ├── Symbols/                    # Symbol Library engine (15+ files · 3,925 lines)
+    │   ├── TemplateManager/            # Phase 193 — PluginSchemaVersion migration helpers + cross-version template normaliser
+    │   ├── Twin/                       # IoTDeviceRegistry + TwinReadback (BACnet/OPC-UA stubs)
+    │   ├── Validation/                 # 18+ validators (v4 core + penetration + plumbing + structural + healthcare suite + LOD verifier Phase 192B1)
+    │   ├── Variation/                  # Phase 191 — VariationEngine + VariationReport + ES schema StingVariationSchema
+    │   └── Visualization/              # AVF heatmap engine + metric adapters + preview sources
     │
     ├── Select/                         # Element selection + color commands (4 files, ~30+ commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
@@ -2459,8 +2530,8 @@ STINGTOOLS/
     │
     ├── Select/                         # Element selection + color commands (4 files)
     ├── Organise/                       # Tag management commands (47 commands)
-    ├── Tags/                           # Tagging commands (28 files, 140+ commands + NLP processor)
-    ├── Docs/                           # Documentation commands (20 files, 55+ commands)
+    ├── Tags/                           # Tagging commands (28+ files, 140+ commands + NLP processor)
+    ├── Docs/                           # Documentation commands (20+ files, 55+ commands)
     │   ├── Templates/                  # Template engine v1.1 — 14 files
     │   ├── Workflow/                   # Workflow engine + audit + distribution — 6 files
     │   ├── Search/                     # Lucene.NET document index — 2 files
@@ -2469,12 +2540,28 @@ STINGTOOLS/
     ├── Temp/                           # Template commands (22 files, 120+ commands)
     ├── Model/                          # Auto-modeling engine (26 files, 130+ commands)
     ├── BIMManager/                     # ISO 19650 BIM management (14 files, 120+ commands)
-    ├── BOQ/                            # Bill of Quantities system (11 files · 7,228 lines)
+    ├── BOQ/                            # Bill of Quantities system (35 files · ~13,846 lines; root + MeasurementStandard/ + Rates/ + Sync/ + Takeoff/ + UI)
     ├── ExLink/                         # External data link (8 files · 5,723 lines)
     ├── Presets/                        # Preset combination engine (2 files)
     ├── Photometrics/                   # IES/LDT photometric parsers (4 files · 633 lines)
     ├── Clash/                          # Clash detection UI viewmodels
     ├── V6/                             # Next-gen prototype features (15 files · 2,424 lines)
+    ├── Commands/Architecture/          # Phase 192 — multi-building + site layout commands
+    ├── Commands/Classification/        # Phase 192 — CSI MasterFormat + Uniclass 2015 commands
+    ├── Commands/Cost/                  # Phase 191 — CostPlan, EVM, PaymentCert, Variation commands
+    ├── Commands/FabricationExt/        # Fabrication extensions — weld map + spool weight + NC export
+    ├── Commands/IFC/                   # Phase 186 — IfcController bridge + IDS runner commands
+    ├── Commands/Interop/               # Phase 194 StingBridge — ArchiCAD ↔ Planscape sync stubs
+    ├── Commands/Kpi/                   # Phase 193 — plugin telemetry dashboard + update check command
+    ├── Commands/Materials/             # Phase 190 — MaterialGate + PerFamilyTierMap + revision cloud
+    ├── Commands/MepDesign/             # Phase 187 — HVAC block load, NC, refrigerant, climate commands
+    ├── Commands/PlacementExt/          # Phase 185 — FamilyConformanceCheck + footprint-aware placement
+    ├── Commands/RoutingExt/            # Phase 192 — multi-service drop + penetration coverage extensions
+    ├── Commands/Standards/             # Phase 192 KUT — Uganda / KUT tag-scheme overlay commands
+    ├── Commands/StandardsExt/          # Phase 189 — SetUgandanDefaultsCommand + regional code checks
+    ├── Commands/StructuralExt/         # Phase 190 — EC2/EC3 material gate + structural revision cloud
+    ├── Commands/TagStudio/             # Phase 188 — TagSchemeEngine commands + scheme drift detect
+    ├── Commands/TemplateManager/       # Phase 193 — schema migration + offline-mode configuration
     │
     ├── UI/                             # WPF UI (90+ files)
     │   ├── StingDockPanel.xaml(.cs)    # Main 9-tab dockable panel
@@ -2545,11 +2632,11 @@ STINGTOOLS/
     │   ├── mr_default.json             # Draft → Submitted → Approved/Rejected
     │   └── deliverable_issue_default.json # WIP → Shared → Published → Archived
     │
-    └── Data/                           # Runtime data files (49 files)
+    └── Data/                           # Runtime data files (70+ files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (3,236 params, 34 groups, all data files cross-referenced — Phase 187-190 alignment incl. EC1-1-4 wind + EC8 seismic regional defaults + black-cotton drawing warning)
-        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.6 — 3,236 rows, identical param set as TXT)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (3,330 params, 34 groups, all data files cross-referenced — Phase 187-190 alignment incl. EC1-1-4 wind + EC8 seismic regional defaults + black-cotton drawing warning)
+        ├── MR_PARAMETERS.csv           # Parameter definitions (CSV mirror of TXT, v6.7 — 3,330 rows, identical param set + GUIDs as TXT)
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
         ├── MATERIAL_LOOKUP.csv         # 237-row material reference database (density, thermal, fire rating, acoustic, embodied carbon, cost)
@@ -2595,7 +2682,25 @@ STINGTOOLS/
         ├── TAG_FAMILY_CREATION_GUIDE.md # End-to-end tag family creation workflow guide
         ├── BIM_COORDINATION_WORKFLOW_GUIDE.md # Comprehensive BIM coordinator workflow guide (2,000+ lines, 22 sections)
         ├── DWG_TO_BIM_GUIDE.md        # DWG-to-structural BIM conversion guide
-        └── STING_ELECTRICAL_LAYMANS_GUIDE.md # End-to-end layman's guide for Electrical Waves A–J workflows
+        ├── STING_ELECTRICAL_LAYMANS_GUIDE.md # End-to-end layman's guide for Electrical Waves A–J workflows
+        ├── STING_TAG_SCHEMES.json          # Phase 188 — data-driven tag scheme definitions (visual + format rules)
+        ├── STING_MEP_SIZING_RULES.json     # Phase 180/187 — HVAC/pipe/conduit sizing constants, manufacturer C values
+        ├── STING_CLIMATE_DATA.json         # Phase 187 — 41 cities ASHRAE/CIBSE design-day data
+        ├── STING_LOAD_PROFILES.json        # Phase 187b — 12 space-type load profiles (ASHRAE 62.1 / CIBSE Guide A)
+        ├── STING_CTF_COEFFICIENTS.json     # Phase 187d — ASHRAE CTF Y-series for 5 construction types
+        ├── STING_REFRIG_VENDOR_LIMITS.json # Phase 187c — 7 VRF vendor series pipe-length limits
+        ├── STING_REFRIG_CHARGE_TABLES.json # Phase 187g — per-OD refrigerant additional-charge tables
+        ├── STING_IDU_CATALOGUE.json        # Phase 187h — 11 IDU records (Daikin / Mitsubishi / Toshiba)
+        ├── STING_REFNET_JOINTS.json        # Phase 187h — 15 REFNET branch joint records
+        ├── STING_CX_TASKS.json             # Phase 187e — commissioning checklist tasks by equipment class
+        ├── STING_RTS_REFERENCE_CASES.json  # Phase 187e — 4 ASHRAE RTS benchmark cases
+        ├── STING_DRAWING_TYPES.json        # Phases 113-184 — 90 corporate drawing type profiles
+        ├── STING_VIEW_STYLE_PACKS.json     # Phases 113-182 — 22 view style pack definitions
+        ├── STING_AEC_FILTERS.json          # Phase 166/184f — 289 AEC filter definitions
+        ├── STING_FAB_RULES.json            # v4 MVP — 6-discipline fabrication rules
+        ├── STING_FAB_RULES_EXT.json        # v4 MVP extension — additional fabrication rules
+        ├── STING_PANEL_SCHEDULE_TEMPLATES.json # Phase 176 — 5 panel schedule template rules
+        └── STING_SLD_SYMBOLS.json          # Phase 175 — SLD symbol catalogue (breakers, transformers, meters)
 ```
 
 ## Ribbon UI Architecture (Legacy)
@@ -3285,7 +3390,7 @@ All tagging commands delegate to `TagPipelineHelper.RunFullPipeline()` — a gua
 ### `ParamRegistry` (static) — `Core/ParamRegistry.cs`
 - **Single source of truth** for all parameter names, GUIDs, container definitions, and category bindings
 - Loads from `PARAMETER_REGISTRY.json` at runtime (thread-safe lazy init); falls back to hardcoded defaults
-- 2,555+ parameters across 33 groups (including new Group 33 `PEN_PENETRATION`)
+- 3,330 parameters across 34 groups (latest groups: 33 `Identity`, 34 `Routing`); `PEN_*` penetration params live in group 33 `Identity`
 - `GetGuid(paramName)` · `GetParamName(guid)` · `AllParamGuids` · `AllContainers` · `ContainersForCategory`
 
 ### `ParameterHelpers` (static) — `Core/ParameterHelpers.cs`
@@ -4080,6 +4185,277 @@ engineering" now have first-shipped implementations:
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
 7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
 
+---
+
+## Phase 188 — Tag Scheme Engine
+
+**Status**: `Core/TagSchemeEngine.cs`. Named, data-driven rendering of canonical STING tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ + STATUS/REV) into a second tag string written to its own container parameter.
+
+### Concept
+
+A **Tag Scheme** is a JSON-described rendering grammar that describes how to compose a project-specific tag string from canonical STING tokens. Distinct from the ISO 19650 `DISC-LOC-ZONE-…-SEQ` canonical format — it lets a project team publish a second tag in whatever naming convention the client or programme requires (e.g., NBS Uniclass, NHS SFT, Digi-twin asset IDs).
+
+### Architecture
+
+- **Segment kinds**: `token` (source token with optional value map), `projectInfo` (parameter from ProjectInformation), `literal` (fixed text)
+- **Corporate baseline**: `Data/STING_TAG_SCHEMES.json` — all schemes disabled by default (no silent changes on existing projects)
+- **Project override**: `<project>/_BIM_COORD/tag_schemes.json` — merged by id, project wins. Enabled schemes must declare a `targetContainer` (a shared param name bound on the project) so the render target is explicit
+- **Render stamp**: `_BIM_COORD/.sting_tag_scheme_stamp.json` — SHA-256 per-scheme content hash for drift detection
+- **Commands**: `TagScheme_Render`, `TagScheme_Audit`, `TagScheme_RenderView`, `TagScheme_SetActive`, `TagScheme_ClearStamps`
+
+### Integration points
+
+`StingAutoTagger` calls `TagSchemeEngine.RenderAll(doc, el)` after `WriteTag7All` so auto-tagged elements carry scheme tags immediately. `BuildTagsCommand` and `BatchTagCommand` both invoke the engine after the standard pipeline. Drift is surfaced by `TagScheme_Audit` and healed by `TagScheme_Render`.
+
+---
+
+## Phase 189 — Uganda Regional Defaults
+
+**Status**: `StingTools/Commands/Structural/SetUgandanDefaultsCommand.cs` + `Core/UgandaRegionalDefaults.cs`.
+
+Command tag `StrSetUgandanDefaults`. User picks a Uganda region (Central, Eastern, Western, Northern, Kampala Metro); command writes regional structural defaults onto `ProjectInformation`: wind speed per EC1-1-4 / Uganda NA, seismic zone and PGA per Uganda Seismic Map, soil bearing capacity, design rainfall intensity (for roof drainage), and live load per the Uganda National Building Code. Defaults are stored in `Core/UgandaRegionalDefaults.cs` as a typed lookup table. Shared params include `PRJ_REGION_WIND_MS`, `PRJ_REGION_SEISMIC_PGA`, `PRJ_REGION_SOIL_KPA`, `PRJ_REGION_RAINFALL_MMHR`, `PRJ_REGION_LIVE_LOAD_KPA`.
+
+---
+
+## Phase 190 — Structural / Materials Extensions
+
+**Status**: `Commands/StructuralExt/`, `Commands/MaterialGate/`, `Core/Materials/`.
+
+Key additions:
+- **Material Gate** (`Core/MaterialGateCommands.cs`): Locks material assignments behind a compliance gate; `MaterialProdOverrideRegistry` maps product codes to approved material types
+- **Per-Family Tier Map** (`Core/PerFamilyTierMap.cs`): Resolves placement tier (T1/T2/T3) per family name for the Placement Center
+- **Material Revision Cloud Job** (`Core/MaterialRevisionCloudJob.cs`): IUpdater-backed job that creates revision clouds on material-changed elements
+- **Material Re-tag Job** (`Core/MaterialRetagJob.cs`): Batch re-tags elements whose material changed to a different Uniclass classification
+
+---
+
+## Phase 191 — Cost Management (Phases 184–191)
+
+**Status**: `Commands/Cost/` (6 files) + `Core/CostPlan/` + `Core/Evm/` + `Core/PaymentCert/` + `Core/Variation/`.
+
+The Cost Management module extends the BOQ system into a full construction cost control platform:
+
+### Cost Commands (6 files)
+
+| File | Key Commands |
+|---|---|
+| `CostCommands.cs` | `Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_MigrateCurrencyParams`, `Cost_ReloadRules` |
+| `CostPlanCommands.cs` | `CostPlan_Create`, `CostPlan_Update`, `CostPlan_Export`, `CostPlan_CompareStages`, `CostPlan_SetBudget` |
+| `IfcAndIcmsCommands.cs` | `ICMS_Export`, `IFC_CostIngest`, `ICMS_Validate`, `IFC_CostBridge` |
+| `MeasurementStandardCommands.cs` | `Meas_SetNRM`, `Meas_SetSMM7`, `Meas_SetCIOS`, `Meas_Audit`, `Meas_RuleReport` |
+| `PaymentCertCommands.cs` | `PayCert_Create`, `PayCert_Export`, `PayCert_Reconcile`, `PayCert_Sign` |
+| `VariationAndEvmCommands.cs` | `Var_Create`, `Var_Approve`, `EVM_Dashboard`, `EVM_Export`, `EVM_Forecast` |
+
+### Core Engines
+
+| Path | Purpose |
+|---|---|
+| `Core/CostPlan/` | Cost plan POCO + rate engine + NRM2/SMM7/CESMM rule sets + ICMS mapping |
+| `Core/Evm/` | Earned Value Management: PV / EV / AC / SPI / CPI + S-curve + forecast-at-completion |
+| `Core/PaymentCert/` | Payment certificate lifecycle: draft → reviewed → certified → paid + retention calc |
+| `Core/Variation/` | Variation order workflow: create → quote → assess → approve + budget impact |
+
+### Extensible Storage Schemas
+
+`StingCostRateOverrideSchema` (Phase 187) extended with `StingCostPlanSchema`, `StingEVMSnapshotSchema`, `StingPayCertSchema` for session-persistent cost data.
+
+---
+
+## Phase 192 — KUT, CSI, Fohlio, LOD, Multi-Building
+
+### Phase 192A — KUT / Owner System
+
+**Kampala Uganda Temple** is the first major project client using STING with an owner-standards overlay. KUT-specific tooling under `Commands/Kpi/`, `Core/`, and `GUIDES/`:
+
+#### GUIDES/ Directory
+
+| File | Purpose |
+|---|---|
+| `GUIDES/KUT_BEP_TEMPLATE.md` | ISO 19650-2 BIM Execution Plan template. Client = The Church; Lead Appointed Party = Symbion Consulting; Information Manager = Planscape Consulting Engineers Ltd — Mayanja Davis. Uses `[FILL: ...]` placeholder pattern. STINGTOOLS-generated artefacts are annotated. |
+| `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
+| `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
+
+#### KUT KPI Dashboard
+
+`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+- Gathers: tag/naming compliance %, per-discipline breakdown (`ComplianceScan.ByDisc`), open clash count + burn-down by severity (`ClashPersistence`), model-health score (0-100 composite), revision %, stale count, sheet compliance, compliance trend
+- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
+- Exports HTML + CSV for monthly status report attachment
+- Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`, `SheetCompliancePct`, `TotalElements`, `Untagged`, `Stale`, `Warnings`, `OpenClashes`, `HealthScore`, `OpenClashBySeverity`, `FfeTotal`, `FfeLinked`, `FfeStale`
+
+### Phase 192B1 — LOD Verification Engine
+
+`Core/LODValidationCommand.cs` + validation rules in `Core/Validation/`. Per-element LOD (Level of Detail / Level of Development) audit:
+- Reads `STING_LOD_VERIFICATION_RULES.json` — per-category × per-LOD required parameters + geometry fidelity + classification requirements
+- Commands: `LOD_Verify`, `LOD_SetTarget`, `LOD_Report`, `LOD_Colorize`
+- Writes `LOD_TARGET_TXT` + `LOD_ACTUAL_TXT` + `LOD_PASS_BOOL` per element
+- Integrates with `ComplianceScan` as an additional compliance dimension
+
+### Phase 192C1 — Fohlio Room Finishes Integration
+
+`StingTools/ExLink/FohlioFinishesCommands.cs`:
+- **`Fohlio_ExportFinishes`** — emit room-finish schedule CSV in Fohlio import format (Room Number, Room Name, Floor/Wall/Ceiling material, product reference, area)
+- **`Fohlio_ImportFinishes`** — read Fohlio export CSV, preview diff in `StingDataGridDialog`, write four built-in room finish params + `FOHLIO_REF` shared parameter, matched by Room Number. Supports partial imports (only changed rows).
+
+Project overlay at `<project>/_BIM_COORD/fohlio_map.json` for room-number → element-id pre-caching.
+
+### Phase 192C2 — CSI MasterFormat / SpecLink Integration
+
+`StingTools/Commands/Classification/CsiCommands.cs`:
+- **`CSI_Assign`** — resolve CSI MasterFormat section for each element from `STING_CSI_MASTERFORMAT_MAP.csv`, write `CSI_SECTION_TXT` + `CSI_TITLE_TXT`. Project overlay at `<project>/_BIM_COORD/csi_map.csv`
+- **`SpecLink_Reconcile`** — compare model's CSI sections against RIB SpecLink spec table of contents, generate XLSX gap report (missing sections, used-but-not-specified sections)
+
+### Phase 192D — Multi-Building Commands
+
+`Core/MultiBuildingCommands.cs` + `Core/MultiBuildingExtraCommands.cs`. Commands for large multi-building campuses (hospital complexes, universities, KUT campus):
+- `MultiBuilding_SetBldgCode` — assign building prefix to selection
+- `MultiBuilding_AuditCodes` — audit cross-building tag consistency
+- `MultiBuilding_SyncTags` — sync shared-parameter values across linked models
+- `MultiBuilding_Export` — export per-building compliance breakdown
+
+---
+
+## Phase 193 — Plugin Infrastructure + LLM Service
+
+### Plugin Infrastructure
+
+Three new singleton classes in `Core/`:
+
+| File | Purpose |
+|---|---|
+| `PluginSchemaVersion.cs` | Declares current internal schema version (`STING_SCHEMA_VERSION`). On document open, checks `STING_PLUGIN_SCHEMA_TXT` stamped on ProjectInformation — if older, triggers migration prompts. On schema bump, runs idempotent migration steps (param remap, ES schema upgrade). |
+| `PluginTelemetry.cs` | Anonymous usage telemetry (command invocation counts, performance histograms, error rates). Posts to Planscape Server `/api/telemetry` when connected; buffers locally at `<user>/.sting/telemetry.jsonl` when offline. GDPR-compliant: no PII, opt-out via `Serilog__MinimumLevel__Default = Warning` |
+| `PluginUpdateChecker.cs` | On startup, checks `https://api.planscape.build/plugin/version` for the latest plugin version. If newer than the running version, shows a dismissible notification in the status bar. Respects a 24-h cooldown between checks (stored in `StingOfflineConfig`). |
+
+### StingLlmService
+
+`Core/StingLlmService.cs` — integration layer for LLM-assisted BIM operations:
+- `AskAsync(prompt, context)` — sends a structured prompt to the Planscape Server LLM endpoint (`POST /api/llm/ask`), passing selected element data and project context as structured JSON
+- Used by: `NLPCommandProcessor` (intent classification fallback), `TagIntelligenceCommands` (smart suggestion), `BOQParagraphEnhancer` (NRM2 paragraph generation fallback)
+- Falls back gracefully when offline or when the server has no LLM key configured
+
+### StingOfflineConfig
+
+`Core/StingOfflineConfig.cs` — lightweight JSON-backed settings store at `<user>/.sting/config.json`. Stores: last-known Planscape Server URL, telemetry opt-out flag, update-check cooldown, active tag scheme id, and per-project last-sync timestamp.
+
+---
+
+## Phase 194 — Final Alignment + Deployment
+
+### render.yaml (Render.com Blueprint)
+
+`render.yaml` at the **repository root** is the Infrastructure-as-Code blueprint for deploying Planscape Server to Render.com:
+
+```yaml
+services:
+  - type: web
+    name: planscape-api
+    runtime: docker
+    dockerfilePath: ./Planscape.Server/docker/Dockerfile
+    dockerContext: .
+    branch: main
+    region: frankfurt
+    plan: starter               # £6/mo
+
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: planscape-db
+          property: connectionString
+      - key: Jwt__Key
+        sync: false             # Set in Render dashboard — never commit
+      - key: Jwt__Issuer
+        value: Planscape
+      - key: Jwt__Audience
+        value: Planscape.Client
+      - key: PLANSCAPE_OWNER_EMAIL
+        value: davis@planscape.build
+      - key: PLANSCAPE_OWNER_PASSWORD
+        sync: false             # Set in Render dashboard — never commit
+      - key: Cors__Origins__0
+        value: https://planscape.build
+      - key: Cors__Origins__1
+        value: https://app.planscape.build
+      - key: Serilog__MinimumLevel__Default
+        value: Warning
+
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  - name: planscape-db
+    databaseName: planscape
+    user: planscape
+    region: frankfurt
+    plan: starter               # £6/mo
+```
+
+**Cost at launch**: API £6 + DB £6 = **£12/month**. Redis is optional — refresh-token tracking + JTI blacklist degrade gracefully without it.
+
+**Deploy steps**:
+1. Render dashboard → Blueprints → New Blueprint Instance → connect `beckykyomugisha/stingtools`
+2. Set `Jwt__Key` (32+ byte random, e.g. `openssl rand -base64 48`) in service Environment tab
+3. Set `PLANSCAPE_OWNER_PASSWORD` in service Environment tab
+4. Add custom domain `api.planscape.build` (service → Settings → Custom Domains) + CNAME at registrar
+
+### Production Domain
+
+- **API**: `api.planscape.build` → Render planscape-api service
+- **Web app**: `app.planscape.build` → Planscape React/Expo web build
+- **Marketing**: `planscape.build` → `marketing-site/`
+- **Platform owner**: `davis@planscape.build` (seeded by `PlatformOwnerSeeder` on first boot — idempotent)
+
+---
+
+## StingBridge — ArchiCAD ↔ Planscape Connector
+
+**Status**: `StingBridge/` directory — Python 3.11 package.
+
+`StingBridge` is a Python CLI + library that synchronises ArchiCAD model data with the Planscape Server, mirroring what the Revit plugin does natively via the C# `TagSyncController`.
+
+### Entry Point — `StingBridge/bridge.py`
+
+| Command | Description |
+|---|---|
+| `sync` | One-shot: pull tagged elements from ArchiCAD via the ArchiCAD JSON API, push to Planscape Server |
+| `watch` | Polling sync loop (interval controlled by `STING_WATCH_INTERVAL`, default 30 s) |
+| `watch-ifc --drop-dir /path` | Watch a directory for new IFC files; process each on arrival |
+| `process-ifc /path/to/model.ifc` | Parse a single IFC file (via ifcopenshell), extract STING pset values, push to Planscape |
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `STING_PLANSCAPE_URL` | — | Planscape Server base URL (e.g. `https://api.planscape.build`) |
+| `STING_PLANSCAPE_EMAIL` | — | Login email for Planscape Server |
+| `STING_PLANSCAPE_PASSWORD` | — | Login password |
+| `STING_PLANSCAPE_PROJECT_ID` | — | Target project UUID |
+| `STING_ARCHICAD_PORT` | `19723` | ArchiCAD JSON API port |
+| `STING_WRITE_BACK` | `false` | Whether to write Planscape values back into ArchiCAD |
+| `STING_WATCH_INTERVAL` | `30` | Polling interval in seconds for `watch` mode |
+| `STING_IFC_DROP_DIR` | — | Directory to watch for IFC drops |
+
+### Directory Structure
+
+```
+StingBridge/
+├── bridge.py           # CLI entry point
+├── config.py           # Settings + env-var loader
+├── requirements.txt    # ifcopenshell, requests, watchdog
+├── StingBridge.csproj  # (stub — for future .NET host integration)
+├── archicad/           # ArchiCadClient — JSON API wrapper
+├── planscape/          # PlanscapeClient — REST API wrapper
+├── sync/               # SyncEngine — diff + push logic
+├── watch/              # FileSystemEventHandler for IFC drop-dir
+├── tests/              # pytest test suite
+├── get_project_id.py   # Helper: list + select Planscape project IDs
+└── make_test_ifc.py    # Helper: generate minimal IFC fixture for testing
+```
+
 ## Template Manager Intelligence Engine
 
 `TemplateManagerCommands.cs` (3,892 lines) provides a deep template automation engine with 18 commands and an `internal static class TemplateManager` (~867 lines) intelligence core.
@@ -4554,13 +4930,13 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 
 > **Gap Analysis**: See `Planscape.Server/docs/PLANSCAPE_GAPS.md` for the comprehensive gap analysis and prioritised implementation roadmap.
 
-### Controllers (19+)
+### Controllers (22+)
 
-`AuthController` · `ProjectsController` · `ProjectMembersController` · `TagSyncController` · `ComplianceController` · `IssuesController` · `DocumentsController` · `NotificationsController` · `WorkflowsController` · `MeetingsController` · `SeqSyncController` · `TransmittalsController` · `WarningsController` · `SearchController` · `PlatformController` · `AdminController` · `MimController` · `HealthcareController` · `PenetrationsController`
+`AuthController` · `ProjectsController` · `ProjectMembersController` · `TagSyncController` · `ComplianceController` · `IssuesController` · `DocumentsController` · `NotificationsController` · `WorkflowsController` · `MeetingsController` · `SeqSyncController` · `TransmittalsController` · `WarningsController` · `SearchController` · `PlatformController` · `AdminController` · `MimController` · `HealthcareController` · `PenetrationsController` · `StatusController` · `HvacController` · `IfcController`
 
-### Entities (23+)
+### Entities (27+)
 
-`Tenant` · `AppUser` · `Project` · `ProjectMember` · `TaggedElement` · `BimIssue` · `IssueAttachment` · `DocumentRecord` · `DocumentApproval` · `PlatformConnection` · `ComplianceSnapshot` · `SeqCounter` · `Meeting` · `Transmittal` · `WorkflowRun` · `LicenseKey` · `AuditLog` · `DevicePushToken` · `HealthcarePressureLog` · `HealthcareMgasVerification` · `HealthcareAntiLigatureAudit` · `HealthcareRdsSnapshot` · `PenetrationSignoff`
+`Tenant` · `AppUser` · `Project` · `ProjectMember` · `TaggedElement` · `BimIssue` · `IssueAttachment` · `DocumentRecord` · `DocumentApproval` · `PlatformConnection` · `ComplianceSnapshot` · `SeqCounter` · `Meeting` · `Transmittal` · `WorkflowRun` · `LicenseKey` · `AuditLog` · `DevicePushToken` · `HealthcarePressureLog` · `HealthcareMgasVerification` · `HealthcareAntiLigatureAudit` · `HealthcareRdsSnapshot` · `PenetrationSignoff` · `HvacLoadSnapshot` · `HvacNcSnapshot` · `HvacRefrigerantSizing` · `ExternalElementMapping`
 
 ### Running Locally
 

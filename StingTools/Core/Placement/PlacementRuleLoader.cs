@@ -277,6 +277,20 @@ namespace StingTools.Core.Placement
                     StingLog.Info($"PlacementRuleLoader: rule '{r.MergeKey}' is Density with MaxPerRoom=0 — placement count is bounded only by PerAreaM2/PerOccupant.");
                 }
 
+                // Phase 188 (review fix #3a, Option B) — GuaranteeCoverage is only
+                // half-wired: PlacementScorer relaxes its score-threshold gate for
+                // such rules, but the count is NOT expanded to actually guarantee
+                // coverage. CoverageGridGenerator implements the ≥99 % fill but is
+                // not invoked by the engine (deferred — see the DEFERRED note on
+                // that class). Warn so the rule's behaviour isn't mistaken for the
+                // documented coverage guarantee.
+                if (r.GuaranteeCoverage)
+                {
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' sets GuaranteeCoverage=true, but coverage-guarantee count expansion is not active — only score-threshold relaxation applies. Achieve coverage via a grid anchor (LIGHTING_GRID) + CoverageRadiusMm/MaxSpacingMm instead.";
+                    sink?.Add(msg);
+                    StingLog.Warn(msg);
+                }
+
                 // Phase 139.27 (M-05) — flag truncated RuleIds so users
                 // know their rule may collide with another rule whose
                 // long form starts the same. The MergeKey is whatever

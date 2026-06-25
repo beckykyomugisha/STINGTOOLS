@@ -640,7 +640,8 @@ namespace StingTools.Docs
                                     family == ViewFamily.Elevation ? StingTools.Core.Drawing.DrawingPurpose.Elevation :
                                     family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp     :
                                                                      StingTools.Core.Drawing.DrawingPurpose.Plan);
-                                var dtApplied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtView);
+                                var dtApplied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtView,
+                                    new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch views
                                 if (dtApplied.TemplateApplied) templatesAssigned++;
 
                                 // Auto-assign template (7-layer intelligence)
@@ -1627,7 +1628,8 @@ namespace StingTools.Docs
                                         doc, disc.Code, "*",
                                         family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp
                                                                          : StingTools.Core.Drawing.DrawingPurpose.Plan);
-                                    var dtApp = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtPkg);
+                                    var dtApp = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtPkg,
+                                        new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch package views
                                     if (dtApp.TemplateApplied) templatesAssigned++;
 
                                     if (!dtApp.TemplateApplied)
@@ -1893,7 +1895,8 @@ namespace StingTools.Docs
                             // the current behaviour.
                             var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
                                 doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Section);
-                            var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, section, dt);
+                            var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, section, dt,
+                                new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch sections
                             if (!applied.TemplateApplied)
                             {
                                 View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Section");
@@ -2011,7 +2014,8 @@ namespace StingTools.Docs
                                     // Fall back to historic template search.
                                     var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
                                         doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Elevation);
-                                    var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, elev, dt);
+                                    var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, elev, dt,
+                                        new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch elevations
                                     if (!applied.TemplateApplied)
                                     {
                                         View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Elevation");

@@ -22,6 +22,12 @@ namespace StingTools.Core.Placement
 {
     public partial class PlacementScorer
     {
+        // Phase 188 (review fix #5d) — upper bound on candidate points emitted
+        // by the grid-style anchors (CEILING_TILE_CORNER / RAISED_FLOOR_TILE_EDGE)
+        // so a large room can't generate thousands of candidates that each get
+        // scored. 2000 covers a ~17 m × 17 m room at 600 mm tile corners.
+        private const int MaxGridAnchorPoints = 2000;
+
         /// <summary>
         /// Append candidate XYZs for one of the 22 Phase 139 anchor types.
         /// Returns true when the anchor was recognised (caller should not
@@ -661,9 +667,23 @@ namespace StingTools.Core.Placement
             var bb = room.get_BoundingBox(null);
             if (bb == null) return;
             double tileFt = 600.0 / 304.8;
+            // Phase 188 (review fix #5d) — bound the emitted candidate count.
+            // A large hall could otherwise emit thousands of grid points, each
+            // then scored (and sampled). Cap + log once when truncating.
+            int emitted = 0;
             for (double x = bb.Min.X + tileFt; x < bb.Max.X; x += tileFt)
-            for (double y = bb.Min.Y + tileFt; y < bb.Max.Y; y += tileFt)
-                points.Add(new XYZ(x + offsetXFt, y + offsetYFt, anchorZ));
+            {
+                for (double y = bb.Min.Y + tileFt; y < bb.Max.Y; y += tileFt)
+                {
+                    if (emitted >= MaxGridAnchorPoints)
+                    {
+                        StingLog.Info($"EmitCeilingTileCorner room {room.Id}: capped candidate grid at {MaxGridAnchorPoints} points.");
+                        return;
+                    }
+                    points.Add(new XYZ(x + offsetXFt, y + offsetYFt, anchorZ));
+                    emitted++;
+                }
+            }
         }
 
         private void EmitCurtainPanelCentre(Room room, PlacementRule rule,
@@ -749,8 +769,14 @@ namespace StingTools.Core.Placement
             var bb = room.get_BoundingBox(null);
             if (bb == null) return;
             double stepFt = 600.0 / 304.8;
+            // Phase 188 (review fix #5d) — bound the emitted candidate count.
             for (double x = bb.Min.X; x <= bb.Max.X; x += stepFt)
             {
+                if (points.Count >= MaxGridAnchorPoints)
+                {
+                    StingLog.Info($"EmitRaisedFloorTileEdge room {room.Id}: capped candidate grid at {MaxGridAnchorPoints} points.");
+                    return;
+                }
                 points.Add(new XYZ(x + offsetXFt, bb.Min.Y + offsetYFt, anchorZ));
                 points.Add(new XYZ(x + offsetXFt, bb.Max.Y + offsetYFt, anchorZ));
             }

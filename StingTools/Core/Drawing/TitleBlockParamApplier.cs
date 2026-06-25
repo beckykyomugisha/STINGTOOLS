@@ -294,27 +294,34 @@ namespace StingTools.Core.Drawing
 
                 if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return;
 
-                var tb = FindTitleBlockInstance(doc, sheet);
-                if (tb == null) return;
+                // GAP-A parity: clear stale keys on EVERY title block on the
+                // sheet, mirroring Apply(). Clearing only the first left a
+                // secondary TB (front/back, landscape/portrait) carrying the
+                // prior profile's metadata after a profile re-assignment.
+                var tbs = FindAllTitleBlockInstances(doc, sheet);
+                if (tbs.Count == 0) return;
 
                 foreach (var key in priorDt.TitleBlockParams.Keys)
                 {
                     if (string.IsNullOrWhiteSpace(key)) continue;
-                    try
+                    foreach (var tb in tbs)
                     {
-                        var p = tb.LookupParameter(key);
-                        if (p == null || p.IsReadOnly) continue;
-                        switch (p.StorageType)
+                        try
                         {
-                            case StorageType.String:  p.Set(""); break;
-                            case StorageType.Integer: p.Set(0);  break;
-                            case StorageType.Double:  p.Set(0.0); break;
+                            var p = tb.LookupParameter(key);
+                            if (p == null || p.IsReadOnly) continue;
+                            switch (p.StorageType)
+                            {
+                                case StorageType.String:  p.Set(""); break;
+                                case StorageType.Integer: p.Set(0);  break;
+                                case StorageType.Double:  p.Set(0.0); break;
+                            }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        StingTools.Core.StingLog.Warn(
-                            $"ClearStaleKeysFromPriorProfile: '{key}': {ex.Message}");
+                        catch (Exception ex)
+                        {
+                            StingTools.Core.StingLog.Warn(
+                                $"ClearStaleKeysFromPriorProfile: '{key}': {ex.Message}");
+                        }
                     }
                 }
             }
@@ -346,19 +353,6 @@ namespace StingTools.Core.Drawing
                 catch { result[paramName] = kv.Value ?? ""; }
             }
             return result;
-        }
-
-        private static FamilyInstance FindTitleBlockInstance(Document doc, ViewSheet sheet)
-        {
-            try
-            {
-                return new FilteredElementCollector(doc, sheet.Id)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilyInstance))
-                    .Cast<FamilyInstance>()
-                    .FirstOrDefault();
-            }
-            catch { return null; }
         }
 
         /// <summary>
