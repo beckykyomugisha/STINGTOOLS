@@ -168,7 +168,7 @@ namespace StingTools.Core.Variation
         public DateTime? ApprovalDate { get; set; }
         public string ApprovedBy { get; set; } = "";
 
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
         public List<VariationItem> Items { get; set; } = new List<VariationItem>();
 
         /// <summary>Reference to the BOQ snapshot diff that produced this VO (optional).</summary>
@@ -205,7 +205,7 @@ namespace StingTools.Core.Variation
         public string Id = Guid.NewGuid().ToString("N");
         public string Description { get; set; } = "";
         public string Unit { get; set; } = "each";
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
 
         public List<StarRateLine> LabourLines { get; set; } = new List<StarRateLine>();
         public List<StarRateLine> PlantLines { get; set; } = new List<StarRateLine>();

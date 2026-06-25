@@ -3,6 +3,65 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS Upgrade — integration + Stage-B bug fixes)
+
+Consolidated P1–P4 onto one linear stack (`main→P1→P2→P3→P0fix→P4`) and
+fixed the verified bugs from review. Branch `claude/boq-cost-integrated`.
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet
+Revit-runtime-verified.**
+
+**Stage A — integration.** Cherry-picked the P0 button-revive fix + P4 onto
+the P1–P3 stack (excluding an unrelated stray `.rfa`-deletion commit). Only
+`CHANGELOG.md` needed manual conflict resolution (kept both sides); panel,
+command-handler and `CostCommands` auto-merged. Re-verified the P0
+doc-acquisition fix (`ParameterHelpers.GetDoc`) across all six Cost command
+files — 0 remaining `commandData.Application.ActiveUIDocument` patterns.
+
+**Stage B — bug fixes:**
+
+- **B.1 (currency)** — cost code no longer hardcodes `"GBP"` while values are
+  UGX. Defaults flipped to `"UGX"` in `PaymentCertModels` / `VariationModels`
+  / `EvmCalculator`; `PaymentCertEngine.CreateDraft` + `VariationEngine.FromDiff`
+  take the project currency (threaded from `boq.Currency` at the call sites);
+  star-rate dialog + labels, ACWP display and the ES-migration stamp all use
+  the project currency. Grep for hardcoded `"GBP"` across Core/PaymentCert,
+  Core/Variation, Core/Evm, Commands/Cost = **0**. (Label correctness only —
+  no FX conversion.) **NRM1 cost-plan benchmarks stay GBP on purpose** — they
+  are genuinely £/m² GIFA figures; the display now reads `CostPlanDocument.Currency`
+  (a field, not a literal). See ROADMAP for the UGX-benchmark follow-up.
+- **B.2 (omissions)** — `VariationEngine.FromDiff` now signs every change-type:
+  `ItemRemoved` → `Qty=QtyA, Rate=−RateA` (Omission, negative value);
+  `QtyChanged` → `Qty=QtyB−QtyA` (signed) at the current rate. Removed scope
+  now reaches the VO net total instead of being zeroed.
+- **B.3 (AFC double-count)** — `Cost_AnticipatedFinalCost` anchors on a **frozen
+  contract sum** (earliest non-draft payment cert's SOV total) rather than the
+  live BOQ grand total (which already reflects the changes the agreed VOs were
+  minted from). `AFC = contractSum + agreed + pending`. When no issued cert
+  exists it falls back to the live grand total and the report states that
+  assumption (on screen + in the XLSX).
+- **B.4 (retention cap)** — retention is now capped at the contractual cumulative
+  ceiling (`RetentionPercent × contract sum`, JCT 2024 §4.10 / NEC4 X16). New
+  `PaymentCertificate.RetentionCapAmount` (headroom = cap − prior withheld) set
+  in `CreateDraft`; `RetentionAmount` returns `min(raw, headroom)`. Once the cap
+  is reached, per-cert retention is 0. Nullable ⇒ legacy certs deserialise
+  unchanged.
+- **B.5 (EVM actuals double-count)** — new `EvmCalculator.ImportAllActualsToDate`
+  sums **all** `actuals_*.csv` cumulatively and **dedupes by SHA-256 content**
+  so a re-dropped export can't be counted twice. Both `Evm_Calculate` (ACWP)
+  and `Evm_ImportActuals` use it; the import dialog shows the project-currency
+  cumulative + files-read + duplicates-skipped.
+
+**B.6 (minor — noted, not changed to avoid regressions):**
+- `AssignBoqLineRefs` middle index is still the literal `1` (`{section}.1.{n}`).
+  Refs stay unique within a section (rowIndex increments), so this is cosmetic;
+  changing the format risks the write-once `ASS_BOQ_LINE_REF` stamp. See ROADMAP.
+- P3 QS import reads the **literal rate column** (not the Amount formula) and
+  parses leniently; a blank rate is treated as "unpriced / no change". A
+  per-cell warning for genuinely **non-numeric** rate text is a deferred minor
+  enhancement (see ROADMAP).
+
+**Revit manual-test checklist:** see Stage C below.
+
 #### Completed (BOQ QS Upgrade — P3: QS round-trip + hybrid bill)
 
 Third phase of the QS BOQ upgrade — the Excel exchange surface a Quantity

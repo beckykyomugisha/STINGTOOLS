@@ -55,6 +55,7 @@ namespace StingTools.Commands.Cost
                 ContractForm form = PickContractForm();
 
                 var cert = PaymentCertEngine.CreateDraft(doc, contractRef, form, sov);
+                cert.Currency = boq.Currency ?? "UGX";   // B.1 — project currency, not a hardcoded literal
                 cert.EmployerName = doc.ProjectInformation?.OrganizationName ?? "";
                 cert.ContractorName = ParameterHelpers.GetString(doc.ProjectInformation,
                     "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT") ?? "";

@@ -27,6 +27,10 @@ namespace StingTools.UI
 
         public StarRate Result { get; private set; }
 
+        /// <summary>Project currency for the build-up (default UGX). Caller may
+        /// set it before ShowDialog to match the active project.</summary>
+        public string CurrencyCode { get; set; } = "UGX";
+
         public StarRateBuilderDialog()
         {
             Title = "STING — Star Rate Build-Up";
@@ -126,7 +130,7 @@ namespace StingTools.UI
             {
                 Description = string.IsNullOrWhiteSpace(_desc.Text) ? "Star rate" : _desc.Text.Trim(),
                 Unit = string.IsNullOrWhiteSpace(_unit.Text) ? "each" : _unit.Text.Trim(),
-                Currency = "GBP",
+                Currency = string.IsNullOrEmpty(CurrencyCode) ? "UGX" : CurrencyCode,
                 OverheadPercent = oh, ProfitPercent = pr,
                 Author = Environment.UserName ?? "",
                 LabourLines = _labour.Where(NonEmpty).ToList(),
@@ -146,7 +150,7 @@ namespace StingTools.UI
                 $"=  Subtotal {sr.Subtotal:N2}\n" +
                 $"+ Overhead ({sr.OverheadPercent:0.##}%) {sr.OverheadAmount:N2}  " +
                 $"+ Profit ({sr.ProfitPercent:0.##}%) {sr.ProfitAmount:N2}  " +
-                $"=  FINAL RATE £ {sr.FinalRate:N2} / {sr.Unit}";
+                $"=  FINAL RATE {sr.Currency} {sr.FinalRate:N2} / {sr.Unit}";
         }
 
         private void OnOk()

@@ -181,7 +181,7 @@ namespace StingTools.Commands.Cost
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
                     reason, liability, reasonDetail: reasonDetail, eotDays: eotDays,
-                    contractForm: contractForm);
+                    contractForm: contractForm, currency: docB?.Currency ?? docA?.Currency ?? "UGX");
                 string path = VariationEngine.Save(doc, vo);
 
                 TaskDialog.Show("STING — Variation minted",
@@ -333,15 +333,16 @@ namespace StingTools.Commands.Cost
                 var rate = dlg.Result;
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
+                string cc = rate.Currency ?? "UGX";
                 TaskDialog.Show("STING — Star rate created",
                     $"Star rate '{rate.Description}' saved.\n\n" +
-                    $"Labour:    GBP {rate.LabourTotal:N2}\n" +
-                    $"Plant:     GBP {rate.PlantTotal:N2}\n" +
-                    $"Materials: GBP {rate.MaterialsTotal:N2}\n" +
-                    $"Subtotal:  GBP {rate.Subtotal:N2}\n" +
-                    $"OH ({rate.OverheadPercent}%): GBP {rate.OverheadAmount:N2}\n" +
-                    $"Profit ({rate.ProfitPercent}%): GBP {rate.ProfitAmount:N2}\n" +
-                    $"FINAL:     GBP {rate.FinalRate:N2}\n\n" +
+                    $"Labour:    {cc} {rate.LabourTotal:N2}\n" +
+                    $"Plant:     {cc} {rate.PlantTotal:N2}\n" +
+                    $"Materials: {cc} {rate.MaterialsTotal:N2}\n" +
+                    $"Subtotal:  {cc} {rate.Subtotal:N2}\n" +
+                    $"OH ({rate.OverheadPercent}%): {cc} {rate.OverheadAmount:N2}\n" +
+                    $"Profit ({rate.ProfitPercent}%): {cc} {rate.ProfitAmount:N2}\n" +
+                    $"FINAL:     {cc} {rate.FinalRate:N2}\n\n" +
                     $"Edit at: {Path.GetFileName(path)}");
                 return Result.Succeeded;
             }
@@ -462,17 +463,10 @@ namespace StingTools.Commands.Cost
                 if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
                 double bcws = bac * plannedPct / 100.0;
 
-                // ACWP — sum the most recent actuals CSV under _bim_manager/actuals/.
+                // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
+                // deduped by content so a re-dropped export can't double-count (B.5).
                 string actualsDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
-                double acwp = 0;
-                if (Directory.Exists(actualsDir))
-                {
-                    var latest = Directory.EnumerateFiles(actualsDir, "actuals_*.csv")
-                        .OrderByDescending(File.GetLastWriteTimeUtc)
-                        .FirstOrDefault();
-                    if (!string.IsNullOrEmpty(latest))
-                        acwp = EvmCalculator.ImportActualsToDate(latest, DateTime.UtcNow);
-                }
+                double acwp = EvmCalculator.ImportAllActualsToDate(actualsDir, DateTime.UtcNow, out _, out _);
 
                 var period = EvmCalculator.Compute(bac, bcws, bcwp, acwp, DateTime.UtcNow);
 
@@ -557,18 +551,23 @@ namespace StingTools.Commands.Cost
                     return Result.Succeeded;
                 }
 
-                var files = Directory.EnumerateFiles(dir, "actuals_*.csv")
-                    .OrderByDescending(File.GetLastWriteTimeUtc).ToList();
+                var files = Directory.EnumerateFiles(dir, "actuals_*.csv").ToList();
                 if (files.Count == 0)
                 {
                     TaskDialog.Show("STING EVM",
                         $"No actuals CSV files found under {dir}.");
                     return Result.Cancelled;
                 }
-                double total = EvmCalculator.ImportActualsToDate(files[0], DateTime.UtcNow);
+                // B.5 — cumulative across ALL actuals files, deduped by content so
+                // re-dropping the same export can't double-count.
+                double total = EvmCalculator.ImportAllActualsToDate(dir, DateTime.UtcNow,
+                    out int filesRead, out int dupSkipped);
+                string ccy = EvmCalculator.ListReports(doc).Select(EvmCalculator.Load)
+                    .FirstOrDefault(r => r != null)?.Currency ?? "UGX";
                 TaskDialog.Show("STING — Actuals imported",
-                    $"File: {Path.GetFileName(files[0])}\n\n" +
-                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: GBP {total:N2}");
+                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: {ccy} {total:N2}\n" +
+                    $"Files read: {filesRead}" +
+                    (dupSkipped > 0 ? $"   ·   {dupSkipped} duplicate file(s) skipped (identical content)" : ""));
                 return Result.Succeeded;
             }
             catch (Exception ex)

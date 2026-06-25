@@ -2,6 +2,29 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## BOQ / Cost — residual gaps (post Stage-B integration)
+
+- **Currency conversion (not just labels).** Stage-B B.1 made currency labels
+  consistent (UGX), but there is no FX conversion. Mixing a GBP rate-card entry
+  with a UGX BOQ would still sum face values. A single project-currency knob +
+  per-provider FX (the `RateProviderRegistry` already converts GBP/USD→UGX for
+  rates) extended to certs / variations / EVM is the real fix.
+- **NRM1 cost-plan UGX benchmarks.** `STING_NRM1_BENCHMARKS` are genuinely
+  £/m² GIFA (UK BCIS-style). For a UGX project the cost plan is shown in GBP
+  (honest, via `CostPlanDocument.Currency`) — a UGX benchmark set, or an FX
+  projection at plan time, is needed for a UGX-native concept estimate.
+- **B.6 — `AssignBoqLineRefs` group index.** Middle index is the literal `1`
+  (`{section}.1.{n}`). Cosmetic (refs unique within a section); a per-Category
+  group index would change the ref format and risks the write-once
+  `ASS_BOQ_LINE_REF` stamp — deferred.
+- **B.6 — QS import non-numeric rate warning.** A blank rate is treated as
+  "unpriced / no change"; genuinely non-numeric rate text (e.g. "TBC") is
+  currently read as 0 silently. Surface it as a diff-preview warning row.
+- **EVM BCWS from a real schedule.** BCWS still comes from a QS-entered planned
+  %; no 4D / cost-loaded-schedule wiring yet.
+- **QS import per-row accept/reject.** The import diff is whole-batch
+  Apply/Cancel; per-row checkboxes would let a QS accept a subset.
+
 ## Sub-system reviews
 
 - [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md) — plain-English user guide to the Placement Centre: every button, every editor field, background concepts (anchors, regex, mounting reference, provenance, standards), worked walk-throughs, troubleshooting and a cheat-sheet (2026-04-25).

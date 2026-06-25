@@ -280,8 +280,29 @@ namespace StingTools.Commands.Cost
                                                || v.Status == VariationStatus.Reviewed)
                                       .Sum(v => v.TotalValue);
 
-                double afc = Math.Round(grand + agreedVo + pendingVo, 0);
-                double afcAgreedOnly = Math.Round(grand + agreedVo, 0);
+                // B.3 — anchor AFC on a FROZEN contract sum, not the live BOQ
+                // grand total. The live grand already reflects the model changes
+                // the agreed VOs were minted from, so (grand + agreedVo) double-
+                // counts. The contract sum is the earliest non-draft payment
+                // certificate's Schedule-of-Values total; absent any cert, fall
+                // back to the live grand total and flag the assumption.
+                var baseCert = PaymentCertEngine.ListCerts(doc)
+                    .Select(PaymentCertEngine.Load)
+                    .Where(c => c != null && c.Status != PaymentCertStatus.Superseded
+                                          && c.Status != PaymentCertStatus.Draft
+                                          && c.Lines != null && c.Lines.Count > 0)
+                    .OrderBy(c => c.CertNumber)
+                    .FirstOrDefault();
+                bool haveBaseline = baseCert != null;
+                double contractSum = haveBaseline
+                    ? Math.Round(baseCert.Lines.Sum(l => l.ContractValue), 0)
+                    : grand;
+                string contractSumBasis = haveBaseline
+                    ? $"Cert #{baseCert.CertNumber} SOV (frozen)"
+                    : "live BOQ grand total — no issued cert, assumption";
+
+                double afcAgreedOnly = Math.Round(contractSum + agreedVo, 0);
+                double afc = Math.Round(contractSum + agreedVo + pendingVo, 0);
                 double variance = budget > 0 ? budget - afc : 0;
 
                 // On-screen summary.
@@ -298,6 +319,8 @@ namespace StingTools.Commands.Cost
                     .Metric("Pending variations", $"{ccy} {pendingVo:N0}")
                     .Metric("Variation count", $"{vos.Count}")
                     .AddSection("ANTICIPATED FINAL COST")
+                    .Metric("Contract sum (baseline)", $"{ccy} {contractSum:N0}")
+                    .Metric("Baseline basis", contractSumBasis)
                     .Metric("AFC (agreed only)", $"{ccy} {afcAgreedOnly:N0}")
                     .Metric("AFC (incl. pending)", $"{ccy} {afc:N0}")
                     .Metric("Budget", budget > 0 ? $"{ccy} {budget:N0}" : "— not set —")
@@ -335,8 +358,9 @@ namespace StingTools.Commands.Cost
                     Line("Manual / PS allowances", provAndManual);
                     Line("Subtotal", subtotal, true);
                     Line("Prelims / Contingency / OH&P", grand - subtotal);
-                    Line("BOQ grand total", grand, true);
+                    Line("BOQ grand total (live)", grand, true);
                     r++;
+                    Line($"Contract sum baseline [{contractSumBasis}]", contractSum, true);
                     Line("Agreed variations", agreedVo);
                     Line("Pending variations", pendingVo);
                     r++;

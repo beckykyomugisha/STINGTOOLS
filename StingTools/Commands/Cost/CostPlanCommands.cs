@@ -67,9 +67,9 @@ namespace StingTools.Commands.Cost
                     $"Building type:      {buildingType}\n" +
                     $"GIFA:               {gifa:N0} m²\n" +
                     $"Lines:              {plan.Lines.Count}\n" +
-                    $"Subtotal (likely):  GBP {plan.SubtotalLikely:N0}\n" +
-                    $"Grand total:        GBP {plan.GrandTotalLikely:N0}\n" +
-                    $"Headline £/m² GIFA: {plan.CostPerSqmLikely:N0}\n\n" +
+                    $"Subtotal (likely):  {plan.Currency} {plan.SubtotalLikely:N0}\n" +
+                    $"Grand total:        {plan.Currency} {plan.GrandTotalLikely:N0}\n" +
+                    $"Headline {plan.Currency}/m² GIFA: {plan.CostPerSqmLikely:N0}\n\n" +
                     $"Path: {Path.GetFileName(path)}");
                 return Result.Succeeded;
             }

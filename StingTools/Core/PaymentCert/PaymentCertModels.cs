@@ -42,10 +42,10 @@ namespace StingTools.Core.PaymentCert
         public string Id = Guid.NewGuid().ToString("N");
         public string Section { get; set; } = "";        // NRM2 section or trade
         public string Description { get; set; } = "";
-        public double ContractValue { get; set; }        // GBP — fixed at contract signing
+        public double ContractValue { get; set; }        // project currency — fixed at contract signing
         public double PercentComplete { get; set; }      // 0..100
-        public double PreviouslyCertified { get; set; }  // GBP — cumulative pre-this-cert
-        public double MaterialsOnSite { get; set; }      // GBP — held on this cert
+        public double PreviouslyCertified { get; set; }  // project currency — cumulative pre-this-cert
+        public double MaterialsOnSite { get; set; }      // project currency — held on this cert
 
         /// <summary>Gross value earned this cert before retention.</summary>
         public double GrossThisCert
@@ -66,7 +66,7 @@ namespace StingTools.Core.PaymentCert
         public int CertNumber { get; set; }
         public DateTime ValuationDate { get; set; } = DateTime.UtcNow;
         public DateTime IssuedDate { get; set; } = DateTime.UtcNow;
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
 
         public string ContractorName { get; set; } = "";
         public string EmployerName { get; set; } = "";
@@ -79,6 +79,12 @@ namespace StingTools.Core.PaymentCert
 
         /// <summary>Retention release threshold (% of contract completed at which retention halves).</summary>
         public double HalfRetentionAtPercent { get; set; } = 100.0;
+
+        /// <summary>B.4 — max retention THIS cert may withhold = contractual
+        /// cumulative cap (RetentionPercent × contract sum) minus retention
+        /// already withheld on prior certs. Set by PaymentCertEngine.CreateDraft.
+        /// Null ⇒ uncapped (legacy certs deserialise unchanged).</summary>
+        public double? RetentionCapAmount { get; set; }
 
         /// <summary>Other deductions (LDs, contra-charges).</summary>
         public double OtherDeductions { get; set; }
@@ -120,7 +126,16 @@ namespace StingTools.Core.PaymentCert
             => OverallPercentComplete >= HalfRetentionAtPercent ? RetentionPercent / 2.0 : RetentionPercent;
 
         public double RetentionAmount
-            => Math.Round(GrossValuation * EffectiveRetentionPercent / 100.0, 2);
+        {
+            get
+            {
+                double raw = Math.Round(GrossValuation * EffectiveRetentionPercent / 100.0, 2);
+                // B.4 — never withhold beyond the remaining cumulative headroom.
+                return RetentionCapAmount.HasValue
+                    ? Math.Round(Math.Min(raw, Math.Max(0, RetentionCapAmount.Value)), 2)
+                    : raw;
+            }
+        }
 
         public double NetThisCert
             => Math.Round(GrossValuation - RetentionAmount - OtherDeductions, 2);
@@ -139,7 +154,7 @@ namespace StingTools.Core.PaymentCert
     public class RetentionLedger
     {
         public string ContractRef { get; set; } = "";
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
         public List<RetentionEntry> Entries { get; set; } = new List<RetentionEntry>();
 
         public double TotalWithheld => Entries.Where(e => e.Kind == "withhold").Sum(e => e.Amount);

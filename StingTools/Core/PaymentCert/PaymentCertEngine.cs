@@ -67,7 +67,9 @@ namespace StingTools.Core.PaymentCert
             }
 
             int nextNum = (prior.FirstOrDefault()?.CertNumber ?? 0) + 1;
-            return new PaymentCertificate
+
+            const double retentionPct = 3.0;
+            var cert = new PaymentCertificate
             {
                 ContractRef = contractRef,
                 Form = form,
@@ -75,10 +77,19 @@ namespace StingTools.Core.PaymentCert
                 ValuationDate = DateTime.UtcNow,
                 ProjectName = doc?.ProjectInformation?.Name ?? "",
                 Lines = currentSov,
-                Currency = "GBP",
-                RetentionPercent = 3.0,
+                Currency = "UGX",                 // overridden from boq.Currency at the call site
+                RetentionPercent = retentionPct,
                 HalfRetentionAtPercent = 100.0
             };
+
+            // B.4 — cap cumulative retention at RetentionPercent × contract sum
+            // (JCT 2024 §4.10 / NEC4 X16). Headroom = cap − already-withheld on
+            // prior certs; this cert can withhold no more than that.
+            double contractSum = currentSov.Sum(l => l.ContractValue);
+            double cap = retentionPct / 100.0 * contractSum;
+            double priorWithheld = prior.Sum(c => c.RetentionAmount);
+            cert.RetentionCapAmount = Math.Max(0, Math.Round(cap - priorWithheld, 2));
+            return cert;
         }
 
         /// <summary>

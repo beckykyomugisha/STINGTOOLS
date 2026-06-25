@@ -23,6 +23,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.BIMManager;
+using StingTools.BOQ;
 using StingTools.BOQ.Rates;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
@@ -453,6 +454,8 @@ namespace StingTools.Commands.Cost
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 int migrated = 0, skipped = 0, errors = 0;
+                // B.1 — project currency, not a hardcoded "GBP", for the v2 stamp.
+                string ccy = BOQCostManager.BuildBOQDocument(doc)?.Currency ?? "UGX";
 
                 // Schema lookups. If v1 was never loaded into this Revit
                 // session there's nothing to migrate — return immediately.
@@ -509,7 +512,7 @@ namespace StingTools.Commands.Cost
                             // Re-write as v2. This deletes the v1 entity
                             // as a side-effect of the Write() implementation.
                             bool ok = StingCostRateOverrideSchema.Write(
-                                el, rate, unit, "GBP", note,
+                                el, rate, unit, ccy, note,
                                 wastePercent: 0, overheadPercent: 0, profitPercent: 0,
                                 dayworksCode: "", lockedByUser: "", lockedUntilUtcTicks: 0);
                             if (ok) migrated++;
