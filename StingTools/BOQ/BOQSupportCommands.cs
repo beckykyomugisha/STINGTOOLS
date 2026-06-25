@@ -157,20 +157,22 @@ namespace StingTools.BOQ
                 var store = BOQCostManager.LoadManualStore(ctx.Doc);
                 double.TryParse(StingCommandHandler.GetExtraParam("ManualRowQty"), NumberStyles.Any, CultureInfo.InvariantCulture, out double qty);
                 double.TryParse(StingCommandHandler.GetExtraParam("ManualRowRate"), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate);
+                var source = BoqSourceUtil.Parse(StingCommandHandler.GetExtraParam("ManualRowSource"));
+                if (source == BOQRowSource.Model) source = BOQRowSource.Manual;   // never author a Model row here
                 var newRow = new BOQLineItem
                 {
                     NRM2Section = StingCommandHandler.GetExtraParam("ManualRowSection") ?? "22",
                     Discipline = StingCommandHandler.GetExtraParam("ManualRowDisc") ?? "A",
-                    Category = "Manual",
+                    Category = BoqSourceUtil.Label(source),
                     ItemName = StingCommandHandler.GetExtraParam("ManualRowName") ?? "Manual item",
                     Unit = StingCommandHandler.GetExtraParam("ManualRowUnit") ?? "each",
                     Quantity = Math.Max(qty, 0.001),
                     RateUGX = Math.Max(rate, 0),
                     RateUSD = rate > 0 ? Math.Round(rate / Math.Max(TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0), 1), 2) : 0,
-                    Source = BOQRowSource.Manual,
+                    Source = source,
                     RateSource = "Manual",
                     RateConfidence = 70,
-                    Note = "Added manually via BOQ panel"
+                    Note = $"Added via BOQ panel ({BoqSourceUtil.Label(source)})"
                 };
                 store.ManualRows.Add(newRow);
                 BOQCostManager.SaveManualRows(ctx.Doc, store.ManualRows, store.ProjectBudgetUGX);
@@ -193,11 +195,17 @@ namespace StingTools.BOQ
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx?.UIDoc == null) return Result.Failed;
+                // P2 — accepts a single id or a comma-separated list (aggregated
+                // row drill-down: select every constituent element).
                 string raw = StingCommandHandler.GetExtraParam("SelectElementId") ?? "";
-                if (long.TryParse(raw, out long id))
+                var ids = new System.Collections.Generic.List<ElementId>();
+                foreach (var tok in raw.Split(','))
+                    if (long.TryParse(tok.Trim(), out long id) && id > 0)
+                        ids.Add(new ElementId(id));
+                if (ids.Count > 0)
                 {
-                    ctx.UIDoc.Selection.SetElementIds(new[] { new ElementId(id) });
-                    ctx.UIDoc.ShowElements(new[] { new ElementId(id) });
+                    ctx.UIDoc.Selection.SetElementIds(ids);
+                    ctx.UIDoc.ShowElements(ids);
                 }
                 return Result.Succeeded;
             }

@@ -69,7 +69,7 @@ namespace StingTools.Core.Evm
     {
         public string ProjectName { get; set; } = "";
         public string ContractRef { get; set; } = "";
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
         public List<EvmPeriod> Periods { get; set; } = new List<EvmPeriod>();
 
@@ -133,6 +133,41 @@ namespace StingTools.Core.Evm
             }
             catch (Exception ex) { StingLog.Warn($"EvmCalculator.ImportActualsToDate: {ex.Message}"); }
             return Math.Round(total, 2);
+        }
+
+        /// <summary>
+        /// B.5 — cumulative ACWP across EVERY actuals_*.csv under <paramref name="dir"/>,
+        /// to <paramref name="asOf"/>. Files with identical content are counted ONCE
+        /// (SHA-256 dedupe) so re-dropping the same export — or a copy of it — can't
+        /// double-count. Returns the merged cumulative; outputs how many unique files
+        /// were read and how many duplicates were skipped so the caller can warn.
+        /// </summary>
+        public static double ImportAllActualsToDate(string dir, DateTime asOf,
+            out int filesRead, out int duplicatesSkipped)
+        {
+            filesRead = 0; duplicatesSkipped = 0;
+            double total = 0;
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in Directory.EnumerateFiles(dir, "actuals_*.csv").OrderBy(x => x))
+            {
+                try
+                {
+                    string hash = FileHash(f);
+                    if (!seen.Add(hash)) { duplicatesSkipped++; continue; }  // identical content already counted
+                    total += ImportActualsToDate(f, asOf);
+                    filesRead++;
+                }
+                catch (Exception ex) { StingLog.Warn($"ImportAllActualsToDate({Path.GetFileName(f)}): {ex.Message}"); }
+            }
+            return Math.Round(total, 2);
+        }
+
+        private static string FileHash(string path)
+        {
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            using (var fs = File.OpenRead(path))
+                return Convert.ToHexString(sha.ComputeHash(fs));
         }
 
         public static string Save(Document doc, EvmReport report)

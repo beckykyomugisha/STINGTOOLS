@@ -58,7 +58,7 @@ namespace StingTools.BOQ.Rates
             double ugxPerGbp = 0)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -68,6 +68,7 @@ namespace StingTools.BOQ.Rates
         public static void Invalidate() => _cache.Clear();
 
         private static RateProviderRegistry Build(
+            Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             double ugxPerUsd, double ugxPerGbp)
@@ -76,6 +77,12 @@ namespace StingTools.BOQ.Rates
             {
                 new ParameterOverrideRateProvider(),
                 new ExtensibleStorageRateProvider(),
+                // P3.4 — project rate card (incl. QS-Bill-imported rates at
+                // <project>/_BIM_COORD/rate_card.json). Priority 87 sits above
+                // CSV so a QS-priced category beats the corporate default.
+                // Returns null when the file is absent, so legacy projects are
+                // unaffected.
+                Providers.ProjectRateCardProvider.Load(doc),
                 // N+8 — Material-library rate (priority 95). Sits above CSV
                 // category match so a project that has curated material cost
                 // in the MAT panel always wins over the cost_rates_5d.csv

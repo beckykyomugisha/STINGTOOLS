@@ -32,7 +32,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Contract reference defaults to project number.
@@ -55,6 +55,7 @@ namespace StingTools.Commands.Cost
                 ContractForm form = PickContractForm();
 
                 var cert = PaymentCertEngine.CreateDraft(doc, contractRef, form, sov);
+                cert.Currency = boq.Currency ?? "UGX";   // B.1 — project currency, not a hardcoded literal
                 cert.EmployerName = doc.ProjectInformation?.OrganizationName ?? "";
                 cert.ContractorName = ParameterHelpers.GetString(doc.ProjectInformation,
                     "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT") ?? "";
@@ -169,7 +170,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = PaymentCertEngine.ListCerts(doc);
@@ -254,7 +255,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = PaymentCertEngine.ListCerts(doc);

@@ -60,7 +60,8 @@ namespace StingTools.BOQ
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
-        internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null)
+        internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
+            BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
@@ -109,8 +110,16 @@ namespace StingTools.BOQ
             if (extraManualRows != null)
                 items.AddRange(extraManualRows.Select(r => r.Clone()));
 
+            // ── STEP 6b (P1.2): Aggregate near-identical modelled rows ───
+            // Collapse 7 identical showers into 1 row (Qty 7), preserving the
+            // constituent element ids for drill-down. Manual/PS rows pass
+            // through untouched. Toggle off via COST_AGGREGATE_SIMILAR=false.
+            // The grouping mode feeds the aggregation key (P2.2) so similar
+            // items collapse within the active spatial dimension.
+            items = AggregateLineItems(items, grouping);
+
             // ── STEP 7: Group into sections ──────────────────────────────
-            boq.Sections = GroupIntoSections(items);
+            boq.Sections = GroupIntoSections(items, grouping);
 
             // ── STEP 7b (Phase 108f): apply persisted model-row overrides.
             // This runs AFTER the full line-item list is assembled so rate +
@@ -245,6 +254,7 @@ namespace StingTools.BOQ
                 UniqueId = el.UniqueId,
                 Level = GetLevelName(doc, el),
                 Location = GetLocationName(doc, el),
+                Zone = GetZoneName(el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence
@@ -806,58 +816,80 @@ namespace StingTools.BOQ
             int written = 0;
             foreach (var item in items)
             {
-                if (item.RevitElementId < 0) continue;
-                Element el;
-                try { el = doc.GetElement(new ElementId(item.RevitElementId)); }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
-                if (el == null) continue;
+                // P1.2 — aggregated rows stamp EVERY constituent element. Shared
+                // per-unit fields (rate / source / section / paragraph /
+                // confidence) write to all; quantity / total / carbon /
+                // lifecycle are re-derived per element so each carries its own
+                // measured figure rather than the merged sum. Single-element +
+                // manual rows keep exact prior behaviour.
+                List<long> ids =
+                    (item.ConstituentElementIds != null && item.ConstituentElementIds.Count > 0)
+                        ? item.ConstituentElementIds
+                        : (item.RevitElementId >= 0 ? new List<long> { item.RevitElementId } : null);
+                if (ids == null) continue;
+                bool aggregated = ids.Count > 1;
 
-                // Rate fields — always write both currencies so the element stays
-                // currency-agnostic across sessions (Gap G3).
-                WriteIfChanged(el, "CST_UNIT_RATE_UGX", item.RateUGX.ToString("F0", CultureInfo.InvariantCulture), ref written);
-                WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
-                WriteIfChanged(el, "CST_QTY_MEASURED", $"{item.Quantity:F3} {item.Unit}", ref written);
-
-                // Computed total — stored as NUMBER parameter
-                TrySetNumber(el, "CST_MODELED_TOTAL_UGX", item.TotalUGX, ref written);
-
-                WriteIfChanged(el, "CST_RATE_SOURCE", item.RateSource ?? "", ref written);
-
-                if (!string.IsNullOrEmpty(item.SnapshotRef))
-                    WriteIfChanged(el, "CST_BOQ_SNAPSHOT_REF", item.SnapshotRef, ref written);
-
-                // Paragraph — audit trail (Phase 11D)
-                string currentPara = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT") ?? "";
-                if (!string.IsNullOrEmpty(item.ResolvedNRM2Paragraph) && currentPara != item.ResolvedNRM2Paragraph)
+                foreach (long rid in ids)
                 {
-                    if (!string.IsNullOrEmpty(currentPara))
-                    {
-                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_PREV_TXT", currentPara, overwrite: true);
-                    }
-                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_TXT", item.ResolvedNRM2Paragraph, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_DATE_TXT",
-                        DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_AUTHOR_TXT", Environment.UserName ?? "", overwrite: true);
-                    written++;
-                }
+                    Element el;
+                    try { el = doc.GetElement(new ElementId(rid)); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+                    if (el == null) continue;
 
-                // Line ref is write-once — never overwrite an explicit user-assigned ref (Gap G8)
-                if (!string.IsNullOrEmpty(item.BOQLineRef))
-                {
-                    string existingRef = ParameterHelpers.GetString(el, "ASS_BOQ_LINE_REF");
-                    if (string.IsNullOrEmpty(existingRef))
+                    double qty = aggregated ? DeriveQuantity(el, item.Unit) : item.Quantity;
+                    double totalUgx = Math.Round(qty * item.RateUGX, 0);
+                    double carbonKg = aggregated
+                        ? ComputeElementCarbon(el, qty, item.Unit) : item.EmbodiedCarbonKg;
+                    double lifecycleUgx = aggregated
+                        ? ComputeLifecycleCost(item.RateUGX * qty, item.Category) : item.LifecycleCostUGX;
+
+                    // Rate fields — always write both currencies so the element
+                    // stays currency-agnostic across sessions (Gap G3).
+                    WriteIfChanged(el, "CST_UNIT_RATE_UGX", item.RateUGX.ToString("F0", CultureInfo.InvariantCulture), ref written);
+                    WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
+                    WriteIfChanged(el, "CST_QTY_MEASURED", $"{qty:F3} {item.Unit}", ref written);
+
+                    // Computed total — stored as NUMBER parameter
+                    TrySetNumber(el, "CST_MODELED_TOTAL_UGX", totalUgx, ref written);
+
+                    WriteIfChanged(el, "CST_RATE_SOURCE", item.RateSource ?? "", ref written);
+
+                    if (!string.IsNullOrEmpty(item.SnapshotRef))
+                        WriteIfChanged(el, "CST_BOQ_SNAPSHOT_REF", item.SnapshotRef, ref written);
+
+                    // Paragraph — audit trail (Phase 11D)
+                    string currentPara = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT") ?? "";
+                    if (!string.IsNullOrEmpty(item.ResolvedNRM2Paragraph) && currentPara != item.ResolvedNRM2Paragraph)
                     {
-                        ParameterHelpers.SetString(el, "ASS_BOQ_LINE_REF", item.BOQLineRef, overwrite: true);
+                        if (!string.IsNullOrEmpty(currentPara))
+                        {
+                            ParameterHelpers.SetString(el, "ASS_NRM2_PARA_PREV_TXT", currentPara, overwrite: true);
+                        }
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_TXT", item.ResolvedNRM2Paragraph, overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_DATE_TXT",
+                            DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_AUTHOR_TXT", Environment.UserName ?? "", overwrite: true);
                         written++;
                     }
+
+                    // Line ref is write-once — never overwrite an explicit user-assigned ref (Gap G8)
+                    if (!string.IsNullOrEmpty(item.BOQLineRef))
+                    {
+                        string existingRef = ParameterHelpers.GetString(el, "ASS_BOQ_LINE_REF");
+                        if (string.IsNullOrEmpty(existingRef))
+                        {
+                            ParameterHelpers.SetString(el, "ASS_BOQ_LINE_REF", item.BOQLineRef, overwrite: true);
+                            written++;
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(item.Category))
+                        WriteIfChanged(el, "ASS_BOQ_SECTION_NAME", item.Category, ref written);
+
+                    TrySetNumber(el, "CST_EMBODIED_CARBON_KG", carbonKg, ref written);
+                    TrySetNumber(el, "CST_LIFECYCLE_COST_UGX", lifecycleUgx, ref written);
+                    ParameterHelpers.SetInt(el, "CST_RATE_CONFIDENCE", item.RateConfidence, overwrite: true);
                 }
-
-                if (!string.IsNullOrEmpty(item.Category))
-                    WriteIfChanged(el, "ASS_BOQ_SECTION_NAME", item.Category, ref written);
-
-                TrySetNumber(el, "CST_EMBODIED_CARBON_KG", item.EmbodiedCarbonKg, ref written);
-                TrySetNumber(el, "CST_LIFECYCLE_COST_UGX", item.LifecycleCostUGX, ref written);
-                ParameterHelpers.SetInt(el, "CST_RATE_CONFIDENCE", item.RateConfidence, overwrite: true);
             }
             return written;
         }
@@ -1443,6 +1475,7 @@ namespace StingTools.BOQ
                     if (ov.RateUSD.HasValue) existing.RateUSD = ov.RateUSD;
                     if (ov.NRM2Paragraph != null) existing.NRM2Paragraph = ov.NRM2Paragraph;
                     if (ov.Note != null) existing.Note = ov.Note;
+                    if (ov.RateSource != null) existing.RateSource = ov.RateSource;
                     existing.Modified = DateTime.UtcNow;
                     existing.ModifiedBy = Environment.UserName ?? "";
                     if (ov.ElementId > 0) existing.ElementId = ov.ElementId; // refresh the current-session id
@@ -1493,7 +1526,7 @@ namespace StingTools.BOQ
                 {
                     item.RateUGX = ov.RateUGX.Value;
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
-                    item.RateSource = "Override";
+                    item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
                 }
                 if (!string.IsNullOrEmpty(ov.NRM2Paragraph)) item.ResolvedNRM2Paragraph = ov.NRM2Paragraph;
@@ -1755,17 +1788,70 @@ namespace StingTools.BOQ
             return map;
         }
 
+        // P1.1 — non-measurable categories that must never reach takeoff.
+        // 2D content (detail components, filled regions, lines, annotation,
+        // text, dimensions) and linked/imported geometry carry no measurable
+        // quantity and otherwise leak in as "Qty 1.000 each" noise rows
+        // (e.g. a "Small Power legend.dwg" filled region repeated 275×).
+        private static readonly HashSet<BuiltInCategory> _defaultExcludedBic = new HashSet<BuiltInCategory>
+        {
+            BuiltInCategory.OST_DetailComponents,
+            BuiltInCategory.OST_FilledRegion,
+            BuiltInCategory.OST_Lines,            // model + detail lines
+            BuiltInCategory.OST_SketchLines,
+            BuiltInCategory.OST_GenericAnnotation,
+            BuiltInCategory.OST_TextNotes,
+            BuiltInCategory.OST_Dimensions,
+            BuiltInCategory.OST_RvtLinks,
+            BuiltInCategory.OST_RasterImages,
+        };
+
+        /// <summary>
+        /// Category display names the project wants excluded from takeoff, on
+        /// top of <see cref="_defaultExcludedBic"/>. Data-driven via the config
+        /// key COST_TAKEOFF_EXCLUDE_CATEGORIES (comma-separated). Empty by
+        /// default so the hard-coded BIC set governs out of the box.
+        /// </summary>
+        private static HashSet<string> BuildExcludedCategoryNames()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csv = TagConfig.GetConfigValue("COST_TAKEOFF_EXCLUDE_CATEGORIES");
+                if (!string.IsNullOrWhiteSpace(csv))
+                    foreach (var token in csv.Split(','))
+                        if (!string.IsNullOrWhiteSpace(token)) set.Add(token.Trim());
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildExcludedCategoryNames: {ex.Message}"); }
+            return set;
+        }
+
         private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)
         {
             var list = new List<Element>();
+            var excludedNames = BuildExcludedCategoryNames();
+            int excluded = 0;
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             var catEnums = SharedParamGuids.AllCategoryEnums;
             if (catEnums != null && catEnums.Length > 0)
                 collector = collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             foreach (Element el in collector)
             {
+                // P1.1 — CAD imports carry no measurable model quantity.
+                if (el is ImportInstance) { excluded++; continue; }
+
+                // P1.1 — reject 2D / annotation / link categories.
+                Category cObj = el.Category;
+                if (cObj != null && cObj.Id != null && cObj.Id.Value < 0
+                    && _defaultExcludedBic.Contains((BuiltInCategory)cObj.Id.Value))
+                {
+                    excluded++;
+                    continue;
+                }
+
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat)) continue;
+                if (excludedNames.Contains(cat)) { excluded++; continue; }
                 if (!knownCategories.Contains(cat)) continue;
                 if (cat.Equals("Rooms", StringComparison.OrdinalIgnoreCase)
                     || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
@@ -1773,6 +1859,9 @@ namespace StingTools.BOQ
                     continue;
                 list.Add(el);
             }
+            if (excluded > 0)
+                StingLog.Info($"BOQ takeoff: excluded {excluded} non-measurable element(s) " +
+                              "(2D content / annotation / CAD imports).");
             return list;
         }
 
@@ -1791,7 +1880,183 @@ namespace StingTools.BOQ
             return false;
         }
 
-        private static List<BOQSection> GroupIntoSections(List<BOQLineItem> items)
+        // ══════════════════════════════════════════════════════════════════
+        //  P1.2 — Aggregation
+        //  Collapse near-identical modelled line items into one row carrying
+        //  the summed quantity + constituent element ids. Reversible: the
+        //  panel drills down via ConstituentElementIds (P2). Manual/PS rows
+        //  are NEVER aggregated — they pass through untouched.
+        //  grouping: when a spatial grouping mode is active (P2.2) the matching
+        //  spatial field (Level / Zone / Location) joins the key so similar
+        //  items aggregate WITHIN a level/zone/room rather than across the
+        //  whole project.
+        // ══════════════════════════════════════════════════════════════════
+        internal static List<BOQLineItem> AggregateLineItems(
+            List<BOQLineItem> items, BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
+        {
+            if (items == null || items.Count == 0) return items;
+            if (!GetConfigBool("COST_AGGREGATE_SIMILAR", true)) return items;
+
+            var result = new List<BOQLineItem>(items.Count);
+            var modelRows = new List<BOQLineItem>();
+            foreach (var it in items)
+            {
+                if (it.Source == BOQRowSource.Model) modelRows.Add(it);
+                else result.Add(it);          // manual / PS pass through verbatim
+            }
+
+            // The spatial portion of the aggregation key tracks the grouping
+            // dimension so a By-Level bill never merges identical items across
+            // two levels into one row.
+            string SpatialPart(BOQLineItem i)
+            {
+                switch (grouping)
+                {
+                    case BoqGroupingMode.Level:
+                    case BoqGroupingMode.LevelThenWorkSection: return i.Level ?? "";
+                    case BoqGroupingMode.Zone:                 return i.Zone ?? "";
+                    case BoqGroupingMode.Location:             return i.Location ?? "";
+                    default:                                   return "";
+                }
+            }
+
+            string Key(BOQLineItem i) => string.Join("|", new[]
+            {
+                i.NRM2Section ?? "", i.Category ?? "", i.Discipline ?? "",
+                i.FamilyName ?? "", i.TypeName ?? "", i.Unit ?? "",
+                SpatialPart(i)
+            });
+
+            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+
+            foreach (var grp in modelRows.GroupBy(Key))
+            {
+                var rows = grp.ToList();
+                if (rows.Count == 1)
+                {
+                    var only = rows[0];
+                    only.SimilarCount = 1;
+                    only.AggregationKey = grp.Key;
+                    only.ConstituentElementIds = only.RevitElementId >= 0
+                        ? new List<long> { only.RevitElementId } : new List<long>();
+                    result.Add(only);
+                    continue;
+                }
+
+                // Representative = most-confident (then highest rate) so the
+                // merged row keeps a real, defensible per-unit rate.
+                var rep = rows.OrderByDescending(r => r.RateConfidence)
+                              .ThenByDescending(r => r.RateUGX)
+                              .First();
+                var agg = rep.Clone();
+                agg.Id = Guid.NewGuid().ToString("N");
+                agg.SimilarCount = rows.Count;
+                agg.AggregationKey = grp.Key;
+                agg.Quantity = rows.Sum(r => r.Quantity);
+                agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
+                agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
+                agg.RateConfidence = rows.Min(r => r.RateConfidence);
+                agg.ConstituentElementIds = rows
+                    .Where(r => r.RevitElementId >= 0)
+                    .Select(r => r.RevitElementId)
+                    .ToList();
+                agg.Level = UniformOr(rows.Select(r => r.Level));
+                agg.Location = UniformOr(rows.Select(r => r.Location));
+
+                // Rate disagreement within a group → take the modal rate
+                // (most-confident wins ties) and warn. Per-unit rates for the
+                // same family+type should match; differences usually mean an
+                // ad-hoc per-element override.
+                var distinctRates = rows.Select(r => Math.Round(r.RateUGX, 2)).Distinct().ToList();
+                if (distinctRates.Count > 1)
+                {
+                    double modalRate = rows
+                        .GroupBy(r => Math.Round(r.RateUGX, 2))
+                        .OrderByDescending(g => g.Count())
+                        .ThenByDescending(g => g.Max(r => r.RateConfidence))
+                        .First().Key;
+                    agg.RateUGX = modalRate;
+                    agg.RateUSD = ugxPerUsd > 0 ? Math.Round(modalRate / ugxPerUsd, 2) : 0;
+                    StingLog.WarnRateLimited("BOQAggRate",
+                        $"Aggregated row '{agg.ItemName}' had {distinctRates.Count} differing rates; " +
+                        $"took modal {modalRate:N0} UGX across {rows.Count} elements.");
+                }
+
+                agg.Note = AppendNote(agg.Note, $"Aggregated {rows.Count} similar elements.");
+                result.Add(agg);
+            }
+            return result;
+        }
+
+        /// <summary>Returns the shared value when every entry agrees, else a
+        /// "(various)" sentinel so the row stays filterable.</summary>
+        private static string UniformOr(IEnumerable<string> values, string sentinel = "(various)")
+        {
+            var distinct = values
+                .Select(v => v ?? "")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return distinct.Count == 1 ? distinct[0] : sentinel;
+        }
+
+        private static string AppendNote(string existing, string addition)
+        {
+            if (string.IsNullOrEmpty(addition)) return existing;
+            return string.IsNullOrEmpty(existing) ? addition : $"{existing} {addition}";
+        }
+
+        /// <summary>Reads a boolean config knob. Accepts true/false, 1/0,
+        /// yes/no. Missing key → defaultValue.</summary>
+        private static bool GetConfigBool(string key, bool defaultValue)
+        {
+            try
+            {
+                string raw = TagConfig.GetConfigValue(key);
+                if (string.IsNullOrWhiteSpace(raw)) return defaultValue;
+                raw = raw.Trim().ToLowerInvariant();
+                if (raw == "true" || raw == "1" || raw == "yes" || raw == "on") return true;
+                if (raw == "false" || raw == "0" || raw == "no" || raw == "off") return false;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetConfigBool({key}): {ex.Message}"); }
+            return defaultValue;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  P2.2 — Grouping strategies.
+        //  WorkSection = elemental NRM2 bill (default, unchanged). Level / Zone
+        //  / Location = locational bills. LevelThenWorkSection = the proper
+        //  NRM2 locational bill (level heading, NRM2 § within).
+        // ══════════════════════════════════════════════════════════════════
+        private static List<BOQSection> GroupIntoSections(
+            List<BOQLineItem> items, BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
+        {
+            switch (grouping)
+            {
+                case BoqGroupingMode.Level:
+                    return GroupBySpatial(items, i => Blank(i.Level, "(no level)"));
+                case BoqGroupingMode.Zone:
+                    return GroupBySpatial(items, i => Blank(i.Zone, "(no zone)"));
+                case BoqGroupingMode.Location:
+                    return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
+                case BoqGroupingMode.LevelThenWorkSection:
+                    return GroupByLevelThenSection(items);
+                case BoqGroupingMode.WorkSection:
+                default:
+                    return GroupByWorkSection(items);
+            }
+        }
+
+        private static string Blank(string s, string fallback)
+            => string.IsNullOrWhiteSpace(s) ? fallback : s;
+
+        private static List<BOQLineItem> OrderItemsForSection(IEnumerable<BOQLineItem> items)
+            => items.OrderBy(x => (int)x.Source)
+                    .ThenBy(x => ParseSectionInt(x.NRM2Section))
+                    .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+        private static List<BOQSection> GroupByWorkSection(List<BOQLineItem> items)
         {
             var groups = items
                 .GroupBy(i => (i.NRM2Section ?? "00", i.Discipline ?? "X"))
@@ -1801,17 +2066,65 @@ namespace StingTools.BOQ
             var sections = new List<BOQSection>();
             foreach (var g in groups)
             {
-                var section = new BOQSection
+                sections.Add(new BOQSection
                 {
                     NRM2Section = g.Key.Item1,
                     Discipline = g.Key.Item2,
                     Name = GuessSectionName(g.Key.Item1, g.First().Category),
-                    Items = g.OrderBy(x => (int)x.Source)
-                        .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
-                        .ToList()
-                };
-                sections.Add(section);
+                    Items = OrderItemsForSection(g)
+                });
+            }
+            return sections;
+        }
+
+        /// <summary>One section per spatial value (level / zone / location).
+        /// Items within a section read in NRM2 trade order. NRM2Section is left
+        /// blank so AssignBoqLineRefs uses an ordinal prefix.</summary>
+        private static List<BOQSection> GroupBySpatial(
+            List<BOQLineItem> items, Func<BOQLineItem, string> keySelector)
+        {
+            var groups = items
+                .GroupBy(keySelector)
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            var sections = new List<BOQSection>();
+            foreach (var g in groups)
+            {
+                var discs = g.Select(x => x.Discipline ?? "X")
+                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                sections.Add(new BOQSection
+                {
+                    NRM2Section = "",                       // ordinal ref prefix
+                    Discipline = discs.Count == 1 ? discs[0] : "*",
+                    Name = g.Key,
+                    Items = OrderItemsForSection(g)
+                });
+            }
+            return sections;
+        }
+
+        /// <summary>Locational NRM2 bill — level heading, NRM2 § within. Keeps
+        /// the numeric NRM2 ref prefix.</summary>
+        private static List<BOQSection> GroupByLevelThenSection(List<BOQLineItem> items)
+        {
+            var groups = items
+                .GroupBy(i => (Level: Blank(i.Level, "(no level)"),
+                               Sec: i.NRM2Section ?? "00",
+                               Disc: i.Discipline ?? "X"))
+                .OrderBy(g => g.Key.Level, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(g => ParseSectionInt(g.Key.Sec))
+                .ThenBy(g => g.Key.Disc, StringComparer.OrdinalIgnoreCase);
+
+            var sections = new List<BOQSection>();
+            foreach (var g in groups)
+            {
+                sections.Add(new BOQSection
+                {
+                    NRM2Section = g.Key.Sec,
+                    Discipline = g.Key.Disc,
+                    Name = $"{g.Key.Level} — {GuessSectionName(g.Key.Sec, g.First().Category)}",
+                    Items = OrderItemsForSection(g)
+                });
             }
             return sections;
         }
@@ -1855,13 +2168,21 @@ namespace StingTools.BOQ
 
         private static void AssignBoqLineRefs(BOQDocument boq)
         {
+            int secOrdinal = 0;
             foreach (var section in boq.Sections)
             {
+                secOrdinal++;
+                // Work-section bills keep the numeric NRM2 prefix (e.g. "14.1.3");
+                // spatial bills (blank NRM2Section) fall back to a document
+                // section ordinal so refs stay unique + sequential.
+                string prefix = string.IsNullOrWhiteSpace(section.NRM2Section)
+                    ? secOrdinal.ToString(CultureInfo.InvariantCulture)
+                    : section.NRM2Section;
                 int rowIndex = 1;
                 string sectionIndex = "1";
                 foreach (var item in section.Items)
                 {
-                    item.BOQLineRef = $"{section.NRM2Section}.{sectionIndex}.{rowIndex}";
+                    item.BOQLineRef = $"{prefix}.{sectionIndex}.{rowIndex}";
                     rowIndex++;
                 }
             }
@@ -1979,6 +2300,13 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"GetLocationName: {ex.Message}"); }
             return "";
+        }
+
+        private static string GetZoneName(Element el)
+        {
+            // P2.2 — zone grouping key. Prefer the ISO 19650 ZONE token.
+            string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+            return string.IsNullOrEmpty(zone) ? "" : zone;
         }
 
         private static string GetPrimaryMaterialName(Element el)

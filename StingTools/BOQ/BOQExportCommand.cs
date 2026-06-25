@@ -490,6 +490,8 @@ namespace StingTools.BOQ
             BOQRowSource.Model => "Model",
             BOQRowSource.Manual => "Manual",
             BOQRowSource.ProvisionalSum => "Provisional Sum",
+            BOQRowSource.Dayworks => "Dayworks",
+            BOQRowSource.PCSum => "PC Sum",
             _ => ""
         };
 

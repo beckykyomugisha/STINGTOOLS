@@ -3,6 +3,327 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS Upgrade — integration + Stage-B bug fixes)
+
+Consolidated P1–P4 onto one linear stack (`main→P1→P2→P3→P0fix→P4`) and
+fixed the verified bugs from review. Branch `claude/boq-cost-integrated`.
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet
+Revit-runtime-verified.**
+
+**Stage A — integration.** Cherry-picked the P0 button-revive fix + P4 onto
+the P1–P3 stack (excluding an unrelated stray `.rfa`-deletion commit). Only
+`CHANGELOG.md` needed manual conflict resolution (kept both sides); panel,
+command-handler and `CostCommands` auto-merged. Re-verified the P0
+doc-acquisition fix (`ParameterHelpers.GetDoc`) across all six Cost command
+files — 0 remaining `commandData.Application.ActiveUIDocument` patterns.
+
+**Stage B — bug fixes:**
+
+- **B.1 (currency)** — cost code no longer hardcodes `"GBP"` while values are
+  UGX. Defaults flipped to `"UGX"` in `PaymentCertModels` / `VariationModels`
+  / `EvmCalculator`; `PaymentCertEngine.CreateDraft` + `VariationEngine.FromDiff`
+  take the project currency (threaded from `boq.Currency` at the call sites);
+  star-rate dialog + labels, ACWP display and the ES-migration stamp all use
+  the project currency. Grep for hardcoded `"GBP"` across Core/PaymentCert,
+  Core/Variation, Core/Evm, Commands/Cost = **0**. (Label correctness only —
+  no FX conversion.) **NRM1 cost-plan benchmarks stay GBP on purpose** — they
+  are genuinely £/m² GIFA figures; the display now reads `CostPlanDocument.Currency`
+  (a field, not a literal). See ROADMAP for the UGX-benchmark follow-up.
+- **B.2 (omissions)** — `VariationEngine.FromDiff` now signs every change-type:
+  `ItemRemoved` → `Qty=QtyA, Rate=−RateA` (Omission, negative value);
+  `QtyChanged` → `Qty=QtyB−QtyA` (signed) at the current rate. Removed scope
+  now reaches the VO net total instead of being zeroed.
+- **B.3 (AFC double-count)** — `Cost_AnticipatedFinalCost` anchors on a **frozen
+  contract sum** (earliest non-draft payment cert's SOV total) rather than the
+  live BOQ grand total (which already reflects the changes the agreed VOs were
+  minted from). `AFC = contractSum + agreed + pending`. When no issued cert
+  exists it falls back to the live grand total and the report states that
+  assumption (on screen + in the XLSX).
+- **B.4 (retention cap)** — retention is now capped at the contractual cumulative
+  ceiling (`RetentionPercent × contract sum`, JCT 2024 §4.10 / NEC4 X16). New
+  `PaymentCertificate.RetentionCapAmount` (headroom = cap − prior withheld) set
+  in `CreateDraft`; `RetentionAmount` returns `min(raw, headroom)`. Once the cap
+  is reached, per-cert retention is 0. Nullable ⇒ legacy certs deserialise
+  unchanged.
+- **B.5 (EVM actuals double-count)** — new `EvmCalculator.ImportAllActualsToDate`
+  sums **all** `actuals_*.csv` cumulatively and **dedupes by SHA-256 content**
+  so a re-dropped export can't be counted twice. Both `Evm_Calculate` (ACWP)
+  and `Evm_ImportActuals` use it; the import dialog shows the project-currency
+  cumulative + files-read + duplicates-skipped.
+
+**B.6 (minor — noted, not changed to avoid regressions):**
+- `AssignBoqLineRefs` middle index is still the literal `1` (`{section}.1.{n}`).
+  Refs stay unique within a section (rowIndex increments), so this is cosmetic;
+  changing the format risks the write-once `ASS_BOQ_LINE_REF` stamp. See ROADMAP.
+- P3 QS import reads the **literal rate column** (not the Amount formula) and
+  parses leniently; a blank rate is treated as "unpriced / no change". A
+  per-cell warning for genuinely **non-numeric** rate text is a deferred minor
+  enhancement (see ROADMAP).
+
+**Revit manual-test checklist:** see Stage C below.
+
+#### Completed (BOQ QS Upgrade — P3: QS round-trip + hybrid bill)
+
+Third phase of the QS BOQ upgrade — the Excel exchange surface a Quantity
+Surveyor actually works in. Branch `claude/boq-p3-qs-roundtrip` (off P2).
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet Revit-
+runtime-verified.**
+
+**P3.1 — First-class manual / PS / daywork / PC-sum rows**:
+- `BOQRowSource` gains `Dayworks` + `PCSum`. New `BoqSourceUtil` (Label /
+  Parse / IsQsAuthored) gives one canonical spelling per source across
+  the export label, import parser and panel.
+- Panel: source colours + dot + "Src" label extended; context menu adds
+  "Mark as dayworks" / "Mark as PC sum"; Add-row flow prompts for the row
+  type. `BOQAddManualRowCommand` honours it. All non-Model rows persist to
+  the manual store (`PersistManualRows`) so they survive a model
+  re-takeoff and are never overwritten by it.
+
+**P3.2 — QS export (priced / unpriced)** (`BOQQsExportCommand`,
+tag `BOQQsExport`):
+- New single "QS Bill" sheet in NRM2 trade order: Ref / Description / Unit
+  / Qty / Rate / Amount, per-section **collections** + a grand summary
+  (subtotal → prelims → contingency → OH&P → grand total) reusing the
+  document's percentages. Amount is a `=Qty*Rate` formula so an **unpriced**
+  bill computes the moment the QS fills a rate.
+- Every row carries a **stable hidden `_key`** (`BoqRowKey`): `UID:<uniqueId>`
+  for model rows (what `ApplyModelOverrides` already matches on, so it
+  survives a rebuild + BOQ-ref renumber), `MAN:<id>` for QS-authored rows.
+
+**P3.3 — QS import with diff** (`BOQQsImportCommand`, tag `BOQQsImport`):
+- Reads the returned workbook, matches by `_key`, and shows a diff grid
+  (`StingDataGridDialog`): rate changes / new rows / **model-quantity
+  drift** / unmatched — with an Apply/Cancel gate.
+- On apply: model rates → per-element override sidecar with
+  `RateSource="QS"` (new `BOQModelOverride.RateSource`, honoured by
+  `ApplyModelOverrides`); manual/PS/daywork rates → manual store by Id;
+  QS-added rows → new Manual rows. **Model quantities are preserved** — a
+  QS quantity change is flagged on the row note for review, never silently
+  applied.
+
+**P3.4 — Rate library** layered through `RateProviderRegistry`:
+- `ProjectRateCardProvider` is now part of the **default** build chain
+  (was only registered by `Cost_ReloadRules`), so `<project>/_BIM_COORD/
+  rate_card.json` applies on every build. The QS import seeds that file
+  with category → modal rate, so the QS's prices feed future similar
+  elements through the existing provider pipeline.
+
+**Revit manual-test checklist (P3)**:
+1. Actions tab → Export QS Bill → Unpriced → open the xlsx; fill some
+   rates; confirm Amount auto-computes; the `_key` column is hidden.
+2. Import QS Bill → pick that file → diff grid lists the rate changes →
+   Apply → Refresh → rates show with Src=QS and survive a Refresh.
+3. Change a model element's geometry (so BOQ refs renumber) → re-import an
+   earlier priced bill → rates still land on the right rows (UID key).
+4. Add a Manual/PS/Dayworks/PC-sum row → Refresh (full rebuild) → it
+   survives.
+5. Export priced → edit a Qty in Excel → import → "Qty drift (model)"
+   flagged, model qty unchanged.
+6. After import, confirm `<project>/_BIM_COORD/rate_card.json` exists and a
+   fresh build picks up those category rates.
+
+**Caveats (P3)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. The import diff is whole-batch Apply/Cancel (no per-row accept/reject
+   checkboxes yet) — the preview grid lists every change for review first.
+3. `rate_card.json` seeding is category-grained (last-priced wins per
+   category); exact per-row fidelity comes from the override sidecar.
+4. The QS export always uses NRM2 work-section (trade) order regardless of
+   the panel's active grouping mode — correct for a tender bill.
+
+#### Completed (BOQ QS Upgrade — P2: location column, spatial grouping, print profiles)
+
+Second phase of the QS BOQ upgrade. Presentation + grouping layer on top
+of P1's aggregation. Branch `claude/boq-p2-grouping` (off P1). **Built
+clean against Revit 2025 (0 warnings, 0 errors); not yet Revit-runtime-
+verified.**
+
+**P2.1 — Location / Level columns + visibility toggle** (`BOQCostManagerPanel`):
+- Item grid gains read-only `Level` + `Location` columns
+  (`BOQItemViewModel.LevelDisplay` / `LocationDisplay`).
+- New "▦ Columns" toolbar dropdown — checkable show/hide for the six
+  toggleable columns (Level / Location / Source / Confidence / CO₂ /
+  Note); core columns (Ref / Item / Qty / Unit / Rate / Total) always
+  shown. Hidden columns tracked in `_hiddenColumns`; grids rebuild on
+  toggle. The movable Note column is now edited by header
+  (`BeginEditCellByHeader`) since toggleable columns shift indices.
+
+**P2.2 — Grouping modes** (`BOQCostManager.GroupIntoSections` strategy):
+- New `BoqGroupingMode` enum (WorkSection / Level / Zone /
+  LevelThenWorkSection / Location). `GroupIntoSections` refactored from a
+  hard-coded `(NRM2, Discipline)` tuple into a strategy dispatch:
+  `GroupByWorkSection` (default, unchanged), `GroupBySpatial`,
+  `GroupByLevelThenSection`. `BuildBOQDocument` takes an optional
+  `BoqGroupingMode` (default WorkSection → existing callers unaffected).
+- The mode feeds the P1 aggregation key (`AggregateLineItems` now takes
+  the mode) so a By-Level bill aggregates within a level, never across.
+- `BOQLineItem` gains a `Zone` field (ASS_ZONE_TXT) for zone grouping;
+  additive + cloned. `AssignBoqLineRefs` falls back to a section ordinal
+  prefix for spatial bills (blank NRM2 §) while keeping the exact
+  numeric `14.1.x` refs for work-section bills.
+- Toolbar "Group:" dropdown; changing it re-aggregates + re-groups
+  (full `RefreshAsync`) and re-expands sections.
+
+**P2.3 — Print / export column profiles**
+(`BoqPrintProfile` + `STING_BOQ_PRINT_PROFILES.json`):
+- New `BoqPrintProfileRegistry` (mirrors `TakeoffRuleRegistry`):
+  corporate baseline in `Data/STING_BOQ_PRINT_PROFILES.json` + project
+  override `<project>/_BIM_COORD/boq_print_profiles.json` (prepended by
+  id). Ships 4 profiles: Internal (all), Tender (price-only), Locational
+  (level + location), Carbon review.
+- Toolbar "Profile:" dropdown sets the grid's visible-column set in one
+  click. The two existing exports already embody the two ends: **BOQ
+  Export** (Item Schedule sheet) is the full round-trip/internal bill;
+  **Professional Export** is the price-only tender bill.
+
+**P1 aggregation drill-down** (deferred from P1): right-click an
+aggregated row → "Select all N similar in Revit" selects every
+constituent element. `BOQSelectInRevitCommand` now accepts a
+comma-separated id list.
+
+**Revit manual-test checklist (P2)**:
+1. Switch "Group:" to Level → bill regroups into level sections; refs
+   stay unique; identical items aggregate within each level.
+2. Switch to Zone / Location → confirm grouping by ASS_ZONE_TXT / room.
+3. "▦ Columns" → hide Location → column disappears from every section
+   grid; show it again → returns.
+4. "Profile:" → Tender → only Ref/Item/Unit/Qty/Rate/Total show.
+5. Right-click an aggregated row → "Select all N similar in Revit" →
+   all constituent elements select + zoom.
+6. Edit a Note inline after hiding columns → still works (header-based).
+7. Professional Export → tender bill with no Location/CO₂ columns.
+
+**Caveats (P2)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. Active print-profile selection is session-scoped (resets on panel
+   reopen) — cross-session persistence + priced/unpriced export modes
+   land with the QS export rework in P3.
+
+#### Completed (BOQ QS Upgrade — P1: real takeoff — 2D exclusion + aggregation)
+
+First phase of the Quantity-Surveyor BOQ upgrade (P1 of the P1–P4 brief;
+P0 — reviving the dead Cost buttons — already merged on
+`claude/revive-cost-buttons`). Turns the per-element dump into an
+aggregated, measurable bill. Branch `claude/boq-p1-aggregation`.
+**Built clean against Revit 2025 (0 warnings, 0 errors); not yet
+Revit-runtime-verified.**
+
+**P1.1 — Takeoff exclusion filter** (`BOQCostManager.CollectCandidateElements`):
+- Non-measurable elements no longer reach takeoff. Hard-coded BIC
+  exclusion set `_defaultExcludedBic` rejects detail components, filled
+  regions, model/detail lines, sketch lines, generic annotation, text
+  notes, dimensions, Revit links and raster images; `ImportInstance`
+  (CAD imports) is rejected by type. Fixes the "Small Power legend.dwg
+  filled region × 275" class of noise rows.
+- Data-driven extension via config key `COST_TAKEOFF_EXCLUDE_CATEGORIES`
+  (comma-separated category display names), empty by default so the
+  baseline governs out of the box. Existing Rooms/Spaces/Areas skip and
+  `IsPhaseDemolished` logic preserved. One-line excluded-count log.
+
+**P1.2 — Aggregation layer** (`BOQCostManager.AggregateLineItems`):
+- `BOQLineItem` gains `SimilarCount` (default 1), `ConstituentElementIds`
+  (all element ids in the group, for P2 drill-down/back-selection) and
+  `AggregationKey`. Additive + defaulted, so old snapshots still
+  deserialise; `Clone()` copies them.
+- New STEP 6b between manual-row merge and `GroupIntoSections`: groups
+  Model-source rows by `NRM2Section | Category | Discipline | Family |
+  Type | Unit` (+ Level/Location when a spatial mode is active, an
+  `includeSpatialInKey` hook reserved for P2). 7 identical showers →
+  1 row, Qty 7. Σ quantity / carbon / lifecycle; `RateConfidence` = min;
+  Level/Location kept only when uniform else `(various)`. Rate
+  disagreement within a group → modal rate (most-confident breaks ties)
+  + rate-limited warning. Representative element = most-confident row.
+  Manual/PS rows never aggregated. Toggle via `COST_AGGREGATE_SIMILAR`
+  (default on).
+- `WriteElementParameters` made aggregation-aware: shared per-unit fields
+  (rate / source / section / paragraph / confidence) stamp every
+  constituent; quantity / total / carbon / lifecycle re-derived per
+  element so each keeps its own measured figure rather than the merged
+  sum. Single-element + manual rows keep exact prior behaviour.
+
+**Revit manual-test checklist (P1)**:
+1. Open a model with a placed CAD legend / filled regions → run BOQ
+   Refresh → confirm the filled-region/detail noise rows are gone and the
+   log reports an excluded count.
+2. Place ≥5 identical fixtures (e.g. showers) → Refresh → confirm one row
+   with Qty = count, Note "Aggregated N similar elements".
+3. Confirm BOQ line refs still number sequentially per section.
+4. Run a cost write-back (Export / WriteItemParams) → confirm CST_* rate
+   fields stamp on all constituent elements, each with its own
+   CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX.
+5. Load a pre-P1 snapshot → confirm it still opens (back-compat).
+
+**Known limitation**: `IfcQuantitySetWriter` still writes Qto sets keyed
+on the representative element only for aggregated rows (per-constituent
+Qto write deferred). The on-screen bill, Excel export and CST_* element
+write-back are all aggregation-correct.
+
+#### Completed (BOQ QS Upgrade — P4: valuations, variations & EVM end-to-end)
+
+Fourth phase of the QS BOQ upgrade — makes cost control usable end-to-end
+from the panel. The engines (`PaymentCertEngine` / `VariationEngine` /
+`EvmCalculator`) were already mature; P4 closes the input/output gaps that
+stopped a QS doing a full pass. Branch `claude/boq-p4-cost-control` (off P0,
+per the brief — P4 depends only on P0). **Built clean against Revit 2025
+(0 warnings, 0 errors); not yet Revit-runtime-verified.**
+
+**P4.1 — Interim valuations**:
+- `PaymentCert_SetProgress` (new) — pick BOQ section(s) + a percentage and
+  stamp `ASS_PMT_PCT_COMPLETE_NR` on their elements. This is the **input**
+  that was missing: Issue Cert + EVM both read it back (£-weighted), so
+  valuations no longer start from 0.
+- `PaymentCert_ExportDoc` (new) — render a numbered interim certificate as a
+  formatted XLSX: SOV table (contract value / % complete / gross-to-date /
+  previously certified / MOS / gross-this-cert) + summary (gross →
+  retention → net → VAT → **total payable**) + signature block. The
+  document a QS actually issues. (Issue / Approve / Register were already
+  present; retention auto-halving, MOS and previously-certified carry were
+  already in the engine.)
+
+**P4.2 — Variations + star rates**:
+- `Variation_BuildStarRate` is now **interactive** — new
+  `StarRateBuilderDialog` (labour / plant / material editable grids + OH% +
+  profit% + live Subtotal → +OH → +Profit → Final-rate readout), replacing
+  the canned demo seed. Build-ups persist via `VariationEngine.SaveStarRate`.
+- Variation-from-diff (omission/addition lines), VO numbering and the VO
+  register were already wired; the AFC report (below) surfaces the revised
+  contract sum.
+
+**P4.3 — EVM**:
+- `Evm_Calculate` now derives **BCWS from a QS-entered planned %** instead
+  of the old `BCWS == BCWP` placeholder (cancel ⇒ falls back to earned %,
+  SV = 0), so schedule variance / SPI are meaningful. Import-actuals +
+  S-curve CSV export were already present and produce every PMI metric
+  (CV / SV / CPI / SPI / EAC / ETC / VAC / TCPI) per period.
+
+**P4.4 — Cost report / final account**:
+- `Cost_AnticipatedFinalCost` (new) — modelled works + manual/PS allowances
+  + BOQ grand total + **agreed variations** + **pending variations** →
+  AFC (agreed-only and incl-pending) vs budget, shown in a
+  `StingResultPanel` with a variation register table and exported to XLSX.
+  `Reconcile Provisionals` (existing) surfaced in the same panel group for
+  the final-account path.
+
+**Revit manual-test checklist (P4)**:
+1. Set % Complete → pick §14 → 60% → confirm elements stamped.
+2. Issue Cert → confirm gross/retention/net/VAT/payable reflect the 60%.
+3. Cert Document → confirm XLSX with SOV + summary + signature block.
+4. Approve Cert twice → Draft → Issued → Agreed.
+5. Star Rate Build-Up → add labour/plant/material lines → live Final rate →
+   Save → confirm JSON under `_bim_manager/star_rates/`.
+6. Calculate EVM → enter planned % → confirm SPI ≠ 1 when planned ≠ earned.
+7. Anticipated Final Cost → confirm AFC = BOQ grand + agreed + pending VOs
+   vs budget, on screen + XLSX.
+
+**Caveats (P4)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. Certificate / variation models default `Currency="GBP"` while the BOQ is
+   UGX — the AFC report sums variation totals at face value in the BOQ
+   currency. Projects should keep cert/variation currency aligned with the
+   project currency (a unified currency knob is out of P4 scope).
+3. BCWS still comes from a QS-entered planned % (no 4D/cost-loaded-schedule
+   wiring) — accurate but manual per period.
+
 #### Completed (Drawing Types / Style Packs — regression repair + registry hardening)
 
 A review of the Drawing Template Manager data + runtime found the corporate

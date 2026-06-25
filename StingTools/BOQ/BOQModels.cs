@@ -14,7 +14,57 @@ namespace StingTools.BOQ
     {
         Model,
         Manual,
-        ProvisionalSum
+        ProvisionalSum,
+        Dayworks,       // P3.1 — daywork / time-and-material rows
+        PCSum          // P3.1 — prime-cost sum (named supplier allowance)
+    }
+
+    /// <summary>P3.1 — shared source label / parse helpers so the export label,
+    /// import parser and panel agree on one spelling per source.</summary>
+    public static class BoqSourceUtil
+    {
+        public static string Label(BOQRowSource s)
+        {
+            switch (s)
+            {
+                case BOQRowSource.Manual:         return "Manual";
+                case BOQRowSource.ProvisionalSum: return "Provisional Sum";
+                case BOQRowSource.Dayworks:       return "Dayworks";
+                case BOQRowSource.PCSum:          return "PC Sum";
+                default:                          return "Model";
+            }
+        }
+
+        /// <summary>Parse a source label (case-insensitive, substring-tolerant).
+        /// Returns Model for unrecognised input.</summary>
+        public static BOQRowSource Parse(string label)
+        {
+            string l = (label ?? "").Trim().ToLowerInvariant();
+            if (l.Contains("provisional")) return BOQRowSource.ProvisionalSum;
+            if (l.Contains("daywork"))     return BOQRowSource.Dayworks;
+            if (l.Contains("pc") || l.Contains("prime cost")) return BOQRowSource.PCSum;
+            if (l.Contains("manual"))      return BOQRowSource.Manual;
+            return BOQRowSource.Model;
+        }
+
+        /// <summary>True for QS-authored rows that must never be overwritten by
+        /// a model re-takeoff (everything except Model).</summary>
+        public static bool IsQsAuthored(BOQRowSource s) => s != BOQRowSource.Model;
+    }
+
+    /// <summary>
+    /// P2.2 — how a BOQ is grouped into sections. NRM2 supports both elemental
+    /// (work-section) and locational (level / zone) bills; this enum selects
+    /// the strategy used by BOQCostManager.GroupIntoSections (and feeds the
+    /// aggregation key so similar items collapse within the active dimension).
+    /// </summary>
+    public enum BoqGroupingMode
+    {
+        WorkSection,            // by NRM2 § + discipline (default — elemental bill)
+        Level,                  // by building level (flat locational bill)
+        Zone,                   // by ASS_ZONE_TXT zone
+        LevelThenWorkSection,   // by level, then NRM2 § within each level
+        Location               // by room / spatial location code
     }
 
     public enum BOQChangeType
@@ -59,10 +109,22 @@ namespace StingTools.BOQ
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
         public string Level;
         public string Location;             // room name or spatial code
+        public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated"
+        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
+
+        // ── P1 aggregation ─────────────────────────────────────────────────
+        // When several near-identical modelled elements collapse into one BOQ
+        // row, SimilarCount holds the element count and ConstituentElementIds
+        // every element id in the group (for drill-down / back-selection in
+        // Revit). RevitElementId/UniqueId remain the representative element.
+        // Defaults keep old snapshots deserialising unchanged (count = 1,
+        // empty list, null key — i.e. an un-aggregated single-element row).
+        public int SimilarCount = 1;
+        public List<long> ConstituentElementIds = new List<long>();
+        public string AggregationKey;       // grouping key used to collapse the row (debug/export)
 
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
@@ -96,10 +158,15 @@ namespace StingTools.BOQ
                 UniqueId = this.UniqueId,
                 Level = this.Level,
                 Location = this.Location,
+                Zone = this.Zone,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
-                SortOrder = this.SortOrder
+                SortOrder = this.SortOrder,
+                SimilarCount = this.SimilarCount,
+                ConstituentElementIds = this.ConstituentElementIds != null
+                    ? new List<long>(this.ConstituentElementIds) : new List<long>(),
+                AggregationKey = this.AggregationKey
             };
         }
     }
@@ -290,6 +357,7 @@ namespace StingTools.BOQ
         public double? RateUSD;
         public string NRM2Paragraph;
         public string Note;
+        public string RateSource;           // P3 — provenance ("QS" for imported rates); null ⇒ "Override"
         public DateTime Modified = DateTime.UtcNow;
         public string ModifiedBy;
     }

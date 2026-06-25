@@ -72,6 +72,18 @@ namespace StingTools.UI
         private bool _showNrm2 = true;
         private ToggleButton _nrm2Toggle;
 
+        // P2.2 — active grouping strategy. Changing it triggers a full rebuild
+        // (re-aggregation within the new dimension), so the dropdown handler
+        // calls RefreshAsync rather than RebuildSectionsView.
+        private BoqGroupingMode _groupingMode = BoqGroupingMode.WorkSection;
+
+        // P2.1 / P2.3 — toggleable grid columns the user (or a print profile)
+        // has hidden. Empty = show every column. Keyed by canonical column key
+        // (Level / Location / Source / Confidence / Carbon / Note).
+        private readonly HashSet<string> _hiddenColumns =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private string _activeProfileId = "";
+
         // Phase 108d: transient status-bar message support. FlashHint() writes
         // a short amber line into _paragraphCoverage for 4s, then restores the
         // coverage summary. Used when we cancel an edit on a model-derived cell.
@@ -448,6 +460,73 @@ namespace StingTools.UI
             _nrm2Toggle.Unchecked += (s, e) => { _showNrm2 = false; RebuildSectionsView(); };
             sp.Children.Add(_nrm2Toggle);
 
+            // P2.2 — grouping mode selector. Reorganises the bill (work section
+            // / level / zone / location). Full rebuild so re-aggregation runs.
+            sp.Children.Add(new TextBlock { Text = "Group:", VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.SemiBold, Margin = new Thickness(12, 0, 4, 0) });
+            var groupCombo = new System.Windows.Controls.ComboBox
+            {
+                Width = 150, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "How the bill is grouped into sections"
+            };
+            foreach (var opt in new[]
+            {
+                ("Work section (NRM2)", BoqGroupingMode.WorkSection),
+                ("Level",               BoqGroupingMode.Level),
+                ("Level → work section",BoqGroupingMode.LevelThenWorkSection),
+                ("Zone",                BoqGroupingMode.Zone),
+                ("Location",            BoqGroupingMode.Location),
+            })
+                groupCombo.Items.Add(new ComboBoxItem { Content = opt.Item1, Tag = opt.Item2 });
+            groupCombo.SelectedIndex = 0;
+            groupCombo.SelectionChanged += (s, e) =>
+            {
+                if (groupCombo.SelectedItem is ComboBoxItem ci && ci.Tag is BoqGroupingMode m && m != _groupingMode)
+                {
+                    _groupingMode = m;
+                    _openSections.Clear();   // section keys change — let RefreshAsync re-open all
+                    RefreshAsync();          // re-aggregate + re-group from the model
+                }
+            };
+            sp.Children.Add(groupCombo);
+
+            // P2.1 — column visibility menu (Level / Location / Source / Conf /
+            // CO₂ / Note). Lightweight checkable dropdown; rebuilds the grids.
+            var colsBtn = new Button
+            {
+                Content = "▦ Columns", FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(8, 0, 0, 0), Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0.5), BorderBrush = new SolidColorBrush(Color.FromRgb(180, 190, 200)),
+                Cursor = Cursors.Hand
+            };
+            colsBtn.Click += (s, e) => ShowColumnsMenu(colsBtn);
+            sp.Children.Add(colsBtn);
+
+            // P2.3 — print / export column profile selector. Sets which
+            // toggleable columns are visible in one click.
+            sp.Children.Add(new TextBlock { Text = "Profile:", VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.SemiBold, Margin = new Thickness(8, 0, 4, 0) });
+            var profileCombo = new System.Windows.Controls.ComboBox
+            {
+                Width = 160, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Named visible-column set (corporate + project profiles). " +
+                          "Export a tender bill via Professional Export; the full round-trip via BOQ Export."
+            };
+            try
+            {
+                var reg = BoqPrintProfileRegistry.Get(Doc);
+                profileCombo.Items.Add(new ComboBoxItem { Content = "— all columns —", Tag = "" });
+                foreach (var p in reg.Profiles)
+                    profileCombo.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p.Id });
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ profile combo: {ex.Message}"); }
+            profileCombo.SelectedIndex = 0;
+            profileCombo.SelectionChanged += (s, e) =>
+            {
+                if (profileCombo.SelectedItem is ComboBoxItem ci) ApplyPrintProfile(ci.Tag as string);
+            };
+            sp.Children.Add(profileCombo);
+
             _matchHint = new TextBlock { Text = "", FontSize = 10, Foreground = Brushes.Gray,
                 Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             sp.Children.Add(_matchHint);
@@ -469,6 +548,62 @@ namespace StingTools.UI
             };
             btn.Click += (s, e) => onClick();
             return btn;
+        }
+
+        // P2.1 — checkable column-visibility dropdown. Toggling a column flips
+        // its key in _hiddenColumns and rebuilds every section grid.
+        private void ShowColumnsMenu(UIElement anchor)
+        {
+            var menu = new ContextMenu();
+            foreach (var col in BoqPrintProfileRegistry.ToggleableColumns)
+            {
+                string key = col;
+                var mi = new MenuItem
+                {
+                    Header = ColumnDisplayName(key),
+                    IsCheckable = true,
+                    IsChecked = !_hiddenColumns.Contains(key),
+                    StaysOpenOnClick = true
+                };
+                mi.Click += (s, e) =>
+                {
+                    if (mi.IsChecked) _hiddenColumns.Remove(key); else _hiddenColumns.Add(key);
+                    RebuildSectionsView();
+                };
+                menu.Items.Add(mi);
+            }
+            menu.PlacementTarget = anchor;
+            menu.IsOpen = true;
+        }
+
+        private static string ColumnDisplayName(string key)
+        {
+            switch (key)
+            {
+                case "Carbon":     return "CO₂";
+                case "Source":     return "Source";
+                case "Confidence": return "Confidence";
+                default:           return key;
+            }
+        }
+
+        // P2.3 — apply a named print profile: its visible-column set becomes the
+        // grid's column visibility. Empty id = show every column.
+        private void ApplyPrintProfile(string profileId)
+        {
+            _activeProfileId = profileId ?? "";
+            _hiddenColumns.Clear();
+            if (!string.IsNullOrEmpty(_activeProfileId))
+            {
+                try
+                {
+                    var profile = BoqPrintProfileRegistry.Get(Doc).GetById(_activeProfileId);
+                    foreach (var hidden in BoqPrintProfileRegistry.HiddenColumnsFor(profile))
+                        _hiddenColumns.Add(hidden);
+                }
+                catch (Exception ex) { StingLog.Warn($"ApplyPrintProfile({profileId}): {ex.Message}"); }
+            }
+            RebuildSectionsView();
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -494,6 +629,22 @@ namespace StingTools.UI
                 FontSize = 11, Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 0, 0, 14)
             });
+
+            sp.Children.Add(BuildActionGroup("QS ROUND-TRIP (P3)",
+                "Hand the bill to a Quantity Surveyor in Excel and bring priced rates back. " +
+                "Rows carry a stable hidden key so rates land on the right rows after a rebuild.",
+                new[]
+                {
+                    ("★ Export QS Bill", "BOQQsExport",
+                     "Export the bill in NRM2 trade order (Ref/Description/Unit/Qty/Rate/Amount) with section " +
+                     "collections + grand summary. Choose priced or unpriced.", true),
+                    ("Import QS Bill", "BOQQsImport",
+                     "Re-import the QS's priced workbook. Shows a diff (rate changes / new rows / model-qty drift) " +
+                     "before applying. Model quantities preserved; QS rates land as RateSource=QS.", false),
+                    ("Add Manual / PS / Daywork", "BOQAddManualRow",
+                     "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
+                     "Survives a model rebuild.", false),
+                }));
 
             sp.Children.Add(BuildActionGroup("AUTOMATION (P2)",
                 "Run workflows, validate the model and toggle the stale-cost detector.",
@@ -531,8 +682,12 @@ namespace StingTools.UI
                 "Monthly interim certificates per JCT 2024 / NEC4 / FIDIC 2017.",
                 new[]
                 {
+                    ("Set % Complete",   "PaymentCert_SetProgress",
+                     "Stamp % complete on a BOQ section's elements (ASS_PMT_PCT_COMPLETE_NR) — the input for Issue Cert + EVM.", false),
                     ("★ Issue Cert",     "PaymentCert_Issue",
                      "Build a draft interim cert from current BOQ + weighted % complete. Retention auto-halves.", true),
+                    ("Cert Document",    "PaymentCert_ExportDoc",
+                     "Render a numbered interim certificate as a formatted XLSX (SOV + retention/MOS/previous/net/VAT/payable + signatures).", false),
                     ("Approve Cert",     "PaymentCert_Approve",
                      "Advance the cert state machine — Draft → Issued or Issued → Agreed", false),
                     ("Cert Register",    "PaymentCert_Register",
@@ -563,6 +718,16 @@ namespace StingTools.UI
                      "Sum the latest actuals CSV under _bim_manager/actuals/", false),
                     ("Export S-Curve",  "Evm_ExportReport",
                      "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("COST REPORT (P4.4)",
+                "Anticipated final cost — where the project is heading vs budget.",
+                new[]
+                {
+                    ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
+                     "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
+                    ("Reconcile Provisionals", "ReconcileProvisionals",
+                     "Match provisional sums to modelled elements and reconcile against outturn (final account).", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
@@ -741,7 +906,7 @@ namespace StingTools.UI
             if (Doc == null) return;
             try
             {
-                _boq = BOQCostManager.BuildBOQDocument(Doc);
+                _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
                 // On first load open every section; subsequent refreshes preserve state
@@ -896,7 +1061,8 @@ namespace StingTools.UI
                 Margin = new Thickness(6, 2, 8, 2),
                 Child = new TextBlock
                 {
-                    Text = $"§{sec.NRM2Section}",
+                    // Spatial bills (blank NRM2 §) get a location glyph instead.
+                    Text = string.IsNullOrWhiteSpace(sec.NRM2Section) ? "▣" : $"§{sec.NRM2Section}",
                     Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold
                 }
             };
@@ -1029,18 +1195,36 @@ namespace StingTools.UI
                 Header = "Total", Binding = new Binding(nameof(BOQItemViewModel.TotalDisplay)),
                 Width = new DataGridLength(110), IsReadOnly = true
             });
-            grid.Columns.Add(new DataGridTextColumn
+
+            // P2.1 — toggleable columns. Hidden ones (via the Columns menu or a
+            // print profile) are simply not added; grids rebuild on toggle.
+            void AddIfVisible(string key, DataGridColumn col)
+            {
+                if (!_hiddenColumns.Contains(key)) grid.Columns.Add(col);
+            }
+
+            AddIfVisible("Level", new DataGridTextColumn
+            {
+                Header = "Level", Binding = new Binding(nameof(BOQItemViewModel.LevelDisplay)),
+                Width = new DataGridLength(95), IsReadOnly = true
+            });
+            AddIfVisible("Location", new DataGridTextColumn
+            {
+                Header = "Location", Binding = new Binding(nameof(BOQItemViewModel.LocationDisplay)),
+                Width = new DataGridLength(110), IsReadOnly = true
+            });
+            AddIfVisible("Source", new DataGridTextColumn
             {
                 Header = "Src", Binding = new Binding(nameof(BOQItemViewModel.SourceLabel)),
                 Width = new DataGridLength(48), IsReadOnly = true
             });
-            grid.Columns.Add(BuildConfidenceColumn());
-            grid.Columns.Add(new DataGridTextColumn
+            AddIfVisible("Confidence", BuildConfidenceColumn());
+            AddIfVisible("Carbon", new DataGridTextColumn
             {
                 Header = "CO₂ kg", Binding = new Binding(nameof(BOQItemViewModel.CarbonDisplay)),
                 Width = new DataGridLength(75), IsReadOnly = true
             });
-            grid.Columns.Add(BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
+            AddIfVisible("Note", BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
 
             // NRM2 detail panel — shown under every row by default so the BOQ
             // description (the whole point of a BOQ) is always visible. The
@@ -1303,13 +1487,15 @@ namespace StingTools.UI
             Add("Edit quantity",        () => BeginEditCell(vm, 3));
             Add("Edit unit",            () => BeginEditCell(vm, 4));
             Add("Edit rate",            () => BeginEditCell(vm, 5));
-            Add("Edit note",            () => BeginEditCell(vm, 10));
+            Add("Edit note",            () => BeginEditCellByHeader(vm, "Note"));
             ctx.Items.Add(new Separator());
             Add("Edit description…", () => ShowNRM2EditDialog(vm));
             ctx.Items.Add(new Separator());
             Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
             Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
             Add("Mark as provisional sum",   () => ChangeSource(vm, BOQRowSource.ProvisionalSum));
+            Add("Mark as dayworks",          () => ChangeSource(vm, BOQRowSource.Dayworks));
+            Add("Mark as PC sum",            () => ChangeSource(vm, BOQRowSource.PCSum));
             ctx.Items.Add(new Separator());
             Add("Duplicate row",        () => DuplicateRow(vm));
             Add("Delete row",           () => DeleteRow(vm),
@@ -1320,6 +1506,14 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("SelectElementId", vm.RevitElementId.ToString());
                 DispatchAction("SelectInRevit");
             }, enabled: vm.RevitElementId > 0);
+            // P2 — aggregation drill-down: select every constituent element.
+            if (vm.IsAggregated && vm.ConstituentElementIds.Count > 0)
+                Add($"Select all {vm.SimilarCount} similar in Revit", () =>
+                {
+                    StingCommandHandler.SetExtraParam("SelectElementId",
+                        string.Join(",", vm.ConstituentElementIds));
+                    DispatchAction("SelectInRevit");
+                });
             return ctx;
         }
 
@@ -1337,6 +1531,22 @@ namespace StingTools.UI
                     }
                     return;
                 }
+            }
+        }
+
+        // P2.1 — column indices shift when toggleable columns are hidden, so
+        // edit-by-header rather than a fixed index for the movable Note column.
+        private void BeginEditCellByHeader(BOQItemViewModel vm, string header)
+        {
+            foreach (var grid in FindAllDataGrids(_sectionsPanel))
+            {
+                if (!grid.Items.Contains(vm)) continue;
+                var col = grid.Columns.FirstOrDefault(c => (c.Header as string) == header);
+                if (col == null) return;   // column currently hidden
+                grid.SelectedItem = vm;
+                grid.CurrentColumn = col;
+                grid.BeginEdit();
+                return;
             }
         }
 
@@ -1777,6 +1987,7 @@ namespace StingTools.UI
             string rateStr = PromptString("Unit rate (UGX):", "0");
             string section = PromptString("Section number:", "22");
             string disc = PromptString("Discipline code (A/S/M/E/P/FP/PS):", "A");
+            string type = PromptString("Row type (Manual / PS / Dayworks / PC Sum):", "Manual");
 
             if (!double.TryParse(qtyStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double qty)) qty = 1;
             if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double rate)) rate = 0;
@@ -1787,6 +1998,7 @@ namespace StingTools.UI
             StingCommandHandler.SetExtraParam("ManualRowRate", rate.ToString("F0", CultureInfo.InvariantCulture));
             StingCommandHandler.SetExtraParam("ManualRowSection", section ?? "22");
             StingCommandHandler.SetExtraParam("ManualRowDisc", disc ?? "A");
+            StingCommandHandler.SetExtraParam("ManualRowSource", type ?? "Manual");
             DispatchAction("BOQAddManualRow");
         }
 
@@ -2020,6 +2232,16 @@ namespace StingTools.UI
         public long RevitElementId => _item.RevitElementId;
         public bool IsModelSource => _item.Source == BOQRowSource.Model;
 
+        // P1.2 / P2 — aggregation drill-down support.
+        public int SimilarCount => _item.SimilarCount;
+        public IReadOnlyList<long> ConstituentElementIds
+            => _item.ConstituentElementIds ?? new List<long>();
+        public bool IsAggregated => _item.SimilarCount > 1;
+
+        // P2.1 — spatial columns.
+        public string LevelDisplay => _item.Level ?? "";
+        public string LocationDisplay => _item.Location ?? "";
+
         public string LineRef => _item.BOQLineRef ?? "";
 
         public string ItemName
@@ -2121,6 +2343,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: return "PS";
                     case BOQRowSource.Manual:         return "Manual";
+                    case BOQRowSource.Dayworks:       return "Daywk";
+                    case BOQRowSource.PCSum:          return "PC";
                     default:                          return "Model";
                 }
             }
@@ -2143,6 +2367,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: c = Color.FromRgb(237, 231, 246); break;
                     case BOQRowSource.Manual:         c = Color.FromRgb(255, 251, 230); break;
+                    case BOQRowSource.Dayworks:       c = Color.FromRgb(230, 245, 252); break;
+                    case BOQRowSource.PCSum:          c = Color.FromRgb(245, 240, 230); break;
                     default:                          c = Color.FromArgb(0, 255, 255, 255); break;
                 }
                 var b = new SolidColorBrush(c); b.Freeze(); return b;
@@ -2158,6 +2384,8 @@ namespace StingTools.UI
                 {
                     case BOQRowSource.ProvisionalSum: c = Color.FromRgb(138, 120, 190); break;
                     case BOQRowSource.Manual:         c = Color.FromRgb(230, 160, 40);  break;
+                    case BOQRowSource.Dayworks:       c = Color.FromRgb(40, 150, 200);  break;
+                    case BOQRowSource.PCSum:          c = Color.FromRgb(170, 130, 60);  break;
                     default:                          c = Color.FromRgb(60, 130, 90);   break;
                 }
                 var b = new SolidColorBrush(c); b.Freeze(); return b;

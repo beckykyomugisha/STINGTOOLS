@@ -37,7 +37,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Need 2 snapshots to diff. Pick A (older baseline) then B (newer).
@@ -181,7 +181,7 @@ namespace StingTools.Commands.Cost
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
                     reason, liability, reasonDetail: reasonDetail, eotDays: eotDays,
-                    contractForm: contractForm);
+                    contractForm: contractForm, currency: docB?.Currency ?? docA?.Currency ?? "UGX");
                 string path = VariationEngine.Save(doc, vo);
 
                 TaskDialog.Show("STING — Variation minted",
@@ -322,43 +322,27 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                // Minimal build-up wizard — the WPF version comes in P5.4.
-                // Today: a seeded star rate the QS can edit in the JSON file.
-                var rate = new StarRate
-                {
-                    Description = "Star rate build-up — edit in JSON",
-                    Unit = "each",
-                    Author = Environment.UserName ?? "",
-                    LabourLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Skilled labourer", Hours = 8, UnitRate = 28, Unit = "hr" },
-                        new StarRateLine { Resource = "General labourer", Hours = 8, UnitRate = 18, Unit = "hr" }
-                    },
-                    PlantLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Excavator 8t", Hours = 4, UnitRate = 65, Unit = "hr" }
-                    },
-                    MaterialsLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Concrete C30/37", Quantity = 1, UnitRate = 135, Unit = "m³" }
-                    },
-                    OverheadPercent = 8.0,
-                    ProfitPercent = 5.0
-                };
+                // P4.2 — interactive first-principles build-up (labour + plant +
+                // materials + OH&P), replacing the canned demo seed.
+                var dlg = new StingTools.UI.StarRateBuilderDialog();
+                StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
+                if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
+                var rate = dlg.Result;
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
+                string cc = rate.Currency ?? "UGX";
                 TaskDialog.Show("STING — Star rate created",
-                    $"Star-rate template saved.\n\n" +
-                    $"Labour:    GBP {rate.LabourTotal:N2}\n" +
-                    $"Plant:     GBP {rate.PlantTotal:N2}\n" +
-                    $"Materials: GBP {rate.MaterialsTotal:N2}\n" +
-                    $"Subtotal:  GBP {rate.Subtotal:N2}\n" +
-                    $"OH ({rate.OverheadPercent}%): GBP {rate.OverheadAmount:N2}\n" +
-                    $"Profit ({rate.ProfitPercent}%): GBP {rate.ProfitAmount:N2}\n" +
-                    $"FINAL:     GBP {rate.FinalRate:N2}\n\n" +
+                    $"Star rate '{rate.Description}' saved.\n\n" +
+                    $"Labour:    {cc} {rate.LabourTotal:N2}\n" +
+                    $"Plant:     {cc} {rate.PlantTotal:N2}\n" +
+                    $"Materials: {cc} {rate.MaterialsTotal:N2}\n" +
+                    $"Subtotal:  {cc} {rate.Subtotal:N2}\n" +
+                    $"OH ({rate.OverheadPercent}%): {cc} {rate.OverheadAmount:N2}\n" +
+                    $"Profit ({rate.ProfitPercent}%): {cc} {rate.ProfitAmount:N2}\n" +
+                    $"FINAL:     {cc} {rate.FinalRate:N2}\n\n" +
                     $"Edit at: {Path.GetFileName(path)}");
                 return Result.Succeeded;
             }
@@ -379,7 +363,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var paths = VariationEngine.ListVariations(doc);
                 if (paths.Count == 0)
@@ -453,7 +437,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Build a single period from live BOQ + actuals CSV.
@@ -466,19 +450,23 @@ namespace StingTools.Commands.Cost
                 // estimate based on weighted ASS_PMT_PCT_COMPLETE_NR.
                 double pctEarned = WeightedPctComplete(doc);
                 double bcwp = bac * pctEarned / 100.0;
-                double bcws = bcwp; // optimistic placeholder until 4D wired
 
-                // ACWP — sum the most recent actuals CSV under _bim_manager/actuals/.
+                // P4.3 — BCWS (planned value) from a QS-entered planned %% rather
+                // than the old optimistic BCWS == BCWP. Cancel ⇒ fall back to the
+                // earned %% (no schedule variance) so the command stays one-click.
+                double plannedPct = pctEarned;
+                var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                    .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                    $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                    "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
+                if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                double bcws = bac * plannedPct / 100.0;
+
+                // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
+                // deduped by content so a re-dropped export can't double-count (B.5).
                 string actualsDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
-                double acwp = 0;
-                if (Directory.Exists(actualsDir))
-                {
-                    var latest = Directory.EnumerateFiles(actualsDir, "actuals_*.csv")
-                        .OrderByDescending(File.GetLastWriteTimeUtc)
-                        .FirstOrDefault();
-                    if (!string.IsNullOrEmpty(latest))
-                        acwp = EvmCalculator.ImportActualsToDate(latest, DateTime.UtcNow);
-                }
+                double acwp = EvmCalculator.ImportAllActualsToDate(actualsDir, DateTime.UtcNow, out _, out _);
 
                 var period = EvmCalculator.Compute(bac, bcws, bcwp, acwp, DateTime.UtcNow);
 
@@ -549,7 +537,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
@@ -563,18 +551,23 @@ namespace StingTools.Commands.Cost
                     return Result.Succeeded;
                 }
 
-                var files = Directory.EnumerateFiles(dir, "actuals_*.csv")
-                    .OrderByDescending(File.GetLastWriteTimeUtc).ToList();
+                var files = Directory.EnumerateFiles(dir, "actuals_*.csv").ToList();
                 if (files.Count == 0)
                 {
                     TaskDialog.Show("STING EVM",
                         $"No actuals CSV files found under {dir}.");
                     return Result.Cancelled;
                 }
-                double total = EvmCalculator.ImportActualsToDate(files[0], DateTime.UtcNow);
+                // B.5 — cumulative across ALL actuals files, deduped by content so
+                // re-dropping the same export can't double-count.
+                double total = EvmCalculator.ImportAllActualsToDate(dir, DateTime.UtcNow,
+                    out int filesRead, out int dupSkipped);
+                string ccy = EvmCalculator.ListReports(doc).Select(EvmCalculator.Load)
+                    .FirstOrDefault(r => r != null)?.Currency ?? "UGX";
                 TaskDialog.Show("STING — Actuals imported",
-                    $"File: {Path.GetFileName(files[0])}\n\n" +
-                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: GBP {total:N2}");
+                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: {ccy} {total:N2}\n" +
+                    $"Files read: {filesRead}" +
+                    (dupSkipped > 0 ? $"   ·   {dupSkipped} duplicate file(s) skipped (identical content)" : ""));
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -594,7 +587,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var reports = EvmCalculator.ListReports(doc);
                 if (reports.Count == 0)
@@ -666,7 +659,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = VariationEngine.ListVariations(doc);
