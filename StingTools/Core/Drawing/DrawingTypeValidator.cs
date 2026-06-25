@@ -423,8 +423,15 @@ namespace StingTools.Core.Drawing
         private sealed class ValidationSnapshot
         {
             public bool? AnyStingSeedTemplate;
-            public HashSet<string> KnownPhaseFilters
-                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> KnownPhaseFilters    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // PERF: collected once in ValidateAll so the per-DrawingType Has*
+            // helpers don't each spin up a fresh FilteredElementCollector
+            // (90 types × ~5 lookups = hundreds of full-doc scans otherwise).
+            public HashSet<string> TitleBlockFamilies   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> TitleBlockSymbols    = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // "family|symbol"
+            public HashSet<string> ViewTemplates        = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> ViewportTypes        = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public HashSet<string> FamilyNames          = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         public static List<ValidationReport> ValidateAll(Document doc)
@@ -433,16 +440,50 @@ namespace StingTools.Core.Drawing
             _snapshot = new ValidationSnapshot();
             try
             {
-                _snapshot.AnyStingSeedTemplate = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
+                // Views — one pass for both the seed-template flag and the
+                // template-name set consumed by HasViewTemplate.
+                bool anySeed = false;
+                foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
+                {
+                    if (!v.IsTemplate) continue;
+                    var vn = v.Name ?? "";
+                    if (vn.Length > 0) _snapshot.ViewTemplates.Add(vn);
+                    if (vn.StartsWith("STING - ", StringComparison.Ordinal)) anySeed = true;
+                }
+                _snapshot.AnyStingSeedTemplate = anySeed;
+
                 foreach (var pf in new FilteredElementCollector(doc)
-                    .OfClass(typeof(PhaseFilter))
-                    .Cast<PhaseFilter>())
+                    .OfClass(typeof(PhaseFilter)).Cast<PhaseFilter>())
                 {
                     if (!string.IsNullOrEmpty(pf.Name))
                         _snapshot.KnownPhaseFilters.Add(pf.Name);
+                }
+
+                // Title blocks — family names + family|symbol pairs.
+                foreach (var fs in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
+                {
+                    if (string.IsNullOrEmpty(fs.FamilyName)) continue;
+                    _snapshot.TitleBlockFamilies.Add(fs.FamilyName);
+                    if (!string.IsNullOrEmpty(fs.Name))
+                        _snapshot.TitleBlockSymbols.Add(fs.FamilyName + "|" + fs.Name);
+                }
+
+                // Viewport types (ElementType whose family name contains "Viewport").
+                foreach (var t in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ElementType)).Cast<ElementType>())
+                {
+                    if (!string.IsNullOrEmpty(t.Name) && t.FamilyName != null
+                        && t.FamilyName.IndexOf("Viewport", StringComparison.OrdinalIgnoreCase) >= 0)
+                        _snapshot.ViewportTypes.Add(t.Name);
+                }
+
+                // Family names (HasAnnotationFamily / section-marker checks).
+                foreach (var f in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family)).Cast<Family>())
+                {
+                    if (!string.IsNullOrEmpty(f.Name)) _snapshot.FamilyNames.Add(f.Name);
                 }
             }
             catch { /* validator never throws */ }
@@ -571,6 +612,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockFamily(Document doc, string familyName)
         {
+            if (_snapshot != null) return _snapshot.TitleBlockFamilies.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -587,6 +629,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockSymbol(Document doc, string familyName, string symbolName)
         {
+            if (_snapshot != null)
+                return _snapshot.TitleBlockSymbols.Contains((familyName ?? "") + "|" + (symbolName ?? ""));
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -604,6 +648,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewTemplate(Document doc, string name)
         {
+            if (_snapshot != null) return _snapshot.ViewTemplates.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(View));
@@ -618,6 +663,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewportType(Document doc, string name)
         {
+            if (_snapshot != null) return _snapshot.ViewportTypes.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(ElementType));
@@ -634,6 +680,7 @@ namespace StingTools.Core.Drawing
 
         private static bool HasAnnotationFamily(Document doc, string familyName)
         {
+            if (_snapshot != null) return _snapshot.FamilyNames.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(Family));

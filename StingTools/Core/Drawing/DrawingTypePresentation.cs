@@ -206,6 +206,16 @@ namespace StingTools.Core.Drawing
             public AnnotationRunOptions AnnotationOptions { get; set; }
             /// <summary>When true, no writes are made; only validation is run.</summary>
             public bool DryRun { get; set; }
+
+            /// <summary>
+            /// Skip the per-view symbol-standard drift scan (step 8.5). That
+            /// scan runs a FilteredElementCollector over the view's symbols on
+            /// every Apply; in a batch of N views it fires N times and emits
+            /// N near-identical warnings. Batch producers and heal passes set
+            /// this true and rely on the standalone Fix-Symbol-Drift command
+            /// instead. Default false preserves the single-view diagnostic.
+            /// </summary>
+            public bool SkipSymbolDriftCheck { get; set; }
         }
 
         public sealed class ApplyResult
@@ -307,7 +317,11 @@ namespace StingTools.Core.Drawing
             => Apply(doc, view, dt, runAnnotation ? null : new ApplyOptions {
                 AnnotationOptions = new AnnotationRunOptions {
                     SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                }
+                },
+                // A no-annotation apply is a bulk/refresh/heal pass — skip the
+                // per-view drift scan too (covers the MEP producers, scope-box
+                // refresh, and MEP coordination callers with no per-call edit).
+                SkipSymbolDriftCheck = true
             });
 
         /// <summary>
@@ -663,22 +677,26 @@ namespace StingTools.Core.Drawing
             // Step 8.5 — Phase 175 symbol-standard drift gate.
             // Read-only: surfaces drift as a warning so SyncStyles or
             // FixSymbolDriftCommand can heal it. Doesn't auto-apply to
-            // avoid surprising the user mid-Apply.
-            try
+            // avoid surprising the user mid-Apply. Skipped in batch/heal
+            // passes (per-view scan; see ApplyOptions.SkipSymbolDriftCheck).
+            if (!(options?.SkipSymbolDriftCheck ?? false))
             {
-                string activeStd = StingTools.Core.Symbols.SymbolStandardResolver
-                    .ResolveStandard(doc, view, null);
-                var driftReport = StingTools.Core.Symbols.SymbolDriftDetector
-                    .DetectDrift(doc, view);
-                if (driftReport.DriftedSymbols > 0)
+                try
                 {
-                    r.Warnings.Add(
-                        $"Symbol-standard drift in view: {driftReport.DriftedSymbols} symbol(s) "
-                      + $"don't match resolved standard ({activeStd}). "
-                      + "Run 'Fix Symbol Drift' to heal.");
+                    string activeStd = StingTools.Core.Symbols.SymbolStandardResolver
+                        .ResolveStandard(doc, view, null);
+                    var driftReport = StingTools.Core.Symbols.SymbolDriftDetector
+                        .DetectDrift(doc, view);
+                    if (driftReport.DriftedSymbols > 0)
+                    {
+                        r.Warnings.Add(
+                            $"Symbol-standard drift in view: {driftReport.DriftedSymbols} symbol(s) "
+                          + $"don't match resolved standard ({activeStd}). "
+                          + "Run 'Fix Symbol Drift' to heal.");
+                    }
                 }
+                catch (Exception ex) { r.Warnings.Add($"Symbol drift check: {ex.Message}"); }
             }
-            catch (Exception ex) { r.Warnings.Add($"Symbol drift check: {ex.Message}"); }
 
             return r;
         }

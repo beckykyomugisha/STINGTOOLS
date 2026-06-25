@@ -226,7 +226,8 @@ namespace StingTools.Commands.Drawing
                                             SkipAutoDim   = true,
                                             SkipDecorative = true,
                                             SkipSpots     = true,
-                                        }
+                                        },
+                                        SkipSymbolDriftCheck = true // styles re-sync pass
                                     });
                                 if (res.ScaleApplied || res.DetailLevelApplied || res.TemplateApplied || res.PackApplied)
                                     stats.StylesResynced++;

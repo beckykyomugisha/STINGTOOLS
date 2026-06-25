@@ -231,7 +231,8 @@ namespace StingTools.Core.Drawing
                                 {
                                     SkipAutoTag = true, SkipAutoDim = true,
                                     SkipDecorative = true, SkipSpots = true
-                                }
+                                },
+                                SkipSymbolDriftCheck = true // idempotent refresh — batch path
                             };
                             var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
                             result.Warnings.AddRange(refreshed.Warnings);
@@ -260,7 +261,8 @@ namespace StingTools.Core.Drawing
                 {
                     AnnotationOptions = opts.RunAnnotation
                         ? new AnnotationRunOptions { ViewScale = view.Scale }
-                        : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true }
+                        : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
+                    SkipSymbolDriftCheck = true // batch producer — drift via standalone command
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);

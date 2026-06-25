@@ -109,7 +109,8 @@ namespace StingTools.Commands.Drawing
                         {
                             var view = doc.GetElement(vid) as View;
                             if (view == null) continue;
-                            var applyResult = DrawingTypePresentation.Apply(doc, view, chosen);
+                            var applyResult = DrawingTypePresentation.Apply(doc, view, chosen,
+                                new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // bulk re-stamp
                             if (applyResult?.Warnings?.Count > 0)
                                 warnings.AddRange(applyResult.Warnings.Select(w =>
                                     $"{sheet.SheetNumber}/{view.Name}: {w}"));
