@@ -325,33 +325,16 @@ namespace StingTools.Commands.Cost
                 Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                // Minimal build-up wizard — the WPF version comes in P5.4.
-                // Today: a seeded star rate the QS can edit in the JSON file.
-                var rate = new StarRate
-                {
-                    Description = "Star rate build-up — edit in JSON",
-                    Unit = "each",
-                    Author = Environment.UserName ?? "",
-                    LabourLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Skilled labourer", Hours = 8, UnitRate = 28, Unit = "hr" },
-                        new StarRateLine { Resource = "General labourer", Hours = 8, UnitRate = 18, Unit = "hr" }
-                    },
-                    PlantLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Excavator 8t", Hours = 4, UnitRate = 65, Unit = "hr" }
-                    },
-                    MaterialsLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Concrete C30/37", Quantity = 1, UnitRate = 135, Unit = "m³" }
-                    },
-                    OverheadPercent = 8.0,
-                    ProfitPercent = 5.0
-                };
+                // P4.2 — interactive first-principles build-up (labour + plant +
+                // materials + OH&P), replacing the canned demo seed.
+                var dlg = new StingTools.UI.StarRateBuilderDialog();
+                StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
+                if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
+                var rate = dlg.Result;
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
                 TaskDialog.Show("STING — Star rate created",
-                    $"Star-rate template saved.\n\n" +
+                    $"Star rate '{rate.Description}' saved.\n\n" +
                     $"Labour:    GBP {rate.LabourTotal:N2}\n" +
                     $"Plant:     GBP {rate.PlantTotal:N2}\n" +
                     $"Materials: GBP {rate.MaterialsTotal:N2}\n" +
@@ -466,7 +449,18 @@ namespace StingTools.Commands.Cost
                 // estimate based on weighted ASS_PMT_PCT_COMPLETE_NR.
                 double pctEarned = WeightedPctComplete(doc);
                 double bcwp = bac * pctEarned / 100.0;
-                double bcws = bcwp; // optimistic placeholder until 4D wired
+
+                // P4.3 — BCWS (planned value) from a QS-entered planned %% rather
+                // than the old optimistic BCWS == BCWP. Cancel ⇒ fall back to the
+                // earned %% (no schedule variance) so the command stays one-click.
+                double plannedPct = pctEarned;
+                var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                    .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                    $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                    "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
+                if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                double bcws = bac * plannedPct / 100.0;
 
                 // ACWP — sum the most recent actuals CSV under _bim_manager/actuals/.
                 string actualsDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");

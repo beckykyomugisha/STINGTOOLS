@@ -199,6 +199,72 @@ on the representative element only for aggregated rows (per-constituent
 Qto write deferred). The on-screen bill, Excel export and CST_* element
 write-back are all aggregation-correct.
 
+#### Completed (BOQ QS Upgrade — P4: valuations, variations & EVM end-to-end)
+
+Fourth phase of the QS BOQ upgrade — makes cost control usable end-to-end
+from the panel. The engines (`PaymentCertEngine` / `VariationEngine` /
+`EvmCalculator`) were already mature; P4 closes the input/output gaps that
+stopped a QS doing a full pass. Branch `claude/boq-p4-cost-control` (off P0,
+per the brief — P4 depends only on P0). **Built clean against Revit 2025
+(0 warnings, 0 errors); not yet Revit-runtime-verified.**
+
+**P4.1 — Interim valuations**:
+- `PaymentCert_SetProgress` (new) — pick BOQ section(s) + a percentage and
+  stamp `ASS_PMT_PCT_COMPLETE_NR` on their elements. This is the **input**
+  that was missing: Issue Cert + EVM both read it back (£-weighted), so
+  valuations no longer start from 0.
+- `PaymentCert_ExportDoc` (new) — render a numbered interim certificate as a
+  formatted XLSX: SOV table (contract value / % complete / gross-to-date /
+  previously certified / MOS / gross-this-cert) + summary (gross →
+  retention → net → VAT → **total payable**) + signature block. The
+  document a QS actually issues. (Issue / Approve / Register were already
+  present; retention auto-halving, MOS and previously-certified carry were
+  already in the engine.)
+
+**P4.2 — Variations + star rates**:
+- `Variation_BuildStarRate` is now **interactive** — new
+  `StarRateBuilderDialog` (labour / plant / material editable grids + OH% +
+  profit% + live Subtotal → +OH → +Profit → Final-rate readout), replacing
+  the canned demo seed. Build-ups persist via `VariationEngine.SaveStarRate`.
+- Variation-from-diff (omission/addition lines), VO numbering and the VO
+  register were already wired; the AFC report (below) surfaces the revised
+  contract sum.
+
+**P4.3 — EVM**:
+- `Evm_Calculate` now derives **BCWS from a QS-entered planned %** instead
+  of the old `BCWS == BCWP` placeholder (cancel ⇒ falls back to earned %,
+  SV = 0), so schedule variance / SPI are meaningful. Import-actuals +
+  S-curve CSV export were already present and produce every PMI metric
+  (CV / SV / CPI / SPI / EAC / ETC / VAC / TCPI) per period.
+
+**P4.4 — Cost report / final account**:
+- `Cost_AnticipatedFinalCost` (new) — modelled works + manual/PS allowances
+  + BOQ grand total + **agreed variations** + **pending variations** →
+  AFC (agreed-only and incl-pending) vs budget, shown in a
+  `StingResultPanel` with a variation register table and exported to XLSX.
+  `Reconcile Provisionals` (existing) surfaced in the same panel group for
+  the final-account path.
+
+**Revit manual-test checklist (P4)**:
+1. Set % Complete → pick §14 → 60% → confirm elements stamped.
+2. Issue Cert → confirm gross/retention/net/VAT/payable reflect the 60%.
+3. Cert Document → confirm XLSX with SOV + summary + signature block.
+4. Approve Cert twice → Draft → Issued → Agreed.
+5. Star Rate Build-Up → add labour/plant/material lines → live Final rate →
+   Save → confirm JSON under `_bim_manager/star_rates/`.
+6. Calculate EVM → enter planned % → confirm SPI ≠ 1 when planned ≠ earned.
+7. Anticipated Final Cost → confirm AFC = BOQ grand + agreed + pending VOs
+   vs budget, on screen + XLSX.
+
+**Caveats (P4)**:
+1. Built clean against Revit 2025 but not Revit-runtime-verified.
+2. Certificate / variation models default `Currency="GBP"` while the BOQ is
+   UGX — the AFC report sums variation totals at face value in the BOQ
+   currency. Projects should keep cert/variation currency aligned with the
+   project currency (a unified currency knob is out of P4 scope).
+3. BCWS still comes from a QS-entered planned % (no 4D/cost-loaded-schedule
+   wiring) — accurate but manual per period.
+
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H

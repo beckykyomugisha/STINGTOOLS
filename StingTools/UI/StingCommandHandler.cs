@@ -3532,6 +3532,9 @@ namespace StingTools.UI
                     case "PaymentCert_Issue":           RunCommand<Commands.Cost.PaymentCertIssueCommand>(app); break;
                     case "PaymentCert_Approve":         RunCommand<Commands.Cost.PaymentCertApproveCommand>(app); break;
                     case "PaymentCert_Register":        RunCommand<Commands.Cost.PaymentCertRegisterCommand>(app); break;
+                    case "PaymentCert_SetProgress":     RunCommand<Commands.Cost.PaymentCertSetProgressCommand>(app); break;
+                    case "PaymentCert_ExportDoc":       RunCommand<Commands.Cost.PaymentCertExportDocCommand>(app); break;
+                    case "Cost_AnticipatedFinalCost":   RunCommand<Commands.Cost.CostAnticipatedFinalCostCommand>(app); break;
                     case "Variation_FromDiff":          RunCommand<Commands.Cost.VariationFromDiffCommand>(app); break;
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;

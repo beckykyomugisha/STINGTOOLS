@@ -682,8 +682,12 @@ namespace StingTools.UI
                 "Monthly interim certificates per JCT 2024 / NEC4 / FIDIC 2017.",
                 new[]
                 {
+                    ("Set % Complete",   "PaymentCert_SetProgress",
+                     "Stamp % complete on a BOQ section's elements (ASS_PMT_PCT_COMPLETE_NR) — the input for Issue Cert + EVM.", false),
                     ("★ Issue Cert",     "PaymentCert_Issue",
                      "Build a draft interim cert from current BOQ + weighted % complete. Retention auto-halves.", true),
+                    ("Cert Document",    "PaymentCert_ExportDoc",
+                     "Render a numbered interim certificate as a formatted XLSX (SOV + retention/MOS/previous/net/VAT/payable + signatures).", false),
                     ("Approve Cert",     "PaymentCert_Approve",
                      "Advance the cert state machine — Draft → Issued or Issued → Agreed", false),
                     ("Cert Register",    "PaymentCert_Register",
@@ -714,6 +718,16 @@ namespace StingTools.UI
                      "Sum the latest actuals CSV under _bim_manager/actuals/", false),
                     ("Export S-Curve",  "Evm_ExportReport",
                      "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("COST REPORT (P4.4)",
+                "Anticipated final cost — where the project is heading vs budget.",
+                new[]
+                {
+                    ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
+                     "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
+                    ("Reconcile Provisionals", "ReconcileProvisionals",
+                     "Match provisional sums to modelled elements and reconcile against outturn (final account).", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
