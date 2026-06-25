@@ -51,19 +51,29 @@ namespace StingTools.Core.Placement
         // don't run a FilteredElementCollector for every PlaceOnCeilingSoffit
         // call. Cleared whenever the active document changes.
         private static View3D _cachedView3D;
-        private static int _cachedView3DDocHash;
+        // Phase 188 (review pass-2 #4) — key the cache by PathName|Title instead
+        // of doc.GetHashCode(). GetHashCode can collide across documents (the
+        // engine's ResolveBuiltInCategoryByName already moved off it for this
+        // exact reason), which could hand back a View3D belonging to a different
+        // open document. The IsValidObject + Document identity checks below are
+        // the belt-and-braces guard.
+        private static string _cachedView3DDocKey;
 
         private static View3D ResolveView3D(Document doc)
         {
             if (doc == null) return null;
-            int docHash = doc.GetHashCode();
-            if (_cachedView3D != null && _cachedView3DDocHash == docHash && _cachedView3D.IsValidObject)
+            string docKey;
+            try { docKey = (doc.PathName ?? "") + "|" + (doc.Title ?? ""); }
+            catch { docKey = ""; }
+            if (_cachedView3D != null && _cachedView3DDocKey == docKey
+                && _cachedView3D.IsValidObject
+                && ReferenceEquals(_cachedView3D.Document, doc))
                 return _cachedView3D;
             try
             {
                 _cachedView3D = new FilteredElementCollector(doc).OfClass(typeof(View3D))
                     .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
-                _cachedView3DDocHash = docHash;
+                _cachedView3DDocKey = docKey;
             }
             catch { _cachedView3D = null; }
             return _cachedView3D;
@@ -446,9 +456,20 @@ namespace StingTools.Core.Placement
             double bestSq = maxDistFt * maxDistFt;
             try
             {
+                // Phase 188 (review pass-2 #2) — bound the search with a
+                // BoundingBoxIntersectsFilter around the point ± maxDistFt so the
+                // collector only touches hosts near the placement, not every wall
+                // / ceiling / floor in the model (this runs once per placement).
                 var col = new FilteredElementCollector(doc)
                     .OfClass(typeof(T))
                     .WhereElementIsNotElementType();
+                if (point != null)
+                {
+                    var outline = new Outline(
+                        new XYZ(point.X - maxDistFt, point.Y - maxDistFt, point.Z - maxDistFt),
+                        new XYZ(point.X + maxDistFt, point.Y + maxDistFt, point.Z + maxDistFt));
+                    col = col.WherePasses(new BoundingBoxIntersectsFilter(outline));
+                }
                 foreach (var el in col)
                 {
                     if (el is not T candidate) continue;

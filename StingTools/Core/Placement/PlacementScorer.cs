@@ -42,6 +42,10 @@ namespace StingTools.Core.Placement
 
         // Phase 139.2 P — re-weighted scoring; coverage-contribution and
         // manufacturer-resolution scores added.  Sum = 1.00.
+        // NOTE (Phase 188 review #5e): ScoreThreshold (above) and these weights
+        // are process-global run configuration, not true constants — the weights
+        // are const today but ScoreThreshold is a mutable static set from the
+        // Centre's Run & Routing tab. Safe single-threaded; treat as shared config.
         private const double AnchorWeight       = 0.35;
         private const double SideWeight         = 0.22;
         private const double SpacingWeight      = 0.18;
@@ -82,7 +86,23 @@ namespace StingTools.Core.Placement
 
         public PlacementScorer(Document doc)
         {
+            // Phase 188 (review fix #1) — bind the document. The original
+            // constructor discarded its argument, leaving the readonly _doc
+            // field null for the scorer's whole life. Every _doc use is
+            // try/catch-wrapped, so collision scoring, RejectInsideWall,
+            // door/window/grid/column/MEP anchors and manufacturer scoring
+            // all silently no-op'd. Binding it here re-enables them.
+            _doc = doc;
+            if (_doc == null)
+                StingLog.Warn("PlacementScorer constructed with null document — Revit-querying anchors and collision scoring disabled.");
         }
+
+        // Phase 188 (review fix #1b) — doc-wide sample-instance cache keyed
+        // by category name (negative-cached). Replaces a full-model
+        // FilteredElementCollector that previously ran once per candidate
+        // inside ApplyPlacementHints.
+        private readonly Dictionary<string, Element> _sampleInstanceByCategory
+            = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
@@ -187,7 +207,14 @@ namespace StingTools.Core.Placement
             double offsetZFt = rule.OffsetZMm * MmToFt;
 
             // PC-06 — mounting reference picks which datum MountingHeight is measured from.
-            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt) + (rule.MountingHeightMm * MmToFt) + offsetZFt;
+            // Phase 188 (review fix #6) — MountingHeightMm sign depends on the datum:
+            // FFL / SLAB measure UP from the floor; CEILING / SOFFIT measure DOWN from
+            // the ceiling/soffit face. The original code always added the height, so a
+            // ceiling-referenced fixture with a positive MountingHeightMm landed ABOVE
+            // the ceiling. OffsetZMm stays a signed trim either way.
+            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt)
+                           + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                           + offsetZFt;
 
             string anchor = (rule.AnchorType ?? "ROOM_CENTRE").ToUpperInvariant();
             switch (anchor)
@@ -292,6 +319,17 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"ResolveMountingDatumZ {room.Id}: {ex.Message}"); }
             return roomPt.Z;
+        }
+
+        /// <summary>
+        /// Phase 188 (review fix #6) — direction MountingHeightMm is applied from
+        /// the resolved datum. FFL / SLAB → +1 (measure up from floor);
+        /// CEILING / SOFFIT → −1 (measure down from the overhead face).
+        /// </summary>
+        private static double MountingHeightSign(PlacementRule rule)
+        {
+            string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
+            return (r == "CEILING" || r == "SOFFIT") ? -1.0 : 1.0;
         }
 
         // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.
@@ -498,21 +536,44 @@ namespace StingTools.Core.Placement
         /// </summary>
         private Element ResolveSampleInstanceForRule(Room room, PlacementRule rule)
         {
-            if (rule == null || room == null) return null;
+            if (rule == null || _doc == null || string.IsNullOrEmpty(rule.CategoryFilter)) return null;
+
+            // Phase 188 (review fix #1b) — doc-wide cache + category prefilter.
+            // The sample is the first instance of the rule's category anywhere
+            // in the model (used only to read family-level placement hints), so
+            // it is the same regardless of room. Caching by category — and
+            // pre-filtering the collector with OfCategory — replaces the
+            // previous whole-model walk that ran once per candidate.
+            if (_sampleInstanceByCategory.TryGetValue(rule.CategoryFilter, out var cached))
+                return cached;
+
+            Element found = null;
             try
             {
-                var col = new FilteredElementCollector(_doc)
-                    .WhereElementIsNotElementType();
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                try { bic = FixturePlacementEngine.ResolveBuiltInCategoryByName(_doc, rule.CategoryFilter); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule BIC resolve '{rule.CategoryFilter}': {ex.Message}"); }
+
+                var col = (bic != BuiltInCategory.INVALID)
+                    ? new FilteredElementCollector(_doc).OfCategory(bic).WhereElementIsNotElementType()
+                    : new FilteredElementCollector(_doc).WhereElementIsNotElementType();
+
                 foreach (var el in col)
                 {
                     if (el.Category == null) continue;
                     if (!string.Equals(el.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    return el;
+                    found = el;
+                    break;
                 }
             }
-            catch { }
-            return null;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule '{rule.CategoryFilter}': {ex.Message}");
+            }
+
+            _sampleInstanceByCategory[rule.CategoryFilter] = found; // negative-cache null too
+            return found;
         }
 
         /// <summary>
@@ -552,7 +613,13 @@ namespace StingTools.Core.Placement
         private Dictionary<string, string> _loadedFamilyCategoryByName;
         private double ScoreManufacturerResolution(PlacementRule rule)
         {
-            if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
+            // Phase 188 (review fix #5e) — neutral 0.5 (was 0.0) when no
+            // catalogue is specified, matching ScoreCoverageContribution's
+            // neutral default. A constant 0.0 docked every catalogue-less rule
+            // ManufacturerWeight (0.03) of absolute score, which could tip
+            // borderline candidates below ScoreThreshold for no good reason.
+            if (rule == null) return 0.5;
+            if (string.IsNullOrEmpty(rule.CatalogueRef)) return 0.5;
             try
             {
                 var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
@@ -1436,17 +1503,38 @@ namespace StingTools.Core.Placement
             return true;
         }
 
+        // Phase 188 (review fix #5c) — compiled-regex cache for the room-scope
+        // filters (dept / level / phase / workset / room). RoomMatchesScope ran
+        // Regex.IsMatch uncompiled on every call; the engine already pre-compiles
+        // RoomFilter / ExcludeRoomFilter, so this brings the remaining scope
+        // filters up to the same standard.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> _scopeRxCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Regex>();
+
+        private static Regex GetScopeRegex(string pattern)
+        {
+            return _scopeRxCache.GetOrAdd(pattern, p =>
+            {
+                try { return new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer scope regex '{p}': {ex.Message}"); return null; }
+            });
+        }
+
         private static bool RegexAllow(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return true;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — fail closed (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer regex '{pattern}': {ex.Message}"); return false; }
         }
 
         private static bool RegexBlock(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return false;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — don't block (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer block regex '{pattern}': {ex.Message}"); return false; }
         }
     }

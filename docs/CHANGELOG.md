@@ -7868,3 +7868,142 @@ section + connection + foundation set.
    the JSON files are read directly from `StingTools/Data/Symbols/`).
    Adding a project overlay layer matching the Drawing-Type project
    override mechanism would be the natural follow-up.
+
+#### Completed (Phase 188 — Placement Center categories/rules hardening, batch 1)
+
+Branch `claude/placement-rules-hardening`. First two fixes from the
+Placement Center categories-and-rules review. **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+1. **`PlacementScorer._doc` was never assigned (CRITICAL).** The
+   constructor `public PlacementScorer(Document doc) {}` discarded its
+   argument, leaving the `readonly` `_doc` field null for the scorer's
+   whole life. Because every `_doc` use is `try/catch → StingLog.Warn`,
+   obstruction collision scoring, `RejectInsideWall`, the door / window /
+   grid / column / MEP / curtain-panel anchors and manufacturer-resolution
+   scoring all silently no-op'd. Fixed by binding `_doc = doc;` plus a
+   null-doc warning. (`Core/Placement/PlacementScorer.cs`)
+
+2. **Per-candidate full-model scan (`ResolveSampleInstanceForRule`).**
+   `ApplyPlacementHints` runs once per candidate and the helper walked the
+   whole model with no category prefilter — harmless while `_doc` was null,
+   O(model × candidates) once fix #1 landed. Now category-prefiltered via
+   `FixturePlacementEngine.ResolveBuiltInCategoryByName` (promoted
+   `private`→`internal`) and doc-wide cached per category (negative-cached).
+   (`Core/Placement/PlacementScorer.cs`, `FixturePlacementEngine.cs`)
+
+3. **Density count ignored `PerBed` / `PerWorkstation` / `PerPupil` /
+   `PerToiletCubicle`.** `ComputeCap` only derived counts from `PerAreaM2`
+   and `PerOccupant`, so healthcare / education / office density rules
+   collapsed to one fixture per room despite the loader validating those
+   rates and the Centre + Excel exposing them. `ComputeCap` now takes the
+   max across every populated rate via a new `CountFromRoomRate` helper
+   reading `STING_BED_COUNT_INT` / `STING_WS_COUNT_INT` /
+   `STING_PUPIL_COUNT_INT` / `STING_TOILET_CUBICLE_COUNT_INT` (consistent
+   with the existing `STING_OCC_COUNT_INT` project-bound room-param
+   pattern; none are registered in `MR_PARAMETERS`).
+   (`Core/Placement/FixturePlacementEngine.cs`, `PlacementRule.cs`)
+
+Remaining review items (GuaranteeCoverage/CoverageGridGenerator wiring,
+FilterByProfile at run time, ceiling/soffit mounting-reference sign, and
+the flexibility/minor batch) are deferred to follow-up branches per the
+review's recommended order.
+
+#### Completed (Phase 188 — Placement Center hardening, batch 2)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+4. **`GuaranteeCoverage` deprecate + warn (review fix #3a, Option B).**
+   `CoverageGridGenerator` implements the ≥99 % coverage fill but is not
+   wired into the engine; `GuaranteeCoverage` only relaxes the scorer's
+   threshold. Added a `DEFERRED` header note on the class and a
+   `PlacementRuleLoader.ValidateRuleSet` warning when a rule sets
+   `GuaranteeCoverage=true`. (`CoverageGridGenerator.cs`, `PlacementRuleLoader.cs`)
+
+5. **`FilterByProfile` now applied at run time (review fix #3b).** The
+   building-profile gate existed and the Centre mirrored it for display,
+   but the engine ran every rule regardless of building type. The engine
+   now loads `_BIM_COORD/placement_profile.json` and applies
+   `FilterByProfile` before ordering, warning with the removed count and
+   hard-stopping if the profile removes every rule. No-op when no profile
+   is configured. (`FixturePlacementEngine.cs`)
+
+6. **Ceiling/soffit mounting-reference sign (review fix #6).**
+   `MountingHeightMm` was always added to the datum, so a `CEILING`/`SOFFIT`
+   reference with a positive height landed the fixture *above* the ceiling.
+   New `MountingHeightSign` helper: FFL/SLAB → +1, CEILING/SOFFIT → −1.
+   `OffsetZMm` stays a signed trim. (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 3: flexibility + minors)
+
+Branch `claude/placement-rules-hardening`. **Verified with `dotnet build`
+against the Revit 2025 API — 0 warnings, 0 errors.**
+
+7. **`CategoryBic` locale-robust matching (review fix #5b).** New optional
+   `PlacementRule.CategoryBic` (e.g. `"OST_LightingFixtures"`). When set,
+   `ResolveSymbol` matches family symbols by `Category.Id` instead of the
+   localized `Category.Name`, so rules resolve on non-English Revit. Empty ⇒
+   legacy name match. Additive; needs in-Revit verification on a localized
+   install. (`PlacementRule.cs`, `FixturePlacementEngine.cs`)
+
+8. **Standards-gate inert warning (review fix #5a).** Shipped rules cite
+   standards via free-text `StandardRef`, not the structured
+   `ApplicableStandards` the profile gate keys off. The engine now warns when
+   a profile declares `ActiveStandards` but no rule populates
+   `ApplicableStandards` (the filter is then inert). (`FixturePlacementEngine.cs`)
+
+9. **Scope-filter regex caching (review fix #5c).** `RoomMatchesScope` ran
+   `Regex.IsMatch` uncompiled per call for dept/level/phase/workset/room
+   filters; now compiled + cached, matching the engine's RoomFilter handling.
+   (`PlacementScorer.cs`)
+
+10. **Bounded grid anchors (review fix #5d).** `CEILING_TILE_CORNER` /
+    `RAISED_FLOOR_TILE_EDGE` emitted an unbounded candidate grid in large
+    rooms; now capped at `MaxGridAnchorPoints` (2000) with a log on truncation.
+    (`PlacementScorer.AnchorTypes.cs`)
+
+11. **Minors (review fix #5e).** `ScoreManufacturerResolution` returns a
+    neutral 0.5 (was 0.0) for catalogue-less rules so they aren't docked
+    against `ScoreThreshold`; a note documents that `ScoreThreshold` + weights
+    are process-global run config. The MergeKey-collision case is already
+    surfaced by the existing `MergeRules` duplicate-key warning.
+    (`PlacementScorer.cs`)
+
+#### Completed (Phase 188 — Placement Center hardening, batch 4: deep-review pass-2)
+
+Branch `claude/placement-center-fixes` (worktree-isolated). **Verified with
+`dotnet build` against the Revit 2025 API — 0 warnings, 0 errors.**
+
+12. **Primary placements now oriented (pass-2 #1).** `OrientPlacedInstance`
+    (applies `RotationDeg`, flips the family to face into the room, snaps it
+    off the wall centerline) was wired only into the `CoPlaceWith` path; the
+    main `ProcessRoomRule` loop never called it, so most placed fixtures
+    ignored rotation and sat on the wall centerline facing world-X. Now
+    invoked after `WriteAnchorParameters` on the main path too.
+    (`FixturePlacementEngine.cs`)
+
+13. **`NearestOf<T>` bounded by bbox (pass-2 #2).** The host search ran an
+    unbounded full-category `FilteredElementCollector` per placement; now
+    pre-filtered with a `BoundingBoxIntersectsFilter` around the point ±
+    search radius. (`PlacementHostPreflight.cs`)
+
+14. **Intra-rule `MinSpacingMm` enforced at selection (pass-2 #3).** Candidate
+    selection passed an empty placed-list to the scorer (SpacingScore always
+    1.0) and `Take(cap)` could pick points closer than `MinSpacingMm`. New
+    `SelectWithSpacing` greedily accepts ranked candidates clearing the
+    spacing from already-accepted ones. (`FixturePlacementEngine.cs`)
+
+15. **`ResolveView3D` cross-document hazard (pass-2 #4).** Cache keyed on
+    `doc.GetHashCode()` in a single static slot; now keyed by `PathName|Title`
+    with an `IsValidObject` + `Document` identity guard. (`PlacementHostPreflight.cs`)
+
+16. **`IsRegexLike` tightened (pass-2 #5).** A lone `$` or unbalanced `[` no
+    longer misclassifies a literal variant/type name as a regex; now requires
+    a real anchor / escape / quantifier / balanced class or group.
+    (`FixturePlacementEngine.cs`)
+
+17. **`WriteAnchorParameters` persists full transform (pass-2 #6).** Now also
+    writes `ASS_PLACE_OFFSET_Y_MM` / `_Z_MM` / `ASS_PLACE_ROTATION_DEG`
+    (best-effort; no-op when unbound) so placement intent round-trips.
+    (`FixturePlacementEngine.cs`)
