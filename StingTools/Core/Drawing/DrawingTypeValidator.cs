@@ -466,6 +466,104 @@ namespace StingTools.Core.Drawing
                     reports.Add(r);
                 }
             }
+
+            // DT-101 — duplicate drawing-type ids in the shipped corporate JSON.
+            // The loader collapses them first-wins (so the live library shows
+            // none), but records what it dropped so this diagnostic can flag a
+            // JSON that ships the same id twice (a merge that re-appended a
+            // batch). The duplicate just bloats pickers and, on a project-
+            // override merge, used to crash the by-id map.
+            try
+            {
+                // Touch the library first so the loader has run + recorded.
+                _ = DrawingTypeRegistry.GetLibrary(doc);
+                foreach (var dupId in DrawingTypeRegistry.LastCorporateDuplicateIds)
+                {
+                    var r = new ValidationReport { DrawingTypeId = dupId };
+                    r.Add(ValidationSeverity.Error, "DT-101",
+                        $"Drawing-type id '{dupId}' is declared more than once in STING_DRAWING_TYPES.json — only the first is used; the rest were dropped at load.",
+                        "Remove the duplicate entr(ies) from STING_DRAWING_TYPES.json.");
+                    reports.Add(r);
+                }
+            }
+            catch { /* validator never throws */ }
+
+            // DT-102 — routing discipline value that no drawing type declares.
+            // DrawingDispatcher matches discipline by exact case-insensitive
+            // equality, so a rule using "Architecture" can never resolve a
+            // drawing type that uses the short code "A". Catches the class of
+            // bug Phase 184i fixed for "Plumbing"->"P".
+            try
+            {
+                // Accept any discipline a drawing type declares, plus the
+                // canonical ISO short codes (a rule may legitimately route a
+                // discipline that has no drawing type of its own — routing
+                // matches the CALLER's discipline, not a DT's). Only a value
+                // outside both sets (a long-form name like "Architecture" or
+                // "Plumbing") can never match what callers pass.
+                var discInUse = new HashSet<string>(
+                    DrawingTypeRegistry.ListAll(doc)
+                        .Select(t => (t.Discipline ?? "").Trim())
+                        .Where(d => d.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+                discInUse.UnionWith(new[] { "A", "S", "M", "E", "P", "FP", "LV", "G", "H", "MG", "RP" });
+                foreach (var rule in DrawingTypeRegistry.ListRouting(doc))
+                {
+                    var d = (rule.Discipline ?? "").Trim();
+                    // "*" and predicate-driven rules are fine; only flag an
+                    // explicit literal that no drawing type matches.
+                    if (d.Length == 0 || d == "*") continue;
+                    if (!string.IsNullOrEmpty(rule.DisciplineMatches)) continue;
+                    if (!discInUse.Contains(d))
+                    {
+                        var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                        r.Add(ValidationSeverity.Error, "DT-102",
+                            $"Routing rule discipline '{d}' (-> {rule.DrawingTypeId}) is used by no drawing type; the dispatcher matches discipline by exact string, so this rule can never resolve.",
+                            "Use the short discipline code (A/S/M/E/P/H/MG/RP/FP/LV/G), or '*', to match the drawing types.");
+                        reports.Add(r);
+                    }
+                }
+            }
+            catch { /* validator never throws */ }
+
+            // DT-103 — a fully-wildcard routing rule (*/*/*) that precedes
+            // other rules. First-match-wins means it shadows everything below
+            // it, so the dispatcher only ever returns that one drawing type.
+            // A catch-all is only ever valid as the LAST rule.
+            try
+            {
+                var routing = DrawingTypeRegistry.ListRouting(doc).ToList();
+                // An axis matches everything when it has no narrowing: either
+                // the plain field is "*"/empty with no predicate, OR the
+                // predicate is a match-all regex. Catches both a pure */*/*
+                // rule and a `.*` regex catch-all — both shadow the rules after.
+                bool MatchAllRegex(string p) =>
+                    p == ".*" || p == "^.*$" || p == ".*?" || p == "^.+$" || p == ".+";
+                bool AxisAny(string plain, string pred) =>
+                    string.IsNullOrEmpty(pred)
+                        ? (string.IsNullOrEmpty(plain) || plain == "*")
+                        : MatchAllRegex(pred);
+                bool IsWildcard(DrawingRoutingRule x) =>
+                    AxisAny(x.Discipline, x.DisciplineMatches) &&
+                    AxisAny(x.Phase,      x.PhaseMatches) &&
+                    AxisAny(x.DocType,    x.DocTypeMatches) &&
+                    string.IsNullOrEmpty(x.LevelMatches) &&
+                    string.IsNullOrEmpty(x.ProjectCodeMatches);
+                for (int i = 0; i < routing.Count - 1; i++)
+                {
+                    if (IsWildcard(routing[i]))
+                    {
+                        var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                        r.Add(ValidationSeverity.Error, "DT-103",
+                            $"Catch-all routing rule (*/*/*) -> '{routing[i].DrawingTypeId}' at position {i} shadows the {routing.Count - 1 - i} rule(s) after it; the dispatcher will always return this one.",
+                            "Move the catch-all to the end of the routing list, narrow it with discipline/phase/docType, or remove it.");
+                        reports.Add(r);
+                        break; // one report is enough to surface the problem
+                    }
+                }
+            }
+            catch { /* validator never throws */ }
+
             return reports;
         }
 

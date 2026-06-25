@@ -1839,61 +1839,6 @@
       }
     },
     {
-      "id": "proj-arch-presentation",
-      "name": "Project Architectural Presentation",
-      "description": "Project-level pack \u00e2\u20ac\u201d managed; pastel tags; lighter line weights for client presentation.",
-      "extends": "corp-presentation-rich",
-      "origin": "project",
-      "templateMode": "managed",
-      "managedFields": [
-        "scale",
-        "detailLevel",
-        "discipline",
-        "visualStyle",
-        "phaseFilter"
-      ],
-      "discipline": "Architectural",
-      "visualStyle": "Consistent Colors",
-      "tagColorScheme": "Pastel",
-      "defaultTagStyle": "2.5NOM_BLUE",
-      "lineWeightScale": 0.75,
-      "textStyle": null,
-      "dimensionStyle": null,
-      "hatchPalette": null
-    },
-    {
-      "id": "proj-mep-coordination",
-      "name": "Project MEP Coordination",
-      "description": "Project-level pack \u00e2\u20ac\u201d managed; thin lines for clash review.",
-      "extends": "corp-coordination",
-      "origin": "project",
-      "templateMode": "managed",
-      "managedFields": [
-        "scale",
-        "detailLevel",
-        "discipline",
-        "visualStyle",
-        "phaseFilter"
-      ],
-      "discipline": "Mechanical",
-      "visualStyle": "Wireframe",
-      "tagColorScheme": "STING Discipline",
-      "lineWeightScale": 0.5,
-      "textStyle": null,
-      "dimensionStyle": null,
-      "hatchPalette": null
-    },
-    {
-      "id": "proj-structural",
-      "name": "Project Structural",
-      "description": "Project-level pack \u00e2\u20ac\u201d external (uses project's existing structural template).",
-      "extends": "corp-structural-plan",
-      "origin": "project",
-      "templateMode": "external",
-      "discipline": "Structural",
-      "visualStyle": "HiddenLine"
-    },
-    {
       "id": "pres-base",
       "name": "Presentation Base (parent of all pres-* packs)",
       "description": "Parent for every presentation pack. Turns off MEP, structural framing/foundations/connections, rebar, conduits/cable trays, fire/comms/security devices, scope boxes/grids/levels/reference planes \u00e2\u20ac\u201d every category that does not contribute to a presentation drawing. Themed pres-* children extend this and only add colour overrides on the categories that actually paint the building.",
@@ -2444,100 +2389,6 @@
       }
     },
     {
-      "id": "pres-burgund-green",
-      "name": "Presentation \u00e2\u20ac\u201d Rosewood / Sage",
-      "description": "Architecture A (Hidden Line). Dual-colour semantic palette on a cream #EDE8DF background. Burgundy #7B3535 = ground-plane and structural cuts; sage green #8BAF85 = floors, roofs, and active surfaces. Walls render with horizontal cladding (STING-Pres-HorizontalCladding @ #C4A0A0); roofs use STING-Pres-RoofHatch @ #8BAF85 over white; topography uses STING-Pres-Herringbone @ #D8C0B8 on cream. Ground base sub-element solid burgundy with #5A2020 outline weight 4. Large trees solid white with burgundy outline; small shrubs burgundy outline only.",
-      "extends": "pres-base",
-      "origin": "corporate",
-      "vgOverrides": {
-        "Walls": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 2,
-          "cutLineColor": "#7B3535",
-          "cutLineWeight": 3
-        },
-        "Floors": {
-          "visible": true,
-          "projectionLineColor": "#6A8C65",
-          "projectionLineWeight": 1,
-          "cutLineColor": "#6A8C65",
-          "cutLineWeight": 2
-        },
-        "Roofs": {
-          "visible": true,
-          "projectionLineColor": "#5A7C55",
-          "projectionLineWeight": 2,
-          "cutLineColor": "#5A7C55",
-          "cutLineWeight": 2
-        },
-        "Ceilings": {
-          "visible": false
-        },
-        "Stairs": {
-          "visible": true,
-          "projectionLineColor": "#6A8C65",
-          "projectionLineWeight": 1
-        },
-        "Railings": {
-          "visible": true,
-          "projectionLineColor": "#6A8C65",
-          "projectionLineWeight": 1
-        },
-        "Structural Columns": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 2,
-          "cutLineColor": "#7B3535",
-          "cutLineWeight": 3
-        },
-        "Doors": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 1,
-          "cutLineColor": "#7B3535",
-          "cutLineWeight": 2
-        },
-        "Windows": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 1,
-          "transparency": 20
-        },
-        "Topography": {
-          "visible": true,
-          "projectionLineColor": "#C4A0A0",
-          "projectionLineWeight": 1,
-          "cutLineColor": "#7B3535",
-          "cutLineWeight": 2
-        },
-        "Furniture": {
-          "visible": true,
-          "projectionLineColor": "#C4A0A0",
-          "projectionLineWeight": 1,
-          "halftone": true
-        },
-        "STING-LargeTree": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 1
-        },
-        "STING-SmallShrub": {
-          "visible": true,
-          "projectionLineColor": "#7B3535",
-          "projectionLineWeight": 1,
-          "transparency": 100
-        },
-        "STING-PresGround": {
-          "visible": true,
-          "projectionLineColor": "#5A2020",
-          "projectionLineWeight": 4,
-          "cutLineColor": "#5A2020",
-          "cutLineWeight": 4
-        }
-      }
-    },
-    {
       "id": "pres-yellow-fill",
       "name": "Presentation \u00e2\u20ac\u201d Yellow Fill",
       "description": "Architecture B (Consistent Colors). Entire building overridden to solid yellow #F0C020 \u00e2\u20ac\u201d semantic distinction (floor vs wall vs roof) emerges from face direction and sun-study shading rather than from line work. Set visual style to Consistent Colors with Sun Study ON in Graphic Display Options. Windows remain white #FFFFFF (transparent in shaded preview). Ground base sub-element solid black #000000 with weight 5 outline. Site is white with grey-outlined entourage casting grey shadows.",
@@ -2832,91 +2683,6 @@
           "projectionLineWeight": 1
         }
       }
-    },
-    {
-      "id": "pres-interior-sage",
-      "name": "Presentation \u00e2\u20ac\u201d Interior Sage",
-      "description": "Architecture C (Realistic). Interior commercial spaces, semantic rule: architecture = grey, furniture = sage green. Set visual style to Realistic. Walls render mid-grey #A0A8A4; ceilings slightly lighter #B8BEB8; columns dark grey #505050; floors use STING-Pres-Herringbone @ #B8BEB8 over a #D0D4D0 background. All furniture, casework, specialty equipment, and interior plants overridden to sage green #8BAF85; large interior plants forest green #4A7A4A. Glazing transparent with dark grey #505050 frame. Exterior trees seen through glazing render solid white with light-grey outline.",
-      "extends": "pres-base",
-      "origin": "corporate",
-      "visualStyle": "Realistic",
-      "vgOverrides": {
-        "Walls": {
-          "visible": true,
-          "projectionLineColor": "#A0A8A4",
-          "projectionLineWeight": 2,
-          "cutLineColor": "#505050",
-          "cutLineWeight": 3
-        },
-        "Floors": {
-          "visible": true,
-          "projectionLineColor": "#A0A8A4",
-          "projectionLineWeight": 1,
-          "cutLineColor": "#505050",
-          "cutLineWeight": 2
-        },
-        "Ceilings": {
-          "visible": true,
-          "projectionLineColor": "#B8BEB8",
-          "projectionLineWeight": 1
-        },
-        "Structural Columns": {
-          "visible": true,
-          "projectionLineColor": "#505050",
-          "projectionLineWeight": 2,
-          "cutLineColor": "#505050",
-          "cutLineWeight": 3
-        },
-        "Furniture": {
-          "visible": true,
-          "projectionLineColor": "#8BAF85",
-          "projectionLineWeight": 1
-        },
-        "Casework": {
-          "visible": true,
-          "projectionLineColor": "#8BAF85",
-          "projectionLineWeight": 1
-        },
-        "Specialty Equipment": {
-          "visible": true,
-          "projectionLineColor": "#8BAF85",
-          "projectionLineWeight": 1
-        },
-        "Doors": {
-          "visible": true,
-          "projectionLineColor": "#505050",
-          "projectionLineWeight": 1,
-          "cutLineColor": "#505050",
-          "cutLineWeight": 2
-        },
-        "Windows": {
-          "visible": true,
-          "projectionLineColor": "#505050",
-          "projectionLineWeight": 1,
-          "transparency": 30
-        },
-        "Curtain Panels": {
-          "visible": true,
-          "projectionLineColor": "#505050",
-          "projectionLineWeight": 1,
-          "transparency": 30
-        },
-        "Curtain Wall Mullions": {
-          "visible": true,
-          "projectionLineColor": "#505050",
-          "projectionLineWeight": 1
-        },
-        "STING-LargeTree": {
-          "visible": true,
-          "projectionLineColor": "#A8A8A8",
-          "projectionLineWeight": 1
-        },
-        "STING-SmallShrub": {
-          "visible": true,
-          "projectionLineColor": "#4A7A4A",
-          "projectionLineWeight": 1
-        }
-      }
     }
   ],
   "routing": [
@@ -2979,12 +2745,6 @@
       "purpose": "*",
       "discipline": "*",
       "stylePackId": "corp-base"
-    },
-    {
-      "viewStylePackId": "corp-elec-lps",
-      "disciplineMatches": "^E$",
-      "purposeMatches": "^(Plan|Coordination)$",
-      "drawingTypeMatches": "^elec-lps-.*$"
     }
   ]
 }
