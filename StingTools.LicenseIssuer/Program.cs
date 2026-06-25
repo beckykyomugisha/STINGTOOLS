@@ -9,12 +9,14 @@ switch (args[0].ToLowerInvariant())
 {
     case "keygen": KeyGen(); break;
     case "issue":  Issue(args); break;
+    case "selfcode": Console.WriteLine(MachineFingerprint.Current); break;
     default: Help(); break;
 }
 
 static void Help()
 {
     Console.WriteLine("StingLicenseIssuer keygen");
+    Console.WriteLine("StingLicenseIssuer selfcode");
     Console.WriteLine("StingLicenseIssuer issue --code <machineCode> --name \"<licensee>\" --days 365 [--out StingTools.lic]");
 }
 

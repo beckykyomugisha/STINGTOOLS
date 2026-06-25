@@ -117,6 +117,13 @@ namespace StingTools.UI
             // Guard: empty tag means no command was requested (cleared after previous run)
             if (string.IsNullOrEmpty(tag)) return;
 
+            // License hard-lock: block every command except activation.
+            if (!Core.Licensing.LicenseGate.IsLicensed && tag != "STING_Activate")
+            {
+                StingTools.UI.ActivationDialog.ShowModal();
+                return;
+            }
+
             // Deterministic-dispatch support: assume handled until the switch's
             // default branch proves the tag is genuinely unrecognised. Read by
             // RunTagSync so the Hub only reports failure on a real miss.
