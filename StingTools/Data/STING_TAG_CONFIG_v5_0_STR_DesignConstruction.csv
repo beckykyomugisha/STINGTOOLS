@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-05-20,FAMILIES=22,DISCIPLINE=STR,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(204_categories)+PARAMETER_REGISTRY.json_phase187(3163_params)+TagFamilyConfig.TotalFamilyCount=204,VARIANT=DesignConstruction
+#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-06-25,FAMILIES=22,DISCIPLINE=STR,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(206_categories)+PARAMETER_REGISTRY.json(3296_params)+TagFamilyConfig.TotalFamilyCount=206,VARIANT=DesignConstruction,CONSOL=dfd7b4d_struct_dedup+MGS/EV/FOUND_tier2
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -397,6 +397,9 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 22,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
 24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+25,T2,FOUND_SOIL_CLASS_TXT,Soil:,,0,✓,Common,Text,"Show T2-Consol - Foundation Soil Class","if(TAG_PARA_STATE_2_BOOL, FOUND_SOIL_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+26,T2,FOUND_BEAR_UTIL_TXT,Util:,,0,✓,Common,Text,"Show T2-Consol - Foundation Bearing Util","if(TAG_PARA_STATE_2_BOOL, FOUND_BEAR_UTIL_TXT, """")",NOM,BLACK,2.0,None,None
+27,T2,FOUND_SUMMARY_TXT,,,0,✓,Common,Text,"Show T2-Consol - Foundation Summary","if(TAG_PARA_STATE_2_BOOL, FOUND_SUMMARY_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_FDN_BEARING_KN_M2,Bearing pressure exceeds soil capacity,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_BEARING_KN_M2, """")"

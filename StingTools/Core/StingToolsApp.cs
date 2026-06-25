@@ -59,6 +59,20 @@ namespace StingTools.Core
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
 
+                // --- LICENSE GATE (hard lock) -------------------------------
+                // No valid machine-bound license => register only an
+                // "Activate STING" button and load nothing else.
+                if (!StingTools.Core.Licensing.LicenseGate.IsLicensed)
+                {
+                    StingLog.Warn("STING not licensed (" + StingTools.Core.Licensing.LicenseGate.Status.Message +
+                                  ") machineCode=" + StingTools.Core.Licensing.LicenseGate.MachineCode +
+                                  " — panels withheld; Activate button only.");
+                    try { EnsureStingRibbonTab(application); RegisterActivationButton(application); }
+                    catch (Exception lex) { StingLog.Warn("Activation button: " + lex.Message); }
+                    return Result.Succeeded;
+                }
+                // -----------------------------------------------------------
+
                 // Pack 0 — establish offline-first defaults. Per-project config
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
@@ -1786,6 +1800,17 @@ namespace StingTools.Core
                 }
                 catch (Exception fbEx) { StingLog.Warn($"Add-Ins fallback: {fbEx.Message}"); }
             }
+        }
+
+        private void RegisterActivationButton(UIControlledApplication application)
+        {
+            var panel = application.CreateRibbonPanel("STING Tools", "Activation");
+            var data = new PushButtonData(
+                "STING_Activate", "Activate\nSTING",
+                Assembly.GetExecutingAssembly().Location,
+                "StingTools.Commands.Licensing.ActivateStingCommand")
+            { ToolTip = "Activate STING Tools on this machine." };
+            panel.AddItem(data);
         }
 
         private void RegisterDockablePanel(UIControlledApplication application)
