@@ -53,7 +53,34 @@ namespace StingTools.Select
         // each command runs. Null ⇒ legacy modal behaviour everywhere.
         public static System.Windows.Controls.Border InlineHost;
         public static Action<string> InlineTitleSink;
+        // P0.1 — the Document whose Actions pane is hosting inline pickers. When a
+        // Revit transaction is open on it (IsModifiable), pumping a nested
+        // DispatcherFrame is unsafe and can corrupt document state, so we fall back
+        // to a modal dialog. Set by BOQCostManagerPanel.RunActionInline alongside
+        // InlineHost; cleared in StingCommandHandler.Execute's finally.
+        public static Autodesk.Revit.DB.Document InlineHostDoc;
         private System.Windows.Threading.DispatcherFrame _inlineFrame;
+
+        /// <summary>True when an inline host is registered AND it is safe to pump a
+        /// nested WPF message loop — i.e. no Revit transaction is open on the host
+        /// document. Mirrors the IsModifiable guard in DrawingTypeStamper.StampCrop.
+        /// Logs once when it forces a modal fallback so the human can see which
+        /// command needed it.</summary>
+        private static bool InlineSafe(string title)
+        {
+            if (InlineHost == null) return false;
+            try
+            {
+                if (InlineHostDoc != null && InlineHostDoc.IsModifiable)
+                {
+                    StingLog.Info($"StingListPicker: transaction open on host doc — "
+                        + $"\"{title}\" picker falling back to modal (no nested pump).");
+                    return false;
+                }
+            }
+            catch { /* if we can't tell, prefer the safe modal path */ return false; }
+            return true;
+        }
 
         /// <summary>OK/Cancel/Esc end-point: unwind the nested pump when hosted
         /// inline, else close the modal window. Never calls Close() on a
@@ -68,6 +95,20 @@ namespace StingTools.Select
         /// loop until OK/Cancel sets _result and stops the frame.</summary>
         private List<ListItem> ShowInline(string title)
         {
+            // P0.1 defensive guard — never pump a nested loop while a transaction is
+            // open on the host doc. The two Show gates already check InlineSafe, but
+            // any future direct caller is covered here too: fall back to modal.
+            try
+            {
+                if (InlineHostDoc != null && InlineHostDoc.IsModifiable)
+                {
+                    StingTools.UI.StingWindowHelper.ApplyOwner(this);
+                    ShowDialog();
+                    return _result;
+                }
+            }
+            catch { }
+
             var host = InlineHost;
             try { InlineTitleSink?.Invoke(string.IsNullOrEmpty(title) ? "Select" : title); } catch { }
 
@@ -486,7 +527,7 @@ namespace StingTools.Select
             // Re-populate to apply validation coloring
             picker.PopulateList(items);
 
-            if (InlineHost != null) return picker.ShowInline(title);   // Slice 1.5 — no popup
+            if (InlineSafe(title)) return picker.ShowInline(title);   // Slice 1.5 — no popup
 
             // Phase 98: prefer BCC as owner when it's open so the picker stacks
             // above the coordination centre (was falling behind with raw Revit HWND).
@@ -501,7 +542,7 @@ namespace StingTools.Select
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
 
-            if (InlineHost != null) return dlg.ShowInline(title);   // Slice 1.5 — no popup
+            if (InlineSafe(title)) return dlg.ShowInline(title);   // Slice 1.5 — no popup
 
             // Phase 98: prefer BCC as owner when open so the picker stacks above
             // the coordination centre; falls back to Revit main HWND otherwise.

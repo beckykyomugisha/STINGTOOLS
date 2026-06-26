@@ -4022,6 +4022,7 @@ namespace StingTools.UI
                     // hooks so a later ribbon/other-panel command's pickers + result
                     // panels don't render into the (possibly closed) Actions pane.
                     StingTools.Select.StingListPicker.InlineHost = null;
+                    StingTools.Select.StingListPicker.InlineHostDoc = null;   // P0.1
                     StingTools.Select.StingListPicker.InlineTitleSink = null;
                     StingResultPanel.InlineSink = null;
 

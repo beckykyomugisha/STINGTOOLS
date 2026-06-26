@@ -1050,6 +1050,14 @@ namespace StingTools.UI
         {
             try
             {
+                // P0.2 — defensively clear any stale inline registration left over by
+                // a prior aborted run (command that threw before the dispatcher's
+                // finally cleared the statics) so we never inherit a foreign sink.
+                StingTools.Select.StingListPicker.InlineHost = null;
+                StingTools.Select.StingListPicker.InlineHostDoc = null;
+                StingTools.Select.StingListPicker.InlineTitleSink = null;
+                StingResultPanel.InlineSink = null;
+
                 HighlightActionButton(btn);
                 if (_actionReportTitle != null) _actionReportTitle.Text = label;
                 if (_actionReportHost != null)
@@ -1064,6 +1072,7 @@ namespace StingTools.UI
                 // clears these in StingCommandHandler.Execute's finally, once the
                 // (synchronous) command has run.
                 StingTools.Select.StingListPicker.InlineHost = _actionReportHost;
+                StingTools.Select.StingListPicker.InlineHostDoc = Doc;   // P0.1 — txn-state guard target
                 StingTools.Select.StingListPicker.InlineTitleSink = t => { if (_actionReportTitle != null) _actionReportTitle.Text = t; };
                 StingResultPanel.InlineSink = b => ShowInlineResult(b);
 

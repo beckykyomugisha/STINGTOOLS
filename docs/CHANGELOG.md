@@ -3,6 +3,47 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P0: harden the inline message pump)
+
+Correctness/safety hardening of the BOQ Cost Manager inline pickers + results
+(`docs/BOQ_5D_ENHANCEMENTS_PROMPT.md`). Compile-verified headless (Nice3point):
+0 errors. Behaviour still needs a real Revit run — see smoke test below.
+
+- **P0.1 — transaction-state guard** (`StingListPicker.cs`). Pumping a nested
+  `Dispatcher.PushFrame` loop while a Revit transaction is open on the host
+  document is unsafe (can corrupt document state). New
+  `public static Autodesk.Revit.DB.Document InlineHostDoc;` + a private
+  `InlineSafe(title)` gate: when `InlineHostDoc.IsModifiable` (a transaction is
+  open) the two `Show(...)` overloads fall back to the normal modal `ShowDialog()`
+  path instead of pumping. `ShowInline` carries the same defensive guard for any
+  future direct caller. One `StingLog.Info` fires on fallback so the human can see
+  which command needed it. Mirrors the `IsModifiable` precedent in
+  `DrawingTypeStamper.StampCrop`. `BOQCostManagerPanel.RunActionInline` sets
+  `InlineHostDoc = Doc` alongside `InlineHost`; `StingCommandHandler.Execute`'s
+  `finally` clears it with the other inline statics.
+  - **Audit** (Actions commands under `Commands/Cost/*.cs` + `BOQ/*Commands*.cs`):
+    no `StingListPicker.Show(...)` is called inside an open transaction — every
+    Cost command picks first, then transacts (pick → `using (Transaction) { Start;
+    …; Commit }`). The guard is a forward-safe net, not a fix for an existing leak.
+    Files scanned: `CostCommands.cs`, `CostControlCommands.cs`, `CostPlanCommands.cs`,
+    `MeasurementStandardCommands.cs`, `PaymentCertCommands.cs`,
+    `VariationAndEvmCommands.cs`.
+- **P0.2 — leak-proof the inline statics.** `RunActionInline` now defensively
+  nulls `InlineHost` / `InlineHostDoc` / `InlineTitleSink` /
+  `StingResultPanel.InlineSink` at the top (before re-registering fresh) so a
+  prior aborted run can't leave a stale foreign sink. `BOQCostManagerWindow.Closed`
+  nulls all four when the window tears down, so a later command from another
+  surface can't render into (or pump against) the disposed Actions pane.
+
+**Revit smoke test (human):** (1) Open BOQ & Cost Manager. On the Actions tab run
+**Variation from Diff** — it shows 4 sequential pickers; confirm each renders
+inline, OK/Cancel return correctly, and Revit never hangs. (2) Run **Issue Cert**;
+confirm inline render. (3) If any command opens a transaction before a picker,
+verify `StingTools.log` shows the "falling back to modal" Info line and the picker
+appears as a normal modal dialog (not a freeze). (4) Close the BOQ window, then run
+any ribbon command that uses a list picker — confirm it pops a normal modal, not
+into a dead pane.
+
 #### Completed (5D Cost Workspace — Slice 1: QTO IFC button + inline-result convention)
 
 First slice of the unified inline 5D cost+programme workspace
