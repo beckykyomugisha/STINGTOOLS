@@ -60,6 +60,14 @@ namespace StingTools.BOQ
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
+        /// <summary>
+        /// When true, BuildBOQDocument also quantifies elements in loaded Revit
+        /// links. Process-wide so every consumer (panel, QTO export, snapshots)
+        /// stays consistent; toggled from the Cost Manager header checkbox.
+        /// Linked rows are read-only for cost write-back (see STEP 6c).
+        /// </summary>
+        internal static bool IncludeLinkedModels = false;
+
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
             BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
         {
@@ -117,6 +125,23 @@ namespace StingTools.BOQ
             // The grouping mode feeds the aggregation key (P2.2) so similar
             // items collapse within the active spatial dimension.
             items = AggregateLineItems(items, grouping);
+
+            // ── STEP 6c: Linked-model takeoff (opt-in) ───────────────────
+            // Quantify elements in loaded Revit links when enabled. Linked rows
+            // are READ-ONLY for cost write-back: a link element's id can collide
+            // with a host id and stamp the wrong element, so RevitElementId is
+            // forced to -1 and IfcQuantitySetWriter / CostStamp / select-in-Revit
+            // all skip them — they contribute quantity + cost + carbon only,
+            // tagged "[Linked: <model>]".
+            if (IncludeLinkedModels)
+            {
+                try
+                {
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping);
+                    if (linkItems.Count > 0) items.AddRange(linkItems);
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
+            }
 
             // ── STEP 7: Group into sections ──────────────────────────────
             boq.Sections = GroupIntoSections(items, grouping);
@@ -1827,6 +1852,58 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"BuildExcludedCategoryNames: {ex.Message}"); }
             return set;
+        }
+
+        /// <summary>
+        /// STEP 6c — quantify elements in every loaded Revit link. Each link is
+        /// aggregated on its own, then its rows are neutralised for host
+        /// write-back (RevitElementId = -1, UniqueId cleared, constituents
+        /// dropped) and tagged "[Linked: &lt;model&gt;]". Unloaded links are
+        /// skipped. Quantities are parameter-derived, so the link transform does
+        /// not affect them.
+        /// </summary>
+        private static List<BOQLineItem> CollectLinkedItems(
+            Document doc, HashSet<string> knownCategories,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            BoqGroupingMode grouping)
+        {
+            var result = new List<BOQLineItem>();
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>();
+
+            foreach (var rli in links)
+            {
+                Document ld = null;
+                try { ld = rli.GetLinkDocument(); } catch { }
+                if (ld == null) continue;   // link not loaded / not found
+
+                string linkName;
+                try { linkName = ld.Title; } catch { linkName = "link"; }
+
+                var linkEls = CollectCandidateElements(ld, knownCategories);
+                var linkItems = new List<BOQLineItem>(linkEls.Count);
+                foreach (var el in linkEls)
+                {
+                    var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
+                    if (line != null) linkItems.Add(line);
+                }
+
+                linkItems = AggregateLineItems(linkItems, grouping);
+                foreach (var li in linkItems)
+                {
+                    li.RevitElementId = -1;                       // never resolve against the host doc
+                    li.UniqueId = "";                             // avoid cross-doc id reuse
+                    li.ConstituentElementIds = new List<long>();  // link-doc ids — not host-resolvable
+                    li.Note = string.IsNullOrEmpty(li.Note)
+                        ? $"[Linked: {linkName}]"
+                        : $"{li.Note} [Linked: {linkName}]";
+                }
+                result.AddRange(linkItems);
+                StingLog.Info($"BOQ linked-model takeoff: {linkItems.Count} row(s) from '{linkName}'.");
+            }
+            return result;
         }
 
         private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)

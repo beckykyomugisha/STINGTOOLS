@@ -36,6 +36,27 @@ Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
   IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
   (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
 
+#### Completed (BOQ — include-linked-models option)
+
+User request: a toggle to include / exclude linked Revit models in the takeoff.
+
+- **Engine** (`BOQ/BOQCostManager.cs`). New `IncludeLinkedModels` process-wide
+  flag (default off — so every consumer: panel, QTO export, snapshots, stays
+  consistent). New STEP 6c in `BuildBOQDocument` + `CollectLinkedItems` helper:
+  walks every loaded `RevitLinkInstance`, runs the existing
+  `CollectCandidateElements` over each `GetLinkDocument()`, builds + aggregates
+  line items per link. **Safety**: linked rows are neutralised for host
+  write-back — `RevitElementId = -1`, `UniqueId` cleared, constituent ids
+  dropped — because a link element's id can collide with a host id and stamp the
+  wrong element. `IfcQuantitySetWriter` / `CostStamp` / select-in-Revit already
+  skip `RevitElementId <= 0`, so linked rows contribute quantity + cost + carbon
+  only, tagged `[Linked: <model>]` in the Note. Quantities are parameter-derived,
+  so the link transform doesn't affect them. Unloaded links are skipped.
+- **UI** (`UI/BOQCostManagerPanel.cs`). "Incl. links" checkbox in the header
+  action strip; toggling sets the flag and refreshes. Off by default.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
 #### Completed (BOQ 5D Workspace — Slice 2: inline pickers + inline results, zero popups)
 
 In-Revit feedback: the Actions commands still opened external windows for input

@@ -321,6 +321,22 @@ namespace StingTools.UI
             // Header actions
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 0),
                 VerticalAlignment = VerticalAlignment.Center };
+            // Linked-models toggle — quantify loaded Revit links too. Read-only:
+            // linked rows carry no host id, so they're not cost-stamped or
+            // selectable in the host (tagged "[Linked: <model>]" in the Note).
+            var linkChk = new System.Windows.Controls.CheckBox
+            {
+                Content = "Incl. links",
+                IsChecked = StingTools.BOQ.BOQCostManager.IncludeLinkedModels,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0),
+                ToolTip = "Include quantities from loaded Revit links. Linked rows are read-only " +
+                          "(not cost-stamped or selectable in the host) and tagged \"[Linked: <model>]\"."
+            };
+            linkChk.Checked   += (s, e) => { StingTools.BOQ.BOQCostManager.IncludeLinkedModels = true;  DispatchAction("BOQRefresh"); };
+            linkChk.Unchecked += (s, e) => { StingTools.BOQ.BOQCostManager.IncludeLinkedModels = false; DispatchAction("BOQRefresh"); };
+            actions.Children.Add(linkChk);
+
             actions.Children.Add(BuildHeaderBtn("↻ Refresh", () => DispatchAction("BOQRefresh")));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
             Grid.SetColumn(actions, 2);
