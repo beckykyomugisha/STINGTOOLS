@@ -69,7 +69,19 @@ namespace StingTools.Core.Sustainability
 
         public int LinesFromEpd { get; set; }
         public int TotalLines   { get; set; }
+        /// <summary>How many measured lines resolved a non-zero carbon factor.</summary>
+        public int CarbonStampedLines { get; set; }
+
+        /// <summary>True when a real embodied-ENERGY baseline (MJ/m²) was available
+        /// for the EDGE materials %; false ⇒ that % is delegated to the EDGE app.</summary>
+        public bool HasEnergyBaseline { get; set; }
+
         public List<string> Warnings { get; } = new List<string>();
+
+        /// <summary>True only when a real carbon intensity was computed (floor area
+        /// and total carbon both non-zero). False ⇒ 0.0 kgCO₂e/m² is a "not computed"
+        /// state (un-stamped materials or missing GFA), not a genuine result.</summary>
+        public bool Computed => FloorAreaM2 > 0 && TotalCarbonKg > 0;
     }
 
     public static class MaterialsRollup
@@ -96,6 +108,7 @@ namespace StingTools.Core.Sustainability
                 res.TotalCarbonKg += l.CarbonKg;
                 res.TotalEnergyMj += l.EnergyMj;
                 if (l.FromEpd) res.LinesFromEpd++;
+                if (l.CarbonKg > 0) res.CarbonStampedLines++;
             }
 
             res.WblcaCompleted = list.Count > 0 && res.TotalCarbonKg > 0;
@@ -124,13 +137,19 @@ namespace StingTools.Core.Sustainability
                 ? (carbonBaselineKgM2 - res.CarbonIntensityKgM2) / carbonBaselineKgM2 * 100.0
                 : 0;
             if (energyBaselineMjM2.HasValue && energyBaselineMjM2.Value > 0)
+            {
+                res.HasEnergyBaseline = true;
                 res.EmbodiedEnergySavingsPct =
                     (energyBaselineMjM2.Value - res.EnergyIntensityMjM2) / energyBaselineMjM2.Value * 100.0;
+            }
             else
                 res.Warnings.Add("No embodied-energy baseline — EDGE materials % is the EDGE app's number (delegated).");
 
+            if (res.FloorAreaM2 <= 0)
+                res.Warnings.Add("Materials NOT computed — no floor area (GFA). Enter floor area in Setup, then re-run.");
             if (res.TotalCarbonKg <= 0)
-                res.Warnings.Add("No embodied-carbon data resolved — stamp STING_EMB_CARBON_NR / SUS_EPD_REF_TXT and re-run.");
+                res.Warnings.Add($"Materials NOT computed — {res.TotalLines} material(s) measured, 0 carbon-stamped. " +
+                                 "Stamp STING_EMB_CARBON_NR / SUS_EPD_REF_TXT (run a carbon pass) and re-run.");
 
             return res;
         }

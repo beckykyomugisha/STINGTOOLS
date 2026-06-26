@@ -80,14 +80,18 @@ namespace StingTools.UI.Sustainability
                 chkSchemeLeed.IsChecked = s.Schemes.Any(x => x.Equals("LEED", StringComparison.OrdinalIgnoreCase));
                 SetComboByTag(cmbEdgeLevel, s.LevelFor("EDGE", "Advanced"));
                 SetComboByTag(cmbUnits, s.Units.ToString());
-                txtCountry.Text     = s.Country ?? "";
+                cmbCountry.Text     = string.IsNullOrWhiteSpace(s.Country) ? "*" : s.Country;
                 txtClimateSite.Text = s.ClimateSiteId ?? "";
-                txtClimateZone.Text = s.ClimateZone ?? "";
+                cmbClimateZone.Text = s.ClimateZone ?? "";
                 SetComboByContent(cmbBuildingUse, s.DominantBuildingUse);
-                txtOccupancy.Text   = s.TotalOccupancy.ToString();
+                txtOccupancy.Text   = s.TotalOccupancy > 0 ? s.TotalOccupancy.ToString() : "";
 
                 var z0 = s.Zones?.FirstOrDefault();
-                txtCop.Text = (z0?.CoolingCop ?? 0).ToString("0.0", CultureInfo.InvariantCulture);
+                txtFloorArea.Text = (s.TotalFloorAreaM2 > 0)
+                    ? s.TotalFloorAreaM2.ToString("0", CultureInfo.InvariantCulture) : "";
+                // Blank when 0 so it reads "use baseline COP", not a misleading 0.0.
+                txtCop.Text = (z0 != null && z0.CoolingCop > 0)
+                    ? z0.CoolingCop.ToString("0.0", CultureInfo.InvariantCulture) : "";
 
                 var sup = s.Supply ?? new SupplyConfig();
                 SetComboByContent(cmbSupplyMode, sup.Mode);
@@ -113,16 +117,19 @@ namespace StingTools.UI.Sustainability
                 s.TargetLevels = new Dictionary<string, string> { { "EDGE", TagOf(cmbEdgeLevel, "Advanced") } };
                 s.Units = string.Equals(TagOf(cmbUnits, "SI"), "IP", StringComparison.OrdinalIgnoreCase)
                     ? SustainUnits.IP : SustainUnits.SI;
-                s.Country       = txtCountry.Text?.Trim();
+                string country = cmbCountry.Text?.Trim();
+                s.Country       = string.IsNullOrWhiteSpace(country) ? "*" : country;
                 s.ClimateSiteId = txtClimateSite.Text?.Trim();
-                s.ClimateZone   = txtClimateZone.Text?.Trim();
+                s.ClimateZone   = cmbClimateZone.Text?.Trim();
 
                 string use = ContentOf(cmbBuildingUse, "office");
                 int occ = ParseInt(txtOccupancy.Text, 0);
                 double cop = ParseDouble(txtCop.Text, 0);
+                double area = ParseDouble(txtFloorArea.Text, 0);
                 s.Zones = new List<ZoneSetup>
                 {
-                    new ZoneSetup { ZoneId = "whole-building", BuildingUse = use, Occupancy = occ, CoolingCop = cop }
+                    new ZoneSetup { ZoneId = "whole-building", BuildingUse = use,
+                                    FloorAreaM2 = area, Occupancy = occ, CoolingCop = cop }
                 };
 
                 s.Supply = new SupplyConfig
@@ -153,17 +160,24 @@ namespace StingTools.UI.Sustainability
                     var water  = edge?.Gates?.FirstOrDefault(g => g.GateId == "water");
                     var mat    = edge?.Gates?.FirstOrDefault(g => g.GateId == "materials");
 
-                    txtEnergyIndic.Text = energy != null ? $"{energy.IndicativeValue:F1}% (≥{energy.Threshold:F0}%)" : "—";
-                    txtWaterIndic.Text  = water  != null ? $"{water.IndicativeValue:F1}% (≥{water.Threshold:F0}%)"  : "—";
-                    txtMatIndic.Text    = mat    != null ? $"{mat.IndicativeValue:F1}% (≥{mat.Threshold:F0}%)"      : "—";
+                    txtEnergyIndic.Text = IndicOf(energy);
+                    txtWaterIndic.Text  = IndicOf(water);
+                    txtMatIndic.Text    = IndicOf(mat);
                     txtEnergyStatus.Text = StatusOf(energy);
                     txtWaterStatus.Text  = StatusOf(water);
                     txtMatStatus.Text    = StatusOf(mat);
                     txtEdgeOverall.Text  = edge != null
-                        ? $"EDGE level: {edge.AchievedLevel} (target {edge.TargetLevel}) — {(edge.Passed ? "PASS" : "below target")}"
+                        ? $"EDGE level (STING-determinable): {edge.AchievedLevel} (target {edge.TargetLevel}) — " +
+                          $"{(edge.Passed ? "energy+water meet target; confirm materials in EDGE app" : "below target")}"
                         : "EDGE level: —";
 
                     txtProxyLog.Text = res.Baseline?.Summary ?? "(no baseline)";
+
+                    // Surface the engine notes so 0s / not-computed gates are explained.
+                    var notes = (res.Warnings ?? new List<string>()).Distinct().Take(8).ToList();
+                    txtWarnings.Text = notes.Count > 0
+                        ? "• " + string.Join("\n• ", notes)
+                        : "All gates computed from model data.";
 
                     EnergyRows.Clear();
                     var e = res.Energy?.Design;
@@ -180,6 +194,15 @@ namespace StingTools.UI.Sustainability
 
                     txtCarbonIntensity.Text = $"Embodied carbon: {res.Materials?.CarbonIntensityKgM2:F1} kgCO2e/m² (A1-A3 GWP, EN 15978)";
                     txtEnergyIntensity.Text = $"Embodied energy: {res.Materials?.EnergyIntensityMjM2:F0} MJ/m² (CED — EDGE materials track, indicative)";
+                    if (res.Materials != null)
+                    {
+                        bool matOk = res.Materials.Computed;
+                        txtMatCoverage.Text = matOk
+                            ? $"{res.Materials.TotalLines} material(s) measured · {res.Materials.CarbonStampedLines} carbon-stamped · {res.Materials.LinesFromEpd} from EPD."
+                            : $"NOT COMPUTED — {res.Materials.TotalLines} measured, {res.Materials.CarbonStampedLines} carbon-stamped" +
+                              (res.Materials.FloorAreaM2 <= 0 ? " · no floor area (set GFA in Setup)" : "") +
+                              ". Stamp STING_EMB_CARBON_NR / SUS_EPD_REF_TXT and re-run.";
+                    }
                     HotspotRows.Clear();
                     if (res.Materials?.Hotspots != null)
                         foreach (var h in res.Materials.Hotspots)
@@ -193,11 +216,42 @@ namespace StingTools.UI.Sustainability
 
         private void AddEnergy(string k, double v) => EnergyRows.Add(new EndUseRow { EndUse = k, Kwh = $"{v:F0}" });
 
+        /// <summary>Indicative-value cell. Shows the % only when the gate was
+        /// computed from model data; otherwise "Not computed" / "EDGE app" so a
+        /// zero-design 100% or a hardcoded default never reads as a real number.</summary>
+        private static string IndicOf(GateResult g)
+        {
+            if (g == null) return "—";
+            if (g.Delegated) return "→ EDGE app";
+            if (!g.Computed) return "Not computed";
+            return $"{g.IndicativeValue:F1}% (≥{g.Threshold:F0}%)";
+        }
+
         private static string StatusOf(GateResult g)
         {
             if (g == null) return "—";
             if (g.NotEvaluated) return "n/a";
+            if (g.Delegated) return "→ EDGE app";
+            if (!g.Computed) return "not computed";
             return g.Passed ? "✓ pass" : "✗ below";
+        }
+
+        /// <summary>Receive area + occupancy from the Sustain_AutoFill command
+        /// (runs on the Revit API thread) and write them into the SETUP form.</summary>
+        public void ApplyAutoFill(double floorAreaM2, int occupancy, string climateZone = null)
+        {
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (floorAreaM2 > 0) txtFloorArea.Text = floorAreaM2.ToString("0", CultureInfo.InvariantCulture);
+                    if (occupancy > 0)   txtOccupancy.Text = occupancy.ToString();
+                    if (!string.IsNullOrWhiteSpace(climateZone) && string.IsNullOrWhiteSpace(cmbClimateZone.Text))
+                        cmbClimateZone.Text = climateZone;
+                    UpdateStatus($"Auto-filled from model: {floorAreaM2:0} m² · {occupancy} occ");
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus ApplyAutoFill: {ex.Message}"); }
         }
 
         // ── small form helpers ───────────────────────────────────────────

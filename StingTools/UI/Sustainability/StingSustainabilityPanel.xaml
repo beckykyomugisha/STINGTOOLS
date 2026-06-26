@@ -114,14 +114,30 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Country" Style="{StaticResource SusLabel}"/>
-                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCountry" Margin="0,2" FontSize="10"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbCountry" IsEditable="True" Margin="0,2" FontSize="10"
+                                       ToolTip="ISO country (or * = any). Editable — type a code the baseline catalogue knows.">
+                                <ComboBoxItem Content="*"/>
+                                <ComboBoxItem Content="CAF"/><ComboBoxItem Content="UGA"/><ComboBoxItem Content="KEN"/>
+                                <ComboBoxItem Content="GBR"/><ComboBoxItem Content="USA"/>
+                            </ComboBox>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Climate site id" Style="{StaticResource SusLabel}"/>
-                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtClimateSite" Margin="0,2" FontSize="10"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtClimateSite" Margin="0,2" FontSize="10"
+                                       ToolTip="Climate registry site id (drives monthly climate + PV yield). Blank = project's stamped site."/>
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Climate zone (ASHRAE 169)" Style="{StaticResource SusLabel}"/>
-                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtClimateZone" Margin="0,2" FontSize="10"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbClimateZone" IsEditable="True" Margin="0,2" FontSize="10"
+                                       ToolTip="ASHRAE 169 zone — drives the baseline proxy. 0A/1A = very hot humid (Bangui); 4A/5A = temperate.">
+                                <ComboBoxItem Content=""/>
+                                <ComboBoxItem Content="0A"/><ComboBoxItem Content="0B"/><ComboBoxItem Content="1A"/>
+                                <ComboBoxItem Content="1B"/><ComboBoxItem Content="2A"/><ComboBoxItem Content="2B"/>
+                                <ComboBoxItem Content="3A"/><ComboBoxItem Content="3B"/><ComboBoxItem Content="3C"/>
+                                <ComboBoxItem Content="4A"/><ComboBoxItem Content="4B"/><ComboBoxItem Content="4C"/>
+                                <ComboBoxItem Content="5A"/><ComboBoxItem Content="6A"/><ComboBoxItem Content="7"/>
+                                <ComboBoxItem Content="8"/>
+                            </ComboBox>
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Building use (dominant)" Style="{StaticResource SusLabel}"/>
                             <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbBuildingUse" Margin="0,2" FontSize="10">
                                 <ComboBoxItem Content="office" IsSelected="True"/>
@@ -130,8 +146,15 @@
                                 <ComboBoxItem Content="retail"/>
                                 <ComboBoxItem Content="hotel"/>
                             </ComboBox>
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Occupancy (total)" Style="{StaticResource SusLabel}"/>
-                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtOccupancy" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Floor area / GFA (m²)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtFloorArea" Margin="0,2" FontSize="10"
+                                       ToolTip="Gross floor area. Required for energy + materials intensity when the model has no MEP Spaces."/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Occupancy (total)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="5" Grid.Column="1" x:Name="txtOccupancy" Margin="0,2" FontSize="10"
+                                       ToolTip="Total occupants. Drives water annual demand. Use 'From model' to estimate from spaces/rooms."/>
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="" Style="{StaticResource SusLabel}"/>
+                            <Button    Grid.Row="6" Grid.Column="1" Content="⤓ From model (area + occupancy)" HorizontalAlignment="Left"
+                                       Style="{StaticResource SusActionBtn}" Tag="Sustain_AutoFill" Click="Cmd_Click" Margin="0,2"/>
                         </Grid>
 
                         <TextBlock Text="PLANT &amp; SUPPLY" Style="{StaticResource SusSectionHeader}"/>
@@ -146,7 +169,8 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Cooling COP/SEER" Style="{StaticResource SusLabel}"/>
-                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCop" Margin="0,2" FontSize="10"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCop" Margin="0,2" FontSize="10"
+                                       ToolTip="Seasonal cooling COP/SEER. Blank or 0 = use the baseline COP for the resolved zone."/>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Supply mode" Style="{StaticResource SusLabel}"/>
                             <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbSupplyMode" Margin="0,2" FontSize="10">
                                 <ComboBoxItem Content="grid_tied" IsSelected="True"/>
@@ -219,6 +243,10 @@
                         <TextBlock x:Name="txtProxyLog" Text="(run the dashboard)" TextWrapping="Wrap" FontSize="10"
                                    Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
 
+                        <TextBlock Text="NOTES / WHY A GATE IS NOT COMPUTED" Style="{StaticResource SusSectionHeader}"/>
+                        <TextBlock x:Name="txtWarnings" Text="(run the dashboard)" TextWrapping="Wrap" FontSize="10"
+                                   Margin="2,2" Foreground="#C0651A"/>
+
                         <TextBlock Text="ENERGY BY END-USE" Style="{StaticResource SusSectionHeader}"/>
                         <DataGrid x:Name="EnergyGrid" Style="{StaticResource SusGrid}" Height="120" Margin="2,2">
                             <DataGrid.Columns>
@@ -237,6 +265,7 @@
                         <TextBlock Text="DUAL METRIC" Style="{StaticResource SusSectionHeader}"/>
                         <TextBlock x:Name="txtCarbonIntensity" Text="Embodied carbon: —" FontSize="11" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
                         <TextBlock x:Name="txtEnergyIntensity" Text="Embodied energy: —" FontSize="11" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
+                        <TextBlock x:Name="txtMatCoverage" Text="" FontSize="10" Margin="2,2" Foreground="#C0651A" TextWrapping="Wrap"/>
                         <TextBlock Text="THREE CARBON HOTSPOTS (A1-A3 GWP)" Style="{StaticResource SusSectionHeader}"/>
                         <DataGrid x:Name="HotspotGrid" Style="{StaticResource SusGrid}" Height="100" Margin="2,2">
                             <DataGrid.Columns>

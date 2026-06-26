@@ -212,7 +212,9 @@ namespace StingTools.Core.Sustainability
             var baselineFlows = FixtureFlows.FromBaseline(baseline);
             // Design flows: read model low-flow fixtures if available; else assume a
             // 25% improvement over the baseline (indicative until fixtures carry flows).
-            var designFlows = ReadDesignFixtureFlows(doc) ?? new FixtureFlows
+            var modelFlows = ReadDesignFixtureFlows(doc);
+            bool indicative = modelFlows == null;
+            var designFlows = modelFlows ?? new FixtureFlows
             {
                 WcLpf = baselineFlows.WcLpf * 0.75,
                 UrinalLpf = baselineFlows.UrinalLpf * 0.75,
@@ -224,8 +226,13 @@ namespace StingTools.Core.Sustainability
             int occupancy = setup.TotalOccupancy;
             // RWH yield is a project hook (RainwaterHarvestingCalc) — 0 here until a
             // project supplies roof area + rainfall; greywater reuse is a setup fraction.
-            return AnnualWaterEstimator.Estimate(designFlows, baselineFlows, profile, occupancy,
+            var w = AnnualWaterEstimator.Estimate(designFlows, baselineFlows, profile, occupancy,
                 rwhYieldLPerYr: 0, greywaterReuseFraction: setup.Supply?.GreywaterReuseFraction ?? 0);
+            w.IsIndicativeDefault = indicative;
+            if (indicative)
+                w.Warnings.Add("Water % is an indicative 25%-over-baseline default — no low-flow " +
+                               "fixture data read from the model (stamp PLM_* flows for a real figure).");
+            return w;
         }
 
         /// <summary>Read low-flow fixture flows from the model (best-effort).

@@ -21,6 +21,15 @@ namespace StingTools.Core.Sustainability
         /// {"wblca_completed": true}.</summary>
         public Dictionary<string, bool> Bools { get; } = new Dictionary<string, bool>();
 
+        /// <summary>Per-metric "was this computed from real model data?" flag.
+        /// Absent => assumed computed (true). A metric that is a hardcoded default,
+        /// a zero-design artefact, or a delegated (EDGE-app-owned) number is marked
+        /// false so the dashboard never renders it as an earned pass.</summary>
+        public Dictionary<string, bool> ComputedFlags { get; } = new Dictionary<string, bool>();
+
+        /// <summary>Per-metric note explaining a not-computed / indicative status.</summary>
+        public Dictionary<string, string> Notes { get; } = new Dictionary<string, string>();
+
         public bool HasNumber(string metric) => Numbers.ContainsKey(metric);
         public bool HasBool(string metric)   => Bools.ContainsKey(metric);
 
@@ -28,6 +37,16 @@ namespace StingTools.Core.Sustainability
             => Numbers.TryGetValue(metric, out var v) ? v : fallback;
         public bool GetBool(string metric, bool fallback = false)
             => Bools.TryGetValue(metric, out var v) ? v : fallback;
+
+        public void SetComputed(string metric, bool computed, string note = null)
+        {
+            ComputedFlags[metric] = computed;
+            if (!string.IsNullOrEmpty(note)) Notes[metric] = note;
+        }
+        public bool IsComputed(string metric)
+            => !ComputedFlags.TryGetValue(metric, out var v) || v;   // default true
+        public string GetNote(string metric)
+            => Notes.TryGetValue(metric, out var n) ? n : "";
     }
 
     /// <summary>One resolved gate result inside a scheme evaluation.</summary>
@@ -53,6 +72,11 @@ namespace StingTools.Core.Sustainability
         /// <summary>True when this gate has no measurable value (e.g. provider
         /// returned nothing) — surfaced distinctly from a hard fail.</summary>
         public bool   NotEvaluated     { get; set; }
+        /// <summary>False when the metric was NOT computed from real model data
+        /// (zero-design artefact, hardcoded indicative default, or a delegated
+        /// EDGE-app number). The dashboard renders these as "Not computed" and
+        /// never as a pass — a certification tool must not imply an earned pass.</summary>
+        public bool   Computed         { get; set; } = true;
         public string Note             { get; set; } = "";
     }
 

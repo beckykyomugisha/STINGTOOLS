@@ -50,7 +50,8 @@ namespace StingTools.Sustainability.Tests
         {
             var res = MaterialsRollup.Rollup(new List<MaterialLine>(), 2550);
             Assert.False(res.WblcaCompleted);
-            Assert.Contains(res.Warnings, w => w.Contains("No embodied-carbon"));
+            Assert.False(res.Computed);
+            Assert.Contains(res.Warnings, w => w.Contains("0 carbon-stamped"));
         }
 
         [Fact]

@@ -49,6 +49,8 @@ namespace StingTools.UI.Sustainability
                         Run<StingTools.Commands.Sustainability.SustainSetBaselineCommand>(app); break;
                     case "Sustain_SupplyConfig":
                         Run<StingTools.Commands.Sustainability.SustainSupplyConfigCommand>(app); break;
+                    case "Sustain_AutoFill":
+                        Run<StingTools.Commands.Sustainability.SustainAutoFillCommand>(app); break;
                     case "Sustain_EdgeExport":
                         Run<StingTools.Commands.Sustainability.SustainEdgeExportCommand>(app); break;
                     case "Sustain_LccBenefit":

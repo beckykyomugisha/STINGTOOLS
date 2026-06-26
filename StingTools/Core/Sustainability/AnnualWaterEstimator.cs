@@ -54,6 +54,16 @@ namespace StingTools.Core.Sustainability
         public int    Occupancy { get; set; }
         public int    OperatingDaysPerYear { get; set; }
         public List<string> Warnings { get; } = new List<string>();
+
+        /// <summary>True when the design fixture flows are the hardcoded
+        /// 25%-over-baseline placeholder (no real fixture data read off the model).
+        /// Set by the orchestration engine. When true the savings % is the same on
+        /// every project and must be shown as "indicative default", not a pass.</summary>
+        public bool IsIndicativeDefault { get; set; }
+
+        /// <summary>True only when the % came from real model fixture data against a
+        /// non-zero baseline. False ⇒ rendered as "indicative default", never a pass.</summary>
+        public bool Computed => !IsIndicativeDefault && BaselineLPersonDay > 0 && DesignLPersonDay > 0;
     }
 
     public static class AnnualWaterEstimator

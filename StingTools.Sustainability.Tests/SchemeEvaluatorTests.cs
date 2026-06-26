@@ -14,18 +14,27 @@ namespace StingTools.Sustainability.Tests
             return GreenSchemeRegistry.LoadFromJson(json);
         }
 
+        // Build a context whose estimator results are genuinely COMPUTED (real
+        // floor area, zones, design energy, baselines) so the not-computed guard
+        // doesn't fire — these tests exercise the gate logic, not the zero-data path.
         private static SchemeContext Ctx(double energyPct, double waterPct, double matPct)
         {
-            return new SchemeContext
+            var energy = new EnergyEstimateResult
             {
-                Energy   = new EnergyEstimateResult { EnergySavingsPct = energyPct },
-                Water    = new WaterEstimateResult  { WaterSavingsPct = waterPct },
-                Materials = new MaterialsRollupResult
-                {
-                    EmbodiedEnergySavingsPct = matPct,
-                    WblcaCompleted = true
-                }
+                EnergySavingsPct = energyPct, FloorAreaM2 = 1000, ZoneCount = 1, BaselineEuiKwhM2Yr = 200
             };
+            energy.Design.CoolingKwh = 50000;   // TotalKwh > 0 ⇒ Computed
+            var water = new WaterEstimateResult
+            {
+                WaterSavingsPct = waterPct, BaselineLPersonDay = 50, DesignLPersonDay = 40,
+                IsIndicativeDefault = false
+            };
+            var mat = new MaterialsRollupResult
+            {
+                EmbodiedEnergySavingsPct = matPct, WblcaCompleted = true,
+                FloorAreaM2 = 1000, TotalCarbonKg = 1000, TotalEnergyMj = 12000, HasEnergyBaseline = true
+            };
+            return new SchemeContext { Energy = energy, Water = water, Materials = mat };
         }
 
         [Fact]
@@ -39,9 +48,13 @@ namespace StingTools.Sustainability.Tests
             // 42% energy, 25% water, 22% materials >= Advanced (40/20/20).
             var res = SchemeEvaluator.Evaluate(edge, "Advanced", providers, Ctx(42, 25, 22));
 
+            // STING-determinable result = energy + water (materials is delegated to
+            // the EDGE app and never blocks).
             Assert.True(res.Passed);
             Assert.Equal("Advanced", res.AchievedLevel);
-            Assert.All(res.Gates, g => Assert.True(g.Passed));
+            Assert.True(res.Gates.Find(g => g.GateId == "energy").Passed);
+            Assert.True(res.Gates.Find(g => g.GateId == "water").Passed);
+            Assert.True(res.Gates.Find(g => g.GateId == "materials").Delegated);
         }
 
         [Fact]
@@ -51,12 +64,14 @@ namespace StingTools.Sustainability.Tests
             var edge = reg.Get("EDGE");
             var providers = MetricProviderRegistry.CreateStandard();
 
-            // Energy 42 OK, water 25 OK, materials only 18 < 20 -> overall fail.
-            var res = SchemeEvaluator.Evaluate(edge, "Advanced", providers, Ctx(42, 25, 18));
+            // Energy only 18 < 40 (Advanced) -> a determinable gate fails -> scheme fails.
+            // (Materials is delegated and can't fail the STING result, so we fail it on
+            // a determinable gate — the correct certification-tool behaviour.)
+            var res = SchemeEvaluator.Evaluate(edge, "Advanced", providers, Ctx(18, 25, 22));
 
             Assert.False(res.Passed);
-            var mat = res.Gates.Find(g => g.GateId == "materials");
-            Assert.False(mat.Passed);
+            var energy = res.Gates.Find(g => g.GateId == "energy");
+            Assert.False(energy.Passed);
         }
 
         [Fact]
@@ -102,12 +117,16 @@ namespace StingTools.Sustainability.Tests
             var providers = MetricProviderRegistry.CreateStandard();
 
             // WBLCA done (prereq) + 22% GWP reduction -> step gives 3 pts (>=20).
+            // Carbon must be genuinely computed (real area + total carbon) for the
+            // gwp gate to score — a zero-carbon model awards 0, not 3.
             var ctx = new SchemeContext
             {
                 Materials = new MaterialsRollupResult
                 {
                     WblcaCompleted = true,
-                    GwpReductionPct = 22
+                    GwpReductionPct = 22,
+                    FloorAreaM2 = 1000,
+                    TotalCarbonKg = 1000
                 }
             };
             var res = SchemeEvaluator.Evaluate(leed, "Certified", providers, ctx);
@@ -158,6 +177,59 @@ namespace StingTools.Sustainability.Tests
             Assert.False(SchemeEvaluator.Compare(39.9, ">=", 40));
             Assert.True(SchemeEvaluator.Compare(41, ">", 40));
             Assert.True(SchemeEvaluator.Compare(40, "==", 40));
+        }
+
+        [Fact]
+        public void Edge_ZeroDesignEnergy_IsNotComputed_NeverPasses()
+        {
+            // The headline bug: a model with no zones gives design EUI 0, so
+            // (baseline-0)/baseline = 100%. That must NOT read as a pass.
+            var reg = LoadShippedSchemes();
+            var edge = reg.Get("EDGE");
+            var providers = MetricProviderRegistry.CreateStandard();
+
+            var ctx = new SchemeContext
+            {
+                Energy   = new EnergyEstimateResult { EnergySavingsPct = 100, ZoneCount = 0, FloorAreaM2 = 0 },
+                Water    = new WaterEstimateResult  { WaterSavingsPct = 25, BaselineLPersonDay = 50, DesignLPersonDay = 40 },
+                Materials = new MaterialsRollupResult { WblcaCompleted = false }
+            };
+            var res = SchemeEvaluator.Evaluate(edge, "Advanced", providers, ctx);
+
+            var energy = res.Gates.Find(g => g.GateId == "energy");
+            Assert.False(energy.Computed);   // not computed
+            Assert.False(energy.Passed);     // therefore never a pass, despite 100%
+            Assert.False(res.Passed);
+            Assert.Equal("None", res.AchievedLevel);
+        }
+
+        [Fact]
+        public void Edge_IndicativeDefaultWater_IsNotComputed_NeverPasses()
+        {
+            // Water flows that are the hardcoded 25%-over-baseline placeholder must
+            // be flagged not-computed, not shown as a confident pass.
+            var reg = LoadShippedSchemes();
+            var edge = reg.Get("EDGE");
+            var providers = MetricProviderRegistry.CreateStandard();
+
+            var energy = new EnergyEstimateResult { EnergySavingsPct = 45, FloorAreaM2 = 1000, ZoneCount = 1, BaselineEuiKwhM2Yr = 200 };
+            energy.Design.CoolingKwh = 50000;
+            var ctx = new SchemeContext
+            {
+                Energy = energy,
+                Water  = new WaterEstimateResult
+                {
+                    WaterSavingsPct = 25, BaselineLPersonDay = 50, DesignLPersonDay = 37.5,
+                    IsIndicativeDefault = true   // placeholder, not model data
+                },
+                Materials = new MaterialsRollupResult { WblcaCompleted = false }
+            };
+            var res = SchemeEvaluator.Evaluate(edge, "Advanced", providers, ctx);
+
+            var water = res.Gates.Find(g => g.GateId == "water");
+            Assert.False(water.Computed);
+            Assert.False(water.Passed);
+            Assert.False(res.Passed);   // a determinable gate (water) is not computed
         }
 
         [Fact]

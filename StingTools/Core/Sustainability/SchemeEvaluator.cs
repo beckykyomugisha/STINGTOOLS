@@ -65,13 +65,20 @@ namespace StingTools.Core.Sustainability
                     continue;
                 }
 
+                // "Was this metric computed from real model data?" A gate that is a
+                // zero-design artefact, a hardcoded indicative default, or a delegated
+                // EDGE-app number can NEVER show as an earned pass.
+                gr.Computed = metric.IsComputed(gate.Metric);
+                string note = metric.GetNote(gate.Metric);
+                if (!string.IsNullOrEmpty(note)) gr.Note = note;
+
                 if (gate.Points.Count > 0)
                 {
                     // pointSum step function.
                     double val = metric.GetNumber(gate.Metric, 0);
                     gr.IndicativeValue = val;
-                    gr.Points = StepPoints(gate.Points, val);
-                    gr.Passed = gr.Points > 0;
+                    gr.Points = gr.Computed ? StepPoints(gate.Points, val) : 0;
+                    gr.Passed = gr.Computed && gr.Points > 0;
                     res.TotalPoints += gr.Points;
                 }
                 else if (gate.HasThresholdBool)
@@ -79,7 +86,7 @@ namespace StingTools.Core.Sustainability
                     // Boolean prerequisite (e.g. wblca_completed == true).
                     bool b = metric.GetBool(gate.Metric, false);
                     gr.IndicativeValue = b ? 1 : 0;
-                    gr.Passed = b == gate.ThresholdBool;
+                    gr.Passed = gr.Computed && b == gate.ThresholdBool;
                     gr.Threshold = gate.ThresholdBool ? 1 : 0;
                 }
                 else
@@ -90,7 +97,8 @@ namespace StingTools.Core.Sustainability
                     double threshold = 0;
                     if (levelThresholds != null) levelThresholds.TryGetValue(gate.Id, out threshold);
                     gr.Threshold = threshold;
-                    gr.Passed = Compare(val, gate.Operator, threshold);
+                    // Not-computed ⇒ never a pass (e.g. energy 100% from zero design).
+                    gr.Passed = gr.Computed && Compare(val, gate.Operator, threshold);
                 }
 
                 res.Gates.Add(gr);
@@ -107,7 +115,12 @@ namespace StingTools.Core.Sustainability
             else
             {
                 // all_required: AND of required gates against the target level.
-                res.Passed = res.Gates.Where(g => g.Required).All(g => g.Passed);
+                // Delegated gates (EDGE materials = EDGE-app-owned) are caveated, not
+                // blocking — STING can't certify them, so they don't gate the
+                // STING-determinable result. A not-computed NON-delegated gate (zero-
+                // design energy, indicative-default water) DOES block (its Passed=false).
+                var determinable = res.Gates.Where(g => g.Required && !g.Delegated).ToList();
+                res.Passed = determinable.Count > 0 && determinable.All(g => g.Passed);
                 res.AchievedLevel = HighestAchievableLevel(scheme, providers, ctx);
             }
 
@@ -152,12 +165,14 @@ namespace StingTools.Core.Sustainability
         {
             if (scheme.Levels == null || scheme.Levels.Count == 0) return "None";
 
-            // Cache metric values per gate once.
+            // Cache metric values + computed flags per gate once.
             var values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var computed = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var gate in scheme.Gates)
             {
                 var metric = providers.Get(gate.Provider)?.Evaluate(ctx);
-                values[gate.Id] = metric?.GetNumber(gate.Metric, 0) ?? 0;
+                values[gate.Id]   = metric?.GetNumber(gate.Metric, 0) ?? 0;
+                computed[gate.Id] = metric?.IsComputed(gate.Metric) ?? true;
             }
 
             // Levels are typically ordered Certified < Advanced < ZeroCarbon by the
@@ -168,8 +183,14 @@ namespace StingTools.Core.Sustainability
             foreach (var lvl in scheme.Levels)
             {
                 bool allMet = true;
-                foreach (var gate in scheme.Gates.Where(g => g.Required && g.Points.Count == 0 && !g.HasThresholdBool))
+                // Determinable, non-delegated, numeric required gates only. A delegated
+                // gate (EDGE materials) is the EDGE app's to certify; a not-computed
+                // gate blocks (can't be silently passed off a zero/default value).
+                foreach (var gate in scheme.Gates.Where(g =>
+                             g.Required && g.Points.Count == 0 && !g.HasThresholdBool
+                             && string.IsNullOrEmpty(g.Delegated)))
                 {
+                    if (!computed.TryGetValue(gate.Id, out var c) || !c) { allMet = false; break; }
                     lvl.Value.TryGetValue(gate.Id, out double thr);
                     if (!Compare(values.TryGetValue(gate.Id, out var v) ? v : 0, gate.Operator, thr))
                     { allMet = false; break; }

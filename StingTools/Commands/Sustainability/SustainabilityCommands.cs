@@ -47,9 +47,10 @@ namespace StingTools.Commands.Sustainability
             var setup = SustainProjectSetup.Load(dir, out bool found);
             if (!found)
             {
-                // Seed area/occupancy from the model when no setup exists yet.
-                double area = TotalSpaceAreaM2(doc);
-                setup = SustainProjectSetup.CreateDefault(area, 0);
+                // Seed area/occupancy from the model when no setup exists yet
+                // (Spaces preferred, Rooms fallback for architectural models).
+                double area = TotalFloorAreaM2(doc);
+                setup = SustainProjectSetup.CreateDefault(area, EstimateOccupancy(doc, area));
                 // Climate site stamped by the HVAC DocumentOpened auto-stamp.
                 try
                 {
@@ -74,6 +75,66 @@ namespace StingTools.Commands.Sustainability
                 return a;
             }
             catch { return 0; }
+        }
+
+        public static double TotalRoomAreaM2(Document doc)
+        {
+            try
+            {
+                double a = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => r.Area > 1e-6)
+                    .Sum(r => UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters));
+                return a;
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Floor area from Spaces, falling back to Rooms (architectural
+        /// models carry Rooms, not MEP Spaces).</summary>
+        public static double TotalFloorAreaM2(Document doc)
+        {
+            double a = TotalSpaceAreaM2(doc);
+            return a > 1e-6 ? a : TotalRoomAreaM2(doc);
+        }
+
+        /// <summary>Occupancy from Space "Number of People"; falls back to an area
+        /// density estimate (1 person / 10 m²) when no occupancy data is modelled.</summary>
+        public static int EstimateOccupancy(Document doc, double floorAreaM2)
+        {
+            try
+            {
+                int sumPeople = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_MEPSpaces)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Mechanical.Space>()
+                    .Select(s => { var p = s.LookupParameter("Number of People");
+                                   return (p != null && p.HasValue && p.StorageType == StorageType.Integer) ? p.AsInteger() : 0; })
+                    .Sum();
+                if (sumPeople > 0) return sumPeople;
+            }
+            catch { }
+            // Documented density estimate (≈10 m²/person, ASHRAE 62.1 office) — an
+            // estimate the user can override, not a silent constant.
+            return floorAreaM2 > 0 ? (int)Math.Round(floorAreaM2 / 10.0) : 0;
+        }
+
+        /// <summary>The setup the user is currently looking at — prefer the live
+        /// panel form (so GFA / occupancy edits apply without a Save), else disk.</summary>
+        public static SustainProjectSetup EffectiveSetup(Document doc)
+        {
+            try
+            {
+                var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
+                var fromForm = panel?.ReadSetupForm();
+                if (fromForm != null && (fromForm.TotalFloorAreaM2 > 0 || fromForm.TotalOccupancy > 0
+                    || !string.IsNullOrWhiteSpace(fromForm.ClimateZone)))
+                    return fromForm;
+            }
+            catch { }
+            return LoadSetup(doc);
         }
 
         public static void PushToPanel(SustainabilityRunResult res)
@@ -126,7 +187,7 @@ namespace StingTools.Commands.Sustainability
             var doc = SustainCmdHelper.Doc(cmd);
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
-            var setup = SustainCmdHelper.LoadSetup(doc);
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
             var res = SustainabilityEngine.Run(doc, setup);
             SustainCmdHelper.PushToPanel(res);
 
@@ -180,8 +241,12 @@ namespace StingTools.Commands.Sustainability
                 b.AddSection($"EDGE gates (target {edge.TargetLevel}; achieved {edge.AchievedLevel})");
                 foreach (var g in edge.Gates)
                 {
-                    string val = $"{g.IndicativeValue:F1}{g.Unit} (target {g.Threshold:F0}{g.Unit})";
-                    string note = g.Delegated ? "STING-indicative; EDGE app owns the official %" : null;
+                    string val = g.Delegated ? "→ EDGE app"
+                               : !g.Computed ? "Not computed"
+                               : $"{g.IndicativeValue:F1}{g.Unit} (target {g.Threshold:F0}{g.Unit})";
+                    string note = g.Delegated ? "STING-indicative; EDGE app owns the official %"
+                                : !g.Computed ? g.Note
+                                : null;
                     if (g.Passed) b.MetricHighlight(g.Label + " — indicative", val, note);
                     else          b.MetricWarn(g.Label + " — indicative", val, note);
                 }
@@ -222,7 +287,7 @@ namespace StingTools.Commands.Sustainability
             var doc = SustainCmdHelper.Doc(cmd);
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
-            var setup = SustainCmdHelper.LoadSetup(doc);
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
             var res = SustainabilityEngine.Run(doc, setup);
 
             // Stamp the resolved baseline intensities + achieved level onto ProjectInfo.
@@ -278,6 +343,33 @@ namespace StingTools.Commands.Sustainability
         {
             try { var p = el?.LookupParameter(name); if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(v ?? ""); }
             catch (Exception ex) { StingLog.Warn($"StampText {name}: {ex.Message}"); }
+        }
+    }
+
+    // ── Sustain_AutoFill — area + occupancy from the model into the SETUP form ─
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SustainAutoFillCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var doc = SustainCmdHelper.Doc(cmd);
+            if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
+
+            double area = SustainCmdHelper.TotalFloorAreaM2(doc);
+            int occ = SustainCmdHelper.EstimateOccupancy(doc, area);
+            var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
+            panel?.ApplyAutoFill(area, occ);
+
+            string src = SustainCmdHelper.TotalSpaceAreaM2(doc) > 1e-6 ? "MEP Spaces" : "Rooms";
+            if (area <= 0)
+                TaskDialog.Show("STING Sustainability",
+                    "No MEP Spaces or Rooms with area found — enter floor area (GFA) manually in Setup.");
+            else
+                TaskDialog.Show("STING Sustainability",
+                    $"Auto-filled from model ({src}):\nFloor area: {area:0} m²\nOccupancy (estimate): {occ}\n\n" +
+                    "Review the values on the SETUP tab, then Save setup + Run dashboard.");
+            return Result.Succeeded;
         }
     }
 

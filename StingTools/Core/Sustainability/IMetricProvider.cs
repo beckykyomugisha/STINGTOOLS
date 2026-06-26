@@ -66,7 +66,14 @@ namespace StingTools.Core.Sustainability
         {
             var r = new MetricResult();
             if (ctx?.Energy != null)
+            {
                 r.Numbers["energy_savings_pct"] = ctx.Energy.EnergySavingsPct;
+                r.SetComputed("energy_savings_pct", ctx.Energy.Computed,
+                    ctx.Energy.Computed ? null
+                        : (ctx.Energy.ZoneCount == 0
+                            ? "no Spaces / floor area — add Spaces or enter GFA in Setup"
+                            : "zero design energy — check area / occupancy / COP"));
+            }
             return r;
         }
     }
@@ -78,7 +85,12 @@ namespace StingTools.Core.Sustainability
         {
             var r = new MetricResult();
             if (ctx?.Water != null)
+            {
                 r.Numbers["water_savings_pct"] = ctx.Water.WaterSavingsPct;
+                r.SetComputed("water_savings_pct", ctx.Water.Computed,
+                    ctx.Water.Computed ? null
+                        : "indicative default — no low-flow fixture data read from the model");
+            }
             return r;
         }
     }
@@ -91,9 +103,26 @@ namespace StingTools.Core.Sustainability
             var r = new MetricResult();
             if (ctx?.Materials != null)
             {
-                r.Numbers["embodied_energy_savings_pct"] = ctx.Materials.EmbodiedEnergySavingsPct;
-                r.Numbers["gwp_reduction_pct"]           = ctx.Materials.GwpReductionPct;
-                r.Bools["wblca_completed"]               = ctx.Materials.WblcaCompleted;
+                var m = ctx.Materials;
+                r.Numbers["embodied_energy_savings_pct"] = m.EmbodiedEnergySavingsPct;
+                r.Numbers["gwp_reduction_pct"]           = m.GwpReductionPct;
+                r.Bools["wblca_completed"]               = m.WblcaCompleted;
+
+                // EDGE materials is embodied-energy %. STING can compute an INDICATIVE
+                // value only when a real embodied-energy baseline (MJ/m²) exists AND
+                // material data resolved; otherwise it's delegated to the EDGE app.
+                // (The gate is flagged `delegated` in the scheme so it never blocks the
+                // STING-determinable result either way — it's shown beside the official
+                // field, not used to award a level.)
+                bool energyComputable = m.HasEnergyBaseline && m.FloorAreaM2 > 0 && m.TotalEnergyMj > 0;
+                r.SetComputed("embodied_energy_savings_pct", energyComputable,
+                    energyComputable ? null
+                        : "EDGE app owns the certified materials %; STING tracks selections + indicative MJ");
+                r.SetComputed("gwp_reduction_pct", m.Computed,
+                    m.Computed ? null
+                        : (m.FloorAreaM2 <= 0 ? "no floor area (GFA)"
+                                              : $"{m.TotalLines} measured, 0 carbon-stamped — run a carbon pass"));
+                r.SetComputed("wblca_completed", m.Computed);
             }
             return r;
         }
