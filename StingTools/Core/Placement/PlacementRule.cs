@@ -434,6 +434,7 @@ namespace StingTools.Core.Placement
         public string BuildingType { get; set; } = "";
 
         /// <summary>Semicolon-separated list of standards this rule enforces (e.g. "BS 8300;BB101;HTM 08-03").</summary>
+        [Newtonsoft.Json.JsonConverter(typeof(StringOrCsvArrayConverter))]
         public string ApplicableStandards { get; set; } = "";
 
         /// <summary>Minimum IP rating required (numeric, e.g. 44 for IP44).</summary>
@@ -703,6 +704,45 @@ namespace StingTools.Core.Placement
         public string MergeKey => string.IsNullOrEmpty(RuleId)
             ? $"{CategoryFilter}::{VariantHint}::{RoomFilter}::{AnchorType}"
             : RuleId;
+    }
+
+    /// <summary>
+    /// Deserialises a string property from EITHER a JSON string
+    /// ("BS 8300;BB101") OR a JSON array (["BS7671","BS 8300"]), normalising an
+    /// array to a semicolon-joined string. Many rule packs (accessibility,
+    /// mk-electrical, baseline-extensions/2, ceiling-pendants, windows-glazing,
+    /// commissioning, conduiting-phase, in-wall-chase, medical-gases, routing)
+    /// author ApplicableStandards as an ARRAY. Without this, Newtonsoft threw on
+    /// the StartArray token while deserialising the whole PlacementRuleSet, so
+    /// LoadFromFileSafe caught the exception and the ENTIRE pack silently loaded
+    /// zero rules — the long-standing "only 147 rules load" bug (baseline + the
+    /// 5 packs that happened to omit the field).
+    /// </summary>
+    internal sealed class StringOrCsvArrayConverter : Newtonsoft.Json.JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(string);
+
+        public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType,
+            object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+        {
+            if (reader.TokenType == Newtonsoft.Json.JsonToken.Null) return "";
+            if (reader.TokenType == Newtonsoft.Json.JsonToken.StartArray)
+            {
+                var arr = Newtonsoft.Json.Linq.JArray.Load(reader);
+                var parts = new List<string>();
+                foreach (var t in arr)
+                {
+                    var s = t?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s)) parts.Add(s.Trim());
+                }
+                return string.Join(";", parts);
+            }
+            return reader.Value?.ToString() ?? "";
+        }
+
+        public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object value,
+            Newtonsoft.Json.JsonSerializer serializer)
+            => writer.WriteValue(value as string ?? "");
     }
 
     /// <summary>
