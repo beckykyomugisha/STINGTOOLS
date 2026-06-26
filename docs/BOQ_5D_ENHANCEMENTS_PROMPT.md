@@ -168,6 +168,12 @@ filter toggle.
 re-walk link docs (verify via a `StingLog.Info` count that fires only on cache
 miss); first enable still computes once.
 
+> **DONE (post-review):** P1.2 landed (commit `1e395a471`). A follow-up also
+> wired the header **↻ Refresh** button to call `InvalidateLinkCache()` before
+> rebuilding, so a link **Reloaded** mid-session is picked up on explicit Refresh
+> (the cache otherwise only auto-invalidates on document close). Do **not**
+> re-implement P1.2 — extend it only if profiling still shows a problem.
+
 ### P1.3 — Persist Cost Manager UI state per project
 **Why:** the link selection persists (`boq_links.json`) but grouping mode,
 display currency, column visibility, and the expand/collapse sets reset every

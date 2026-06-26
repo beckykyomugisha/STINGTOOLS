@@ -431,7 +431,15 @@ namespace StingTools.UI
             _linksBtn = BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels());
             actions.Children.Add(_linksBtn);
 
-            actions.Children.Add(BuildHeaderBtn("↻ Refresh", () => DispatchAction("BOQRefresh")));
+            // Explicit Refresh forces a full recompute incl. reloaded links — the
+            // per-link takeoff cache (P1.2) is only auto-invalidated on document
+            // close, so a link Reloaded mid-session would otherwise stay stale.
+            // Passive refreshes (filter / rate edit) keep using the cache for speed.
+            actions.Children.Add(BuildHeaderBtn("↻ Refresh", () =>
+            {
+                try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); } catch { }
+                DispatchAction("BOQRefresh");
+            }));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
             Grid.SetColumn(actions, 2);
             grid.Children.Add(actions);
