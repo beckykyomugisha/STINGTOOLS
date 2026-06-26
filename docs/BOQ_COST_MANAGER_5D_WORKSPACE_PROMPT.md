@@ -314,3 +314,62 @@ reason.
 - Cost-loaded 4D baseline for a real EVM BCWS (ROADMAP open item — needs schedule
   wiring; Slice 2 shows the QS-planned-% provenance instead of faking it).
 - Excel-style copy/paste + a formal undo/redo stack (Slice 3 if budget allows).
+
+---
+
+## 10. Live-test feedback (Slice 1.5) — Actions master-detail + Materials expand fix
+
+From an in-Revit test of Slice 1. Four items; do them as **Slice 1.5** (one
+commit), keeping the zero-popup + inline conventions from Slice 1.
+
+### 10.1 — Actions tab → master-detail (buttons LEFT, report RIGHT) [PRIORITY]
+**Problem:** the Actions tab shows grouped buttons (QS Round-trip, Automation,
+Cost Plan, Payment Certs, Variations, EVM) but clicking them shows nothing inline
+("no functions seen") — results still go to popups or nowhere.
+**Build:** split the Actions tab into a **two-column master-detail** view:
+- **Left rail** — the existing grouped action buttons (P3/P2/P4/P5.1/P5.2/P5.3),
+  vertical, scrollable; the clicked button gets a selected/highlight state.
+- **Right pane** — a single **inline report region** (reuse `BuildInlineContent`
+  + the `BOQInlineResults`/`InlineHost=1` convention from Slice 1) that renders
+  **the result of whichever button was last clicked**. Title = the action name.
+- **Every action routes its result here** — set `InlineHost=1` before each
+  `DispatchAction`, so EVM metrics, VO register, cert register, cost-plan
+  comparison, validation output, etc. all render in the right pane. **No
+  `TaskDialog`/`StingResultPanel.Show()`** for any Actions-tab button.
+- Where the action's output is tabular/editable (EVM metrics, VO register, cert
+  register, cost-plan rows), render an **editable `DataGrid`** in the right pane,
+  not static text — consistent with §4.2.
+- Empty state: right pane shows "Select an action on the left." until first click.
+
+This makes the no-popup convention the default for the whole Actions surface and
+is the template the Schedule tab (§5 Slice 2) will reuse.
+
+### 10.2 — Materials Expand-all / Collapse-all don't work (BOQ does) [BUG]
+**Root cause (verified):** the `⊞ Expand all` / `⊟ Collapse all` toolbar buttons
+(`BOQCostManagerPanel.cs:462-473`) only mutate the BOQ `_openSections` set and
+call `RebuildSectionsView()` — they never touch the Materials tab. The Materials
+expanders (`BuildMaterialsContent` `:1818-1821`) are hardcoded `IsExpanded=false`
+with no state tracking and no `Expanded/Collapsed` handlers.
+**Fix:** give Materials the same treatment as BOQ — an `_openMaterialSections`
+set (or a shared expand-state), `Expanded/Collapsed` handlers that persist it,
+`IsExpanded` seeded from it, and make Expand-all/Collapse-all **apply to the
+active tab** (or both): set the Materials state then `RebuildMaterialsTab()`.
+Also persist per-section state across `Refresh` so a manual chevron toggle
+survives a rebuild (BOQ already does this via `_openSections`).
+
+### 10.3 — Schedule (4D/5D) still absent [= Slice 2, expected]
+Confirmed not built yet — that is **Slice 2** (§5). The Actions tab already
+surfaces P5.x cost-control (certs/variations/EVM); the Schedule tab adds the 4D
+programme + 5D cash-flow grids referencing `Scheduling4DEngine`. Build it after
+1.5 lands, reusing the §10.1 master-detail/inline-report pattern.
+
+### 10.4 — "No functions seen yet"
+Largely a symptom of 10.1 (actions produced no visible inline output). Once the
+right-pane report is wired, every Actions button should visibly do something
+inline. While testing, confirm each P-group button actually reaches its command
+(the `DispatchAction` tag resolves in `StingCommandHandler`); log any tag that
+falls through so it can be wired.
+
+**Guardrails unchanged:** reference engines (don't fork), Revit-thread via
+`DispatchAction`, virtualized grids, `// TODO-VERIFY-API` on uncertain calls, no
+sandbox build → verify each in Revit, one commit for Slice 1.5, don't push/merge.
