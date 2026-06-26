@@ -91,11 +91,21 @@ namespace StingTools.BOQ.Sync
                         nrm2 = s.NRM2Section ?? "",
                         name = s.Name ?? "",
                         disc = s.Discipline ?? "",
+                        // P0-2 — order by a STABLE key, never BOQLineItem.Id
+                        // (a fresh Guid.NewGuid() per build). UniqueId survives
+                        // save/reopen; RevitElementId + BOQLineRef + ItemName
+                        // disambiguate manual/PS rows that share an empty
+                        // UniqueId. The random Id is also dropped from the
+                        // hashed projection below so two builds of an unchanged
+                        // model produce the same checksum.
                         items = s.Items
-                            .OrderBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(i => i.UniqueId ?? "", StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(i => i.RevitElementId)
+                            .ThenBy(i => i.BOQLineRef ?? "", StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(i => i.Category ?? "", StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(i => i.ItemName ?? "", StringComparer.OrdinalIgnoreCase)
                             .Select(i => new
                             {
-                                id = i.Id ?? "",
                                 cat = i.Category ?? "",
                                 disc = i.Discipline ?? "",
                                 ref_ = i.BOQLineRef ?? "",

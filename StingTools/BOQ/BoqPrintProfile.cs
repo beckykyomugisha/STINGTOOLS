@@ -45,10 +45,11 @@ namespace StingTools.BOQ
 
     public sealed class BoqPrintProfileRegistry
     {
-        // The six toggleable columns the grid + profiles control. Core columns
+        // The toggleable columns the grid + profiles control. Core columns
         // (Ref/Item/Qty/Unit/Rate/Total) are always shown and never in this set.
+        // "Model" (P1.1) surfaces host-vs-linked-model provenance.
         public static readonly string[] ToggleableColumns =
-            { "Level", "Location", "Source", "Confidence", "Carbon", "Note" };
+            { "Level", "Location", "Source", "Model", "Confidence", "Carbon", "Note" };
 
         private static readonly ConcurrentDictionary<string, BoqPrintProfileRegistry> _cache
             = new ConcurrentDictionary<string, BoqPrintProfileRegistry>(StringComparer.OrdinalIgnoreCase);

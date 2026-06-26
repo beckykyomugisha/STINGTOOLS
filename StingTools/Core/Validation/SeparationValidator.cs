@@ -148,6 +148,62 @@ namespace StingTools.Core.Validation
             return results;
         }
 
+        /// <summary>
+        /// Document-level entry point used by the Placement Centre validator
+        /// checklist and RunAllValidators. Runs <see cref="ValidateElement"/>
+        /// against every MEP curve / containment element in the model, so the
+        /// "Separation" checkbox actually produces findings (previously the
+        /// reflection probe looked for an instance Validate(Document) that did
+        /// not exist on this static class and silently no-op'd). Exact-duplicate
+        /// findings (same element + message) are de-duped.
+        /// </summary>
+        public static List<ValidationResult> Validate(Document doc)
+        {
+            var results = new List<ValidationResult>();
+            if (doc == null) return results;
+            if (LoadRules().Count == 0) return results;
+
+            var cats = new List<BuiltInCategory>
+            {
+                BuiltInCategory.OST_Conduit,
+                BuiltInCategory.OST_CableTray,
+                BuiltInCategory.OST_PipeCurves,
+                BuiltInCategory.OST_DuctCurves,
+                BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_FlexDuctCurves,
+                BuiltInCategory.OST_Wire,
+            };
+
+            List<Element> sources;
+            try
+            {
+                sources = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(cats))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SeparationValidator.Validate collect: {ex.Message}");
+                return results;
+            }
+
+            var seen = new HashSet<string>();
+            foreach (var src in sources)
+            {
+                try
+                {
+                    foreach (var r in ValidateElement(doc, src))
+                    {
+                        string key = (r?.ElementId?.Value ?? 0L) + "|" + (r?.Message ?? "");
+                        if (seen.Add(key)) results.Add(r);
+                    }
+                }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"SeparationValidator.Validate {src?.Id}: {ex.Message}"); }
+            }
+            return results;
+        }
+
         private static bool Match(string rulePattern, string actual)
             => rulePattern == "*" || string.Equals(rulePattern, actual, StringComparison.OrdinalIgnoreCase);
 

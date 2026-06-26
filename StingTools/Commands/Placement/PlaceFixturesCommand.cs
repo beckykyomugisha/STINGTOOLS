@@ -78,6 +78,14 @@ namespace StingTools.Commands.Placement
         public static bool HonourLearned          { get; set; } = true;
 
         /// <summary>
+        /// In-session building profile pushed by the Placement Centre before a
+        /// run so the live UI selection (building type / standards / wet-zone /
+        /// accessibility / coverage toggles) takes effect WITHOUT a Save first.
+        /// When null the engine falls back to the on-disk placement_profile.json.
+        /// </summary>
+        public static StingTools.Core.Placement.ProjectBuildingProfile SessionProfile { get; set; }
+
+        /// <summary>
         /// Return the set of Revit category names this command should
         /// consider, based on the discipline checkboxes. Used by
         /// FixturePlacementEngine to filter PlacementRule.CategoryFilter.

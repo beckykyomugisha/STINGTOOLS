@@ -6,6 +6,19 @@ namespace Planscape.Core.Entities;
 /// maps each tool's element identity to a single canonical IfcGlobalId so
 /// clash detection, issue linking, and BCF topic references all refer to
 /// the same physical element regardless of which tool created it.
+///
+/// INT-0 — SUPERSEDED (consolidation target): this "wide" registry (one row
+/// per element, per-tool columns ArchiCadGuid/RevitUniqueId/TeklaGuid) and the
+/// "tall" <see cref="ExternalElementMapping"/> (one row per
+/// (IfcGlobalId, Host, HostDocumentGuid)) answer the SAME question —
+/// "IFC GlobalId ↔ host element id". <see cref="ExternalElementMapping"/> is
+/// the declared authority (written by every IFC ingest) and is the canonical
+/// spine going forward. New cross-host identity work MUST target
+/// ExternalElementMapping, not this table. Folding the per-tool columns here
+/// into ExternalElementMapping rows (Host="archicad"/"tekla") + retiring this
+/// entity is a follow-up requiring an EF migration + a sweep of every reader
+/// (IdentityResolverService, CrossHostMappingReconciliation), so it is staged
+/// separately rather than done blind. Do not extend this table.
 /// </summary>
 public class ElementGlobalIdRegistry : ITenantScoped
 {

@@ -1321,20 +1321,25 @@ namespace StingTools.BOQ
             ws.Column(7).Width = 18;   // Level
             ws.Column(8).Width = 22;   // Location
             ws.Column(9).Width = 14;   // Revit ID
+            ws.Column(10).Width = 16;  // Source Model (P1.1)
+            ws.Column(11).Width = 22;  // Ifc GlobalId
 
             SheetBanner(ws, "SCHEDULE OF SIZES", m);
             int r = 5;
 
             ws.Cell(r, 2).Value = "This schedule lists every instance of a repeated item type where the bill sheet carries a \"1 of N similar\" marker. "
                 + "Sizes, levels and locations allow the bidder to verify the quantity and price the extended works accurately.";
-            ws.Range(r, 2, r, 9).Merge().Style
+            ws.Range(r, 2, r, 11).Merge().Style
                 .Font.SetFontName(BodyFont).Font.SetFontSize(10).Font.SetItalic(true)
                 .Font.SetFontColor(XLColor.FromArgb(90, 90, 90))
                 .Alignment.SetWrapText(true).Alignment.SetIndent(1);
             ws.Row(r).Height = 36;
             r += 2;
 
-            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID" };
+            // INT-2 — the audit/takeoff sheet carries the stable join key so the
+            // priced professional export can also reconcile back to the model
+            // (the printed tender bill stays clean — no machine ids on it).
+            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID", "Source Model", "Ifc GlobalId" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var c = ws.Cell(r, 2 + i);
@@ -1371,7 +1376,9 @@ namespace StingTools.BOQ
                     ws.Cell(r, 7).Value = item.Level ?? "";
                     ws.Cell(r, 8).Value = item.Location ?? "";
                     ws.Cell(r, 9).Value = item.RevitElementId > 0 ? item.RevitElementId.ToString() : "";
-                    for (int i = 2; i <= 9; i++)
+                    ws.Cell(r, 10).Value = string.IsNullOrWhiteSpace(item.SourceModel) ? "Host" : item.SourceModel; // P1.1 provenance
+                    ws.Cell(r, 11).Value = item.IfcGlobalId ?? "";   // INT-2 round-trip join key
+                    for (int i = 2; i <= 11; i++)
                     {
                         ws.Cell(r, i).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                             .Border.SetBottomBorder(XLBorderStyleValues.Hair)

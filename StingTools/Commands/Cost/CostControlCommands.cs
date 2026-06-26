@@ -50,7 +50,10 @@ namespace StingTools.Commands.Cost
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 if (boq.Sections.Count == 0)
                 {
-                    TaskDialog.Show("STING — Set progress", "BOQ has no sections — build the BOQ first.");
+                    StingResultPanel.Create("Set % complete")
+                        .AddSection("NO DATA")
+                        .Text("BOQ has no sections — build the BOQ first.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -96,11 +99,16 @@ namespace StingTools.Commands.Cost
                 }
 
                 string note = missing > 0 && stamped == 0
-                    ? "\n\nNo element was stamped — bind ASS_PMT_PCT_COMPLETE_NR via Load Params first."
-                    : (missing > 0 ? $"\n\n{missing} element(s) skipped (param not bound / read-only)." : "");
-                TaskDialog.Show("STING — Progress set",
-                    $"Set {pct:0}% complete on {stamped} element(s) across {pickedSecs.Count} section(s)." + note +
-                    "\n\nIssue Cert + Calculate EVM now read this back.");
+                    ? "No element was stamped — bind ASS_PMT_PCT_COMPLETE_NR via Load Params first."
+                    : (missing > 0 ? $"{missing} element(s) skipped (param not bound / read-only)." : "");
+                var rp = StingResultPanel.Create("Progress set")
+                    .AddSection("RESULT")
+                    .Metric("% complete applied", $"{pct:0}%")
+                    .Metric("Elements stamped", stamped.ToString())
+                    .Metric("Sections", pickedSecs.Count.ToString());
+                if (!string.IsNullOrEmpty(note)) rp.Text(note);
+                rp.Text("Issue Cert + Calculate EVM now read this back.");
+                rp.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("PaymentCert_SetProgress", ex); message = ex.Message; return Result.Failed; }
@@ -127,7 +135,10 @@ namespace StingTools.Commands.Cost
                 var paths = PaymentCertEngine.ListCerts(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING — Cert document", "No certs found — issue one first (★ Issue Cert).");
+                    StingResultPanel.Create("Cert document")
+                        .AddSection("NO CERTS")
+                        .Text("No certs found — issue one first (★ Issue Cert).")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null)
@@ -153,18 +164,13 @@ namespace StingTools.Commands.Cost
                 }
 
                 StingLog.Info($"Payment cert #{cert.CertNumber} document exported: {path}");
-                var done = new TaskDialog("STING — Certificate document")
-                {
-                    MainInstruction = $"Interim Certificate No. {cert.CertNumber} exported",
-                    MainContent = $"{cert.Currency} {cert.TotalPayable:N2} payable\n{path}",
-                    CommonButtons = TaskDialogCommonButtons.Ok
-                };
-                done.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open containing folder");
-                if (done.Show() == TaskDialogResult.CommandLink1)
-                {
-                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); }
-                    catch (Exception ex) { StingLog.Warn($"open folder: {ex.Message}"); }
-                }
+                StingResultPanel.Create("Certificate document")
+                    .SetSubtitle($"Interim Certificate No. {cert.CertNumber} exported")
+                    .SetCsvPath(path)
+                    .AddSection("EXPORT")
+                    .Metric("Payable", $"{cert.Currency} {cert.TotalPayable:N2}")
+                    .Text($"Path: {path}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("PaymentCert_ExportDoc", ex); message = ex.Message; return Result.Failed; }

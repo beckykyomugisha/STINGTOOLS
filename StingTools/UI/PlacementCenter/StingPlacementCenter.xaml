@@ -127,9 +127,9 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export…"          Click="OnExportRules_Click"
                         ToolTip="Export the current rule set to a portable JSON file you can share or version-control."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export Excel"     Click="OnExportExcel_Click"
-                        ToolTip="Phase 139 — Export every rule to an .xlsx workbook (one sheet per discipline pack)."/>
+                        ToolTip="Export every rule to an .xlsx workbook (one sheet per discipline pack)."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import Excel"     Click="OnImportExcel_Click"
-                        ToolTip="Phase 139 — Import rules back from .xlsx; replaces the project overlay."/>
+                        ToolTip="Import rules back from .xlsx; replaces the project overlay."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
                         ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
@@ -142,13 +142,22 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Push to Families" Click="OnPushFamilies_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Heat-map"        Click="OnHeatmap_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save view preset" Click="OnSaveViewPreset_Click"
-                        ToolTip="Stamp a Pack 125/M view preset onto the active view so its scope/template/scale travel with the model."/>
+                        ToolTip="Stamp a view preset onto the active view so its scope/template/scale travel with the model."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Learn from model" Click="OnLearnFromModel_Click"
+                        ToolTip="Inspect already-placed fixtures and write STING_PLACEMENT_RULES.learned.json (anchor + mounting height per category/room). Reloads so 'Honour learned offsets' picks it up."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="GD Study"        Click="OnGDStudy_Click"/>
             </DockPanel>
         </Border>
 
-        <!-- Body: Rules / Run & Routing / Tools (Option A consolidation) -->
-        <TabControl Grid.Row="2" x:Name="tabCentre">
+        <!-- Body: tabs (commands, left) + shared inline Report panel (right) -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="620"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="colReport" Width="360" MinWidth="0"/>
+            </Grid.ColumnDefinitions>
+
+        <TabControl Grid.Column="0" x:Name="tabCentre">
 
         <!-- ═══════════════════════════ TAB 1 — RULES ═══════════════════════════ -->
         <TabItem Header="Rules">
@@ -170,7 +179,7 @@
                                 Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
                         <TextBox x:Name="txtSearch" Padding="3"
                                  TextChanged="OnSearch_TextChanged"
-                                 ToolTip="Phase 139 — search RuleId / category / variant / room / notes / standard / pack"/>
+                                 ToolTip="Search RuleId / category / variant / room / notes / standard / pack"/>
                     </DockPanel>
                     <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,6">
                         <ToggleButton x:Name="chipDirty"   DockPanel.Dock="Left" Margin="0,0,4,0"
@@ -183,7 +192,7 @@
                                       ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, …)."/>
                         <ComboBox x:Name="cmbSourcePack" DockPanel.Dock="Left" Margin="6,0,0,0"
                                   Width="130" SelectionChanged="OnSourcePack_SelectionChanged"
-                                  ToolTip="Phase 139 — filter by discipline pack."/>
+                                  ToolTip="Filter by discipline pack."/>
                     </DockPanel>
 
                     <!-- Rule grid -->
@@ -206,9 +215,15 @@
                               ToolTip="Ctrl+click / Shift+click to multi-select. Right-click for bulk actions.">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
-                                <!-- Phase 139 I1 — RAG status colour from VM -->
+                                <!-- RAG status colour from VM -->
                                 <Setter Property="Background"
                                         Value="{Binding StatusColorHex, Converter={StaticResource HexToBrushConverter}, FallbackValue=#FFFFFF}"/>
+                                <Style.Triggers>
+                                    <!-- Invalid rows explain why on hover. -->
+                                    <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                        <Setter Property="ToolTip" Value="{Binding ErrorMessage}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
@@ -288,7 +303,7 @@
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Family Type Regex"/>
                             <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtFamilyTypeRegex" Margin="0,2"
-                                       ToolTip="PC-08 — FamilySymbol.Name regex for refining variant resolution. Applied after VariantHint when both are set (e.g. '^IP6[5-7]$')."/>
+                                       ToolTip="FamilySymbol.Name regex for refining variant resolution. Applied after VariantHint when both are set (e.g. '^IP6[5-7]$')."/>
                             <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Source Pack"/>
                             <TextBox   Grid.Row="3" Grid.Column="3" x:Name="txtSourcePack" IsReadOnly="True" Margin="0,2"
                                        Foreground="#888" FontStyle="Italic"
@@ -316,20 +331,20 @@
                             <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtOffsetX" Margin="0,2"/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Offset Y (mm)"/>
                             <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtOffsetY" Margin="0,2"
-                                       ToolTip="PC-06 — signed Y offset from the anchor's +Y axis."/>
+                                       ToolTip="Signed Y offset from the anchor's +Y axis."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Offset Z (mm)"/>
                             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtOffsetZ" Margin="0,2"
-                                       ToolTip="PC-06 — signed Z offset, separate from MountingHeight."/>
+                                       ToolTip="Signed Z offset, separate from MountingHeight."/>
                             <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Mount Height (mm)"/>
                             <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtMountH"  Margin="0,2"/>
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Mount Reference"/>
                             <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbMountRef" Margin="0,2"
-                                       ToolTip="PC-06 — FFL / SOFFIT / SLAB / CEILING. Default FFL preserves legacy behaviour."/>
+                                       ToolTip="FFL / SOFFIT / SLAB / CEILING. Default FFL preserves legacy behaviour."/>
                             <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Rotation (°)"/>
                             <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtRotation" Margin="0,2"
-                                       ToolTip="PC-06 — rotation about Z in degrees."/>
+                                       ToolTip="Rotation about Z in degrees."/>
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Min Spacing (mm)"/>
                             <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtSpacing" Margin="0,2"/>
@@ -338,14 +353,14 @@
 
                             <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Tolerance (mm)"/>
                             <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtToleranceMm" Margin="0,2"
-                                       ToolTip="PC-06 — candidates within this radius of the best position are treated as equivalent (default 25 mm)."/>
+                                       ToolTip="Candidates within this radius of the best position are treated as equivalent (default 25 mm)."/>
                             <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max Spacing (mm)"/>
                             <TextBox   Grid.Row="4" Grid.Column="3" x:Name="txtMaxSpacing" Margin="0,2"
                                        ToolTip="Max centre-to-centre spacing for coverage-grid fixtures (BS EN 12464 / BS 5839). 0 = no maximum."/>
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Room Scoping (PC-07)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Room Scoping" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -382,7 +397,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Rule Kind / Density / Linear (PC-12)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Rule Kind / Density / Linear" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -432,7 +447,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Coverage Grid (PC-14)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Coverage Grid" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -457,7 +472,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Integrated Routing (PC-15)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Integrated Routing" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -472,7 +487,7 @@
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Routing mode"/>
                             <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode" Margin="0,2"
-                                       ToolTip="NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. Engine routes from each placed fixture after placement."/>
+                                       ToolTip="NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT. Engine routes from each placed fixture after placement via the matching Core/Routing drop engine."/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Segment category"/>
                             <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbRouteSegmentCategory" Margin="0,2"
                                        ToolTip="PIPE / CONDUIT / CABLE_TRAY / DUCT. Must match an available Revit system category when Routing Mode ≠ NONE."/>
@@ -483,7 +498,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Construction Phasing (PC-16) / Cluster (PC-17)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Construction Phasing / Cluster" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -512,7 +527,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Rule Dependencies (PC-13)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Rule Dependencies" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -569,7 +584,7 @@
                                  ToolTip="Free-text note attached to this rule. Surfaced in placement reports and pushed to STING_PLACEMENT_NOTES_TXT on family types when Push to Families runs."/>
                     </GroupBox>
 
-                    <GroupBox Header="Clearance / Envelope / Weight (PC-11, push to family types)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Clearance / Envelope / Weight (push to family types)" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -788,7 +803,7 @@
                     </StackPanel> <!-- /pnlRuleDetail -->
 
                     <!-- Phase 139 I3 — Building Profile header -->
-                    <GroupBox Header="Building Profile (Phase 139)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Building Profile" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <Border BorderBrush="#E2A04A" BorderThickness="1" Padding="6"
                                     Background="#FFF7E6" Margin="0,0,0,8"
@@ -834,21 +849,21 @@
 
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
-                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"
+                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement" Margin="0,3"
                                       ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
-                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10 / PC-14)" Margin="0,3"
-                                      ToolTip="When ON and a STING_PLACEMENT_RULES.learned.json sits next to the .rvt, learned overrides win over the shipped baseline. PC-14 LearnPlacementV4Command writes that file."/>
+                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category" Margin="0,3"
+                                      ToolTip="When ON and a STING_PLACEMENT_RULES.learned.json sits next to the .rvt, learned overrides win over the shipped baseline. The 'Learn from model' tool writes that file."/>
                             <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
                                       ToolTip="Run ClearanceValidator + MaintenanceClashValidator immediately after the placement commits, scoped to elements just placed."/>
                             <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"
                                       ToolTip="When ON and at least one fixture was placed, paint the AVF compliance heat-map on the active view immediately after the run commits."/>
-                            <CheckBox x:Name="chkRunTags"      Content="Run data-tag pipeline on each placement (PC-17)" Margin="0,3"
+                            <CheckBox x:Name="chkRunTags"      Content="Run data-tag pipeline on each placement" Margin="0,3"
                                       ToolTip="Invoke TagPipelineHelper.RunFullPipeline on every placed instance so the placement lands ISO-19650 tagged."/>
-                            <CheckBox x:Name="chkSeedCobie"    Content="Seed COBie component fields from the rule (PC-17)" Margin="0,3"
+                            <CheckBox x:Name="chkSeedCobie"    Content="Seed COBie component fields from the rule" Margin="0,3"
                                       ToolTip="Copy StandardRef / Notes / UniclassPr onto the placed instance's COBIE_COMPONENT_* parameters."/>
-                            <CheckBox x:Name="chkAssignMep"    Content="Probe MEP connectors after placement (PC-17)" Margin="0,3"
-                                      ToolTip="Log any unconnected connectors so MEPSystemBuilder can pick them up."/>
-                            <CheckBox x:Name="chkLivePreview"  Content="Live preview while editing rules (PC-21)" Margin="0,3"
+                            <CheckBox x:Name="chkAssignMep"    Content="Connect MEP systems after placement" Margin="0,3"
+                                      ToolTip="After placement, auto-connect each fixture's open connectors to the nearest compatible MEP connector and report any left unconnected."/>
+                            <CheckBox x:Name="chkLivePreview"  Content="Live preview while editing rules" Margin="0,3"
                                       ToolTip="Auto-refresh the on-canvas preview 500 ms after each rule edit."/>
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
@@ -891,7 +906,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource LabelStyle}" Text="Auto-place"
-                                           ToolTip="Tick the categories the run should auto-place. Empty = every category."/>
+                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Ticking a category with no matching rule places nothing. Conduits / Pipes / Cable Trays are routing outputs (see Integrated Routing), not point-placement targets."/>
                                 <WrapPanel Grid.Column="1">
                                     <CheckBox x:Name="cbCatElec"   Content="Electrical Fixtures"  Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatLtgDev" Content="Lighting Devices"     Margin="0,0,8,2"/>
@@ -904,13 +919,18 @@
                                     <CheckBox x:Name="cbCatHvac"   Content="Air Terminals"        Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
                                     <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
+                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
+                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"
+                                              ToolTip="No baseline rules ship for this category — only places when a project / specialty rule pack covers it."/>
                                     <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"
+                                              ToolTip="Requires the healthcare rule pack — no baseline rules or anchor support ship for this category."/>
                                     <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
                                     <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
                                 </WrapPanel>
@@ -1032,7 +1052,7 @@
                                     ToolTip="Place fixtures using all loaded rules. Respects scope and dry-run settings."/>
                             <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
                                     Content="Toilet Rooms" Click="OnRunToiletRooms_Click"
-                                    ToolTip="BS 6465-1: occupant-based provision + WC at window + all toilet accessories (Phase 177)."/>
+                                    ToolTip="BS 6465-1: occupant-based provision + WC at window + all toilet accessories."/>
                             <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
                                     Content="Lighting Grid" Click="OnRunLightingGrid_Click"
                                     ToolTip="IES RP-1 luminaire grid layout (LightingGridCommand)."/>
@@ -1055,7 +1075,7 @@
                                     ToolTip="Plan-level branch, panel, and riser layout (GenerateLayoutCommand)."/>
                             <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
                                     Content="Plumbing Router" Click="OnPlumbingRouter_Click"
-                                    ToolTip="Phase 177: auto-route soil/waste + CWS/HWS for toilet-room fixtures (BS EN 12056-2)."/>
+                                    ToolTip="Auto-route soil/waste + CWS/HWS for toilet-room fixtures (BS EN 12056-2)."/>
                             <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"
                                     Content="Validate Fills" Click="OnValidateFills_Click"
                                     ToolTip="Fill-rate compliance check: panel capacity, duct velocity, pipe velocity."/>
@@ -1142,51 +1162,51 @@
                 <GroupBox Header="Rule File Management" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_ExportRulesExcel" Click="OnToolButton_Click"
+                                Click="OnExportRulesExcel_Click"
                                 Content="Export Rules (Excel)"
-                                ToolTip="Export all loaded placement rules to an .xlsx workbook for bulk review / editing."/>
+                                ToolTip="Export all loaded placement rules to an .xlsx workbook for bulk review / editing. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_ImportRulesExcel" Click="OnToolButton_Click"
+                                Click="OnImportRulesExcel_Click"
                                 Content="Import Rules (Excel)"
-                                ToolTip="Merge rules from an .xlsx workbook into the current set (override on MergeKey match)."/>
+                                ToolTip="Import rules from an .xlsx workbook, write the project overlay, and refresh the grid live. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_AutoPopulateCatalogue" Click="OnToolButton_Click"
+                                Click="OnAutoPopulateCatalogue_Click"
                                 Content="Auto-populate Catalogue"
-                                ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types."/>
+                                ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
-                                Tag="Placement_AuditSetup" Click="OnToolButton_Click"
+                                Click="OnAuditSetup_Click"
                                 Content="Audit Setup"
-                                ToolTip="Detect missing DependsOn targets, invalid MergeKeys, and orphaned rules."/>
+                                ToolTip="Detect missing DependsOn targets, invalid MergeKeys, and orphaned rules. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
-                                Tag="Placement_Diagnose" Click="OnToolButton_Click"
+                                Click="OnDiagnose_Click"
                                 Content="Diagnose"
-                                ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log."/>
+                                ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 
                 <GroupBox Header="Construction Coordination" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_RunWallChase" Click="OnToolButton_Click"
+                                Click="OnWallChase_Click"
                                 Content="Wall Chase Routing"
-                                ToolTip="Plan wall-chase routing for conduit and pipe in masonry walls."/>
+                                ToolTip="Pick a wall + two points, preview the depth check, confirm, then route conduit/pipe. Result renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ExportNogginRequirements" Click="OnToolButton_Click"
+                                Click="OnNoggin_Click"
                                 Content="Noggin Requirements"
-                                ToolTip="Export noggin / blocking requirements for bracket-mounted fixtures to CSV."/>
+                                ToolTip="Export noggin / blocking requirements for bracket-mounted fixtures to CSV. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 
                 <GroupBox Header="Batch Data Exchange" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ExportExcel" Click="OnToolButton_Click"
-                                Content="Export Results (Excel)"
-                                ToolTip="Export last placement result to .xlsx: element IDs, room, rule, world position."/>
+                                Click="OnExportRulesExcel_Click"
+                                Content="Export Rules (Excel)"
+                                ToolTip="Export all loaded placement rules to an .xlsx workbook. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ImportExcel" Click="OnToolButton_Click"
-                                Content="Import Overrides (Excel)"
-                                ToolTip="Apply position and mounting-height overrides from .xlsx to placed fixtures."/>
+                                Click="OnImportRulesExcel_Click"
+                                Content="Import Rules (Excel)"
+                                ToolTip="Import rules from an .xlsx workbook, write the project overlay, and refresh the grid live. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 
@@ -1195,6 +1215,52 @@
         </TabItem>
 
         </TabControl>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" Background="#CFD8DC" ShowsPreview="True"/>
+
+        <!-- Shared inline Report panel — every reporting button renders its
+             result here instead of opening an external window. -->
+        <Border Grid.Column="2" x:Name="bdrReport" Background="{DynamicResource SecondaryBg}"
+                BorderBrush="#CFD8DC" BorderThickness="1,0,0,0">
+            <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Background="{DynamicResource HeaderBg}" Padding="8,5">
+                    <DockPanel LastChildFill="True">
+                        <Button DockPanel.Dock="Right" x:Name="btnReportPopOut" Content="⤢"
+                                Width="26" Margin="2,0,0,0" Click="OnReportPopOut_Click"
+                                ToolTip="Open this report in a separate window"/>
+                        <Button DockPanel.Dock="Right" x:Name="btnReportClear" Content="✕"
+                                Width="26" Margin="2,0,0,0" Click="OnReportClear_Click"
+                                ToolTip="Clear the report panel"/>
+                        <TextBlock x:Name="txtReportTitle" Foreground="{DynamicResource HeaderFg}"
+                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Text="Report" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                </Border>
+                <DockPanel DockPanel.Dock="Top" Margin="8,3,8,4" LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Left" Text="Recent" VerticalAlignment="Center"
+                               Margin="0,0,6,0" FontSize="11" Foreground="#607D8B"/>
+                    <ComboBox x:Name="cmbRecentReports" FontSize="11"
+                              SelectionChanged="OnRecentReport_Changed"
+                              ToolTip="Re-open a recent report (Run / Validation / Diagnose / Audit / …)"/>
+                </DockPanel>
+                <Border x:Name="reportHost" Padding="8">
+                    <TextBlock x:Name="txtReportEmpty" Foreground="#90A4AE" FontSize="11"
+                               TextWrapping="Wrap" VerticalAlignment="Top"
+                               Text="Run a placement, validate, audit, diagnose, learn, or import/export — results appear here instead of a pop-up window."/>
+                </Border>
+            </DockPanel>
+        </Border>
+        </Grid>
+
+        <!-- Transient status toast (guard / progress messages) -->
+        <Border x:Name="bdrToast" Grid.Row="2" Panel.ZIndex="100"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,16" Padding="14,8" CornerRadius="4"
+                Background="#323232" Visibility="Collapsed">
+            <TextBlock x:Name="txtToast" Foreground="White" FontSize="12"
+                       TextWrapping="Wrap" MaxWidth="520"/>
+        </Border>
 
         <!-- Status bar -->
         <Border Grid.Row="3" Background="{DynamicResource HeaderBg}" Padding="8,4">

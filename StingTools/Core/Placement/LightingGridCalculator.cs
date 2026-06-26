@@ -95,14 +95,14 @@ namespace StingTools.Core.Placement
         /// </summary>
         public double DefaultMinimumUniformity { get; set; } = 0.40;
 
-        public LightingGridResult Compute(Room room) => Compute(room, null);
+        public LightingGridResult Compute(SpatialElement room) => Compute(room, null);
 
         /// <summary>
         /// Phase 139.2 — rule-aware grid compute. When the rule asks for
         /// CeilingTileSnap, StructuralFixingCheck or uniformity reporting,
         /// the corresponding post-processing pass runs after grid generation.
         /// </summary>
-        public LightingGridResult Compute(Room room, PlacementRule rule)
+        public LightingGridResult Compute(SpatialElement room, PlacementRule rule)
         {
             var r = new LightingGridResult();
             if (room == null) { r.Warnings.Add("Room is null"); return r; }
@@ -144,7 +144,7 @@ namespace StingTools.Core.Placement
             return r;
         }
 
-        private void GenerateGridPoints(Room room, LightingGridResult r)
+        private void GenerateGridPoints(SpatialElement room, LightingGridResult r)
         {
             var bb = room.get_BoundingBox(null);
             if (bb == null) { r.Warnings.Add("Room has no bounding box"); return; }
@@ -269,7 +269,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private string SafeRoomName(Room room)
+        private string SafeRoomName(SpatialElement room)
         {
             try
             {
@@ -281,7 +281,7 @@ namespace StingTools.Core.Placement
 
         // ── Phase 139.2 — post-processing passes ────────────────────
 
-        private void SnapToCeilingTileGrid(Room room, LightingGridResult r, PlacementRule rule)
+        private void SnapToCeilingTileGrid(SpatialElement room, LightingGridResult r, PlacementRule rule)
         {
             try
             {
@@ -379,7 +379,7 @@ namespace StingTools.Core.Placement
                     bool snappedInRoom = snappedInBbox;
                     if (snappedInBbox)
                     {
-                        try { snappedInRoom = room.IsPointInRoom(snapped); }
+                        try { snappedInRoom = FixturePlacementEngine.PointInSpatial(room, snapped); }
                         catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); snappedInRoom = true; }
                     }
 
@@ -394,7 +394,7 @@ namespace StingTools.Core.Placement
                         // generated from the room's own AABB so it should
                         // still be inside the polygon.
                         bool originalInRoom = false;
-                        try { originalInRoom = room.IsPointInRoom(p); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                        try { originalInRoom = FixturePlacementEngine.PointInSpatial(room, p); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
                         if (originalInRoom) { snappedList.Add(p); reverted++; }
                         else                { dropped++; }
                     }
@@ -416,7 +416,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void CheckStructuralFixing(Room room, LightingGridResult r, PlacementRule rule)
+        private void CheckStructuralFixing(SpatialElement room, LightingGridResult r, PlacementRule rule)
         {
             try
             {
@@ -472,7 +472,7 @@ namespace StingTools.Core.Placement
         /// outside the 600 mm exclusion ring of every sprinkler in scope;
         /// when no clear nudge is possible, drop the point and warn.
         /// </summary>
-        private void CheckSprinklerSeparation(Room room, LightingGridResult r)
+        private void CheckSprinklerSeparation(SpatialElement room, LightingGridResult r)
         {
             try
             {
@@ -604,7 +604,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"LightingGridCalculator.EnforceMinSpacing: {ex.Message}"); }
         }
 
-        private void ComputeUniformityRatio(Room room, LightingGridResult r, PlacementRule rule)
+        private void ComputeUniformityRatio(SpatialElement room, LightingGridResult r, PlacementRule rule)
         {
             try
             {
@@ -683,7 +683,7 @@ namespace StingTools.Core.Placement
         /// this pass is the last word before placement.
         /// </summary>
 
-        private void ComputeUniformityRatio(Room room, LightingGridResult r)
+        private void ComputeUniformityRatio(SpatialElement room, LightingGridResult r)
         {
             try
             {

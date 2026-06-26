@@ -43,6 +43,91 @@ namespace StingTools.Select
         private readonly Border _searchBorder;
         private readonly TextBlock _validationHint;
         private List<ListItem> _result;
+
+        // ── Inline hosting (Slice 1.5) ───────────────────────────────────────
+        // When InlineHost is set, Show(...) renders the picker INTO that host
+        // (the BOQ Cost Manager Actions pane) using a nested DispatcherFrame
+        // instead of a modal Window — so command code that calls
+        // StingListPicker.Show(...) still gets its result synchronously, but the
+        // user sees an inline panel, not a popup. Cleared by the dispatcher after
+        // each command runs. Null ⇒ legacy modal behaviour everywhere.
+        public static System.Windows.Controls.Border InlineHost;
+        public static Action<string> InlineTitleSink;
+        // P0.1 — the Document whose Actions pane is hosting inline pickers. When a
+        // Revit transaction is open on it (IsModifiable), pumping a nested
+        // DispatcherFrame is unsafe and can corrupt document state, so we fall back
+        // to a modal dialog. Set by BOQCostManagerPanel.RunActionInline alongside
+        // InlineHost; cleared in StingCommandHandler.Execute's finally.
+        public static Autodesk.Revit.DB.Document InlineHostDoc;
+        private System.Windows.Threading.DispatcherFrame _inlineFrame;
+
+        /// <summary>True when an inline host is registered AND it is safe to pump a
+        /// nested WPF message loop — i.e. no Revit transaction is open on the host
+        /// document. Mirrors the IsModifiable guard in DrawingTypeStamper.StampCrop.
+        /// Logs once when it forces a modal fallback so the human can see which
+        /// command needed it.</summary>
+        private static bool InlineSafe(string title)
+        {
+            if (InlineHost == null) return false;
+            try
+            {
+                if (InlineHostDoc != null && InlineHostDoc.IsModifiable)
+                {
+                    StingLog.Info($"StingListPicker: transaction open on host doc — "
+                        + $"\"{title}\" picker falling back to modal (no nested pump).");
+                    return false;
+                }
+            }
+            catch { /* if we can't tell, prefer the safe modal path */ return false; }
+            return true;
+        }
+
+        /// <summary>OK/Cancel/Esc end-point: unwind the nested pump when hosted
+        /// inline, else close the modal window. Never calls Close() on a
+        /// never-shown window (which would throw and hang the frame).</summary>
+        private void FinishInlineOrClose()
+        {
+            if (_inlineFrame != null) _inlineFrame.Continue = false;
+            else Close();
+        }
+
+        /// <summary>Render this picker into InlineHost and pump a nested message
+        /// loop until OK/Cancel sets _result and stops the frame.</summary>
+        private List<ListItem> ShowInline(string title)
+        {
+            // P0.1 defensive guard — never pump a nested loop while a transaction is
+            // open on the host doc. The two Show gates already check InlineSafe, but
+            // any future direct caller is covered here too: fall back to modal.
+            try
+            {
+                if (InlineHostDoc != null && InlineHostDoc.IsModifiable)
+                {
+                    StingTools.UI.StingWindowHelper.ApplyOwner(this);
+                    ShowDialog();
+                    return _result;
+                }
+            }
+            catch { }
+
+            var host = InlineHost;
+            try { InlineTitleSink?.Invoke(string.IsNullOrEmpty(title) ? "Select" : title); } catch { }
+
+            var content = this.Content as System.Windows.UIElement;
+            this.Content = null;                 // detach from the (never-shown) window
+            host.Child = content;                // host inline
+
+            _inlineFrame = new System.Windows.Threading.DispatcherFrame();
+            try
+            {
+                System.Windows.Threading.Dispatcher.PushFrame(_inlineFrame); // pumps until Continue=false
+            }
+            finally
+            {
+                _inlineFrame = null;
+                if (host.Child == content) host.Child = null; // clear unless a result already replaced it
+            }
+            return _result;
+        }
         private HashSet<string> _validCodes;
 
         private StingListPicker(string title, string subtitle, List<ListItem> items, bool allowMultiSelect)
@@ -209,7 +294,7 @@ namespace StingTools.Select
             }
 
             var cancelBtn = CreateButton("Cancel", false);
-            cancelBtn.Click += (s, e) => { _result = null; Close(); };
+            cancelBtn.Click += (s, e) => { _result = null; FinishInlineOrClose(); };
             cancelBtn.Margin = new Thickness(0, 0, 8, 0);
             buttonStack.Children.Add(cancelBtn);
 
@@ -226,7 +311,7 @@ namespace StingTools.Select
             // Keyboard shortcuts
             KeyDown += (s, e) =>
             {
-                if (e.Key == Key.Escape) { _result = null; Close(); }
+                if (e.Key == Key.Escape) { _result = null; FinishInlineOrClose(); }
                 else if (e.Key == Key.Enter) AcceptSelection();
             };
 
@@ -361,6 +446,7 @@ namespace StingTools.Select
                     Background = invalid ? BrushLightRedBg : Brushes.Transparent
                 };
                 _listBox.Items.Add(lbi);
+                if (item.IsSelected) lbi.IsSelected = true;   // honour pre-checked state
             }
             _countText.Text = $"{items.Count}/{_allItems.Count}";
         }
@@ -382,7 +468,7 @@ namespace StingTools.Select
                     if (first?.Tag is ListItem fi) _result.Add(fi);
                 }
             }
-            Close();
+            FinishInlineOrClose();
         }
 
         private static Button CreateButton(string text, bool isPrimary)
@@ -441,6 +527,8 @@ namespace StingTools.Select
             // Re-populate to apply validation coloring
             picker.PopulateList(items);
 
+            if (InlineSafe(title)) return picker.ShowInline(title);   // Slice 1.5 — no popup
+
             // Phase 98: prefer BCC as owner when it's open so the picker stacks
             // above the coordination centre (was falling behind with raw Revit HWND).
             StingTools.UI.StingWindowHelper.ApplyOwner(picker);
@@ -453,6 +541,8 @@ namespace StingTools.Select
             List<ListItem> items, bool allowMultiSelect = false)
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
+
+            if (InlineSafe(title)) return dlg.ShowInline(title);   // Slice 1.5 — no popup
 
             // Phase 98: prefer BCC as owner when open so the picker stacks above
             // the coordination centre; falls back to Revit main HWND otherwise.
