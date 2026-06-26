@@ -1,0 +1,47 @@
+{
+  "schema": "sting.green.schemes/v1",
+  "_notes": [
+    "Certification-agnostic gate definitions (Phase 195 — EDGE/LEED Sustainability).",
+    "A scheme = ordered gates, each pointing at a registered IMetricProvider plus an",
+    "operator/threshold (and, for points-based schemes, a step function + aggregation).",
+    "The SchemeEvaluator never names a scheme. Adding BREEAM / Green Star later = a new",
+    "scheme block + reuse of the existing providers — zero engine changes.",
+    "Per-project override merged by id from <project>/_BIM_COORD/sustainability/green_schemes.json.",
+    "delegated:'EDGE_APP' marks a gate whose authoritative number comes from the EDGE app —",
+    "the dashboard shows STING-indicative + an entry field for the official value.",
+    "Sources: EDGE Methodology Report (edgebuildings.com); USGBC LEED v5 (usgbc.org/leed/v5)."
+  ],
+  "schemes": [
+    {
+      "id": "EDGE",
+      "name": "IFC/World Bank EDGE",
+      "version": "3.x",
+      "level": "Advanced",
+      "aggregation": "all_required",
+      "levels": {
+        "Certified":  { "energy": 20, "water": 20, "materials": 20 },
+        "Advanced":   { "energy": 40, "water": 20, "materials": 20 },
+        "ZeroCarbon": { "energy": 40, "water": 20, "materials": 20 }
+      },
+      "gates": [
+        { "id": "energy",    "metric": "energy_savings_pct",          "provider": "AnnualEnergyEstimator", "operator": ">=", "required": true, "unit": "%", "label": "Energy savings" },
+        { "id": "water",     "metric": "water_savings_pct",           "provider": "AnnualWaterEstimator",  "operator": ">=", "required": true, "unit": "%", "label": "Water savings" },
+        { "id": "materials", "metric": "embodied_energy_savings_pct", "provider": "MaterialsRollup",       "operator": ">=", "required": true, "unit": "%", "label": "Materials (embodied energy) savings", "delegated": "EDGE_APP" }
+      ]
+    },
+    {
+      "id": "LEED",
+      "name": "USGBC LEED v5 (BD+C)",
+      "version": "5",
+      "level": "Certified",
+      "aggregation": "pointSum",
+      "phase2": true,
+      "certificationBands": { "Certified": 40, "Silver": 50, "Gold": 60, "Platinum": 80 },
+      "gates": [
+        { "id": "ec_prereq", "metric": "wblca_completed", "provider": "MaterialsRollup", "operator": "==", "threshold": true, "required": true, "label": "Quantify & Assess Embodied Carbon (prerequisite)" },
+        { "id": "ec_reduce", "metric": "gwp_reduction_pct", "provider": "MaterialsRollup", "label": "Reduce Embodied Carbon",
+          "points": [ { "pct": 10, "pts": 1 }, { "pct": 20, "pts": 3 }, { "pct": 40, "pts": 6 } ] }
+      ]
+    }
+  ]
+}
