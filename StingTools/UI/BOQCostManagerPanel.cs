@@ -112,6 +112,7 @@ namespace StingTools.UI
         private TextBlock _actionReportTitle;    // right-pane header (= action label)
         private UIElement _actionReportEmpty;    // "select an action" placeholder
         private Button _selectedActionBtn;       // for highlight reset
+        private Button _linksBtn;                 // header "⛓ Links (N)" badge
         private ToggleButton _ugxToggle, _usdToggle;
 
         // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
@@ -324,7 +325,8 @@ namespace StingTools.UI
             // Per-link takeoff chooser. Persisted per project — flexible (pick
             // which links) + sustainable (survives reopen). Linked rows are
             // read-only (not cost-stamped / selectable in host).
-            actions.Children.Add(BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels()));
+            _linksBtn = BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels());
+            actions.Children.Add(_linksBtn);
 
             actions.Children.Add(BuildHeaderBtn("↻ Refresh", () => DispatchAction("BOQRefresh")));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
@@ -390,6 +392,7 @@ namespace StingTools.UI
                 if (picked == null) return;   // cancelled — leave selection unchanged
 
                 StingTools.BOQ.BOQCostManager.SetIncludedLinkTitles(doc, picked.Select(p => p.Label));
+                UpdateLinksBadge();
                 DispatchAction("BOQRefresh");
             }
             catch (Exception ex) { StingLog.Error("BOQ ChooseLinkedModels", ex); }
@@ -590,6 +593,7 @@ namespace StingTools.UI
                 ("Level → work section",BoqGroupingMode.LevelThenWorkSection),
                 ("Zone",                BoqGroupingMode.Zone),
                 ("Location",            BoqGroupingMode.Location),
+                ("Source model",        BoqGroupingMode.SourceModel),
             })
                 groupCombo.Items.Add(new ComboBoxItem { Content = opt.Item1, Tag = opt.Item2 });
             groupCombo.SelectedIndex = 0;
@@ -1181,9 +1185,20 @@ namespace StingTools.UI
         private void RefreshDisplay()
         {
             RefreshMetrics();
+            UpdateLinksBadge();
             if (_boq == null) return;
             RebuildSectionsView();
             RebuildMaterialsTab();
+        }
+
+        /// <summary>Show the count of included links on the header button —
+        /// "⛓ Links" when none, "⛓ Links (N)" when N are in the takeoff.</summary>
+        private void UpdateLinksBadge()
+        {
+            if (_linksBtn == null) return;
+            int n = 0;
+            try { if (Doc != null) n = StingTools.BOQ.BOQCostManager.GetIncludedLinkTitles(Doc).Count; } catch { }
+            _linksBtn.Content = n > 0 ? $"⛓ Links ({n})" : "⛓ Links";
         }
 
         /// <summary>

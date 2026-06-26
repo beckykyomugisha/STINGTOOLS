@@ -36,6 +36,21 @@ Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
   IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
   (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
 
+#### Completed (BOQ — "by Source model" grouping + Links (N) badge)
+
+- **Group → "Source model"** (`BoqGroupingMode.SourceModel`). New grouping mode
+  + dropdown entry: the bill reads as one block per model — "Host model" first,
+  then each included link as its own section. Driven by a new
+  `BOQLineItem.SourceModel` field (copied in `Clone`, set to the link Title in
+  `CollectLinkedItems`); host rows leave it blank ⇒ "Host model". Routes through
+  the existing `GroupBySpatial` grouper; `AggregateLineItems` default branch
+  already handles the new enum.
+- **"⛓ Links (N)" badge.** The header Links button now shows the count of
+  included links — "⛓ Links" when none, "⛓ Links (N)" otherwise. Updated on every
+  `RefreshDisplay` and immediately after the chooser saves, via `UpdateLinksBadge`.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
 #### Completed (BOQ — linked models: persisted, per-link selection)
 
 Upgraded the include-links option from a session-only global bool to the best

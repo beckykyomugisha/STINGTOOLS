@@ -1959,6 +1959,7 @@ namespace StingTools.BOQ
                     li.RevitElementId = -1;                       // never resolve against the host doc
                     li.UniqueId = "";                             // avoid cross-doc id reuse
                     li.ConstituentElementIds = new List<long>();  // link-doc ids — not host-resolvable
+                    li.SourceModel = linkName;                    // drives "Group by Source model"
                     li.Note = string.IsNullOrEmpty(li.Note)
                         ? $"[Linked: {linkName}]"
                         : $"{li.Note} [Linked: {linkName}]";
@@ -2181,6 +2182,8 @@ namespace StingTools.BOQ
                     return GroupBySpatial(items, i => Blank(i.Zone, "(no zone)"));
                 case BoqGroupingMode.Location:
                     return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
+                case BoqGroupingMode.SourceModel:
+                    return GroupBySpatial(items, i => Blank(i.SourceModel, "Host model"));
                 case BoqGroupingMode.LevelThenWorkSection:
                     return GroupByLevelThenSection(items);
                 case BoqGroupingMode.WorkSection:

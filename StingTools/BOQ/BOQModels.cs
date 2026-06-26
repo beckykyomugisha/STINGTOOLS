@@ -64,7 +64,8 @@ namespace StingTools.BOQ
         Level,                  // by building level (flat locational bill)
         Zone,                   // by ASS_ZONE_TXT zone
         LevelThenWorkSection,   // by level, then NRM2 § within each level
-        Location               // by room / spatial location code
+        Location,              // by room / spatial location code
+        SourceModel            // by host vs each linked model
     }
 
     public enum BOQChangeType
@@ -103,6 +104,7 @@ namespace StingTools.BOQ
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
         public string Note;
+        public string SourceModel;          // "" / null = host; else the linked model Title (Group by Source model)
         public BOQRowSource Source;
         public string SnapshotRef;
         public long RevitElementId = -1;    // -1 for manual/PS rows
@@ -178,6 +180,7 @@ namespace StingTools.BOQ
                 ResolvedNRM2Paragraph = this.ResolvedNRM2Paragraph,
                 BOQLineRef = this.BOQLineRef,
                 Note = this.Note,
+                SourceModel = this.SourceModel,
                 Source = this.Source,
                 SnapshotRef = this.SnapshotRef,
                 RevitElementId = this.RevitElementId,
