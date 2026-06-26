@@ -3,6 +3,125 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Placement Centre — review, gap-closure & hardening)
+
+Branch `claude/placement-centre-review-audit`. Closes the gaps from the
+Placement Centre deep-read review. **Built without `dotnet build`
+verification (no Revit API / .NET in this environment) — verify in Revit
+before merge.** Some review findings were already addressed by the merged
+`claude/placement-center-fixes` (PR #376) on this branch (e.g. the
+building-profile filter was wired in the engine); those were reconciled
+against the live code rather than re-implemented.
+
+**Part A — strip internal tokens from visible UI.** Removed every
+`PC-NN` / `Pack NN` / `Phase NNN` token from user-visible strings:
+GroupBox headers, checkbox content, tooltips, the title-bar build stamp
+(now `[build <date>]`, no phase tag), the run-result subtitle, two
+prerequisite-dialog hints, and a Save-view-preset transaction name.
+`PhaseTag` kept as an internal log constant; `// comments` keep their
+tokens. The `Probe MEP connectors` checkbox was relabelled `Connect MEP
+systems after placement` (see Part C.4).
+
+**Part C — Run-Options checkboxes made honest.**
+- **C.1** Data-tag pipeline: `PostPlacementHooks` used a reflection probe
+  for a non-existent `TagPipelineHelper.RunFullPipeline(Document,Element)`
+  overload, so the checkbox tagged nothing. Now builds the canonical
+  population context once per run (cached, reset by `BeginRun`) and calls
+  the real 11-arg `RunFullPipeline` directly; `TagPipelineMissing` is
+  surfaced as a post-run warning.
+- **C.3** Validators: `SeparationValidator` is a static class with only
+  `ValidateElement(...)`, so the bridge's reflection block silently
+  produced zero findings. Added `SeparationValidator.Validate(Document)`
+  and replaced the whole reflection block with direct typed calls to all
+  eight validators (`Clearance / Maintenance(Clash) / Connectivity / Fill
+  / Spec / Termination / Slope / Separation`).
+- **C.4** MEP connect: `AssignMepSafe` was a logging no-op. It now
+  auto-connects each open HVAC/piping/cable-tray connector to the nearest
+  coincident compatible connector within 600 mm and reports
+  connected/left-open counts.
+- **C.5** Routing modes: the dropdown offered `WALL_FOLLOW /
+  CEILING_FOLLOW / FLOOR_FOLLOW / CONDUIT_RUN / TRAY_RUN` but the engine
+  only acted on `AUTO_CONDUIT` (not even listed). Dropdown trimmed to
+  `NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT`; `RouteAfterPlacement`
+  dispatches all three real drop engines; `EffectiveRoutingMode()`
+  normalizes the legacy follow tokens still in shipped packs
+  (`routing.json` / `commissioning.json`) to the matching drop engine by
+  `RouteSegmentCategory` with an honest per-rule warning. Also fixed a
+  latent bug: `RouteAfterPlacement` matched fixtures via the never-written
+  `ASS_PLACEMENT_RULE_TXT` against `RuleId`, so AUTO routing matched zero
+  fixtures — now matches via provenance (`MergeKey`).
+- **C.6** Excel import already refreshes the live `ICollectionView`
+  (PR #376); added a defensive `ApplyFilter()` after import.
+
+**Part B — Building Profile end-to-end.** The engine loaded
+`placement_profile.json` from disk, so the live UI selection only took
+effect after a manual Save. Added `PlaceFixturesOptions.SessionProfile`,
+pushed from the live VM before every Run/Preview and cleared after, so the
+building-type / standards gate works **without a Save first**. Rules carry
+`BuildingType` (Office/Healthcare/Residential/…), so the gate measurably
+changes the run. Wired the three toggles: **wet-zone** →
+`WetZoneExclusionChecker` filters candidates in `ProcessRoomRule`;
+**accessibility** → gates the height-standards validation; **coverage
+guarantee** → gates the coverage-grid expansion (Part D.1). StandardRef-only
+rules are kept (not dropped) and the engine warns when the standards filter
+is inert.
+
+**Part D — engine correctness / accuracy / perf.**
+- **D.1** `CoverageGridGenerator` was fully written but never invoked.
+  `ProcessRoomRule` now routes `GuaranteeCoverage` rules through it (when
+  the profile toggle is on), placing all generated points and surfacing
+  the MinSpacing-cap warning. New `PlacementScorer.ResolveAnchorZForRoom`.
+- **D.2** Re-runs duplicated fixtures (dedup saw only this-run state).
+  `BuildPriorPlacedIndex` scans the doc once per committing run for
+  STING-provenance fixtures and seeds their positions into the per-room
+  dedup; a prominent warning tells the user prior placements were found.
+- **D.3** Dependency cycles (`A→B→A` via DependsOn/RelativeTo/CoPlaceWith)
+  silently deadlocked. `PlacementRuleLoader.DetectDependencyCycles` now
+  reports them via the validation-warning channel.
+- **D.4** `EmitColumnFaceNearest` re-ran full-model column collectors per
+  call → per-run `_columnLocsCache`.
+- **D.5** Verified `ComputeRoomPerimeterMetres` returns metres (no bug).
+- **D.6** `ResolveSymbol == null` was silent; now increments
+  `SkippedNoSymbol`, sets the diag reason, and emits a one-shot
+  per-(rule,category,variant) warning.
+- **D.7** Documented the spacing-as-post-rank-gate contract on
+  `ComputeSpacingScore`.
+- **D.8** Fixed the misleading coverage sample-step comment.
+
+**Part E/G — categories + rule/field reconciliation.** Annotated the
+Auto-place checklist: Conduits/Pipes/Cable Trays are routing outputs (not
+point targets), Specialty Equipment / Nurse Call need a rule pack. Invalid
+rules (already excluded from runs by `ToRules`) now explain why on hover.
+
+**Part F — integrations.** Extracted `LearnPlacementV4Command.RunLearn`
+and added a Centre "Learn from model" button that runs it and imports the
+learned rules into the grid. Verified provenance→History refresh and
+Excel/JSON import live-refresh. BOQ quantity handoff and Drawing-Type
+preset *apply* deferred to ROADMAP (larger unfamiliar API surfaces;
+shipping untested buttons would reintroduce the silent-no-op anti-pattern).
+
+**PlacementRule field decision table** (fields loaded from JSON, audited
+against engine/scorer consumption):
+
+| Field | Status | Note |
+|---|---|---|
+| `WetZoneExclusion` | FIXED | now consumed by `WetZoneExclusionChecker` (Part B) |
+| `GuaranteeCoverage` / `CoverageRadiusMm` / `MaxSpacingMm` / `WallClearanceMm` / `ObstructionClearanceMm` | FIXED | now consumed via the coverage grid (Part D.1) |
+| `MountingContext` | WIRED | drives routing chase detection |
+| `CableBundleAdvisoryCount` | WIRED | advisory in routing |
+| `RoutingMode` / `RouteSegmentCategory` | FIXED | reconciled + normalized (Part C.5) |
+| `Material` / `GlazingSpec` / `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` | DEFERRED | push-to-family-types metadata surfaced in the Clearance/Envelope/Weight card, not placement-engine knobs |
+| `ToughenedGlazingRequired` / `MinSlopePercent` / `MinUniformityRatio` / `ExposureClass` / `EmitSupports` | DEFERRED | spec/advisory metadata, not consumed by placement; kept for schedules/export |
+
+**Category checklist decision table:**
+
+| Category | Status | Note |
+|---|---|---|
+| Electrical/Lighting/Comm/Data/Security/Fire/Plumbing/Air Terminals/Sprinklers/Mechanical/Junction Boxes/Furniture | WIRED | placeable, baseline rules + anchors ship |
+| Conduits / Pipes / Cable Trays | ANNOTATED | routing outputs (obstruction-only as targets); tooltip added |
+| Specialty Equipment | ANNOTATED | no baseline rules — needs project/specialty pack |
+| Nurse Call Devices | ANNOTATED | needs healthcare rule pack |
+
 #### Completed (BOQ QS Upgrade — integration + Stage-B bug fixes)
 
 Consolidated P1–P4 onto one linear stack (`main→P1→P2→P3→P0fix→P4`) and
