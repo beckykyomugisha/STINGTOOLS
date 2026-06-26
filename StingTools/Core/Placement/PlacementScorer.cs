@@ -307,6 +307,24 @@ namespace StingTools.Core.Placement
         /// (legacy alias). CEILING / SOFFIT → room top + 0 (caller adds
         /// MountingHeight as an *offset* below the ceiling face).
         /// </summary>
+        /// <summary>
+        /// Public helper used by the coverage-grid path: resolve the placement
+        /// anchor Z for a rule in a room (mounting datum + signed mounting
+        /// height + Z offset), measured from the room's floor level. Mirrors
+        /// the per-candidate anchorZ formula in Score().
+        /// </summary>
+        public double ResolveAnchorZForRoom(Room room, PlacementRule rule)
+        {
+            if (room == null || rule == null) return 0.0;
+            double baseZ;
+            try { baseZ = room.Level?.Elevation ?? (room.get_BoundingBox(null)?.Min.Z ?? 0.0); }
+            catch { baseZ = 0.0; }
+            var roomPt = new XYZ(0.0, 0.0, baseZ);
+            return ResolveMountingDatumZ(room, rule, roomPt)
+                 + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                 + (rule.OffsetZMm * MmToFt);
+        }
+
         private double ResolveMountingDatumZ(Room room, PlacementRule rule, XYZ roomPt)
         {
             string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();

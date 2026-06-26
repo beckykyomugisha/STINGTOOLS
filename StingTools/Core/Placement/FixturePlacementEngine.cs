@@ -113,6 +113,17 @@ namespace StingTools.Core.Placement
         private static bool _wetZoneEnabled;
         private static WetZoneExclusionChecker _wetZoneChecker;
 
+        // Per-run coverage-guarantee gate, set from the active building
+        // profile's "Coverage guarantee" toggle. When on, rules with
+        // GuaranteeCoverage=true route through CoverageGridGenerator.
+        private static bool _coverageEnabled;
+
+        // Per-run index of positions of fixtures placed by PREVIOUS STING runs
+        // (carry a non-empty ASS_PLACEMENT_RULE_TXT). Seeded into the per-room
+        // dedup so re-running the same rules is idempotent — coincident
+        // placements are skipped instead of doubled.
+        private static List<XYZ> _priorPlaced = new List<XYZ>();
+
         // Phase 139.21 — build stamp. Reads the assembly's PE-header
         // timestamp (the second the DLL was linked) so the Centre title
         // bar + result panel can surface it on every run. If two
@@ -219,6 +230,9 @@ namespace StingTools.Core.Placement
             _wetZoneEnabled = activeProfile == null || activeProfile.EnableWetZoneChecks;
             _wetZoneChecker = _wetZoneEnabled ? new WetZoneExclusionChecker(doc) : null;
 
+            // Coverage-guarantee gate (default ON unless the profile disables it).
+            _coverageEnabled = activeProfile == null || activeProfile.EnableCoverageGuarantee;
+
             // Accessibility / mounting-height validation against
             // STING_HEIGHT_STANDARDS.json — gated by the profile's
             // "Accessibility checks" toggle (default ON).
@@ -287,6 +301,14 @@ namespace StingTools.Core.Placement
             // consecutive runs are independent and pick up manual edits made
             // between runs.
             PostPlacementHooks.BeginRun();
+
+            // Idempotency: index the positions of fixtures placed by previous
+            // STING runs (they carry a non-empty ASS_PLACEMENT_RULE_TXT). Seeded
+            // into the per-room dedup so re-running the same rules doesn't double
+            // fixtures. Skipped for dry-run previews (nothing is committed).
+            _priorPlaced = dryRun ? new List<XYZ>() : BuildPriorPlacedIndex(doc);
+            if (!dryRun && _priorPlaced.Count > 0)
+                result.Warnings.Add($"Idempotency: found {_priorPlaced.Count} fixture(s) from previous STING placement runs — coincident positions will be skipped so this re-run won't duplicate them. Use 'Undo last run' first if you intend to replace them.");
 
             var rooms = CollectRooms(doc, roomIds, result);
             result.RoomsVisited = rooms.Count;
@@ -654,8 +676,31 @@ namespace StingTools.Core.Placement
             // PC-13 — RELATIVE_TO / EQUIPMENT_PAIR: short-circuit by stamping the
             // predecessor's last point as the only candidate.
             string anchor = (effRule.AnchorType ?? "").ToUpperInvariant();
+
+            // Coverage guarantee: when the rule sets GuaranteeCoverage=true (and
+            // the building profile's "Coverage guarantee" toggle is on), fill the
+            // room with a √2-spaced grid via CoverageGridGenerator so every floor
+            // point lies within CoverageRadiusMm of a device. The generator
+            // honours CoverageRadiusMm / MaxSpacingMm / MinSpacingMm /
+            // WallClearanceMm / ObstructionClearanceMm itself, so these points
+            // bypass the score-rank + spacing re-selection below.
+            bool coverageMode = _coverageEnabled && effRule.GuaranteeCoverage
+                                && effRule.CoverageRadiusMm > 0
+                                && anchor != "RELATIVE_TO" && anchor != "EQUIPMENT_PAIR";
+
             List<PlacementCandidate> candidates;
-            if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
+            if (coverageMode)
+            {
+                double anchorZ = scorer.ResolveAnchorZForRoom(room, effRule);
+                var cov = new CoverageGridGenerator(doc).Generate(room, effRule, anchorZ);
+                candidates = new List<PlacementCandidate>(cov.Points.Count);
+                foreach (var p in cov.Points)
+                    candidates.Add(new PlacementCandidate { Position = p, RoomId = room.Id, Rule = effRule, Score = 1.0 });
+                result.CandidatesEvaluated += candidates.Count;
+                foreach (var w in cov.Warnings)
+                    if (!string.IsNullOrEmpty(w)) result.Warnings.Add($"[{effRule.RuleId}] {w}");
+            }
+            else if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
                 && !string.IsNullOrEmpty(effRule.DependsOn)
                 && state.LastPointByRule.TryGetValue(effRule.DependsOn, out var prev))
             {
@@ -704,7 +749,11 @@ namespace StingTools.Core.Placement
 
             // PC-12 — derive the count for Density / Linear rules from the room's
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
-            int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
+            // Coverage mode wants ALL generated points placed (that IS the
+            // guarantee), limited only by an explicit MaxPerRoom.
+            int cap = coverageMode
+                ? (effRule.MaxPerRoom > 0 ? Math.Min(effRule.MaxPerRoom, candidates.Count) : candidates.Count)
+                : ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
             // Phase 188 (review pass-2 #3) — enforce intra-rule MinSpacingMm at
@@ -715,7 +764,12 @@ namespace StingTools.Core.Placement
             // emits points every 600 mm but the rule asks for 1000 mm). Greedily
             // accept ranked candidates that clear MinSpacingMm from the ones
             // already accepted. MinSpacingMm <= 0 ⇒ legacy Take(cap).
-            var chosen = SelectWithSpacing(candidates, cap, effRule.MinSpacingMm);
+            // Coverage points are already √2-spaced + MinSpacing-floored by the
+            // generator, so take them straight (preserving grid order). Other
+            // rules go through the score-rank + greedy MinSpacing selection.
+            var chosen = coverageMode
+                ? candidates.GetRange(0, Math.Min(cap, candidates.Count))
+                : SelectWithSpacing(candidates, cap, effRule.MinSpacingMm);
 
             if (dryRun)
             {
@@ -796,6 +850,10 @@ namespace StingTools.Core.Placement
                 if (state?.PlacedByRule != null)
                     foreach (var lst in state.PlacedByRule.Values)
                         if (lst != null) existingNearby.AddRange(lst);
+                // Idempotency: also dedup against fixtures from previous runs so
+                // re-running the same rules doesn't double up.
+                if (_priorPlaced != null && _priorPlaced.Count > 0)
+                    existingNearby.AddRange(_priorPlaced);
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
             double dedupFt = Math.Max(effRule.ToleranceMm, 25.0) * MmToFt;
@@ -2066,10 +2124,19 @@ namespace StingTools.Core.Placement
                 {
                     var el = doc.GetElement(id);
                     if (el == null) continue;
-                    // Fixture's RuleId param (set by FixturePlacementEngine
-                    // post-place) ties it back to the rule we're routing.
+                    // Tie the fixture back to its rule. Provenance (stamped with
+                    // rule.MergeKey) is the authoritative link; fall back to the
+                    // ASS_PLACEMENT_RULE_TXT param when a project stamps it.
+                    // NOTE: the previous code matched the never-written
+                    // ASS_PLACEMENT_RULE_TXT param against rule.RuleId, so AUTO
+                    // routing matched zero fixtures.
+                    string provRule = null;
+                    try { provRule = StingTools.Core.Storage.StingProvenanceSchema.Read(el)?.RuleId; }
+                    catch { }
                     string fxRule = ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT");
-                    if (string.Equals(fxRule, rule.RuleId, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(provRule, rule.MergeKey, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(fxRule, rule.RuleId, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(fxRule, rule.MergeKey, StringComparison.OrdinalIgnoreCase))
                         fixtures.Add(el);
                 }
                 if (fixtures.Count == 0) continue;
@@ -2117,6 +2184,36 @@ namespace StingTools.Core.Placement
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ComplianceScan.InvalidateCache: {ex.Message}"); }
             return totalRouted;
+        }
+
+        /// <summary>
+        /// Scan the document for fixtures placed by previous STING runs and
+        /// return their plan positions. Detection is via the STING provenance
+        /// entity (authoritative, binding-independent) with the
+        /// ASS_PLACEMENT_RULE_TXT param as a secondary signal. Used to make
+        /// re-runs idempotent.
+        /// </summary>
+        private static List<XYZ> BuildPriorPlacedIndex(Document doc)
+        {
+            var pts = new List<XYZ>();
+            if (doc == null) return pts;
+            try
+            {
+                var col = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilyInstance))
+                    .WhereElementIsNotElementType();
+                foreach (var el in col)
+                {
+                    bool sting = false;
+                    try { sting = StingTools.Core.Storage.StingProvenanceSchema.IsAutoCreated(el); }
+                    catch { }
+                    if (!sting && string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT")))
+                        continue;
+                    if ((el.Location as LocationPoint)?.Point is XYZ p) pts.Add(p);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildPriorPlacedIndex: {ex.Message}"); }
+            return pts;
         }
 
         /// <summary>
