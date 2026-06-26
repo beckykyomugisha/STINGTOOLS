@@ -1,31 +1,46 @@
 # BOQ Subsystem — Review Findings & Implementation Prompt
 
 **Branch:** `claude/boq-review-and-hardening`
-**Date:** 2026-06-26
-**Scope:** `StingTools/BOQ/**`, `StingTools/Core/DesignOptions/OptionCostCarbonCalculator.cs`, `StingTools/V6/CarbonStageTracker.cs`, `StingTools/Model/StructuralDesignSuite.cs` (carbon/rebar), `StingTools/Data/{cost_rates_5d.csv,MATERIAL_LOOKUP.csv}`, `StingTools/Core/WorkflowEngine.cs`, `Planscape.Server` BOQ ingest.
+**Date:** 2026-06-26 (revised — added Part B external-alignment audit)
+**Scope (Part A — internal):** `StingTools/BOQ/**`, `StingTools/Core/DesignOptions/OptionCostCarbonCalculator.cs`, `StingTools/V6/CarbonStageTracker.cs`, `StingTools/Model/StructuralDesignSuite.cs` (carbon/rebar), `StingTools/Data/{cost_rates_5d.csv,MATERIAL_LOOKUP.csv}`, `StingTools/Core/WorkflowEngine.cs`, `Planscape.Server` BOQ ingest.
+**Scope (Part B — interoperability):** `StingTools/BIMManager/SpeckleLinkCommands.cs`, `StingTools/ExLink/FohlioLink.cs`, `StingTools/Commands/Twin/NiagaraCommands.cs`, `StingTools/Core/Twin/TwinReadback.cs`, `Planscape.Edge/Adapters/StubAdapters.cs`, `StingTools/BIMManager/SchedulingCommands.cs` + `Planscape.Server` `P6Controller`, `StingTools/BOQ/IfcQuantitySetWriter.cs`, `StingTools/ExLink/AutomationEngine.cs`, `StingTools/Commands/Mep/ExportPfvIfcCommand.cs`, `Planscape.Server/.../IfcBoqExtractor.cs`, `shared/ifc/**`.
 
-This document is the agent brief. It is the result of a four-axis deep audit
-(quantity extraction, material ratios/formulas, rate/cost aggregation,
-integration gaps). **Every "VERIFIED" finding below was confirmed against
-source at the cited line.** Findings marked "CONFIRM" need a quick re-read
-before fixing because the exact line may have shifted.
+This document is the agent brief.
+- **Part A** is a four-axis internal-correctness audit (quantity extraction,
+  material ratios/formulas, rate/cost aggregation, internal integration gaps).
+- **Part B** is a cross-platform alignment audit of how StingTools' BOQ / 4D /
+  5D / carbon / FF&E / digital-twin surfaces line up with the tools they must
+  round-trip with: **Fohlio**, **RIB iTWO / CostX**, **Speckle**, **Niagara**,
+  and the open **4D/5D/carbon/FM** exchange standards. Each Part B item cites the
+  target standard and the verified current-state line.
+
+**Every "VERIFIED" finding was confirmed against source at the cited line.**
+Findings marked "CONFIRM" need a quick re-read before fixing because the exact
+line may have shifted.
 
 ---
 
 ## How to use this brief
 
-1. Work in priority order (P0 → P3). P0 items either produce silently-wrong
-   money/carbon totals or hang Revit — fix these first.
+1. **Part A (P0→P3) first, then Part B (INT-*).** Part A protects the integrity of
+   every issued bill — a perfectly-integrated BOQ that is internally wrong just
+   exports wrong numbers faster. In particular, **P0-1 (IFC Qtos = 0) is a hard
+   prerequisite for most of Part B** — every external tool (RIB, server extractor,
+   Niagara/COBie) reads those quantity sets.
 2. For each item: re-read the cited code, confirm the diagnosis, implement the
    fix, and add the stated verification.
-3. **Do not** introduce a fifth cost/carbon engine. The strategic direction is
-   *consolidation onto one per-element costing API* (see P0-7). Prefer extending
-   `BOQCostManager` over forking it.
+3. **Do not** introduce a fifth cost/carbon engine, a second Speckle client, or a
+   parallel IFC exporter. The strategic direction is *consolidation onto one
+   per-element costing API* (Part A P0-7) and *deepening the existing shallow
+   connectors* (Part B) rather than adding new ones.
 4. This codebase is built in a Linux sandbox without the Revit API, so it is
    **not** compile-verified here. Every Revit API call must use a documented
    signature; add `// TODO-VERIFY-API` only where genuinely uncertain. Note the
    no-build caveat in the commit message and CHANGELOG, per repo convention.
 5. Keep changes targeted. One logical fix per commit where practical.
+6. Several Part B items are **scoping/commercial** (e.g. Fohlio has no public API,
+   Speckle needs an SDK dependency decision) — these are flagged DECISION and
+   should produce a recommendation + minimal scaffold, not a speculative full build.
 
 ---
 
@@ -367,6 +382,215 @@ fixing P0-1 is a prerequisite.
   bulking factor** — if ever wired into a takeoff they would under-order sand/aggregate
   ~15–25%. Either wire them correctly (with bulking) or clearly mark them non-
   authoritative reference data.
+
+---
+
+# Part B — External alignment & interoperability gaps
+
+Cross-checked against **Fohlio** (FF&E spec/procurement), **RIB iTWO / CostX**
+(5D estimating), **Speckle** (open AEC data platform), **Niagara** (Tridium
+BMS/digital-twin), and the open **4D/5D/carbon/FM** exchange standards. The
+connectors below **already exist** in the codebase but are shallow — the gaps
+are depth/correctness, not absence. Current-state lines are VERIFIED; target
+standards are cited.
+
+**The asset-identity spine.** Almost every Part B item depends on one thing:
+a **stable IFC GlobalId per element that survives across revisions**, carried
+through to COBie, Speckle `applicationId`, the rate round-trip join key, and the
+BMS point map. Establish/verify this first (INT-0); the rest hang off it.
+
+### INT-0 — Stable IFC GlobalId continuity is the precondition for everything else — VERIFIED gap
+COBie export does **not** key Component rows off a stable IFC GlobalId (grep of
+`COBieDataCommands.cs` for `GlobalId`/`UniqueId` returns nothing), and the BOQ
+snapshot keys on a random per-build `Id` (Part A P0-2). The live-twin layer
+*does* use GlobalId (`ExternalElementMapping`, `Host="iot"`), but the chain
+`Revit UniqueId → IFC GlobalId → COBie → Speckle applicationId → Niagara point`
+is broken at the COBie and BOQ hops.
+- **Target:** IFC `GlobalId` (22-char IfcGloballyUniqueId) persistent across
+  exports/revisions; carried as the COBie Component external identifier and the
+  Speckle `applicationId`. (buildingSMART IfcRoot.GlobalId; NBIMS-US COBie.)
+- **Fix:** make GlobalId the single join key across BOQ rows (fixes P0-2),
+  COBie Components, Speckle objects, the rate round-trip (INT-2), and the BMS
+  map (INT-4). One resolver, not the current two parallel server tables
+  (`ExternalElementMapping` vs `ElementGlobalIdRegistry` — consolidate).
+
+### INT-1 — RIB / CostX: no QTO-conformant IFC MVD, no GAEB, no priced round-trip — VERIFIED
+**Current:** generic export is `IFCVersion.IFC2x3` + `ExportBaseQuantities=true`
+(`ExLink/AutomationEngine.cs:186-187`); PFV path is IFC4 Reference View
+(`ExportPfvIfcCommand.cs:57,64`). No `IFCVersion` sets a **Quantity Takeoff MVD**
+or **COBie MVD**; no GAEB/CPIxml; the server BOQ extractor is a regex STEP parser
+(`IfcBoqExtractor.cs`). There is **no path to re-import a priced BOQ** back into
+the model. **Note:** Part A P0-1 means the base quantities are currently written
+as zero anyway — fix that first or RIB receives an empty quantity file.
+- **Targets (cited):** IFC4 **Quantity Takeoff MVD** with `IfcElementQuantity`
+  base quantities (`MethodOfMeasurement="BaseQuantities"`) — the open feed into
+  CostX/iTWO; **GAEB DA XML 3.2/3.3** X83 (blank tender) out / **X84** (priced
+  bid) in — the EU/DACH estimator round-trip standard; **GUID-keyed XLSX** as the
+  pragmatic priced re-import (no published standard exists for priced-rate
+  re-import — confirmed); attach **NRM2/ICMS** as `IfcClassificationReference`.
+  (gaeb.de FAQ; buildingSMART IfcElementQuantity / Quantity-Sets MVD; NBIMS-US
+  Design-to-QTO; RICS NRM2.)
+- **Fix:** (a) set the QTO MVD on `IFCExportOptions` for the BOQ export path and
+  ensure Qtos are non-zero (depends on P0-1); (b) add a **priced-XLSX re-import**
+  that joins on IFC GlobalId and writes rates into `Pset_StingCost` /
+  `CST_UNIT_RATE_UGX` with `RateSource="estimator"` (extends the existing
+  `BOQImportCommand` + `ParameterOverrideRateProvider`); (c) **GAEB X83/X84** is a
+  larger DECISION — scope it, don't speculatively build. Validate phase semantics
+  against a real `.x83`/`.x84` XSD before shipping any importer.
+
+### INT-2 — Priced-BOQ round-trip is the highest-value 5D win — DECISION + VERIFIED
+This is the single capability that turns STING's BOQ from a one-way exporter into
+a 5D round-trip tool, and it reuses machinery already present (P2-8 import path,
+`ParameterOverrideRateProvider` reading `CST_UNIT_RATE_UGX`, the rate-source
+heat-map). Combine with INT-0 (GlobalId join) and Part A P0-3/P0-4 (so re-imported
+rates are confidence-flagged and zero-rate rows are visible).
+- **Fix:** GUID-keyed XLSX export → estimator prices → re-import writes rate +
+  `RateSource` + CBS code per element. Make `RateSource="estimator"` outrank the
+  CSV default but record provenance for the heat-map. Round-trip the **description**
+  too (fixes P2-8 — import currently writes the wrong param).
+
+### INT-3 — Speckle connector is metadata-only (flat 6-field DTO, no Base tree) — VERIFIED
+**Current:** `BIMManager/SpeckleLinkCommands.cs` is a hand-rolled GraphQL+HTTP
+client (`SpeckleHttpTransport`) that serialises a flat `SpeckleElementDto`
+(`ElementId, Tag1-3, CategoryName, FamilyName`, line 46) with **no geometry, no
+`Base` object, no `applicationId`, no detach/chunk/closure** (line 408 comment:
+"No detached children"). Objects won't render in the Speckle viewer and — fatally
+for a BOQ-delta workflow — **cannot be diffed**.
+- **Targets (cited):** Speckle `Base` objects with content-hashed `id`, **stable
+  `applicationId` = Revit UniqueId** (the key for version diff / quantity delta),
+  dynamic members for quantities/cost, `displayValue` geometry detached+chunked
+  (10 MB object cap); **Speckle.Sdk + Speckle.Objects** .NET SDK rather than raw
+  HTTP; **project/model/version** (FE2/v3) terminology; **Automate** function on
+  new version to recompute cost; **webhooks** for sync. (speckle.guide Base/
+  decomposition/.NET SDK; docs.speckle.systems Automate AutomationContext.)
+- **Fix:** DECISION first — adopt `Speckle.Sdk` (recommended; the raw client is
+  not viable long-term) vs. extend the DTO. Minimum viable correct version: send
+  real `Base` trees with `applicationId`; compute **BOQ quantity-delta** by
+  id-set comparison keyed on `applicationId` across versions (this is the
+  Speckle-native expression of Part A P0-2's snapshot diff). Automate function +
+  webhook are phase-2.
+
+### INT-4 — Niagara/BMS: BACnet/OPC-UA are stubs; no Haystack/Brick/oBIX tags — VERIFIED
+**Current:** MQTT telemetry works end-to-end (`Planscape.Edge/Adapters/
+MqttTelemetryAdapter.cs`), but **BACnet/OPC-UA/Modbus return empty**
+(`Core/Twin/TwinReadback.cs:39,46` `Array.Empty<TwinSnapshot>()`;
+`StubAdapters.cs`). `Commands/Twin/NiagaraCommands.cs` exports a **one-way CSV
+point list** with no semantic tags. No reverse station→model sync, no
+property write-back.
+- **Targets (cited):** **Project Haystack** tags (`equip`/`point`/`sensor`/`space`
+  + system markers) and/or **Brick Schema** RDF on assets — Niagara natively
+  supports Haystack; IFC→Haystack mapping rules exist (`IfcSpace→space`,
+  `IfcSensor→sensor`); read/write via **oBIX** (cleanest, Niagara is an oBIX
+  server), **BACnet/SC**, or **MQTT-Sparkplug B**; an **element↔point mapping
+  table** (BIM GlobalId ↔ Niagara point address). (project-haystack.org BIM WG;
+  Brick schema; Tridium oBIX/JSON toolkit; Eclipse Sparkplug.)
+- **Fix:** (a) **Highest leverage, lowest cost:** emit **Haystack tags** on the
+  COBie/Niagara export keyed off the existing DISC/SYS/FUNC/PROD tokens (they map
+  almost 1:1 to Haystack markers) — this makes assets auto-classifiable in
+  Niagara with no new transport. (b) Add a Niagara **point-address column** to the
+  twin/`ExternalElementMapping` (oBIX URI / BACnet object id) keyed on GlobalId.
+  (c) Real BACnet/oBIX readback is a larger DECISION — oBIX client first.
+
+### INT-5 — Fohlio connector is CSV + a NotImplementedException REST stub — VERIFIED + DECISION
+**Current:** `ExLink/FohlioLink.cs` is a deliberate **reference-link layer** (CSV/
+XLSX round-trip mapping `FOHLIO_REF_TXT` + manufacturer/model write-back); the
+REST tier throws `NotImplementedException` x3 (lines 161/164/167). No product
+specs, cut-sheets, images, POs, budget, or supplier master.
+- **Research finding (cited):** **Fohlio has no public/documented REST API** — no
+  developer portal, no API reference, no webhooks. The only sanctioned interchange
+  is UI-driven Excel/CSV import-export. (fohlio.com product pages; no API docs
+  found.)
+- **Fix:** This is **DECISION/commercial, not engineering.** Do NOT build against
+  a phantom API. Two honest paths: (a) harden the **CSV/Excel round-trip** into a
+  schema-mapped, idempotent, GlobalId/`FOHLIO_REF`-keyed exchange with attachment
+  handling out-of-band — this is the realistic ceiling; (b) if a private/partner
+  API is obtained from Fohlio, implement the stub against items/specs/attachments/
+  PO/vendor. Update the `FohlioRestTransport` stub comment to say "no public API
+  — CSV is the supported path" so it's not mistaken for unfinished work. The
+  FF&E↔BOQ overlap worth wiring: Fohlio FF&E budget lines ↔ STING BOQ `each`
+  rows for furniture/equipment categories (a real reconciliation, CSV-feasible).
+
+### INT-6 — 4D is MS-Project-XML-only; element↔activity link is heuristic — VERIFIED
+**Current:** `BIMManager/SchedulingCommands.cs` imports/exports **MS Project XML
+(MSPDI)** only (line 399 import, 1487 export); reads `WBS` (line 426) but links
+elements to tasks by **Phase + Level + Category** heuristic (`TradeSequence`,
+line 43), not by activity code/WBS on the element. No XER, no P6 PMXML, no Asta.
+The server P6 link (`P6Controller` + `P6LiveLinkService`) is real but **one-way**
+(reads activities → updates `%`). 5D cash-flow is S-curve-from-schedule, not
+resource-loaded.
+- **Targets (cited):** **IFC 4D** (`IfcTask`, `IfcWorkSchedule`, `IfcRelSequence`,
+  `IfcRelAssignsToProcess`); **P6 XER + PMXML**, **MSPDI**, Asta — round-trippable
+  via an MPXJ-style adapter; element↔activity by **WBS / activity code / Location
+  Breakdown Structure**; ICMS for cost classification; carbon time-phased with
+  the schedule. (buildingSMART IfcWorkSchedule; mpxj.org formats; ICMS Coalition.)
+- **Fix:** (a) store an **activity-code/WBS shared param** on elements and link by
+  it (deterministic, replaces the brittle Phase/Level/Category heuristic); (b) add
+  **IFC 4D export** (`IfcTask`/`IfcWorkSchedule`/`IfcRelSequence`) so the programme
+  survives outside Revit; (c) **P6 XER/PMXML** read is a larger DECISION — MSPDI
+  covers MS Project + Asta-via-XML today.
+
+### INT-7 — Carbon: three engines, four parameters, no EN 15978 module breakdown / live EPD — VERIFIED
+**Current:** `BOQ/CarbonFactorResolver.cs` is the most correct (unit-aware
+per-m³/per-kg, fossil/biogenic split) and writes `CST_EMBODIED_CARBON_KG`;
+`V6/CarbonStageTracker.cs` writes A1-A3…C `CBN_*` params with a flat **350
+kgCO₂e/m³** proxy (line 138-143); `OptionCostCarbonCalculator` has its own
+category dict; `StructuralDesignSuite` a fourth convention. EPD source is a
+free-text param; factors are static CSV/ICE, never queried live. (This is Part A
+P0-7 / P1-2 seen from the carbon side.)
+- **Targets (cited):** **BS EN 15978** module structure (A1-A5 / B / C / D);
+  **RICS WLCA 2nd ed.** (mandatory for RICS members since 1 Jul 2024); **EPD
+  (EN 15804)**-first, **ICE database** fallback; carry per-module carbon via custom
+  Psets (native `Pset_EnvironmentalImpactValues.ClimateChange` is single-value
+  only); **ICMS** for combined cost+carbon reporting. (buildingSMART
+  Pset_EnvironmentalImpactValues; RICS WLCA; ICE database.)
+- **Fix:** converge all carbon on **`CarbonFactorResolver`** (Part A P0-7), then
+  add **EN 15978 module params** (A1-A3/A4/A5/B/C/D) and report against ICMS. Keep
+  the existing biogenic split (it's correct). Live EPD/EC3 query is a phase-2
+  DECISION; for now make the ICE/EPD factor table the single data-driven source.
+
+### INT-8 — Shared IFC substrate has no cost/quantity/4D/carbon Pset or IDS — VERIFIED
+**Current:** `shared/ifc/` ships 52 enums + 5 Psets + 5 IDS covering tag grammar /
+spatial codes / drawing / project-org — **nothing for cost, quantity, 4D, carbon,
+or FF&E**. So the host-agnostic cross-host contract (the thing that lets Bonsai/
+ArchiCAD/Tekla read STING data) stops at tagging metadata.
+- **Fix:** author a **`Pset_StingCost`** (already emitted ad-hoc by
+  `IfcQuantitySetWriter` — formalise it), **`Pset_StingCarbon`** (EN 15978
+  modules), and a **`Pset_Sting4D`** (activity code / WBS / planned dates) in the
+  substrate, with matching **IDS** validation specs. This makes the 5D/carbon/4D
+  data first-class in the cross-host contract, not just a Revit-side stamp.
+
+### Part B — consolidated alignment checklist
+
+A Revit BOQ/4D/5D/FM tool is "aligned" with these platforms when it can:
+- [ ] Emit a **stable IFC GlobalId** per element, persistent across revisions, as
+      the universal join key (INT-0).
+- [ ] Export **IFC4 QTO MVD** with non-zero base quantities + **NRM2/ICMS
+      classification refs** (INT-1; depends on P0-1).
+- [ ] **Re-import a priced BOQ** (GUID-keyed XLSX; GAEB X84 as stretch) writing
+      rates+provenance to `Pset_StingCost` (INT-2).
+- [ ] Send **Speckle `Base` trees** with `applicationId` and compute version
+      **quantity-deltas** by id-set diff (INT-3).
+- [ ] Emit **Haystack/Brick tags** on assets + an element↔BMS-point map; read/write
+      Niagara via **oBIX** (INT-4).
+- [ ] Reconcile **FF&E budget lines ↔ BOQ each-rows** with Fohlio over the
+      supported CSV path (INT-5).
+- [ ] Export **IFC 4D** + link elements↔activities by **WBS/activity code**
+      (INT-6).
+- [ ] Carry **EN 15978 per-module carbon** from one engine, EPD-first (INT-7).
+- [ ] Formalise **cost/carbon/4D Psets + IDS** in the shared substrate (INT-8).
+
+### Part B — suggested order
+
+1. **INT-0** (GlobalId spine) + Part A **P0-1** (IFC Qtos non-zero) + **P0-2**
+   (deterministic BOQ key) — these unblock almost every other INT item.
+2. **INT-2 / INT-1(a,b)** — priced-XLSX round-trip + QTO MVD: the highest-value
+   5D capability, mostly reusing existing import/rate machinery.
+3. **INT-7** — converge carbon (also Part A P0-7) and add EN 15978 modules.
+4. **INT-4(a)** — Haystack tags off existing tokens (cheap, high FM value).
+5. **INT-3** — Speckle SDK + `applicationId` + version diff (DECISION on SDK).
+6. **INT-6 / INT-8 / INT-5 / INT-1(c) / INT-4(b,c)** — larger DECISIONs (P6 XER,
+   GAEB, substrate Psets, Fohlio commercial, real BMS transport): scope each,
+   produce a recommendation + minimal scaffold, don't speculatively full-build.
 
 ---
 
