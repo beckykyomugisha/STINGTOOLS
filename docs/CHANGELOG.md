@@ -3,6 +3,23 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — inline result action bar: Open-Export + Action buttons)
+
+Slice 3 review found the inline renderer dropped the dialog footer entirely, so
+the ~6 export commands that attach an Open-Export button via `SetCsvPath` (ICMS3,
+cert doc, registers, QS bill, cost plan) rendered their result inline with **no
+way to open the generated file** — a functional regression vs the dialog.
+
+- `StingResultPanel.BuildInlineContent` now renders a compact bottom **action
+  bar**: an "Open file" button when `CsvExportPath` is set (shell-opens the path),
+  plus any `Action(...)` buttons. Wrapped in a `DockPanel` so the bar stays
+  visible while the result scrolls. Action clicks pass a null `Window` (inline has
+  none) inside try/catch — Window-dependent actions degrade gracefully (logged),
+  never crash. No bar rendered when there are no buttons.
+
+Closes the "acceptable degradation" the Slice 3 agent flagged. Compile-verified
+headless (Nice3point): 0 errors. Not pushed/merged.
+
 #### Completed (BOQ 5D — Slice 3: convert Actions commands to inline StingResultPanel)
 
 Every Actions-tab-dispatched command now reports through `StingResultPanel`

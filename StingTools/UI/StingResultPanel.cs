@@ -269,7 +269,7 @@ namespace StingTools.UI
                 stack.Children.Add(BuildSection(section));
             }
 
-            return new ScrollViewer
+            var scroller = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
@@ -277,6 +277,52 @@ namespace StingTools.UI
                 MaxHeight = 380,
                 Padding = new Thickness(0)
             };
+
+            // Inline action bar. The dialog footer (Open-Export via SetCsvPath +
+            // any Action(...) buttons) was previously dropped inline, so an export
+            // run from the Actions pane had no way to open its file. Render those
+            // buttons in a compact always-visible bottom bar.
+            var actionBar = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            if (!string.IsNullOrEmpty(b.CsvExportPath))
+            {
+                string path = b.CsvExportPath;
+                var openBtn = new Button { Content = "Open file", Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(10, 3, 10, 3) };
+                openBtn.Click += (s, e) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
+                    catch (Exception ex) { StingTools.Core.StingLog.Warn($"Inline open file: {ex.Message}"); }
+                };
+                actionBar.Children.Add(openBtn);
+            }
+            if (b.Actions != null)
+            {
+                foreach (var a in b.Actions)
+                {
+                    var ad = a;
+                    var btn = new Button { Content = ad.Label, ToolTip = ad.Description, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(10, 3, 10, 3) };
+                    btn.Click += (s, e) =>
+                    {
+                        // No Window inline; pass null. Actions that strictly need a
+                        // Window degrade gracefully (logged, not crashed).
+                        try { ad.Click?.Invoke(null); }
+                        catch (Exception ex) { StingTools.Core.StingLog.Warn($"Inline action '{ad.Label}': {ex.Message}"); }
+                    };
+                    actionBar.Children.Add(btn);
+                }
+            }
+
+            if (actionBar.Children.Count == 0) return scroller;
+
+            var root = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(actionBar, Dock.Bottom);
+            root.Children.Add(actionBar);
+            root.Children.Add(scroller);
+            return root;
         }
 
         // ══════════════════════════════════════════════════════════════════
