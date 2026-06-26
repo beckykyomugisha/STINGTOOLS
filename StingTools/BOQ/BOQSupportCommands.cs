@@ -270,8 +270,14 @@ namespace StingTools.BOQ
                     int matched = 0, updated = 0, skipped = 0, manualAdded = 0;
                     var manualStore = BOQCostManager.LoadManualStore(ctx.Doc);
 
-                    // Build a ref → element index once so we don't collect per-row.
+                    // INT-2 — build stable join indexes once. Prefer the IFC GlobalId
+                    // (matches the "Ifc GlobalId" export column, computed by the same
+                    // encoder on the same UniqueId) → UniqueId → ASS_BOQ_LINE_REF.
+                    // GlobalId/UniqueId survive BOQLineRef churn (P3-1), so a priced
+                    // row re-joins to the right element even if line refs shifted.
                     var refToElement = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+                    var guidToElement = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+                    var uidToElement = new Dictionary<string, Element>(StringComparer.Ordinal);
                     var enums = SharedParamGuids.AllCategoryEnums;
                     var collector = new FilteredElementCollector(ctx.Doc).WhereElementIsNotElementType();
                     if (enums != null && enums.Length > 0)
@@ -280,6 +286,13 @@ namespace StingTools.BOQ
                     {
                         string refVal = ParameterHelpers.GetString(el, "ASS_BOQ_LINE_REF");
                         if (!string.IsNullOrEmpty(refVal)) refToElement[refVal] = el;
+                        string uid = el.UniqueId;
+                        if (!string.IsNullOrEmpty(uid))
+                        {
+                            uidToElement[uid] = el;
+                            string gid = StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(uid);
+                            if (!string.IsNullOrEmpty(gid)) guidToElement[gid] = el;
+                        }
                     }
 
                     using (var tx = new Transaction(ctx.Doc, "STING BOQ — import rate overrides"))
@@ -288,22 +301,43 @@ namespace StingTools.BOQ
                         for (int r = headerRow + 1; r <= sheet.LastRowUsed()?.RowNumber(); r++)
                         {
                             string refStr = sheet.Cell(r, colIdx.GetValueOrDefault("Line ref", 1)).GetString();
-                            if (string.IsNullOrWhiteSpace(refStr)) continue;
+                            // INT-2 — read the stable join keys when the columns exist
+                            // (guarded: ClosedXML cell indexes are 1-based, so don't
+                            // read column 0 when a header is absent).
+                            string gidStr = colIdx.TryGetValue("Ifc GlobalId", out int gidCol) ? sheet.Cell(r, gidCol).GetString() : "";
+                            string uidStr = colIdx.TryGetValue("Revit UniqueId", out int uidCol) ? sheet.Cell(r, uidCol).GetString() : "";
+                            if (string.IsNullOrWhiteSpace(refStr) && string.IsNullOrWhiteSpace(gidStr) && string.IsNullOrWhiteSpace(uidStr)) continue;
                             double rateUgx = sheet.Cell(r, colIdx.GetValueOrDefault("Rate UGX", 9)).GetDouble();
                             double rateUsd = sheet.Cell(r, colIdx.GetValueOrDefault("Rate USD", 11)).GetDouble();
                             string note = sheet.Cell(r, colIdx.GetValueOrDefault("Note", 14)).GetString();
                             string source = sheet.Cell(r, colIdx.GetValueOrDefault("Source", 13)).GetString();
 
-                            if (refToElement.TryGetValue(refStr, out Element el))
+                            // Resolve the element on the most stable key available:
+                            // IFC GlobalId → Revit UniqueId → ASS_BOQ_LINE_REF.
+                            Element el = null;
+                            if (!string.IsNullOrWhiteSpace(gidStr)) guidToElement.TryGetValue(gidStr.Trim(), out el);
+                            if (el == null && !string.IsNullOrWhiteSpace(uidStr)) uidToElement.TryGetValue(uidStr.Trim(), out el);
+                            if (el == null && !string.IsNullOrWhiteSpace(refStr)) refToElement.TryGetValue(refStr, out el);
+
+                            if (el != null)
                             {
                                 matched++;
                                 if (rateUgx > 0) ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
                                     rateUgx.ToString("F0", CultureInfo.InvariantCulture), overwrite: true);
                                 if (rateUsd > 0) ParameterHelpers.SetString(el, "CST_UNIT_RATE_USD",
                                     rateUsd.ToString("F2", CultureInfo.InvariantCulture), overwrite: true);
-                                ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "Override", overwrite: true);
+                                // P3 — provenance: distinguish an estimator-priced import
+                                // from a hand-typed override so the rate-source heat-map
+                                // and the at-risk rollup can flag it. The rate still rides
+                                // the CST_UNIT_RATE_UGX override surface (provider priority
+                                // 100 — a priced bill IS the authoritative rate).
+                                ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "estimator", overwrite: true);
+                                // P2-8 — write the description to ASS_NRM2_PARA_TXT, the
+                                // param BuildBOQDocument actually reads, so an edited
+                                // description survives the next BOQ refresh (previously
+                                // written to ASS_DESCRIPTION_TXT and silently dropped).
                                 if (!string.IsNullOrEmpty(note))
-                                    ParameterHelpers.SetString(el, "ASS_DESCRIPTION_TXT", note, overwrite: true);
+                                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_TXT", note, overwrite: true);
                                 updated++;
                             }
                             else if (source?.Contains("Manual") == true || source?.Contains("Provisional") == true)

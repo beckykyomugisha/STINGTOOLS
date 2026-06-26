@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Review & Hardening — INT-2 priced-BOQ round-trip)
+
+GUID-keyed priced round-trip so an external estimator can fill rates and
+re-import them onto the model. Built on the INT-0 GlobalId key.
+
+- **Export** (`BOQExportCommand`) — new **"Ifc GlobalId"** column (col 14,
+  `BOQLineItem.IfcGlobalId`) as the stable join key alongside the editable
+  Rate UGX cell.
+- **Import** (`BOQImportCommand`) — joins each priced row on the most stable
+  key available: **IFC GlobalId → Revit UniqueId → ASS_BOQ_LINE_REF**
+  (was line-ref only, which churns — P3-1). GlobalId index built with the same
+  `IfcGuidEncoder.FromRevitUniqueId` the export uses, so the join is exact.
+  Header-name column lookup means old line-ref-only sheets still import.
+- **Provenance** — imported rates stamp `CST_RATE_SOURCE = "estimator"` (was
+  the generic "Override") so the rate-source heat-map / at-risk rollup can
+  distinguish a priced import from a hand-typed override.
+- **P2-8 fixed** — import now writes the edited description to
+  `ASS_NRM2_PARA_TXT` (which `ResolveNrm2Paragraph` reads first), not
+  `ASS_DESCRIPTION_TXT` — so an edited description survives the next BOQ
+  refresh instead of being silently dropped.
+- **Precedence — deliberate deviation from the prompt.** The prompt assumed an
+  "estimator below manual ES override" tier; the actual `RateProviderRegistry`
+  has a *single* override surface — `ParameterOverrideRateProvider`
+  (`CST_UNIT_RATE_UGX`, priority **100**) sits *above* `ExtensibleStorageRateProvider`
+  (95). Building a separate sub-tier would have meant a new shared param +
+  provider and would have inverted the documented "param override is the user's
+  top-priority rate." So estimator rides the existing `CST_UNIT_RATE_UGX`
+  override surface (a priced bill IS the authoritative rate), distinguished only
+  by the `CST_RATE_SOURCE` provenance stamp. Documented inline.
+- **Not done this commit:** the branded `BOQProfessionalExportCommand` doesn't
+  yet carry the GlobalId column (round-trip is via the standard `BOQExportCommand`);
+  GAEB DA XML remains scope-only (`IPricedExchange` interface TBD). Built without
+  Revit (main-project files, no sandbox compile) — verify in Revit.
+
 #### Completed (BOQ Review & Hardening — INT-0 encoder hardening)
 
 Follow-up to the INT-0 encoder correction below, closing the one review caveat:

@@ -167,8 +167,13 @@ namespace StingTools.BOQ
 
             // Row 6 — column headers
             int hr = 6;
+            // INT-2 — "Ifc GlobalId" (col 14) is the stable round-trip join key.
+            // An external estimator fills "Rate UGX"; re-import (BOQImportCommand)
+            // joins each priced row back to its element on this GlobalId
+            // (fallback Line ref), so the join survives BOQLineRef churn.
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
-                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note" };
+                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note",
+                "Ifc GlobalId" };
             for (int i = 0; i < cols.Length; i++)
             {
                 ws.Cell(hr, i + 1).Value = cols[i];
@@ -206,7 +211,8 @@ namespace StingTools.BOQ
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
                     ws.Cell(row, 13).Value = item.Note ?? "";
-                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 13).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
+                    ws.Cell(row, 14).Value = item.IfcGlobalId ?? "";   // INT-2 round-trip join key
+                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 14).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
                     row++;
                 }
             }
