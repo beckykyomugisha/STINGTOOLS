@@ -155,15 +155,13 @@ namespace StingTools.Core.Sustainability
                 res.Hotspots.Add(h);
             }
 
-            // Savings %: kgCO2e (LEED) + MJ (EDGE indicative). Both vs intensities.
-            res.GwpReductionPct = carbonBaselineKgM2 > 0
-                ? (carbonBaselineKgM2 - res.CarbonIntensityKgM2) / carbonBaselineKgM2 * 100.0
-                : 0;
+            // Savings %: kgCO2e (LEED) + MJ (EDGE indicative). Both vs intensities,
+            // guarded against NaN/∞/zero baseline (WS F).
+            res.GwpReductionPct = SustainSavings.Pct(carbonBaselineKgM2, res.CarbonIntensityKgM2);
             if (energyBaselineMjM2.HasValue && energyBaselineMjM2.Value > 0)
             {
                 res.HasEnergyBaseline = true;
-                res.EmbodiedEnergySavingsPct =
-                    (energyBaselineMjM2.Value - res.EnergyIntensityMjM2) / energyBaselineMjM2.Value * 100.0;
+                res.EmbodiedEnergySavingsPct = SustainSavings.Pct(energyBaselineMjM2.Value, res.EnergyIntensityMjM2);
             }
             else
                 res.Warnings.Add("No embodied-energy baseline — EDGE materials % is the EDGE app's number (delegated).");

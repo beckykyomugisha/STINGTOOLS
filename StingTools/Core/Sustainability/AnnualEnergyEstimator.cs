@@ -323,8 +323,9 @@ namespace StingTools.Core.Sustainability
         private static double ScheduleMean(double[] sched)
             => (sched != null && sched.Length > 0) ? sched.Average() : 0.4;
 
-        /// <summary>(baseline - design) / baseline x 100. 0 when baseline is 0.</summary>
+        /// <summary>(baseline - design) / baseline x 100, guarded against NaN/∞ and
+        /// a non-positive baseline (WS F — delegates to <see cref="SustainSavings.Pct"/>).</summary>
         public static double SavingsPct(double baseline, double design)
-            => baseline > 0 ? (baseline - design) / baseline * 100.0 : 0;
+            => SustainSavings.Pct(baseline, design);
     }
 }

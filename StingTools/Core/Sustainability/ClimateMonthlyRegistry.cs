@@ -111,48 +111,31 @@ namespace StingTools.Core.Sustainability
         }
 
         /// <summary>
-        /// Resolve a monthly site by id, or synthesise one from design-day values
-        /// when no monthly record exists. The synthesis is flagged + logged.
+        /// Resolve a monthly site by id, or synthesise one from the 41-city
+        /// design-day registry (single locational source — WS A1) when no monthly
+        /// record exists. The synthesis uses the site's latitude (hemisphere +
+        /// seasonality) and measured annual GHI when supplied, else a latitude
+        /// estimate. Flagged + logged as indicative.
         /// </summary>
         public ClimateMonthlySite ResolveOrSynthesise(
             string id, string label, double coolingDesignDbC, double heatingDesignDbC,
-            double annualGhiKwhM2YrFallback = 1400, double annualRainfallMmFallback = 1000,
-            string climateZone = "")
+            double latDeg = 0, double annualGhiKwhM2Yr = 0,
+            double annualRainfallMmFallback = 1000, string climateZone = "")
         {
             var hit = Get(id);
             if (hit != null) return hit;
 
             _warnings.Add($"No monthly climate record for site '{id}' ({label}); " +
-                          "synthesised from design-day values (sustainability estimates indicative).");
-
-            // Crude sinusoid between heating-design (coldest month) and a mean
-            // half-way to cooling-design (mean of the warmest month). This is a
-            // graceful fallback for any of the 41 design-day sites without
-            // monthly data; teams add a real monthly row for certified runs.
-            double warmMean = (coolingDesignDbC + heatingDesignDbC) / 2.0
-                              + 0.30 * (coolingDesignDbC - heatingDesignDbC);
-            double coldMean = (coolingDesignDbC + heatingDesignDbC) / 2.0
-                              - 0.30 * (coolingDesignDbC - heatingDesignDbC);
-            double mid  = (warmMean + coldMean) / 2.0;
-            double amp  = (warmMean - coldMean) / 2.0;
+                          "synthesised from the design-day registry (sustainability estimates indicative).");
 
             var site = new ClimateMonthlySite
             {
                 Id = id, Label = label, ClimateZone = climateZone,
-                AnnualGhiKwhM2Yr = annualGhiKwhM2YrFallback,
-                GridCarbonKgco2eKwh = 0.45,
-                Source = "synthesised from design-day",
-                FellBackToDesignDay = true
+                GridCarbonKgco2eKwh = 0.45
             };
+            MonthlyClimateSynthesizer.Fill(site, coolingDesignDbC, heatingDesignDbC, latDeg, annualGhiKwhM2Yr);
             for (int m = 0; m < 12; m++)
-            {
-                // Peak warmth ~ month 7 (Aug) for N-hemisphere convention.
-                double phase = Math.Cos((m - 6) / 12.0 * 2 * Math.PI);
-                site.MeanDbC[m]     = mid + amp * phase;
-                site.MeanRhPct[m]   = 65;
-                site.GhiKwhM2Day[m] = annualGhiKwhM2YrFallback / 365.0;
-                site.RainfallMm[m]  = annualRainfallMmFallback / 12.0;
-            }
+                site.RainfallMm[m] = annualRainfallMmFallback / 12.0;
             return site;
         }
     }

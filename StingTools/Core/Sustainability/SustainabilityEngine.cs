@@ -48,7 +48,7 @@ namespace StingTools.Core.Sustainability
 
             // ── Baseline (climate-zone proxy + provenance) ──
             var baselineReg = SustainabilityRegistries.Baselines(doc);
-            res.Baseline = baselineReg.Resolve(setup.Country, ResolveZone(setup, res.Climate), setup.DominantBuildingUse);
+            res.Baseline = baselineReg.Resolve(setup.Country, ResolveZone(setup, res.Climate, doc, res.Warnings), setup.DominantBuildingUse);
             var baseline = res.Baseline.Baseline;
             if (!res.Baseline.Found)
                 res.Warnings.Add(res.Baseline.Summary);
@@ -109,17 +109,37 @@ namespace StingTools.Core.Sustainability
 
             // Synthesise from the design-day site (logged warning inside).
             var ds = ClimateRegistry.ActiveSite(doc);
+            // WS A1 — synthesise the monthly profile from the single design-day
+            // registry, using the site's latitude (hemisphere + GHI seasonality).
             return monthlyReg.ResolveOrSynthesise(
                 siteId ?? ds?.Id ?? "fallback",
                 ds?.Label ?? siteId ?? "Fallback",
                 ds?.Cooling996DbC ?? 30, ds?.Heating996DbC ?? 0,
+                latDeg: ds?.Lat ?? 0,
                 climateZone: setup.ClimateZone);
         }
 
-        private static string ResolveZone(SustainProjectSetup setup, ClimateMonthlySite climate)
+        private static string ResolveZone(SustainProjectSetup setup, ClimateMonthlySite climate,
+                                          Document doc, List<string> warnings)
         {
             if (!string.IsNullOrWhiteSpace(setup.ClimateZone)) return setup.ClimateZone;
             if (climate != null && !string.IsNullOrWhiteSpace(climate.ClimateZone)) return climate.ClimateZone;
+
+            // WS F — auto-derive the ASHRAE 169 zone from the resolved site's
+            // degree-days instead of silently defaulting to temperate; surface it.
+            try
+            {
+                var ds = ClimateRegistry.ActiveSite(doc);
+                if (ds != null && (ds.Cdd10 > 0 || ds.Hdd18 > 0))
+                {
+                    string zone = AshraeClimateZone.Classify(ds.Cdd10, ds.Hdd18);
+                    warnings?.Add($"Climate zone not set — auto-derived '{zone}' from {ds.Label} " +
+                                  $"(CDD10 {ds.Cdd10:0}, HDD18 {ds.Hdd18:0}); moisture sub-type assumed humid (A). " +
+                                  "Set the zone in Setup to override.");
+                    return zone;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ResolveZone derive: {ex.Message}"); }
             return "*";
         }
 
