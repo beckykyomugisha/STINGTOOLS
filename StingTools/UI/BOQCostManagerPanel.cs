@@ -102,10 +102,32 @@ namespace StingTools.UI
         private TabItem _materialsTab;
         private ToggleButton _ugxToggle, _usdToggle;
 
+        // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
+        // the InlineHost=1 ExtraParam so commands route their result here via
+        // BOQInlineResults.Post() instead of StingResultPanel.Show(). This is the
+        // "zero external reporting popups" convention the rest of the workspace
+        // (Schedule / cash-flow / sweep) follows.
+        private Border _inlineResultRegion;   // collapsed by default
+        private Border _inlineResultHost;     // receives BuildInlineContent output
+        private TextBlock _inlineResultTitle;
+        private Action<StingResultPanel.Builder> _inlineSink;  // stable delegate for sink (de)registration
+
         public BOQCostManagerPanel(Document doc)
         {
             Doc = doc;
             Build();
+            // Register the inline-result sink so panel-driven commands render their
+            // results in-panel. Cleared on Unloaded so a closed panel can't capture
+            // a later ribbon/workflow invocation (those fall back to .Show()).
+            // Hold the delegate in a field — a method-group re-conversion would be a
+            // fresh instance, so ReferenceEquals must compare the stored delegate.
+            _inlineSink = PostInlineResult;
+            BOQInlineResults.Sink = _inlineSink;
+            this.Unloaded += (s, e) =>
+            {
+                if (ReferenceEquals(BOQInlineResults.Sink, _inlineSink))
+                    BOQInlineResults.Sink = null;
+            };
             RefreshAsync();
         }
 
@@ -206,6 +228,12 @@ namespace StingTools.UI
             DockPanel.SetDock(root.Children[3], Dock.Top);
             root.Children.Add(BuildFooter());
             DockPanel.SetDock(root.Children[4], Dock.Bottom);
+
+            // Inline result region — sits directly above the footer, collapsed
+            // until a panel-driven command posts a result (no popup).
+            var resultRegion = BuildInlineResultRegion();
+            root.Children.Add(resultRegion);
+            DockPanel.SetDock(resultRegion, Dock.Bottom);
 
             // Main content — TabControl with Bill of Quantities + Materials tabs
             _sectionsPanel = new StackPanel { Margin = new Thickness(0) };
@@ -869,6 +897,16 @@ namespace StingTools.UI
             right.Children.Add(BuildActionBtn("Reconcile PS", AmberBrush));
             right.Children.Add(BuildActionBtn("Import Excel", NavyBrush));
             right.Children.Add(BuildActionBtn("Export ↗", GreenBrush));
+
+            // Slice 1 — QTO IFC export (estimator feed). Routes its result inline
+            // via the InlineHost convention rather than a StingResultPanel window.
+            var qtoBtn = BuildActionBtn("⛁ QTO IFC", NavyBrush);
+            qtoBtn.ToolTip = "Export an IFC4 file with base quantities + Pset_StingCost "
+                + "(NRM2 / unit rate) so an external estimator (CostX / iTWO / Candy) can "
+                + "ingest measured quantities. Result shows inline below — no popup.";
+            qtoBtn.Click += (s, e) => ExportQtoIfcInline();
+            right.Children.Add(qtoBtn);
+
             var tenderBtn = BuildActionBtn("★ Tender BOQ", OrangeBrush);
             tenderBtn.ToolTip = "Export a tender-grade NRM2 Bill of Quantities with cover, document control, "
                 + "preliminaries, preambles, bills, collections and grand summary — QS presentation format.";
@@ -2054,6 +2092,101 @@ namespace StingTools.UI
         }
 
         // ══════════════════════════════════════════════════════════════════
+        //  Slice 1 — inline result region (the no-popup convention)
+        //  A panel-driven command sets InlineHost=1, runs on the Revit thread,
+        //  builds a StingResultPanel.Builder, and calls BOQInlineResults.Post().
+        //  That invokes PostInlineResult below, which marshals to the UI thread
+        //  and renders the SAME section/metric/table tree via
+        //  StingResultPanel.BuildInlineContent — no window appears.
+        // ══════════════════════════════════════════════════════════════════
+
+        private Border BuildInlineResultRegion()
+        {
+            _inlineResultRegion = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = BorderColor,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(12, 8, 12, 10),
+                Visibility = Visibility.Collapsed
+            };
+
+            var dock = new DockPanel { LastChildFill = true };
+
+            // Header row: title + close ✕
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _inlineResultTitle = new TextBlock
+            {
+                Text = "Result", FontSize = 12, FontWeight = FontWeights.Bold,
+                Foreground = NavyBrush, VerticalAlignment = VerticalAlignment.Center
+            };
+            headerGrid.Children.Add(_inlineResultTitle);
+            var closeBtn = new Button
+            {
+                Content = "✕", Width = 24, Height = 22, Padding = new Thickness(0),
+                Background = Brushes.Transparent, Foreground = Brushes.Gray,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand, FontSize = 12,
+                ToolTip = "Dismiss result"
+            };
+            closeBtn.Click += (s, e) =>
+            {
+                if (_inlineResultRegion != null) _inlineResultRegion.Visibility = Visibility.Collapsed;
+                if (_inlineResultHost != null) _inlineResultHost.Child = null;
+            };
+            Grid.SetColumn(closeBtn, 1);
+            headerGrid.Children.Add(closeBtn);
+            DockPanel.SetDock(headerGrid, Dock.Top);
+            dock.Children.Add(headerGrid);
+
+            _inlineResultHost = new Border { Margin = new Thickness(0, 6, 0, 0) };
+            dock.Children.Add(_inlineResultHost);
+
+            _inlineResultRegion.Child = dock;
+            return _inlineResultRegion;
+        }
+
+        /// <summary>
+        /// Sink target for BOQInlineResults.Post — called on the Revit API thread
+        /// by panel-driven commands. Marshals to the UI thread and renders the
+        /// result inline. Safe if the region hasn't been built yet (no-op).
+        /// </summary>
+        private void PostInlineResult(StingResultPanel.Builder b)
+        {
+            if (b == null) return;
+            try
+            {
+                Dispatcher.BeginInvoke(new Action(() => ShowInlineResult(b)));
+            }
+            catch (Exception ex) { StingLog.Error("BOQ PostInlineResult", ex); }
+        }
+
+        private void ShowInlineResult(StingResultPanel.Builder b)
+        {
+            if (_inlineResultRegion == null || _inlineResultHost == null) return;
+            try
+            {
+                if (_inlineResultTitle != null)
+                    _inlineResultTitle.Text = string.IsNullOrEmpty(b.Title) ? "Result" : b.Title;
+                _inlineResultHost.Child = StingResultPanel.BuildInlineContent(b);
+                _inlineResultRegion.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQ ShowInlineResult", ex);
+                // Last-ditch fallback so the user still sees something.
+                if (_inlineResultHost != null)
+                    _inlineResultHost.Child = new TextBlock
+                    {
+                        Text = b.Subtitle ?? "Action completed.", TextWrapping = TextWrapping.Wrap,
+                        Foreground = NavyBrush
+                    };
+                if (_inlineResultRegion != null) _inlineResultRegion.Visibility = Visibility.Visible;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         //  Phase 108j — inline tender-setup view
         //  Swaps the BOQ/Materials TabControl for the 4-tab tender setup
         //  built via BOQTenderDialog.CreateInlineTabs. Avoids a modal
@@ -2183,6 +2316,23 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Slice 1 — QTO IFC export driven inline. Sets InlineHost=1 so
+        /// BOQExportIfcQtoCommand posts its result to the inline region instead
+        /// of opening a StingResultPanel window. refreshAfter:false — the export
+        /// doesn't mutate the BOQ view (it stamps + writes a file, then rolls the
+        /// export transaction back), so a 300ms rebuild would only churn the grid.
+        /// </summary>
+        private void ExportQtoIfcInline()
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction("BOQExportIfcQto", refreshAfter: false);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ExportQtoIfcInline", ex); }
+        }
+
+        /// <summary>
         /// Fire-and-forget dispatch of a command tag to the shared ExternalEvent.
         /// When refreshAfter=true (default) schedules a 300ms RefreshAsync so
         /// the panel picks up side effects of the command (spatial changes,
@@ -2202,6 +2352,34 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Error($"BOQ DispatchAction({tag})", ex); }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQInlineResults — static mailbox bridging Revit-thread commands to the
+    //  panel's inline result region. A command that was invoked with the
+    //  InlineHost=1 ExtraParam builds a StingResultPanel.Builder and calls
+    //  Post(builder) instead of builder.Show(). When a BOQCostManagerPanel is
+    //  alive it has registered Sink; otherwise Post returns false and the caller
+    //  falls back to the popup (ribbon / workflow callers keep working).
+    // ══════════════════════════════════════════════════════════════════════
+    internal static class BOQInlineResults
+    {
+        // Set by BOQCostManagerPanel on construction, cleared on Unloaded.
+        public static Action<StingResultPanel.Builder> Sink;
+
+        public static bool Active => Sink != null;
+
+        /// <summary>
+        /// Hand a built result to the live panel. Returns true if a sink consumed
+        /// it (caller must NOT also .Show()); false if no panel is hosting.
+        /// </summary>
+        public static bool Post(StingResultPanel.Builder b)
+        {
+            var s = Sink;
+            if (s == null || b == null) return false;
+            try { s(b); return true; }
+            catch (Exception ex) { StingLog.Error("BOQInlineResults.Post", ex); return false; }
         }
     }
 

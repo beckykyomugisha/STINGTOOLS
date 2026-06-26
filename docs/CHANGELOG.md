@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (5D Cost Workspace — Slice 1: QTO IFC button + inline-result convention)
+
+First slice of the unified inline 5D cost+programme workspace
+(`docs/BOQ_COST_MANAGER_5D_WORKSPACE_PROMPT.md`). Establishes the "zero external
+reporting popups" convention end-to-end on one action, as the template for the
+Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
+
+- **Inline result region** (`BOQCostManagerPanel.cs`) — a collapsed `Border`
+  docked above the footer with a title + ✕ dismiss. Panel-driven commands render
+  their result here via `StingResultPanel.BuildInlineContent` (the same
+  section/metric/table tree the Healthcare tab already hosts inline) instead of a
+  `StingResultPanel.Show()` window.
+- **`BOQInlineResults` static mailbox** — bridges a Revit-thread command to the
+  live panel. The panel registers `Sink` on construction (cleared on `Unloaded`
+  via a stored delegate so a closed panel can't capture a later invocation).
+  `Post(builder)` returns false when no panel is hosting → the command falls back
+  to `.Show()`, so ribbon/workflow callers are unaffected.
+- **`InlineHost=1` ExtraParam gate** — mirrors the existing `SkipDialog` pattern.
+  The panel sets it before dispatch; `BOQExportIfcQtoCommand` reads it and routes
+  the result inline (consuming the flag; `ClearAllExtraParams` in the handler's
+  `finally` also clears it post-execution, so no cross-command leakage).
+- **"⛁ QTO IFC" button** added to the Cost Manager footer beside Export/Import →
+  `DispatchAction("BOQExportIfcQto")` (dispatch case already at
+  `StingCommandHandler:3511`; path verified panel → `DispatchCommand` →
+  ExternalEvent → case). Tooltip explains the estimator feed; result shows inline.
+- **No-build caveat:** WPF + Revit-API code, not compile-checked in this sandbox.
+  Revit/WPF calls use documented signatures. **Verify in Revit before Slice 2.**
+  In-Revit smoke test: open BOQ Cost Manager → click **⛁ QTO IFC** → confirm
+  (a) no popup window appears, (b) the inline region opens below the bill with
+  "IFC4 written: …", elements-stamped count, and the LIMITATIONS notes, (c) the
+  IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
+  (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
+
 #### Completed (BOQ Review & Hardening — INT-1 QTO IFC + pro-export round-trip key)
 
 Closed the two "known limitations" left after INT-2.

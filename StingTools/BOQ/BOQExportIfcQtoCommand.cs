@@ -127,23 +127,39 @@ namespace StingTools.BOQ
                 }
             }
 
-            var panel = StingResultPanel.Create("BOQ → QTO IFC (estimator feed)");
-            panel.SetSubtitle($"IFC4 written: {path}");
-            panel.AddSection("DETAILS")
+            var rp = StingResultPanel.Create("BOQ → QTO IFC (estimator feed)");
+            rp.SetSubtitle($"IFC4 written: {path}");
+            rp.AddSection("DETAILS")
                  .Metric("Schema",            "IFC4 + base quantities")
                  .Metric("Elements stamped",  stamped.ToString())
                  .Metric("Quantities",        "Qto_*BaseQuantities (Revit-computed)")
                  .Metric("Cost / class",      "Pset_StingCost (UnitRate, NRM2Section, …)");
-            panel.AddSection("NEXT STEPS")
+            rp.AddSection("NEXT STEPS")
                  .Text("1. In CostX / iTWO: import the IFC4 file above as a BIM dimension source.")
                  .Text("2. Map Qto_*BaseQuantities → workbook quantities; rates from your rate library.")
                  .Text("3. Round-trip pricing back via the GUID-keyed XLSX (BOQ export → re-import).");
-            panel.AddSection("LIMITATIONS")
+            rp.AddSection("LIMITATIONS")
                  .Text("• No literal Quantity-Takeoff MVD in Revit — IFC4 + base quantities is the equivalent.")
                  .Text("• NRM2/ICMS rides Pset_StingCost; a true IfcClassificationReference needs a Revit")
                  .Text("  classification-mapping file (not settable via headless IFCExportOptions) — future.")
                  .Text("• Verify in Revit that the cost pset emits (ExportUserDefinedPsets may need a Pset file).");
-            panel.Show();
+
+            // 5D-workspace inline convention (Slice 1): when invoked from the BOQ
+            // Cost Manager panel the InlineHost=1 ExtraParam routes the result into
+            // the panel's inline region instead of a popup window. Consume the flag
+            // so a later ribbon/workflow invocation doesn't inherit it. If no live
+            // panel sink is registered, fall back to the popup so ribbon callers
+            // still see the result.
+            bool inline = StingCommandHandler.GetExtraParam("InlineHost") == "1";
+            if (inline)
+            {
+                StingCommandHandler.ClearExtraParam("InlineHost");
+                if (!BOQInlineResults.Post(rp)) rp.Show();
+            }
+            else
+            {
+                rp.Show();
+            }
             return Result.Succeeded;
         }
     }
