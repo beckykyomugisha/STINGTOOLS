@@ -73,7 +73,7 @@ namespace StingTools.UI.PlacementCenter
             // Revit cached the old DLL).
             try
             {
-                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
+                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}]";
             }
             catch { }
             ThemeManager.InitialiseResources();
@@ -561,7 +561,7 @@ namespace StingTools.UI.PlacementCenter
                     }
                     else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
                     {
-                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by Phase 139.18 filter.");
+                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by the spatial filter.");
                     }
                 }
 
@@ -582,7 +582,7 @@ namespace StingTools.UI.PlacementCenter
                     {
                         MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
                         MainContent = string.Join("\n\n", blockers)
-                            + "\n\nPhase 139.21 hard-fails the run when these are present so we don't produce silently-wrong placements. "
+                            + "\n\nThe run is hard-failed when these are present so we don't produce silently-wrong placements. "
                             + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
                         CommonButtons = TaskDialogCommonButtons.Close,
                     };
@@ -814,7 +814,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var panel = StingResultPanel.Create("STING — Placement Centre · Run");
-                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp} ({StingTools.Core.Placement.FixturePlacementEngine.PhaseTag})");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}");
 
                 // Phase 139.20 — surface which categories were actually
                 // allowed by the checklist, alongside the categories that
@@ -1232,7 +1232,7 @@ namespace StingTools.UI.PlacementCenter
             string presetName = $"PlacementCentre/{VM.RunOpts.Scope}/{DateTime.UtcNow:yyyyMMdd-HHmm}";
             try
             {
-                using (var t = new Transaction(_doc, "STING — Save view preset (Pack 125/M)"))
+                using (var t = new Transaction(_doc, "STING — Save view preset"))
                 {
                     t.Start();
                     StingTools.Core.Storage.StingViewPresetSchema.Write(view, presetName, "");
