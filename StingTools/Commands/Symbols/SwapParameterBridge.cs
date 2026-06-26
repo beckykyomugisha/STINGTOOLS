@@ -107,7 +107,7 @@ namespace StingTools.Commands.Symbols
 
         // ── Value snapshot ──────────────────────────────────────────────
 
-        private struct ParamVal
+        internal struct ParamVal
         {
             public StorageType St;
             public string S;
