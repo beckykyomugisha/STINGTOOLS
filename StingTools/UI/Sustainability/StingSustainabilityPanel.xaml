@@ -276,8 +276,8 @@
                         </DataGrid>
                         <WrapPanel Margin="2,8">
                             <Button Content="EDGE export" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_EdgeExport" Click="Cmd_Click" Margin="2"/>
-                            <Button Content="EPD assign (P2)" Style="{StaticResource SusActionBtn}" Tag="Sustain_EpdAssign" Click="Cmd_Click" Margin="2"/>
-                            <Button Content="LEED scorecard (P2)" Style="{StaticResource SusActionBtn}" Tag="Sustain_LeedScorecard" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="EPD register" Style="{StaticResource SusActionBtn}" Tag="Sustain_EpdAssign" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="LEED scorecard" Style="{StaticResource SusActionBtn}" Tag="Sustain_LeedScorecard" Click="Cmd_Click" Margin="2"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>

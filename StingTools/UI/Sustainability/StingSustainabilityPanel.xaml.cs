@@ -43,7 +43,25 @@ namespace StingTools.UI.Sustainability
             // Seed the SETUP form with defaults so dropdowns are populated.
             try { LoadSetupForm(SustainProjectSetup.CreateDefault()); }
             catch (Exception ex) { StingLog.Warn($"Sus ctor LoadSetupForm: {ex.Message}"); }
-            UpdateStatus("Ready · Phase 195 EDGE/LEED · indicative");
+            UpdateStatus("Ready");
+        }
+
+        /// <summary>Friendly display name for a command tag (no raw tags in the UI).</summary>
+        private static string FriendlyName(string tag)
+        {
+            switch (tag)
+            {
+                case "Sustain_ProjectSetup": return "Save project setup";
+                case "Sustain_Dashboard":    return "Running dashboard";
+                case "Sustain_SetBaseline":  return "Setting baseline";
+                case "Sustain_SupplyConfig": return "Saving supply config";
+                case "Sustain_AutoFill":     return "Reading from model";
+                case "Sustain_EdgeExport":   return "EDGE export";
+                case "Sustain_LccBenefit":   return "Life-cycle cost";
+                case "Sustain_EpdAssign":    return "EPD register";
+                case "Sustain_LeedScorecard":return "LEED scorecard";
+                default:                     return "Working";
+            }
         }
 
         // ── Unified click dispatcher ─────────────────────────────────────
@@ -54,7 +72,7 @@ namespace StingTools.UI.Sustainability
                 if (!(sender is Button btn) || !(btn.Tag is string tag) || string.IsNullOrEmpty(tag)) return;
                 StingSustainabilityCommandHandler.Instance?.SetCommand(tag);
                 StingSustainabilityCommandHandler.Event?.Raise();
-                UpdateStatus($"Running: {tag}");
+                UpdateStatus(FriendlyName(tag) + "…");
             }
             catch (Exception ex)
             {

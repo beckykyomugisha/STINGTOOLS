@@ -126,6 +126,13 @@ namespace StingTools.Core.Sustainability
         private static List<LoadZone> GatherZones(Document doc, SustainProjectSetup setup)
         {
             var zones = new List<LoadZone>();
+            // The per-space-type load-profile library (12 ASHRAE/CIBSE profiles) is
+            // the single source of LPD/EPD/occupant density/OA/setpoints/schedules —
+            // building use now genuinely drives the loads (office vs healthcare vs
+            // retail differ), instead of every zone using the bare office defaults.
+            LoadProfileLibrary profiles = null;
+            try { profiles = LoadProfileRegistry.Get(doc); } catch (Exception ex) { StingLog.Warn($"Sustain load profiles: {ex.Message}"); }
+
             try
             {
                 var spaces = new FilteredElementCollector(doc)
@@ -136,11 +143,14 @@ namespace StingTools.Core.Sustainability
                     .ToList();
                 if (spaces.Count > 0)
                 {
+                    var profile = profiles?.Get(ProfileIdForUse(setup.DominantBuildingUse));
                     double dhw = DhwForUse(setup.DominantBuildingUse);
                     foreach (var s in spaces)
                     {
                         var z = ZoneFromSpace(s);
-                        if (z != null) { z.DhwLPerPersonDay = dhw; zones.Add(z); }
+                        if (z == null) continue;
+                        ApplyProfile(z, profile, dhw);
+                        zones.Add(z);
                     }
                 }
             }
@@ -152,14 +162,48 @@ namespace StingTools.Core.Sustainability
             if (zones.Count == 0 && setup.Zones != null)
             {
                 foreach (var zs in setup.Zones.Where(z => z.FloorAreaM2 > 0))
-                    zones.Add(new LoadZone
+                {
+                    var z = new LoadZone
                     {
                         Id = zs.ZoneId, Name = zs.ZoneId, SpaceTypeId = zs.BuildingUse,
-                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy,
-                        DhwLPerPersonDay = DhwForUse(zs.BuildingUse)
-                    });
+                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy
+                    };
+                    ApplyProfile(z, profiles?.Get(ProfileIdForUse(zs.BuildingUse)), DhwForUse(zs.BuildingUse));
+                    zones.Add(z);
+                }
             }
             return zones;
+        }
+
+        /// <summary>Map a sustainability building-use to a load-profile id. Uses with
+        /// no dedicated profile fall through to the registry's fuzzy match / Office
+        /// default (documented — add residential/hotel profiles to STING_LOAD_PROFILES
+        /// .json to differentiate them further).</summary>
+        private static string ProfileIdForUse(string use)
+        {
+            switch ((use ?? "office").Trim().ToLowerInvariant())
+            {
+                case "healthcare":  return "PatientRoom";
+                case "office":      return "Office";
+                case "retail":      return "Retail";
+                case "hotel":       return "Office";       // no hotel profile yet
+                case "residential": return "Office";       // no residential profile yet
+                default:            return use;            // registry fuzzy-matches / defaults
+            }
+        }
+
+        /// <summary>Apply a load profile (LPD/EPD/OA/setpoints/schedules) to a zone,
+        /// derive occupancy from area density when the model carries none, and stamp
+        /// the building-use DHW. Null profile leaves the LoadZone office defaults.</summary>
+        private static void ApplyProfile(LoadZone z, LoadProfile profile, double dhwLpd)
+        {
+            if (profile != null)
+            {
+                profile.ApplyTo(z);
+                if (z.OccupantCount <= 0 && z.FloorAreaM2 > 0)
+                    z.OccupantCount = profile.OccupantCountFor(z.FloorAreaM2);
+            }
+            z.DhwLPerPersonDay = dhwLpd;
         }
 
         /// <summary>DHW litres/person·day by building use (CIBSE Guide G). Office is
