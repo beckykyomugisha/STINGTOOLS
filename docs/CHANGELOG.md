@@ -36,6 +36,31 @@ Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
   IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
   (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
 
+#### Completed (BOQ 5D Workspace — Slice 1.5: Actions master-detail + Materials expand)
+
+In-Revit feedback from Slice 1, two items.
+
+- **Actions tab → master-detail** (`UI/BOQCostManagerPanel.cs`). The Actions tab
+  is now a two-column `Grid`: the grouped action buttons on the **left**, a single
+  inline **report pane on the right** with a draggable `GridSplitter`. Clicking an
+  action highlights it, titles the right pane with the action name, shows a running
+  placeholder, and sets `InlineHost=1` so any inline-capable command renders its
+  result in the pane (via `BOQInlineResults` → `ShowInlineResult`, which now routes
+  to the Actions pane when that tab is active). No popup for the action surface.
+  Commands not yet converted to the inline gate still pop their own dialog — that
+  conversion is the Slice 3 sweep — but the pane always responds per-button so the
+  surface is never dead.
+- **Materials Expand-all / Collapse-all fixed** (BUG). Root cause: the ⊞/⊟ toolbar
+  buttons only drove the BOQ `_openSections`; Materials expanders were hardcoded
+  `IsExpanded=false` and untracked. Added `_openMaterialSections` (+ a
+  `MaterialCategoryKeys` helper), seeded each Materials expander's `IsExpanded` from
+  it, added `Expanded/Collapsed` handlers to persist it, and made Expand/Collapse-all
+  drive both tabs. Manual chevron state now survives a rebuild too.
+
+Built without Revit (WPF/Revit-API panel, no sandbox compile). Encoder tests still
+8/8. Schedule (4D/5D) tab is Slice 2; converting every Actions command's popup to
+inline is Slice 3. Not pushed/merged.
+
 #### Completed (BOQ Review & Hardening — INT-1 QTO IFC + pro-export round-trip key)
 
 Closed the two "known limitations" left after INT-2.

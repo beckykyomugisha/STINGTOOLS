@@ -61,6 +61,10 @@ namespace StingTools.UI
         // open/closed set after every rate edit. Composite (Discipline|NRM2|Name)
         // is stable across rebuilds.
         private readonly HashSet<string> _openSections = new HashSet<string>();
+        // Slice 1.5 — Materials tab expand state, mirrors _openSections so the
+        // Expand-all / Collapse-all toolbar buttons (and per-section chevrons)
+        // drive the Materials tab too and survive a rebuild.
+        private readonly HashSet<string> _openMaterialSections = new HashSet<string>();
         private string _activeSnapshotLabel = "";
         private readonly Dictionary<string, double> _snapshotDeltas = new Dictionary<string, double>();
 
@@ -100,6 +104,14 @@ namespace StingTools.UI
         private StackPanel _sectionsPanel;
         private TabControl _mainTabs;
         private TabItem _materialsTab;
+        // Slice 1.5 — Actions tab master-detail: buttons on the left, a single
+        // inline report pane on the right that renders the last-clicked action's
+        // result (no popup). Reuses the BOQInlineResults sink via ShowInlineResult.
+        private TabItem _actionsTab;
+        private Border _actionReportHost;        // right-pane content holder
+        private TextBlock _actionReportTitle;    // right-pane header (= action label)
+        private UIElement _actionReportEmpty;    // "select an action" placeholder
+        private Button _selectedActionBtn;       // for highlight reset
         private ToggleButton _ugxToggle, _usdToggle;
 
         // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
@@ -253,7 +265,8 @@ namespace StingTools.UI
             // command from P0 → P8 inline. Replaces the fragmented dock-
             // panel sub-sections so users have one place to find every
             // cost workflow.
-            _mainTabs.Items.Add(new TabItem { Header = "Actions", Content = BuildActionsTab() });
+            _actionsTab = new TabItem { Header = "Actions", Content = BuildActionsTab() };
+            _mainTabs.Items.Add(_actionsTab);
 
             // Phase 108j — wrap the main TabControl in a Grid host so
             // ShowTenderSetupInline can stack the tender-setup UI on top,
@@ -464,12 +477,19 @@ namespace StingTools.UI
             {
                 _openSections.Clear();
                 if (_boq != null) foreach (var s2 in _boq.Sections) _openSections.Add(SectionKey(s2));
+                // Slice 1.5 — also expand every Materials category so the button
+                // works on whichever tab is active (mirrors the BOQ set pattern).
+                _openMaterialSections.Clear();
+                foreach (var k in MaterialCategoryKeys()) _openMaterialSections.Add(k);
                 RebuildSectionsView();
+                RebuildMaterialsTab();
             }));
             sp.Children.Add(MakeToolbarButton("⊟ Collapse all", () =>
             {
                 _openSections.Clear();
+                _openMaterialSections.Clear();
                 RebuildSectionsView();
+                RebuildMaterialsTab();
             }));
 
             // Phase 108c: toggle hides/shows the NRM2 description strip on
@@ -778,13 +798,83 @@ namespace StingTools.UI
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
 
-            return new ScrollViewer
+            var leftRail = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = sp,
                 Padding = new Thickness(0)
             };
+
+            // Slice 1.5 — master-detail: action buttons on the left, one inline
+            // report pane on the right rendering the last-clicked action's result
+            // (no popup). A draggable splitter lets the user size the panes.
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.35, GridUnitType.Star), MinWidth = 360 });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
+
+            Grid.SetColumn(leftRail, 0);
+            grid.Children.Add(leftRail);
+
+            var splitter = new GridSplitter
+            {
+                Width = 5,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Background = BorderColor,
+                ResizeBehavior = GridResizeBehavior.PreviousAndNext
+            };
+            Grid.SetColumn(splitter, 1);
+            grid.Children.Add(splitter);
+
+            grid.Children.Add(BuildActionReportPane());   // sets _actionReportHost/Title; column 2
+            return grid;
+        }
+
+        /// <summary>Slice 1.5 — the Actions tab's right-hand inline report pane.
+        /// Header (= action label) + scrollable content host seeded with an
+        /// empty-state hint. Populated by RunActionInline / ShowInlineResult.</summary>
+        private UIElement BuildActionReportPane()
+        {
+            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(8, 0, 0, 0) };
+
+            var header = new Border
+            {
+                Background = NavyBrush,
+                Padding = new Thickness(12, 8, 12, 8),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                BorderBrush = BorderColor
+            };
+            _actionReportTitle = new TextBlock
+            {
+                Text = "Action result", Foreground = Brushes.White,
+                FontSize = 12, FontWeight = FontWeights.Bold
+            };
+            header.Child = _actionReportTitle;
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
+
+            _actionReportEmpty = new TextBlock
+            {
+                Text = "Select an action on the left — its result appears here, inline (no popup).",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(14), VerticalAlignment = VerticalAlignment.Top
+            };
+            _actionReportHost = new Border
+            {
+                Background = Brushes.White, Padding = new Thickness(0),
+                Child = _actionReportEmpty
+            };
+            root.Children.Add(new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = _actionReportHost
+            });
+
+            Grid.SetColumn(root, 2);
+            return root;
         }
 
         /// <summary>
@@ -873,8 +963,52 @@ namespace StingTools.UI
                 btn.BorderThickness = new Thickness(1);
             }
 
-            btn.Click += (s, e) => DispatchAction(tag);
+            btn.Click += (s, e) => RunActionInline(btn, label, tag);
             return btn;
+        }
+
+        /// <summary>
+        /// Slice 1.5 — run an Actions-tab command and route its result to the
+        /// right-hand report pane instead of a popup. Highlights the clicked
+        /// button, shows a running placeholder, and sets InlineHost=1 so commands
+        /// that support the inline gate post here (BOQInlineResults →
+        /// ShowInlineResult → the Actions pane). Commands not yet converted still
+        /// pop their own dialog (that's the Slice 3 sweep); the pane still
+        /// responds per-button so the surface is never dead.
+        /// </summary>
+        private void RunActionInline(Button btn, string label, string tag)
+        {
+            try
+            {
+                HighlightActionButton(btn);
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+                if (_actionReportHost != null)
+                    _actionReportHost.Child = new TextBlock
+                    {
+                        Text = $"Running “{label}” …\nThe result appears here when the action completes.",
+                        Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(14)
+                    };
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction(tag);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RunActionInline", ex); }
+        }
+
+        private void HighlightActionButton(Button btn)
+        {
+            try
+            {
+                if (_selectedActionBtn != null && !ReferenceEquals(_selectedActionBtn, btn))
+                {
+                    _selectedActionBtn.BorderBrush = BorderColor;
+                    _selectedActionBtn.BorderThickness = new Thickness(1);
+                }
+                _selectedActionBtn = btn;
+                btn.BorderBrush = NavyBrush;
+                btn.BorderThickness = new Thickness(2);
+            }
+            catch { /* highlight is cosmetic — never break a dispatch */ }
         }
 
         private UIElement BuildFooter()
@@ -1787,6 +1921,17 @@ namespace StingTools.UI
             _materialsTab.Content = BuildMaterialsContent();
         }
 
+        /// <summary>Distinct Materials-tab category keys — must match the
+        /// GroupBy in BuildMaterialsContent so Expand-all seeds the right set.</summary>
+        private IEnumerable<string> MaterialCategoryKeys()
+        {
+            if (_boq == null) return System.Linq.Enumerable.Empty<string>();
+            return _boq.AllItems
+                .Where(i => i.Source == BOQRowSource.Model && i.Quantity > 0)
+                .Select(i => i.Category ?? "(uncategorised)")
+                .Distinct();
+        }
+
         private FrameworkElement BuildMaterialsContent()
         {
             if (_boq == null)
@@ -1818,12 +1963,17 @@ namespace StingTools.UI
                 var expander = new Expander
                 {
                     Header = BuildMaterialSectionHeader(grp.Key, disc, grp.Count(), totalUGX, totalCarbon),
-                    IsExpanded = false,
+                    // Slice 1.5 — seed from the persisted set so Expand-all /
+                    // Collapse-all and manual toggles survive a rebuild.
+                    IsExpanded = _openMaterialSections.Contains(grp.Key),
                     Margin = new Thickness(0, 0, 0, 4),
                     BorderThickness = new Thickness(1),
                     BorderBrush = BorderColor,
                     Background = Brushes.White
                 };
+                string matKey = grp.Key;   // capture — grp is reused by the loop
+                expander.Expanded  += (s, e) => _openMaterialSections.Add(matKey);
+                expander.Collapsed += (s, e) => _openMaterialSections.Remove(matKey);
 
                 var grid = new DataGrid
                 {
@@ -2164,6 +2314,29 @@ namespace StingTools.UI
 
         private void ShowInlineResult(StingResultPanel.Builder b)
         {
+            // Slice 1.5 — when the user is on the Actions tab, render into its
+            // master-detail right pane instead of the global footer region.
+            if (_actionReportHost != null && _mainTabs != null
+                && ReferenceEquals(_mainTabs.SelectedItem, _actionsTab))
+            {
+                try
+                {
+                    if (_actionReportTitle != null && !string.IsNullOrEmpty(b.Title))
+                        _actionReportTitle.Text = b.Title;
+                    _actionReportHost.Child = StingResultPanel.BuildInlineContent(b);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("BOQ ShowInlineResult (actions)", ex);
+                    _actionReportHost.Child = new TextBlock
+                    {
+                        Text = b.Subtitle ?? "Action completed.", TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(14), Foreground = NavyBrush
+                    };
+                }
+                return;
+            }
+
             if (_inlineResultRegion == null || _inlineResultHost == null) return;
             try
             {
