@@ -86,7 +86,7 @@ namespace StingTools.Core.Placement
         public static PlacementHostPreflightResult Place(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ position,
             PlacementRule rule)
         {
@@ -151,7 +151,7 @@ namespace StingTools.Core.Placement
         private static PlacementHostPreflightResult TryHostedPlace(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ position,
             PlacementRule rule,
             FamilyPlacementType fpt)
@@ -246,7 +246,7 @@ namespace StingTools.Core.Placement
         public static PlacementHostPreflightResult PlaceOnCeilingSoffit(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ ceilingSoffitPoint,
             PlacementRule rule,
             double ceilingVoidDepthFt)
@@ -343,7 +343,7 @@ namespace StingTools.Core.Placement
         // back to the level-based overload when no wall/ceiling is
         // nearby (free-standing face-based families).
         private static PlacementHostPreflightResult TryFaceBasedPlace(
-            Document doc, FamilySymbol symbol, Room room, XYZ position, PlacementRule rule)
+            Document doc, FamilySymbol symbol, SpatialElement room, XYZ position, PlacementRule rule)
         {
             var r = new PlacementHostPreflightResult();
             try

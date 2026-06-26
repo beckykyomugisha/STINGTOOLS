@@ -37,23 +37,27 @@ namespace StingTools.UI.PlacementCenter
             if (uiDoc?.Document == null) return ids;
             var doc = uiDoc.Document;
 
+            // Both architecture Rooms and MEP Spaces are placeable spatial
+            // elements — collect either so MEP models (rooms in a linked arch
+            // model, Spaces in the host) resolve a non-empty scope.
+            var spatialCats = new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces };
+            bool IsSpatial(Element el) =>
+                el?.Category != null &&
+                (el.Category.Id.Value == (long)BuiltInCategory.OST_Rooms ||
+                 el.Category.Id.Value == (long)BuiltInCategory.OST_MEPSpaces);
+
             try
             {
                 switch ((scope ?? "ActiveView").ToUpperInvariant())
                 {
                     case "SELECTION":
                         foreach (var id in uiDoc.Selection.GetElementIds())
-                        {
-                            var el = doc.GetElement(id);
-                            if (el != null && el.Category != null &&
-                                el.Category.Id.Value == (long)BuiltInCategory.OST_Rooms)
-                                ids.Add(id);
-                        }
+                            if (IsSpatial(doc.GetElement(id))) ids.Add(id);
                         break;
 
                     case "PROJECT":
                         foreach (var r in new FilteredElementCollector(doc)
-                            .OfCategory(BuiltInCategory.OST_Rooms)
+                            .WherePasses(new ElementMulticategoryFilter(spatialCats))
                             .WhereElementIsNotElementType())
                             ids.Add(r.Id);
                         break;
@@ -62,14 +66,14 @@ namespace StingTools.UI.PlacementCenter
                     default:
                         var view = doc.ActiveView;
                         if (view == null) break;
-                        // 3D / perspective views contain no Room elements —
-                        // warn early so the user isn't left with a silent "0 rooms" result.
+                        // 3D / perspective views contain no Room/Space elements —
+                        // warn early so the user isn't left with a silent "0" result.
                         if (view.ViewType == ViewType.ThreeD || view.ViewType == ViewType.Undefined)
                         {
-                            StingLog.Warn("PlacementCenterBridge.ResolveScope: active view is a 3D/perspective view — rooms resolve to empty. Switch to a plan or section view, or change scope to Project.");
+                            StingLog.Warn("PlacementCenterBridge.ResolveScope: active view is a 3D/perspective view — rooms/spaces resolve to empty. Switch to a plan or section view, or change scope to Project.");
                         }
                         foreach (var r in new FilteredElementCollector(doc, view.Id)
-                            .OfCategory(BuiltInCategory.OST_Rooms)
+                            .WherePasses(new ElementMulticategoryFilter(spatialCats))
                             .WhereElementIsNotElementType())
                             ids.Add(r.Id);
                         break;

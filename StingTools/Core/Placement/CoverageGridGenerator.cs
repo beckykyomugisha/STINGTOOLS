@@ -47,7 +47,7 @@ namespace StingTools.Core.Placement
         /// Generate coverage grid for a single room.  Returns ordered
         /// candidate XYZs at MountingHeight already applied at anchorZ.
         /// </summary>
-        public CoverageResult Generate(Room room, PlacementRule rule, double anchorZ)
+        public CoverageResult Generate(SpatialElement room, PlacementRule rule, double anchorZ)
         {
             var result = new CoverageResult();
             if (room == null || rule == null) return result;
@@ -109,7 +109,7 @@ namespace StingTools.Core.Placement
                             double y = bay.minY + (j + 0.5) * stepY;
                             var pt = new XYZ(x, y, anchorZ);
                             // Inside-room test
-                            try { if (!room.IsPointInRoom(new XYZ(x, y, room.Level?.Elevation ?? bb.Min.Z))) continue; }
+                            try { if (!FixturePlacementEngine.PointInSpatial(room, new XYZ(x, y, room.Level?.Elevation ?? bb.Min.Z))) continue; }
                             catch { /* IsPointInRoom can fail on unbounded rooms — accept */ }
                             rawCandidates.Add(pt);
                         }
@@ -161,7 +161,7 @@ namespace StingTools.Core.Placement
                             // Wall + obstruction clearance gates same as
                             // the base grid.
                             if (HasObstructionWithin(pt, obstructions, obsClearFt)) continue;
-                            try { if (!room.IsPointInRoom(new XYZ(pt.X, pt.Y, room.Level?.Elevation ?? bb.Min.Z))) continue; }
+                            try { if (!FixturePlacementEngine.PointInSpatial(room, new XYZ(pt.X, pt.Y, room.Level?.Elevation ?? bb.Min.Z))) continue; }
                             catch { /* unbounded room — accept */ }
                             // Reject points too close to the bay edge
                             // (wall clearance already trimmed the bay,
@@ -272,7 +272,7 @@ namespace StingTools.Core.Placement
         /// the room bbox, testing each sample point against the union of
         /// CoverageRadiusFt circles centred on placed points.
         /// </summary>
-        private double ComputeCoveragePercent(Room room, BoundingBoxXYZ bb, List<XYZ> placed,
+        private double ComputeCoveragePercent(SpatialElement room, BoundingBoxXYZ bb, List<XYZ> placed,
             double coverageRadiusFt, List<XYZ> uncoveredSamples)
         {
             if (placed == null || placed.Count == 0) return 0.0;
@@ -285,7 +285,7 @@ namespace StingTools.Core.Placement
                 for (double y = bb.Min.Y + 0.5; y <= bb.Max.Y; y += sampleStepFt)
                 {
                     bool inside = true;
-                    try { inside = room.IsPointInRoom(new XYZ(x, y, zSample)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { inside = FixturePlacementEngine.PointInSpatial(room, new XYZ(x, y, zSample)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (!inside) continue;
                     total++;
                     bool isCovered = false;

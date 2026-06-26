@@ -66,7 +66,7 @@ namespace StingTools.Core.Placement
         /// names looking for "bath", "shower", "basin", "sink", "wc"
         /// keywords.
         /// </summary>
-        public List<ExclusionZone> BuildForRoom(Room room)
+        public List<ExclusionZone> BuildForRoom(SpatialElement room)
         {
             if (room == null) return new List<ExclusionZone>();
             if (_cache.TryGetValue(room.Id, out var cached)) return cached;
@@ -153,7 +153,7 @@ namespace StingTools.Core.Placement
         /// Returns Rejected=true when the candidate falls in a zone
         /// covered by the rule's exclusion level.
         /// </summary>
-        public CheckResult Check(Room room, XYZ candidate, string wetZoneExclusion)
+        public CheckResult Check(SpatialElement room, XYZ candidate, string wetZoneExclusion)
         {
             var result = new CheckResult();
             if (candidate == null || string.IsNullOrEmpty(wetZoneExclusion) ||

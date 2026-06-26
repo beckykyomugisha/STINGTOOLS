@@ -632,7 +632,10 @@ namespace StingTools.UI.PlacementCenter
             if (roomIds.Count == 0)
             {
                 TaskDialog.Show("STING — Placement Centre",
-                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms. Switch scope or open a view that contains rooms.");
+                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.\n\n" +
+                    "• Try scope = Project, or open a plan view that shows the rooms/spaces.\n" +
+                    "• If this is an MEP model, place MEP Spaces (Analyze → Space) — the engine now places into Spaces as well as Rooms.\n" +
+                    "• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement.");
                 return;
             }
 

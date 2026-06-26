@@ -14,6 +14,7 @@ using System.Linq;
 using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
 using StingTools.Core.Routing;
@@ -593,31 +594,55 @@ namespace StingTools.Core.Placement
             return result;
         }
 
-        private static List<Room> CollectRooms(Document doc, IList<ElementId> roomIds, PlacementResult result)
+        // Both Rooms (architecture) and MEP Spaces are SpatialElements sharing the
+        // boundary / bbox / level / area API the engine uses, so it places into
+        // either. MEP models commonly carry Spaces (rooms live in a linked arch
+        // model) — supporting Spaces lets those models place without a host Room.
+        private static bool IsPlaceableSpatial(Element el)
+            => (el is Room r && r.Area > 0.0) || (el is Space sp && sp.Area > 0.0);
+
+        /// <summary>
+        /// Point-in-spatial test. Exact for Rooms (IsPointInRoom); for MEP Spaces
+        /// (no public point test) falls back to plan bounding-box containment.
+        /// Used by the coverage grid + lighting grid so they clip to either.
+        /// </summary>
+        public static bool PointInSpatial(SpatialElement se, XYZ p)
         {
-            var rooms = new List<Room>();
+            if (se == null || p == null) return false;
+            try { if (se is Room rm) return rm.IsPointInRoom(p); } catch { }
+            try
+            {
+                var bb = se.get_BoundingBox(null);
+                if (bb == null) return true;
+                return p.X >= bb.Min.X && p.X <= bb.Max.X && p.Y >= bb.Min.Y && p.Y <= bb.Max.Y;
+            }
+            catch { return true; }
+        }
+
+        private static List<SpatialElement> CollectRooms(Document doc, IList<ElementId> roomIds, PlacementResult result)
+        {
+            var rooms = new List<SpatialElement>();
             try
             {
                 if (roomIds == null || roomIds.Count == 0)
                 {
-                    var collector = new FilteredElementCollector(doc)
-                        .OfCategory(BuiltInCategory.OST_Rooms)
-                        .WhereElementIsNotElementType();
-                    foreach (var e in collector)
-                        if (e is Room r && r.Area > 0.0) rooms.Add(r);
+                    foreach (var bic in new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces })
+                        foreach (var e in new FilteredElementCollector(doc)
+                            .OfCategory(bic).WhereElementIsNotElementType())
+                            if (IsPlaceableSpatial(e)) rooms.Add((SpatialElement)e);
                 }
                 else
                 {
                     foreach (var id in roomIds)
                     {
                         var el = doc.GetElement(id);
-                        if (el is Room r && r.Area > 0.0) rooms.Add(r);
+                        if (IsPlaceableSpatial(el)) rooms.Add((SpatialElement)el);
                     }
                 }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"Room collection failed: {ex.Message}");
+                result.Warnings.Add($"Room/Space collection failed: {ex.Message}");
             }
             return rooms;
         }
@@ -642,7 +667,7 @@ namespace StingTools.Core.Placement
 
         private static void ProcessRoomRule(
             Document doc,
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             PlacementScorer scorer,
             Dictionary<string, FamilySymbol> perCategorySymbol,
@@ -975,7 +1000,7 @@ namespace StingTools.Core.Placement
         /// occupancy; Linear rules from perimeter. MaxPerRoom (when > 0) is a
         /// hard cap regardless of kind.
         /// </summary>
-        private static int ComputeCap(PlacementRule rule, Room room, int candidateCount, int alreadyInRoom)
+        private static int ComputeCap(PlacementRule rule, SpatialElement room, int candidateCount, int alreadyInRoom)
         {
             int cap;
             switch (rule.RuleKind)
@@ -1088,7 +1113,7 @@ namespace StingTools.Core.Placement
         /// rate is unset (≤ 0), the parameter is missing/empty, or the value
         /// is ≤ 0 — so it contributes nothing to the Math.Max chain.
         /// </summary>
-        private static int CountFromRoomRate(Room room, string paramName, double ratePerUnit)
+        private static int CountFromRoomRate(SpatialElement room, string paramName, double ratePerUnit)
         {
             if (ratePerUnit <= 0 || room == null || string.IsNullOrEmpty(paramName)) return 0;
             int count = 0;
@@ -1108,7 +1133,7 @@ namespace StingTools.Core.Placement
         /// </summary>
         private static void ProcessRoomRuleAtPoint(
             Document doc,
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             PlacementScorer scorer,
             Dictionary<string, FamilySymbol> perCategorySymbol,
@@ -1627,7 +1652,7 @@ namespace StingTools.Core.Placement
         ///     <c>flipFacing()</c> turns it around. This is what was making
         ///     switches face up / out of the door instead of into the room.
         /// </summary>
-        private static void OrientPlacedInstance(Document doc, FamilyInstance fi, PlacementRule rule, Room room)
+        private static void OrientPlacedInstance(Document doc, FamilyInstance fi, PlacementRule rule, SpatialElement room)
         {
             if (fi == null) return;
             try
@@ -1711,7 +1736,7 @@ namespace StingTools.Core.Placement
                         roomOnPositiveNormal = probe.X >= bb.Min.X && probe.X <= bb.Max.X
                                             && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y;
                     }
-                    if (room != null && room.IsPointInRoom(probe)) roomOnPositiveNormal = true;
+                    if (room != null && PointInSpatial(room, probe)) roomOnPositiveNormal = true;
                 }
                 catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Room-side test for facing flip: {ex.Message}"); }
 
@@ -1857,7 +1882,7 @@ namespace StingTools.Core.Placement
 
         // Phase 139.5 Q15 — perimeter from boundary segments (any curve type)
         // with a bbox fallback when the room has no boundary. Result in metres.
-        private static double ComputeRoomPerimeterMetres(Room room)
+        private static double ComputeRoomPerimeterMetres(SpatialElement room)
         {
             try
             {
@@ -1889,7 +1914,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"ComputeRoomPerimeterMetres: {ex.Message}"); return 0; }
         }
 
-        private static int ReadRoomIntParam(Room room, string paramName)
+        private static int ReadRoomIntParam(SpatialElement room, string paramName)
         {
             if (room == null || string.IsNullOrWhiteSpace(paramName)) return 0;
             try
@@ -1908,7 +1933,7 @@ namespace StingTools.Core.Placement
             return 0;
         }
 
-        private static string SafeRoomName(Room room)
+        private static string SafeRoomName(SpatialElement room)
         {
             try
             {
