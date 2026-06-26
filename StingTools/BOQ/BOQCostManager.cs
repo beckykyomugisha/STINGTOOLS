@@ -60,13 +60,68 @@ namespace StingTools.BOQ
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
-        /// <summary>
-        /// When true, BuildBOQDocument also quantifies elements in loaded Revit
-        /// links. Process-wide so every consumer (panel, QTO export, snapshots)
-        /// stays consistent; toggled from the Cost Manager header checkbox.
-        /// Linked rows are read-only for cost write-back (see STEP 6c).
-        /// </summary>
-        internal static bool IncludeLinkedModels = false;
+        // ── Linked-model inclusion (per-link, persisted) ─────────────────────
+        // The set holds the Titles of loaded links whose quantities are folded
+        // into the takeoff. Persisted to <project>/_BIM_COORD/boq_links.json so
+        // the choice survives reopen (sustainable) and is per-link (flexible).
+        // Empty ⇒ host model only. Every consumer (panel, QTO export, snapshots)
+        // reads the same persisted set, so the takeoff is consistent everywhere.
+        private static readonly Dictionary<string, HashSet<string>> _linkInclusionCache
+            = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string LinkSelectionPath(Document doc)
+        {
+            string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+            if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — memory only
+            return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_links.json");
+        }
+
+        /// <summary>Titles of loaded links included in the takeoff for this doc
+        /// (loaded from boq_links.json on first ask, cached per doc path).</summary>
+        internal static HashSet<string> GetIncludedLinkTitles(Document doc)
+        {
+            string key = doc?.PathName ?? "";
+            lock (_linkInclusionCache)
+            {
+                if (_linkInclusionCache.TryGetValue(key, out var cached)) return cached;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string path = LinkSelectionPath(doc);
+                    if (path != null && System.IO.File.Exists(path))
+                    {
+                        var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(
+                            System.IO.File.ReadAllText(path));
+                        if (titles != null) foreach (var t in titles)
+                            if (!string.IsNullOrWhiteSpace(t)) set.Add(t.Trim());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"GetIncludedLinkTitles: {ex.Message}"); }
+                _linkInclusionCache[key] = set;
+                return set;
+            }
+        }
+
+        /// <summary>Persist the per-link inclusion set + refresh the cache.</summary>
+        internal static void SetIncludedLinkTitles(Document doc, IEnumerable<string> titles)
+        {
+            string key = doc?.PathName ?? "";
+            var set = new HashSet<string>(
+                (titles ?? Enumerable.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+            lock (_linkInclusionCache) { _linkInclusionCache[key] = set; }
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path != null)
+                {
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                    System.IO.File.WriteAllText(path,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(set.ToList(), Newtonsoft.Json.Formatting.Indented));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetIncludedLinkTitles: {ex.Message}"); }
+        }
 
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
             BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
@@ -133,11 +188,12 @@ namespace StingTools.BOQ
             // forced to -1 and IfcQuantitySetWriter / CostStamp / select-in-Revit
             // all skip them — they contribute quantity + cost + carbon only,
             // tagged "[Linked: <model>]".
-            if (IncludeLinkedModels)
+            var includedLinks = GetIncludedLinkTitles(doc);
+            if (includedLinks.Count > 0)
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping);
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
@@ -1866,9 +1922,11 @@ namespace StingTools.BOQ
             Document doc, HashSet<string> knownCategories,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            BoqGroupingMode grouping)
+            BoqGroupingMode grouping,
+            HashSet<string> includedTitles)
         {
             var result = new List<BOQLineItem>();
+            var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var links = new FilteredElementCollector(doc)
                 .OfClass(typeof(RevitLinkInstance))
                 .Cast<RevitLinkInstance>();
@@ -1881,6 +1939,11 @@ namespace StingTools.BOQ
 
                 string linkName;
                 try { linkName = ld.Title; } catch { linkName = "link"; }
+
+                // Per-link gate. Only links the user ticked are quantified; a
+                // shared link placed multiple times is taken off exactly once.
+                if (includedTitles != null && includedTitles.Count > 0 && !includedTitles.Contains(linkName)) continue;
+                if (!seenTitles.Add(linkName)) continue;
 
                 var linkEls = CollectCandidateElements(ld, knownCategories);
                 var linkItems = new List<BOQLineItem>(linkEls.Count);

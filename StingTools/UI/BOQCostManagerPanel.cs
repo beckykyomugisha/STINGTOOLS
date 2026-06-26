@@ -321,21 +321,10 @@ namespace StingTools.UI
             // Header actions
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 0),
                 VerticalAlignment = VerticalAlignment.Center };
-            // Linked-models toggle — quantify loaded Revit links too. Read-only:
-            // linked rows carry no host id, so they're not cost-stamped or
-            // selectable in the host (tagged "[Linked: <model>]" in the Note).
-            var linkChk = new System.Windows.Controls.CheckBox
-            {
-                Content = "Incl. links",
-                IsChecked = StingTools.BOQ.BOQCostManager.IncludeLinkedModels,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0),
-                ToolTip = "Include quantities from loaded Revit links. Linked rows are read-only " +
-                          "(not cost-stamped or selectable in the host) and tagged \"[Linked: <model>]\"."
-            };
-            linkChk.Checked   += (s, e) => { StingTools.BOQ.BOQCostManager.IncludeLinkedModels = true;  DispatchAction("BOQRefresh"); };
-            linkChk.Unchecked += (s, e) => { StingTools.BOQ.BOQCostManager.IncludeLinkedModels = false; DispatchAction("BOQRefresh"); };
-            actions.Children.Add(linkChk);
+            // Per-link takeoff chooser. Persisted per project — flexible (pick
+            // which links) + sustainable (survives reopen). Linked rows are
+            // read-only (not cost-stamped / selectable in host).
+            actions.Children.Add(BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels()));
 
             actions.Children.Add(BuildHeaderBtn("↻ Refresh", () => DispatchAction("BOQRefresh")));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
@@ -343,6 +332,67 @@ namespace StingTools.UI
             grid.Children.Add(actions);
 
             return grid;
+        }
+
+        /// <summary>
+        /// Per-link takeoff chooser: lists the loaded Revit links, pre-ticks the
+        /// persisted selection, and on OK saves it (per project) + refreshes.
+        /// Reuses the multi-select StingListPicker (checkbox list). Reading links
+        /// is read-only — safe from the dockable-pane UI thread.
+        /// </summary>
+        private void ChooseLinkedModels()
+        {
+            try
+            {
+                var doc = Doc;
+                if (doc == null) return;
+
+                var loaded = new List<string>();
+                try
+                {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var links = new FilteredElementCollector(doc)
+                        .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>();
+                    foreach (var rli in links)
+                    {
+                        Document ld = null; try { ld = rli.GetLinkDocument(); } catch { }
+                        if (ld == null) continue;                 // unloaded
+                        string t; try { t = ld.Title; } catch { continue; }
+                        if (!string.IsNullOrWhiteSpace(t) && seen.Add(t)) loaded.Add(t);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ChooseLinkedModels enum: {ex.Message}"); }
+
+                if (loaded.Count == 0)
+                {
+                    TaskDialog.Show("STING — Linked models",
+                        "No loaded Revit links found in this model.\n\n" +
+                        "Link a model and load it (Manage → Links), then choose it here.");
+                    return;
+                }
+
+                var current = StingTools.BOQ.BOQCostManager.GetIncludedLinkTitles(doc);
+                var items = loaded
+                    .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                    .Select(t => new StingTools.Select.StingListPicker.ListItem
+                    {
+                        Label = t,
+                        Detail = current.Contains(t) ? "included" : "",
+                        IsSelected = current.Contains(t)
+                    })
+                    .ToList();
+
+                var picked = StingTools.Select.StingListPicker.Show(
+                    "STING — Linked models in takeoff",
+                    "Tick the links whose quantities to include. Linked rows are read-only — " +
+                    "not cost-stamped or selectable in the host (tagged \"[Linked: <model>]\").",
+                    items, allowMultiSelect: true);
+                if (picked == null) return;   // cancelled — leave selection unchanged
+
+                StingTools.BOQ.BOQCostManager.SetIncludedLinkTitles(doc, picked.Select(p => p.Label));
+                DispatchAction("BOQRefresh");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ChooseLinkedModels", ex); }
         }
 
         private Button BuildHeaderBtn(string text, Action click)

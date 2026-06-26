@@ -36,6 +36,32 @@ Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
   IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
   (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
 
+#### Completed (BOQ — linked models: persisted, per-link selection)
+
+Upgraded the include-links option from a session-only global bool to the best
+flexible + sustainable design, following the codebase's `_BIM_COORD` project-
+overlay + multi-select-picker conventions.
+
+- **Flexible — per link, not all-or-nothing.** Header **"⛓ Links"** button opens
+  the multi-select `StingListPicker` (checkbox list) of *loaded* links, pre-ticked
+  to the current selection; tick exactly the links to fold into the takeoff. A
+  link placed multiple times is taken off once (dedup by Title).
+- **Sustainable — persisted per project.** Selection saved to
+  `<project>/_BIM_COORD/boq_links.json` (same convention as `rate_card.json` /
+  `boq_print_profiles.json`) and cached per doc path, so it survives reopen and
+  every consumer (panel, QTO export, snapshots) reads the same set —
+  `BOQCostManager.GetIncludedLinkTitles` / `SetIncludedLinkTitles`. Replaces the
+  process-global `IncludeLinkedModels` bool that reset every session.
+- **Safety unchanged.** Linked rows stay read-only for host write-back
+  (`RevitElementId=-1`, `UniqueId` cleared, constituents dropped) — never
+  cost-stamped or selectable in the host; tagged `[Linked: <model>]`.
+  Parameter-derived quantities are transform-independent; unloaded links skipped.
+- **Picker pre-check fix** (`UI/StingListPicker.cs`): `PopulateList` now honours
+  `ListItem.IsSelected`, so the chooser (and any future multi-select caller)
+  opens with current selections ticked.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
 #### Completed (BOQ — include-linked-models option)
 
 User request: a toggle to include / exclude linked Revit models in the takeoff.

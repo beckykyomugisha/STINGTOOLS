@@ -405,6 +405,7 @@ namespace StingTools.Select
                     Background = invalid ? BrushLightRedBg : Brushes.Transparent
                 };
                 _listBox.Items.Add(lbi);
+                if (item.IsSelected) lbi.IsSelected = true;   // honour pre-checked state
             }
             _countText.Text = $"{items.Count}/{_allItems.Count}";
         }
