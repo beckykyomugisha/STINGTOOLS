@@ -83,12 +83,27 @@ namespace StingTools.Core.Placement
         public int ManufacturerMisses { get; set; }
         public string FirstSkipReason { get; set; } = "";
 
+        // A11 (anchor-miss diagnostics) — count of rooms where this rule's
+        // anchor generator fell back to the room centre (no doors / windows /
+        // boundary segments / unknown anchor), plus the first reason seen.
+        public int AnchorMissRooms { get; set; }
+        public string FirstAnchorMiss { get; set; } = "";
+
+        // A14 (under-fill diagnostics) — count of rooms where the derived cap
+        // (Density / Linear / MaxPerRoom) exceeded the number of candidates
+        // actually generated, so the rule silently placed fewer than asked.
+        public int UnderFilledRooms { get; set; }
+        public int UnderFillShortfall { get; set; }
+        public string FirstUnderFill { get; set; } = "";
+
         public string OneLineSummary()
         {
             return $"{MergeKey}: rooms={RoomsConsidered}/-{RoomsFilteredByName}/-{RoomsFilteredByExclude} " +
                    $"cand={CandidatesGenerated} placed={CandidatesPlaced} " +
                    $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, wetzone={CandidatesRejectedWetZone}, " +
                    $"conflict={RoomsBlockedByConflict}, dep={RoomsBlockedByDependsOn}, mfr={ManufacturerMisses})" +
+                   (AnchorMissRooms > 0 ? $" • anchorMiss={AnchorMissRooms} ({FirstAnchorMiss})" : "") +
+                   (UnderFilledRooms > 0 ? $" • underFill={UnderFilledRooms} (short {UnderFillShortfall}; {FirstUnderFill})" : "") +
                    (string.IsNullOrEmpty(FirstSkipReason) ? "" : $" • first: {FirstSkipReason}");
         }
     }
@@ -846,6 +861,27 @@ namespace StingTools.Core.Placement
             {
                 candidates = scorer.Score(room, effRule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
+
+                // A11 (anchor-miss diagnostics) — drain the scorer's per-Score()
+                // anchor-fallback list right after the call (it's reset on every
+                // Score, so this must read it now). Surface as a per-rule count +
+                // one-shot warning so a door-anchored rule in a doorless room is
+                // visible instead of silently landing at the room centre.
+                var misses = scorer.LastAnchorMisses;
+                if (misses != null && misses.Count > 0 && diagRoom != null)
+                {
+                    diagRoom.AnchorMissRooms++;
+                    if (string.IsNullOrEmpty(diagRoom.FirstAnchorMiss))
+                        diagRoom.FirstAnchorMiss = misses[0];
+                    string amKey = $"AnchorMiss:{effRule.MergeKey}";
+                    if (!result.Warnings.Any(w => w.StartsWith(amKey, StringComparison.Ordinal)))
+                    {
+                        result.Warnings.Add($"{amKey} — rule '{effRule.MergeKey}' anchor '{effRule.AnchorType}' " +
+                            $"fell back to room centre ({misses[0]}); more rooms may be affected. " +
+                            $"Devices land at the centroid, not the intended feature.");
+                        StingLog.Warn($"Placement A11: rule '{effRule.MergeKey}' anchor fallback in room {room.Id}: {misses[0]}");
+                    }
+                }
             }
             if (candidates.Count == 0) return;
 
@@ -880,9 +916,36 @@ namespace StingTools.Core.Placement
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
             // Coverage mode wants ALL generated points placed (that IS the
             // guarantee), limited only by an explicit MaxPerRoom.
-            int cap = coverageMode
-                ? (effRule.MaxPerRoom > 0 ? Math.Min(effRule.MaxPerRoom, candidates.Count) : candidates.Count)
-                : ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
+            int cap;
+            if (coverageMode)
+            {
+                cap = effRule.MaxPerRoom > 0 ? Math.Min(effRule.MaxPerRoom, candidates.Count) : candidates.Count;
+            }
+            else
+            {
+                cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom, out int desiredCap);
+                // A14 (under-fill diagnostics) — the rule wanted more than the
+                // anchor generator could produce (e.g. WALL_MIDPOINT emits one
+                // point per segment but a Linear rule asked for 10). Surface it
+                // so the silent shortfall is visible in the run report.
+                if (desiredCap > candidates.Count && diagRoom != null)
+                {
+                    diagRoom.UnderFilledRooms++;
+                    diagRoom.UnderFillShortfall += (desiredCap - candidates.Count);
+                    if (string.IsNullOrEmpty(diagRoom.FirstUnderFill))
+                        diagRoom.FirstUnderFill = $"cap {desiredCap} vs {candidates.Count} candidate(s)";
+                    string ufKey = $"UnderFill:{effRule.MergeKey}";
+                    if (!result.Warnings.Any(w => w.StartsWith(ufKey, StringComparison.Ordinal)))
+                    {
+                        result.Warnings.Add($"{ufKey} — rule '{effRule.MergeKey}' wanted {desiredCap} but only " +
+                            $"{candidates.Count} candidate(s) were generated (anchor '{effRule.AnchorType}'); " +
+                            $"placed {candidates.Count}. For 'one every N m' along walls use a Linear rule with " +
+                            $"PerLinearMetre (auto-densifies WALL_MIDPOINT) or the LINEAR_WALL anchor.");
+                        StingLog.Warn($"Placement A14: rule '{effRule.MergeKey}' under-fill in room {room.Id}: " +
+                            $"desired {desiredCap} vs candidates {candidates.Count}.");
+                    }
+                }
+            }
             if (cap == 0) return;
 
             // Phase 188 (review pass-2 #3) — enforce intra-rule MinSpacingMm at
@@ -1105,6 +1168,16 @@ namespace StingTools.Core.Placement
         /// hard cap regardless of kind.
         /// </summary>
         private static int ComputeCap(PlacementRule rule, SpatialElement room, int candidateCount, int alreadyInRoom)
+            => ComputeCap(rule, room, candidateCount, alreadyInRoom, out _);
+
+        /// <summary>
+        /// Overload that also reports the <paramref name="desiredCap"/> — the
+        /// count the rule wanted (after the MaxPerRoom hard cap) BEFORE it was
+        /// clamped to the number of candidates available. A14 (under-fill
+        /// diagnostics) compares desiredCap against candidateCount so the run
+        /// report can flag "wanted N, only M candidates generated".
+        /// </summary>
+        private static int ComputeCap(PlacementRule rule, SpatialElement room, int candidateCount, int alreadyInRoom, out int desiredCap)
         {
             int cap;
             switch (rule.RuleKind)
@@ -1176,6 +1249,8 @@ namespace StingTools.Core.Placement
             // Hard cap from MaxPerRoom regardless of kind.
             if (rule.MaxPerRoom > 0)
                 cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
+            // desiredCap = how many we wanted before candidate availability clamps it.
+            desiredCap = cap;
             return Math.Min(cap, candidateCount);
         }
 
@@ -1256,8 +1331,23 @@ namespace StingTools.Core.Placement
             if (candidates == null || candidates.Count == 0) return;
             result.CandidatesEvaluated += candidates.Count;
 
-            int cap = ComputeCap(rule, room, candidates.Count, 0);
+            // A11 — surface anchor fallbacks on the linked path too.
+            var lmiss = linkScorer.LastAnchorMisses;
+            if (lmiss != null && lmiss.Count > 0 && diagRoom != null)
+            {
+                diagRoom.AnchorMissRooms++;
+                if (string.IsNullOrEmpty(diagRoom.FirstAnchorMiss)) diagRoom.FirstAnchorMiss = lmiss[0];
+            }
+
+            int cap = ComputeCap(rule, room, candidates.Count, 0, out int linkDesired);
             if (cap == 0) return;
+            if (linkDesired > candidates.Count && diagRoom != null)
+            {
+                diagRoom.UnderFilledRooms++;
+                diagRoom.UnderFillShortfall += (linkDesired - candidates.Count);
+                if (string.IsNullOrEmpty(diagRoom.FirstUnderFill))
+                    diagRoom.FirstUnderFill = $"cap {linkDesired} vs {candidates.Count} candidate(s)";
+            }
             var chosen = SelectWithSpacing(candidates, cap, rule.MinSpacingMm);
             if (chosen.Count == 0) return;
 
@@ -1510,6 +1600,29 @@ namespace StingTools.Core.Placement
                 firstForCategory = picked;
             }
 
+            // Item 1 — seed tier. When neither a loaded family nor the on-disk
+            // library produced a symbol, fall back to the rule's category→seed
+            // mapping (STING_CATEGORY_TO_SEED_MAP). The EnsureSeeds pre-pass
+            // normally builds+loads the seed before the engine runs (so the
+            // loaded-family tier above already found it); this tier additionally
+            // loads a seed .rfa that exists on disk but isn't loaded yet (e.g.
+            // a command path that skipped the pre-pass). Building a seed from
+            // JSON is intentionally NOT done here — that belongs in the pre-pass,
+            // outside the engine's transaction.
+            if (picked == null)
+            {
+                try
+                {
+                    string seedId = CategoryToSeedRegistry.Resolve(doc, categoryName);
+                    if (!string.IsNullOrWhiteSpace(seedId))
+                    {
+                        picked = TryResolveSeedSymbol(doc, categoryName, seedId, result);
+                        if (picked != null) firstForCategory = picked;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveSymbol seed tier '{categoryName}': {ex.Message}"); }
+            }
+
             if (picked == null)
                 result.Warnings.Add($"No FamilySymbol found for category '{categoryName}' — skipping its rules.");
             else if (!string.IsNullOrEmpty(hint) && firstForCategory != null && picked == firstForCategory && bestChainIndex == int.MaxValue && variantRx == null)
@@ -1591,6 +1704,68 @@ namespace StingTools.Core.Placement
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PC-16 TryAutoLoadFromLibrary: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Item 1 — resolve a STING seed family for the rule's category. First
+        /// looks for an already-loaded family named <paramref name="seedId"/>
+        /// (handles the case where a FamilyTypeRegex filtered the tier-1 search
+        /// to nothing); otherwise loads the on-disk seed
+        /// <c>&lt;project&gt;/_BIM_COORD/Families/Seeds/&lt;seedId&gt;.rfa</c> if
+        /// it exists (transaction-safe — the engine already owns a transaction).
+        /// Returns null (with a build-me warning) when the seed has not been
+        /// built — the caller then surfaces the normal SkippedNoSymbol path.
+        /// Never builds a seed from JSON here (that is the pre-pass's job).
+        /// </summary>
+        private static FamilySymbol TryResolveSeedSymbol(
+            Document doc, string categoryName, string seedId, PlacementResult result)
+        {
+            // 1. Already-loaded seed family (by family name == seedId).
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                {
+                    if (!(el is FamilySymbol fs) || fs.Category == null) continue;
+                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (string.Equals(fs.Family?.Name, seedId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add($"Used STING seed '{seedId}' for category '{categoryName}' — swap to a manufacturer family later (Placement › Swap to Manufacturer).");
+                        return fs;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TryResolveSeedSymbol scan '{seedId}': {ex.Message}"); }
+
+            // 2. Load the seed .rfa from disk if it has been built.
+            try
+            {
+                string seedPath = System.IO.Path.Combine(
+                    SeedEnsurer.ResolveSeedOutputFolder(doc), seedId + ".rfa");
+                if (System.IO.File.Exists(seedPath))
+                {
+                    if (doc.LoadFamily(seedPath, out var fam) && fam != null)
+                    {
+                        foreach (var symId in fam.GetFamilySymbolIds())
+                        {
+                            if (doc.GetElement(symId) is FamilySymbol fs && fs.Category != null
+                                && string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                result.Warnings.Add($"Loaded STING seed '{seedId}' from disk for category '{categoryName}' — swap to a manufacturer family later.");
+                                return fs;
+                            }
+                        }
+                        // family loaded but no symbol of the rule's category — fall through
+                    }
+                }
+                else
+                {
+                    string key = $"SeedNotBuilt:{seedId}";
+                    if (!result.Warnings.Any(w => w.StartsWith(key, StringComparison.Ordinal)))
+                        result.Warnings.Add($"{key} — category '{categoryName}' maps to seed '{seedId}' but it isn't built. Run Placement › Ensure Seeds (or Build Seed Families) to place defaults when no manufacturer family is loaded.");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TryResolveSeedSymbol load '{seedId}': {ex.Message}"); }
             return null;
         }
 

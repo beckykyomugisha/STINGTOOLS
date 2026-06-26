@@ -284,6 +284,8 @@ namespace StingTools.UI.PlacementCenter
         public double MaxSpacingMm            { get => _rule.MaxSpacingMm;           set { if (Math.Abs(_rule.MaxSpacingMm           - value) > 1e-6) { _rule.MaxSpacingMm           = value; MarkDirty(); } } }
         public double WallClearanceMm         { get => _rule.WallClearanceMm;        set { if (Math.Abs(_rule.WallClearanceMm        - value) > 1e-6) { _rule.WallClearanceMm        = value; MarkDirty(); } } }
         public double ObstructionClearanceMm  { get => _rule.ObstructionClearanceMm; set { if (Math.Abs(_rule.ObstructionClearanceMm - value) > 1e-6) { _rule.ObstructionClearanceMm = value; MarkDirty(); } } }
+        public double DoorClearanceMm         { get => _rule.DoorClearanceMm;        set { if (Math.Abs(_rule.DoorClearanceMm        - value) > 1e-6) { _rule.DoorClearanceMm        = value; MarkDirty(); } } }
+        public double WindowClearanceMm       { get => _rule.WindowClearanceMm;      set { if (Math.Abs(_rule.WindowClearanceMm      - value) > 1e-6) { _rule.WindowClearanceMm      = value; MarkDirty(); } } }
         public bool   GuaranteeCoverage       { get => _rule.GuaranteeCoverage;      set { if (_rule.GuaranteeCoverage != value) { _rule.GuaranteeCoverage = value; MarkDirty(); } } }
 
         public string RoutingMode             { get => _rule.RoutingMode;            set { if (_rule.RoutingMode != value) { _rule.RoutingMode = value ?? "NONE"; MarkDirty(); OnPropertyChanged(nameof(IsRoutingRule)); } } }

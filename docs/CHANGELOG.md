@@ -3,6 +3,60 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Placement — seed tier, swap bridge, placement-quality & diagnostics)
+
+Branch `claude/placement-centre-review-audit`. Implements the four items in
+`docs/PLACEMENT_SEEDS_SWAP_AND_ALGORITHM_DESIGN.md`. **Built without
+`dotnet build` verification (Linux sandbox / no Revit API). Items 1 + 2 are
+model-modifying (they create / modify families) — smoke-test in Revit before
+merge: build a seed for an empty category and place it; swap a seed to a
+non-STING family and confirm positions + values survive.**
+
+1. **Item 4 — Anchor-miss + under-fill diagnostics (A11/A14).**
+   `RuleDiagnostic` gains `AnchorMissRooms` / `FirstAnchorMiss` /
+   `UnderFilledRooms` / `UnderFillShortfall` / `FirstUnderFill`.
+   `PlacementScorer` accumulates per-`Score()` anchor fallbacks
+   (`_anchorMisses` / `LastAnchorMisses`) — every emitter that drops to the
+   room centre (no doors / windows / boundary segments / unknown anchor)
+   records the reason. `FixturePlacementEngine.ProcessRoomRule` (+ the linked
+   path) drains it after each `Score()` and folds it into the diagnostic with
+   a one-shot warning + `StingLog.Warn`. `ComputeCap` gains a `desiredCap`
+   overload so the engine flags silent under-fill (cap > candidates). The
+   Centre run report gains a **PER-RULE DIAGNOSTICS** section listing
+   anchor-→-centre / under-fill / no-symbol per rule.
+2. **Item 1 — Seed tier + EnsureSeeds pre-pass (A3).** New
+   `CategoryToSeedRegistry` (loads `STING_CATEGORY_TO_SEED_MAP.json` +
+   project override, per-doc cache) and `SeedEnsurer` (builds/loads the
+   mapped STING seed for every ticked category with no loaded family — runs
+   OUTSIDE the engine transaction). The Centre's `ExecuteRun` runs the
+   EnsureSeeds pre-pass before placement (skipped on dry-run) and folds the
+   build report into the run warnings. `FixturePlacementEngine.ResolveSymbol`
+   gains a seed tier after the loaded-family + library tiers: it loads an
+   on-disk seed `.rfa` when present, else warns "run Ensure Seeds". New
+   stand-alone `Placement_EnsureSeeds` command (`EnsureSeedsCommand`). Runs
+   never silently skip a mapped category for "no family loaded".
+3. **Item 3 — Linear densify + door/window clearance (A5/A6).**
+   `PlacementScorer.EmitLinearWallPoints` steps candidates along the room
+   perimeter at `PerLinearMetre` spacing (inset by `WallClearanceMm`); a
+   `WALL_MIDPOINT` rule that is `Linear` with `PerLinearMetre > 0`
+   auto-densifies, and an explicit `LINEAR_WALL` anchor opts in. New
+   `PlacementRule.DoorClearanceMm` / `WindowClearanceMm` (default 0 = off);
+   `BuildCandidate` rejects candidates within clearance of a door/window
+   (hard-collision via existing `TooCloseToDoor` / `TooCloseToWindow` flags,
+   now in the `HasHardCollision` mask). Editor: new Door/Window clearance
+   fields on the Coverage & Spacing card (VM proxy props + load + LostFocus
+   commit).
+4. **Item 2 — Swap parameter-bridge (A4).** New `SwapParameterBridge` +
+   `STING_PARAM_ALIAS_MAP.json`. `SwapToManufacturerCommand` now (default-on,
+   toggleable via `SwapParameterBridge.Enabled`) ensure-stamps each
+   destination family with the STING shared params the sources carry
+   (EditFamily + `FamilyParamEngine.InjectSharedParams` + reload, outside the
+   swap transaction), re-resolves winner type ids, then per instance
+   snapshots STING-GUID + aliased-native values before `ChangeTypeId` and
+   restores them after (STING values always; aliased natives only where the
+   STING target is empty). Swapping to a STING-naive family now preserves
+   positions + values. Result panel + audit report families stamped.
+
 #### Completed (Placement Centre — review follow-up: five minor fixes)
 
 Branch `claude/placement-centre-review-audit`. Closes the five minor items

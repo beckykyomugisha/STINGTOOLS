@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "description": "Swap-time parameter bridge alias map (Item 2). Maps common native / legacy / manufacturer parameter NAMES to the STING shared-parameter NAME they should populate. When a seed instance is swapped to a manufacturer family that carries a value under a legacy name (e.g. 'Mounting Height'), the bridge copies it into the matching STING shared parameter (resolved to its GUID via ParamRegistry) ONLY when that STING parameter is currently empty — never clobbering a real value. Unknown native params are left untouched. Keep this list small and well-known. Project override: <project>/_BIM_COORD/param_alias_map.json (merged by native name; project wins).",
+  "aliases": {
+    "Mounting Height": "MNT_HGT_MM",
+    "Mounting Height (mm)": "MNT_HGT_MM",
+    "Elevation from Level": "MNT_HGT_MM",
+    "Default Elevation": "MNT_HGT_MM",
+    "Wattage": "ELC_LOAD_VA",
+    "Load": "ELC_LOAD_VA",
+    "Apparent Load": "ELC_LOAD_VA",
+    "Voltage": "ELC_VOLT_V",
+    "Switch Voltage": "ELC_VOLT_V",
+    "IP Rating": "ASS_IP_RATING_TXT",
+    "Ingress Protection": "ASS_IP_RATING_TXT",
+    "Manufacturer": "ASS_MANUFACTURER_TXT",
+    "Model": "ASS_MODEL_TXT"
+  }
+}

@@ -239,6 +239,22 @@ namespace StingTools.Core.Placement
         /// <summary>Minimum clearance from any obstruction in millimetres.</summary>
         public double ObstructionClearanceMm { get; set; } = 0.0;
 
+        /// <summary>
+        /// A6 (placement-quality) — minimum clearance in millimetres a placed
+        /// fixture must keep from a door opening. The scorer rejects any
+        /// candidate within this distance of a door's location point. 0
+        /// (default) = off (legacy behaviour preserved).
+        /// </summary>
+        public double DoorClearanceMm { get; set; } = 0.0;
+
+        /// <summary>
+        /// A6 (placement-quality) — minimum clearance in millimetres a placed
+        /// fixture must keep from a window opening. The scorer rejects any
+        /// candidate within this distance of a window's location point. 0
+        /// (default) = off (legacy behaviour preserved).
+        /// </summary>
+        public double WindowClearanceMm { get; set; } = 0.0;
+
         /// <summary>Wall face to route on — INTERIOR / EXTERIOR / THROUGH / AUTO.</summary>
         public string RouteFace { get; set; } = "";
 
@@ -601,6 +617,8 @@ namespace StingTools.Core.Placement
                 MaxSpacingMm         = this.MaxSpacingMm,
                 WallClearanceMm      = this.WallClearanceMm,
                 ObstructionClearanceMm = this.ObstructionClearanceMm,
+                DoorClearanceMm      = this.DoorClearanceMm,
+                WindowClearanceMm    = this.WindowClearanceMm,
                 GuaranteeCoverage    = this.GuaranteeCoverage,
                 RoutingMode          = this.RoutingMode,
                 RouteOffsetMm        = this.RouteOffsetMm,
