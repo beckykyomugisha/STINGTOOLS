@@ -89,11 +89,16 @@ namespace StingTools.UI.PlacementCenter
                 "NONE", "BS7671_Z1", "BS7671_Z2", "IEC60364_Z0", "IEC60364_Z1",
             };
 
+        // Constrained to the tokens the engine actually dispatches on
+        // (FixturePlacementEngine.RouteAfterPlacement). NONE is a no-op;
+        // AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT route via the matching
+        // Core/Routing drop engine. WALL/CEILING/FLOOR-follow + CONDUIT_RUN /
+        // TRAY_RUN were removed — no backing router exists and they silently
+        // did nothing.
         public ObservableCollection<string> RoutingModes { get; }
             = new ObservableCollection<string>
             {
-                "NONE", "WALL_FOLLOW", "CEILING_FOLLOW", "FLOOR_FOLLOW",
-                "CONDUIT_RUN", "TRAY_RUN",
+                "NONE", "AUTO_CONDUIT", "AUTO_PIPE", "AUTO_DUCT",
             };
 
         public ObservableCollection<string> RouteFaces { get; }

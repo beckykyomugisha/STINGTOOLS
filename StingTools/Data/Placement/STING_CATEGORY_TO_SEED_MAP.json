@@ -1,0 +1,40 @@
+{
+  "version": "v1",
+  "description": "Explicit map from a placement rule's CategoryFilter to the default STING seed family (Data/Seeds/<seedId>.json) that the engine should build/load when the project has no manufacturer family for that category. This is the missing link that lets 'tick a category, run, and place even with no family loaded' work end-to-end. Mirrors the tag-family seed convention (category -> seed -> stamp -> load). The engine's ResolveSymbol consults this AFTER (a) already-loaded families and (b) FamilyTypeRegex/VariantHint, and BEFORE skipping with SkippedNoSymbol.",
+  "notes": [
+    "seedId is the file stem under StingTools/Data/Seeds/ (without .json).",
+    "Built seed families land in <project>/_BIM_COORD/Families/Seeds/ and are stamped STING_SEED_FAMILY_TXT = seedId so SwapToManufacturer can later swap them.",
+    "Categories with seed=null are intentionally seedless: Conduits/Pipes are MEP curves (routing, not family instances); Stairs are structural host elements."
+  ],
+  "map": [
+    { "category": "Lighting Fixtures",         "seed": "STING_SEED_LightingFixture" },
+    { "category": "Lighting Devices",          "seed": "STING_SEED_LightingDevice" },
+    { "category": "Electrical Fixtures",       "seed": "STING_SEED_ElectricalFixture" },
+    { "category": "Electrical Equipment",      "seed": "STING_SEED_ElectricalEquipment" },
+    { "category": "Junction Boxes",            "seed": "STING_SEED_JunctionBox" },
+    { "category": "Communication Devices",     "seed": "STING_SEED_CommunicationDevice" },
+    { "category": "Data Devices",              "seed": "STING_SEED_DataDevice" },
+    { "category": "Telephone Devices",         "seed": "STING_SEED_TelephoneDevice" },
+    { "category": "Security Devices",          "seed": "STING_SEED_SecurityDevice" },
+    { "category": "Fire Alarm Devices",        "seed": "STING_SEED_FireAlarmDevice" },
+    { "category": "Nurse Call Devices",        "seed": "STING_SEED_NurseCallDevice" },
+    { "category": "Air Terminals",             "seed": "STING_SEED_AirTerminal" },
+    { "category": "Sprinklers",                "seed": "STING_SEED_Sprinkler" },
+    { "category": "Mechanical Equipment",      "seed": "STING_SEED_MechanicalEquipment" },
+    { "category": "Mechanical Control Devices", "seed": "STING_SEED_MechanicalControlDevice" },
+    { "category": "Duct Accessories",          "seed": "STING_SEED_DuctAccessory" },
+    { "category": "Plumbing Fixtures",         "seed": "STING_SEED_PlumbingFixture" },
+    { "category": "Plumbing Equipment",        "seed": "STING_SEED_PlumbingEquipment" },
+    { "category": "Fire Protection",           "seed": "STING_SEED_FireProtection" },
+    { "category": "Specialty Equipment",       "seed": "STING_SEED_SpecialityEquipment" },
+    { "category": "Furniture",                 "seed": "STING_SEED_Furniture" },
+    { "category": "Casework",                  "seed": "STING_SEED_Casework" },
+    { "category": "Doors",                     "seed": "STING_SEED_Door" },
+    { "category": "Windows",                   "seed": "STING_SEED_Window" },
+    { "category": "Parking",                   "seed": "STING_SEED_Parking" },
+    { "category": "Generic Models",            "seed": "STING_SEED_GenericModel" },
+    { "category": "Conduits",                  "seed": null },
+    { "category": "Pipes",                     "seed": null },
+    { "category": "Stairs",                    "seed": null }
+  ]
+}

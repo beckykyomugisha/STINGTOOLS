@@ -168,6 +168,7 @@
     {
       "RuleId": "mk-switch-1g-light",
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|1.?gang|1g|single|sp\\b",
       "RoomFilter": "(?i).*",
       "AnchorType": "DOOR_LATCH_SIDE",
       "MountingHeightMm": 1350,
@@ -191,6 +192,7 @@
     {
       "RuleId": "mk-switch-2g-light",
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|2.?gang|2g|twin|double",
       "RoomFilter": "(?i)living|kitchen|hall|bedroom|dining",
       "AnchorType": "DOOR_LATCH_SIDE",
       "MountingHeightMm": 1350,
@@ -214,6 +216,7 @@
     {
       "RuleId": "mk-switch-3g-light",
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|3.?gang|3g|triple",
       "RoomFilter": "(?i)hall|landing|conference|board|office",
       "AnchorType": "DOOR_LATCH_SIDE",
       "MountingHeightMm": 1350,

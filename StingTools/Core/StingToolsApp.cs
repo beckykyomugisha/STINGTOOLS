@@ -426,7 +426,12 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing LodMatrixRegistry.InvalidateCache: {ex.Message}"); }
                 try { Validation.OwnerStandardsRegistry.InvalidateCache(e.Document); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing OwnerStandardsRegistry.InvalidateCache: {ex.Message}"); }
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, drawing-type, and tag-scheme caches");
+                // P1.2 — drop the BOQ per-link takeoff cache so the next document
+                // (or a reopen with changed links) re-walks links rather than
+                // serving stale rows.
+                try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing BOQCostManager.InvalidateLinkCache: {ex.Message}"); }
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, drawing-type, tag-scheme, and BOQ link caches");
             }
             catch (Exception ex)
             {

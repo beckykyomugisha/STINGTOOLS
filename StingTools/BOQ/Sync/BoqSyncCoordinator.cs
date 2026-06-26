@@ -205,7 +205,14 @@ namespace StingTools.BOQ.Sync
                 itemDescription = string.IsNullOrEmpty(item.ResolvedNRM2Paragraph)
                     ? (item.Category ?? "")
                     : item.ResolvedNRM2Paragraph,
-                ifcGlobalId = item.UniqueId ?? "",
+                // INT-0 — ship the canonical 22-char IFC GlobalId, not the
+                // 45-char Revit UniqueId. The field was previously named
+                // `ifcGlobalId` but carried the UniqueId, so server BOQ rows
+                // could never join ExternalElementMapping.IfcGlobalId (the real
+                // encoded GUID written by IFC ingest). Keep revitUniqueId as a
+                // secondary key for traceability / legacy joins.
+                ifcGlobalId = item.IfcGlobalId,
+                revitUniqueId = item.UniqueId ?? "",
                 ifcType = item.Category ?? "",
                 revitElementId = item.RevitElementId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 level = item.Level ?? "",

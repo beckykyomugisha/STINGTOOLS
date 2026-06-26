@@ -27,6 +27,19 @@ namespace StingTools.Commands.Placement
             var doc = cd?.Application?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
+            var (text, txtPath) = BuildReportText(doc);
+            string preview = text.Length > 4000 ? text.Substring(0, 4000) + "\n…(truncated, see file)" : text;
+            TaskDialog.Show("STING - Placement Diagnose", preview + $"\n\nFull report: {txtPath}");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Build the diagnostic report text (and write it to disk). Shared by
+        /// Execute (which TaskDialogs it) and the Placement Centre (which renders
+        /// it inline in the shared Report panel). Returns (report, filePath).
+        /// </summary>
+        public static (string Text, string FilePath) BuildReportText(Document doc)
+        {
             var sb = new StringBuilder();
             sb.AppendLine($"Build: STING placement diagnostic — Phase 139.19 ({DateTime.UtcNow:O})");
             sb.AppendLine($"Document: {doc.Title}");
@@ -36,7 +49,7 @@ namespace StingTools.Commands.Placement
             sb.AppendLine();
 
             // 2. Active view + scope.
-            var view = cd.Application.ActiveUIDocument.ActiveView;
+            var view = doc.ActiveView;
             sb.AppendLine($"Active view: {view?.Name} ({view?.GetType().Name})");
             int roomsAll = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().Count();
             int roomsView = view is ViewPlan vp && vp.GenLevel != null
@@ -122,9 +135,7 @@ namespace StingTools.Commands.Placement
                 $"STING_PlacementDiagnose_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
             try { File.WriteAllText(txtPath, sb.ToString()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            string preview = sb.Length > 4000 ? sb.ToString().Substring(0, 4000) + "\n…(truncated, see file)" : sb.ToString();
-            TaskDialog.Show("STING - Placement Diagnose", preview + $"\n\nFull report: {txtPath}");
-            return Result.Succeeded;
+            return (sb.ToString(), txtPath);
         }
     }
 }

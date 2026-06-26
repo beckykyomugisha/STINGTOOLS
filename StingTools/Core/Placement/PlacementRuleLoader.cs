@@ -12,6 +12,7 @@ using StingTools.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Placement
@@ -38,6 +39,17 @@ namespace StingTools.Core.Placement
             ("STING_PLACEMENT_RULES.electrical.json", "Electrical"),
             ("STING_PLACEMENT_RULES.healthcare-education.json", "Healthcare-Education"),
             ("STING_PLACEMENT_RULES.toilet-fixtures.json", "Toilet-Fixtures"),  // Phase 177 — full toilet-room fixture coverage
+            // These general packs were authored but never registered, so
+            // residential lighting (ceiling-pendants → living/dining/bedroom),
+            // residential MK sockets/switches, the extended baselines and the
+            // accessibility + glazing rules never loaded. Registered so dwelling
+            // projects place lights/sockets, not just commercial ones.
+            ("STING_PLACEMENT_RULES.ceiling-pendants.json", "Lighting-Pendants"),
+            ("STING_PLACEMENT_RULES.mk-electrical.json", "MK-Electrical"),
+            ("STING_PLACEMENT_RULES.baseline-extensions.json", "Baseline-Ext"),
+            ("STING_PLACEMENT_RULES.baseline-extensions2.json", "Baseline-Ext2"),
+            ("STING_PLACEMENT_RULES.accessibility.json", "Accessibility"),
+            ("STING_PLACEMENT_RULES.windows-glazing.json", "Windows-Glazing"),
         };
 
         /// <summary>
@@ -96,17 +108,31 @@ namespace StingTools.Core.Placement
                         continue;
                 }
 
-                // ApplicableStandards gate
-                if (r.ApplicableStandards != null && r.ApplicableStandards.Length > 0 && actSet.Count > 0)
+                // Standards gate — match the rule's structured ApplicableStandards
+                // (CSV) when present, else fall back to its free-text StandardRef so
+                // rules that cite standards only via StandardRef are still gated
+                // rather than silently passing (the standards filter was inert for
+                // such rules before). Matching is case-insensitive and
+                // contains-either-direction so a profile "BS 6465" matches a rule
+                // "BS 6465-1:2006" and vice-versa.
+                string ruleStds = !string.IsNullOrEmpty(r.ApplicableStandards)
+                    ? r.ApplicableStandards
+                    : (r.StandardRef ?? "");
+                if (actSet.Count > 0 && !string.IsNullOrWhiteSpace(ruleStds))
                 {
-                    // ApplicableStandards is a string (CSV) on the runtime POCO,
-                    // not a string[]; split on comma/semicolon then match.
                     bool any = false;
-                    var parts = r.ApplicableStandards.ToString().Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                    var parts = ruleStds.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var raw in parts)
                     {
                         var s = raw.Trim();
-                        if (!string.IsNullOrEmpty(s) && actSet.Contains(s)) { any = true; break; }
+                        if (string.IsNullOrEmpty(s)) continue;
+                        foreach (var a in actSet)
+                        {
+                            if (string.IsNullOrEmpty(a)) continue;
+                            if (s.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                a.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0) { any = true; break; }
+                        }
+                        if (any) break;
                     }
                     if (!any) continue;
                 }
@@ -277,16 +303,14 @@ namespace StingTools.Core.Placement
                     StingLog.Info($"PlacementRuleLoader: rule '{r.MergeKey}' is Density with MaxPerRoom=0 — placement count is bounded only by PerAreaM2/PerOccupant.");
                 }
 
-                // Phase 188 (review fix #3a, Option B) — GuaranteeCoverage is only
-                // half-wired: PlacementScorer relaxes its score-threshold gate for
-                // such rules, but the count is NOT expanded to actually guarantee
-                // coverage. CoverageGridGenerator implements the ≥99 % fill but is
-                // not invoked by the engine (deferred — see the DEFERRED note on
-                // that class). Warn so the rule's behaviour isn't mistaken for the
-                // documented coverage guarantee.
-                if (r.GuaranteeCoverage)
+                // GuaranteeCoverage is wired through CoverageGridGenerator (the
+                // engine fills the room with a √2-spaced grid when the building
+                // profile's Coverage-guarantee toggle is on). The generator needs
+                // CoverageRadiusMm > 0 to size the grid — warn when it's missing,
+                // since GuaranteeCoverage then only relaxes the score threshold.
+                if (r.GuaranteeCoverage && r.CoverageRadiusMm <= 0)
                 {
-                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' sets GuaranteeCoverage=true, but coverage-guarantee count expansion is not active — only score-threshold relaxation applies. Achieve coverage via a grid anchor (LIGHTING_GRID) + CoverageRadiusMm/MaxSpacingMm instead.";
+                    string msg = $"PlacementRuleLoader: rule '{r.MergeKey}' sets GuaranteeCoverage=true but CoverageRadiusMm<=0 — the coverage grid can't be sized, so only score-threshold relaxation applies. Set CoverageRadiusMm (and optionally MaxSpacingMm) to enable the fill.";
                     sink?.Add(msg);
                     StingLog.Warn(msg);
                 }
@@ -306,6 +330,91 @@ namespace StingTools.Core.Placement
                     StingLog.Warn(msg);
                 }
             }
+
+            // D.3 — detect dependency cycles. DependsOn / RelativeTo / CoPlaceWith
+            // chains are honoured per-room at runtime but a cycle (A→B→A) makes
+            // every rule in the cycle skip silently with no output. Surface it.
+            DetectDependencyCycles(rules, sink);
+        }
+
+        /// <summary>
+        /// Build the rule dependency graph (DependsOn + RelativeTo + CoPlaceWith
+        /// edges, resolved by RuleId or MergeKey) and report any cycle. Edges to
+        /// unknown rules are ignored here (dangling refs are a separate concern).
+        /// </summary>
+        private static void DetectDependencyCycles(IEnumerable<PlacementRule> rules, List<string> sink)
+        {
+            if (rules == null) return;
+            var list = rules.Where(r => r != null && !string.IsNullOrEmpty(r.MergeKey)).ToList();
+            if (list.Count == 0) return;
+
+            // Map every recognised identifier (MergeKey + RuleId) to the canonical
+            // MergeKey so edges resolve regardless of which form a rule cites.
+            var idToKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in list)
+            {
+                idToKey[r.MergeKey] = r.MergeKey;
+                if (!string.IsNullOrEmpty(r.RuleId) && !idToKey.ContainsKey(r.RuleId))
+                    idToKey[r.RuleId] = r.MergeKey;
+            }
+
+            var adj = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in list)
+            {
+                var edges = new List<string>();
+                void Add(string target)
+                {
+                    if (string.IsNullOrEmpty(target)) return;
+                    if (idToKey.TryGetValue(target, out var k)
+                        && !string.Equals(k, r.MergeKey, StringComparison.OrdinalIgnoreCase))
+                        edges.Add(k);
+                }
+                Add(r.DependsOn);
+                Add(r.RelativeTo);
+                if (r.CoPlaceWith != null) foreach (var t in r.CoPlaceWith) Add(t);
+                adj[r.MergeKey] = edges;
+            }
+
+            // DFS with white(0)/grey(1)/black(2) colouring.
+            var color = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var stack = new List<string>();
+            var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Dfs(string node)
+            {
+                color[node] = 1;
+                stack.Add(node);
+                if (adj.TryGetValue(node, out var nbrs))
+                {
+                    foreach (var n in nbrs)
+                    {
+                        int c = color.TryGetValue(n, out var cc) ? cc : 0;
+                        if (c == 1)
+                        {
+                            int idx = stack.FindIndex(s => string.Equals(s, n, StringComparison.OrdinalIgnoreCase));
+                            var cyc = idx >= 0 ? new List<string>(stack.GetRange(idx, stack.Count - idx)) : new List<string> { node };
+                            cyc.Add(n);
+                            string sig = string.Join("|", cyc.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+                            if (reported.Add(sig))
+                            {
+                                string msg = $"PlacementRuleLoader: rule dependency cycle detected: {string.Join(" → ", cyc)}. These rules will silently skip each other at runtime — break the DependsOn/RelativeTo/CoPlaceWith chain.";
+                                sink?.Add(msg);
+                                StingLog.Warn(msg);
+                            }
+                        }
+                        else if (c == 0)
+                        {
+                            Dfs(n);
+                        }
+                    }
+                }
+                color[node] = 2;
+                stack.RemoveAt(stack.Count - 1);
+            }
+
+            foreach (var r in list)
+                if ((color.TryGetValue(r.MergeKey, out var c) ? c : 0) == 0)
+                    Dfs(r.MergeKey);
         }
 
         /// <summary>

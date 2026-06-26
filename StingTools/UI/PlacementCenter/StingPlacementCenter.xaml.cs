@@ -73,7 +73,7 @@ namespace StingTools.UI.PlacementCenter
             // Revit cached the old DLL).
             try
             {
-                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
+                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}]";
             }
             catch { }
             ThemeManager.InitialiseResources();
@@ -97,6 +97,11 @@ namespace StingTools.UI.PlacementCenter
             _uiApp = uiApp;
             _uiDoc = uiApp?.ActiveUIDocument;
             _doc = _uiDoc?.Document;
+
+            // Findings parsed out of report text (Diagnose/Audit) carry an
+            // ElementId payload; route their clicks to this window's selector.
+            StingResultPanel.ElementSelectAction =
+                id => { try { SelectInModel(new ElementId(id)); } catch { } };
 
             // Combo data sources
             cmbCategory.ItemsSource          = VM.Categories;
@@ -463,7 +468,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnRunPlacement_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             var rules = PlacementCenterBridge.ToRules(VM.Rules);
             if (rules.Count == 0)
@@ -561,7 +566,7 @@ namespace StingTools.UI.PlacementCenter
                     }
                     else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
                     {
-                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by Phase 139.18 filter.");
+                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by the spatial filter.");
                     }
                 }
 
@@ -582,7 +587,7 @@ namespace StingTools.UI.PlacementCenter
                     {
                         MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
                         MainContent = string.Join("\n\n", blockers)
-                            + "\n\nPhase 139.21 hard-fails the run when these are present so we don't produce silently-wrong placements. "
+                            + "\n\nThe run is hard-failed when these are present so we don't produce silently-wrong placements. "
                             + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
                         CommonButtons = TaskDialogCommonButtons.Close,
                     };
@@ -627,7 +632,10 @@ namespace StingTools.UI.PlacementCenter
             if (roomIds.Count == 0)
             {
                 TaskDialog.Show("STING — Placement Centre",
-                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms. Switch scope or open a view that contains rooms.");
+                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.\n\n" +
+                    "• Try scope = Project, or open a plan view that shows the rooms/spaces.\n" +
+                    "• If this is an MEP model, place MEP Spaces (Analyze → Space) — the engine now places into Spaces as well as Rooms.\n" +
+                    "• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement.");
                 return;
             }
 
@@ -705,6 +713,12 @@ namespace StingTools.UI.PlacementCenter
             bool prevLearn = StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned;
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = VM.RunOpts.StampProvenance;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
+            // Push the live building-profile selection so the building-type /
+            // standards gate + wet-zone / accessibility / coverage toggles take
+            // effect WITHOUT requiring a Save first. Cleared in OnRunCompleted /
+            // the error path below.
+            try { SyncProfileToVm(); StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile = VM.Profile?.Clone(); }
+            catch (Exception pex) { StingLog.Warn($"PlacementCenter: push session profile: {pex.Message}"); }
 
             DateTime startUtc = DateTime.UtcNow;
             // Show a modeless progress dialog so the user can see per-room
@@ -756,6 +770,7 @@ namespace StingTools.UI.PlacementCenter
                 StartUtc     = startUtc,
                 PrevStamp    = prevStamp,
                 PrevLearn    = prevLearn,
+                DryRun       = (chkRunDryRun?.IsChecked == true),
             };
             try
             {
@@ -773,6 +788,7 @@ namespace StingTools.UI.PlacementCenter
                 try { progress?.Close(); } catch { }
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile  = null;
                 try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
                 return;
             }
@@ -780,6 +796,38 @@ namespace StingTools.UI.PlacementCenter
             // handler will invoke OnRunCompleted on the WPF thread when
             // done.
             return;
+        }
+
+        // Real Run-Placement execution on the Revit API thread. The
+        // PlacementRunHandler ExternalEvent (MergeRecoveryStubs) forwards here;
+        // this runs the engine and marshals the result back to OnRunCompleted on
+        // the WPF thread via Dispatcher.BeginInvoke.
+        internal void ExecuteRun(UIApplication app)
+        {
+            var req = _runRequest;
+            if (req == null) return;
+            PlacementResult result = null;
+            Exception err = null;
+            try
+            {
+                var roomIds = (req.RoomIds != null && req.RoomIds.Count > 0)
+                    ? new List<ElementId>(req.RoomIds) : null;
+                var prog = req.Progress;
+                // Engine calls this once per room with cumulative (done,total);
+                // advance the modeless progress dialog and abort on cancel/Esc.
+                Func<int, int, bool> onProgress = (done, total) =>
+                {
+                    try { prog?.Increment(); return prog?.IsCancelled ?? false; }
+                    catch { return false; }
+                };
+                result = FixturePlacementEngine.PlaceFixturesInScope(
+                    req.Doc, roomIds, req.Rules, req.DryRun, onProgress);
+            }
+            catch (Exception ex) { err = ex; StingLog.Error("PlacementCenter.ExecuteRun", ex); }
+
+            var r = result; var e2 = err;
+            try { Dispatcher.BeginInvoke(new Action(() => OnRunCompleted(req, r, e2))); }
+            catch (Exception ex) { StingLog.Error("PlacementCenter.ExecuteRun dispatch", ex); }
         }
 
         // Phase 139.13 — completion callback. Runs on the WPF thread
@@ -790,6 +838,7 @@ namespace StingTools.UI.PlacementCenter
             try { req?.Progress?.Close(); } catch { }
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
+            StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile  = null;
 
             try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
             if (err != null)
@@ -814,7 +863,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var panel = StingResultPanel.Create("STING — Placement Centre · Run");
-                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp} ({StingTools.Core.Placement.FixturePlacementEngine.PhaseTag})");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}");
 
                 // Phase 139.20 — surface which categories were actually
                 // allowed by the checklist, alongside the categories that
@@ -865,8 +914,7 @@ namespace StingTools.UI.PlacementCenter
                     if (result.Warnings.Count > 30)
                         panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
                 }
-                RaiseRevitToFront();
-                panel.Show();
+                Report("Run", panel);
             }
             catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
 
@@ -879,23 +927,22 @@ namespace StingTools.UI.PlacementCenter
                 catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
             }
 
+            // RunValidators overwrites the inline Run report with the validation
+            // findings (the more useful final view). Otherwise the Run summary
+            // built above is already showing in the shared Report panel — no
+            // pop-up needed.
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
-            else
-                TaskDialog.Show("STING — Placement Centre",
-                    $"Placement run complete.\n\n" +
-                    $"Placed: {placed}\nSkipped: {skipped}\nWarnings: {warns}\n\n" +
-                    "Run Validate now to audit the result, or click Undo last run to revert.");
         }
 
         private void OnPreview_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             var rules = PlacementCenterBridge.ToRules(VM.Rules);
             if (rules.Count == 0)
             {
-                TaskDialog.Show("STING — Placement Centre", "No valid rules to preview.");
+                Toast("No valid rules to preview."); 
                 return;
             }
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
@@ -905,6 +952,10 @@ namespace StingTools.UI.PlacementCenter
                     $"Scope '{VM.RunOpts.Scope}' resolved zero rooms — preview cancelled.");
                 return;
             }
+            // Preview honours the live building-profile selection too (dry-run,
+            // so no commit). Set the session override; the next Run resets it.
+            try { SyncProfileToVm(); StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile = VM.Profile?.Clone(); }
+            catch (Exception pex) { StingLog.Warn($"PlacementCenter preview: push session profile: {pex.Message}"); }
             try
             {
                 var src = new PlacementPreviewSource(_doc, roomIds, rules);
@@ -921,24 +972,34 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnValidate_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             ShowFindings(scopeToProvenance: false, headline: "Project-wide validation");
         }
 
-        private void ShowFindings(bool scopeToProvenance, string headline)
+        private void ShowFindings(bool scopeToProvenance, string headline, ISet<string> forceMask = null)
         {
             try
             {
-                // PC-23 — collect picked validators.
-                var mask = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (vClearance.IsChecked   == true) mask.Add("Clearance");
-                if (vMaintenance.IsChecked == true) mask.Add("Maintenance");
-                if (vConnectivity.IsChecked == true) mask.Add("Connectivity");
-                if (vFill.IsChecked        == true) mask.Add("Fill");
-                if (vSpec.IsChecked        == true) mask.Add("Spec");
-                if (vTermination.IsChecked == true) mask.Add("Termination");
-                if (vSlope.IsChecked       == true) mask.Add("Slope");
-                if (vSeparation.IsChecked  == true) mask.Add("Separation");
+                // Collect picked validators (or use the caller's forced mask, e.g.
+                // "All Validators" runs the full set regardless of the checklist).
+                ISet<string> mask;
+                if (forceMask != null)
+                {
+                    mask = forceMask;
+                }
+                else
+                {
+                    var picked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (vClearance.IsChecked   == true) picked.Add("Clearance");
+                    if (vMaintenance.IsChecked == true) picked.Add("Maintenance");
+                    if (vConnectivity.IsChecked == true) picked.Add("Connectivity");
+                    if (vFill.IsChecked        == true) picked.Add("Fill");
+                    if (vSpec.IsChecked        == true) picked.Add("Spec");
+                    if (vTermination.IsChecked == true) picked.Add("Termination");
+                    if (vSlope.IsChecked       == true) picked.Add("Slope");
+                    if (vSeparation.IsChecked  == true) picked.Add("Separation");
+                    mask = picked;
+                }
                 var findings = PlacementCenterBridge.RunValidators(_doc, mask);
                 if (scopeToProvenance && _lastRunUtc.HasValue)
                 {
@@ -975,11 +1036,17 @@ namespace StingTools.UI.PlacementCenter
 
                 if (findings.Count > 0)
                 {
-                    panel.AddSection("FINDINGS (top 40)");
+                    panel.AddSection("FINDINGS (top 40) — click to select in model");
                     foreach (var f in findings.OrderByDescending(x => x.Severity).Take(40))
-                        panel.Text(f.ToString());
+                    {
+                        var fid = f.ElementId;
+                        if (fid != null && fid != ElementId.InvalidElementId)
+                            panel.Finding(f.ToString(), () => SelectInModel(fid));
+                        else
+                            panel.Text(f.ToString());
+                    }
                 }
-                panel.Show();
+                Report("Validation", panel);
 
                 VM.Status = $"Validate complete · {errs}e {warns}w {infos}i";
                 UpdateStatus();
@@ -994,7 +1061,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnInspectFamily_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             if (VM.Selected == null || string.IsNullOrEmpty(VM.Selected.CategoryFilter))
             {
                 VM.SetFamilyHints(null);
@@ -1019,10 +1086,10 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnPushFamilies_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             if (VM.Selected == null)
             {
-                TaskDialog.Show("STING — Placement Centre", "Pick a rule first.");
+                Toast("Pick a rule first."); 
                 return;
             }
             if (string.IsNullOrEmpty(VM.Selected.CategoryFilter))
@@ -1083,7 +1150,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnHeatmap_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 using (var t = new Transaction(_doc, "STING — Placement Centre · AVF compliance heat-map"))
@@ -1100,6 +1167,46 @@ namespace StingTools.UI.PlacementCenter
             {
                 StingLog.Error("PlacementCenter.OnHeatmap", ex);
                 TaskDialog.Show("STING — Placement Centre", $"Heat-map failed: {ex.Message}");
+            }
+        }
+
+        private void OnLearnFromModel_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                // RunLearn only reads elements + writes a JSON file (no Revit
+                // transaction), so it is safe on the modeless window's thread.
+                // showDialog:false suppresses its own TaskDialog so the result
+                // renders inline in the shared Report panel instead.
+                int n = StingTools.Commands.Placement.LearnPlacementV4Command.RunLearn(_doc, out string summary, showDialog: false);
+                int imported = 0;
+                if (n > 0 && !string.IsNullOrEmpty(_doc.PathName))
+                {
+                    // Reload the just-written learned rules into the grid so they
+                    // are reviewable and "Honour learned offsets" picks them up.
+                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string learnedPath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.learned.json");
+                    if (System.IO.File.Exists(learnedPath))
+                    {
+                        imported = VM.ImportFromFile(learnedPath);
+                        VM.ApplyFilter();
+                        VM.Status = $"Learned {n} rule(s); imported {imported} into the grid for review (Save Project to persist).";
+                        UpdateStatus();
+                    }
+                }
+
+                var panel = StingResultPanel.Create("STING — Learn from model")
+                    .AddSection("RESULT")
+                    .Text(string.IsNullOrEmpty(summary) ? $"Learned {n} rule(s)." : summary);
+                if (imported > 0)
+                    panel.Text($"Imported {imported} learned rule(s) into the grid for review (Save Project to persist).");
+                Report("Learn", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnLearnFromModel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Learn from model failed: {ex.Message}");
             }
         }
 
@@ -1168,7 +1275,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnUndoLast_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             // Prefer the in-memory _lastPlacedIds when this centre instance ran a
             // placement; fall back to the most-recent provenance bucket otherwise.
@@ -1225,14 +1332,14 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnSaveViewPreset_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             var view = _doc.ActiveView;
             if (view == null) { TaskDialog.Show("STING — Placement Centre", "No active view."); return; }
 
             string presetName = $"PlacementCentre/{VM.RunOpts.Scope}/{DateTime.UtcNow:yyyyMMdd-HHmm}";
             try
             {
-                using (var t = new Transaction(_doc, "STING — Save view preset (Pack 125/M)"))
+                using (var t = new Transaction(_doc, "STING — Save view preset"))
                 {
                     t.Start();
                     StingTools.Core.Storage.StingViewPresetSchema.Write(view, presetName, "");
@@ -1249,6 +1356,203 @@ namespace StingTools.UI.PlacementCenter
         }
 
         private void OnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        // ── Shared inline Report panel ────────────────────────────────
+        // Every reporting button renders into the right-hand panel via
+        // Report(...) instead of opening an external window. _lastReport
+        // keeps the builder so the pop-out button can still show the full
+        // windowed version on demand.
+        private StingResultPanel.Builder _lastReport;
+        private readonly List<(string Title, StingResultPanel.Builder Builder)> _recentReports = new();
+        private bool _suppressRecentSel;
+
+        private void Report(string title, StingResultPanel.Builder b)
+        {
+            RenderReport(title, b);
+            try
+            {
+                _recentReports.Insert(0, (title ?? "Report", b));
+                if (_recentReports.Count > 12) _recentReports.RemoveRange(12, _recentReports.Count - 12);
+                RefreshRecentCombo(selectIndex0: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.Report recent: {ex.Message}"); }
+        }
+
+        private void RenderReport(string title, StingResultPanel.Builder b)
+        {
+            try
+            {
+                _lastReport = b;
+                if (txtReportTitle != null) txtReportTitle.Text = title ?? "Report";
+                if (reportHost != null)
+                    reportHost.Child = StingResultPanel.BuildInlineContent(b, double.PositiveInfinity);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.RenderReport: {ex.Message}");
+                try { b?.Show(); } catch { }   // last-resort fallback so the result is still visible
+            }
+        }
+
+        private void RefreshRecentCombo(bool selectIndex0)
+        {
+            if (cmbRecentReports == null) return;
+            _suppressRecentSel = true;
+            try
+            {
+                cmbRecentReports.Items.Clear();
+                foreach (var r in _recentReports) cmbRecentReports.Items.Add(r.Title);
+                if (selectIndex0 && cmbRecentReports.Items.Count > 0) cmbRecentReports.SelectedIndex = 0;
+            }
+            finally { _suppressRecentSel = false; }
+        }
+
+        private void OnRecentReport_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressRecentSel) return;
+            int i = cmbRecentReports?.SelectedIndex ?? -1;
+            if (i < 0 || i >= _recentReports.Count) return;
+            var r = _recentReports[i];
+            RenderReport(r.Title, r.Builder);   // re-show without re-pushing onto the recent list
+        }
+
+        private void OnReportClear_Click(object sender, RoutedEventArgs e)
+        {
+            _lastReport = null;
+            if (txtReportTitle != null) txtReportTitle.Text = "Report";
+            if (reportHost != null)
+                reportHost.Child = new TextBlock
+                {
+                    Foreground = System.Windows.Media.Brushes.Gray,
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Text = "Run a placement, validate, audit, diagnose, learn, or import/export — results appear here instead of a pop-up window."
+                };
+        }
+
+        private void OnReportPopOut_Click(object sender, RoutedEventArgs e)
+        {
+            try { _lastReport?.Show(); }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.ReportPopOut: {ex.Message}"); }
+        }
+
+        // ── Transient status toast (replaces one-line guard TaskDialogs) ──
+        private System.Windows.Threading.DispatcherTimer _toastTimer;
+
+        private void Toast(string msg)
+        {
+            try
+            {
+                if (txtToast == null || bdrToast == null) { VM.Status = msg; UpdateStatus(); return; }
+                txtToast.Text = msg ?? "";
+                bdrToast.Visibility = System.Windows.Visibility.Visible;
+                if (_toastTimer == null)
+                {
+                    _toastTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+                    _toastTimer.Tick += (s, e) =>
+                    {
+                        _toastTimer.Stop();
+                        if (bdrToast != null) bdrToast.Visibility = System.Windows.Visibility.Collapsed;
+                    };
+                }
+                _toastTimer.Stop();
+                _toastTimer.Start();
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.Toast: {ex.Message}"); }
+        }
+
+        // ── Generic API-thread action (real ExternalEvent) ──────────────
+        // The placement run handler in MergeRecoveryStubs is a no-op stub, so
+        // model-modifying / interactive actions (e.g. Wall Chase) get their own
+        // real event. The work returns a result Builder which is reported inline.
+        private ExternalEvent _actionEvent;
+        private PlacementActionHandler _actionHandler;
+        private Func<UIApplication, StingResultPanel.Builder> _pendingAction;
+        private string _pendingActionTitle;
+
+        private void RunInlineAction(string title, Func<UIApplication, StingResultPanel.Builder> work)
+        {
+            if (work == null) return;
+            try
+            {
+                if (_actionHandler == null) _actionHandler = new PlacementActionHandler(this);
+                if (_actionEvent == null)   _actionEvent   = ExternalEvent.Create(_actionHandler);
+                _pendingActionTitle = title;
+                _pendingAction = work;
+                Toast($"{title}…");
+                _actionEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"PlacementCenter.RunInlineAction {title}", ex);
+                Toast($"{title} could not start: {ex.Message}");
+            }
+        }
+
+        private sealed class PlacementActionHandler : IExternalEventHandler
+        {
+            private readonly StingPlacementCenter _o;
+            public PlacementActionHandler(StingPlacementCenter o) { _o = o; }
+            public string GetName() => "STING Placement Centre Action";
+            public void Execute(UIApplication app)
+            {
+                var work = _o._pendingAction;
+                var title = _o._pendingActionTitle;
+                _o._pendingAction = null;
+                if (work == null) return;
+                StingResultPanel.Builder builder;
+                try { builder = work(app); }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                { builder = StingResultPanel.Create(title).AddSection("RESULT").Text("Cancelled."); }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"PlacementCenter action '{title}'", ex);
+                    builder = StingResultPanel.Create(title).AddSection("ERROR").Text(ex.Message);
+                }
+                var b = builder;
+                try { _o.Dispatcher.BeginInvoke(new Action(() => { if (b != null) _o.Report(title, b); })); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Select + zoom an element in the model from a clicked report finding.
+        /// Selection / ShowElements need no transaction and are safe from this
+        /// modeless window (same pattern as the History double-click select).
+        /// </summary>
+        private void SelectInModel(ElementId id)
+        {
+            if (_uiDoc == null || id == null || id == ElementId.InvalidElementId) return;
+            try
+            {
+                _uiDoc.Selection.SetElementIds(new List<ElementId> { id });
+                try { _uiDoc.ShowElements(id); } catch { }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.SelectInModel: {ex.Message}"); }
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex _idRx =
+            new System.Text.RegularExpressions.Regex(@"\b\d{5,}\b",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// Render report text line-by-line; a line containing a 5+ digit token
+        /// (an ElementId in a real model — counts / dimensions are shorter)
+        /// becomes a clickable Finding that selects it. Non-element numbers
+        /// resolve to nothing on click and are harmless.
+        /// </summary>
+        private void AddTextWithIds(StingResultPanel.Builder panel, string text)
+        {
+            if (panel == null || string.IsNullOrEmpty(text)) return;
+            foreach (var line in text.Replace("\r", "").Split('\n'))
+            {
+                var m = _idRx.Match(line);
+                if (m.Success && long.TryParse(m.Value, out long id))
+                    panel.Finding(line, id);
+                else
+                    panel.Text(line);
+            }
+        }
 
         // ── List + add/delete ────────────────────────────────────────
 
@@ -1390,6 +1694,7 @@ namespace StingTools.UI.PlacementCenter
                     added++;
                 }
                 VM.RebuildCategories();
+                VM.ApplyFilter();   // re-evaluate the live grid filter so imported rows appear under any active pack/search filter
                 VM.Status = $"Imported {added} rule(s) from Excel (Save Project to persist).";
             }
             catch (Exception ex)
@@ -1900,7 +2205,12 @@ namespace StingTools.UI.PlacementCenter
             => StingDockPanel.DispatchCommand("Routing_PlaceHangers");
 
         private void OnRunAllValidators_Click(object sender, RoutedEventArgs e)
-            => StingDockPanel.DispatchCommand("Validation_RunAll");
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "Clearance", "Maintenance", "Connectivity", "Fill", "Spec", "Termination", "Slope", "Separation" };
+            ShowFindings(false, "All validators", all);
+        }
 
         private void OnBS6465Audit_Click(object sender, RoutedEventArgs e)
         {
@@ -1931,7 +2241,92 @@ namespace StingTools.UI.PlacementCenter
             => ShowFindings(false, "Clearance scan");
 
         private void OnPenetrationCoverage_Click(object sender, RoutedEventArgs e)
-            => StingDockPanel.DispatchCommand("Validation_PenetrationCoverage");
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                var findings = StingTools.Core.Validation.PenetrationCoverageValidator.Validate(_doc);
+                int errors   = findings.Count(f => f.Severity == ValidationSeverity.Error);
+                int warnings = findings.Count(f => f.Severity == ValidationSeverity.Warning);
+                var panel = StingResultPanel.Create("STING — Penetration Coverage Audit")
+                    .SetSubtitle("Firestop register integrity + structural review (beams)")
+                    .AddSection("SUMMARY")
+                    .Metric("Errors", errors.ToString())
+                    .Metric("Warnings", warnings.ToString())
+                    .Metric("Total findings", findings.Count.ToString());
+                if (findings.Count > 0)
+                {
+                    panel.AddSection("FINDINGS (top 50) — click to select in model");
+                    foreach (var f in findings.OrderByDescending(x => x.Severity).Take(50))
+                    {
+                        var fid = f.ElementId;
+                        if (fid != null && fid != ElementId.InvalidElementId)
+                            panel.Finding(f.ToString(), () => SelectInModel(fid));
+                        else
+                            panel.Text(f.ToString());
+                    }
+                    if (findings.Count > 50) panel.Text($"(+{findings.Count - 50} more — see StingLog)");
+                }
+                Report("Penetration Coverage", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnPenetrationCoverage", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Penetration coverage failed: {ex.Message}");
+            }
+        }
+
+        private void OnAutoPopulateCatalogue_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                var (created, updated, contributing) =
+                    StingTools.Core.Placement.ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(_doc);
+                var panel = StingResultPanel.Create("STING — Manufacturer Catalogue")
+                    .AddSection("SUMMARY")
+                    .Metric("New entries", created.ToString())
+                    .Metric("Updated entries", updated.ToString());
+                if (contributing != null && contributing.Count > 0)
+                {
+                    panel.AddSection("CONTRIBUTING FAMILIES");
+                    foreach (var c in contributing.Take(40)) panel.Text(c);
+                    if (contributing.Count > 40) panel.Text($"(+{contributing.Count - 40} more)");
+                }
+                else
+                {
+                    panel.AddSection("RESULT")
+                         .Text("No families carrying MK_* shared parameters were found in this project.");
+                }
+                Report("Catalogue", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnAutoPopulateCatalogue", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Auto-populate failed: {ex.Message}");
+            }
+        }
+
+        private void OnNoggin_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                string text = StingTools.Commands.Placement.NogginRequirementExportCommand
+                    .BuildReportText(_doc, out string csvPath, out int count);
+                var panel = StingResultPanel.Create("STING — Noggin Requirements")
+                    .SetSubtitle(string.IsNullOrEmpty(csvPath) ? "" : $"CSV: {csvPath}")
+                    .AddSection("RESULT")
+                    .Metric("Noggin requirements", count.ToString())
+                    .Text(text);
+                Report("Noggin Requirements", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnNoggin", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Noggin export failed: {ex.Message}");
+            }
+        }
 
         private void OnScoreThreshold_Changed(object sender, RoutedEventArgs e)
         {
@@ -1973,23 +2368,146 @@ namespace StingTools.UI.PlacementCenter
                 StingDockPanel.DispatchCommand(tag);
         }
 
+        private void OnWallChase_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            // Interactive + model-modifying: runs on the API thread via the real
+            // action event; the mid-flow Yes/No confirm stays, the final result
+            // renders inline in the Report panel.
+            RunInlineAction("Wall Chase",
+                app => StingTools.Commands.Placement.RunWallChaseCommand.RunInteractive(app));
+        }
+
+        private void OnExportRulesExcel_Click(object sender, RoutedEventArgs e)
+        {
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            if (rules == null || rules.Count == 0) { TaskDialog.Show("STING — Placement Centre", "No rules to export."); return; }
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "STING — Export placement rules to Excel",
+                Filter = "Excel workbook (*.xlsx)|*.xlsx",
+                FileName = "STING_PLACEMENT_RULES.xlsx",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            try
+            {
+                StingTools.Core.Placement.Excel.PlacementRulesExcelExporter.Export(rules, dlg.FileName);
+                var panel = StingResultPanel.Create("STING — Export Rules (Excel)")
+                    .SetSubtitle(dlg.FileName)
+                    .AddSection("RESULT")
+                    .Metric("Rules exported", rules.Count.ToString())
+                    .Text($"Saved to {dlg.FileName}");
+                Report("Export Rules (Excel)", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnExportRulesExcel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Excel export failed: {ex.Message}");
+            }
+        }
+
+        private void OnImportRulesExcel_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "STING — Import placement rules from Excel",
+                Filter = "Excel workbook (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            try
+            {
+                var (rules, errors) = StingTools.Core.Placement.Excel.PlacementRulesExcelImporter.Import(dlg.FileName);
+                int imported = 0;
+                // Write the project overlay beside the .rvt then reload the grid so
+                // the import is live (closes the round-trip refresh gap).
+                if (rules != null && rules.Count > 0 && !string.IsNullOrEmpty(_doc?.PathName))
+                {
+                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string overridePath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.project.json");
+                    var set = new PlacementRuleSet { Version = "v4", Rules = rules };
+                    System.IO.File.WriteAllText(overridePath,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(set, Newtonsoft.Json.Formatting.Indented));
+                    imported = VM.ImportFromFile(overridePath);
+                    VM.ApplyFilter();
+                    UpdateStatus();
+                }
+                var panel = StingResultPanel.Create("STING — Import Rules (Excel)")
+                    .SetSubtitle(dlg.FileName)
+                    .AddSection("RESULT")
+                    .Metric("Rules in workbook", (rules?.Count ?? 0).ToString())
+                    .Metric("Imported into grid", imported.ToString())
+                    .Metric("Warnings", (errors?.Count ?? 0).ToString());
+                if (errors != null && errors.Count > 0)
+                {
+                    panel.AddSection("WARNINGS (top 20)");
+                    foreach (var w in errors.Take(20)) panel.Text(w);
+                }
+                if (string.IsNullOrEmpty(_doc?.PathName))
+                    panel.AddSection("NOTE").Text("Project not saved on disk — rules were read but not written to a project overlay. Save the .rvt then re-import to persist.");
+                Report("Import Rules (Excel)", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnImportRulesExcel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Excel import failed: {ex.Message}");
+            }
+        }
+
+        private void OnDiagnose_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                var (text, path) = StingTools.Commands.Placement.PlacementDiagnoseCommand.BuildReportText(_doc);
+                var panel = StingResultPanel.Create("STING — Placement Diagnose");
+                if (!string.IsNullOrEmpty(path)) panel.SetSubtitle($"Full report: {path}  ·  click a line with an element id to select it");
+                panel.AddSection("DIAGNOSTIC");
+                AddTextWithIds(panel, text);
+                Report("Diagnose", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnDiagnose", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Diagnose failed: {ex.Message}");
+            }
+        }
+
+        private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            try
+            {
+                var text = StingTools.Commands.Placement.PlacementSetupAuditCommand.BuildReportText(_doc, out int errs, out int warns, out string csv);
+                var panel = StingResultPanel.Create("STING — Placement Setup Audit");
+                panel.SetSubtitle((string.IsNullOrEmpty(csv) ? "" : $"CSV: {csv}"))
+                     .AddSection("SUMMARY")
+                     .Metric("Errors", errs.ToString())
+                     .Metric("Warnings", warns.ToString())
+                     .AddSection("DETAIL");
+                AddTextWithIds(panel, text);
+                Report("Audit Setup", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnAuditSetup", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Audit Setup failed: {ex.Message}");
+            }
+        }
+
         // ── Inline result panel ──────────────────────────────────────
 
         private void ShowInlineResult(string headline,
                                       IEnumerable<string> metrics,
                                       IEnumerable<string> findings)
         {
-            if (txtRunResultHeadline != null)
-                txtRunResultHeadline.Text = headline ?? "";
-
-            if (lstRunMetrics != null)
-                lstRunMetrics.ItemsSource = metrics?.ToList() ?? new List<string>();
-
-            if (lstRunFindings != null)
-                lstRunFindings.ItemsSource = findings?.ToList() ?? new List<string>();
-
-            if (grpRunResult != null)
-                grpRunResult.Visibility = System.Windows.Visibility.Visible;
+            // Route through the shared right-hand Report panel so every button
+            // reports in one place (was: the separate grpRunResult group).
+            var panel = StingResultPanel.Create(headline);
+            var m = metrics?.ToList() ?? new List<string>();
+            if (m.Count > 0) { panel.AddSection("SUMMARY"); foreach (var s in m) panel.Text(s); }
+            var f = findings?.ToList() ?? new List<string>();
+            if (f.Count > 0) { panel.AddSection("DETAIL"); foreach (var s in f) panel.Text(s); }
+            Report(headline, panel);
         }
 
         // ── DrawingType context strip ────────────────────────────────

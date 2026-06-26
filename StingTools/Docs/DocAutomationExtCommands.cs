@@ -3124,9 +3124,12 @@ namespace StingTools.Docs
                         string assetId = ParameterHelpers.GetString(el, ParamRegistry.ASSET_ID);
                         if (string.IsNullOrEmpty(assetId)) assetId = tag1;
 
+                        // INT-0 — ExternalIdentifier is the stable 22-char IFC
+                        // GlobalId, not the volatile Revit ElementId.
+                        string globalId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
                         WriteRow(wsComp, compRow++,
                             assetName, createdBy, createdOn, typeName, roomName,
-                            assetName, "Revit", "IfcElement", el.Id.ToString(),
+                            assetName, "Revit", "IfcElement", globalId,
                             serial, installDate, warrStart,
                             tag1, barcode, assetId);
                         cobieComponentCount++;

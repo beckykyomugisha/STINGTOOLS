@@ -31,6 +31,7 @@ using StingTools.Core.Storage;
 using StingTools.Core.Validation;
 using StingTools.Core.Validation.Cost;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -81,41 +82,45 @@ namespace StingTools.Commands.Cost
                 .OrderByDescending(g => g.Count())
                 .Take(10);
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Cost validation — {rag}");
-            sb.AppendLine($"Errors: {errors}   Warnings: {warnings}   Info: {info}");
-            sb.AppendLine();
-            sb.AppendLine("Top findings by code:");
-            foreach (var g in byCode)
-                sb.AppendLine($"  {g.Key,-22} {g.Count(),5}");
-            sb.AppendLine();
-            if (results.Count > 0)
-                sb.AppendLine("First 10 issues:");
-            foreach (var r in results.Take(10))
-                sb.AppendLine($"  [{r.Severity}] {r.Code} — {r.Message}");
+            var rp = StingResultPanel.Create("Cost validation")
+                .SetSubtitle(rag);
+            rp.AddSection("SUMMARY")
+                .Metric("Errors", errors.ToString())
+                .Metric("Warnings", warnings.ToString())
+                .Metric("Info", info.ToString());
 
-            var td = new TaskDialog("STING — Cost validation")
+            if (byCode.Any())
             {
-                MainInstruction = $"Cost validation: {rag}",
-                MainContent = sb.ToString(),
-                CommonButtons = TaskDialogCommonButtons.Ok
-            };
-            if (errors > 0 || warnings > 0)
-            {
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Select affected elements ({errors + warnings})",
-                    "Highlight every element flagged by a validator.");
+                var codeRows = byCode.Select(g => new[] { g.Key ?? "", g.Count().ToString() }).ToList();
+                rp.AddSection("TOP FINDINGS BY CODE")
+                    .Table(new[] { "Code", "Count" }, codeRows);
             }
-            var picked = td.Show();
-            if (picked == TaskDialogResult.CommandLink1 && uidoc != null)
+
+            if (results.Count > 0)
             {
-                var ids = results
-                    .Where(r => r.ElementId != null && r.ElementId.Value > 0)
-                    .Select(r => r.ElementId)
-                    .Distinct()
+                var issueRows = results.Take(10)
+                    .Select(r => new[] { r.Severity.ToString(), r.Code ?? "", r.Message ?? "" })
                     .ToList();
-                if (ids.Count > 0) uidoc.Selection.SetElementIds(ids);
+                rp.AddSection("FIRST 10 ISSUES")
+                    .Table(new[] { "Severity", "Code", "Message" }, issueRows);
             }
+
+            // Select-affected action — rendered only on the dialog (ribbon) path;
+            // the inline Actions pane ignores actions, surfacing just the report.
+            if ((errors > 0 || warnings > 0) && uidoc != null)
+            {
+                rp.Action($"Select affected elements ({errors + warnings})",
+                    "Highlight every element flagged by a validator.", _ =>
+                    {
+                        var ids = results
+                            .Where(r => r.ElementId != null && r.ElementId.Value > 0)
+                            .Select(r => r.ElementId)
+                            .Distinct()
+                            .ToList();
+                        if (ids.Count > 0) uidoc.Selection.SetElementIds(ids);
+                    });
+            }
+            rp.Show();
         }
     }
 
@@ -161,7 +166,10 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
                 StingCostStaleMarker.ResetRecentlyProcessed();
-                TaskDialog.Show("STING Cost", $"Cleared {cleared} stale flag(s).");
+                StingResultPanel.Create("Clear stale flags")
+                    .AddSection("RESULT")
+                    .Metric("Stale flags cleared", cleared.ToString())
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -193,8 +201,10 @@ namespace StingTools.Commands.Cost
                 var presets = DiscoverBoqPresets();
                 if (presets.Count == 0)
                 {
-                    TaskDialog.Show("STING Cost — Workflows",
-                        "No WORKFLOW_BOQ_*.json presets found in data folder.");
+                    StingResultPanel.Create("Run cost workflow")
+                        .AddSection("NO PRESETS")
+                        .Text("No WORKFLOW_BOQ_*.json presets found in data folder.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -288,7 +298,10 @@ namespace StingTools.Commands.Cost
         {
             bool target = !StingCostStaleMarker.IsEnabled;
             StingCostStaleMarker.SetEnabled(target);
-            TaskDialog.Show("STING Cost", $"Cost stale-marker is now {(target ? "ENABLED" : "DISABLED")}.");
+            StingResultPanel.Create("Toggle stale marker")
+                .AddSection("RESULT")
+                .Metric("Cost stale-marker", target ? "ENABLED" : "DISABLED")
+                .Show();
             return Result.Succeeded;
         }
     }
@@ -347,10 +360,12 @@ namespace StingTools.Commands.Cost
             }
             catch (Exception extEx) { StingLog.Warn($"Cost_ReloadRules external providers: {extEx.Message}"); }
 
-            TaskDialog.Show("STING Cost",
-                "Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
-                "External rate providers (project rate card, BCIS HTTP if configured) re-registered. " +
-                "The next BOQ build will reload from disk.");
+            StingResultPanel.Create("Reload rules")
+                .AddSection("CACHES CLEARED")
+                .Text("Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
+                      "External rate providers (project rate card, BCIS HTTP if configured) re-registered. " +
+                      "The next BOQ build will reload from disk.")
+                .Show();
             return Result.Succeeded;
         }
     }
@@ -416,9 +431,13 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
 
-                TaskDialog.Show("STING Cost — migration",
-                    $"Migrated:  {migrated}\nSkipped (already set):  {skipped}\nNo legacy rate:  {missing}\n\n" +
-                    $"FX rate captured: {fxRate} UGX per USD at {fxDate}.");
+                StingResultPanel.Create("Migrate UGX → Neutral")
+                    .AddSection("MIGRATION")
+                    .Metric("Migrated", migrated.ToString())
+                    .Metric("Skipped (already set)", skipped.ToString())
+                    .Metric("No legacy rate", missing.ToString())
+                    .Metric("FX rate captured", $"{fxRate} UGX per USD", $"at {fxDate}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -463,9 +482,11 @@ namespace StingTools.Commands.Cost
                     StingCostRateOverrideSchema.SchemaGuid);
                 if (v1 == null)
                 {
-                    TaskDialog.Show("STING Cost — migration",
-                        "No v1 Extensible Storage schema present in this document. " +
-                        "Either no overrides exist, or all are already v2.");
+                    StingResultPanel.Create("Migrate ES v1 → v2")
+                        .AddSection("NOTHING TO MIGRATE")
+                        .Text("No v1 Extensible Storage schema present in this document. " +
+                              "Either no overrides exist, or all are already v2.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
@@ -527,9 +548,13 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
 
-                TaskDialog.Show("STING Cost — migration",
-                    $"v1 → v2 Extensible Storage migration complete.\n\n" +
-                    $"Migrated:  {migrated}\nAlready v2 (orphan v1 deleted):  {skipped}\nErrors:  {errors}");
+                StingResultPanel.Create("Migrate ES v1 → v2")
+                    .SetSubtitle("v1 → v2 Extensible Storage migration complete")
+                    .AddSection("MIGRATION")
+                    .Metric("Migrated", migrated.ToString())
+                    .Metric("Already v2 (orphan v1 deleted)", skipped.ToString())
+                    .Metric("Errors", errors.ToString())
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)

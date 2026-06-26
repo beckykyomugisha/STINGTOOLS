@@ -92,6 +92,706 @@ PARAMETER_REGISTRY / climate files.
    else a documented MJ/kgCO2e ratio until EPD PERT+PENRT data is populated.
    Fixture-flow reading from the model is a hook (currently a 25%-over-baseline
    indicative default).
+#### Completed (Placement Centre — review follow-up: five minor fixes)
+
+Branch `claude/placement-centre-review-audit`. Closes the five minor items
+raised in the post-implementation review of the Placement Centre hardening
+pass. **Built without `dotnet build` verification — verify in Revit before
+merge.**
+
+1. **Standards gate now effective for `StandardRef`-only rules**
+   (`PlacementRuleLoader.FilterByProfile`). When a rule has no structured
+   `ApplicableStandards` it now falls back to its free-text `StandardRef`,
+   matched case-insensitively contains-either-direction (profile "BS 6465"
+   ↔ rule "BS 6465-1:2006"). Previously such rules bypassed the standards
+   filter entirely (inert). The engine's inert-standards warning was updated
+   to fire only when no rule carries *either* field.
+2. **Idempotency now covers face / work-plane-hosted instances**
+   (`FixturePlacementEngine.BuildPriorPlacedIndex`). Instances with no
+   `LocationPoint` fall back to the family-instance transform origin so they
+   are de-duped on re-run instead of duplicating.
+3. **MEP auto-connect search retuned to a coincidence tolerance**
+   (`PostPlacementHooks`). `Connector.ConnectTo` only joins coincident
+   connectors, so the 600 mm "radius" was misleading and inflated the
+   left-open count with near-but-not-coincident candidates. Replaced with a
+   25 mm `MepCoincidenceTolFt`.
+4. **Routing tooltip matches the dropdown** (`StingPlacementCenter.xaml`) —
+   dropped the stale `WALL_FOLLOWER` entry; tooltip now reads
+   `NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT`.
+5. **Idempotency scan scoped to active categories**
+   (`FixturePlacementEngine`). `BuildPriorPlacedIndex` now takes the set of
+   `BuiltInCategory` resolved from the (already profile-filtered) active
+   rules via `ResolvePriorPlacedCategories` and uses an
+   `ElementMulticategoryFilter`, instead of walking every `FamilyInstance`
+   in the model each run. Falls back to the full scan when no category
+   resolves or the filter is invalid.
+
+#### Completed (Placement Centre — review, gap-closure & hardening)
+
+Branch `claude/placement-centre-review-audit`. Closes the gaps from the
+Placement Centre deep-read review. **Built without `dotnet build`
+verification (no Revit API / .NET in this environment) — verify in Revit
+before merge.** Some review findings were already addressed by the merged
+`claude/placement-center-fixes` (PR #376) on this branch (e.g. the
+building-profile filter was wired in the engine); those were reconciled
+against the live code rather than re-implemented.
+
+**Part A — strip internal tokens from visible UI.** Removed every
+`PC-NN` / `Pack NN` / `Phase NNN` token from user-visible strings:
+GroupBox headers, checkbox content, tooltips, the title-bar build stamp
+(now `[build <date>]`, no phase tag), the run-result subtitle, two
+prerequisite-dialog hints, and a Save-view-preset transaction name.
+`PhaseTag` kept as an internal log constant; `// comments` keep their
+tokens. The `Probe MEP connectors` checkbox was relabelled `Connect MEP
+systems after placement` (see Part C.4).
+
+**Part C — Run-Options checkboxes made honest.**
+- **C.1** Data-tag pipeline: `PostPlacementHooks` used a reflection probe
+  for a non-existent `TagPipelineHelper.RunFullPipeline(Document,Element)`
+  overload, so the checkbox tagged nothing. Now builds the canonical
+  population context once per run (cached, reset by `BeginRun`) and calls
+  the real 11-arg `RunFullPipeline` directly; `TagPipelineMissing` is
+  surfaced as a post-run warning.
+- **C.3** Validators: `SeparationValidator` is a static class with only
+  `ValidateElement(...)`, so the bridge's reflection block silently
+  produced zero findings. Added `SeparationValidator.Validate(Document)`
+  and replaced the whole reflection block with direct typed calls to all
+  eight validators (`Clearance / Maintenance(Clash) / Connectivity / Fill
+  / Spec / Termination / Slope / Separation`).
+- **C.4** MEP connect: `AssignMepSafe` was a logging no-op. It now
+  auto-connects each open HVAC/piping/cable-tray connector to the nearest
+  coincident compatible connector within 600 mm and reports
+  connected/left-open counts.
+- **C.5** Routing modes: the dropdown offered `WALL_FOLLOW /
+  CEILING_FOLLOW / FLOOR_FOLLOW / CONDUIT_RUN / TRAY_RUN` but the engine
+  only acted on `AUTO_CONDUIT` (not even listed). Dropdown trimmed to
+  `NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT`; `RouteAfterPlacement`
+  dispatches all three real drop engines; `EffectiveRoutingMode()`
+  normalizes the legacy follow tokens still in shipped packs
+  (`routing.json` / `commissioning.json`) to the matching drop engine by
+  `RouteSegmentCategory` with an honest per-rule warning. Also fixed a
+  latent bug: `RouteAfterPlacement` matched fixtures via the never-written
+  `ASS_PLACEMENT_RULE_TXT` against `RuleId`, so AUTO routing matched zero
+  fixtures — now matches via provenance (`MergeKey`).
+- **C.6** Excel import already refreshes the live `ICollectionView`
+  (PR #376); added a defensive `ApplyFilter()` after import.
+
+**Part B — Building Profile end-to-end.** The engine loaded
+`placement_profile.json` from disk, so the live UI selection only took
+effect after a manual Save. Added `PlaceFixturesOptions.SessionProfile`,
+pushed from the live VM before every Run/Preview and cleared after, so the
+building-type / standards gate works **without a Save first**. Rules carry
+`BuildingType` (Office/Healthcare/Residential/…), so the gate measurably
+changes the run. Wired the three toggles: **wet-zone** →
+`WetZoneExclusionChecker` filters candidates in `ProcessRoomRule`;
+**accessibility** → gates the height-standards validation; **coverage
+guarantee** → gates the coverage-grid expansion (Part D.1). StandardRef-only
+rules are kept (not dropped) and the engine warns when the standards filter
+is inert.
+
+**Part D — engine correctness / accuracy / perf.**
+- **D.1** `CoverageGridGenerator` was fully written but never invoked.
+  `ProcessRoomRule` now routes `GuaranteeCoverage` rules through it (when
+  the profile toggle is on), placing all generated points and surfacing
+  the MinSpacing-cap warning. New `PlacementScorer.ResolveAnchorZForRoom`.
+- **D.2** Re-runs duplicated fixtures (dedup saw only this-run state).
+  `BuildPriorPlacedIndex` scans the doc once per committing run for
+  STING-provenance fixtures and seeds their positions into the per-room
+  dedup; a prominent warning tells the user prior placements were found.
+- **D.3** Dependency cycles (`A→B→A` via DependsOn/RelativeTo/CoPlaceWith)
+  silently deadlocked. `PlacementRuleLoader.DetectDependencyCycles` now
+  reports them via the validation-warning channel.
+- **D.4** `EmitColumnFaceNearest` re-ran full-model column collectors per
+  call → per-run `_columnLocsCache`.
+- **D.5** Verified `ComputeRoomPerimeterMetres` returns metres (no bug).
+- **D.6** `ResolveSymbol == null` was silent; now increments
+  `SkippedNoSymbol`, sets the diag reason, and emits a one-shot
+  per-(rule,category,variant) warning.
+- **D.7** Documented the spacing-as-post-rank-gate contract on
+  `ComputeSpacingScore`.
+- **D.8** Fixed the misleading coverage sample-step comment.
+
+**Part E/G — categories + rule/field reconciliation.** Annotated the
+Auto-place checklist: Conduits/Pipes/Cable Trays are routing outputs (not
+point targets), Specialty Equipment / Nurse Call need a rule pack. Invalid
+rules (already excluded from runs by `ToRules`) now explain why on hover.
+
+**Part F — integrations.** Extracted `LearnPlacementV4Command.RunLearn`
+and added a Centre "Learn from model" button that runs it and imports the
+learned rules into the grid. Verified provenance→History refresh and
+Excel/JSON import live-refresh. BOQ quantity handoff and Drawing-Type
+preset *apply* deferred to ROADMAP (larger unfamiliar API surfaces;
+shipping untested buttons would reintroduce the silent-no-op anti-pattern).
+
+**PlacementRule field decision table** (fields loaded from JSON, audited
+against engine/scorer consumption):
+
+| Field | Status | Note |
+|---|---|---|
+| `WetZoneExclusion` | FIXED | now consumed by `WetZoneExclusionChecker` (Part B) |
+| `GuaranteeCoverage` / `CoverageRadiusMm` / `MaxSpacingMm` / `WallClearanceMm` / `ObstructionClearanceMm` | FIXED | now consumed via the coverage grid (Part D.1) |
+| `MountingContext` | WIRED | drives routing chase detection |
+| `CableBundleAdvisoryCount` | WIRED | advisory in routing |
+| `RoutingMode` / `RouteSegmentCategory` | FIXED | reconciled + normalized (Part C.5) |
+| `Material` / `GlazingSpec` / `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` | DEFERRED | push-to-family-types metadata surfaced in the Clearance/Envelope/Weight card, not placement-engine knobs |
+| `ToughenedGlazingRequired` / `MinSlopePercent` / `MinUniformityRatio` / `ExposureClass` / `EmitSupports` | DEFERRED | spec/advisory metadata, not consumed by placement; kept for schedules/export |
+
+**Category checklist decision table:**
+
+| Category | Status | Note |
+|---|---|---|
+| Electrical/Lighting/Comm/Data/Security/Fire/Plumbing/Air Terminals/Sprinklers/Mechanical/Junction Boxes/Furniture | WIRED | placeable, baseline rules + anchors ship |
+| Conduits / Pipes / Cable Trays | ANNOTATED | routing outputs (obstruction-only as targets); tooltip added |
+| Specialty Equipment | ANNOTATED | no baseline rules — needs project/specialty pack |
+| Nurse Call Devices | ANNOTATED | needs healthcare rule pack |
+#### Completed (BOQ 5D — inline result action bar: Open-Export + Action buttons)
+
+Slice 3 review found the inline renderer dropped the dialog footer entirely, so
+the ~6 export commands that attach an Open-Export button via `SetCsvPath` (ICMS3,
+cert doc, registers, QS bill, cost plan) rendered their result inline with **no
+way to open the generated file** — a functional regression vs the dialog.
+
+- `StingResultPanel.BuildInlineContent` now renders a compact bottom **action
+  bar**: an "Open file" button when `CsvExportPath` is set (shell-opens the path),
+  plus any `Action(...)` buttons. Wrapped in a `DockPanel` so the bar stays
+  visible while the result scrolls. Action clicks pass a null `Window` (inline has
+  none) inside try/catch — Window-dependent actions degrade gracefully (logged),
+  never crash. No bar rendered when there are no buttons.
+
+Closes the "acceptable degradation" the Slice 3 agent flagged. Compile-verified
+headless (Nice3point): 0 errors. Not pushed/merged.
+
+#### Completed (BOQ 5D — Slice 3: convert Actions commands to inline StingResultPanel)
+
+Every Actions-tab-dispatched command now reports through `StingResultPanel`
+instead of a terminal `TaskDialog`, so each result renders in the right-hand
+inline pane (no popup) and the placeholder-resolver no longer falls back to
+"✓ completed (reported in a dialog)". `Builder.Show()` auto-routes to the
+inline sink when the pane is hosting and falls back to the modal dialog from
+the ribbon/workflow path — so conversion is safe in both surfaces. Reporting
+surface only — no command logic, transaction scope, or panel changes.
+
+Files converted (one commit each):
+
+- `Commands/Cost/CostCommands.cs` — Cost_ValidateAll (table report + dialog-only
+  "select affected" action), Cost_ClearStale, Cost_RunWorkflow (no-presets
+  guard), Cost_ToggleStaleMarker, Cost_ReloadRules, Cost_MigrateCurrencyParams,
+  Cost_MigrateESEntities.
+- `Commands/Cost/MeasurementStandardCommands.cs` — Cost_SetMeasurementStandard,
+  Cost_StandardInspect (per-standard tables).
+- `Commands/Cost/IfcAndIcmsCommands.cs` — Cost_StampIfcQuantities,
+  Cost_ExportIcms3Report (SetCsvPath → Open Export on dialog path).
+- `Commands/Cost/CostPlanCommands.cs` — CostPlan_Create, CostPlan_Compare
+  (variance table), CostPlan_Export.
+- `Commands/Cost/PaymentCertCommands.cs` — PaymentCert_Issue/Approve/Register.
+- `Commands/Cost/CostControlCommands.cs` — PaymentCert_SetProgress,
+  PaymentCert_ExportDoc (folder-open command-link → SetCsvPath). (Cost_Anticipated
+  FinalCost already used StingResultPanel.)
+- `Commands/Cost/VariationAndEvmCommands.cs` — Variation_FromDiff,
+  Variation_BuildStarRate, Variation_ExportRegister, Variation_ReclassifyLegacy,
+  Evm_Calculate, Evm_ImportActuals, Evm_ExportReport.
+- `BOQ/BOQQsRoundtripCommands.cs` — BOQQsExport (terminal + folder-open →
+  SetCsvPath), BOQQsImport (two guards + two terminals).
+- `BOQ/BOQSupportCommands.cs` — BOQAddManualRow (added an inline success report;
+  it previously reported nothing), BOQReconcileProvisionals (no-match guard +
+  terminal).
+
+TaskDialogs deliberately kept (interactive input / hard confirmation that must
+interrupt — not terminal reports, so out of the inline-result scope):
+
+- `CostPlanCommands.PromptForGifa` — TaskDialog command-links picking the GIFA
+  source (model rooms vs literal). Genuine input prompt.
+- `VariationAndEvmCommands` — PickEotDays / contract-form / kind / reason /
+  liability StingListPicker pickers and the `PromptForReasonDetail` WPF input
+  window (all input).
+- `BOQQsExportCommand` — the priced/unpriced TaskDialog command-link (input).
+- `BOQQsImportCommand` — the `StingDataGridDialog` diff-preview (input).
+- `BOQReconcileProvisionalsCommand` — the Yes/No confirmation before promoting
+  provisional sums to modelled rows (destructive confirm).
+
+Compile-verified headless (Nice3point): 0 errors per file. Deployed to
+CompiledPlugin per group. Not pushed/merged.
+
+**Revit smoke test (human):** Open the BOQ & Cost Manager → Actions tab. Click
+Run Cost Workflow, Validate Cost, New Cost Plan, Compare vs BOQ, Issue Cert,
+Calculate EVM, Variation from Diff, ICMS3 Report, Export QS Bill, Import QS Bill,
+Add Manual Row, Reconcile Provisionals — each result must render in the right
+pane with no popup, and the pane must never stay on "Running…". Confirm the input
+pickers for New Cost Plan / Issue Cert / Variation still render inline (no
+regression). Dispatch any one of the same commands from the ribbon and confirm it
+still shows a modal dialog (automatic fallback).
+
+#### Completed (BOQ 5D — resolve stuck Actions "Running…" placeholder)
+
+In-Revit finding: the Actions inline pane only renders results for the ~9
+commands that report via StingResultPanel; the ~7 that use TaskDialog (Run Cost
+Workflow, stale-flag/migration/Meas setters) left the pane stuck on "Running…".
+
+- `BOQCostManagerPanel`: `_inlineResultPosted` flips true when a result lands
+  inline; `RunActionInline` registers `PendingActionResolve = () =>
+  ResolveActionPane(label)`. `StingCommandHandler.Execute`'s finally invokes +
+  clears it once the command returns. If no inline result was posted (TaskDialog
+  command), `ResolveActionPane` replaces the placeholder with "✓ <label>
+  completed" + a note that the action reported in its own dialog — so the pane is
+  never stuck. No-op when a result already rendered inline.
+- Full inline conversion of the TaskDialog actions is the Slice 3 sweep — added
+  to docs/BOQ_5D_ENHANCEMENTS_PROMPT.md as **P1.4 (high priority)**.
+
+Compile-verified headless (Nice3point): 0 errors. Not pushed/merged.
+
+#### Completed (BOQ 5D — P1.3: persist Cost Manager UI state per project)
+
+Link selection already persisted (`boq_links.json`), but grouping mode, display
+currency, column visibility and the expand/collapse sets reset every session.
+Now persisted to `<project>/_BIM_COORD/boq_ui_state.json` (same load/save shape as
+`BoqPrintProfile` / `ProjectRateCardProvider`). Compile-verified headless
+(Nice3point): 0 errors.
+
+- **`BoqUiState` POCO + `LoadUiState` / `SaveUiState`** (`BOQCostManagerPanel.cs`).
+  Persists `GroupingMode`, `DisplayCurrency`, `HiddenColumns`, `OpenSections`,
+  `OpenMaterialSections`. Best-effort: read/write failures `StingLog.Warn` and never
+  block the UI. A `_uiStateLoaded` gate stops a write firing mid-`Build` (which
+  would clobber the file being read).
+- **Load before `Build()`** so the currency toggles, grouping combo and column set
+  open in the user's last configuration. Toggle `IsChecked` + combo `SelectedItem`
+  are set in the initializer *before* their handlers attach, so restoring state
+  doesn't fire a redundant `RefreshDisplay` / `RefreshAsync`.
+- **Save on each change** — currency toggle, grouping change, ▦ Columns toggle,
+  Expand-all / Collapse-all, per-section + per-material expander, and
+  `ApplyPrintProfile` (which sets the hidden-column set).
+- **Collapse-all survives reopen** — `RefreshAsync` auto-opens every section only
+  on a genuine first load; `_suppressAutoOpenOnce` (set when a persisted
+  `OpenSections` set is loaded) stops a deliberately-empty collapse-all state from
+  being re-expanded on the first refresh.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager. Set grouping = "Source
+model", switch to USD, hide a column via ▦ Columns, collapse all sections. Close
+the window and reopen the project (or the BOQ window) → grouping, currency, hidden
+column and collapsed state all restored. Confirm `_BIM_COORD/boq_ui_state.json`
+exists and reflects the choices.
+
+#### Completed (BOQ 5D — P1.2: cache per-link takeoff)
+
+`RefreshAsync` runs `BuildBOQDocument` synchronously, and STEP 6c
+(`CollectLinkedItems`) re-walked every linked Revit document on every rebuild —
+so a filter toggle / rate edit / grouping change froze Revit on a federated model.
+Now each link's takeoff is cached. Compile-verified headless (Nice3point): 0 errors.
+
+- **Per-link cache** (`BOQCostManager.cs`) — `_linkTakeoffCache` keyed on the linked
+  file's `PathName` (falls back to Title). It stores the **raw** per-link line items
+  (post-`BuildLineItemFromElement`, pre-aggregate / pre-neutralise), so a host-side
+  refresh reuses them without re-reading the link's Revit DB. `AggregateLineItems`
+  + neutralise run on a clone every time, so **grouping changes stay correct without
+  invalidating the cache**. Cache contents are cloned on both store and read, so a
+  caller mutating returned rows can't corrupt the cache.
+- **Cache-hit/miss logging** — `StingLog.Info` distinguishes
+  "cache MISS — walked link" (the only path that re-reads the link DB) from
+  "cache hit — link not re-walked", so the human can confirm via `StingTools.log`
+  that a refresh no longer re-traverses links.
+- **`InvalidateLinkCache()`** — clears all cached link takeoffs; wired into
+  `StingToolsApp.OnDocumentClosing` beside the other per-doc cache invalidations.
+  **Deliberately not called from `SetIncludedLinkTitles`**: the cache is keyed
+  per-link, so changing the included-set just changes which keys are looked up
+  (newly added links miss → compute once; deselected links' entries sit harmlessly).
+  A full clear there would defeat the requirement that *a reload of the same
+  selection hits the cache*.
+- **Stretch (background-threading the host takeoff) deferred** — only links were
+  the per-refresh cost; the prompt says cache links alone when the host walk
+  isn't profiled as the bottleneck. Host takeoff stays on the API thread.
+
+**Known limitation:** with no reliable per-link change signal, reloading a link's
+geometry mid-session (Manage Links → Reload) won't invalidate its cached takeoff —
+close/reopen the document (or wait for a manual rebuild path) to refresh it.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager on a model with ≥1 linked
+model included. Watch `StingTools.log`: (1) first refresh logs "cache MISS — walked
+link" once per link. (2) Toggle a discipline filter / edit a host rate / change the
+grouping mode → the rebuild logs "cache hit — link not re-walked" (no MISS), and
+the UI no longer stalls on the link walk. (3) Close + reopen the project → the next
+refresh logs MISS again (cache cleared on close).
+
+#### Completed (BOQ 5D — P1.1: SourceModel as a first-class column)
+
+Provenance (host vs linked model) was only carried on the `[Linked: …]` Note
+string. The `BOQLineItem.SourceModel` field already existed — now surfaced as a
+real column so a QS can sort/filter host-vs-link without parsing text. The
+`[Linked: …]` Note tag is kept (other tooling may read it). Compile-verified
+headless (Nice3point): 0 errors.
+
+- **Grid** (`BOQCostManagerPanel.cs`) — new `BOQItemViewModel.ModelDisplay`
+  (`SourceModel` or "Host" when blank) + a toggleable **Model** DataGrid column
+  beside Src. Added "Model" to `BoqPrintProfileRegistry.ToggleableColumns` so it
+  appears in the ▦ Columns dropdown (visible by default, like Level/Location).
+  Print profiles that don't list "Model" hide it when applied — expected
+  profile-column behaviour, non-breaking until a profile is edited.
+- **Standard export** (`BOQExportCommand.cs`) — "Source Model" column added after
+  Note on both the main BOQ sheet (now col 14, Ifc GlobalId → 15) and the Item
+  Schedule sheet (col 15, trailing columns shifted). Safe for the INT-2
+  round-trip importer: `ImportBoqRatesCommand` resolves every column by header
+  name (`colIdx`), not fixed index, and scans cols 1–24.
+- **Professional export** (`BOQProfessionalExportCommand.cs`) — "Source Model"
+  column added before Ifc GlobalId on the Schedule of Sizes (takeoff/audit) sheet;
+  banner merge + widths extended to match.
+- Host rows render/write **"Host"**; linked rows the link Title.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager with ≥1 linked model
+included (⛓ Links). (1) Grid shows a **Model** column — host rows "Host", linked
+rows the link Title; toggle it off/on via ▦ Columns. (2) Export ↗ (standard) →
+both the BOQ and Item Schedule sheets carry a "Source Model" column; re-import the
+edited Item Schedule and confirm rates still apply (header-name join intact).
+(3) Run the professional export → Schedule of Sizes sheet carries "Source Model".
+
+#### Completed (BOQ 5D — P0: harden the inline message pump)
+
+Correctness/safety hardening of the BOQ Cost Manager inline pickers + results
+(`docs/BOQ_5D_ENHANCEMENTS_PROMPT.md`). Compile-verified headless (Nice3point):
+0 errors. Behaviour still needs a real Revit run — see smoke test below.
+
+- **P0.1 — transaction-state guard** (`StingListPicker.cs`). Pumping a nested
+  `Dispatcher.PushFrame` loop while a Revit transaction is open on the host
+  document is unsafe (can corrupt document state). New
+  `public static Autodesk.Revit.DB.Document InlineHostDoc;` + a private
+  `InlineSafe(title)` gate: when `InlineHostDoc.IsModifiable` (a transaction is
+  open) the two `Show(...)` overloads fall back to the normal modal `ShowDialog()`
+  path instead of pumping. `ShowInline` carries the same defensive guard for any
+  future direct caller. One `StingLog.Info` fires on fallback so the human can see
+  which command needed it. Mirrors the `IsModifiable` precedent in
+  `DrawingTypeStamper.StampCrop`. `BOQCostManagerPanel.RunActionInline` sets
+  `InlineHostDoc = Doc` alongside `InlineHost`; `StingCommandHandler.Execute`'s
+  `finally` clears it with the other inline statics.
+  - **Audit** (Actions commands under `Commands/Cost/*.cs` + `BOQ/*Commands*.cs`):
+    no `StingListPicker.Show(...)` is called inside an open transaction — every
+    Cost command picks first, then transacts (pick → `using (Transaction) { Start;
+    …; Commit }`). The guard is a forward-safe net, not a fix for an existing leak.
+    Files scanned: `CostCommands.cs`, `CostControlCommands.cs`, `CostPlanCommands.cs`,
+    `MeasurementStandardCommands.cs`, `PaymentCertCommands.cs`,
+    `VariationAndEvmCommands.cs`.
+- **P0.2 — leak-proof the inline statics.** `RunActionInline` now defensively
+  nulls `InlineHost` / `InlineHostDoc` / `InlineTitleSink` /
+  `StingResultPanel.InlineSink` at the top (before re-registering fresh) so a
+  prior aborted run can't leave a stale foreign sink. `BOQCostManagerWindow.Closed`
+  nulls all four when the window tears down, so a later command from another
+  surface can't render into (or pump against) the disposed Actions pane.
+
+**Revit smoke test (human):** (1) Open BOQ & Cost Manager. On the Actions tab run
+**Variation from Diff** — it shows 4 sequential pickers; confirm each renders
+inline, OK/Cancel return correctly, and Revit never hangs. (2) Run **Issue Cert**;
+confirm inline render. (3) If any command opens a transaction before a picker,
+verify `StingTools.log` shows the "falling back to modal" Info line and the picker
+appears as a normal modal dialog (not a freeze). (4) Close the BOQ window, then run
+any ribbon command that uses a list picker — confirm it pops a normal modal, not
+into a dead pane.
+
+#### Completed (5D Cost Workspace — Slice 1: QTO IFC button + inline-result convention)
+
+First slice of the unified inline 5D cost+programme workspace
+(`docs/BOQ_COST_MANAGER_5D_WORKSPACE_PROMPT.md`). Establishes the "zero external
+reporting popups" convention end-to-end on one action, as the template for the
+Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
+
+- **Inline result region** (`BOQCostManagerPanel.cs`) — a collapsed `Border`
+  docked above the footer with a title + ✕ dismiss. Panel-driven commands render
+  their result here via `StingResultPanel.BuildInlineContent` (the same
+  section/metric/table tree the Healthcare tab already hosts inline) instead of a
+  `StingResultPanel.Show()` window.
+- **`BOQInlineResults` static mailbox** — bridges a Revit-thread command to the
+  live panel. The panel registers `Sink` on construction (cleared on `Unloaded`
+  via a stored delegate so a closed panel can't capture a later invocation).
+  `Post(builder)` returns false when no panel is hosting → the command falls back
+  to `.Show()`, so ribbon/workflow callers are unaffected.
+- **`InlineHost=1` ExtraParam gate** — mirrors the existing `SkipDialog` pattern.
+  The panel sets it before dispatch; `BOQExportIfcQtoCommand` reads it and routes
+  the result inline (consuming the flag; `ClearAllExtraParams` in the handler's
+  `finally` also clears it post-execution, so no cross-command leakage).
+- **"⛁ QTO IFC" button** added to the Cost Manager footer beside Export/Import →
+  `DispatchAction("BOQExportIfcQto")` (dispatch case already at
+  `StingCommandHandler:3511`; path verified panel → `DispatchCommand` →
+  ExternalEvent → case). Tooltip explains the estimator feed; result shows inline.
+- **No-build caveat:** WPF + Revit-API code, not compile-checked in this sandbox.
+  Revit/WPF calls use documented signatures. **Verify in Revit before Slice 2.**
+  In-Revit smoke test: open BOQ Cost Manager → click **⛁ QTO IFC** → confirm
+  (a) no popup window appears, (b) the inline region opens below the bill with
+  "IFC4 written: …", elements-stamped count, and the LIMITATIONS notes, (c) the
+  IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
+  (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
+
+#### Completed (BOQ — "by Source model" grouping + Links (N) badge)
+
+- **Group → "Source model"** (`BoqGroupingMode.SourceModel`). New grouping mode
+  + dropdown entry: the bill reads as one block per model — "Host model" first,
+  then each included link as its own section. Driven by a new
+  `BOQLineItem.SourceModel` field (copied in `Clone`, set to the link Title in
+  `CollectLinkedItems`); host rows leave it blank ⇒ "Host model". Routes through
+  the existing `GroupBySpatial` grouper; `AggregateLineItems` default branch
+  already handles the new enum.
+- **"⛓ Links (N)" badge.** The header Links button now shows the count of
+  included links — "⛓ Links" when none, "⛓ Links (N)" otherwise. Updated on every
+  `RefreshDisplay` and immediately after the chooser saves, via `UpdateLinksBadge`.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
+#### Completed (BOQ — linked models: persisted, per-link selection)
+
+Upgraded the include-links option from a session-only global bool to the best
+flexible + sustainable design, following the codebase's `_BIM_COORD` project-
+overlay + multi-select-picker conventions.
+
+- **Flexible — per link, not all-or-nothing.** Header **"⛓ Links"** button opens
+  the multi-select `StingListPicker` (checkbox list) of *loaded* links, pre-ticked
+  to the current selection; tick exactly the links to fold into the takeoff. A
+  link placed multiple times is taken off once (dedup by Title).
+- **Sustainable — persisted per project.** Selection saved to
+  `<project>/_BIM_COORD/boq_links.json` (same convention as `rate_card.json` /
+  `boq_print_profiles.json`) and cached per doc path, so it survives reopen and
+  every consumer (panel, QTO export, snapshots) reads the same set —
+  `BOQCostManager.GetIncludedLinkTitles` / `SetIncludedLinkTitles`. Replaces the
+  process-global `IncludeLinkedModels` bool that reset every session.
+- **Safety unchanged.** Linked rows stay read-only for host write-back
+  (`RevitElementId=-1`, `UniqueId` cleared, constituents dropped) — never
+  cost-stamped or selectable in the host; tagged `[Linked: <model>]`.
+  Parameter-derived quantities are transform-independent; unloaded links skipped.
+- **Picker pre-check fix** (`UI/StingListPicker.cs`): `PopulateList` now honours
+  `ListItem.IsSelected`, so the chooser (and any future multi-select caller)
+  opens with current selections ticked.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
+#### Completed (BOQ — include-linked-models option)
+
+User request: a toggle to include / exclude linked Revit models in the takeoff.
+
+- **Engine** (`BOQ/BOQCostManager.cs`). New `IncludeLinkedModels` process-wide
+  flag (default off — so every consumer: panel, QTO export, snapshots, stays
+  consistent). New STEP 6c in `BuildBOQDocument` + `CollectLinkedItems` helper:
+  walks every loaded `RevitLinkInstance`, runs the existing
+  `CollectCandidateElements` over each `GetLinkDocument()`, builds + aggregates
+  line items per link. **Safety**: linked rows are neutralised for host
+  write-back — `RevitElementId = -1`, `UniqueId` cleared, constituent ids
+  dropped — because a link element's id can collide with a host id and stamp the
+  wrong element. `IfcQuantitySetWriter` / `CostStamp` / select-in-Revit already
+  skip `RevitElementId <= 0`, so linked rows contribute quantity + cost + carbon
+  only, tagged `[Linked: <model>]` in the Note. Quantities are parameter-derived,
+  so the link transform doesn't affect them. Unloaded links are skipped.
+- **UI** (`UI/BOQCostManagerPanel.cs`). "Incl. links" checkbox in the header
+  action strip; toggling sets the flag and refreshes. Off by default.
+
+Compile-verified headless (Nice3point): 0 errors / 0 warnings. Not pushed/merged.
+
+#### Completed (BOQ 5D Workspace — Slice 2: inline pickers + inline results, zero popups)
+
+In-Revit feedback: the Actions commands still opened external windows for input
+(building type / contract form / baseline snapshot) and results. Closed it
+centrally — no per-command edits, no engine forking.
+
+- **`StingListPicker` inline-aware** (`UI/StingListPicker.cs`). New static
+  `InlineHost` (+ `InlineTitleSink`). When set, `Show(...)` renders the picker's
+  content INTO the host (the Actions report pane) and pumps a nested
+  `DispatcherFrame` until OK/Cancel — so the synchronous `Show()` still returns
+  the picked value, but the user sees an inline list, not a modal window. The
+  OK/Cancel/Esc paths route through a new `FinishInlineOrClose()` that stops the
+  frame inline (never calls `Close()` on a never-shown window — which would throw
+  and hang the pump). Null host ⇒ legacy modal behaviour everywhere else.
+- **`StingResultPanel` inline-aware** (`UI/StingResultPanel.cs`). New static
+  `InlineSink`; `Builder.Show()` routes to it (→ `ShowInlineResult` → Actions
+  pane) instead of `ShowDialog` when set. Falls back to the popup on any failure.
+- **Wiring** (`BOQCostManagerPanel.RunActionInline` +
+  `StingCommandHandler.Execute`). Clicking an Actions button registers both sinks
+  pointing at the Actions pane, sets `InlineHost=1`, dispatches; the command's
+  pickers + result panel now render inline. The dispatcher's `finally` tears the
+  hooks down after the (synchronous) command runs, so ribbon / other-panel
+  commands keep their normal popups.
+
+Net effect: every Actions command — across all ~25, with zero per-command edits —
+gathers input via an inline list in the right pane and reports inline. Built
+headless via Nice3point: **0 errors / 0 warnings**. Not pushed/merged.
+
+#### Completed (BOQ 5D Workspace — Slice 1.5: Actions master-detail + Materials expand)
+
+In-Revit feedback from Slice 1, two items.
+
+- **Actions tab → master-detail** (`UI/BOQCostManagerPanel.cs`). The Actions tab
+  is now a two-column `Grid`: the grouped action buttons on the **left**, a single
+  inline **report pane on the right** with a draggable `GridSplitter`. Clicking an
+  action highlights it, titles the right pane with the action name, shows a running
+  placeholder, and sets `InlineHost=1` so any inline-capable command renders its
+  result in the pane (via `BOQInlineResults` → `ShowInlineResult`, which now routes
+  to the Actions pane when that tab is active). No popup for the action surface.
+  Commands not yet converted to the inline gate still pop their own dialog — that
+  conversion is the Slice 3 sweep — but the pane always responds per-button so the
+  surface is never dead.
+- **Materials Expand-all / Collapse-all fixed** (BUG). Root cause: the ⊞/⊟ toolbar
+  buttons only drove the BOQ `_openSections`; Materials expanders were hardcoded
+  `IsExpanded=false` and untracked. Added `_openMaterialSections` (+ a
+  `MaterialCategoryKeys` helper), seeded each Materials expander's `IsExpanded` from
+  it, added `Expanded/Collapsed` handlers to persist it, and made Expand/Collapse-all
+  drive both tabs. Manual chevron state now survives a rebuild too.
+
+Built without Revit (WPF/Revit-API panel, no sandbox compile). Encoder tests still
+8/8. Schedule (4D/5D) tab is Slice 2; converting every Actions command's popup to
+inline is Slice 3. Not pushed/merged.
+
+#### Completed (BOQ Review & Hardening — INT-1 QTO IFC + pro-export round-trip key)
+
+Closed the two "known limitations" left after INT-2.
+
+- **Professional export now carries the join key.** `BOQProfessionalExportCommand`
+  adds an **"Ifc GlobalId"** column to its **audit/takeoff sheet** (next to the
+  existing "Revit ID"), so the priced professional export can reconcile back to
+  the model. The printed *tender* bill is left clean (no machine ids on it) — the
+  primary round-trip remains the standard `BOQExportCommand` schema.
+- **INT-1 — QTO-conformant IFC export** (`BOQ/BOQExportIfcQtoCommand`, tag
+  `BOQExportIfcQto`). Builds the BOQ, stamps `Qto_*.*` + `Pset_StingCost.*`
+  (`IfcQuantitySetWriter.StampAllElements`) in a committed transaction, then
+  exports **IFC4 with `ExportBaseQuantities=true`** + the cost/classification
+  psets — the practical estimator feed CostX/iTWO consume.
+  - **Honest scope (documented in the command):** Revit has **no literal
+    "Quantity Takeoff MVD"** enum — IFC4 + base quantities is the equivalent.
+    NRM2/ICMS rides `Pset_StingCost.NRM2Section`; a true `IfcClassificationReference`
+    needs a Revit classification-mapping file (not settable via headless
+    `IFCExportOptions`) — `TODO-VERIFY-API` / future. The base quantities (core
+    QTO payload) come from `ExportBaseQuantities` and don't depend on the cost-pset
+    emission, which itself needs in-Revit confirmation.
+  - GAEB DA XML remains scope-only (the `IPricedExchange` interface is still TBD).
+- Built without Revit (main-project files; only the encoder is sandbox-compiled).
+  Dock-panel button for `BOQExportIfcQto` is a trivial follow-up. Verify in Revit.
+
+#### Completed (BOQ Review & Hardening — INT-2 priced-BOQ round-trip)
+
+GUID-keyed priced round-trip so an external estimator can fill rates and
+re-import them onto the model. Built on the INT-0 GlobalId key.
+
+- **Export** (`BOQExportCommand`) — new **"Ifc GlobalId"** column (col 14,
+  `BOQLineItem.IfcGlobalId`) as the stable join key alongside the editable
+  Rate UGX cell.
+- **Import** (`BOQImportCommand`) — joins each priced row on the most stable
+  key available: **IFC GlobalId → Revit UniqueId → ASS_BOQ_LINE_REF**
+  (was line-ref only, which churns — P3-1). GlobalId index built with the same
+  `IfcGuidEncoder.FromRevitUniqueId` the export uses, so the join is exact.
+  Header-name column lookup means old line-ref-only sheets still import.
+- **Provenance** — imported rates stamp `CST_RATE_SOURCE = "estimator"` (was
+  the generic "Override") so the rate-source heat-map / at-risk rollup can
+  distinguish a priced import from a hand-typed override.
+- **P2-8 fixed** — import now writes the edited description to
+  `ASS_NRM2_PARA_TXT` (which `ResolveNrm2Paragraph` reads first), not
+  `ASS_DESCRIPTION_TXT` — so an edited description survives the next BOQ
+  refresh instead of being silently dropped.
+- **Precedence — deliberate deviation from the prompt.** The prompt assumed an
+  "estimator below manual ES override" tier; the actual `RateProviderRegistry`
+  has a *single* override surface — `ParameterOverrideRateProvider`
+  (`CST_UNIT_RATE_UGX`, priority **100**) sits *above* `ExtensibleStorageRateProvider`
+  (95). Building a separate sub-tier would have meant a new shared param +
+  provider and would have inverted the documented "param override is the user's
+  top-priority rate." So estimator rides the existing `CST_UNIT_RATE_UGX`
+  override surface (a priced bill IS the authoritative rate), distinguished only
+  by the `CST_RATE_SOURCE` provenance stamp. Documented inline.
+- **Not done this commit:** the branded `BOQProfessionalExportCommand` doesn't
+  yet carry the GlobalId column (round-trip is via the standard `BOQExportCommand`);
+  GAEB DA XML remains scope-only (`IPricedExchange` interface TBD). Built without
+  Revit (main-project files, no sandbox compile) — verify in Revit.
+
+#### Completed (BOQ Review & Hardening — INT-0 encoder hardening)
+
+Follow-up to the INT-0 encoder correction below, closing the one review caveat:
+the canonical *compression* was verified but no *real Revit-export* vector was
+pinned, so equality with what Revit's exporter writes was asserted only at the
+compression layer.
+
+- **Gold-standard path for live elements.** New `IfcGuidEncoder.FromElementGoldStandard(object)`
+  calls `Autodesk.Revit.DB.IFC.ExporterIFCUtils.CreateGUID(Element)` at runtime
+  via reflection — the exact GlobalId Revit's IFC exporter assigns — with no
+  `RevitAPIIFC.dll` compile reference (the codebase deliberately avoids it; mirrors
+  `ClashExportContext.TryGetIfcGuid`). Falls back to the canonical string encoder
+  off-Revit. Parameter typed `object` (reflects `UniqueId`) so the file stays
+  dependency-free and the fallback is unit-testable without a Revit `Element`.
+- **COBie/handover callers repointed** to the gold standard:
+  `BIMManagerCommands` (COBie ExternalIdentifier), `DocAutomationExtCommands`,
+  `HandoverExportCommands`. BOQ snapshot path stays on the string encoder
+  (UniqueId string only). Same element → identical GlobalId across all surfaces.
+- **Docstring accuracy + naming.** Softened the overstated "matches a real Revit
+  export" claim to state the compression is verified canonical, the reconstruction
+  follows the documented episode + XOR-suffix algorithm, and the gold standard is
+  the reflection path; renamed the misleading `elementId` local to `suffix`
+  (the XOR math is unchanged — `origLow4 XOR suffix = elementId`).
+- **Reflection-based logging** (`Type.GetType("StingTools.Core.StingLog, StingTools")`)
+  so the warn fires inside the plugin but the file still links standalone into
+  `StingTools.Boq.Tests`.
+- **Tests:** added a fallback pin (gold standard == string encoder when RevitAPIIFC
+  absent) + null guard. `dotnet test` green — **8/8 IfcGuidEncoder tests pass**,
+  verified locally in the sandbox (pure .NET). (The one unrelated
+  `MaterialLookupPopulate` failure pre-exists on origin/main.)
+- Open: a real Revit-export `UniqueId → GlobalId` vector still can't be pinned
+  without a Revit session — Revit-verify TODO. The reflection gold-standard path
+  closes the gap operationally for live-element callers.
+
+#### Completed (BOQ Review & Hardening — INT-0 encoder correction)
+
+Follow-up from a code review of the INT-0 commit (see
+`docs/INT0_ENCODER_FIX_PROMPT.md`). P0-1 and P0-2 confirmed correct and
+untouched; this fixes only the GlobalId encoder INT-0 was built on.
+
+- **Encoder was non-canonical.** `IfcResults.IfcGuidEncoder.FromGuid` packed
+  bytes `3/6/7 → 4/8/10` chars and `FromRevitUniqueId` discarded the
+  element-id suffix, so STING's GlobalIds were internally consistent but did
+  **not** equal a real Revit/ArchiCAD IFC export, the server's IFC-parsed
+  mappings, or what an external estimator reads from the exported IFC. Ported
+  the canonical buildingSMART / Autodesk RevitIFC `GUIDUtil` algorithm
+  verbatim (`2/4/4/4/4/4` grouping over the documented `num[0..5]` byteArray
+  mapping) and added the element-id XOR-fold into the GUID's low 4 bytes that
+  Revit's exporter applies.
+- **Pinned with a unit test** (`StingTools.Boq.Tests/IfcGuidEncoderTests.cs`)
+  against the canonical IfcOpenShell reference vector
+  (`f70dd363-bfe3-495d-84a0-2c02dcb7d4d2` → `3t3TDZl_D9NOIWB0BSjzJI`), a
+  hand-derived folded vector, and an element-id-sensitivity check. **6/6 pass
+  under `dotnet test`** (the encoder is pure C#/net8.0, so this path *is*
+  verified here even though the wider plugin is not).
+- **Chose the string algorithm over a RevitAPIIFC reference.** Considered
+  `ExporterIFCUtils.CreateGUID(el)` for the live-element COBie path, but kept
+  one encoder (no csproj risk, sandbox-testable). BOQ snapshot + all three
+  COBie writers already route through `FromRevitUniqueId`, so they now emit
+  identical canonical GlobalIds for the same element.
+- **Server-source audit (staged follow-up, not paper-over).** The
+  server-ingest path (`IFC_PushModelCommand`) keys `ExternalElementMapping`
+  off the stored `IFC_GLOBAL_ID_TXT`, which `StabilizeIfcGuidsCommand` fills
+  from Revit's built-in IfcGUID. That equals the encoder value in the default
+  case, but **diverges under an explicit IFC-GUID override or for
+  never-exported elements**. Documented on `BOQLineItem.IfcGlobalId`: the
+  unification is to have BOQ + COBie prefer a stored `IFC_GLOBAL_ID_TXT` when
+  present (threaded through BOQ build), falling back to the encoder — staged,
+  as it touches the BOQ build path and is an override-only edge.
+
+#### Completed (BOQ Review & Hardening — prerequisite cluster: P0-1, P0-2, INT-0)
+
+First slice of `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` on branch
+`claude/boq-implementation`. The prerequisite cluster that most other
+items depend on. **Not compile-verified (Linux sandbox, no Revit API) —
+verify in Revit before merge; do not merge to `main` without it.**
+
+- **P0-1 — IFC Qtos no longer written as zero.** `IfcQuantitySetWriter`
+  compared `item.Unit` against the Unicode glyphs `m²`/`m³`/`m`, but
+  takeoff rules + `cost_rates_5d.csv` use ASCII `m2`/`m3`/`each`, so every
+  comparison was false and `StampQuantity`'s `value <= 0` guard skipped
+  every GrossArea/NetArea/GrossVolume/NetVolume/Length/Weight Qto —
+  external cost tools (CostX, CostOS, Candy) received empty quantity sets.
+  Both sides now canonicalise through `BOQCostManager.NormaliseUnit` (made
+  `internal` as the single unit table); added `Count` stamping for `each`.
+- **P0-2 — deterministic snapshot checksum.** `BoqSnapshotHasher` ordered
+  items by `BOQLineItem.Id` and hashed it, but `Id` is a fresh
+  `Guid.NewGuid()` per build, so an unchanged model produced a different
+  SHA-256 each time and every push looked "new". Now orders by a stable
+  key (UniqueId → RevitElementId → BOQLineRef → Category → ItemName) and
+  drops the random `Id` from the hashed projection.
+- **INT-0 — stable IFC GlobalId spine.** The sync payload field
+  `ifcGlobalId` actually shipped the 45-char Revit UniqueId, and all three
+  COBie Component writers keyed off a volatile/wrong id (`el.Id` or
+  `el.UniqueId`), so BOQ rows + COBie could never join the server's
+  `ExternalElementMapping` (keyed on the real 22-char IFC GlobalId).
+  Added `BOQLineItem.IfcGlobalId` (computed from UniqueId via the one
+  shared encoder `IfcResults.IfcGuidEncoder`); `BuildLinePayload`,
+  `HandoverExportCommands`, `BIMManagerCommands`, and
+  `DocAutomationExtCommands` now all emit the canonical GlobalId. Marked
+  the server's `ElementGlobalIdRegistry` superseded by the authoritative
+  `ExternalElementMapping` (doc note — full table consolidation staged
+  separately as it needs an EF migration + consumer sweep).
 
 #### Completed (BOQ QS Upgrade — integration + Stage-B bug fixes)
 

@@ -56,11 +56,31 @@ namespace StingTools.Commands.Placement
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var doc = ctx.Doc;
+            return RunLearn(ctx.Doc) >= 0 ? Result.Succeeded : Result.Cancelled;
+        }
+
+        /// <summary>
+        /// Core learn pass — also called from the Placement Centre's "Learn from
+        /// model" button. Returns the number of learned rules written, or -1 when
+        /// nothing was written (no saved project / no samples / error). Shows its
+        /// own TaskDialog feedback. Writes STING_PLACEMENT_RULES.learned.json.
+        /// </summary>
+        public static int RunLearn(Document doc) => RunLearn(doc, out _, showDialog: true);
+
+        /// <summary>
+        /// Overload that captures the user-facing feedback into
+        /// <paramref name="summary"/> and (when <paramref name="showDialog"/> is
+        /// false) suppresses the TaskDialog, so the Placement Centre can render
+        /// the result inline in its shared Report panel.
+        /// </summary>
+        public static int RunLearn(Document doc, out string summary, bool showDialog = true)
+        {
+            summary = "";
             if (string.IsNullOrEmpty(doc?.PathName))
             {
-                TaskDialog.Show("STING — Learn Placement", "Save the project on disk first; the learned overrides land beside the .rvt.");
-                return Result.Cancelled;
+                summary = "Save the project on disk first; the learned overrides land beside the .rvt.";
+                if (showDialog) TaskDialog.Show("STING — Learn Placement", summary);
+                return -1;
             }
 
             try
@@ -120,9 +140,9 @@ namespace StingTools.Commands.Placement
 
                 if (clusters.Count == 0)
                 {
-                    TaskDialog.Show("STING — Learn Placement",
-                        "No placed instances of the learn-pass categories found in the model. Place a few real-world fixtures first.");
-                    return Result.Cancelled;
+                    summary = "No placed instances of the learn-pass categories found in the model. Place a few real-world fixtures first.";
+                    if (showDialog) TaskDialog.Show("STING — Learn Placement", summary);
+                    return -1;
                 }
 
                 var rules = new List<PlacementRule>();
@@ -147,9 +167,9 @@ namespace StingTools.Commands.Placement
 
                 if (rules.Count == 0)
                 {
-                    TaskDialog.Show("STING — Learn Placement",
-                        $"Walked {clusters.Count} cluster(s) but every cluster had <2 samples. Place at least 2 instances of the same category in similarly-named rooms.");
-                    return Result.Cancelled;
+                    summary = $"Walked {clusters.Count} cluster(s) but every cluster had <2 samples. Place at least 2 instances of the same category in similarly-named rooms.";
+                    if (showDialog) TaskDialog.Show("STING — Learn Placement", summary);
+                    return -1;
                 }
 
                 string dir = Path.GetDirectoryName(doc.PathName);
@@ -162,25 +182,28 @@ namespace StingTools.Commands.Placement
                 };
                 File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
 
-                var td = new TaskDialog("STING — Learn Placement")
-                {
-                    MainInstruction = $"Wrote {rules.Count} learned rule(s).",
-                    MainContent =
-                        $"Path: {path}\n\n" +
-                        "Review then either:\n" +
-                        "  · Open Placement Centre → Import… and pick this file, or\n" +
-                        "  · Rename to STING_PLACEMENT_RULES.project.json to make the rules win automatically.\n\n" +
-                        $"Clusters inspected: {clusters.Count}",
-                    CommonButtons = TaskDialogCommonButtons.Close,
-                };
-                td.Show();
-                return Result.Succeeded;
+                summary =
+                    $"Wrote {rules.Count} learned rule(s).\n" +
+                    $"Path: {path}\n\n" +
+                    "Review then either:\n" +
+                    "  · Open Placement Centre → Import… and pick this file, or\n" +
+                    "  · Rename to STING_PLACEMENT_RULES.project.json to make the rules win automatically.\n\n" +
+                    $"Clusters inspected: {clusters.Count}";
+                if (showDialog)
+                    new TaskDialog("STING — Learn Placement")
+                    {
+                        MainInstruction = $"Wrote {rules.Count} learned rule(s).",
+                        MainContent = summary,
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                    }.Show();
+                return rules.Count;
             }
             catch (Exception ex)
             {
                 StingLog.Error("LearnPlacementV4Command failed", ex);
-                message = ex.Message;
-                return Result.Failed;
+                summary = $"Learn failed: {ex.Message}";
+                if (showDialog) TaskDialog.Show("STING — Learn Placement", summary);
+                return -1;
             }
         }
 

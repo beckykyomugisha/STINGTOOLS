@@ -167,18 +167,23 @@ namespace StingTools.BOQ
 
             // Row 6 — column headers
             int hr = 6;
+            // INT-2 — "Ifc GlobalId" (col 14) is the stable round-trip join key.
+            // An external estimator fills "Rate UGX"; re-import (BOQImportCommand)
+            // joins each priced row back to its element on this GlobalId
+            // (fallback Line ref), so the join survives BOQLineRef churn.
             string[] cols = { "NRM2 §", "Line ref", "Description (NRM2 narrative)", "Unit", "Quantity",
-                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note" };
+                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Discipline", "Level / Location", "Note",
+                "Source Model", "Ifc GlobalId" };
             for (int i = 0; i < cols.Length; i++)
             {
                 ws.Cell(hr, i + 1).Value = cols[i];
             }
-            ws.Range(hr, 1, hr, 13).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+            ws.Range(hr, 1, hr, cols.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
                 .Fill.SetBackgroundColor(HeaderFill);
             ws.SheetView.FreezeRows(hr);
 
             // Column widths
-            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22 };
+            double[] widths = { 8, 10, 58, 6, 9, 14, 14, 12, 12, 9, 9, 18, 22, 16 };
             for (int i = 0; i < widths.Length; i++) ws.Column(i + 1).Width = widths[i];
 
             // Data rows — section headers + items
@@ -206,7 +211,9 @@ namespace StingTools.BOQ
                     ws.Cell(row, 11).Value = item.Discipline ?? "";
                     ws.Cell(row, 12).Value = JoinLevelLocation(item);
                     ws.Cell(row, 13).Value = item.Note ?? "";
-                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 13).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
+                    ws.Cell(row, 14).Value = string.IsNullOrWhiteSpace(item.SourceModel) ? "Host" : item.SourceModel; // P1.1 provenance
+                    ws.Cell(row, 15).Value = item.IfcGlobalId ?? "";   // INT-2 round-trip join key
+                    if (item.Source != BOQRowSource.Model) ws.Range(row, 1, row, 14).Style.Fill.SetBackgroundColor(SourceFill(item.Source));
                     row++;
                 }
             }
@@ -242,7 +249,7 @@ namespace StingTools.BOQ
         {
             BannerRow(ws, $"{boq.ProjectName} — Item Schedule (edit in place and re-import via BOQ → Import)");
             string[] cols = { "Line ref", "NRM2 §", "Category", "Discipline", "Item", "Family", "Unit", "Quantity",
-                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Note", "Revit ElementId",
+                "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Note", "Source Model", "Revit ElementId",
                 "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence" };
             WriteHeader(ws, 3, cols);
 
@@ -263,13 +270,14 @@ namespace StingTools.BOQ
                 ws.Cell(row, 12).Value = it.TotalUSD;
                 ws.Cell(row, 13).Value = SourceLabel(it.Source);
                 ws.Cell(row, 14).Value = it.Note ?? "";
-                ws.Cell(row, 15).Value = it.RevitElementId;
-                ws.Cell(row, 16).Value = it.UniqueId ?? "";
-                ws.Cell(row, 17).Value = it.Level ?? "";
-                ws.Cell(row, 18).Value = it.Location ?? "";
-                ws.Cell(row, 19).Value = it.EmbodiedCarbonKg;
-                ws.Cell(row, 20).Value = it.LifecycleCostUGX;
-                ws.Cell(row, 21).Value = it.RateConfidence;
+                ws.Cell(row, 15).Value = string.IsNullOrWhiteSpace(it.SourceModel) ? "Host" : it.SourceModel; // P1.1 provenance
+                ws.Cell(row, 16).Value = it.RevitElementId;
+                ws.Cell(row, 17).Value = it.UniqueId ?? "";
+                ws.Cell(row, 18).Value = it.Level ?? "";
+                ws.Cell(row, 19).Value = it.Location ?? "";
+                ws.Cell(row, 20).Value = it.EmbodiedCarbonKg;
+                ws.Cell(row, 21).Value = it.LifecycleCostUGX;
+                ws.Cell(row, 22).Value = it.RateConfidence;
                 row++;
             }
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();

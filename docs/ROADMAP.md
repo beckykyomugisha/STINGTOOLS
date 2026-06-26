@@ -2,6 +2,38 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Placement Centre — residual gaps (post review/hardening)
+
+- **BOQ quantity handoff.** Placed-element counts (`PlacementResult.PlacedIds`,
+  keyed by provenance) still don't feed `StingTools/BOQ/`. A "Send placed
+  quantities to BOQ" action keyed off the provenance stamp would close the
+  loop. Deferred from the review (large BOQ API surface; unverifiable here).
+- **Drawing-Type preset *apply* during placement.** "Save view preset" writes
+  `StingViewPresetSchema` (works), but nothing applies a preset during a run
+  and it bypasses `DrawingTypePresentation.Apply`. Either route through the
+  Drawing Template Manager or drop the half-feature. Deferred.
+- **Wall/ceiling/floor-follow router.** The legacy `WALL_FOLLOW` /
+  `CEILING_FOLLOW` / `FLOOR_FOLLOW` rule tokens are normalized to the nearest
+  drop engine with an honest warning (Part C.5). A genuine follower router
+  (route along wall/ceiling faces, not a drop) is net-new work.
+- **Data-driven Auto-place category checklist.** The 19 category checkboxes
+  are hardcoded; non-placeable ones (Conduits/Pipes/Cable Trays routing
+  outputs; Specialty/Nurse Call needing rule packs) are annotated via tooltips
+  rather than driven from the engine's supported-category set. A registry-driven
+  checklist would prevent UI↔engine drift.
+- **PlacementRule push-to-family-types fields.** `Material` / `GlazingSpec` /
+  `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` and
+  the advisory fields (`ToughenedGlazingRequired` / `MinSlopePercent` /
+  `MinUniformityRatio` / `ExposureClass` / `EmitSupports`) are loaded + edited
+  but not consumed by the placement engine (DEFERRED in the CHANGELOG table).
+  Either wire them into the push-to-family-types pass / a post-validator, or
+  retire the editor cards.
+- **StandardRef ↔ ApplicableStandards.** The profile standards gate keys off
+  the structured `ApplicableStandards`; rules citing standards only via
+  free-text `StandardRef` are kept (not dropped) and the engine warns when the
+  filter is inert. Backfilling `ApplicableStandards` across the rule packs (or
+  a normalized StandardRef token match) would make the standards filter active.
+
 ## BOQ / Cost — residual gaps (post Stage-B integration)
 
 - **Currency conversion (not just labels).** Stage-B B.1 made currency labels

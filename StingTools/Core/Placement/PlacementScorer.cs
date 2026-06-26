@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Mechanical;
 
 namespace StingTools.Core.Placement
 {
@@ -129,7 +130,7 @@ namespace StingTools.Core.Placement
         /// match the room name, or if no candidate clears ScoreThreshold.
         /// </summary>
         public List<PlacementCandidate> Score(
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             IList<XYZ> alreadyPlaced,
             int countInRoomSoFar)
@@ -171,7 +172,7 @@ namespace StingTools.Core.Placement
         /// Falls back to the room's location point when boundary
         /// inspection fails.
         /// </summary>
-        private List<XYZ> GenerateAnchorPoints(Room room, PlacementRule rule)
+        private List<XYZ> GenerateAnchorPoints(SpatialElement room, PlacementRule rule)
         {
             var points = new List<XYZ>();
             XYZ roomPt = null;
@@ -225,9 +226,18 @@ namespace StingTools.Core.Placement
                     break;
 
                 case "CEILING_CENTRE":
-                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt,
-                        Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048)));
+                {
+                    double ceilZ = Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048);
+                    // Density / spacing rules (fire alarms, sprinklers, emergency
+                    // lights, area-based ceiling lights) intend MULTIPLE devices —
+                    // emit a ceiling grid. Without a density signal it stays a
+                    // single centre point (legacy behaviour preserved).
+                    if (rule != null && (rule.MaxSpacingMm > 0 || rule.PerAreaM2 > 0))
+                        EmitCeilingGrid(room, rule, roomPt, offsetXFt, offsetYFt, ceilZ, points);
+                    else
+                        points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, ceilZ));
                     break;
+                }
 
                 case "LIGHTING_GRID":
                 case "LUX_GRID":
@@ -307,7 +317,25 @@ namespace StingTools.Core.Placement
         /// (legacy alias). CEILING / SOFFIT → room top + 0 (caller adds
         /// MountingHeight as an *offset* below the ceiling face).
         /// </summary>
-        private double ResolveMountingDatumZ(Room room, PlacementRule rule, XYZ roomPt)
+        /// <summary>
+        /// Public helper used by the coverage-grid path: resolve the placement
+        /// anchor Z for a rule in a room (mounting datum + signed mounting
+        /// height + Z offset), measured from the room's floor level. Mirrors
+        /// the per-candidate anchorZ formula in Score().
+        /// </summary>
+        public double ResolveAnchorZForRoom(SpatialElement room, PlacementRule rule)
+        {
+            if (room == null || rule == null) return 0.0;
+            double baseZ;
+            try { baseZ = room.Level?.Elevation ?? (room.get_BoundingBox(null)?.Min.Z ?? 0.0); }
+            catch { baseZ = 0.0; }
+            var roomPt = new XYZ(0.0, 0.0, baseZ);
+            return ResolveMountingDatumZ(room, rule, roomPt)
+                 + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                 + (rule.OffsetZMm * MmToFt);
+        }
+
+        private double ResolveMountingDatumZ(SpatialElement room, PlacementRule rule, XYZ roomPt)
         {
             string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
             if (r == "FFL" || r == "SLAB" || string.IsNullOrEmpty(r)) return roomPt.Z;
@@ -345,7 +373,47 @@ namespace StingTools.Core.Placement
         /// </summary>
         public IReadOnlyDictionary<(ElementId, string), LightingGridResult> GridResults => _gridCache;
 
-        private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
+        /// <summary>
+        /// Uniform ceiling grid for density / max-spacing rules on a CEILING_CENTRE
+        /// anchor. Spacing is MaxSpacingMm when set, else √(PerAreaM2) (1 device per
+        /// PerAreaM2 m²). Points are clipped to the room/space and capped. Falls back
+        /// to the single centre point on any failure or empty result.
+        /// </summary>
+        private void EmitCeilingGrid(SpatialElement room, PlacementRule rule, XYZ roomPt,
+            double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                double spacingFt;
+                if (rule.MaxSpacingMm > 0)        spacingFt = rule.MaxSpacingMm / 304.8;
+                else if (rule.PerAreaM2 > 0)      spacingFt = Math.Sqrt(rule.PerAreaM2) / 0.3048;
+                else { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+                if (spacingFt < 0.5) spacingFt = 0.5;
+                if (bb == null) { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+
+                double w = bb.Max.X - bb.Min.X, d = bb.Max.Y - bb.Min.Y;
+                int nx = Math.Max(1, (int)Math.Ceiling(w / spacingFt));
+                int ny = Math.Max(1, (int)Math.Ceiling(d / spacingFt));
+                double stepX = w / nx, stepY = d / ny;
+                int emitted = 0;
+                for (int i = 0; i < nx && emitted < 400; i++)
+                    for (int j = 0; j < ny && emitted < 400; j++)
+                    {
+                        var p = new XYZ(bb.Min.X + stepX * (i + 0.5) + offsetXFt,
+                                        bb.Min.Y + stepY * (j + 0.5) + offsetYFt, anchorZ);
+                        if (FixturePlacementEngine.PointInSpatial(room, p)) { points.Add(p); emitted++; }
+                    }
+                if (emitted == 0) points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.EmitCeilingGrid {room.Id}: {ex.Message}");
+                points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+        }
+
+        private void EmitLightingGridPoints(SpatialElement room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {
             try
@@ -374,7 +442,7 @@ namespace StingTools.Core.Placement
         }
 
         private PlacementCandidate BuildCandidate(
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             XYZ anchor,
             IList<XYZ> alreadyPlaced)
@@ -482,7 +550,7 @@ namespace StingTools.Core.Placement
         /// engines to consume — zero-impact for families that declared
         /// nothing.
         /// </summary>
-        private void ApplyPlacementHints(PlacementCandidate c, Room room, PlacementRule rule)
+        private void ApplyPlacementHints(PlacementCandidate c, SpatialElement room, PlacementRule rule)
         {
             // PlacementRule-bound families: the scorer doesn't own a
             // FamilySymbol reference, so read hints from any instance of
@@ -534,7 +602,7 @@ namespace StingTools.Core.Placement
         /// FamilySymbol the caller already chose; deferred to keep this
         /// wiring small.
         /// </summary>
-        private Element ResolveSampleInstanceForRule(Room room, PlacementRule rule)
+        private Element ResolveSampleInstanceForRule(SpatialElement room, PlacementRule rule)
         {
             if (rule == null || _doc == null || string.IsNullOrEmpty(rule.CategoryFilter)) return null;
 
@@ -665,7 +733,7 @@ namespace StingTools.Core.Placement
         /// Within one buffer distance of an edge → linear penalty
         /// 0..1 across the buffer. Outside all exclusions → 1.0.
         /// </summary>
-        private (double score, int flags) ComputeCollisionScore(Room room, XYZ pt)
+        private (double score, int flags) ComputeCollisionScore(SpatialElement room, XYZ pt)
         {
             if (room == null || pt == null) return (1.0, 0);
 
@@ -714,7 +782,7 @@ namespace StingTools.Core.Placement
         /// around the candidate point — cheaper than computing each
         /// wall's 3D geometry and doing the intersection manually.
         /// </summary>
-        private bool IsInsideWall(Room room, XYZ pt)
+        private bool IsInsideWall(SpatialElement room, XYZ pt)
         {
             if (room == null || pt == null) return false;
 
@@ -781,7 +849,7 @@ namespace StingTools.Core.Placement
             return false;
         }
 
-        private List<(ElementId wallId, Solid solid)> CollectWallSolidsNearRoom(Room room)
+        private List<(ElementId wallId, Solid solid)> CollectWallSolidsNearRoom(SpatialElement room)
         {
             var list = new List<(ElementId, Solid)>();
             if (_doc == null || room == null) return list;
@@ -859,6 +927,12 @@ namespace StingTools.Core.Placement
             }
         }
 
+        // NOTE: during Score() the engine passes an EMPTY already-placed list
+        // (placedPoints is filled only after placement), so this returns 1.0 for
+        // every candidate and spacing does NOT influence the ranking. MinSpacing
+        // is instead enforced as a post-rank GATE in
+        // FixturePlacementEngine.SelectWithSpacing. This is intentional — see the
+        // comment at that call site.
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
         {
             if (placed == null || placed.Count == 0) return 1.0;
@@ -895,7 +969,7 @@ namespace StingTools.Core.Placement
             return best;
         }
 
-        private string SafeRoomName(Room room)
+        private string SafeRoomName(SpatialElement room)
         {
             try
             {
@@ -920,7 +994,7 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<ElementId, RoomBoundaryCache> _boundaryCache
             = new Dictionary<ElementId, RoomBoundaryCache>();
 
-        private RoomBoundaryCache GetBoundary(Room room)
+        private RoomBoundaryCache GetBoundary(SpatialElement room)
         {
             if (room == null) return null;
             if (_boundaryCache.TryGetValue(room.Id, out var cached)) return cached;
@@ -981,7 +1055,7 @@ namespace StingTools.Core.Placement
         // collector is too greedy and grabs doors of adjacent rooms.
         // Falls back to bbox-intersect when both FromRoom and ToRoom
         // are null (door's spatial context not yet computed).
-        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, Room room)
+        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, SpatialElement room)
         {
             if (all == null || room == null) return all ?? new List<FamilyInstance>();
             var keep = new List<FamilyInstance>();
@@ -1032,7 +1106,7 @@ namespace StingTools.Core.Placement
 
         // ── PC-04 — wall midpoints / corners from real boundary segments ─
 
-        private void EmitWallMidpoints(Room room, PlacementRule rule, double anchorZ,
+        private void EmitWallMidpoints(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -1053,7 +1127,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitWallCorners(Room room, PlacementRule rule, double anchorZ,
+        private void EmitWallCorners(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -1073,7 +1147,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitDoorAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitDoorAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points,
             bool hingeSide, bool overDoor)
         {
@@ -1130,7 +1204,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitWindowSills(Room room, PlacementRule rule, double anchorZ,
+        private void EmitWindowSills(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -1154,7 +1228,7 @@ namespace StingTools.Core.Placement
             return null;
         }
 
-        private XYZ ComputeInwardFromWall(Wall w, Room room)
+        private XYZ ComputeInwardFromWall(Wall w, SpatialElement room)
         {
             try
             {
@@ -1183,14 +1257,14 @@ namespace StingTools.Core.Placement
             catch { return null; }
         }
 
-        private XYZ ComputeInward(Line line, Room room)
+        private XYZ ComputeInward(Line line, SpatialElement room)
             => ComputeInwardFromCurve(line, room);
 
         // Phase 139.5 Q3 — generalised inward-normal computation for any
         // boundary curve (Line, Arc, NurbSpline). Tangent comes from the
         // first derivative at the midpoint parameter; the normal is the
         // 90° rotation of the planar tangent.
-        private XYZ ComputeInwardFromCurve(Curve curve, Room room)
+        private XYZ ComputeInwardFromCurve(Curve curve, SpatialElement room)
         {
             try
             {
@@ -1218,7 +1292,7 @@ namespace StingTools.Core.Placement
             catch { return XYZ.BasisY; }
         }
 
-        private void Fallback(Room room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
+        private void Fallback(SpatialElement room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
             {
@@ -1231,7 +1305,7 @@ namespace StingTools.Core.Placement
 
         // ── PC-09 — additional anchor types ──────────────────────────
 
-        private void EmitOppositeWallAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitOppositeWallAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Find the longest boundary edge on the wall opposite the first door.
@@ -1256,7 +1330,7 @@ namespace StingTools.Core.Placement
             points.Add(new XYZ(midOpp.X + inward.X * offsetXFt, midOpp.Y + inward.Y * offsetXFt, anchorZ));
         }
 
-        private void EmitGridIntersectionAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitGridIntersectionAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1309,7 +1383,7 @@ namespace StingTools.Core.Placement
             catch { return null; }
         }
 
-        private void EmitColumnFaceAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitColumnFaceAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1338,7 +1412,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"ColumnFaceAnchor: {ex.Message}"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); }
         }
 
-        private void EmitPerimeterAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitPerimeterAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Sample every PerLinearMetre or every 1.5m along all boundary lines.
@@ -1366,7 +1440,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitFloorTileAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitFloorTileAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points, double tileMm = 600.0)
         {
             var bb = room.get_BoundingBox(null);
@@ -1378,7 +1452,7 @@ namespace StingTools.Core.Placement
             points.Add(new XYZ(gx + offsetXFt, gy + offsetYFt, anchorZ));
         }
 
-        private void EmitStairNosingAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitStairNosingAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1416,7 +1490,7 @@ namespace StingTools.Core.Placement
         /// Empty / 0 means "no filter" — preserves legacy behaviour for
         /// rules that don't set the new fields.
         /// </summary>
-        private bool RoomMatchesScope(Room room, PlacementRule rule)
+        private bool RoomMatchesScope(SpatialElement room, PlacementRule rule)
         {
             if (room == null || rule == null) return false;
 

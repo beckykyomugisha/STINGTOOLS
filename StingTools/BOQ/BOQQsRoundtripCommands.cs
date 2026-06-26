@@ -104,19 +104,13 @@ namespace StingTools.BOQ
                 }
 
                 StingLog.Info($"QS Bill exported ({(priced ? "priced" : "unpriced")}): {path}");
-                var done = new TaskDialog("QS Bill export")
-                {
-                    MainInstruction = "QS Bill exported",
-                    MainContent = $"{(priced ? "Priced" : "Unpriced")} bill written to:\n{path}\n\n"
-                        + "Send to the QS to price; re-import the returned workbook via 'Import QS Bill'.",
-                    CommonButtons = TaskDialogCommonButtons.Ok
-                };
-                done.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open containing folder");
-                if (done.Show() == TaskDialogResult.CommandLink1)
-                {
-                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); }
-                    catch (Exception ex) { StingLog.Warn($"open folder: {ex.Message}"); }
-                }
+                UI.StingResultPanel.Create("QS Bill exported")
+                    .SetSubtitle($"{(priced ? "Priced" : "Unpriced")} bill written")
+                    .SetCsvPath(path)
+                    .AddSection("EXPORT")
+                    .Text($"Path: {path}")
+                    .Text("Send to the QS to price; re-import the returned workbook via 'Import QS Bill'.")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("BOQQsExportCommand", ex); message = ex.Message; return Result.Failed; }
@@ -294,7 +288,10 @@ namespace StingTools.BOQ
                         ?? wb.Worksheets.FirstOrDefault();
                     if (ws == null)
                     {
-                        TaskDialog.Show("STING BOQ", "No worksheet found in the selected workbook.");
+                        UI.StingResultPanel.Create("Import QS Bill")
+                            .AddSection("INVALID WORKBOOK")
+                            .Text("No worksheet found in the selected workbook.")
+                            .Show();
                         return Result.Failed;
                     }
 
@@ -324,9 +321,11 @@ namespace StingTools.BOQ
                     }
                     if (hr == 0)
                     {
-                        TaskDialog.Show("STING BOQ",
-                            "This workbook is not a STING QS Bill (missing 'Ref' + '_key' header). "
-                            + "Export one via 'Export QS Bill' first.");
+                        UI.StingResultPanel.Create("Import QS Bill")
+                            .AddSection("NOT A QS BILL")
+                            .Text("This workbook is not a STING QS Bill (missing 'Ref' + '_key' header). "
+                                + "Export one via 'Export QS Bill' first.")
+                            .Show();
                         return Result.Failed;
                     }
 
@@ -396,8 +395,10 @@ namespace StingTools.BOQ
 
                 if (diffs.Count == 0)
                 {
-                    TaskDialog.Show("STING BOQ — QS Import",
-                        "No changes detected — the imported rates/quantities match the current bill.");
+                    UI.StingResultPanel.Create("QS Import")
+                        .AddSection("NO CHANGES")
+                        .Text("No changes detected — the imported rates/quantities match the current bill.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
@@ -499,15 +500,17 @@ namespace StingTools.BOQ
                 // Pick up the new rate card + overrides on the next build.
                 Rates.RateProviderRegistry.Invalidate();
 
-                TaskDialog.Show("STING BOQ — QS Import",
-                    $"Applied:\n"
-                    + $"  • {appliedModel} model-row rate override(s) (RateSource=QS)\n"
-                    + $"  • {appliedManual} manual/PS/daywork rate update(s)\n"
-                    + $"  • {added} QS-added row(s) → manual store\n"
-                    + $"  • {flaggedQty} model-quantity drift(s) flagged for review (model qty preserved)\n"
-                    + (rateCardByCategory.Count > 0
-                        ? $"  • {rateCardByCategory.Count} category rate(s) seeded into rate_card.json\n" : "")
-                    + "\nRefresh the BOQ panel to see the updated bill.");
+                var rp = UI.StingResultPanel.Create("QS Import")
+                    .SetSubtitle("Applied")
+                    .AddSection("APPLIED")
+                    .Metric("Model-row rate overrides", appliedModel.ToString(), "RateSource=QS")
+                    .Metric("Manual/PS/daywork rate updates", appliedManual.ToString())
+                    .Metric("QS-added rows → manual store", added.ToString())
+                    .Metric("Model-quantity drifts flagged", flaggedQty.ToString(), "model qty preserved");
+                if (rateCardByCategory.Count > 0)
+                    rp.Metric("Category rates seeded", rateCardByCategory.Count.ToString(), "rate_card.json");
+                rp.Text("Refresh the BOQ panel to see the updated bill.");
+                rp.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("BOQQsImportCommand", ex); message = ex.Message; return Result.Failed; }
