@@ -197,21 +197,27 @@ namespace StingTools.UI.Sustainability
                         ? "• " + string.Join("\n• ", notes)
                         : "All gates computed from model data.";
 
+                    // Active display units (SI default / IP when the setup selects it).
+                    var u = res.Setup?.Units ?? SustainUnits.SI;
+                    try { if (EnergyGrid.Columns.Count > 1) EnergyGrid.Columns[1].Header = SustainUnitConverter.EnergyAbsUnit(u); } catch { }
+
                     EnergyRows.Clear();
                     var e = res.Energy?.Design;
                     if (e != null)
                     {
-                        AddEnergy("Cooling", e.CoolingKwh);
-                        AddEnergy("Heating", e.HeatingKwh);
-                        AddEnergy("Fans/pumps", e.FansKwh);
-                        AddEnergy("Lighting", e.LightingKwh);
-                        AddEnergy("Equipment", e.EquipmentKwh);
-                        AddEnergy("DHW", e.DhwKwh);
-                        AddEnergy("TOTAL", e.TotalKwh);
+                        AddEnergy("Cooling", SustainUnitConverter.EnergyAbs(e.CoolingKwh, u));
+                        AddEnergy("Heating", SustainUnitConverter.EnergyAbs(e.HeatingKwh, u));
+                        AddEnergy("Fans/pumps", SustainUnitConverter.EnergyAbs(e.FansKwh, u));
+                        AddEnergy("Lighting", SustainUnitConverter.EnergyAbs(e.LightingKwh, u));
+                        AddEnergy("Equipment", SustainUnitConverter.EnergyAbs(e.EquipmentKwh, u));
+                        AddEnergy("DHW", SustainUnitConverter.EnergyAbs(e.DhwKwh, u));
+                        AddEnergy("TOTAL", SustainUnitConverter.EnergyAbs(e.TotalKwh, u));
                     }
 
-                    txtCarbonIntensity.Text = $"Embodied carbon: {res.Materials?.CarbonIntensityKgM2:F1} kgCO2e/m² (A1-A3 GWP, EN 15978)";
-                    txtEnergyIntensity.Text = $"Embodied energy: {res.Materials?.EnergyIntensityMjM2:F0} MJ/m² (CED — EDGE materials track, indicative)";
+                    double carbonI = SustainUnitConverter.CarbonIntensity(res.Materials?.CarbonIntensityKgM2 ?? 0, u);
+                    double energyI = SustainUnitConverter.EnergyIntensityMj(res.Materials?.EnergyIntensityMjM2 ?? 0, u);
+                    txtCarbonIntensity.Text = $"Embodied carbon: {carbonI:F1} {SustainUnitConverter.CarbonIntensityUnit(u)} (A1-A3 GWP, EN 15978)";
+                    txtEnergyIntensity.Text = $"Embodied energy: {energyI:F0} {SustainUnitConverter.EnergyIntensityUnit(u)} (CED — EDGE materials track, indicative)";
                     if (res.Materials != null)
                     {
                         bool matOk = res.Materials.Computed;
