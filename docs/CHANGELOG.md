@@ -3,6 +3,37 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P1.1: SourceModel as a first-class column)
+
+Provenance (host vs linked model) was only carried on the `[Linked: …]` Note
+string. The `BOQLineItem.SourceModel` field already existed — now surfaced as a
+real column so a QS can sort/filter host-vs-link without parsing text. The
+`[Linked: …]` Note tag is kept (other tooling may read it). Compile-verified
+headless (Nice3point): 0 errors.
+
+- **Grid** (`BOQCostManagerPanel.cs`) — new `BOQItemViewModel.ModelDisplay`
+  (`SourceModel` or "Host" when blank) + a toggleable **Model** DataGrid column
+  beside Src. Added "Model" to `BoqPrintProfileRegistry.ToggleableColumns` so it
+  appears in the ▦ Columns dropdown (visible by default, like Level/Location).
+  Print profiles that don't list "Model" hide it when applied — expected
+  profile-column behaviour, non-breaking until a profile is edited.
+- **Standard export** (`BOQExportCommand.cs`) — "Source Model" column added after
+  Note on both the main BOQ sheet (now col 14, Ifc GlobalId → 15) and the Item
+  Schedule sheet (col 15, trailing columns shifted). Safe for the INT-2
+  round-trip importer: `ImportBoqRatesCommand` resolves every column by header
+  name (`colIdx`), not fixed index, and scans cols 1–24.
+- **Professional export** (`BOQProfessionalExportCommand.cs`) — "Source Model"
+  column added before Ifc GlobalId on the Schedule of Sizes (takeoff/audit) sheet;
+  banner merge + widths extended to match.
+- Host rows render/write **"Host"**; linked rows the link Title.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager with ≥1 linked model
+included (⛓ Links). (1) Grid shows a **Model** column — host rows "Host", linked
+rows the link Title; toggle it off/on via ▦ Columns. (2) Export ↗ (standard) →
+both the BOQ and Item Schedule sheets carry a "Source Model" column; re-import the
+edited Item Schedule and confirm rates still apply (header-name join intact).
+(3) Run the professional export → Schedule of Sizes sheet carries "Source Model".
+
 #### Completed (BOQ 5D — P0: harden the inline message pump)
 
 Correctness/safety hardening of the BOQ Cost Manager inline pickers + results

@@ -1488,6 +1488,12 @@ namespace StingTools.UI
                 Header = "Src", Binding = new Binding(nameof(BOQItemViewModel.SourceLabel)),
                 Width = new DataGridLength(48), IsReadOnly = true
             });
+            // P1.1 — host vs linked-model provenance ("Host" / link Title).
+            AddIfVisible("Model", new DataGridTextColumn
+            {
+                Header = "Model", Binding = new Binding(nameof(BOQItemViewModel.ModelDisplay)),
+                Width = new DataGridLength(120), IsReadOnly = true
+            });
             AddIfVisible("Confidence", BuildConfidenceColumn());
             AddIfVisible("Carbon", new DataGridTextColumn
             {
@@ -2690,6 +2696,12 @@ namespace StingTools.UI
         // P2.1 — spatial columns.
         public string LevelDisplay => _item.Level ?? "";
         public string LocationDisplay => _item.Location ?? "";
+
+        // P1.1 — provenance as a first-class column. SourceModel is "" / null for
+        // host elements and the linked model's Title for linked rows; surface it as
+        // "Host" so a QS can sort/filter host-vs-link without parsing the Note text.
+        public string ModelDisplay
+            => string.IsNullOrWhiteSpace(_item.SourceModel) ? "Host" : _item.SourceModel;
 
         public string LineRef => _item.BOQLineRef ?? "";
 
