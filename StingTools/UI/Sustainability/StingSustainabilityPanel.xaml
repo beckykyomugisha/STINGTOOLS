@@ -1,0 +1,286 @@
+<Page x:Class="StingTools.UI.Sustainability.StingSustainabilityPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="STING Sustainability"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StingTools;component/UI/Resources/StingButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="SusSectionHeader" TargetType="TextBlock" BasedOn="{StaticResource StingSectionHeader}">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Margin" Value="0,4,0,2"/>
+            </Style>
+            <Style x:Key="SusLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="Margin" Value="0,2,4,2"/>
+                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="SusActionBtn" TargetType="Button" BasedOn="{StaticResource StingButton}">
+                <Setter Property="MinWidth" Value="64"/>
+                <Setter Property="Height" Value="24"/>
+            </Style>
+            <Style x:Key="SusPrimaryBtn" TargetType="Button" BasedOn="{StaticResource StingPrimaryButton}">
+                <Setter Property="MinWidth" Value="100"/>
+                <Setter Property="Height" Value="26"/>
+            </Style>
+            <Style x:Key="SusGrid" TargetType="DataGrid">
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="RowHeight" Value="20"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="AlternatingRowBackground" Value="{DynamicResource SecondaryBg}"/>
+            </Style>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title strip -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="♻ STING SUSTAINABILITY" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource HeaderFg}"/>
+                <TextBlock x:Name="txtSusStatus" Text="Ready" FontSize="9" Margin="14,0,0,0"
+                           Foreground="{DynamicResource HeaderFg}" Opacity="0.7"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" x:Name="tabSus" Background="{DynamicResource PrimaryBg}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="6,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ============== TAB 0: SETUP (the options surface, §2.5) ============== -->
+            <TabItem Header="SETUP">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="CERTIFICATION" Style="{StaticResource SusSectionHeader}"/>
+                        <Grid Margin="2,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Schemes" Style="{StaticResource SusLabel}"/>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                                <CheckBox x:Name="chkSchemeEdge" Content="EDGE" IsChecked="True" Margin="0,2,10,2" FontSize="10"/>
+                                <CheckBox x:Name="chkSchemeLeed" Content="LEED v5" Margin="0,2" FontSize="10"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="EDGE target level" Style="{StaticResource SusLabel}"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbEdgeLevel" Margin="0,2" FontSize="10">
+                                <ComboBoxItem Content="Certified (20/20/20)" Tag="Certified"/>
+                                <ComboBoxItem Content="Advanced (40/20/20)" Tag="Advanced" IsSelected="True"/>
+                                <ComboBoxItem Content="Zero Carbon" Tag="ZeroCarbon"/>
+                            </ComboBox>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Units" Style="{StaticResource SusLabel}"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbUnits" Margin="0,2" FontSize="10">
+                                <ComboBoxItem Content="SI (kWh/m², L)" Tag="SI" IsSelected="True"/>
+                                <ComboBoxItem Content="IP (kBtu/ft², gal)" Tag="IP"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <TextBlock Text="LOCATION &amp; USE" Style="{StaticResource SusSectionHeader}"/>
+                        <Grid Margin="2,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Country" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCountry" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Climate site id" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtClimateSite" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Climate zone (ASHRAE 169)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtClimateZone" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Building use (dominant)" Style="{StaticResource SusLabel}"/>
+                            <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbBuildingUse" Margin="0,2" FontSize="10">
+                                <ComboBoxItem Content="office" IsSelected="True"/>
+                                <ComboBoxItem Content="residential"/>
+                                <ComboBoxItem Content="healthcare"/>
+                                <ComboBoxItem Content="retail"/>
+                                <ComboBoxItem Content="hotel"/>
+                            </ComboBox>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Occupancy (total)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtOccupancy" Margin="0,2" FontSize="10"/>
+                        </Grid>
+
+                        <TextBlock Text="PLANT &amp; SUPPLY" Style="{StaticResource SusSectionHeader}"/>
+                        <Grid Margin="2,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Cooling COP/SEER" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtCop" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Supply mode" Style="{StaticResource SusLabel}"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbSupplyMode" Margin="0,2" FontSize="10">
+                                <ComboBoxItem Content="grid_tied" IsSelected="True"/>
+                                <ComboBoxItem Content="off_grid"/>
+                                <ComboBoxItem Content="hybrid"/>
+                            </ComboBox>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="PV (kWp)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtPvKwp" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="PV performance ratio" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtPvPr" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Grid carbon kgCO2e/kWh" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="4" Grid.Column="1" x:Name="txtGridCarbon" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Diesel carbon kgCO2e/kWh" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="5" Grid.Column="1" x:Name="txtDieselCarbon" Margin="0,2" FontSize="10"/>
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Diesel fraction (0-1)" Style="{StaticResource SusLabel}"/>
+                            <TextBox   Grid.Row="6" Grid.Column="1" x:Name="txtDieselFrac" Margin="0,2" FontSize="10"/>
+                        </Grid>
+
+                        <WrapPanel Margin="2,8">
+                            <Button Content="Save setup" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_ProjectSetup" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="Save supply" Style="{StaticResource SusActionBtn}" Tag="Sustain_SupplyConfig" Click="Cmd_Click" Margin="2"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 1: DASHBOARD (3 gate tiles + proxy log) ============== -->
+            <TabItem Header="DASHBOARD">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <WrapPanel Margin="2,4">
+                            <Button Content="Run dashboard" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_Dashboard" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="Set baseline" Style="{StaticResource SusActionBtn}" Tag="Sustain_SetBaseline" Click="Cmd_Click" Margin="2"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="EDGE GATES (STING-indicative vs EDGE-official)" Style="{StaticResource SusSectionHeader}"/>
+                        <Border Background="{DynamicResource SecondaryBg}" Padding="6" Margin="2,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/><ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Gate" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="STING indicative" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="EDGE official" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="Status" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Energy" Style="{StaticResource SusLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtEnergyIndic" Text="—" Style="{StaticResource SusLabel}"/>
+                                <TextBox   Grid.Row="1" Grid.Column="2" x:Name="txtEnergyOfficial" FontSize="10" Margin="0,1"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="txtEnergyStatus" Text="—" Style="{StaticResource SusLabel}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Water" Style="{StaticResource SusLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtWaterIndic" Text="—" Style="{StaticResource SusLabel}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="2" x:Name="txtWaterOfficial" FontSize="10" Margin="0,1"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" x:Name="txtWaterStatus" Text="—" Style="{StaticResource SusLabel}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Materials" Style="{StaticResource SusLabel}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtMatIndic" Text="—" Style="{StaticResource SusLabel}"/>
+                                <TextBox   Grid.Row="3" Grid.Column="2" x:Name="txtMatOfficial" FontSize="10" Margin="0,1"/>
+                                <TextBlock Grid.Row="3" Grid.Column="3" x:Name="txtMatStatus" Text="—" Style="{StaticResource SusLabel}"/>
+                            </Grid>
+                        </Border>
+                        <TextBlock x:Name="txtEdgeOverall" Text="EDGE level: —" FontWeight="Bold" FontSize="11" Margin="2,4" Foreground="{DynamicResource PanelFg}"/>
+
+                        <TextBlock Text="BASELINE RESOLUTION (proxy log)" Style="{StaticResource SusSectionHeader}"/>
+                        <TextBlock x:Name="txtProxyLog" Text="(run the dashboard)" TextWrapping="Wrap" FontSize="10"
+                                   Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
+
+                        <TextBlock Text="ENERGY BY END-USE" Style="{StaticResource SusSectionHeader}"/>
+                        <DataGrid x:Name="EnergyGrid" Style="{StaticResource SusGrid}" Height="120" Margin="2,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="End use" Binding="{Binding EndUse}" Width="*"/>
+                                <DataGridTextColumn Header="kWh/yr" Binding="{Binding Kwh}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 2: MATERIALS (dual metric + hotspots) ============== -->
+            <TabItem Header="MATERIALS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="DUAL METRIC" Style="{StaticResource SusSectionHeader}"/>
+                        <TextBlock x:Name="txtCarbonIntensity" Text="Embodied carbon: —" FontSize="11" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
+                        <TextBlock x:Name="txtEnergyIntensity" Text="Embodied energy: —" FontSize="11" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
+                        <TextBlock Text="THREE CARBON HOTSPOTS (A1-A3 GWP)" Style="{StaticResource SusSectionHeader}"/>
+                        <DataGrid x:Name="HotspotGrid" Style="{StaticResource SusGrid}" Height="100" Margin="2,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Material" Binding="{Binding Material}" Width="*"/>
+                                <DataGridTextColumn Header="kgCO2e" Binding="{Binding CarbonKg}" Width="90"/>
+                                <DataGridTextColumn Header="%" Binding="{Binding Share}" Width="60"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <WrapPanel Margin="2,8">
+                            <Button Content="EDGE export" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_EdgeExport" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="EPD assign (P2)" Style="{StaticResource SusActionBtn}" Tag="Sustain_EpdAssign" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="LEED scorecard (P2)" Style="{StaticResource SusActionBtn}" Tag="Sustain_LeedScorecard" Click="Cmd_Click" Margin="2"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============== TAB 3: COST / LCC ============== -->
+            <TabItem Header="COST">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+                        <TextBlock Text="LIFE-CYCLE COST BENEFIT" Style="{StaticResource SusSectionHeader}"/>
+                        <TextBlock Text="Per-measure capex + lifetime operational saving, feeding the BOQ Cost Manager / Design Development Cost Estimate."
+                                   TextWrapping="Wrap" FontSize="10" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
+                        <WrapPanel Margin="2,8">
+                            <Button Content="LCC benefit" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_LccBenefit" Click="Cmd_Click" Margin="2"/>
+                        </WrapPanel>
+                        <DataGrid x:Name="LccGrid" Style="{StaticResource SusGrid}" Height="200" Margin="2,2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Measure" Binding="{Binding Measure}" Width="*"/>
+                                <DataGridTextColumn Header="Gate" Binding="{Binding Gate}" Width="70"/>
+                                <DataGridTextColumn Header="Capex" Binding="{Binding Capex}" Width="80"/>
+                                <DataGridTextColumn Header="Net benefit" Binding="{Binding NetBenefit}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBg}" Padding="8,3">
+            <TextBlock x:Name="txtSusFooter" Text="STING figures are INDICATIVE — the EDGE app owns the certified number."
+                       FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.75"/>
+        </Border>
+    </Grid>
+</Page>
