@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P2.2 inline editable forms)
+
+Branch `claude/placement-centre-review-audit`. Adds a reusable inline form
+host to the Actions pane (`UI/BOQCostManagerPanel.cs`) and converts the two
+most input-heavy actions from picker-chains / popups to a single editable
+form. Compile-verified clean (Release, `-t:Rebuild`, 0 errors). No popups.
+
+- **`ShowInlineForm`** — renders a titled form (labelled rows of TextBox /
+  numeric / ComboBox / CheckBox) + a Run button into `_actionReportHost`
+  (switches to the Actions tab so it's visible from any surface). On Run the
+  field values are passed to a callback that sets the command's ExtraParams,
+  then dispatches inline via the new shared `DispatchInline` (extracted from
+  `RunActionInline`). `TryShowInlineFormFor(label, tag)` routes converted tags
+  to a form; all other actions dispatch directly as before.
+- **Set % Complete** (`PaymentCert_SetProgress`) — one form (Section combo +
+  % numeric) replaces the two-step section→percent picker chain. The command
+  reads `PmtSection` / `PmtPercent` ExtraParams and skips its pickers when
+  present, falling back to the pickers for ribbon / other-surface callers.
+- **Set Budget** (`BOQSetBudget`) — the budget-strip popup
+  (`ShowBudgetDialog`) now renders a one-field inline form; the command
+  already consumed the `ProjectBudgetUgx` ExtraParam.
+- EVM actuals are already an inline editable field on the new Schedule tab
+  (P2.1 ACWP box), so no separate form was added there.
+
+**Revit smoke test** (human): Actions tab → "Set % Complete" shows a Section
+combo + % field (not two pickers), Run applies and reports inline; budget-strip
+budget button shows a one-field form in the Actions pane; dispatching
+`PaymentCert_SetProgress` from the ribbon still shows its pickers (fallback
+intact).
+
 #### Completed (BOQ 5D — P2.1 Schedule / 4D + EVM tab)
 
 Branch `claude/placement-centre-review-audit`. Adds a **Schedule** tab to the

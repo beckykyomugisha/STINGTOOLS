@@ -1194,6 +1194,29 @@ namespace StingTools.UI
         {
             try
             {
+                HighlightActionButton(btn);
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                // P2.2 — input-heavy actions render a single inline editable form
+                // first; on Run the form sets the command's ExtraParams and then
+                // dispatches. Actions without a form dispatch directly (the
+                // command's own inline pickers / result still render in the pane).
+                if (TryShowInlineFormFor(label, tag)) return;
+
+                DispatchInline(label, tag);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RunActionInline", ex); }
+        }
+
+        /// <summary>
+        /// Set up the inline pickers/result sinks and dispatch a command into the
+        /// Actions report pane (no popup). Shared by the direct-dispatch path and
+        /// the inline-form Run path. Caller has already set the report title.
+        /// </summary>
+        private void DispatchInline(string label, string tag)
+        {
+            try
+            {
                 // P0.2 — defensively clear any stale inline registration left over by
                 // a prior aborted run (command that threw before the dispatcher's
                 // finally cleared the statics) so we never inherit a foreign sink.
@@ -1202,8 +1225,6 @@ namespace StingTools.UI
                 StingTools.Select.StingListPicker.InlineTitleSink = null;
                 StingResultPanel.InlineSink = null;
 
-                HighlightActionButton(btn);
-                if (_actionReportTitle != null) _actionReportTitle.Text = label;
                 if (_actionReportHost != null)
                     _actionReportHost.Child = new TextBlock
                     {
@@ -1231,7 +1252,159 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("InlineHost", "1");
                 DispatchAction(tag);
             }
-            catch (Exception ex) { StingLog.Error("BOQ RunActionInline", ex); }
+            catch (Exception ex) { StingLog.Error("BOQ DispatchInline", ex); }
+        }
+
+        // ── P2.2 — reusable inline editable form host ───────────────────────
+
+        private enum BoqFormKind { Text, Number, Combo, Check }
+
+        private class BoqFormField
+        {
+            public string Key;
+            public string Label;
+            public BoqFormKind Kind = BoqFormKind.Text;
+            public string Default = "";
+            public List<(string display, string value)> Options;  // Combo only
+            public System.Windows.Controls.Control Control;   // runtime — set by ShowInlineForm
+        }
+
+        /// <summary>
+        /// P2.2 — render a titled editable form (labelled rows of TextBox /
+        /// numeric / ComboBox / CheckBox) + a Run button into the Actions report
+        /// pane. On Run the field values are passed to <paramref name="applyExtraParams"/>
+        /// (which sets the command's ExtraParams), then the command is dispatched
+        /// inline. No popup. Switches to the Actions tab so the form is visible
+        /// even when invoked from another surface (e.g. the budget strip).
+        /// </summary>
+        private void ShowInlineForm(string label, string tag, List<BoqFormField> fields,
+            Action<Func<string, string>> applyExtraParams)
+        {
+            if (_actionReportHost == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = label, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = NavyBrush,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                for (int i = 0; i < fields.Count; i++)
+                {
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var f = fields[i];
+                    var lbl = new TextBlock { Text = f.Label, FontSize = 11, Foreground = NavyBrush,
+                        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) };
+                    Grid.SetRow(lbl, i); Grid.SetColumn(lbl, 0); grid.Children.Add(lbl);
+
+                    System.Windows.Controls.Control ctl;
+                    switch (f.Kind)
+                    {
+                        case BoqFormKind.Check:
+                            ctl = new CheckBox { IsChecked = f.Default == "1" || f.Default == "true",
+                                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 4) };
+                            break;
+                        case BoqFormKind.Combo:
+                            var cb = new System.Windows.Controls.ComboBox { Height = 26, FontSize = 11, Margin = new Thickness(0, 4, 0, 4) };
+                            foreach (var (display, value) in f.Options ?? new List<(string, string)>())
+                                cb.Items.Add(new ComboBoxItem { Content = display, Tag = value });
+                            cb.SelectedIndex = 0;
+                            ctl = cb;
+                            break;
+                        default:
+                            ctl = new TextBox { Text = f.Default ?? "", Height = 26, FontSize = 11,
+                                Margin = new Thickness(0, 4, 0, 4) };
+                            break;
+                    }
+                    f.Control = ctl;
+                    Grid.SetRow(ctl, i); Grid.SetColumn(ctl, 1); grid.Children.Add(ctl);
+                }
+                sp.Children.Add(grid);
+
+                var runBtn = new Button
+                {
+                    Content = "Run", FontSize = 12, FontWeight = FontWeights.Bold, Height = 30, MinWidth = 100,
+                    Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
+                    Background = GreenBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand
+                };
+                runBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        Func<string, string> get = key =>
+                        {
+                            var f = fields.FirstOrDefault(x => x.Key == key);
+                            if (f?.Control == null) return "";
+                            switch (f.Kind)
+                            {
+                                case BoqFormKind.Check: return (f.Control as CheckBox)?.IsChecked == true ? "1" : "0";
+                                case BoqFormKind.Combo: return ((f.Control as System.Windows.Controls.ComboBox)?.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                                default: return (f.Control as TextBox)?.Text ?? "";
+                            }
+                        };
+                        applyExtraParams(get);
+                        DispatchInline(label, tag);
+                    }
+                    catch (Exception ex) { StingLog.Error($"BOQ inline form Run '{label}'", ex); }
+                };
+                sp.Children.Add(runBtn);
+
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Error($"BOQ ShowInlineForm '{label}'", ex); }
+        }
+
+        /// <summary>
+        /// P2.2 — render an inline form for the input-heavy actions that were
+        /// converted from picker chains / dialogs. Returns true when a form was
+        /// shown (caller must not also dispatch); false to dispatch directly.
+        /// </summary>
+        private bool TryShowInlineFormFor(string label, string tag)
+        {
+            switch (tag)
+            {
+                case "PaymentCert_SetProgress":
+                {
+                    var secOpts = new List<(string, string)> { ("ALL sections", "ALL") };
+                    if (_boq != null)
+                        foreach (var s in _boq.Sections)
+                            secOpts.Add((string.IsNullOrEmpty(s.NRM2Section) ? s.Name : $"§{s.NRM2Section}  {s.Name}",
+                                         string.IsNullOrEmpty(s.NRM2Section) ? s.Name : s.NRM2Section));
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "PmtSection", Label = "Section", Kind = BoqFormKind.Combo, Options = secOpts },
+                        new BoqFormField { Key = "PmtPercent", Label = "% complete", Kind = BoqFormKind.Number, Default = "0" },
+                    }, get =>
+                    {
+                        StingCommandHandler.SetExtraParam("PmtSection", get("PmtSection"));
+                        StingCommandHandler.SetExtraParam("PmtPercent", get("PmtPercent"));
+                    });
+                    return true;
+                }
+                case "BOQSetBudget":
+                {
+                    string current = _boq?.ProjectBudgetUGX.ToString("F0", CultureInfo.InvariantCulture) ?? "0";
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "ProjectBudgetUgx", Label = "Project budget (UGX)", Kind = BoqFormKind.Number, Default = current },
+                    }, get =>
+                    {
+                        string raw = get("ProjectBudgetUgx");
+                        if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double bud))
+                            StingCommandHandler.SetExtraParam("ProjectBudgetUgx", bud.ToString("F0", CultureInfo.InvariantCulture));
+                    });
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void HighlightActionButton(Button btn)
@@ -2415,15 +2588,9 @@ namespace StingTools.UI
 
         private void ShowBudgetDialog()
         {
-            string current = _boq?.ProjectBudgetUGX.ToString("F0", CultureInfo.InvariantCulture) ?? "0";
-            string input = PromptString("Project budget (UGX):", current);
-            if (string.IsNullOrWhiteSpace(input)) return;
-            if (!double.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out double budget))
-            {
-                MessageBox.Show("Enter a numeric budget in UGX.", "BOQ"); return;
-            }
-            StingCommandHandler.SetExtraParam("ProjectBudgetUgx", budget.ToString("F0", CultureInfo.InvariantCulture));
-            DispatchAction("BOQSetBudget");
+            // P2.2 — inline editable form in the Actions pane (no popup). The
+            // BOQSetBudget command already reads the ProjectBudgetUgx ExtraParam.
+            TryShowInlineFormFor("Set project budget", "BOQSetBudget");
         }
 
         private void AddManualRow()

@@ -57,24 +57,48 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Pick section(s).
-                var secItems = boq.Sections.Select(s => new StingListPicker.ListItem
+                // P2.2 — inline-form gate. When the BOQ panel supplied PmtSection +
+                // PmtPercent ExtraParams, skip the picker chain and apply directly.
+                // Falls back to the pickers (below) when absent so ribbon / other
+                // callers keep working.
+                string fSection = StingCommandHandler.GetExtraParam("PmtSection");
+                string fPercent = StingCommandHandler.GetExtraParam("PmtPercent");
+                List<StingListPicker.ListItem> pickedSecs;
+                double pct;
+                if (!string.IsNullOrEmpty(fSection)
+                    && double.TryParse(fPercent, NumberStyles.Any, CultureInfo.InvariantCulture, out pct))
                 {
-                    Label = string.IsNullOrEmpty(s.NRM2Section) ? s.Name : $"§{s.NRM2Section}  {s.Name}",
-                    Detail = $"{s.Items.Count} items · UGX {s.TotalUGX:N0}",
-                    Tag = s
-                }).ToList();
-                var pickedSecs = StingListPicker.Show("STING — Set % complete",
-                    "Pick the section(s) to update, then a percentage.", secItems, allowMultiSelect: true);
-                if (pickedSecs == null || pickedSecs.Count == 0) return Result.Cancelled;
+                    pct = Math.Max(0, Math.Min(100, pct));
+                    IEnumerable<BOQSection> chosen = string.Equals(fSection, "ALL", StringComparison.OrdinalIgnoreCase)
+                        ? boq.Sections
+                        : boq.Sections.Where(s =>
+                            string.Equals(s.NRM2Section, fSection, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(s.Name, fSection, StringComparison.OrdinalIgnoreCase));
+                    pickedSecs = chosen.Select(s => new StingListPicker.ListItem { Tag = s }).ToList();
+                    if (pickedSecs.Count == 0) return Result.Cancelled;
+                }
+                else
+                {
+                    // Pick section(s).
+                    var secItems = boq.Sections.Select(s => new StingListPicker.ListItem
+                    {
+                        Label = string.IsNullOrEmpty(s.NRM2Section) ? s.Name : $"§{s.NRM2Section}  {s.Name}",
+                        Detail = $"{s.Items.Count} items · UGX {s.TotalUGX:N0}",
+                        Tag = s
+                    }).ToList();
+                    pickedSecs = StingListPicker.Show("STING — Set % complete",
+                        "Pick the section(s) to update, then a percentage.", secItems, allowMultiSelect: true);
+                    if (pickedSecs == null || pickedSecs.Count == 0) return Result.Cancelled;
 
-                // Pick a percentage.
-                var pctItems = new[] { 0, 5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95, 100 }
-                    .Select(p => new StingListPicker.ListItem { Label = $"{p}%", Tag = (double)p }).ToList();
-                var pickedPct = StingListPicker.Show("STING — % complete",
-                    "Percentage complete to apply to the selected section(s).", pctItems, allowMultiSelect: false);
-                if (pickedPct == null || pickedPct.Count == 0 || !(pickedPct[0].Tag is double pct))
-                    return Result.Cancelled;
+                    // Pick a percentage.
+                    var pctItems = new[] { 0, 5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95, 100 }
+                        .Select(p => new StingListPicker.ListItem { Label = $"{p}%", Tag = (double)p }).ToList();
+                    var pickedPct = StingListPicker.Show("STING — % complete",
+                        "Percentage complete to apply to the selected section(s).", pctItems, allowMultiSelect: false);
+                    if (pickedPct == null || pickedPct.Count == 0 || !(pickedPct[0].Tag is double pctPicked))
+                        return Result.Cancelled;
+                    pct = pctPicked;
+                }
 
                 int stamped = 0, missing = 0;
                 using (var t = new Transaction(doc, "STING — set % complete"))
