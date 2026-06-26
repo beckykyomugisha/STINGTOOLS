@@ -31,6 +31,21 @@ namespace StingTools.Core.Sustainability
         public double DieselCarbonKgco2eKwh { get; set; } = 0.8;
         public double DieselFraction { get; set; } = 0.0;
         public double GreywaterReuseFraction { get; set; } = 0.0;
+
+        // ── WS C1 — heating source + fan-energy inputs (default to the legacy
+        //    electric-resistance / 15%-of-cooling behaviour ⇒ no change unless set) ──
+        /// <summary>Seasonal heating efficiency/COP: 1.0 electric resistance, ~0.9 gas
+        /// boiler, 2.5–4 heat-pump. Divides the heating thermal demand.</summary>
+        public double HeatingSeasonalEfficiency { get; set; } = 1.0;
+        /// <summary>True = electric heating (drawn from grid/PV). False = a fuel
+        /// (gas/oil) — its energy is excluded from electricity and its carbon uses
+        /// <see cref="HeatingFuelCarbonKgco2eKwh"/>.</summary>
+        public bool HeatingIsElectric { get; set; } = true;
+        /// <summary>Carbon factor for non-electric heating fuel, kgCO₂e/kWh (gas ≈ 0.21).</summary>
+        public double HeatingFuelCarbonKgco2eKwh { get; set; } = 0.21;
+        /// <summary>Fan/pump energy as a fraction of cooling electricity (CIBSE rule of
+        /// thumb 0.15; lower for high-efficiency / low-SFP systems).</summary>
+        public double FanEnergyFraction { get; set; } = 0.15;
         /// <summary>Energy tariff used for the LCC roll-up (currency-neutral).</summary>
         public double EnergyTariffPerKwh { get; set; } = 0.15;
         public double WaterTariffPerM3 { get; set; } = 1.5;

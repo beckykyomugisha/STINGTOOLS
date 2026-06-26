@@ -25,22 +25,33 @@ namespace StingTools.Core.Sustainability
     public class EnergyByEndUse
     {
         public double CoolingKwh   { get; set; }
+        /// <summary>Electric heating final energy (resistance / heat-pump), kWh.</summary>
         public double HeatingKwh   { get; set; }
+        /// <summary>WS C1 — non-electric heating final energy (gas/oil boiler), kWh.
+        /// Tracked separately so it does NOT draw on PV / grid electricity carbon —
+        /// its carbon uses the heating fuel factor.</summary>
+        public double HeatingFuelKwh { get; set; }
         public double FansKwh      { get; set; }
         public double LightingKwh  { get; set; }
         public double EquipmentKwh { get; set; }
         public double DhwKwh       { get; set; }
 
-        public double TotalKwh => CoolingKwh + HeatingKwh + FansKwh + LightingKwh + EquipmentKwh + DhwKwh;
+        /// <summary>Total final energy across all end-uses (for EUI).</summary>
+        public double TotalKwh => CoolingKwh + HeatingKwh + HeatingFuelKwh + FansKwh + LightingKwh + EquipmentKwh + DhwKwh;
+
+        /// <summary>The ELECTRICITY portion (everything except non-electric heating
+        /// fuel) — what the PV / grid supply layer operates on. WS C1.</summary>
+        public double ElectricityKwh => CoolingKwh + HeatingKwh + FansKwh + LightingKwh + EquipmentKwh + DhwKwh;
 
         public void AddTo(EnergyByEndUse other)
         {
-            other.CoolingKwh   += CoolingKwh;
-            other.HeatingKwh   += HeatingKwh;
-            other.FansKwh      += FansKwh;
-            other.LightingKwh  += LightingKwh;
-            other.EquipmentKwh += EquipmentKwh;
-            other.DhwKwh       += DhwKwh;
+            other.CoolingKwh     += CoolingKwh;
+            other.HeatingKwh     += HeatingKwh;
+            other.HeatingFuelKwh += HeatingFuelKwh;
+            other.FansKwh        += FansKwh;
+            other.LightingKwh    += LightingKwh;
+            other.EquipmentKwh   += EquipmentKwh;
+            other.DhwKwh         += DhwKwh;
         }
     }
 
@@ -100,6 +111,12 @@ namespace StingTools.Core.Sustainability
                 return res;
             }
 
+            // WS C1 — heating source + fan-energy inputs (default = legacy behaviour).
+            double heatEff   = (supply != null && supply.HeatingSeasonalEfficiency > 0) ? supply.HeatingSeasonalEfficiency : 1.0;
+            bool   heatElec  = supply?.HeatingIsElectric ?? true;
+            double fanFrac   = supply != null ? supply.FanEnergyFraction : 0.15;
+            double heatFuelCarbon = supply?.HeatingFuelCarbonKgco2eKwh ?? 0.21;
+
             double totalArea = 0;
             double annualOperatingHours = 0;
 
@@ -115,7 +132,7 @@ namespace StingTools.Core.Sustainability
                 // per-zone override before calling by passing the chosen baselineCoolingCop).
                 double cop = baselineCoolingCop > 0 ? baselineCoolingCop : 3.0;
 
-                var zoneResult = EstimateZone(z, climate, cop, ref annualOperatingHours);
+                var zoneResult = EstimateZone(z, climate, cop, heatEff, heatElec, fanFrac, ref annualOperatingHours);
                 zoneResult.AddTo(res.Design);
             }
 
@@ -131,12 +148,14 @@ namespace StingTools.Core.Sustainability
                 res.BaselineEuiKwhM2Yr = baseline.TotalEuiKwhM2Yr(meanHours);
             res.EnergySavingsPct = SavingsPct(res.BaselineEuiKwhM2Yr, res.DesignEuiKwhM2Yr);
 
-            // Supply layer: demand -> on-site generation -> net import -> carbon.
+            // Supply layer operates on the ELECTRICITY only (PV/grid don't offset a
+            // gas boiler); non-electric heating fuel carbon is added separately. WS C1.
             var supplyResult = SupplyAndGenerationLayer.Apply(
-                res.Design.TotalKwh, climate, supply, pvAnnualGenerationKwh);
+                res.Design.ElectricityKwh, climate, supply, pvAnnualGenerationKwh);
             res.PvGenerationKwh        = supplyResult.PvGenerationKwh;
             res.NetImportKwh           = supplyResult.NetImportKwh;
-            res.OperationalCarbonKgYr  = supplyResult.OperationalCarbonKgYr;
+            res.OperationalCarbonKgYr  = supplyResult.OperationalCarbonKgYr
+                                         + res.Design.HeatingFuelKwh * heatFuelCarbon;
 
             if (res.ZoneCount == 0)
                 res.Warnings.Add("Energy NOT computed — no MEP Spaces and no zone floor area. " +
@@ -152,10 +171,13 @@ namespace StingTools.Core.Sustainability
             return res;
         }
 
-        /// <summary>Monthly quasi-steady balance for one zone. Accumulates the
-        /// area-weighted annual operating hours into <paramref name="annualHoursAccum"/>.</summary>
+        /// <summary>Monthly quasi-steady balance for one zone (EN ISO 13790 §12.2
+        /// gain/loss utilisation). Accumulates the area-weighted annual operating
+        /// hours into <paramref name="annualHoursAccum"/>. WS C1.</summary>
         private static EnergyByEndUse EstimateZone(
-            LoadZone z, ClimateMonthlySite climate, double cop, ref double annualHoursAccum)
+            LoadZone z, ClimateMonthlySite climate, double cop,
+            double heatingSeasonalEfficiency, bool heatingIsElectric, double fanEnergyFraction,
+            ref double annualHoursAccum)
         {
             var e = new EnergyByEndUse();
 
@@ -166,17 +188,32 @@ namespace StingTools.Core.Sustainability
             double oaM3h = z.OaLs * 3.6;   // L/s -> m3/h
             double h = uA + 0.33 * (oaM3h + infilM3h);   // W/K
 
-            // Annual operating hours from the occupancy/equipment schedule —
-            // mean daily "on" fraction x 24 x 365 (used to convert W/m2 densities).
-            double occMeanFrac  = ScheduleMean(z.OccupancySchedule);
+            // WS C1 — EN ISO 13790 numeric utilisation parameter a = a0 + τ/τ0,
+            // a0 = 1, τ0 = 15 h (monthly). τ = C/H, C = internal heat capacity. Use
+            // the envelope's areal heat capacity when present, else the ISO "medium"
+            // class default (165 kJ/m²K). Clamped so a degenerate H/τ can't blow up.
+            double cmKJperM2K = z.Envelope?.Where(s => s.ThermalMassKJperM2K > 0)
+                                  .Select(s => s.ThermalMassKJperM2K).DefaultIfEmpty(0).Max() ?? 0;
+            if (cmKJperM2K <= 0) cmKJperM2K = 165.0;   // ISO 13790 Table 12 medium class
+            double capacityJ = cmKJperM2K * 1000.0 * z.FloorAreaM2;
+            double tauH = h > 1e-6 ? capacityJ / (h * 3600.0) : 1000.0;
+            tauH = Math.Min(1000.0, Math.Max(1.0, tauH));
+            double aParam = 1.0 + tauH / 15.0;
+
+            // Annual operating hours from the occupancy schedule — mean daily "on"
+            // fraction x 8760. WS C1: this ONE basis drives both the baseline EUI
+            // conversion (meanHours) AND the design lighting/equipment electricity, so
+            // the savings % compares like-for-like operating assumptions.
+            double occMeanFrac   = ScheduleMean(z.OccupancySchedule);
             double lightMeanFrac = ScheduleMean(z.LightingSchedule);
             double equipMeanFrac = ScheduleMean(z.EquipmentSchedule);
-            double annualHours = Math.Max(1, occMeanFrac * 24 * 365);
-            annualHoursAccum += annualHours * z.FloorAreaM2;
+            double operatingHours = Math.Max(1, occMeanFrac * 8760.0);
+            annualHoursAccum += operatingHours * z.FloorAreaM2;
 
-            // Per-month cooling/heating thermal demand (kWh).
             double tSetCool = z.CoolingSetpointC;
             double tSetHeat = z.HeatingSetpointC;
+
+            double coolingThermalKwh = 0, heatingThermalKwh = 0;
 
             for (int m = 0; m < 12; m++)
             {
@@ -184,53 +221,69 @@ namespace StingTools.Core.Sustainability
                 double tOut = climate.MeanDbC[m];
 
                 // Internal gains over the month (kWh): occupants + lighting + equipment.
-                double occW   = z.OccupantCount * (z.OccupantSensibleW);
+                double occW   = z.OccupantCount * z.OccupantSensibleW;
                 double lightW = z.LightingWPerM2 * z.FloorAreaM2;
                 double equipW = z.EquipmentWPerM2 * z.FloorAreaM2;
                 double qIntKwh = (occW * occMeanFrac + lightW * lightMeanFrac + equipW * equipMeanFrac)
                                  * hoursInMonth / 1000.0;
 
-                // Solar gain (kWh): project monthly GHI onto glazing area.
-                // GHI is kWh/m2.day; multiply by days; reduce by a 0.5 vertical-
-                // surface factor (rough projection of horizontal irradiance onto
-                // facades — climate registry ships GHI, not per-facade incident).
+                // WS C1 — solar gain projected onto each glazing façade by ORIENTATION
+                // (the OrientationDeg field was previously ignored). Replaces the flat
+                // 0.5 vertical factor with a per-façade vertical transposition of the
+                // monthly horizontal GHI (equator-facing max, north min).
                 double qSolKwh = 0;
                 if (z.Envelope != null)
                     foreach (var seg in z.Envelope.Where(s => s.Kind == SegmentKind.Window))
                         qSolKwh += seg.AreaM2 * seg.SHGC * seg.ShadingFactor
-                                   * climate.GhiKwhM2Day[m] * DaysInMonth[m] * 0.5;
+                                   * climate.GhiKwhM2Day[m] * DaysInMonth[m]
+                                   * VerticalSolarFactor(seg.OrientationDeg);
 
-                // Conduction balance over the month (kWh): H x (tSet - tOut) x hours.
-                // Cooling demand when it's hotter than the cooling setpoint; heating
-                // demand when colder than heating setpoint. The gain-utilisation
-                // factor flips sign automatically via the climate sign (spec §7).
-                double coolHours = hoursInMonth;   // simplification: full-month occupancy-weighted
+                double qGain = qIntKwh + qSolKwh;
 
-                // Cooling thermal demand = internal + solar gains + conduction-in
-                // when tOut > tSetCool, minus utilisation of gains.
-                double qCondCool = h * Math.Max(0, tOut - tSetCool) * coolHours / 1000.0; // kWh
-                double qCondHeat = h * Math.Max(0, tSetHeat - tOut) * coolHours / 1000.0; // kWh
+                // Heating month: transfer loss Q_ht = H(tSetHeat - tOut) when positive.
+                // Gains usefully offset losses by the gain-utilisation factor η_gn.
+                double qHtHeat = h * Math.Max(0, tSetHeat - tOut) * hoursInMonth / 1000.0;
+                if (qHtHeat > 0)
+                {
+                    double etaGn = Utilisation(qGain / qHtHeat, aParam);   // η of gains
+                    heatingThermalKwh += Math.Max(0, qHtHeat - etaGn * qGain);
+                }
 
-                // Gain utilisation: in cooling mode internal+solar gains ADD to the
-                // cooling load; in heating mode they OFFSET the heating load (loss-
-                // utilisation factor ~0.9 to avoid double-counting).
-                double coolingDemandKwh = qCondCool + 0.9 * (qIntKwh + qSolKwh);
-                double heatingDemandKwh = Math.Max(0, qCondHeat - 0.9 * (qIntKwh + qSolKwh));
-
-                // Thermal -> electricity via seasonal COP/SEER (cooling) and an
-                // assumed heating efficiency (electric resistance default 1.0; the
-                // baseline COP applies to cooling only).
-                e.CoolingKwh += coolingDemandKwh / Math.Max(1.5, cop);
-                e.HeatingKwh += heatingDemandKwh / 1.0;
+                // Cooling: signed transfer Q_ht = H(tSetCool - tOut). Positive ⇒ heat
+                // flows OUT (a loss that offsets cooling, utilised by η_ls); negative ⇒
+                // heat flows IN and adds fully to the cooling load.
+                double qHtCool = h * (tSetCool - tOut) * hoursInMonth / 1000.0;
+                if (qGain > 0)
+                {
+                    if (qHtCool > 0)
+                    {
+                        double etaLs = Utilisation(qHtCool / qGain, aParam);   // η of losses
+                        coolingThermalKwh += Math.Max(0, qGain - etaLs * qHtCool);
+                    }
+                    else
+                    {
+                        coolingThermalKwh += qGain - qHtCool;   // gain + conduction-in
+                    }
+                }
             }
 
-            // Fans/pumps: proportional to ventilation, taken as 15% of cooling
-            // electricity (CIBSE rule of thumb for all-air systems).
-            e.FansKwh = 0.15 * e.CoolingKwh;
+            // Cooling electricity via seasonal COP/SEER.
+            e.CoolingKwh = coolingThermalKwh / Math.Max(1.5, cop);
 
-            // Lighting + equipment annual electricity (kWh) — densities x area x hours.
-            e.LightingKwh  = z.LightingWPerM2 * z.FloorAreaM2 * (lightMeanFrac * 24 * 365) / 1000.0;
-            e.EquipmentKwh = z.EquipmentWPerM2 * z.FloorAreaM2 * (equipMeanFrac * 24 * 365) / 1000.0;
+            // Heating final energy via the seasonal heating efficiency/COP. Electric
+            // heating draws on the electricity supply; a fuel (gas/oil) is tracked
+            // separately so PV/grid carbon doesn't apply to it. WS C1.
+            double heatingFinalKwh = heatingThermalKwh / Math.Max(0.3, heatingSeasonalEfficiency);
+            if (heatingIsElectric) e.HeatingKwh = heatingFinalKwh;
+            else                   e.HeatingFuelKwh = heatingFinalKwh;
+
+            // Fans/pumps as a configurable fraction of cooling electricity. WS C1.
+            e.FansKwh = Math.Max(0, fanEnergyFraction) * e.CoolingKwh;
+
+            // Lighting + equipment annual electricity (kWh) — densities x area x the
+            // SAME operating-hours basis the baseline uses (WS C1 consistency).
+            e.LightingKwh  = z.LightingWPerM2 * z.FloorAreaM2 * operatingHours / 1000.0;
+            e.EquipmentKwh = z.EquipmentWPerM2 * z.FloorAreaM2 * operatingHours / 1000.0;
 
             // DHW estimate from occupancy: people x (L/person.day) x 30 K dT x
             // 1.16 Wh/(L.K) -> Wh/day; /1000 -> kWh/day; x 365 -> kWh/yr.
@@ -241,6 +294,30 @@ namespace StingTools.Core.Sustainability
             e.DhwKwh = dhwKwhPerDay * 365.0;
 
             return e;
+        }
+
+        /// <summary>EN ISO 13790 §12.2 gain/loss utilisation factor. <paramref name="gamma"/>
+        /// is the ratio (gains/losses for heating; losses/gains for cooling). Returns
+        /// 1 as γ→0 (all of the smaller term is usefully used), a/(a+1) at γ=1, and
+        /// →0 as γ→∞. WS C1.</summary>
+        public static double Utilisation(double gamma, double a)
+        {
+            if (gamma <= 0) return 1.0;
+            if (Math.Abs(gamma - 1.0) < 1e-9) return a / (a + 1.0);
+            double eta = (1.0 - Math.Pow(gamma, a)) / (1.0 - Math.Pow(gamma, a + 1.0));
+            return Math.Max(0.0, Math.Min(1.0, eta));
+        }
+
+        /// <summary>Indicative monthly transposition of horizontal GHI onto a vertical
+        /// façade, by orientation. ~180° (equator-facing in the N hemisphere) is the
+        /// maximum, north the minimum, east/west between. Replaces the flat 0.5 factor
+        /// so a façade's orientation finally affects its solar gain. A full anisotropic
+        /// transposition (needs site latitude + DNI split) is a documented follow-on.
+        /// WS C1.</summary>
+        public static double VerticalSolarFactor(double orientationDeg)
+        {
+            double rad = (orientationDeg - 180.0) * Math.PI / 180.0;
+            return 0.27 + 0.35 * 0.5 * (1.0 + Math.Cos(rad));   // 0.27 (N) … 0.62 (S)
         }
 
         private static double ScheduleMean(double[] sched)
