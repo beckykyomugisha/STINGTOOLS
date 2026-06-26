@@ -96,6 +96,9 @@ namespace StingTools.BOQ
                         BuildSnapshotDiffSheet(wb.Worksheets.Add("Snapshot Comparison"), diff);
                     }
 
+                    // G9 — DRAFT / CERTIFIED status banner (first sheet).
+                    BoqSignOffStore.StampWorkbook(wb, doc, boq);
+
                     wb.SaveAs(outputPath);
                 }
 
@@ -114,6 +117,7 @@ namespace StingTools.BOQ
                     .Metric("Carbon", $"{boq.TotalCarbonKg:F0} kgCO₂e")
                     .Metric("Paragraph coverage", $"{boq.ParagraphCoveragePct:F0}%")
                     .Metric("Health score", $"{healthScore.OverallScore:F0}/100 ({healthScore.Grade})")
+                    .Metric("Sign-off", BoqSignOffStore.StatusLine(doc, boq))
                     .Show();
 
                 StingLog.Info($"BOQ exported: {Path.GetFileName(outputPath)} ({boq.AllItems.Count} items)");

@@ -179,6 +179,67 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQSignOffCommand (G9) — record a QS sign-off against the current
+    //  snapshot. Reads SignOffBy / SignOffRole / SignOffScope ExtraParams
+    //  (set by the panel's inline form). Clears the DRAFT mark on exports of
+    //  the signed snapshot. Read-only model (writes only the _BIM_COORD JSON).
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQSignOffCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+
+                string by = (StingCommandHandler.GetExtraParam("SignOffBy") ?? "").Trim();
+                string role = (StingCommandHandler.GetExtraParam("SignOffRole") ?? "Quantity Surveyor").Trim();
+                string scope = (StingCommandHandler.GetExtraParam("SignOffScope") ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(by))
+                {
+                    StingResultPanel.Create("QS Sign-off")
+                        .AddSection("NEEDS A NAME")
+                        .Text("Enter the QS name in the form, then Run, to record the sign-off.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                var rec = new BoqSignOff
+                {
+                    SignedBy = by,
+                    Role = string.IsNullOrWhiteSpace(role) ? "Quantity Surveyor" : role,
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Scope = string.IsNullOrWhiteSpace(scope) ? (boq.DocumentTitle ?? "BOQ") : scope,
+                    SnapshotRef = boq.SnapshotLabel ?? "Live"
+                };
+                BoqSignOffStore.Save(doc, rec);
+
+                StingResultPanel.Create("QS Sign-off recorded")
+                    .SetSubtitle($"Snapshot '{rec.SnapshotRef}' certified")
+                    .AddSection("SIGN-OFF")
+                    .Metric("Signed by", rec.SignedBy)
+                    .Metric("Role", rec.Role)
+                    .Metric("Date", rec.Date)
+                    .Metric("Scope", rec.Scope)
+                    .Metric("Snapshot", rec.SnapshotRef)
+                    .AddSection("EFFECT")
+                    .Text("Exports of this snapshot now print as CERTIFIED. Other snapshots (and a changed live model) stay marked DRAFT until signed.")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQSignOffCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQSetBudgetCommand — writes the budget passed via ExtraParam back
     //  onto ProjectInformation AND into project_config.json so the panel
     //  and the Revit DB stay in sync across sessions.

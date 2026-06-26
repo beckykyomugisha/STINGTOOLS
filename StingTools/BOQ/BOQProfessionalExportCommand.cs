@@ -213,6 +213,9 @@ namespace StingTools.BOQ
                         }
                     }
 
+                    // G9 — DRAFT / CERTIFIED status banner (first sheet).
+                    BoqSignOffStore.StampWorkbook(wb, doc, boq);
+
                     wb.SaveAs(outputPath);
                 }
 

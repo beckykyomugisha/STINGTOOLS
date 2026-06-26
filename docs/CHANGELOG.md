@@ -3,6 +3,23 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G9 — QS sign-off + uncertified stamp)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #9 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqSignOff` record +
+`BoqSignOffStore` (`_BIM_COORD/boq_signoff.json`: signedBy / role / date /
+scope / snapshotRef). New `BOQSignOffCommand` (`BOQ_SignOff`, Actions tab
+"QS SIGN-OFF (G9)" group + inline form for name/role/scope) records a sign-off
+against the current snapshot. `BoqSignOffStore.StampWorkbook` adds a first
+**Status** sheet to `BOQExportCommand` + `BOQProfessionalExportCommand`:
+**DRAFT — UNCERTIFIED** until signed, **CERTIFIED by …** for exports of the
+signed snapshot. Export result panel surfaces the sign-off status as a metric.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Export the BOQ → first sheet reads DRAFT —
+UNCERTIFIED; Actions → Record QS Sign-off (enter name) → re-export → first
+sheet reads CERTIFIED by <name>; the export result "Sign-off" metric updates.
+
 #### Completed (BOQ QS gap G1 — rate-gap report)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #1 in

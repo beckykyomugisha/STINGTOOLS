@@ -1060,6 +1060,14 @@ namespace StingTools.UI
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
 
+            sp.Children.Add(BuildActionGroup("QS SIGN-OFF (G9)",
+                "Record a Quantity Surveyor's verification. Until signed, every export is marked DRAFT.",
+                new[]
+                {
+                    ("Record QS Sign-off", "BOQ_SignOff",
+                     "Record the QS name + role against the current snapshot. Clears the DRAFT mark on exports of that signed snapshot.", false),
+                }));
+
             var leftRail = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -1434,6 +1442,21 @@ namespace StingTools.UI
                     {
                         StingCommandHandler.SetExtraParam("PmtSection", get("PmtSection"));
                         StingCommandHandler.SetExtraParam("PmtPercent", get("PmtPercent"));
+                    });
+                    return true;
+                }
+                case "BOQ_SignOff":
+                {
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "SignOffBy", Label = "QS name", Kind = BoqFormKind.Text },
+                        new BoqFormField { Key = "SignOffRole", Label = "Role", Kind = BoqFormKind.Text, Default = "Quantity Surveyor" },
+                        new BoqFormField { Key = "SignOffScope", Label = "Scope (optional)", Kind = BoqFormKind.Text },
+                    }, get =>
+                    {
+                        StingCommandHandler.SetExtraParam("SignOffBy", get("SignOffBy"));
+                        StingCommandHandler.SetExtraParam("SignOffRole", get("SignOffRole"));
+                        StingCommandHandler.SetExtraParam("SignOffScope", get("SignOffScope"));
                     });
                     return true;
                 }

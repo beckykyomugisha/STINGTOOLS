@@ -287,7 +287,9 @@ This is the part a real guide hides and you find out the hard way. We won't.
 9. **You still need a human QS for contractual sign-off.** This tool produces a
    strong, defensible cost picture fast — it does **not** replace professional
    certification on a real contract. Use it to do 90% of the work and to make the
-   QS's job an hour, not a week.
+   QS's job an hour, not a week. *(G9 closed: every export is now stamped
+   **DRAFT — UNCERTIFIED** until a QS records a sign-off via **Actions → Record
+   QS Sign-off**, which prints exports of that snapshot as **CERTIFIED**.)*
 
 ---
 
