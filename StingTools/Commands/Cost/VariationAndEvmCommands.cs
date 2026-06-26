@@ -24,6 +24,7 @@ using StingTools.Core;
 using StingTools.Core.Evm;
 using StingTools.Core.Variation;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -44,8 +45,10 @@ namespace StingTools.Commands.Cost
                 var snapshots = BOQCostManager.ListSnapshots(doc);
                 if (snapshots.Count < 2)
                 {
-                    TaskDialog.Show("STING Variation",
-                        "Need at least two BOQ snapshots to mint a variation. Save snapshots before + after the change.");
+                    StingResultPanel.Create("Variation from Diff")
+                        .AddSection("NEED SNAPSHOTS")
+                        .Text("Need at least two BOQ snapshots to mint a variation. Save snapshots before + after the change.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -82,8 +85,10 @@ namespace StingTools.Commands.Cost
                 var diff = BOQCostManager.CompareSnapshots(snapA.Path, snapB.Path);
                 if (diff == null || diff.CategoryDiffs.Count == 0)
                 {
-                    TaskDialog.Show("STING Variation",
-                        "Snapshots are identical — no variation to mint.");
+                    StingResultPanel.Create("Variation from Diff")
+                        .AddSection("NO CHANGE")
+                        .Text("Snapshots are identical — no variation to mint.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -184,14 +189,16 @@ namespace StingTools.Commands.Cost
                     contractForm: contractForm, currency: docB?.Currency ?? docA?.Currency ?? "UGX");
                 string path = VariationEngine.Save(doc, vo);
 
-                TaskDialog.Show("STING — Variation minted",
-                    $"{vo.Number}  ({vo.Kind}, {vo.Status})\n\n" +
-                    $"Contract:     {vo.ContractForm}\n" +
-                    $"Reason:       {vo.Reason}\n" +
-                    $"Liability:    {vo.Liability}\n" +
-                    $"Items:        {vo.Items.Count}\n" +
-                    $"Total value:  {vo.Currency} {vo.TotalValue:N2}\n\n" +
-                    $"Path: {Path.GetFileName(path)}");
+                StingResultPanel.Create("Variation minted")
+                    .SetSubtitle($"{vo.Number}  ({vo.Kind}, {vo.Status})")
+                    .AddSection("VARIATION")
+                    .Metric("Contract", vo.ContractForm.ToString())
+                    .Metric("Reason", vo.Reason.ToString())
+                    .Metric("Liability", vo.Liability.ToString())
+                    .Metric("Items", vo.Items.Count.ToString())
+                    .Metric("Total value", $"{vo.Currency} {vo.TotalValue:N2}")
+                    .Text($"Path: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -334,16 +341,18 @@ namespace StingTools.Commands.Cost
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
                 string cc = rate.Currency ?? "UGX";
-                TaskDialog.Show("STING — Star rate created",
-                    $"Star rate '{rate.Description}' saved.\n\n" +
-                    $"Labour:    {cc} {rate.LabourTotal:N2}\n" +
-                    $"Plant:     {cc} {rate.PlantTotal:N2}\n" +
-                    $"Materials: {cc} {rate.MaterialsTotal:N2}\n" +
-                    $"Subtotal:  {cc} {rate.Subtotal:N2}\n" +
-                    $"OH ({rate.OverheadPercent}%): {cc} {rate.OverheadAmount:N2}\n" +
-                    $"Profit ({rate.ProfitPercent}%): {cc} {rate.ProfitAmount:N2}\n" +
-                    $"FINAL:     {cc} {rate.FinalRate:N2}\n\n" +
-                    $"Edit at: {Path.GetFileName(path)}");
+                StingResultPanel.Create("Star rate created")
+                    .SetSubtitle($"Star rate '{rate.Description}' saved")
+                    .AddSection("BUILD-UP")
+                    .Metric("Labour", $"{cc} {rate.LabourTotal:N2}")
+                    .Metric("Plant", $"{cc} {rate.PlantTotal:N2}")
+                    .Metric("Materials", $"{cc} {rate.MaterialsTotal:N2}")
+                    .Metric("Subtotal", $"{cc} {rate.Subtotal:N2}")
+                    .Metric($"OH ({rate.OverheadPercent}%)", $"{cc} {rate.OverheadAmount:N2}")
+                    .Metric($"Profit ({rate.ProfitPercent}%)", $"{cc} {rate.ProfitAmount:N2}")
+                    .MetricHighlight("FINAL", $"{cc} {rate.FinalRate:N2}")
+                    .Text($"Edit at: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -368,7 +377,10 @@ namespace StingTools.Commands.Cost
                 var paths = VariationEngine.ListVariations(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Variation", "No variations recorded.");
+                    StingResultPanel.Create("VO Register")
+                        .AddSection("NO VARIATIONS")
+                        .Text("No variations recorded.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var vos = paths.Select(VariationEngine.Load).Where(v => v != null)
@@ -407,8 +419,12 @@ namespace StingTools.Commands.Cost
                         }));
                     }
                 }
-                TaskDialog.Show("STING — Variation register",
-                    $"{vos.Count} variation(s) exported to:\n{outPath}");
+                StingResultPanel.Create("Variation register exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Variations", vos.Count.ToString())
+                    .Text($"Saved to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -482,20 +498,24 @@ namespace StingTools.Commands.Cost
                 report.Periods.Add(period);
                 string path = EvmCalculator.Save(doc, report);
 
-                TaskDialog.Show("STING — EVM period",
-                    $"Period {period.PeriodLabel}\n\n" +
-                    $"BAC  {report.Currency} {period.Bac:N0}\n" +
-                    $"BCWS {report.Currency} {period.Bcws:N0}\n" +
-                    $"BCWP {report.Currency} {period.Bcwp:N0}\n" +
-                    $"ACWP {report.Currency} {period.Acwp:N0}\n\n" +
-                    $"CV   {period.Cv:N0}\n" +
-                    $"SV   {period.Sv:N0}\n" +
-                    $"CPI  {period.Cpi:F2}  ({period.CostHealth})\n" +
-                    $"SPI  {period.Spi:F2}  ({period.ScheduleHealth})\n" +
-                    $"EAC  {report.Currency} {period.Eac:N0}\n" +
-                    $"ETC  {report.Currency} {period.Etc:N0}\n" +
-                    $"VAC  {report.Currency} {period.Vac:N0}\n\n" +
-                    $"Saved: {Path.GetFileName(path)}");
+                StingResultPanel.Create("EVM period")
+                    .SetSubtitle($"Period {period.PeriodLabel}")
+                    .AddSection("BASELINE")
+                    .Metric("BAC", $"{report.Currency} {period.Bac:N0}")
+                    .Metric("BCWS", $"{report.Currency} {period.Bcws:N0}")
+                    .Metric("BCWP", $"{report.Currency} {period.Bcwp:N0}")
+                    .Metric("ACWP", $"{report.Currency} {period.Acwp:N0}")
+                    .AddSection("VARIANCE + INDICES")
+                    .Metric("CV", $"{period.Cv:N0}")
+                    .Metric("SV", $"{period.Sv:N0}")
+                    .Metric("CPI", $"{period.Cpi:F2}", period.CostHealth)
+                    .Metric("SPI", $"{period.Spi:F2}", period.ScheduleHealth)
+                    .AddSection("FORECAST")
+                    .Metric("EAC", $"{report.Currency} {period.Eac:N0}")
+                    .Metric("ETC", $"{report.Currency} {period.Etc:N0}")
+                    .Metric("VAC", $"{report.Currency} {period.Vac:N0}")
+                    .Text($"Saved: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -544,18 +564,21 @@ namespace StingTools.Commands.Cost
                 if (!Directory.Exists(dir))
                 {
                     Directory.CreateDirectory(dir);
-                    TaskDialog.Show("STING EVM",
-                        $"Created actuals directory:\n{dir}\n\n" +
-                        "Drop CSV files named actuals_YYYYMMDD.csv with columns " +
-                        "Date,Section,Amount and re-run.");
+                    StingResultPanel.Create("Import Actuals")
+                        .AddSection("DIRECTORY CREATED")
+                        .Text($"Created actuals directory: {dir}")
+                        .Text("Drop CSV files named actuals_YYYYMMDD.csv with columns Date,Section,Amount and re-run.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
                 var files = Directory.EnumerateFiles(dir, "actuals_*.csv").ToList();
                 if (files.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM",
-                        $"No actuals CSV files found under {dir}.");
+                    StingResultPanel.Create("Import Actuals")
+                        .AddSection("NO FILES")
+                        .Text($"No actuals CSV files found under {dir}.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 // B.5 — cumulative across ALL actuals files, deduped by content so
@@ -564,10 +587,13 @@ namespace StingTools.Commands.Cost
                     out int filesRead, out int dupSkipped);
                 string ccy = EvmCalculator.ListReports(doc).Select(EvmCalculator.Load)
                     .FirstOrDefault(r => r != null)?.Currency ?? "UGX";
-                TaskDialog.Show("STING — Actuals imported",
-                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: {ccy} {total:N2}\n" +
-                    $"Files read: {filesRead}" +
-                    (dupSkipped > 0 ? $"   ·   {dupSkipped} duplicate file(s) skipped (identical content)" : ""));
+                var rp = StingResultPanel.Create("Actuals imported")
+                    .AddSection("RESULT")
+                    .Metric($"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}", $"{ccy} {total:N2}")
+                    .Metric("Files read", filesRead.ToString());
+                if (dupSkipped > 0)
+                    rp.Metric("Duplicate files skipped", dupSkipped.ToString(), "identical content");
+                rp.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -592,13 +618,19 @@ namespace StingTools.Commands.Cost
                 var reports = EvmCalculator.ListReports(doc);
                 if (reports.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM", "No EVM reports saved. Run Evm_Calculate first.");
+                    StingResultPanel.Create("Export S-Curve")
+                        .AddSection("NO REPORTS")
+                        .Text("No EVM reports saved. Run Evm_Calculate first.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var rpt = EvmCalculator.Load(reports[0]);
                 if (rpt == null || rpt.Periods.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM", "Latest report has no periods.");
+                    StingResultPanel.Create("Export S-Curve")
+                        .AddSection("NO PERIODS")
+                        .Text("Latest report has no periods.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 string outDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "evm");
@@ -629,7 +661,12 @@ namespace StingTools.Commands.Cost
                         }));
                     }
                 }
-                TaskDialog.Show("STING — EVM exported", $"S-curve written to:\n{outPath}");
+                StingResultPanel.Create("EVM S-curve exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Periods", rpt.Periods.Count.ToString())
+                    .Text($"S-curve written to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -673,8 +710,10 @@ namespace StingTools.Commands.Cost
 
                 if (legacy.Count == 0)
                 {
-                    TaskDialog.Show("STING — Reclassify legacy variations",
-                        "Nothing to reclassify. Every variation has a non-default reason / liability assigned.");
+                    StingResultPanel.Create("Reclassify legacy variations")
+                        .AddSection("NOTHING TO RECLASSIFY")
+                        .Text("Every variation has a non-default reason / liability assigned.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
@@ -733,8 +772,11 @@ namespace StingTools.Commands.Cost
                     reclassified++;
                 }
 
-                TaskDialog.Show("STING — Reclassification complete",
-                    $"Reclassified: {reclassified}\nSkipped (no reason picked): {skipped}");
+                StingResultPanel.Create("Reclassification complete")
+                    .AddSection("RESULT")
+                    .Metric("Reclassified", reclassified.ToString())
+                    .Metric("Skipped (no reason picked)", skipped.ToString())
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
