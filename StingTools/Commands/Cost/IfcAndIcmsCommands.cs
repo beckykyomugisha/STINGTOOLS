@@ -19,6 +19,7 @@ using StingTools.BIMManager;
 using StingTools.BOQ;
 using StingTools.BOQ.MeasurementStandard;
 using StingTools.Core;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -36,7 +37,10 @@ namespace StingTools.Commands.Cost
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 if (boq.AllItems.Count == 0)
                 {
-                    TaskDialog.Show("STING IFC Qto", "BOQ has no items — build the BOQ first.");
+                    StingResultPanel.Create("Stamp IFC Qto")
+                        .AddSection("NO DATA")
+                        .Text("BOQ has no items — build the BOQ first.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -48,10 +52,12 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
 
-                TaskDialog.Show("STING — IFC stamping",
-                    $"Stamped {stamped} element(s) with IFC4 Qto_* + Pset_StingCost.\n\n" +
-                    "The next IFC export will carry quantity + cost data so Cost-X, CostOS, " +
-                    "Candy and Bluebeam Revu can ingest without re-measuring.");
+                StingResultPanel.Create("Stamp IFC Qto")
+                    .AddSection("RESULT")
+                    .Metric("Elements stamped", stamped.ToString(), "IFC4 Qto_* + Pset_StingCost")
+                    .Text("The next IFC export will carry quantity + cost data so Cost-X, CostOS, " +
+                          "Candy and Bluebeam Revu can ingest without re-measuring.")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -77,7 +83,10 @@ namespace StingTools.Commands.Cost
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 if (boq.AllItems.Count == 0)
                 {
-                    TaskDialog.Show("STING ICMS3", "BOQ has no items.");
+                    StingResultPanel.Create("ICMS3 report")
+                        .AddSection("NO DATA")
+                        .Text("BOQ has no items.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -136,12 +145,15 @@ namespace StingTools.Commands.Cost
                         + overall.ToString("F2", CultureInfo.InvariantCulture));
                 }
 
-                TaskDialog.Show("STING — ICMS3 report",
-                    $"Cost + carbon ledger exported.\n\n" +
-                    $"Groups:     {grouped.Count}\n" +
-                    $"Total cost: {boq.Currency} {grouped.Sum(x => x.Value.cost):N0}\n" +
-                    $"Total carbon: {grouped.Sum(x => x.Value.carbon):N0} kgCO₂e\n\n" +
-                    $"Path: {outPath}");
+                StingResultPanel.Create("ICMS3 report")
+                    .SetSubtitle("Cost + carbon ledger exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("LEDGER")
+                    .Metric("Groups", grouped.Count.ToString())
+                    .Metric("Total cost", $"{boq.Currency} {grouped.Sum(x => x.Value.cost):N0}")
+                    .Metric("Total carbon", $"{grouped.Sum(x => x.Value.carbon):N0} kgCO₂e")
+                    .Text($"Path: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
