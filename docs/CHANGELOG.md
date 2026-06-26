@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Review & Hardening — INT-0 encoder correction)
+
+Follow-up from a code review of the INT-0 commit (see
+`docs/INT0_ENCODER_FIX_PROMPT.md`). P0-1 and P0-2 confirmed correct and
+untouched; this fixes only the GlobalId encoder INT-0 was built on.
+
+- **Encoder was non-canonical.** `IfcResults.IfcGuidEncoder.FromGuid` packed
+  bytes `3/6/7 → 4/8/10` chars and `FromRevitUniqueId` discarded the
+  element-id suffix, so STING's GlobalIds were internally consistent but did
+  **not** equal a real Revit/ArchiCAD IFC export, the server's IFC-parsed
+  mappings, or what an external estimator reads from the exported IFC. Ported
+  the canonical buildingSMART / Autodesk RevitIFC `GUIDUtil` algorithm
+  verbatim (`2/4/4/4/4/4` grouping over the documented `num[0..5]` byteArray
+  mapping) and added the element-id XOR-fold into the GUID's low 4 bytes that
+  Revit's exporter applies.
+- **Pinned with a unit test** (`StingTools.Boq.Tests/IfcGuidEncoderTests.cs`)
+  against the canonical IfcOpenShell reference vector
+  (`f70dd363-bfe3-495d-84a0-2c02dcb7d4d2` → `3t3TDZl_D9NOIWB0BSjzJI`), a
+  hand-derived folded vector, and an element-id-sensitivity check. **6/6 pass
+  under `dotnet test`** (the encoder is pure C#/net8.0, so this path *is*
+  verified here even though the wider plugin is not).
+- **Chose the string algorithm over a RevitAPIIFC reference.** Considered
+  `ExporterIFCUtils.CreateGUID(el)` for the live-element COBie path, but kept
+  one encoder (no csproj risk, sandbox-testable). BOQ snapshot + all three
+  COBie writers already route through `FromRevitUniqueId`, so they now emit
+  identical canonical GlobalIds for the same element.
+- **Server-source audit (staged follow-up, not paper-over).** The
+  server-ingest path (`IFC_PushModelCommand`) keys `ExternalElementMapping`
+  off the stored `IFC_GLOBAL_ID_TXT`, which `StabilizeIfcGuidsCommand` fills
+  from Revit's built-in IfcGUID. That equals the encoder value in the default
+  case, but **diverges under an explicit IFC-GUID override or for
+  never-exported elements**. Documented on `BOQLineItem.IfcGlobalId`: the
+  unification is to have BOQ + COBie prefer a stored `IFC_GLOBAL_ID_TXT` when
+  present (threaded through BOQ build), falling back to the encoder — staged,
+  as it touches the BOQ build path and is an override-only edge.
+
 #### Completed (BOQ Review & Hardening — prerequisite cluster: P0-1, P0-2, INT-0)
 
 First slice of `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` on branch

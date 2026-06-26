@@ -110,11 +110,24 @@ namespace StingTools.BOQ
 
         /// <summary>
         /// INT-0 — the canonical 22-char IFC GlobalId, derived deterministically
-        /// from <see cref="UniqueId"/>. This is the single cross-platform join
-        /// key: COBie Component external identifier, Speckle applicationId, the
-        /// server's ExternalElementMapping, and the priced-BOQ round-trip all key
-        /// off it. Empty for manual / provisional-sum rows with no modelled
-        /// element. Encoder is the one shared resolver (IfcGuidEncoder).
+        /// from <see cref="UniqueId"/> via the one shared resolver
+        /// (<see cref="StingTools.IfcResults.IfcGuidEncoder"/>). This is the single
+        /// cross-platform join key: COBie Component external identifier, Speckle
+        /// applicationId, the server's ExternalElementMapping, and the priced-BOQ
+        /// round-trip all key off it. Empty for manual / provisional-sum rows with
+        /// no modelled element. The COBie writers use the same encoder on the same
+        /// UniqueId, so a BOQ row and the COBie Component for one element always
+        /// carry an identical GlobalId.
+        ///
+        /// STAGED FOLLOW-UP (INT-0 server audit): the server-ingest path
+        /// (<c>IFC_PushModelCommand</c>) keys ExternalElementMapping off the stored
+        /// <c>IFC_GLOBAL_ID_TXT</c> param, which <c>StabilizeIfcGuidsCommand</c>
+        /// fills from Revit's built-in IfcGUID. That equals this encoder value in
+        /// the default case, but DIVERGES when a user sets an explicit IFC-GUID
+        /// override or the element was never IFC-exported. To unify all four
+        /// surfaces under overrides, BOQ + COBie should prefer a stored
+        /// IFC_GLOBAL_ID_TXT when present and fall back to the encoder — threaded
+        /// through BOQ build into this field (the POCO has no live Element here).
         /// </summary>
         public string IfcGlobalId =>
             string.IsNullOrEmpty(UniqueId)
