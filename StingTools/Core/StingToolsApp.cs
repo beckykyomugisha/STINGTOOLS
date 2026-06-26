@@ -102,6 +102,7 @@ namespace StingTools.Core
                 RegisterPlumbingPanel(application);
                 RegisterHvacPanel(application);
                 RegisterLpsPanel(application);
+                RegisterSustainabilityPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -377,6 +378,10 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"REFNET catalogue invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.CtfRtsRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"CTF RTS cache invalidate: {cEx.Message}"); }
+                // Phase 195: drop the per-document sustainability registry caches
+                // (schemes / baselines / water / measures / monthly climate).
+                try { Core.Sustainability.SustainabilityRegistries.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Sustainability cache invalidate: {cEx.Message}"); }
                 // MEP-from-DWG: drop the per-document fixture-map cache so a re-open
                 // re-reads the corporate baseline + project _BIM_COORD override.
                 try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }
@@ -1975,6 +1980,28 @@ namespace StingTools.Core
             }
         }
 
+        // ── Phase 195 — STING Sustainability Center (EDGE/LEED) registration ──
+        // Sibling to RegisterHvacPanel / RegisterPlumbingPanel. The 5th dockable
+        // pane; built on the StingPlumbingPanel template (Provider + handler +
+        // XAML + stable PaneGuid).
+        private void RegisterSustainabilityPanel(UIControlledApplication application)
+        {
+            try
+            {
+                StingTools.UI.Sustainability.StingSustainabilityCommandHandler.Initialise(application);
+                var provider = new StingTools.UI.Sustainability.StingSustainabilityPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.Sustainability.StingSustainabilityPanelProvider.PaneId,
+                    "♻ STING Sustainability",
+                    provider);
+                StingLog.Info("Sustainability dockable pane registered successfully.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Sustainability dockable panel", ex);
+            }
+        }
+
         /* Ribbon panels removed — all commands now accessible via the dockable panel.
            Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
            Organise (32 cmds), Temp (64 cmds). */
@@ -2152,7 +2179,9 @@ namespace StingTools.Core
                     "Show/hide the STING Material Hub dockable panel.");
                 AddButton(panel, "btnPanelLps",         "STING\nLPS",         asm, typeof(ToggleLpsPanelCommand).FullName,
                     "Show/hide the STING Lightning Protection Center dockable panel.");
-                StingLog.Info("STING Panels ribbon group populated (6 dockable-panel toggles).");
+                AddButton(panel, "btnPanelSustain",     "STING\nSustain",     asm, typeof(ToggleSustainabilityPanelCommand).FullName,
+                    "Show/hide the STING Sustainability Center (EDGE / LEED) dockable panel.");
+                StingLog.Info("STING Panels ribbon group populated (7 dockable-panel toggles).");
             }
             catch (Exception ex)
             {
@@ -2450,6 +2479,38 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle HVAC panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 195 — toggle the STING Sustainability Center (EDGE/LEED) dockable
+    /// panel. Sibling to <see cref="ToggleHvacPanelCommand"/>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleSustainabilityPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.Sustainability.StingSustainabilityPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Sustainability",
+                        "Sustainability panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Sustainability panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

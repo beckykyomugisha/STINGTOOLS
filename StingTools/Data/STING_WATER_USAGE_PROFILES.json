@@ -1,0 +1,67 @@
+{
+  "schema": "sting.water.usage/v1",
+  "_notes": [
+    "Per building-use fixture-use frequency (Phase 195). The water engine is identical",
+    "across building types — the building use only SELECTS the profile. Sources: EDGE",
+    "methodology defaults, CIBSE Guide G, WELL. taps/showers: L/use = flow_lpm x min_per_use.",
+    "Project override merged by buildingUse from",
+    "<project>/_BIM_COORD/sustainability/water_usage_profiles.json."
+  ],
+  "profiles": [
+    {
+      "buildingUse": "office",
+      "operatingDaysPerYear": 250,
+      "fixtureUse_per_person_day": {
+        "wc":          { "uses": 3 },
+        "urinal":      { "uses": 1 },
+        "basin_tap":   { "uses": 4, "min_per_use": 0.25 },
+        "shower":      { "frac_people": 0.05, "min_per_use": 5 },
+        "kitchen_tap": { "min_per_person_day": 0.3 }
+      }
+    },
+    {
+      "buildingUse": "residential",
+      "operatingDaysPerYear": 365,
+      "fixtureUse_per_person_day": {
+        "wc":          { "uses": 5 },
+        "urinal":      { "uses": 0 },
+        "basin_tap":   { "uses": 6, "min_per_use": 0.5 },
+        "shower":      { "frac_people": 1.0, "min_per_use": 6 },
+        "kitchen_tap": { "min_per_person_day": 2.0 }
+      }
+    },
+    {
+      "buildingUse": "healthcare",
+      "operatingDaysPerYear": 365,
+      "fixtureUse_per_person_day": {
+        "wc":          { "uses": 4 },
+        "urinal":      { "uses": 1 },
+        "basin_tap":   { "uses": 12, "min_per_use": 0.5 },
+        "shower":      { "frac_people": 0.4, "min_per_use": 6 },
+        "kitchen_tap": { "min_per_person_day": 1.0 }
+      }
+    },
+    {
+      "buildingUse": "retail",
+      "operatingDaysPerYear": 360,
+      "fixtureUse_per_person_day": {
+        "wc":          { "uses": 1 },
+        "urinal":      { "uses": 1 },
+        "basin_tap":   { "uses": 2, "min_per_use": 0.25 },
+        "shower":      { "frac_people": 0.0, "min_per_use": 0 },
+        "kitchen_tap": { "min_per_person_day": 0.1 }
+      }
+    },
+    {
+      "buildingUse": "hotel",
+      "operatingDaysPerYear": 365,
+      "fixtureUse_per_person_day": {
+        "wc":          { "uses": 5 },
+        "urinal":      { "uses": 0 },
+        "basin_tap":   { "uses": 6, "min_per_use": 0.5 },
+        "shower":      { "frac_people": 1.0, "min_per_use": 8 },
+        "kitchen_tap": { "min_per_person_day": 1.5 }
+      }
+    }
+  ]
+}

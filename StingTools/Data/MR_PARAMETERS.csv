@@ -3335,3 +3335,9 @@ Multiple,STING_MASTER_SETUP_TS,98edec6a-cfd6-5ce7-9080-50e3f3fae0ba,TEXT,PRJ_INF
 Multiple,STING_RETROFIT_TS,f5f8e898-1b01-5f00-94c5-0b24dd00e1bc,TEXT,PRJ_INFORMATION,Instance,Sting Retrofit Ts [STING],False,,,MULTI,1,0
 Multiple,STING_P6_PCT_TXT,7ed7e5cb-2dde-536b-89b6-76bff797358c,TEXT,ASBUILT,Instance,Sting P6 Pct Txt [STING],False,,,MULTI,1,0
 Multiple,PLM_FLOW_LS,4db709a2-5fa2-5161-97f6-907df588c9ef,TEXT,PLM_DRN,Instance,Plm Flow Ls [STING],False,,,MULTI,1,0
+Project,SUS_ENERGY_KWH_M2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01,NUMBER,SUS_SUSTAINABILITY,Instance,Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Project,SUS_WATER_L_PD_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02,NUMBER,SUS_SUSTAINABILITY,Instance,Design water use in litres per person per day from AnnualWaterEstimator [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Project,SUS_MAT_CARBON_KGM2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03,NUMBER,SUS_SUSTAINABILITY,Instance,Embodied carbon intensity kgCO2e/m2 (A1-A3 GWP EN 15978) from MaterialsRollup [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Project,SUS_MAT_ENERGY_MJ_M2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04,NUMBER,SUS_SUSTAINABILITY,Instance,Embodied energy intensity MJ/m2 (CED EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Project,SUS_EDGE_LEVEL_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05,TEXT,SUS_SUSTAINABILITY,Instance,Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Multiple,SUS_EPD_REF_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06,TEXT,SUS_SUSTAINABILITY,Instance,Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED],False,,,MULTI,1,0
