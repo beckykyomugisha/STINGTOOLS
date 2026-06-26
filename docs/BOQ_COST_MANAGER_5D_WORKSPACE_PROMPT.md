@@ -1,0 +1,214 @@
+# BOQ Cost Manager → Unified Inline 5D Workspace — Implementation Prompt
+
+**Branch:** `claude/boq-implementation` (continue here, worktree `C:\Dev\STINGTOOLS-boq-impl`)
+**Owner of this brief:** the implementing agent. Build in **verifiable vertical
+slices**, one logical commit each. **Research further before and during** (see
+§6) — this is not a closed spec; you are expected to find and append enhancement
+gaps, not just execute the slices as written.
+
+---
+
+## 1. Mission
+
+Turn `UI/BOQCostManagerPanel.cs` from a BOQ-only panel into a **single inline 5D
+cost+programme workspace**: BOQ · Materials · **Schedule (4D/5D)** · Cash-flow,
+where every action is performed **inline through editable grids and dropdowns**
+with **zero external reporting popups** (no `TaskDialog`, no `StingResultPanel.Show()`
+windows). Results, warnings, and confirmations render **in the panel**. The user
+should be able to see, edit, and drive cost AND programme from one transparent,
+interactive surface.
+
+This unifies what is today split across the BOQ Cost Manager (cost) and the 13-tab
+BIM Coordination Center / `BIMManager/SchedulingCommands.cs` (4D/5D) — **by
+referencing the existing engine, never forking it.**
+
+---
+
+## 2. Current state (verified anchors — re-read before editing; lines drift)
+
+**The panel already has every mechanism you need — reuse, don't reinvent:**
+
+- **Inline view swap** — `BOQCostManagerPanel.ShowTenderSetupInline()` /
+  `HideTenderSetupInline()` swap `_mainTabs` for a `_contentHost` child built by
+  `BuildTenderSetupView()` (`BOQCostManagerPanel.cs:~2068-2105`). A Schedule view
+  is the same move.
+- **Editable-tabs-from-a-dialog** — `BOQTenderDialog.CreateInlineTabs()`
+  (`:2097`) is the canonical "build a dialog's controls, embed them inline
+  instead of `ShowDialog()`" pattern. The tender setup is already inline,
+  editable grids/dropdowns, **no modal**. Mirror it.
+- **Revit-thread dispatch, no popup** — `DispatchAction("tag")` →
+  `StingBOQActionHandler` ExternalEvent (`:2031`). It sets
+  `StingCommandHandler.SetExtraParam(...)` then dispatches, so the command runs on
+  the Revit API thread and the tag resolves through `StingCommandHandler`'s case
+  map. Action buttons already use it (`:283` Refresh, `:884` Import, `:885`
+  Export, `:1506/1716` per-row edits).
+- **Inline status (the no-popup convention)** — `FlashHint(vm, message)`
+  (`:2039`) flashes an amber message in the coverage strip for 4s then restores.
+  Use/extend this (and an embedded result region) instead of message boxes.
+- **Per-row inline edit + write-back** — `:1715-1720` shows the pattern: set
+  ExtraParams (`BOQEditRateUGX`, `BOQEditNRM2Para`, …) → `DispatchAction(
+  "BOQWriteItemParams", refreshAfter:false)`. Editable grids drive Revit writes
+  through this exact channel.
+
+**The 4D/5D engine to reference (do NOT fork):**
+`BIMManager/SchedulingCommands.cs` — `internal static Scheduling4DEngine` (`:39`)
+plus ~20 commands: `AutoSchedule4DCommand` (`:1211`), `ImportMSProjectCommand`
+(`:1291`), `ExportSchedule4DCommand` (`:1467`), `AutoCost5DCommand` (`:1542`),
+`ImportCostRatesCommand` (`:1629`), `CostReport5DCommand` (`:1678`),
+`CashFlow5DCommand` (`:1745`), `PhaseSummaryCommand` (`:1931`),
+`MilestoneRegisterCommand` (`:2014`), `WorkingCalendarCommand` (`:2090`),
+`NavisworksTimeLinerExportCommand`, `ElementCostTraceCommand`, `ExportFor4DViewerCommand`,
+P6 link (`P6LiveLinkConfigCommand`/`P6WritebackCommand`/`P6SyncNowCommand`).
+
+**Already done on this branch (build on, don't redo):** INT-0 GlobalId
+(gold-standard + canonical encoder, 8/8 tests), INT-2 priced round-trip + P2-8,
+INT-1 `BOQExportIfcQtoCommand` (tag `BOQExportIfcQto`, dispatch case already in
+`StingCommandHandler` at `:3511`).
+
+---
+
+## 3. The one real refactor: engine returns data, panel renders it
+
+"Zero external popups" is impossible while commands call `TaskDialog`/
+`StingResultPanel.Show()` themselves. The structural change:
+
+- **Separate logic from presentation.** Each scheduling/cost action must be able
+  to **return its result as plain data** (task list, phase dates, period costs,
+  cash-flow series, validation messages) instead of popping a window. Most of this
+  already lives in `Scheduling4DEngine` / `BOQCostManager` — surface it.
+- **Render inline.** Bind results to `ObservableCollection`-backed **editable
+  `DataGrid`s** and inline charts in the panel; render status/warnings via the
+  coverage strip / an embedded results region.
+- **`StingResultPanel` as an embedded control.** Where a rich result view is
+  wanted, host `StingResultPanel` as a `FrameworkElement` inside `_contentHost`
+  rather than `.Show()`-ing it as a window. (Small change to how it's hosted; keep
+  the `.Show()` API for non-panel callers.)
+- **Don't break headless callers.** Commands invoked from workflows/ribbon still
+  need a default presentation — gate the inline-vs-popup behaviour on an
+  ExtraParam (e.g. `InlineHost=1`) the panel sets, mirroring the existing
+  `SkipDialog` ExtraParam pattern the tender export already uses.
+
+---
+
+## 4. Hard requirements
+
+1. **No external reporting popups** from any action driven by this panel —
+   replace `TaskDialog.Show` / `StingResultPanel.Show()` with inline rendering.
+   (Genuine *blocking confirmations* — "overwrite N rates?" — may use an inline
+   confirm row, not a modal.)
+2. **Everything editable inline** — grids with editable cells + dropdowns
+   (`ComboBox` cells) for rates, phases, trades, calendars, currency, markups.
+   Edits write through the existing `DispatchAction` + ExtraParam channel on the
+   Revit thread.
+3. **Reference the engine, never duplicate** — call `Scheduling4DEngine` /
+   `BOQCostManager`; do not re-implement 4D/5D math in the panel.
+4. **Revit-thread safety** — all model reads/writes via the panel's ExternalEvent
+   (`DispatchAction`); never touch the Revit API directly from a WPF event.
+5. **Performance** — BOQs/schedules can be thousands of rows. Use
+   `VirtualizingStackPanel`/virtualized `DataGrid`; don't rebuild the whole view
+   on every edit.
+6. **One slice per commit; no-build sandbox** — this is WPF + Revit-API code that
+   **cannot be compile-checked here**. Every Revit/WPF call must use a documented
+   signature; mark uncertainty with `// TODO-VERIFY-API`; note the no-build caveat
+   in the commit + CHANGELOG; **verify each slice in Revit before the next**. Do
+   **not** push or merge.
+
+---
+
+## 5. Phased build
+
+### Slice 1 — QTO button + establish the inline-result convention (small, first)
+- Add a **"⛁ QTO IFC"** (or similar) button to the Cost Manager action row beside
+  Export/Import (`:885` area) → `DispatchAction("BOQExportIfcQto")`. The dispatch
+  case already exists in `StingCommandHandler` (`:3511`) — **verify** the
+  `DispatchAction` path actually reaches it (it routes through `StingCommandHandler`;
+  if the panel's `StingBOQActionHandler` has its own switch, add the case there too).
+- Make `BOQExportIfcQtoCommand` (and ideally the standard Export) **render their
+  result inline** when invoked from the panel (set `InlineHost=1`): output path +
+  "elements stamped" + the LIMITATIONS notes go to an **inline results region /
+  coverage strip**, not `StingResultPanel.Show()`. This proves the no-popup
+  pattern end-to-end on one action and is the template for everything after.
+
+### Slice 2 — Schedule (4D/5D) inline tab
+- Add a **Schedule** tab/inline view (mirror `CreateInlineTabs`/`BuildTenderSetupView`)
+  with editable grids:
+  - **Tasks/phases** — name, trade, predecessor, start/finish, duration, % complete
+    (editable; dropdowns for trade + predecessor). Drives `AutoSchedule4D` /
+    `PhaseSummary` / `WorkingCalendar`.
+  - **Cost-by-period (5D)** — period × cost grid feeding the **cash-flow**; editable
+    rate/calendar inputs. Drives `AutoCost5D` / `CashFlow5D` / `CostReport5D`.
+  - **Cash-flow S-curve** — simple inline bar/line (cumulative cost vs time). No
+    external chart window.
+  - **Import/Export** — MS Project XML (`ImportMSProject`/`ExportSchedule4D`),
+    Navisworks TimeLiner, P6 sync — all results **inline** (status strip), file
+    pickers are the only acceptable OS dialog.
+- All actions via `DispatchAction`; all results inline.
+
+### Slice 3 — Sweep remaining BOQ/scheduling commands to engine-returns-data + inline
+- Convert the remaining cost/scheduling command popups (`CostReport5D`,
+  `PhaseSummary`, `MilestoneRegister`, `ElementCostTrace`, BOQ validate/delta/
+  rate-audit, etc.) to the inline pattern. Retire their `TaskDialog`s when invoked
+  from the panel (keep a popup fallback for ribbon/workflow callers via the
+  `InlineHost` gate).
+
+---
+
+## 6. RESEARCH MANDATE — find more, then append
+
+Before/while building, **research and append enhancement gaps** beyond this brief.
+At minimum:
+
+1. **Industry 5D cost/programme UIs** (RIB iTWO, CostX workbooks, Candy, cove.tool,
+   Power BI cost dashboards): what interactivity do their inline cost+cash-flow
+   grids offer — in-cell editing, grouping/pivot, drill-down to element, undo,
+   live re-cost on edit, variance/EVM colouring — that STING's panel should match?
+   Cite sources; propose the high-value subset.
+2. **WPF interactivity & a11y** patterns for large editable grids: virtualization,
+   in-place validation, keyboard nav, copy/paste from Excel, multi-select edit,
+   theming (the panel already has Navy/Amber theme brushes), undo/redo.
+3. **Cross-check the existing BOQ review** (`docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md`,
+   Part A P0–P3 + Part B INT-0..INT-8) for items that should be **surfaced inline
+   in this panel** rather than hidden, e.g.:
+   - **P0-3** uncosted "value at risk" → an inline **red banner** + a filter to the
+     unpriced rows (not a buried per-row confidence).
+   - **P0-4** rate-confidence gate → inline confidence colouring + an export gate
+     prompt in-panel.
+   - Rate-source heat-map (`BOQRateSourceHeatMapCommand`) → an inline column/legend.
+   - **INT-2** estimator-imported rates → provenance badge inline.
+   - Carbon (P0-7/INT-7) → an inline carbon column + RIBA-stage rollup beside cost.
+4. **STING's own backlog** — scan `docs/ROADMAP.md` and `Planscape.Server/docs/
+   PLANSCAPE_GAPS.md` for cost/5D/UX gaps to fold in.
+5. **EVM** (`Core/Evm/`), **Variations** (`Core/Variation/`), **Payment certs**
+   (`Core/PaymentCert/`) already exist (Phase 191) — propose inline tabs/columns so
+   the workspace covers the full cost-control lifecycle, not just the bill.
+
+For each enhancement you adopt: add it to a slice, justify it in the commit/
+CHANGELOG, and keep it inline + editable + popup-free. **Log what you researched
+and what you deliberately deferred** (no silent scope cuts).
+
+---
+
+## 7. Acceptance criteria
+
+- [ ] BOQ Cost Manager hosts BOQ · Materials · **Schedule (4D/5D)** · Cash-flow
+      inline; no `TaskDialog`/`StingResultPanel.Show()` window appears for any
+      panel-driven action (file pickers excepted).
+- [ ] Cost AND programme are **editable in-grid** (cells + dropdowns); edits write
+      to the model via the ExternalEvent and refresh inline.
+- [ ] Cash-flow S-curve renders inline and updates on edit.
+- [ ] `BOQExportIfcQto` reachable from a panel button, result shown inline.
+- [ ] 4D/5D logic comes from `Scheduling4DEngine` (no forked math).
+- [ ] At least the P0-3/P0-4/heat-map/provenance/carbon items from §6.3 are
+      surfaced inline.
+- [ ] Large-model performance: virtualized grids, no full-rebuild per keystroke.
+- [ ] A short in-Revit smoke-test checklist accompanies each slice.
+- [ ] CHANGELOG entry per slice with the no-build caveat; nothing pushed/merged.
+
+## 8. Guardrails
+
+- Continue on `claude/boq-implementation`; build on its commits; don't regress
+  INT-0/INT-1/INT-2.
+- **Reference, don't fork** the 4D/5D + EVM/Variation/PayCert engines.
+- One logical slice per commit; `// TODO-VERIFY-API` on uncertain Revit/WPF calls;
+  no `dotnet build` here — **verify in Revit before each next slice**.
+- Don't push or merge. Surface decisions; do not silently cut scope.
