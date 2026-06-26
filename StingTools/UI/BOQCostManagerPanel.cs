@@ -509,13 +509,21 @@ namespace StingTools.UI
                 }
 
                 var current = StingTools.BOQ.BOQCostManager.GetIncludedLinkTitles(doc);
+                // P2.3 — instance count per link (mirrored / repeated placements).
+                var counts = StingTools.BOQ.BOQCostManager.CountLinkInstancesByTitle(doc);
                 var items = loaded
                     .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
-                    .Select(t => new StingTools.Select.StingListPicker.ListItem
+                    .Select(t =>
                     {
-                        Label = t,
-                        Detail = current.Contains(t) ? "included" : "",
-                        IsSelected = current.Contains(t)
+                        counts.TryGetValue(t, out int n);
+                        string detail = (n > 1 ? $"{n} instances" : "1 instance");
+                        if (current.Contains(t)) detail += " · included";
+                        return new StingTools.Select.StingListPicker.ListItem
+                        {
+                            Label = t,
+                            Detail = detail,
+                            IsSelected = current.Contains(t)
+                        };
                     })
                     .ToList();
 
@@ -526,7 +534,44 @@ namespace StingTools.UI
                     items, allowMultiSelect: true);
                 if (picked == null) return;   // cancelled — leave selection unchanged
 
-                StingTools.BOQ.BOQCostManager.SetIncludedLinkTitles(doc, picked.Select(p => p.Label));
+                var pickedTitles = picked.Select(p => p.Label).ToList();
+                StingTools.BOQ.BOQCostManager.SetIncludedLinkTitles(doc, pickedTitles);
+
+                // P2.3 — for included links placed more than once, offer a per-link
+                // ×N opt-in (default off — a shared reference model placed once is the
+                // common case; a mirrored wing placed twice is the exception).
+                var multiCandidates = pickedTitles
+                    .Where(t => counts.TryGetValue(t, out int n) && n > 1)
+                    .OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+                if (multiCandidates.Count > 0)
+                {
+                    var mult = StingTools.BOQ.BOQCostManager.GetLinkMultiplyMap(doc);
+                    var multItems = multiCandidates.Select(t =>
+                    {
+                        counts.TryGetValue(t, out int n);
+                        bool on = mult.TryGetValue(t, out bool v) && v;
+                        return new StingTools.Select.StingListPicker.ListItem
+                        { Label = t, Detail = $"placed {n}× — take off ×{n}", IsSelected = on };
+                    }).ToList();
+                    var multPicked = StingTools.Select.StingListPicker.Show(
+                        "STING — Multiply repeated links",
+                        "These included links are placed more than once. Tick a link to multiply its " +
+                        "quantities (and cost / carbon) by its instance count — for genuinely repeated " +
+                        "geometry like mirrored wings. Leave unticked for shared reference models.",
+                        multItems, allowMultiSelect: true);
+                    if (multPicked != null)
+                    {
+                        var newMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                        var onSet = new HashSet<string>(multPicked.Select(p => p.Label), StringComparer.OrdinalIgnoreCase);
+                        foreach (var t in multiCandidates) newMap[t] = onSet.Contains(t);
+                        StingTools.BOQ.BOQCostManager.SetLinkMultiplyMap(doc, newMap);
+                    }
+                }
+
+                // No link-cache invalidation needed: the multiplier is applied
+                // post-cache (on the cloned raw rows) in CollectLinkedItems, so a
+                // selection / ×N change takes effect on the next refresh without
+                // re-walking the linked Revit DBs.
                 UpdateLinksBadge();
                 DispatchAction("BOQRefresh");
             }

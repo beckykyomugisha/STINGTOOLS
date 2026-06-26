@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P2.3 linked-instance multiplier)
+
+Branch `claude/placement-centre-review-audit`. Lets a link placed N times
+(e.g. mirrored wings) optionally be taken off ×N — closing the undercount
+where `CollectLinkedItems` deduped by link Title and took a repeated model
+off once. Off by default (a shared reference model placed once is the common
+case). Compile-verified clean (Release, `-t:Rebuild`, 0 errors).
+
+- **`boq_links.json` upgraded** (back-compatible) to
+  `{ "included": [...], "multiply": { "Title": true } }`; a legacy bare array
+  still loads (included-only). New `BOQCostManager.GetLinkMultiplyMap` /
+  `SetLinkMultiplyMap` + `CountLinkInstancesByTitle`; `GetIncludedLinkTitles`
+  /`SetIncludedLinkTitles` preserve the multiply map.
+- **`CollectLinkedItems`** — for an opted-in link with >1 loaded instance,
+  scales each line item's `Quantity` (cost derives from it) and stored
+  `EmbodiedCarbonKg` by the instance count, and tags the row
+  `[Linked: <model> ×N]`. Applied post-cache so a selection / ×N change takes
+  effect on the next refresh without re-walking the linked Revit DBs.
+- **Chooser** (`ChooseLinkedModels`) — each link's Detail now shows its
+  instance count ("3 instances · included"); after the inclusion picker, a
+  second multi-select picker offers the ×N opt-in for the included links
+  placed more than once (pre-ticked from the persisted map).
+
+**Revit smoke test** (human): place a link twice (mirrored wing), open BOQ →
+⛓ Links: the chooser shows "2 instances"; tick to include, then in the second
+picker tick to multiply; refresh and confirm that link's rows read
+`[Linked: <model> ×2]` with doubled qty/cost/carbon. Re-open to confirm the
+opt-in persisted; untick to confirm it reverts to ×1.
+
 #### Completed (BOQ 5D — P2.2 inline editable forms)
 
 Branch `claude/placement-centre-review-audit`. Adds a reusable inline form

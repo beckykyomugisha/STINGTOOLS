@@ -100,6 +100,71 @@ namespace StingTools.BOQ
             return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_links.json");
         }
 
+        // P2.3 — per-link instance multiplier. boq_links.json now carries the
+        // inclusion set AND an optional Title → multiply-by-instance-count map
+        // (default off). A model legitimately placed twice (mirrored wings) can
+        // be opted in to be taken off ×N. Back-compatible: a legacy bare array
+        // is read as "included only, no multipliers".
+        private sealed class LinksConfig
+        {
+            [Newtonsoft.Json.JsonProperty("included")]
+            public List<string> Included { get; set; } = new List<string>();
+            [Newtonsoft.Json.JsonProperty("multiply")]
+            public Dictionary<string, bool> Multiply { get; set; }
+                = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Per-doc multiply map cache (parallels _linkInclusionCache).
+        private static readonly Dictionary<string, Dictionary<string, bool>> _linkMultiplyCache
+            = new Dictionary<string, Dictionary<string, bool>>(StringComparer.OrdinalIgnoreCase);
+
+        private static LinksConfig LoadLinksConfigRaw(Document doc)
+        {
+            var cfg = new LinksConfig();
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path == null || !System.IO.File.Exists(path)) return cfg;
+                string json = System.IO.File.ReadAllText(path);
+                string trimmed = json.TrimStart();
+                if (trimmed.StartsWith("["))
+                {
+                    // Legacy format — bare array of titles.
+                    var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(json);
+                    if (titles != null) cfg.Included = titles.Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+                }
+                else
+                {
+                    var parsed = Newtonsoft.Json.JsonConvert.DeserializeObject<LinksConfig>(json);
+                    if (parsed != null)
+                    {
+                        cfg.Included = parsed.Included ?? new List<string>();
+                        cfg.Multiply = parsed.Multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadLinksConfigRaw: {ex.Message}"); }
+            return cfg;
+        }
+
+        private static void SaveLinksConfig(Document doc, HashSet<string> included, Dictionary<string, bool> multiply)
+        {
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path == null) return;
+                var cfg = new LinksConfig
+                {
+                    Included = included.ToList(),
+                    Multiply = multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                };
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(cfg, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveLinksConfig: {ex.Message}"); }
+        }
+
         /// <summary>Titles of loaded links included in the takeoff for this doc
         /// (loaded from boq_links.json on first ask, cached per doc path).</summary>
         internal static HashSet<string> GetIncludedLinkTitles(Document doc)
@@ -108,43 +173,52 @@ namespace StingTools.BOQ
             lock (_linkInclusionCache)
             {
                 if (_linkInclusionCache.TryGetValue(key, out var cached)) return cached;
-                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                try
-                {
-                    string path = LinkSelectionPath(doc);
-                    if (path != null && System.IO.File.Exists(path))
-                    {
-                        var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(
-                            System.IO.File.ReadAllText(path));
-                        if (titles != null) foreach (var t in titles)
-                            if (!string.IsNullOrWhiteSpace(t)) set.Add(t.Trim());
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"GetIncludedLinkTitles: {ex.Message}"); }
+                var cfg = LoadLinksConfigRaw(doc);
+                var set = new HashSet<string>(
+                    cfg.Included.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
+                    StringComparer.OrdinalIgnoreCase);
                 _linkInclusionCache[key] = set;
+                lock (_linkMultiplyCache) { _linkMultiplyCache[key] = cfg.Multiply; }
                 return set;
             }
         }
 
-        /// <summary>Persist the per-link inclusion set + refresh the cache.</summary>
+        /// <summary>P2.3 — Title → "multiply by instance count" opt-in map for this doc.</summary>
+        internal static Dictionary<string, bool> GetLinkMultiplyMap(Document doc)
+        {
+            string key = doc?.PathName ?? "";
+            lock (_linkMultiplyCache)
+            {
+                if (_linkMultiplyCache.TryGetValue(key, out var cached)) return cached;
+            }
+            // Force a load (populates both caches).
+            GetIncludedLinkTitles(doc);
+            lock (_linkMultiplyCache)
+            {
+                return _linkMultiplyCache.TryGetValue(key, out var m)
+                    ? m : new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>Persist the per-link inclusion set + refresh the cache (preserves the multiply map).</summary>
         internal static void SetIncludedLinkTitles(Document doc, IEnumerable<string> titles)
         {
             string key = doc?.PathName ?? "";
             var set = new HashSet<string>(
                 (titles ?? Enumerable.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
                 StringComparer.OrdinalIgnoreCase);
+            var mult = GetLinkMultiplyMap(doc);
             lock (_linkInclusionCache) { _linkInclusionCache[key] = set; }
-            try
-            {
-                string path = LinkSelectionPath(doc);
-                if (path != null)
-                {
-                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
-                    System.IO.File.WriteAllText(path,
-                        Newtonsoft.Json.JsonConvert.SerializeObject(set.ToList(), Newtonsoft.Json.Formatting.Indented));
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"SetIncludedLinkTitles: {ex.Message}"); }
+            SaveLinksConfig(doc, set, mult);
+        }
+
+        /// <summary>P2.3 — persist the per-link multiply opt-in map (preserves the inclusion set).</summary>
+        internal static void SetLinkMultiplyMap(Document doc, Dictionary<string, bool> multiply)
+        {
+            string key = doc?.PathName ?? "";
+            var map = multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            lock (_linkMultiplyCache) { _linkMultiplyCache[key] = map; }
+            SaveLinksConfig(doc, GetIncludedLinkTitles(doc), map);
         }
 
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
@@ -1942,6 +2016,27 @@ namespace StingTools.BOQ
         /// skipped. Quantities are parameter-derived, so the link transform does
         /// not affect them.
         /// </summary>
+        /// <summary>P2.3 — count loaded RevitLinkInstances per linked-document Title.</summary>
+        internal static Dictionary<string, int> CountLinkInstancesByTitle(Document doc)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (doc == null) return counts;
+            try
+            {
+                foreach (var rli in new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>())
+                {
+                    Document ld = null; try { ld = rli.GetLinkDocument(); } catch { }
+                    if (ld == null) continue;   // unloaded instance — not quantifiable
+                    string t; try { t = ld.Title; } catch { continue; }
+                    if (string.IsNullOrWhiteSpace(t)) continue;
+                    counts[t] = counts.TryGetValue(t, out int n) ? n + 1 : 1;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CountLinkInstancesByTitle: {ex.Message}"); }
+            return counts;
+        }
+
         private static List<BOQLineItem> CollectLinkedItems(
             Document doc, HashSet<string> knownCategories,
             Dictionary<string, (double rate, string unit)> csvRates,
@@ -1951,6 +2046,12 @@ namespace StingTools.BOQ
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // P2.3 — count loaded link instances per Title so an opted-in,
+            // multiply-placed link (e.g. mirrored wings) can be taken off ×N.
+            var instanceCounts = CountLinkInstancesByTitle(doc);
+            var multiplyMap = GetLinkMultiplyMap(doc);
+
             var links = new FilteredElementCollector(doc)
                 .OfClass(typeof(RevitLinkInstance))
                 .Cast<RevitLinkInstance>();
@@ -2012,16 +2113,29 @@ namespace StingTools.BOQ
                 // Aggregate + neutralise on the (cloned) raw rows every time so
                 // grouping changes stay correct without invalidating the cache.
                 var linkItems = AggregateLineItems(rawItems, grouping);
+
+                // P2.3 — opted-in multiply-placed link: scale quantity + carbon
+                // (cost is derived from Quantity) by the loaded-instance count.
+                instanceCounts.TryGetValue(linkName, out int instCount);
+                bool multiply = instCount > 1
+                    && multiplyMap != null && multiplyMap.TryGetValue(linkName, out bool on) && on;
+
                 foreach (var li in linkItems)
                 {
                     li.RevitElementId = -1;                       // never resolve against the host doc
                     li.UniqueId = "";                             // avoid cross-doc id reuse
                     li.ConstituentElementIds = new List<long>();  // link-doc ids — not host-resolvable
                     li.SourceModel = linkName;                    // drives "Group by Source model"
-                    li.Note = string.IsNullOrEmpty(li.Note)
-                        ? $"[Linked: {linkName}]"
-                        : $"{li.Note} [Linked: {linkName}]";
+                    string tag = multiply ? $"[Linked: {linkName} ×{instCount}]" : $"[Linked: {linkName}]";
+                    if (multiply)
+                    {
+                        li.Quantity *= instCount;                 // TotalUGX/USD derive from Quantity
+                        li.EmbodiedCarbonKg *= instCount;         // stored field — scale explicitly
+                    }
+                    li.Note = string.IsNullOrEmpty(li.Note) ? tag : $"{li.Note} {tag}";
                 }
+                if (multiply)
+                    StingLog.Info($"BOQ linked-model multiplier: '{linkName}' taken off ×{instCount} ({linkItems.Count} row(s)).");
                 result.AddRange(linkItems);
             }
             return result;
