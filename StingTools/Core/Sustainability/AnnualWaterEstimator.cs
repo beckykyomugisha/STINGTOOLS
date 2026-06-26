@@ -44,7 +44,16 @@ namespace StingTools.Core.Sustainability
     {
         public double DesignLPersonDay   { get; set; }
         public double BaselineLPersonDay { get; set; }
+        /// <summary>Fixture-efficiency savings % (per-person·day, design vs baseline
+        /// fixtures only). Does NOT credit alternative water.</summary>
         public double WaterSavingsPct    { get; set; }
+
+        /// <summary>EDGE-style total mains-water reduction % vs baseline annual demand —
+        /// credits fixture efficiency AND alternative water (RWH + greywater). EDGE
+        /// rewards alternative water toward the water gate, so this is the metric the
+        /// EDGE gate uses. Falls back to <see cref="WaterSavingsPct"/> when occupancy
+        /// is unknown or no alternative water is present.</summary>
+        public double WaterSavingsInclAltPct { get; set; }
 
         public double AnnualDemandL  { get; set; }
         public double RwhYieldL       { get; set; }
@@ -129,6 +138,14 @@ namespace StingTools.Core.Sustainability
             res.RwhYieldL      = Math.Max(0, rwhYieldLPerYr);
             res.GreywaterReuseL = res.AnnualDemandL * Math.Min(1.0, Math.Max(0.0, greywaterReuseFraction));
             res.NetDemandL      = Math.Max(0, res.AnnualDemandL - res.RwhYieldL - res.GreywaterReuseL);
+
+            // EDGE-style water % = mains-water reduction vs baseline annual demand,
+            // crediting fixture efficiency + alternative water. When occupancy is
+            // unknown the annual demand is 0, so fall back to the fixture-only %.
+            double baselineAnnualL = res.BaselineLPersonDay * occupancy * profile.OperatingDaysPerYear;
+            res.WaterSavingsInclAltPct = (occupancy > 0 && baselineAnnualL > 0)
+                ? (baselineAnnualL - res.NetDemandL) / baselineAnnualL * 100.0
+                : res.WaterSavingsPct;
 
             if (occupancy <= 0)
                 res.Warnings.Add("Occupancy is 0 — annual demand cannot be computed (set occupancy in project setup).");

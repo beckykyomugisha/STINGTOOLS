@@ -86,7 +86,9 @@ namespace StingTools.Core.Sustainability
             var r = new MetricResult();
             if (ctx?.Water != null)
             {
-                r.Numbers["water_savings_pct"] = ctx.Water.WaterSavingsPct;
+                // EDGE credits alternative water (RWH + greywater) toward the water
+                // gate, so the gate uses the alt-inclusive %, not fixture-only.
+                r.Numbers["water_savings_pct"] = ctx.Water.WaterSavingsInclAltPct;
                 r.SetComputed("water_savings_pct", ctx.Water.Computed,
                     ctx.Water.Computed ? null
                         : "indicative default — no low-flow fixture data read from the model");

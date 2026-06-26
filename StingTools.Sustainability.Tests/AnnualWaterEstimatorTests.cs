@@ -76,6 +76,29 @@ namespace StingTools.Sustainability.Tests
         }
 
         [Fact]
+        public void Estimate_AltWater_CreditedToEdgeInclusivePct()
+        {
+            var office = Profiles().Get("office");
+            // Same fixtures (no fixture-efficiency saving) but 20% greywater + RWH —
+            // EDGE credits alternative water toward the water gate.
+            var res = AnnualWaterEstimator.Estimate(
+                BaselineFlows(), BaselineFlows(), office, occupancy: 100,
+                rwhYieldLPerYr: 20000, greywaterReuseFraction: 0.2);
+
+            Assert.Equal(0, res.WaterSavingsPct, 1);            // fixtures identical
+            Assert.True(res.WaterSavingsInclAltPct > 20);        // 20% greywater + RWH credit
+        }
+
+        [Fact]
+        public void Estimate_NoAltWater_InclusiveEqualsFixturePct()
+        {
+            var office = Profiles().Get("office");
+            var res = AnnualWaterEstimator.Estimate(LowFlow(), BaselineFlows(), office, occupancy: 100);
+            // No RWH / greywater -> the inclusive metric collapses to the fixture %.
+            Assert.Equal(res.WaterSavingsPct, res.WaterSavingsInclAltPct, 2);
+        }
+
+        [Fact]
         public void Estimate_ZeroOccupancy_Warns()
         {
             var office = Profiles().Get("office");

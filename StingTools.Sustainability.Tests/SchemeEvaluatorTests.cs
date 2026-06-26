@@ -26,7 +26,8 @@ namespace StingTools.Sustainability.Tests
             energy.Design.CoolingKwh = 50000;   // TotalKwh > 0 ⇒ Computed
             var water = new WaterEstimateResult
             {
-                WaterSavingsPct = waterPct, BaselineLPersonDay = 50, DesignLPersonDay = 40,
+                WaterSavingsPct = waterPct, WaterSavingsInclAltPct = waterPct,
+                BaselineLPersonDay = 50, DesignLPersonDay = 40,
                 IsIndicativeDefault = false
             };
             var mat = new MaterialsRollupResult
