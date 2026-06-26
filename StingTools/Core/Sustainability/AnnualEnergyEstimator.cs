@@ -232,9 +232,12 @@ namespace StingTools.Core.Sustainability
             e.LightingKwh  = z.LightingWPerM2 * z.FloorAreaM2 * (lightMeanFrac * 24 * 365) / 1000.0;
             e.EquipmentKwh = z.EquipmentWPerM2 * z.FloorAreaM2 * (equipMeanFrac * 24 * 365) / 1000.0;
 
-            // DHW estimate from occupancy: people x 50 L/day x 30 K dT x
+            // DHW estimate from occupancy: people x (L/person.day) x 30 K dT x
             // 1.16 Wh/(L.K) -> Wh/day; /1000 -> kWh/day; x 365 -> kWh/yr.
-            double dhwKwhPerDay = z.OccupantCount * 50.0 * 30.0 * 1.16 / 1000.0;
+            // L/person.day is building-use dependent (office ~5, residential ~45) —
+            // see LoadZone.DhwLPerPersonDay; a flat 50 inflated office DHW ~10x.
+            double dhwLpd = z.DhwLPerPersonDay > 0 ? z.DhwLPerPersonDay : 5.0;
+            double dhwKwhPerDay = z.OccupantCount * dhwLpd * 30.0 * 1.16 / 1000.0;
             e.DhwKwh = dhwKwhPerDay * 365.0;
 
             return e;

@@ -216,6 +216,24 @@ namespace StingTools.UI.Sustainability
 
         private void AddEnergy(string k, double v) => EnergyRows.Add(new EndUseRow { EndUse = k, Kwh = $"{v:F0}" });
 
+        /// <summary>Populate the COST tab grid from the LCC command's rows
+        /// (string[]: Name, Gate, CostKey, Capex, AnnualSaving, LifetimeSaving, NetBenefit).</summary>
+        public void ApplyLcc(IEnumerable<string[]> rows)
+        {
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    LccRows.Clear();
+                    foreach (var r in rows ?? Enumerable.Empty<string[]>())
+                        if (r != null && r.Length >= 7)
+                            LccRows.Add(new LccRow { Measure = r[0], Gate = r[1], Capex = r[3], NetBenefit = r[6] });
+                    UpdateStatus($"LCC: {LccRows.Count} measure(s)");
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus ApplyLcc: {ex.Message}"); }
+        }
+
         /// <summary>Indicative-value cell. Shows the % only when the gate was
         /// computed from model data; otherwise "Not computed" / "EDGE app" so a
         /// zero-design 100% or a hardcoded default never reads as a real number.</summary>

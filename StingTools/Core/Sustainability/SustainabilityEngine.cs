@@ -136,10 +136,11 @@ namespace StingTools.Core.Sustainability
                     .ToList();
                 if (spaces.Count > 0)
                 {
+                    double dhw = DhwForUse(setup.DominantBuildingUse);
                     foreach (var s in spaces)
                     {
                         var z = ZoneFromSpace(s);
-                        if (z != null) zones.Add(z);
+                        if (z != null) { z.DhwLPerPersonDay = dhw; zones.Add(z); }
                     }
                 }
             }
@@ -154,10 +155,25 @@ namespace StingTools.Core.Sustainability
                     zones.Add(new LoadZone
                     {
                         Id = zs.ZoneId, Name = zs.ZoneId, SpaceTypeId = zs.BuildingUse,
-                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy
+                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy,
+                        DhwLPerPersonDay = DhwForUse(zs.BuildingUse)
                     });
             }
             return zones;
+        }
+
+        /// <summary>DHW litres/person·day by building use (CIBSE Guide G). Office is
+        /// handwash-only (~5); residential/hotel/healthcare are far higher.</summary>
+        private static double DhwForUse(string use)
+        {
+            switch ((use ?? "office").Trim().ToLowerInvariant())
+            {
+                case "residential": return 45;
+                case "hotel":       return 100;
+                case "healthcare":  return 60;
+                case "retail":      return 3;
+                default:            return 5;   // office / unknown
+            }
         }
 
         private static LoadZone ZoneFromSpace(Space s)

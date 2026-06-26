@@ -30,7 +30,7 @@ namespace StingTools.Commands.Sustainability
             var doc = SustainCmdHelper.Doc(cmd);
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
-            var setup = SustainCmdHelper.LoadSetup(doc);
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
             var res = SustainabilityEngine.Run(doc, setup);
 
             string path;
@@ -161,7 +161,7 @@ namespace StingTools.Commands.Sustainability
             var doc = SustainCmdHelper.Doc(cmd);
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
-            var setup = SustainCmdHelper.LoadSetup(doc);
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
             var res = SustainabilityEngine.Run(doc, setup);
             var measures = SustainabilityRegistries.Measures(doc);
 
@@ -183,6 +183,10 @@ namespace StingTools.Commands.Sustainability
                     $"{lifetimeSaving:0}", $"{netBenefit:0}"
                 });
             }
+
+            // Push the rows into the COST tab grid (not just the popup).
+            try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.ApplyLcc(rows); }
+            catch (Exception ex) { StingLog.Warn($"Sustain LCC grid push: {ex.Message}"); }
 
             // Persist a CSV the BOQ Cost Manager picks up alongside the model so
             // the measure costs land in the DD Cost/Budget Estimate.

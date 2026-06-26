@@ -49,6 +49,13 @@ namespace StingTools.Core.Hvac.Loads
         public double CoolingSetpointC { get; set; } = 24.0;
         public double HeatingSetpointC { get; set; } = 21.0;
 
+        /// <summary>Domestic hot water demand, litres/person·day. Building-use
+        /// dependent: office ≈ 5 (CIBSE Guide G — handwash only), residential ≈ 45,
+        /// hotel ≈ 100, healthcare ≈ 60. Default 5 (office) — the annual energy
+        /// estimator multiplies by ΔT·c·occupancy. A residential 50 here on an
+        /// office inflates DHW ~10×, which dominates a low-area EUI.</summary>
+        public double DhwLPerPersonDay { get; set; } = 5.0;
+
         // Ventilation per ASHRAE 62.1 / CIBSE Guide B2: per-person +
         // per-area minimum outdoor air.
         public double OaLpsPerPerson { get; set; } = 10.0; // CIBSE office default
