@@ -123,6 +123,15 @@ Then pick your discipline:
 
 ---
 
+### 7. SUSTAINABILITY_CARBON_COSTING_LAYMANS_GUIDE.md
+**What it covers:** Beginner-to-mastery guide to green buildings and carbon costing. Foundations (operational vs embodied carbon, kgCO₂e, EUI), the certifications (LEED points system; deep EDGE explanation — the three ≥20% gates, Certified/Advanced/Zero Carbon, the EDGE-app round-trip), the engineering ideas (baselines, grid factors, A1–A3 embodied carbon, fossil vs biogenic, EPDs, water), a control-by-control walkthrough of the STING Sustainability Center (SETUP/DASHBOARD/MATERIALS/COST tabs), and advanced lessons (EN ISO 13790 energy engine, indicative-vs-certified discipline, FactorSources, BOQ↔carbon single source of truth, hotspots, benchmarks, pitfalls) plus glossary + checklists.
+
+**Depends on:** Nothing — standalone conceptual + how-to guide. Pairs with the BOQ / Cost Manager (shares the carbon takeoff) and the Planscape Server (optional snapshot sync).
+
+**Depends on nothing from this guide.**
+
+---
+
 ## Cross-Reference Map
 
 | I am doing this… | Read this guide | Jump to section |
