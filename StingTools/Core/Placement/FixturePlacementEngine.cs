@@ -251,13 +251,11 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: building-profile filter: {ex.Message}"); }
 
-            // Phase 139.27 (C-03) — surface a one-shot warning at start
-            // of run when the user enabled "Tag every placement" but
-            // the reflection target is missing. RunFor() warns once per
-            // session via StingLog; mirroring it into result.Warnings
-            // means the run report shows it too.
-            if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
-                result.Warnings.Add("Post-placement: 'Tag every placement' is on but TagPipelineHelper.RunFullPipeline could not be resolved by reflection — placed instances will NOT be tagged this session.");
+            // Reset per-run post-placement hook state (tag-pipeline context
+            // cache + MEP-connect counters + TagPipelineMissing flag) so
+            // consecutive runs are independent and pick up manual edits made
+            // between runs.
+            PostPlacementHooks.BeginRun();
 
             var rooms = CollectRooms(doc, roomIds, result);
             result.RoomsVisited = rooms.Count;
@@ -527,6 +525,16 @@ namespace StingTools.Core.Placement
             finally
             {
                 tx?.Dispose();
+            }
+
+            // Surface post-placement hook outcomes in the run report.
+            if (!dryRun)
+            {
+                if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                    result.Warnings.Add("Post-placement: 'Run data-tag pipeline' is on but the tag population context was invalid (rooms / levels / shared parameters missing) — placed instances were NOT tagged this run.");
+                if (PostPlacementHooks.AssignMepSystem &&
+                    (PostPlacementHooks.MepConnectedCount > 0 || PostPlacementHooks.MepLeftOpenCount > 0))
+                    result.Warnings.Add($"Post-placement: MEP connect joined {PostPlacementHooks.MepConnectedCount} connector(s); {PostPlacementHooks.MepLeftOpenCount} left open (no coincident compatible connector within 600 mm).");
             }
 
             return result;
@@ -814,7 +822,7 @@ namespace StingTools.Core.Placement
 
                     // PC-17 — optional post-placement hook: data-tag pipeline + COBie seed.
                     try { PostPlacementHooks.RunFor(fi, effRule); }
-                    catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
+                    catch (Exception hkEx) { result.Warnings.Add($"Post-placement hook for {fi.Id}: {hkEx.Message}"); }
                 }
                 catch (Exception ex2)
                 {
@@ -1012,7 +1020,7 @@ namespace StingTools.Core.Placement
                     lst.Add(at);
                     state.LastPointByRule[rule.MergeKey] = at;
                 }
-                try { PostPlacementHooks.RunFor(pf.Placed, rule); } catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook (co): {hkEx.Message}"); }
+                try { PostPlacementHooks.RunFor(pf.Placed, rule); } catch (Exception hkEx) { result.Warnings.Add($"Post-placement hook (co-place): {hkEx.Message}"); }
             }
             catch (Exception ex)
             {
@@ -1223,7 +1231,7 @@ namespace StingTools.Core.Placement
                         }
                         if (first != null)
                         {
-                            result.Warnings.Add($"PC-16 auto-loaded '{System.IO.Path.GetFileName(path)}' for category '{categoryName}'.");
+                            result.Warnings.Add($"Auto-loaded '{System.IO.Path.GetFileName(path)}' for category '{categoryName}'.");
                             return first;
                         }
                     }
