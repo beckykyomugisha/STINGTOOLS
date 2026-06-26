@@ -226,9 +226,18 @@ namespace StingTools.Core.Placement
                     break;
 
                 case "CEILING_CENTRE":
-                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt,
-                        Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048)));
+                {
+                    double ceilZ = Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048);
+                    // Density / spacing rules (fire alarms, sprinklers, emergency
+                    // lights, area-based ceiling lights) intend MULTIPLE devices —
+                    // emit a ceiling grid. Without a density signal it stays a
+                    // single centre point (legacy behaviour preserved).
+                    if (rule != null && (rule.MaxSpacingMm > 0 || rule.PerAreaM2 > 0))
+                        EmitCeilingGrid(room, rule, roomPt, offsetXFt, offsetYFt, ceilZ, points);
+                    else
+                        points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, ceilZ));
                     break;
+                }
 
                 case "LIGHTING_GRID":
                 case "LUX_GRID":
@@ -363,6 +372,46 @@ namespace StingTools.Core.Placement
         /// instances after the per-room loop.
         /// </summary>
         public IReadOnlyDictionary<(ElementId, string), LightingGridResult> GridResults => _gridCache;
+
+        /// <summary>
+        /// Uniform ceiling grid for density / max-spacing rules on a CEILING_CENTRE
+        /// anchor. Spacing is MaxSpacingMm when set, else √(PerAreaM2) (1 device per
+        /// PerAreaM2 m²). Points are clipped to the room/space and capped. Falls back
+        /// to the single centre point on any failure or empty result.
+        /// </summary>
+        private void EmitCeilingGrid(SpatialElement room, PlacementRule rule, XYZ roomPt,
+            double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                double spacingFt;
+                if (rule.MaxSpacingMm > 0)        spacingFt = rule.MaxSpacingMm / 304.8;
+                else if (rule.PerAreaM2 > 0)      spacingFt = Math.Sqrt(rule.PerAreaM2) / 0.3048;
+                else { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+                if (spacingFt < 0.5) spacingFt = 0.5;
+                if (bb == null) { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+
+                double w = bb.Max.X - bb.Min.X, d = bb.Max.Y - bb.Min.Y;
+                int nx = Math.Max(1, (int)Math.Ceiling(w / spacingFt));
+                int ny = Math.Max(1, (int)Math.Ceiling(d / spacingFt));
+                double stepX = w / nx, stepY = d / ny;
+                int emitted = 0;
+                for (int i = 0; i < nx && emitted < 400; i++)
+                    for (int j = 0; j < ny && emitted < 400; j++)
+                    {
+                        var p = new XYZ(bb.Min.X + stepX * (i + 0.5) + offsetXFt,
+                                        bb.Min.Y + stepY * (j + 0.5) + offsetYFt, anchorZ);
+                        if (FixturePlacementEngine.PointInSpatial(room, p)) { points.Add(p); emitted++; }
+                    }
+                if (emitted == 0) points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.EmitCeilingGrid {room.Id}: {ex.Message}");
+                points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+        }
 
         private void EmitLightingGridPoints(SpatialElement room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
