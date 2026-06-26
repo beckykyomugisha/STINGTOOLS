@@ -206,9 +206,15 @@
                               ToolTip="Ctrl+click / Shift+click to multi-select. Right-click for bulk actions.">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
-                                <!-- Phase 139 I1 — RAG status colour from VM -->
+                                <!-- RAG status colour from VM -->
                                 <Setter Property="Background"
                                         Value="{Binding StatusColorHex, Converter={StaticResource HexToBrushConverter}, FallbackValue=#FFFFFF}"/>
+                                <Style.Triggers>
+                                    <!-- Invalid rows explain why on hover. -->
+                                    <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                        <Setter Property="ToolTip" Value="{Binding ErrorMessage}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
@@ -891,7 +897,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource LabelStyle}" Text="Auto-place"
-                                           ToolTip="Tick the categories the run should auto-place. Empty = every category."/>
+                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Ticking a category with no matching rule places nothing. Conduits / Pipes / Cable Trays are routing outputs (see Integrated Routing), not point-placement targets."/>
                                 <WrapPanel Grid.Column="1">
                                     <CheckBox x:Name="cbCatElec"   Content="Electrical Fixtures"  Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatLtgDev" Content="Lighting Devices"     Margin="0,0,8,2"/>
@@ -904,13 +910,18 @@
                                     <CheckBox x:Name="cbCatHvac"   Content="Air Terminals"        Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
                                     <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
+                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"
+                                              ToolTip="Routing output, not a point-placement target — cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
+                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"
+                                              ToolTip="No baseline rules ship for this category — only places when a project / specialty rule pack covers it."/>
                                     <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"/>
+                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"
+                                              ToolTip="Requires the healthcare rule pack — no baseline rules or anchor support ship for this category."/>
                                     <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
                                     <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
                                 </WrapPanel>
