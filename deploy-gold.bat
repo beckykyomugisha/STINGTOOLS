@@ -43,7 +43,26 @@ if errorlevel 1 (
 echo [deploy-gold] Syncing data\ (rules, category->seed map, alias map, ...)...
 robocopy "%SRC%\data" "%GOLD%\data" /E /NJH /NJS /NDL /NFL >nul
 
+REM ── Repoint every Revit addin at GOLD ─────────────────────────────────────
+REM  A parallel agent's `deploy.bat` (STING_DEPLOY=1) rewrites the addin to
+REM  point at the SHARED CompiledPlugin folder — which every agent rebuilds,
+REM  so Revit silently loads whoever built last. Re-pinning the manifest to the
+REM  isolated GOLD folder on every deploy-gold run keeps Revit on THIS build.
+echo [deploy-gold] Pinning Revit addins to GOLD...
+for %%Y in (2025 2026 2027) do (
+  set "ADDIN=%APPDATA%\Autodesk\Revit\Addins\%%Y\StingTools.addin"
+  call :pin "%APPDATA%\Autodesk\Revit\Addins\%%Y\StingTools.addin" %%Y
+)
+
 echo.
-echo [deploy-gold] DONE. GOLD refreshed from this checkout.
+echo [deploy-gold] DONE. GOLD refreshed and Revit addins pinned to GOLD.
 echo                Restart Revit to load the new build.
 endlocal
+exit /b 0
+
+:pin
+if exist %1 (
+  powershell -NoProfile -Command "$f=%1; (Get-Content $f -Raw) -replace '<Assembly>.*?</Assembly>','<Assembly>C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll</Assembly>' | Set-Content $f -Encoding UTF8"
+  echo   %2 pinned -^> C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll
+)
+exit /b 0
