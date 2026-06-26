@@ -767,6 +767,7 @@ namespace StingTools.UI.PlacementCenter
                 StartUtc     = startUtc,
                 PrevStamp    = prevStamp,
                 PrevLearn    = prevLearn,
+                DryRun       = (chkRunDryRun?.IsChecked == true),
             };
             try
             {
@@ -792,6 +793,38 @@ namespace StingTools.UI.PlacementCenter
             // handler will invoke OnRunCompleted on the WPF thread when
             // done.
             return;
+        }
+
+        // Real Run-Placement execution on the Revit API thread. The
+        // PlacementRunHandler ExternalEvent (MergeRecoveryStubs) forwards here;
+        // this runs the engine and marshals the result back to OnRunCompleted on
+        // the WPF thread via Dispatcher.BeginInvoke.
+        internal void ExecuteRun(UIApplication app)
+        {
+            var req = _runRequest;
+            if (req == null) return;
+            PlacementResult result = null;
+            Exception err = null;
+            try
+            {
+                var roomIds = (req.RoomIds != null && req.RoomIds.Count > 0)
+                    ? new List<ElementId>(req.RoomIds) : null;
+                var prog = req.Progress;
+                // Engine calls this once per room with cumulative (done,total);
+                // advance the modeless progress dialog and abort on cancel/Esc.
+                Func<int, int, bool> onProgress = (done, total) =>
+                {
+                    try { prog?.Increment(); return prog?.IsCancelled ?? false; }
+                    catch { return false; }
+                };
+                result = FixturePlacementEngine.PlaceFixturesInScope(
+                    req.Doc, roomIds, req.Rules, req.DryRun, onProgress);
+            }
+            catch (Exception ex) { err = ex; StingLog.Error("PlacementCenter.ExecuteRun", ex); }
+
+            var r = result; var e2 = err;
+            try { Dispatcher.BeginInvoke(new Action(() => OnRunCompleted(req, r, e2))); }
+            catch (Exception ex) { StingLog.Error("PlacementCenter.ExecuteRun dispatch", ex); }
         }
 
         // Phase 139.13 — completion callback. Runs on the WPF thread

@@ -146,14 +146,30 @@ namespace StingTools.UI.PlacementCenter
         public DateTime StartUtc { get; set; }
         public bool PrevStamp { get; set; }
         public bool PrevLearn { get; set; }
+        public bool DryRun { get; set; }
     }
 
-    /// <summary>Stub handler — wires up the modeless async-run pattern but does no work.</summary>
+    /// <summary>
+    /// Run-Placement ExternalEvent handler. Forwards to the Placement Centre's
+    /// ExecuteRun on the Revit API thread, which runs FixturePlacementEngine and
+    /// marshals the result back to OnRunCompleted on the WPF thread. (Replaces
+    /// the merge-recovery no-op stub that left Run Placement non-functional.)
+    /// </summary>
     public sealed class PlacementRunHandler : Autodesk.Revit.UI.IExternalEventHandler
     {
+        private readonly StingPlacementCenter _owner;
         public PlacementRunHandler() { }
-        public PlacementRunHandler(StingPlacementCenter owner) { }
-        public void Execute(Autodesk.Revit.UI.UIApplication app) { }
+        public PlacementRunHandler(StingPlacementCenter owner) { _owner = owner; }
+        public void Execute(Autodesk.Revit.UI.UIApplication app)
+        {
+            if (_owner == null)
+            {
+                StingTools.Core.StingLog.Warn("PlacementRunHandler: no owner — run skipped.");
+                return;
+            }
+            try { _owner.ExecuteRun(app); }
+            catch (Exception ex) { StingTools.Core.StingLog.Error("PlacementRunHandler.Execute", ex); }
+        }
         public string GetName() => "PlacementRunHandler";
     }
 }
@@ -396,7 +412,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void EnsureRunEvent()
         {
-            if (_runHandler == null) _runHandler = new PlacementRunHandler();
+            if (_runHandler == null) _runHandler = new PlacementRunHandler(this);
             if (_runEvent == null)   _runEvent   = Autodesk.Revit.UI.ExternalEvent.Create(_runHandler);
         }
 
