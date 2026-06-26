@@ -322,7 +322,10 @@ namespace StingTools.BOQ
             return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string NormaliseUnit(string u)
+        // internal so IfcQuantitySetWriter (same assembly) can canonicalise
+        // units against the same table — avoids the m²/m2 glyph mismatch that
+        // silently zeroed every exported Qto (P0-1).
+        internal static string NormaliseUnit(string u)
         {
             if (string.IsNullOrEmpty(u)) return "";
             string s = u.Trim().ToLowerInvariant();
