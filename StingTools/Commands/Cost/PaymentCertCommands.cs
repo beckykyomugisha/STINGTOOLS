@@ -21,6 +21,7 @@ using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.PaymentCert;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -43,7 +44,10 @@ namespace StingTools.Commands.Cost
                 var sov = PaymentCertEngine.SovFromSnapshot(boq);
                 if (sov.Count == 0)
                 {
-                    TaskDialog.Show("STING Payment Cert", "BOQ has no sections — build the BOQ first.");
+                    StingResultPanel.Create("Issue Cert")
+                        .AddSection("NO DATA")
+                        .Text("BOQ has no sections — build the BOQ first.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -72,15 +76,17 @@ namespace StingTools.Commands.Cost
                     StingLog.Info($"Payment cert {cert.CertNumber}: stamped {stamped} elements.");
                 }
 
-                TaskDialog.Show("STING — Payment cert issued",
-                    $"Cert #{cert.CertNumber} ({cert.ContractRef}, {cert.Form})\n\n" +
-                    $"Gross:      {cert.Currency} {cert.GrossValuation:N2}\n" +
-                    $"Retention:  {cert.Currency} {cert.RetentionAmount:N2}   ({cert.EffectiveRetentionPercent}%)\n" +
-                    $"Deductions: {cert.Currency} {cert.OtherDeductions:N2}\n" +
-                    $"Net:        {cert.Currency} {cert.NetThisCert:N2}\n" +
-                    $"VAT:        {cert.Currency} {cert.VatAmount:N2}\n" +
-                    $"Payable:    {cert.Currency} {cert.TotalPayable:N2}\n\n" +
-                    $"Path: {Path.GetFileName(path)}");
+                StingResultPanel.Create("Payment cert issued")
+                    .SetSubtitle($"Cert #{cert.CertNumber} ({cert.ContractRef}, {cert.Form})")
+                    .AddSection("VALUATION")
+                    .Metric("Gross", $"{cert.Currency} {cert.GrossValuation:N2}")
+                    .Metric("Retention", $"{cert.Currency} {cert.RetentionAmount:N2}", $"{cert.EffectiveRetentionPercent}%")
+                    .Metric("Deductions", $"{cert.Currency} {cert.OtherDeductions:N2}")
+                    .Metric("Net", $"{cert.Currency} {cert.NetThisCert:N2}")
+                    .Metric("VAT", $"{cert.Currency} {cert.VatAmount:N2}")
+                    .MetricHighlight("Payable", $"{cert.Currency} {cert.TotalPayable:N2}")
+                    .Text($"Path: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -176,7 +182,10 @@ namespace StingTools.Commands.Cost
                 var paths = PaymentCertEngine.ListCerts(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Payment Cert", "No payment certs found.");
+                    StingResultPanel.Create("Approve Cert")
+                        .AddSection("NO CERTS")
+                        .Text("No payment certs found.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null).ToList();
@@ -190,7 +199,10 @@ namespace StingTools.Commands.Cost
                     }).ToList();
                 if (draftItems.Count == 0)
                 {
-                    TaskDialog.Show("STING Payment Cert", "No certs are in a state that can be approved.");
+                    StingResultPanel.Create("Approve Cert")
+                        .AddSection("NOTHING TO APPROVE")
+                        .Text("No certs are in a state that can be approved.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var picked = StingListPicker.Show("STING — Approve payment cert",
@@ -220,8 +232,10 @@ namespace StingTools.Commands.Cost
                 if (!string.IsNullOrEmpty(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
                 string newPath = PaymentCertEngine.Save(doc, cert);
 
-                TaskDialog.Show("STING — Cert advanced",
-                    $"Cert #{cert.CertNumber} is now {cert.Status}.");
+                StingResultPanel.Create("Cert advanced")
+                    .AddSection("RESULT")
+                    .Metric($"Cert #{cert.CertNumber}", cert.Status.ToString())
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -261,7 +275,10 @@ namespace StingTools.Commands.Cost
                 var paths = PaymentCertEngine.ListCerts(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Payment Cert", "No certs found.");
+                    StingResultPanel.Create("Cert Register")
+                        .AddSection("NO CERTS")
+                        .Text("No certs found.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null)
@@ -297,8 +314,12 @@ namespace StingTools.Commands.Cost
                         }));
                     }
                 }
-                TaskDialog.Show("STING — Register exported",
-                    $"{certs.Count} certificate(s) exported to:\n{outPath}");
+                StingResultPanel.Create("Cert register exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Certificates", certs.Count.ToString())
+                    .Text($"Saved to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
