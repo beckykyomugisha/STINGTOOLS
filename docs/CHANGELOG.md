@@ -3,6 +3,37 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P1.3: persist Cost Manager UI state per project)
+
+Link selection already persisted (`boq_links.json`), but grouping mode, display
+currency, column visibility and the expand/collapse sets reset every session.
+Now persisted to `<project>/_BIM_COORD/boq_ui_state.json` (same load/save shape as
+`BoqPrintProfile` / `ProjectRateCardProvider`). Compile-verified headless
+(Nice3point): 0 errors.
+
+- **`BoqUiState` POCO + `LoadUiState` / `SaveUiState`** (`BOQCostManagerPanel.cs`).
+  Persists `GroupingMode`, `DisplayCurrency`, `HiddenColumns`, `OpenSections`,
+  `OpenMaterialSections`. Best-effort: read/write failures `StingLog.Warn` and never
+  block the UI. A `_uiStateLoaded` gate stops a write firing mid-`Build` (which
+  would clobber the file being read).
+- **Load before `Build()`** so the currency toggles, grouping combo and column set
+  open in the user's last configuration. Toggle `IsChecked` + combo `SelectedItem`
+  are set in the initializer *before* their handlers attach, so restoring state
+  doesn't fire a redundant `RefreshDisplay` / `RefreshAsync`.
+- **Save on each change** — currency toggle, grouping change, ▦ Columns toggle,
+  Expand-all / Collapse-all, per-section + per-material expander, and
+  `ApplyPrintProfile` (which sets the hidden-column set).
+- **Collapse-all survives reopen** — `RefreshAsync` auto-opens every section only
+  on a genuine first load; `_suppressAutoOpenOnce` (set when a persisted
+  `OpenSections` set is loaded) stops a deliberately-empty collapse-all state from
+  being re-expanded on the first refresh.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager. Set grouping = "Source
+model", switch to USD, hide a column via ▦ Columns, collapse all sections. Close
+the window and reopen the project (or the BOQ window) → grouping, currency, hidden
+column and collapsed state all restored. Confirm `_BIM_COORD/boq_ui_state.json`
+exists and reflects the choices.
+
 #### Completed (BOQ 5D — P1.2: cache per-link takeoff)
 
 `RefreshAsync` runs `BuildBOQDocument` synchronously, and STEP 6c

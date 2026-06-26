@@ -88,6 +88,105 @@ namespace StingTools.UI
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
+        // P1.3 — per-project UI state persistence. Grouping mode, display currency,
+        // hidden-column set and the expand/collapse sets reset every session unless
+        // we persist them to <project>/_BIM_COORD/boq_ui_state.json. Best-effort:
+        // a read/write failure logs a warning and never blocks the UI. The flag
+        // gates SaveUiState so a write can't fire mid-load (during Build) and
+        // clobber the file we're still reading.
+        private bool _uiStateLoaded;
+        // Set when a persisted OpenSections set was loaded so the first RefreshAsync
+        // doesn't auto-expand-all over a deliberately-empty (collapse-all) state.
+        private bool _suppressAutoOpenOnce;
+
+        private sealed class BoqUiState
+        {
+            public string GroupingMode { get; set; }
+            public string DisplayCurrency { get; set; }
+            public List<string> HiddenColumns { get; set; }
+            public List<string> OpenSections { get; set; }
+            public List<string> OpenMaterialSections { get; set; }
+        }
+
+        private string UiStatePath()
+        {
+            try
+            {
+                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
+                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_ui_state.json");
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Load persisted UI state into the fields before Build() so the
+        /// combos/toggles/columns open in the user's last configuration. Best-effort.</summary>
+        private void LoadUiState()
+        {
+            try
+            {
+                string path = UiStatePath();
+                if (path != null && System.IO.File.Exists(path))
+                {
+                    var st = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqUiState>(
+                        System.IO.File.ReadAllText(path));
+                    if (st != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(st.GroupingMode)
+                            && Enum.TryParse<BoqGroupingMode>(st.GroupingMode, out var gm))
+                            _groupingMode = gm;
+                        if (string.Equals(st.DisplayCurrency, "USD", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(st.DisplayCurrency, "UGX", StringComparison.OrdinalIgnoreCase))
+                            _displayCurrency = st.DisplayCurrency.ToUpperInvariant();
+                        if (st.HiddenColumns != null)
+                        {
+                            _hiddenColumns.Clear();
+                            foreach (var c in st.HiddenColumns)
+                                if (!string.IsNullOrWhiteSpace(c)) _hiddenColumns.Add(c.Trim());
+                        }
+                        if (st.OpenSections != null)
+                        {
+                            _openSections.Clear();
+                            foreach (var s in st.OpenSections)
+                                if (!string.IsNullOrWhiteSpace(s)) _openSections.Add(s);
+                            _suppressAutoOpenOnce = true;   // honour a persisted collapse-all
+                        }
+                        if (st.OpenMaterialSections != null)
+                        {
+                            _openMaterialSections.Clear();
+                            foreach (var s in st.OpenMaterialSections)
+                                if (!string.IsNullOrWhiteSpace(s)) _openMaterialSections.Add(s);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ LoadUiState: {ex.Message}"); }
+            _uiStateLoaded = true;
+        }
+
+        /// <summary>Persist the current UI state. Best-effort, fired on each change.</summary>
+        private void SaveUiState()
+        {
+            if (!_uiStateLoaded) return;   // don't write a partial state during Build
+            try
+            {
+                string path = UiStatePath();
+                if (path == null) return;
+                var st = new BoqUiState
+                {
+                    GroupingMode = _groupingMode.ToString(),
+                    DisplayCurrency = _displayCurrency,
+                    HiddenColumns = _hiddenColumns.ToList(),
+                    OpenSections = _openSections.ToList(),
+                    OpenMaterialSections = _openMaterialSections.ToList()
+                };
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(st, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ SaveUiState: {ex.Message}"); }
+        }
+
         // Phase 108d: transient status-bar message support. FlashHint() writes
         // a short amber line into _paragraphCoverage for 4s, then restores the
         // coverage summary. Used when we cancel an edit on a model-derived cell.
@@ -128,6 +227,7 @@ namespace StingTools.UI
         public BOQCostManagerPanel(Document doc)
         {
             Doc = doc;
+            LoadUiState();   // P1.3 — restore grouping / currency / columns / expand sets before Build
             Build();
             // Register the inline-result sink so panel-driven commands render their
             // results in-panel. Cleared on Unloaded so a closed panel can't capture
@@ -310,10 +410,13 @@ namespace StingTools.UI
             // Currency toggle
             var ccyPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center };
-            _ugxToggle = new ToggleButton { Content = "UGX", IsChecked = true, Width = 52, Height = 26, Margin = new Thickness(0, 0, 4, 0) };
-            _usdToggle = new ToggleButton { Content = "USD", IsChecked = false, Width = 52, Height = 26 };
-            _ugxToggle.Checked += (s, e) => { _usdToggle.IsChecked = false; _displayCurrency = "UGX"; RefreshDisplay(); };
-            _usdToggle.Checked += (s, e) => { _ugxToggle.IsChecked = false; _displayCurrency = "USD"; RefreshDisplay(); };
+            // P1.3 — reflect the persisted currency (handlers attach AFTER the
+            // initializer, so setting IsChecked here doesn't fire RefreshDisplay).
+            bool usd = _displayCurrency == "USD";
+            _ugxToggle = new ToggleButton { Content = "UGX", IsChecked = !usd, Width = 52, Height = 26, Margin = new Thickness(0, 0, 4, 0) };
+            _usdToggle = new ToggleButton { Content = "USD", IsChecked = usd, Width = 52, Height = 26 };
+            _ugxToggle.Checked += (s, e) => { _usdToggle.IsChecked = false; _displayCurrency = "UGX"; SaveUiState(); RefreshDisplay(); };
+            _usdToggle.Checked += (s, e) => { _ugxToggle.IsChecked = false; _displayCurrency = "USD"; SaveUiState(); RefreshDisplay(); };
             ccyPanel.Children.Add(_ugxToggle);
             ccyPanel.Children.Add(_usdToggle);
             Grid.SetColumn(ccyPanel, 1);
@@ -550,6 +653,7 @@ namespace StingTools.UI
                 // works on whichever tab is active (mirrors the BOQ set pattern).
                 _openMaterialSections.Clear();
                 foreach (var k in MaterialCategoryKeys()) _openMaterialSections.Add(k);
+                SaveUiState();
                 RebuildSectionsView();
                 RebuildMaterialsTab();
             }));
@@ -557,6 +661,7 @@ namespace StingTools.UI
             {
                 _openSections.Clear();
                 _openMaterialSections.Clear();
+                SaveUiState();
                 RebuildSectionsView();
                 RebuildMaterialsTab();
             }));
@@ -596,13 +701,18 @@ namespace StingTools.UI
                 ("Source model",        BoqGroupingMode.SourceModel),
             })
                 groupCombo.Items.Add(new ComboBoxItem { Content = opt.Item1, Tag = opt.Item2 });
-            groupCombo.SelectedIndex = 0;
+            // P1.3 — preselect the persisted grouping (before the handler attaches, so
+            // it doesn't fire a redundant RefreshAsync during Build).
+            var preSel = groupCombo.Items.Cast<ComboBoxItem>()
+                .FirstOrDefault(ci => ci.Tag is BoqGroupingMode gm && gm == _groupingMode);
+            groupCombo.SelectedItem = preSel ?? groupCombo.Items[0];
             groupCombo.SelectionChanged += (s, e) =>
             {
                 if (groupCombo.SelectedItem is ComboBoxItem ci && ci.Tag is BoqGroupingMode m && m != _groupingMode)
                 {
                     _groupingMode = m;
                     _openSections.Clear();   // section keys change — let RefreshAsync re-open all
+                    SaveUiState();
                     RefreshAsync();          // re-aggregate + re-group from the model
                 }
             };
@@ -686,6 +796,7 @@ namespace StingTools.UI
                 mi.Click += (s, e) =>
                 {
                     if (mi.IsChecked) _hiddenColumns.Remove(key); else _hiddenColumns.Add(key);
+                    SaveUiState();
                     RebuildSectionsView();
                 };
                 menu.Items.Add(mi);
@@ -721,6 +832,7 @@ namespace StingTools.UI
                 }
                 catch (Exception ex) { StingLog.Warn($"ApplyPrintProfile({profileId}): {ex.Message}"); }
             }
+            SaveUiState();   // P1.3 — a profile sets the visible-column set; persist it
             RebuildSectionsView();
         }
 
@@ -1168,9 +1280,12 @@ namespace StingTools.UI
                 _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
-                // On first load open every section; subsequent refreshes preserve state
-                if (_openSections.Count == 0 && _boq != null)
+                // On first load open every section; subsequent refreshes preserve
+                // state. P1.3 — suppress the auto-open-all once, so a persisted
+                // "collapse all" (empty OpenSections) isn't immediately re-expanded.
+                if (_openSections.Count == 0 && _boq != null && !_suppressAutoOpenOnce)
                     foreach (var s in _boq.Sections) _openSections.Add(SectionKey(s));
+                _suppressAutoOpenOnce = false;
                 RefreshDisplay();
             }
             catch (Exception ex)
@@ -1409,8 +1524,8 @@ namespace StingTools.UI
             };
             // Capture the stable key — sec will be a new instance on next rebuild
             string capturedKey = secKey;
-            expander.Expanded  += (s, e) => _openSections.Add(capturedKey);
-            expander.Collapsed += (s, e) => _openSections.Remove(capturedKey);
+            expander.Expanded  += (s, e) => { _openSections.Add(capturedKey); SaveUiState(); };
+            expander.Collapsed += (s, e) => { _openSections.Remove(capturedKey); SaveUiState(); };
             return expander;
         }
 
@@ -2076,8 +2191,8 @@ namespace StingTools.UI
                     Background = Brushes.White
                 };
                 string matKey = grp.Key;   // capture — grp is reused by the loop
-                expander.Expanded  += (s, e) => _openMaterialSections.Add(matKey);
-                expander.Collapsed += (s, e) => _openMaterialSections.Remove(matKey);
+                expander.Expanded  += (s, e) => { _openMaterialSections.Add(matKey); SaveUiState(); };
+                expander.Collapsed += (s, e) => { _openMaterialSections.Remove(matKey); SaveUiState(); };
 
                 var grid = new DataGrid
                 {
