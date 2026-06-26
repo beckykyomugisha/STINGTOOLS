@@ -107,6 +107,19 @@ namespace StingTools.BOQ
         public string SnapshotRef;
         public long RevitElementId = -1;    // -1 for manual/PS rows
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
+
+        /// <summary>
+        /// INT-0 — the canonical 22-char IFC GlobalId, derived deterministically
+        /// from <see cref="UniqueId"/>. This is the single cross-platform join
+        /// key: COBie Component external identifier, Speckle applicationId, the
+        /// server's ExternalElementMapping, and the priced-BOQ round-trip all key
+        /// off it. Empty for manual / provisional-sum rows with no modelled
+        /// element. Encoder is the one shared resolver (IfcGuidEncoder).
+        /// </summary>
+        public string IfcGlobalId =>
+            string.IsNullOrEmpty(UniqueId)
+                ? ""
+                : StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(UniqueId);
         public string Level;
         public string Location;             // room name or spatial code
         public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
