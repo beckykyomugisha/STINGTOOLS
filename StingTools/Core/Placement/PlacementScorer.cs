@@ -877,6 +877,12 @@ namespace StingTools.Core.Placement
             }
         }
 
+        // NOTE: during Score() the engine passes an EMPTY already-placed list
+        // (placedPoints is filled only after placement), so this returns 1.0 for
+        // every candidate and spacing does NOT influence the ranking. MinSpacing
+        // is instead enforced as a post-rank GATE in
+        // FixturePlacementEngine.SelectWithSpacing. This is intentional — see the
+        // comment at that call site.
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
         {
             if (placed == null || placed.Count == 0) return 1.0;

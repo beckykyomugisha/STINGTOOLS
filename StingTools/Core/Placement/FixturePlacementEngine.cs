@@ -792,7 +792,28 @@ namespace StingTools.Core.Placement
             }
 
             FamilySymbol symbol = ResolveSymbol(doc, effRule.CategoryFilter, effRule, perCategorySymbol, result);
-            if (symbol == null) return;
+            if (symbol == null)
+            {
+                // Make the silent "no symbol → 0 placements" case visible.
+                // Count every candidate this rule would have placed as skipped
+                // and surface a one-shot per-(rule, category, variant) warning so
+                // the user knows why the rule placed nothing.
+                if (diagRoom != null)
+                {
+                    diagRoom.SkippedNoSymbol += chosen.Count;
+                    if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
+                        diagRoom.FirstSkipReason = $"no family symbol resolved for category '{effRule.CategoryFilter}'" +
+                            (string.IsNullOrEmpty(effRule.VariantHint) ? "" : $" / variant '{effRule.VariantHint}'");
+                }
+                result.SkippedCount += chosen.Count;
+                string symWarnKey = $"NoSymbol:{effRule.CategoryFilter}:{effRule.VariantHint}:{effRule.MergeKey}";
+                if (!result.Warnings.Any(w => w.Contains(symWarnKey)))
+                    result.Warnings.Add($"{symWarnKey} — rule '{effRule.MergeKey}' resolved no family symbol for category " +
+                        $"'{effRule.CategoryFilter}'" +
+                        (string.IsNullOrEmpty(effRule.VariantHint) ? "" : $" / variant '{effRule.VariantHint}'") +
+                        $"; {chosen.Count} candidate(s) skipped. Load a matching family or adjust FamilyTypeRegex / VariantHint.");
+                return;
+            }
 
             // Phase 139.18 — warn once per (rule, family) when a wall- or
             // ceiling-anchored rule resolves to an un-hosted family. The

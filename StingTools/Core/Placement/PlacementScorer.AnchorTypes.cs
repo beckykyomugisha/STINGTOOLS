@@ -631,28 +631,41 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitBeamSoffit: {ex.Message}"); }
         }
 
+        // Document-wide column locations, collected once per scorer (per run).
+        // EmitColumnFaceNearest is called once per (room, rule); without this
+        // cache each call re-ran two full-model collectors.
+        private List<XYZ> _columnLocsCache;
+
+        private List<XYZ> GetColumnLocations()
+        {
+            if (_columnLocsCache != null) return _columnLocsCache;
+            _columnLocsCache = new List<XYZ>();
+            try
+            {
+                foreach (var cat in new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_Columns })
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(cat).WhereElementIsNotElementType())
+                        if ((el.Location as LocationPoint)?.Point is XYZ p) _columnLocsCache.Add(p);
+            }
+            catch (Exception ex) { StingLog.Warn($"GetColumnLocations: {ex.Message}"); }
+            return _columnLocsCache;
+        }
+
         private void EmitColumnFaceNearest(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
-            // Reuse legacy COLUMN_FACE logic by calling the existing path indirectly.
             try
             {
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return;
                 XYZ centroid = (bb.Min + bb.Max) * 0.5;
-                var cats = new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_Columns };
                 XYZ best = null; double bestSq = double.MaxValue;
-                foreach (var cat in cats)
+                foreach (var pt in GetColumnLocations())
                 {
-                    foreach (var el in new FilteredElementCollector(_doc)
-                        .OfCategory(cat).WhereElementIsNotElementType())
-                    {
-                        XYZ pt = (el.Location as LocationPoint)?.Point;
-                        if (pt == null) continue;
-                        double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
-                        double sq = dx * dx + dy * dy;
-                        if (sq < bestSq) { bestSq = sq; best = pt; }
-                    }
+                    if (pt == null) continue;
+                    double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
+                    double sq = dx * dx + dy * dy;
+                    if (sq < bestSq) { bestSq = sq; best = pt; }
                 }
                 if (best != null)
                     points.Add(new XYZ(best.X + offsetXFt, best.Y + offsetYFt, anchorZ));

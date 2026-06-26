@@ -276,7 +276,7 @@ namespace StingTools.Core.Placement
             double coverageRadiusFt, List<XYZ> uncoveredSamples)
         {
             if (placed == null || placed.Count == 0) return 0.0;
-            double sampleStepFt = 0.5 / 0.3048; // 0.5m
+            double sampleStepFt = 0.5 / 0.3048; // 0.5 m sample step, expressed in feet
             int total = 0, covered = 0;
             double cr2 = coverageRadiusFt * coverageRadiusFt;
             double zSample = room.Level?.Elevation ?? bb.Min.Z;
