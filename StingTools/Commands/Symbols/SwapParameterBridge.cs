@@ -355,8 +355,14 @@ namespace StingTools.Commands.Symbols
                     {
                         try
                         {
-                            if (doc.LoadFamily(famDoc.PathName, new BridgeReloadOptions(), out _)) stamped++;
-                            else StingLog.Warn($"EnsureStamp: reload returned false for '{fam.Name}'.");
+                            // Instance overload reloads the IN-MEMORY family doc into the
+                            // project. The path-based overload fails here: EditFamily of an
+                            // already-loaded family (the manufacturer family we just
+                            // stamped) yields an empty PathName, so LoadFamily(PathName)
+                            // would never reload it and the stamp would be lost.
+                            var reloaded = famDoc.LoadFamily(doc, new BridgeReloadOptions());
+                            if (reloaded != null) stamped++;
+                            else StingLog.Warn($"EnsureStamp: reload returned null for '{fam.Name}'.");
                         }
                         catch (Exception ex) { StingLog.Warn($"EnsureStamp reload '{fam.Name}': {ex.Message}"); }
                     }

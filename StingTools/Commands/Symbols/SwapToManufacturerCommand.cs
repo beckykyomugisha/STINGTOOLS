@@ -793,13 +793,15 @@ namespace StingTools.Commands.Symbols
                     {
                         try
                         {
-                            // Family.LoadFamily(Document) or doc.EditFamily path — use reflection-safe approach
-                            Family reloadedFam = null;
-                            bool loaded = doc.LoadFamily(famDoc.PathName, new StingFamilyReloadOptions(), out reloadedFam);
-                            if (loaded || reloadedFam != null)
+                            // Instance overload reloads the in-memory family doc into the
+                            // project. The path-based overload fails for an EditFamily doc
+                            // of an already-loaded family (empty PathName), so the authored
+                            // symbols would never reach the project.
+                            Family reloadedFam = famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
+                            if (reloadedFam != null)
                                 authored++;
                             else
-                                StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                                StingLog.Warn($"AutoAuthor: LoadFamily returned null for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
                         }
                         catch (Exception loadEx)
                         {
