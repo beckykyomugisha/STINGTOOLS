@@ -24,6 +24,19 @@ namespace StingTools.Core.Sustainability
         public WaterEstimateResult  Water    { get; set; }
         public MaterialsRollupResult Materials { get; set; }
         public BaselineResolution   Baseline { get; set; }
+
+        /// <summary>WS B5 — EDGE-app certified savings %, keyed by gate-metric id
+        /// (energy_savings_pct / water_savings_pct / embodied_energy_savings_pct).
+        /// When present for a metric, the provider returns the official value and
+        /// flags it certified (computed), and the evaluator stops treating that gate
+        /// as delegated — so the determined EDGE level reflects the official number.</summary>
+        public Dictionary<string, double> OfficialOverrides { get; set; }
+
+        public bool HasOfficial(string metric)
+            => OfficialOverrides != null && !string.IsNullOrEmpty(metric) && OfficialOverrides.ContainsKey(metric);
+
+        public double GetOfficial(string metric)
+            => (OfficialOverrides != null && metric != null && OfficialOverrides.TryGetValue(metric, out var v)) ? v : 0;
     }
 
     public interface IMetricProvider
@@ -74,6 +87,7 @@ namespace StingTools.Core.Sustainability
                             ? "no Spaces / floor area — add Spaces or enter GFA in Setup"
                             : "zero design energy — check area / occupancy / COP"));
             }
+            MetricProviderOfficial.ApplyOfficial(r, ctx,"energy_savings_pct");
             return r;
         }
     }
@@ -93,6 +107,7 @@ namespace StingTools.Core.Sustainability
                     ctx.Water.Computed ? null
                         : "indicative default — no low-flow fixture data read from the model");
             }
+            MetricProviderOfficial.ApplyOfficial(r, ctx,"water_savings_pct");
             return r;
         }
     }
@@ -126,7 +141,21 @@ namespace StingTools.Core.Sustainability
                                               : $"{m.TotalLines} measured, 0 carbon-stamped — run a carbon pass"));
                 r.SetComputed("wblca_completed", m.Computed);
             }
+            // EDGE materials gate = embodied-energy %; the official figure overrides
+            // the indicative AND makes the (otherwise-delegated) gate evaluable.
+            MetricProviderOfficial.ApplyOfficial(r, ctx,"embodied_energy_savings_pct");
             return r;
+        }
+    }
+
+    // ── WS B5 — shared EDGE-official override applied by every provider ─────
+    internal static class MetricProviderOfficial
+    {
+        public static void ApplyOfficial(MetricResult r, SchemeContext ctx, string metric)
+        {
+            if (r == null || ctx == null || !ctx.HasOfficial(metric)) return;
+            r.Numbers[metric] = ctx.GetOfficial(metric);
+            r.SetComputed(metric, true, "EDGE-app official %");
         }
     }
 }

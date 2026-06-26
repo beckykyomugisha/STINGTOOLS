@@ -118,6 +118,12 @@ namespace StingTools.UI.Sustainability
                 txtGridCarbon.Text   = sup.GridCarbonKgco2eKwh.ToString("0.00", CultureInfo.InvariantCulture);
                 txtDieselCarbon.Text = sup.DieselCarbonKgco2eKwh.ToString("0.00", CultureInfo.InvariantCulture);
                 txtDieselFrac.Text   = sup.DieselFraction.ToString("0.00", CultureInfo.InvariantCulture);
+
+                // WS B5 — restore any recorded EDGE-app official % (blank when unset).
+                var eo = s.EdgeOfficial ?? new EdgeOfficialFigures();
+                txtEnergyOfficial.Text = PctOrBlank(eo.EnergySavingsPct);
+                txtWaterOfficial.Text  = PctOrBlank(eo.WaterSavingsPct);
+                txtMatOfficial.Text    = PctOrBlank(eo.MaterialsSavingsPct);
             }
             catch (Exception ex) { StingLog.Warn($"Sus LoadSetupForm: {ex.Message}"); }
         }
@@ -158,6 +164,16 @@ namespace StingTools.UI.Sustainability
                     GridCarbonKgco2eKwh = ParseDouble(txtGridCarbon.Text, 0.45),
                     DieselCarbonKgco2eKwh = ParseDouble(txtDieselCarbon.Text, 0.8),
                     DieselFraction = ParseDouble(txtDieselFrac.Text, 0.0)
+                };
+
+                // WS B5 — capture the EDGE-app official % (null when blank). These
+                // override the indicative figures and make the EDGE level reflect the
+                // certified numbers when the user records them.
+                s.EdgeOfficial = new EdgeOfficialFigures
+                {
+                    EnergySavingsPct    = ParseNullable(txtEnergyOfficial.Text),
+                    WaterSavingsPct     = ParseNullable(txtWaterOfficial.Text),
+                    MaterialsSavingsPct = ParseNullable(txtMatOfficial.Text)
                 };
             }
             catch (Exception ex) { StingLog.Warn($"Sus ReadSetupForm: {ex.Message}"); }
@@ -296,7 +312,32 @@ namespace StingTools.UI.Sustainability
             catch (Exception ex) { StingLog.Warn($"Sus ApplyAutoFill: {ex.Message}"); }
         }
 
+        /// <summary>WS B4 — repopulate the building-use dropdown from the data-driven
+        /// catalogue (registry union), preserving the current selection. Replaces the
+        /// hardcoded 5-item XAML list.</summary>
+        public void PopulateBuildingUses(IEnumerable<string> uses)
+        {
+            try
+            {
+                if (uses == null) return;
+                string current = ContentOf(cmbBuildingUse, "office");
+                cmbBuildingUse.Items.Clear();
+                foreach (var u in uses)
+                    if (!string.IsNullOrWhiteSpace(u))
+                        cmbBuildingUse.Items.Add(new ComboBoxItem { Content = u });
+                if (cmbBuildingUse.Items.Count == 0)
+                    cmbBuildingUse.Items.Add(new ComboBoxItem { Content = "office" });
+                SetComboByContent(cmbBuildingUse, current);
+                if (cmbBuildingUse.SelectedItem == null) cmbBuildingUse.SelectedIndex = 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus PopulateBuildingUses: {ex.Message}"); }
+        }
+
         // ── small form helpers ───────────────────────────────────────────
+        private static string PctOrBlank(double? v)
+            => v.HasValue ? v.Value.ToString("0.#", CultureInfo.InvariantCulture) : "";
+        private static double? ParseNullable(string s)
+            => double.TryParse((s ?? "").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (double?)null;
         private static void SetComboByTag(ComboBox c, string tag)
         {
             if (c == null || string.IsNullOrEmpty(tag)) return;

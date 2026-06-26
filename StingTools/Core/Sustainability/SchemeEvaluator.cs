@@ -53,7 +53,10 @@ namespace StingTools.Core.Sustainability
                     Metric    = gate.Metric,
                     Provider  = gate.Provider,
                     Required   = gate.Required,
-                    Delegated  = !string.IsNullOrEmpty(gate.Delegated),
+                    // WS B5 — a delegated gate (EDGE materials) stops being delegated
+                    // once the user records the EDGE-app's official figure: it then
+                    // contributes to the determined level instead of being caveated.
+                    Delegated  = !string.IsNullOrEmpty(gate.Delegated) && !(ctx?.HasOfficial(gate.Metric) ?? false),
                     Unit       = gate.Unit
                 };
 
@@ -188,7 +191,7 @@ namespace StingTools.Core.Sustainability
                 // gate blocks (can't be silently passed off a zero/default value).
                 foreach (var gate in scheme.Gates.Where(g =>
                              g.Required && g.Points.Count == 0 && !g.HasThresholdBool
-                             && string.IsNullOrEmpty(g.Delegated)))
+                             && (string.IsNullOrEmpty(g.Delegated) || ctx.HasOfficial(g.Metric))))
                 {
                     if (!computed.TryGetValue(gate.Id, out var c) || !c) { allMet = false; break; }
                     lvl.Value.TryGetValue(gate.Id, out double thr);

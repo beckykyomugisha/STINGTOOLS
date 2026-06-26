@@ -167,6 +167,16 @@ namespace StingTools.Commands.Sustainability
                 return Result.Cancelled;
             }
             setup.Save(dir);
+            // WS B4 — offer the data-driven building-use list (registry union) before
+            // restoring the form so the saved use resolves against the live options.
+            try
+            {
+                var uses = BuildingUseCatalog.Resolve(
+                    SustainabilityRegistries.Baselines(doc).All.Select(b => b.Key?.BuildingUse),
+                    SustainabilityRegistries.WaterProfiles(doc).All.Select(p => p.BuildingUse));
+                panel?.PopulateBuildingUses(uses);
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain building-use list: {ex.Message}"); }
             panel?.LoadSetupForm(setup);
             StingLog.Info($"Sustain_ProjectSetup: saved setup ({string.Join(",", setup.Schemes)} / {setup.DominantBuildingUse} / {setup.ClimateZone}).");
             TaskDialog.Show("STING Sustainability",

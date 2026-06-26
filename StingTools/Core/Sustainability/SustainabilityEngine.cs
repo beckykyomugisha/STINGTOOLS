@@ -79,7 +79,9 @@ namespace StingTools.Core.Sustainability
             // ── Scheme evaluation (certifications-as-data) ──
             var ctx = new SchemeContext
             {
-                Energy = res.Energy, Water = res.Water, Materials = res.Materials, Baseline = res.Baseline
+                Energy = res.Energy, Water = res.Water, Materials = res.Materials, Baseline = res.Baseline,
+                // WS B5 — feed any recorded EDGE-app official % into the gate evaluation.
+                OfficialOverrides = setup.EdgeOfficial?.ToMetricOverrides()
             };
             var schemeReg = SustainabilityRegistries.Schemes(doc);
             var providers = MetricProviderRegistry.CreateStandard();

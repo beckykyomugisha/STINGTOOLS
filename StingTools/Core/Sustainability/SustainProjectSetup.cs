@@ -48,6 +48,33 @@ namespace StingTools.Core.Sustainability
         public double CoolingCop  { get; set; } = 0;   // 0 => use baseline COP
     }
 
+    /// <summary>WS B5 — the EDGE app's CERTIFIED savings %, entered by the user on
+    /// the dashboard. Null ⇒ not recorded (the STING indicative figure stands). When
+    /// a value is present it OVERRIDES the indicative for that gate AND counts as a
+    /// certified (computed) number, so a delegated gate (EDGE materials) becomes
+    /// evaluable and the determined EDGE level reflects the official figure.</summary>
+    public class EdgeOfficialFigures
+    {
+        public double? EnergySavingsPct    { get; set; }
+        public double? WaterSavingsPct     { get; set; }
+        /// <summary>EDGE materials gate is expressed as embodied-energy %.</summary>
+        public double? MaterialsSavingsPct { get; set; }
+
+        [JsonIgnore]
+        public bool Any => EnergySavingsPct.HasValue || WaterSavingsPct.HasValue || MaterialsSavingsPct.HasValue;
+
+        /// <summary>Map the entered figures to the gate-metric ids the SchemeContext
+        /// keys on. Only present values are included.</summary>
+        public Dictionary<string, double> ToMetricOverrides()
+        {
+            var d = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            if (EnergySavingsPct.HasValue)    d["energy_savings_pct"]          = EnergySavingsPct.Value;
+            if (WaterSavingsPct.HasValue)     d["water_savings_pct"]           = WaterSavingsPct.Value;
+            if (MaterialsSavingsPct.HasValue) d["embodied_energy_savings_pct"] = MaterialsSavingsPct.Value;
+            return d;
+        }
+    }
+
     public class FactorSourceOrder
     {
         public List<string> EmbodiedCarbon { get; set; } = new List<string> { "EPD_specific", "EC3_regional", "ICE_v3", "Ecoinvent" };
@@ -76,6 +103,8 @@ namespace StingTools.Core.Sustainability
 
         public SupplyConfig Supply { get; set; } = new SupplyConfig();
         public FactorSourceOrder FactorSources { get; set; } = new FactorSourceOrder();
+        /// <summary>WS B5 — recorded EDGE-app certified figures (override the indicative).</summary>
+        public EdgeOfficialFigures EdgeOfficial { get; set; } = new EdgeOfficialFigures();
         public SustainUnits Units { get; set; } = SustainUnits.SI;
 
         public string UpdatedUtc { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -138,6 +167,7 @@ namespace StingTools.Core.Sustainability
                 s.Zones = new List<ZoneSetup> { new ZoneSetup() };
             if (s.Supply == null) s.Supply = new SupplyConfig();
             if (s.FactorSources == null) s.FactorSources = new FactorSourceOrder();
+            if (s.EdgeOfficial == null) s.EdgeOfficial = new EdgeOfficialFigures();
             if (s.Schemes == null || s.Schemes.Count == 0) s.Schemes = new List<string> { "EDGE" };
             if (s.TargetLevels == null) s.TargetLevels = new Dictionary<string, string>();
             return s;
