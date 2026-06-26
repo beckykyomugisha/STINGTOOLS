@@ -124,7 +124,9 @@ namespace StingTools.Core.Sustainability
                 // design energy, indicative-default water) DOES block (its Passed=false).
                 var determinable = res.Gates.Where(g => g.Required && !g.Delegated).ToList();
                 res.Passed = determinable.Count > 0 && determinable.All(g => g.Passed);
-                res.AchievedLevel = HighestAchievableLevel(scheme, providers, ctx);
+                // WS E2 — reuse the gate metrics already computed in the loop above
+                // instead of re-invoking every provider a second time.
+                res.AchievedLevel = HighestAchievableLevel(scheme, res.Gates, ctx);
             }
 
             return res;
@@ -162,41 +164,37 @@ namespace StingTools.Core.Sustainability
         }
 
         /// <summary>For all_required schemes: the highest level whose per-gate
-        /// thresholds are ALL met by the current metrics.</summary>
+        /// thresholds are ALL met by the metrics ALREADY computed in the main loop
+        /// (WS E2 — no second provider invocation; the values include any EDGE
+        /// official overrides applied in the loop).</summary>
         private static string HighestAchievableLevel(
-            GreenScheme scheme, MetricProviderRegistry providers, SchemeContext ctx)
+            GreenScheme scheme, IReadOnlyList<GateResult> gateResults, SchemeContext ctx)
         {
             if (scheme.Levels == null || scheme.Levels.Count == 0) return "None";
 
-            // Cache metric values + computed flags per gate once.
-            var values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            var computed = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            foreach (var gate in scheme.Gates)
-            {
-                var metric = providers.Get(gate.Provider)?.Evaluate(ctx);
-                values[gate.Id]   = metric?.GetNumber(gate.Metric, 0) ?? 0;
-                computed[gate.Id] = metric?.IsComputed(gate.Metric) ?? true;
-            }
+            var byId = gateResults
+                .GroupBy(g => g.GateId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             // Levels are typically ordered Certified < Advanced < ZeroCarbon by the
-            // energy threshold; rank by the max energy threshold so we report the
-            // highest level that fully passes.
+            // energy threshold; rank by the max threshold so we report the highest
+            // level that fully passes.
             string achieved = "None";
             int bestRank = -1;
             foreach (var lvl in scheme.Levels)
             {
                 bool allMet = true;
                 // Determinable, non-delegated, numeric required gates only. A delegated
-                // gate (EDGE materials) is the EDGE app's to certify; a not-computed
-                // gate blocks (can't be silently passed off a zero/default value).
+                // gate (EDGE materials) is the EDGE app's to certify unless an official
+                // figure was recorded; a not-computed gate blocks (can't be silently
+                // passed off a zero/default value).
                 foreach (var gate in scheme.Gates.Where(g =>
                              g.Required && g.Points.Count == 0 && !g.HasThresholdBool
                              && (string.IsNullOrEmpty(g.Delegated) || ctx.HasOfficial(g.Metric))))
                 {
-                    if (!computed.TryGetValue(gate.Id, out var c) || !c) { allMet = false; break; }
+                    if (!byId.TryGetValue(gate.Id, out var gr) || !gr.Computed) { allMet = false; break; }
                     lvl.Value.TryGetValue(gate.Id, out double thr);
-                    if (!Compare(values.TryGetValue(gate.Id, out var v) ? v : 0, gate.Operator, thr))
-                    { allMet = false; break; }
+                    if (!Compare(gr.IndicativeValue, gate.Operator, thr)) { allMet = false; break; }
                 }
                 if (allMet)
                 {

@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.DB.Architecture;   // Room (WS D2)
 using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Hvac.Loads;
@@ -178,7 +179,38 @@ namespace StingTools.Core.Sustainability
             }
             catch (Exception ex) { StingLog.Warn($"Sustain GatherZones spaces: {ex.Message}"); }
 
-            // Fallback: no Spaces -> synthesise a single zone per setup zone using
+            // WS D2 — Room-based architectural model: when there are no MEP Spaces,
+            // use Rooms as real zones (one LoadZone per Room, real per-room area)
+            // instead of jumping straight to the single synthetic setup zone. Spaces
+            // stay preferred above. Per-room USE-from-name is a documented follow-on;
+            // the dominant-use profile is applied per room (same as the Spaces path).
+            if (zones.Count == 0)
+            {
+                try
+                {
+                    var rooms = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .Cast<Room>()
+                        .Where(r => r != null && r.Area > 1e-6)
+                        .ToList();
+                    if (rooms.Count > 0)
+                    {
+                        var profile = profiles?.Get(ProfileIdForUse(setup.DominantBuildingUse));
+                        double dhw = DhwForUse(setup.DominantBuildingUse);
+                        foreach (var r in rooms)
+                        {
+                            var z = ZoneFromRoom(r);
+                            if (z == null) continue;
+                            ApplyProfile(z, profile, dhw);
+                            zones.Add(z);
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Sustain GatherZones rooms: {ex.Message}"); }
+            }
+
+            // Fallback: no Spaces or Rooms -> synthesise a single zone per setup zone using
             // the setup's declared floor area + occupancy (so the estimator still
             // produces a coherent indicative number on a model without Spaces).
             if (zones.Count == 0 && setup.Zones != null)
@@ -269,6 +301,30 @@ namespace StingTools.Core.Sustainability
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"Sustain ZoneFromSpace {s.Id}: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Build a LoadZone from a Room (WS D2) — real per-room area + height;
+        /// occupancy from "Number of People" when present, else the profile density.</summary>
+        private static LoadZone ZoneFromRoom(Room r)
+        {
+            try
+            {
+                double areaM2 = UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters);
+                double heightM = UnitUtils.ConvertFromInternalUnits(r.UnboundedHeight, UnitTypeId.Meters);
+                if (heightM <= 0.1) heightM = 3.0;
+
+                var z = new LoadZone
+                {
+                    Id = r.Id.Value.ToString(),
+                    Name = string.IsNullOrEmpty(r.Name) ? $"Room {r.Id}" : r.Name,
+                    FloorAreaM2 = areaM2,
+                    HeightM = heightM
+                };
+                int occ = TryReadIntByName(r, "Number of People");
+                if (occ > 0) z.OccupantCount = occ;
+                return z;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ZoneFromRoom {r.Id}: {ex.Message}"); return null; }
         }
 
         private static int TryReadIntByName(Element el, string name)
