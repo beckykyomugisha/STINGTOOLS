@@ -2726,8 +2726,12 @@ namespace StingTools.BIMManager
                     ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["TypeName"] = typeName, ["Space"] = roomName,
                     ["Description"] = !string.IsNullOrEmpty(tag7) ? tag7 : desc,
+                    // INT-0 — COBie ExternalIdentifier (NBIMS-US ExtIdentifier)
+                    // must be the stable 22-char IFC GlobalId, not the 45-char
+                    // Revit UniqueId. It is the cross-tool join key into the IFC,
+                    // Speckle applicationId and the server identity map.
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
-                    ["ExternalIdentifier"] = el.UniqueId,
+                    ["ExternalIdentifier"] = StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(el.UniqueId),
                     ["SerialNumber"] = serialNumber,
                     ["InstallationDate"] = installDate,
                     ["WarrantyStartDate"] = warrantyStart,
