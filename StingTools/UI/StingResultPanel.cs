@@ -166,6 +166,15 @@ namespace StingTools.UI
             /// <summary>Show the result panel and return the index of the clicked action (-1 if closed).</summary>
             public int Show()
             {
+                // Slice 1.5 — when an inline sink is registered (BOQ Cost Manager
+                // Actions pane is hosting), render the result there instead of a
+                // popup window. Falls back to the modal dialog on any failure.
+                var sink = StingResultPanel.InlineSink;
+                if (sink != null)
+                {
+                    try { sink(this); return 1; }
+                    catch (Exception ex) { StingTools.Core.StingLog.Error("StingResultPanel inline sink", ex); }
+                }
                 return StingResultPanel.ShowDialog(this);
             }
 
@@ -217,6 +226,11 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
 
         public static Builder Create(string title) => new Builder { Title = title };
+
+        // Slice 1.5 — inline result routing. When set (by the BOQ Cost Manager
+        // while an Actions command runs), Builder.Show() routes here instead of
+        // popping a window. Cleared by the dispatcher after each command.
+        public static Action<Builder> InlineSink;
 
         // ══════════════════════════════════════════════════════════════════
         //  INLINE CONTENT BUILDER

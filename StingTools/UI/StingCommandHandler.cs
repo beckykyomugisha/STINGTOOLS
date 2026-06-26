@@ -4018,6 +4018,13 @@ namespace StingTools.UI
                     // (e.g., ElbowMode from tag command bleeding into next selection command)
                     ClearAllExtraParams();
 
+                    // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
+                    // hooks so a later ribbon/other-panel command's pickers + result
+                    // panels don't render into the (possibly closed) Actions pane.
+                    StingTools.Select.StingListPicker.InlineHost = null;
+                    StingTools.Select.StingListPicker.InlineTitleSink = null;
+                    StingResultPanel.InlineSink = null;
+
                     // FIX-UI03: Notify panel that command completed so Tag Studio
                     // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
                     // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()

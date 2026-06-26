@@ -989,6 +989,14 @@ namespace StingTools.UI
                         Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(14)
                     };
+                // Slice 1.5 — route this command's input pickers AND result panels
+                // into the Actions report pane instead of popups. The dispatcher
+                // clears these in StingCommandHandler.Execute's finally, once the
+                // (synchronous) command has run.
+                StingTools.Select.StingListPicker.InlineHost = _actionReportHost;
+                StingTools.Select.StingListPicker.InlineTitleSink = t => { if (_actionReportTitle != null) _actionReportTitle.Text = t; };
+                StingResultPanel.InlineSink = b => ShowInlineResult(b);
+
                 StingCommandHandler.SetExtraParam("InlineHost", "1");
                 DispatchAction(tag);
             }

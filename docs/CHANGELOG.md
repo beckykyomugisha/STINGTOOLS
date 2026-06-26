@@ -36,6 +36,34 @@ Schedule/cash-flow tab (Slice 2) and the command sweep (Slice 3).
   IFC lands under `<project>/_BIM_COORD/ifc/`, (d) the ✕ dismisses the region, and
   (e) running `BOQExportIfcQto` from the ribbon still shows the normal popup.
 
+#### Completed (BOQ 5D Workspace — Slice 2: inline pickers + inline results, zero popups)
+
+In-Revit feedback: the Actions commands still opened external windows for input
+(building type / contract form / baseline snapshot) and results. Closed it
+centrally — no per-command edits, no engine forking.
+
+- **`StingListPicker` inline-aware** (`UI/StingListPicker.cs`). New static
+  `InlineHost` (+ `InlineTitleSink`). When set, `Show(...)` renders the picker's
+  content INTO the host (the Actions report pane) and pumps a nested
+  `DispatcherFrame` until OK/Cancel — so the synchronous `Show()` still returns
+  the picked value, but the user sees an inline list, not a modal window. The
+  OK/Cancel/Esc paths route through a new `FinishInlineOrClose()` that stops the
+  frame inline (never calls `Close()` on a never-shown window — which would throw
+  and hang the pump). Null host ⇒ legacy modal behaviour everywhere else.
+- **`StingResultPanel` inline-aware** (`UI/StingResultPanel.cs`). New static
+  `InlineSink`; `Builder.Show()` routes to it (→ `ShowInlineResult` → Actions
+  pane) instead of `ShowDialog` when set. Falls back to the popup on any failure.
+- **Wiring** (`BOQCostManagerPanel.RunActionInline` +
+  `StingCommandHandler.Execute`). Clicking an Actions button registers both sinks
+  pointing at the Actions pane, sets `InlineHost=1`, dispatches; the command's
+  pickers + result panel now render inline. The dispatcher's `finally` tears the
+  hooks down after the (synchronous) command runs, so ribbon / other-panel
+  commands keep their normal popups.
+
+Net effect: every Actions command — across all ~25, with zero per-command edits —
+gathers input via an inline list in the right pane and reports inline. Built
+headless via Nice3point: **0 errors / 0 warnings**. Not pushed/merged.
+
 #### Completed (BOQ 5D Workspace — Slice 1.5: Actions master-detail + Materials expand)
 
 In-Revit feedback from Slice 1, two items.

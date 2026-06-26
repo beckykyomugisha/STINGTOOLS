@@ -43,6 +43,50 @@ namespace StingTools.Select
         private readonly Border _searchBorder;
         private readonly TextBlock _validationHint;
         private List<ListItem> _result;
+
+        // ── Inline hosting (Slice 1.5) ───────────────────────────────────────
+        // When InlineHost is set, Show(...) renders the picker INTO that host
+        // (the BOQ Cost Manager Actions pane) using a nested DispatcherFrame
+        // instead of a modal Window — so command code that calls
+        // StingListPicker.Show(...) still gets its result synchronously, but the
+        // user sees an inline panel, not a popup. Cleared by the dispatcher after
+        // each command runs. Null ⇒ legacy modal behaviour everywhere.
+        public static System.Windows.Controls.Border InlineHost;
+        public static Action<string> InlineTitleSink;
+        private System.Windows.Threading.DispatcherFrame _inlineFrame;
+
+        /// <summary>OK/Cancel/Esc end-point: unwind the nested pump when hosted
+        /// inline, else close the modal window. Never calls Close() on a
+        /// never-shown window (which would throw and hang the frame).</summary>
+        private void FinishInlineOrClose()
+        {
+            if (_inlineFrame != null) _inlineFrame.Continue = false;
+            else Close();
+        }
+
+        /// <summary>Render this picker into InlineHost and pump a nested message
+        /// loop until OK/Cancel sets _result and stops the frame.</summary>
+        private List<ListItem> ShowInline(string title)
+        {
+            var host = InlineHost;
+            try { InlineTitleSink?.Invoke(string.IsNullOrEmpty(title) ? "Select" : title); } catch { }
+
+            var content = this.Content as System.Windows.UIElement;
+            this.Content = null;                 // detach from the (never-shown) window
+            host.Child = content;                // host inline
+
+            _inlineFrame = new System.Windows.Threading.DispatcherFrame();
+            try
+            {
+                System.Windows.Threading.Dispatcher.PushFrame(_inlineFrame); // pumps until Continue=false
+            }
+            finally
+            {
+                _inlineFrame = null;
+                if (host.Child == content) host.Child = null; // clear unless a result already replaced it
+            }
+            return _result;
+        }
         private HashSet<string> _validCodes;
 
         private StingListPicker(string title, string subtitle, List<ListItem> items, bool allowMultiSelect)
@@ -209,7 +253,7 @@ namespace StingTools.Select
             }
 
             var cancelBtn = CreateButton("Cancel", false);
-            cancelBtn.Click += (s, e) => { _result = null; Close(); };
+            cancelBtn.Click += (s, e) => { _result = null; FinishInlineOrClose(); };
             cancelBtn.Margin = new Thickness(0, 0, 8, 0);
             buttonStack.Children.Add(cancelBtn);
 
@@ -226,7 +270,7 @@ namespace StingTools.Select
             // Keyboard shortcuts
             KeyDown += (s, e) =>
             {
-                if (e.Key == Key.Escape) { _result = null; Close(); }
+                if (e.Key == Key.Escape) { _result = null; FinishInlineOrClose(); }
                 else if (e.Key == Key.Enter) AcceptSelection();
             };
 
@@ -382,7 +426,7 @@ namespace StingTools.Select
                     if (first?.Tag is ListItem fi) _result.Add(fi);
                 }
             }
-            Close();
+            FinishInlineOrClose();
         }
 
         private static Button CreateButton(string text, bool isPrimary)
@@ -441,6 +485,8 @@ namespace StingTools.Select
             // Re-populate to apply validation coloring
             picker.PopulateList(items);
 
+            if (InlineHost != null) return picker.ShowInline(title);   // Slice 1.5 — no popup
+
             // Phase 98: prefer BCC as owner when it's open so the picker stacks
             // above the coordination centre (was falling behind with raw Revit HWND).
             StingTools.UI.StingWindowHelper.ApplyOwner(picker);
@@ -453,6 +499,8 @@ namespace StingTools.Select
             List<ListItem> items, bool allowMultiSelect = false)
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
+
+            if (InlineHost != null) return dlg.ShowInline(title);   // Slice 1.5 — no popup
 
             // Phase 98: prefer BCC as owner when open so the picker stacks above
             // the coordination centre; falls back to Revit main HWND otherwise.
