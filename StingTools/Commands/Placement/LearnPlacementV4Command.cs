@@ -56,11 +56,21 @@ namespace StingTools.Commands.Placement
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
-            var doc = ctx.Doc;
+            return RunLearn(ctx.Doc) >= 0 ? Result.Succeeded : Result.Cancelled;
+        }
+
+        /// <summary>
+        /// Core learn pass — also called from the Placement Centre's "Learn from
+        /// model" button. Returns the number of learned rules written, or -1 when
+        /// nothing was written (no saved project / no samples / error). Shows its
+        /// own TaskDialog feedback. Writes STING_PLACEMENT_RULES.learned.json.
+        /// </summary>
+        public static int RunLearn(Document doc)
+        {
             if (string.IsNullOrEmpty(doc?.PathName))
             {
                 TaskDialog.Show("STING — Learn Placement", "Save the project on disk first; the learned overrides land beside the .rvt.");
-                return Result.Cancelled;
+                return -1;
             }
 
             try
@@ -122,7 +132,7 @@ namespace StingTools.Commands.Placement
                 {
                     TaskDialog.Show("STING — Learn Placement",
                         "No placed instances of the learn-pass categories found in the model. Place a few real-world fixtures first.");
-                    return Result.Cancelled;
+                    return -1;
                 }
 
                 var rules = new List<PlacementRule>();
@@ -149,7 +159,7 @@ namespace StingTools.Commands.Placement
                 {
                     TaskDialog.Show("STING — Learn Placement",
                         $"Walked {clusters.Count} cluster(s) but every cluster had <2 samples. Place at least 2 instances of the same category in similarly-named rooms.");
-                    return Result.Cancelled;
+                    return -1;
                 }
 
                 string dir = Path.GetDirectoryName(doc.PathName);
@@ -174,13 +184,13 @@ namespace StingTools.Commands.Placement
                     CommonButtons = TaskDialogCommonButtons.Close,
                 };
                 td.Show();
-                return Result.Succeeded;
+                return rules.Count;
             }
             catch (Exception ex)
             {
                 StingLog.Error("LearnPlacementV4Command failed", ex);
-                message = ex.Message;
-                return Result.Failed;
+                TaskDialog.Show("STING — Learn Placement", $"Learn failed: {ex.Message}");
+                return -1;
             }
         }
 

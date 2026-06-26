@@ -143,6 +143,8 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Heat-map"        Click="OnHeatmap_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save view preset" Click="OnSaveViewPreset_Click"
                         ToolTip="Stamp a view preset onto the active view so its scope/template/scale travel with the model."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Learn from model" Click="OnLearnFromModel_Click"
+                        ToolTip="Inspect already-placed fixtures and write STING_PLACEMENT_RULES.learned.json (anchor + mounting height per category/room). Reloads so 'Honour learned offsets' picks it up."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="GD Study"        Click="OnGDStudy_Click"/>
             </DockPanel>
         </Border>

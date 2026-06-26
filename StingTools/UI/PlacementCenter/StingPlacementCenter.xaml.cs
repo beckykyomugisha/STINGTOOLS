@@ -1115,6 +1115,37 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        private void OnLearnFromModel_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                // RunLearn only reads elements + writes a JSON file (no Revit
+                // transaction), so it is safe to call directly on the dockable
+                // panel's API thread. It shows its own result TaskDialog.
+                int n = StingTools.Commands.Placement.LearnPlacementV4Command.RunLearn(_doc);
+                if (n > 0 && !string.IsNullOrEmpty(_doc.PathName))
+                {
+                    // Reload the just-written learned rules into the grid so they
+                    // are reviewable and "Honour learned offsets" picks them up.
+                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string learnedPath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.learned.json");
+                    if (System.IO.File.Exists(learnedPath))
+                    {
+                        int imported = VM.ImportFromFile(learnedPath);
+                        VM.ApplyFilter();
+                        VM.Status = $"Learned {n} rule(s); imported {imported} into the grid for review (Save Project to persist).";
+                        UpdateStatus();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnLearnFromModel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Learn from model failed: {ex.Message}");
+            }
+        }
+
         private void OnGDStudy_Click(object sender, RoutedEventArgs e)
         {
             string path = "Data\\GenerativeDesign\\STING_FIXTURE_PLACEMENT.dyn";
