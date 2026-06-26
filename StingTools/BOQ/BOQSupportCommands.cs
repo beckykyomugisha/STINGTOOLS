@@ -53,6 +53,132 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQRateGapReportCommand (G1) — read-only report of every modelled item
+    //  that still needs a price: no rate, low confidence, or a Default rate.
+    //  Renders inline (StingResultPanel auto-routes to the BOQ Actions pane)
+    //  with priced %, value-at-risk, per-NRM2-section gap counts, the biggest
+    //  unpriced items, and a CSV worklist to hand to the QS (Open-file button).
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQRateGapReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                int floor = (int)Math.Round(TagConfig.GetConfigDouble("COST_RATE_CONFIDENCE_FLOOR", 70.0));
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+
+                // Only modelled items — manual / PS rows are priced by the author.
+                var modelled = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model).ToList();
+                int total = modelled.Count;
+
+                var noRate    = modelled.Where(i => i.RateUGX <= 0).ToList();
+                var lowConf   = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence < floor).ToList();
+                var defaulted = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence >= floor
+                                    && string.Equals(i.RateSource, "Default", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                // A row is "flagged" if it hits any reason (dedup by Id for the value-at-risk sum).
+                var flagged = new Dictionary<string, (BOQLineItem item, string reason)>();
+                void Flag(BOQLineItem i, string r) { if (i != null && !flagged.ContainsKey(i.Id)) flagged[i.Id] = (i, r); }
+                foreach (var i in noRate) Flag(i, "No rate");
+                foreach (var i in lowConf) Flag(i, $"Low confidence (<{floor})");
+                foreach (var i in defaulted) Flag(i, "Defaulted rate");
+
+                double valueAtRisk = flagged.Values.Sum(f => f.item.TotalUGX);
+                int pricedCount = total - noRate.Count;
+                double pricedPct = total > 0 ? 100.0 * pricedCount / total : 100.0;
+
+                // CSV worklist for the QS.
+                string csvPath = null;
+                try
+                {
+                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        Directory.CreateDirectory(dir);
+                        csvPath = Path.Combine(dir, $"boq_rate_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Ref,Section,Description,Quantity,Unit,CurrentRateUGX,Confidence,RateSource,Reason");
+                        foreach (var (item, reason) in flagged.Values
+                            .OrderByDescending(f => f.item.Quantity))
+                        {
+                            sb.AppendLine(string.Join(",",
+                                Csv(item.BOQLineRef), Csv(item.NRM2Section), Csv(item.ItemName ?? item.TypeName),
+                                item.Quantity.ToString("0.###", CultureInfo.InvariantCulture), Csv(item.Unit),
+                                item.RateUGX.ToString("0", CultureInfo.InvariantCulture),
+                                item.RateConfidence.ToString(CultureInfo.InvariantCulture),
+                                Csv(item.RateSource), Csv(reason)));
+                        }
+                        File.WriteAllText(csvPath, sb.ToString());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ rate-gap CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — Rate-gap report");
+                panel.SetSubtitle($"{pricedPct:0.#}% priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price");
+                panel.AddSection("SUMMARY")
+                    .Metric("Modelled items", total.ToString())
+                    .Metric("Priced", $"{pricedCount} ({pricedPct:0.#}%)")
+                    .Metric("No rate", noRate.Count.ToString())
+                    .Metric("Low confidence", $"{lowConf.Count} (< {floor})")
+                    .Metric("Defaulted rate", defaulted.Count.ToString())
+                    .Metric("Value at risk", $"UGX {valueAtRisk:N0}",
+                        "Σ amount of flagged rows — what the total rests on until these are priced");
+
+                // Per-NRM2-section gap counts.
+                var bySection = flagged.Values
+                    .GroupBy(f => string.IsNullOrEmpty(f.item.NRM2Section) ? "(unsectioned)" : f.item.NRM2Section)
+                    .OrderByDescending(g => g.Sum(f => f.item.TotalUGX))
+                    .ToList();
+                if (bySection.Count > 0)
+                {
+                    panel.AddSection("GAPS BY SECTION");
+                    foreach (var g in bySection.Take(20))
+                        panel.Metric($"§{g.Key}", g.Count().ToString(),
+                            $"UGX {g.Sum(f => f.item.TotalUGX):N0} at risk");
+                }
+
+                if (noRate.Count > 0)
+                {
+                    panel.AddSection("BIGGEST UNPRICED ITEMS (by quantity)");
+                    foreach (var i in noRate.OrderByDescending(x => x.Quantity).Take(15))
+                        panel.Metric($"{i.ItemName ?? i.TypeName}",
+                            $"{i.Quantity:0.##} {i.Unit}", $"§{i.NRM2Section} · no rate");
+                }
+
+                if (flagged.Count == 0)
+                    panel.AddSection("CLEAN").Text("Every modelled item is priced above the confidence floor. Ready for QS review.");
+                else
+                    panel.AddSection("NEXT")
+                        .Text("Open the CSV worklist below and hand it to the QS, or run Export QS Bill to price in Excel.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQRateGapReportCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string Csv(string s)
+        {
+            s = s ?? "";
+            return (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQSetBudgetCommand — writes the budget passed via ExtraParam back
     //  onto ProjectInformation AND into project_config.json so the panel
     //  and the Revit DB stay in sync across sessions.

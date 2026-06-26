@@ -3,6 +3,24 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G1 — rate-gap report)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #1 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New read-only `BOQRateGapReportCommand`
+(`BOQ_RateGapReport`, wired into the Actions tab QS ROUND-TRIP group + the
+StingCommandHandler dispatch). Scans `BuildBOQDocument().AllItems` modelled
+rows and classifies each as no-rate (`RateUGX <= 0`), low-confidence
+(`RateConfidence` < `COST_RATE_CONFIDENCE_FLOOR`, default 70) or defaulted
+(`RateSource == "Default"`). Renders inline via `StingResultPanel`: priced %,
+value-at-risk (Σ flagged `TotalUGX`), per-NRM2-section gap counts, biggest
+unpriced items by quantity, and a CSV worklist (`_BIM_COORD/boq_rate_gap_*.csv`)
+surfaced through the Open-file button (`SetCsvPath`). Compile-verified Release
+`-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Actions → Rate Gap Report → pane shows priced %,
+value-at-risk and per-section gaps, with an Open-file CSV listing every
+unpriced / low-confidence item.
+
 #### Completed (BOQ 5D — P2.3 linked-instance multiplier)
 
 Branch `claude/placement-centre-review-audit`. Lets a link placed N times

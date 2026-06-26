@@ -262,10 +262,11 @@ MEP, or building-by-building). The cost must cover all of them.
 
 This is the part a real guide hides and you find out the hard way. We won't.
 
-1. **Rate-library coverage is partial.** Many items get a *default* low-confidence
-   rate or none. **Plan to do the QS Round-trip** (Step 4.2) on any real job —
-   don't trust auto-rates alone. *(Coming: a "rate-gap report" that lists exactly
-   which items still need a price.)*
+1. ~~**Rate-library coverage is partial.**~~ ✓ **Closed (G1).** Coverage is still
+   partial — but **Actions → Rate Gap Report** now lists exactly which modelled
+   items still need a price (no rate / low confidence / defaulted), totals the
+   *value at risk*, and exports a CSV worklist to hand the QS. Still **do the QS
+   Round-trip** (Step 4.2) on any real job.
 2. **No labour/plant/material split per rate yet.** NRM2 ideally breaks a rate into
    labour + plant + material; today a rate is a single number. Dayworks capture
    labour-hours separately, but measured items don't. *(Coming.)*

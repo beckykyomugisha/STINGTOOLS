@@ -948,6 +948,9 @@ namespace StingTools.UI
                     ("Import QS Bill", "BOQQsImport",
                      "Re-import the QS's priced workbook. Shows a diff (rate changes / new rows / model-qty drift) " +
                      "before applying. Model quantities preserved; QS rates land as RateSource=QS.", false),
+                    ("Rate Gap Report", "BOQ_RateGapReport",
+                     "List every modelled item that still needs a price (no rate / low confidence / defaulted), the " +
+                     "value at risk, and a CSV worklist to hand the QS. Read-only.", false),
                     ("Add Manual / PS / Daywork", "BOQAddManualRow",
                      "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
                      "Survives a model rebuild.", false),
