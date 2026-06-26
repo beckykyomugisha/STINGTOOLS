@@ -39,6 +39,17 @@ namespace StingTools.Core.Placement
             ("STING_PLACEMENT_RULES.electrical.json", "Electrical"),
             ("STING_PLACEMENT_RULES.healthcare-education.json", "Healthcare-Education"),
             ("STING_PLACEMENT_RULES.toilet-fixtures.json", "Toilet-Fixtures"),  // Phase 177 — full toilet-room fixture coverage
+            // These general packs were authored but never registered, so
+            // residential lighting (ceiling-pendants → living/dining/bedroom),
+            // residential MK sockets/switches, the extended baselines and the
+            // accessibility + glazing rules never loaded. Registered so dwelling
+            // projects place lights/sockets, not just commercial ones.
+            ("STING_PLACEMENT_RULES.ceiling-pendants.json", "Lighting-Pendants"),
+            ("STING_PLACEMENT_RULES.mk-electrical.json", "MK-Electrical"),
+            ("STING_PLACEMENT_RULES.baseline-extensions.json", "Baseline-Ext"),
+            ("STING_PLACEMENT_RULES.baseline-extensions2.json", "Baseline-Ext2"),
+            ("STING_PLACEMENT_RULES.accessibility.json", "Accessibility"),
+            ("STING_PLACEMENT_RULES.windows-glazing.json", "Windows-Glazing"),
         };
 
         /// <summary>
