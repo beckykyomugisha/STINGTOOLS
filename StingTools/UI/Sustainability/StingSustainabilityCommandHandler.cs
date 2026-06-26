@@ -59,11 +59,13 @@ namespace StingTools.UI.Sustainability
                         Run<StingTools.Commands.Sustainability.SustainLeedScorecardCommand>(app); break;
 
                     default:
-                        // Unknown tags fall through to the main handler.
+                        // Unknown tags fall through to the main handler via the
+                        // static dispatch surface (same pattern as the HVAC panel).
                         try
                         {
-                            StingTools.UI.StingCommandHandler.Instance?.SetCommand(tag);
-                            StingTools.UI.StingCommandHandler.Event?.Raise();
+                            bool ok = StingTools.UI.StingDockPanel.DispatchCommand(tag);
+                            if (!ok)
+                                StingLog.Warn($"StingSustainabilityCommandHandler: fallback dispatch '{tag}' refused by main handler.");
                         }
                         catch (Exception ex)
                         {
