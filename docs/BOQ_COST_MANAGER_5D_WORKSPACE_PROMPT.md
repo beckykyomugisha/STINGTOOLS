@@ -212,3 +212,105 @@ and what you deliberately deferred** (no silent scope cuts).
 - One logical slice per commit; `// TODO-VERIFY-API` on uncertain Revit/WPF calls;
   no `dotnet build` here — **verify in Revit before each next slice**.
 - Don't push or merge. Surface decisions; do not silently cut scope.
+
+---
+
+## 9. RESEARCH FINDINGS & APPENDED GAPS (per §6 — added by implementing agent)
+
+Researched 2026-06-26 while building Slice 1. Web-citation depth was partially
+constrained by one dropped connection during deep research; the high-value claims
+below are cited, and the rest are from STING's own verified backlog
+(`docs/ROADMAP.md`, `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md`). Nothing here is a
+silent scope cut — each gap is tagged **[adopt: Slice N]** or **[defer]** with a
+reason.
+
+### 9.1 Industry 5D cost/programme UI — what inline interactivity to match
+
+- **RIB CostX / iTWO** — *live-linked workbooks*: spreadsheet cells live-link to
+  the drawing/model AND to the rate library, so a rate edit re-costs the bill
+  immediately; **double-click drill-down** from a subtotal → cost breakdown and
+  from a quantity cell → quantity breakdown (auto-generated formula). Lesson:
+  (a) **live re-cost on edit**, (b) **drill-down from a cost line to its source**
+  (STING already has `SelectInRevit` per row — surface it as the drill-down).
+  Source: <https://www.rib-software.com/en/rib-costx/bim>,
+  <https://www.rib-software.com/en/blogs/rib-costx-functions>
+- **BuildSoft Candy / cove.tool / Power BI cost dashboards** — pivot/grouping,
+  variance colouring (budget vs actual), and an **S-curve / cash-flow** chart as a
+  first-class view, not a popup. Lesson: grouping is already in STING
+  (`BoqGroupingMode`); add **variance colour** + an **inline S-curve** (Slice 2).
+- **High-value subset adopted:** in-cell editing (have it), live re-cost on edit
+  **[adopt: Slice 2/3]**, drill-down-to-element **[adopt: Slice 3 — promote
+  `SelectInRevit`]**, variance/EVM colouring **[adopt: Slice 2]**, inline S-curve
+  **[adopt: Slice 2]**. Pivot beyond the current grouping modes **[defer]** —
+  current WorkSection/Discipline/Level grouping covers the common case.
+
+### 9.2 WPF large-editable-grid patterns to apply
+
+- `DataGrid.EnableRowVirtualization` is **on by default** (creates/recycles
+  `DataGridRow` only for visible items); `EnableColumnVirtualization` is **off by
+  default** — turn it on for wide cost grids. Add
+  `ScrollViewer.IsDeferredScrollingEnabled="true"` + `VirtualizingPanel.IsVirtualizing`
+  / `VirtualizationMode=Recycling` for thousands of rows.
+  Source: <https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.datagrid.enablerowvirtualization>,
+  <https://docs.telerik.com/devtools/wpf/controls/radgridview/features/ui-virtualization>
+- In-place validation via `IDataErrorInfo` / `ValidationRules`; keyboard nav is
+  native to `DataGrid`; **Excel copy/paste** — `DataGrid` supports Ctrl+C
+  (`ClipboardCopyMode`); paste-from-Excel needs a `CommandBinding` for
+  `ApplicationCommands.Paste` that splits `\t`/`\r\n`. Multi-select bulk-edit via
+  `SelectionMode=Extended` + apply-to-selection. Undo/redo: keep a per-edit
+  command stack (the model edits already round-trip through `BOQWriteItemParams`,
+  so an undo = re-dispatch the prior value).
+  **[adopt: Slice 2 grids use a real `DataGrid` with virtualization; copy/paste +
+  undo adopt: Slice 3]**. NOTE: today's BOQ tab renders **section `StackPanel`s,
+  not a single `DataGrid`** — the Schedule tab (Slice 2) is the first true
+  virtualized `DataGrid`; converting the BOQ bill grid is **[defer]** (large, and
+  the existing per-section rendering already preserves open/closed state).
+
+### 9.3 EVM presentation (Core/Evm already exists — surface it inline)
+
+- Metrics: PV(BCWS), EV(BCWP), AC(ACWP); **CV = EV−AC**, **SV = EV−PV**;
+  **CPI = EV/AC**, **SPI = EV/PV**; **EAC = BAC/CPI** (or `AC+(BAC−EV)`),
+  **ETC = EAC−AC**, **VAC = BAC−EAC**. S-curve = cumulative PV/EV/AC vs time.
+- Conventional RAG on CPI/SPI: **green ≥ 0.95, amber 0.85–0.95, red < 0.85**
+  (some teams: green > 1, amber ≈ 1, red < 0.9).
+  Source: <https://www.planacademy.com/7-earned-value-management-formulas/>,
+  <https://www.gatherinsights.com/en/earned-value/cpi-spi>
+- **[adopt: Slice 2/3]** EVM strip on the Schedule/Cash-flow tab: PV/EV/AC S-curve
+  + CPI/SPI RAG chips, reading from `Core/Evm`. **ROADMAP caveat folded in:** BCWS
+  still comes from a QS-entered planned % (no cost-loaded-schedule wiring) — show
+  that provenance inline rather than implying a real 4D baseline.
+
+### 9.4 BOQ-review items to surface inline (from §6.3 — verified in BOQ_REVIEW)
+
+- **P0-3 (uncosted "value at risk")** — unmatched rate → silent £0 line folded
+  into the total. **[adopt: Slice 1 banner scaffold → Slice 3 full]**: an inline
+  **red banner** with the count + UGX/USD value-at-risk and a one-click filter to
+  the unpriced rows (reuse `_searchBox`/`RebuildSectionsView`).
+- **P0-4 (rate-confidence export gate)** — `RateConfidence` computed but never
+  gates export. **[adopt: Slice 3]**: inline confidence colouring (already partly
+  present per row) + an in-panel acknowledge row before export below
+  `MinRateConfidenceForExport` (default 60).
+- **Rate-source heat-map** (`BOQRateSourceHeatMapCommand`) — **[adopt: Slice 3]**
+  as an inline column + legend, not a separate view.
+- **INT-2 estimator-imported rates** — **[adopt: Slice 3]** provenance badge inline
+  on rows whose rate came from the priced round-trip import.
+- **Carbon (P0-7/INT-7)** — embodied-carbon card already exists; **[adopt: Slice 3]**
+  an inline carbon column + RIBA-stage rollup beside cost. Honour P0-7: do **not**
+  add a new carbon engine — read the existing `CarbonFactorResolver` numbers.
+
+### 9.5 Full cost-control lifecycle (Phase 191 engines already exist)
+
+- `Core/Evm`, `Core/Variation`, `Core/PaymentCert` exist. **[adopt: Slice 3 — thin
+  inline tabs/columns]**: a Variations grid (create/quote/approve, budget impact)
+  and a Payment-cert summary, each **referencing** the existing engines (no forked
+  math), so the workspace covers bill → variation → cert → EVM, all inline +
+  editable + popup-free.
+
+### 9.6 Deliberately deferred (logged, not silently cut)
+
+- Converting the existing per-section BOQ bill `StackPanel` into one virtualized
+  `DataGrid` (large refactor; current rendering preserves section state).
+- Full pivot beyond the existing grouping modes.
+- Cost-loaded 4D baseline for a real EVM BCWS (ROADMAP open item — needs schedule
+  wiring; Slice 2 shows the QS-planned-% provenance instead of faking it).
+- Excel-style copy/paste + a formal undo/redo stack (Slice 3 if budget allows).
