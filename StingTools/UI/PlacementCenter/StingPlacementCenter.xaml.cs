@@ -873,8 +873,7 @@ namespace StingTools.UI.PlacementCenter
                     if (result.Warnings.Count > 30)
                         panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
                 }
-                RaiseRevitToFront();
-                panel.Show();
+                Report("Run", panel);
             }
             catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
 
@@ -887,13 +886,12 @@ namespace StingTools.UI.PlacementCenter
                 catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
             }
 
+            // RunValidators overwrites the inline Run report with the validation
+            // findings (the more useful final view). Otherwise the Run summary
+            // built above is already showing in the shared Report panel — no
+            // pop-up needed.
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
-            else
-                TaskDialog.Show("STING — Placement Centre",
-                    $"Placement run complete.\n\n" +
-                    $"Placed: {placed}\nSkipped: {skipped}\nWarnings: {warns}\n\n" +
-                    "Run Validate now to audit the result, or click Undo last run to revert.");
         }
 
         private void OnPreview_Click(object sender, RoutedEventArgs e)
@@ -991,7 +989,7 @@ namespace StingTools.UI.PlacementCenter
                     foreach (var f in findings.OrderByDescending(x => x.Severity).Take(40))
                         panel.Text(f.ToString());
                 }
-                panel.Show();
+                Report("Validation", panel);
 
                 VM.Status = $"Validate complete · {errs}e {warns}w {infos}i";
                 UpdateStatus();
@@ -1292,6 +1290,50 @@ namespace StingTools.UI.PlacementCenter
         }
 
         private void OnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        // ── Shared inline Report panel ────────────────────────────────
+        // Every reporting button renders into the right-hand panel via
+        // Report(...) instead of opening an external window. _lastReport
+        // keeps the builder so the pop-out button can still show the full
+        // windowed version on demand.
+        private StingResultPanel.Builder _lastReport;
+
+        private void Report(string title, StingResultPanel.Builder b)
+        {
+            try
+            {
+                _lastReport = b;
+                if (txtReportTitle != null) txtReportTitle.Text = title ?? "Report";
+                if (reportHost != null)
+                    reportHost.Child = StingResultPanel.BuildInlineContent(b, double.PositiveInfinity);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.Report: {ex.Message}");
+                try { b?.Show(); } catch { }   // last-resort fallback so the result is still visible
+            }
+        }
+
+        private void OnReportClear_Click(object sender, RoutedEventArgs e)
+        {
+            _lastReport = null;
+            if (txtReportTitle != null) txtReportTitle.Text = "Report";
+            if (reportHost != null)
+                reportHost.Child = new TextBlock
+                {
+                    Foreground = System.Windows.Media.Brushes.Gray,
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Text = "Run a placement, validate, audit, diagnose, learn, or import/export — results appear here instead of a pop-up window."
+                };
+        }
+
+        private void OnReportPopOut_Click(object sender, RoutedEventArgs e)
+        {
+            try { _lastReport?.Show(); }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.ReportPopOut: {ex.Message}"); }
+        }
 
         // ── List + add/delete ────────────────────────────────────────
 

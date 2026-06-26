@@ -231,7 +231,14 @@ namespace StingTools.UI
         // Width is host-driven; the embedded ScrollViewer caps height at
         // 380 px so the panel doesn't dominate the dock.
 
-        public static FrameworkElement BuildInlineContent(Builder b)
+        public static FrameworkElement BuildInlineContent(Builder b) => BuildInlineContent(b, 380);
+
+        /// <summary>
+        /// Inline content with a caller-controlled height cap. Pass
+        /// double.PositiveInfinity when the host (e.g. a docked report column)
+        /// manages height itself and the inner ScrollViewer should simply fill.
+        /// </summary>
+        public static FrameworkElement BuildInlineContent(Builder b, double maxHeight)
         {
             var stack = new StackPanel { Margin = new Thickness(0) };
 
@@ -260,7 +267,7 @@ namespace StingTools.UI
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = stack,
-                MaxHeight = 380,
+                MaxHeight = maxHeight,
                 Padding = new Thickness(0)
             };
         }

@@ -149,8 +149,15 @@
             </DockPanel>
         </Border>
 
-        <!-- Body: Rules / Run & Routing / Tools (Option A consolidation) -->
-        <TabControl Grid.Row="2" x:Name="tabCentre">
+        <!-- Body: tabs (commands, left) + shared inline Report panel (right) -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="620"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="colReport" Width="360" MinWidth="0"/>
+            </Grid.ColumnDefinitions>
+
+        <TabControl Grid.Column="0" x:Name="tabCentre">
 
         <!-- ═══════════════════════════ TAB 1 — RULES ═══════════════════════════ -->
         <TabItem Header="Rules">
@@ -1208,6 +1215,36 @@
         </TabItem>
 
         </TabControl>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" Background="#CFD8DC" ShowsPreview="True"/>
+
+        <!-- Shared inline Report panel — every reporting button renders its
+             result here instead of opening an external window. -->
+        <Border Grid.Column="2" x:Name="bdrReport" Background="{DynamicResource SecondaryBg}"
+                BorderBrush="#CFD8DC" BorderThickness="1,0,0,0">
+            <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Background="{DynamicResource HeaderBg}" Padding="8,5">
+                    <DockPanel LastChildFill="True">
+                        <Button DockPanel.Dock="Right" x:Name="btnReportPopOut" Content="⤢"
+                                Width="26" Margin="2,0,0,0" Click="OnReportPopOut_Click"
+                                ToolTip="Open this report in a separate window"/>
+                        <Button DockPanel.Dock="Right" x:Name="btnReportClear" Content="✕"
+                                Width="26" Margin="2,0,0,0" Click="OnReportClear_Click"
+                                ToolTip="Clear the report panel"/>
+                        <TextBlock x:Name="txtReportTitle" Foreground="{DynamicResource HeaderFg}"
+                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Text="Report" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                </Border>
+                <Border x:Name="reportHost" Padding="8">
+                    <TextBlock x:Name="txtReportEmpty" Foreground="#90A4AE" FontSize="11"
+                               TextWrapping="Wrap" VerticalAlignment="Top"
+                               Text="Run a placement, validate, audit, diagnose, learn, or import/export — results appear here instead of a pop-up window."/>
+                </Border>
+            </DockPanel>
+        </Border>
+        </Grid>
 
         <!-- Status bar -->
         <Border Grid.Row="3" Background="{DynamicResource HeaderBg}" Padding="8,4">
