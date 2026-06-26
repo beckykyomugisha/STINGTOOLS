@@ -3,6 +3,46 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P1.2: cache per-link takeoff)
+
+`RefreshAsync` runs `BuildBOQDocument` synchronously, and STEP 6c
+(`CollectLinkedItems`) re-walked every linked Revit document on every rebuild —
+so a filter toggle / rate edit / grouping change froze Revit on a federated model.
+Now each link's takeoff is cached. Compile-verified headless (Nice3point): 0 errors.
+
+- **Per-link cache** (`BOQCostManager.cs`) — `_linkTakeoffCache` keyed on the linked
+  file's `PathName` (falls back to Title). It stores the **raw** per-link line items
+  (post-`BuildLineItemFromElement`, pre-aggregate / pre-neutralise), so a host-side
+  refresh reuses them without re-reading the link's Revit DB. `AggregateLineItems`
+  + neutralise run on a clone every time, so **grouping changes stay correct without
+  invalidating the cache**. Cache contents are cloned on both store and read, so a
+  caller mutating returned rows can't corrupt the cache.
+- **Cache-hit/miss logging** — `StingLog.Info` distinguishes
+  "cache MISS — walked link" (the only path that re-reads the link DB) from
+  "cache hit — link not re-walked", so the human can confirm via `StingTools.log`
+  that a refresh no longer re-traverses links.
+- **`InvalidateLinkCache()`** — clears all cached link takeoffs; wired into
+  `StingToolsApp.OnDocumentClosing` beside the other per-doc cache invalidations.
+  **Deliberately not called from `SetIncludedLinkTitles`**: the cache is keyed
+  per-link, so changing the included-set just changes which keys are looked up
+  (newly added links miss → compute once; deselected links' entries sit harmlessly).
+  A full clear there would defeat the requirement that *a reload of the same
+  selection hits the cache*.
+- **Stretch (background-threading the host takeoff) deferred** — only links were
+  the per-refresh cost; the prompt says cache links alone when the host walk
+  isn't profiled as the bottleneck. Host takeoff stays on the API thread.
+
+**Known limitation:** with no reliable per-link change signal, reloading a link's
+geometry mid-session (Manage Links → Reload) won't invalidate its cached takeoff —
+close/reopen the document (or wait for a manual rebuild path) to refresh it.
+
+**Revit smoke test (human):** Open BOQ & Cost Manager on a model with ≥1 linked
+model included. Watch `StingTools.log`: (1) first refresh logs "cache MISS — walked
+link" once per link. (2) Toggle a discipline filter / edit a host rate / change the
+grouping mode → the rebuild logs "cache hit — link not re-walked" (no MISS), and
+the UI no longer stalls on the link walk. (3) Close + reopen the project → the next
+refresh logs MISS again (cache cleared on close).
+
 #### Completed (BOQ 5D — P1.1: SourceModel as a first-class column)
 
 Provenance (host vs linked model) was only carried on the `[Linked: …]` Note

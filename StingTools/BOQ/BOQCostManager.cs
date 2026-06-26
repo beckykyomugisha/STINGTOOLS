@@ -69,6 +69,30 @@ namespace StingTools.BOQ
         private static readonly Dictionary<string, HashSet<string>> _linkInclusionCache
             = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
+        // ── P1.2 — per-link takeoff cache ────────────────────────────────────
+        // RefreshAsync runs BuildBOQDocument synchronously, and STEP 6c walks every
+        // linked document on every rebuild (filter toggle / rate edit / grouping
+        // change). On a federated model that re-traverse freezes Revit. We cache the
+        // RAW per-link line items (post-BuildLineItemFromElement, PRE-aggregate /
+        // PRE-neutralise) keyed on the linked file's PathName, so a host-side
+        // refresh reuses them without re-reading the link's Revit DB. Grouping is
+        // applied AFTER the cache (cheap CPU on the cached rows) so it stays correct
+        // across grouping changes without invalidating. Cleared on document close.
+        private sealed class LinkTakeoffCacheEntry { public List<BOQLineItem> RawItems; }
+
+        private static readonly Dictionary<string, LinkTakeoffCacheEntry> _linkTakeoffCache
+            = new Dictionary<string, LinkTakeoffCacheEntry>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Drop cached per-link takeoffs. Call when a link may have changed
+        /// (document close, manual rebuild). Selection changes do NOT need this — the
+        /// cache is keyed per-link, so toggling which links are included just changes
+        /// which keys get looked up; a reload of the same selection still hits the
+        /// cache.</summary>
+        internal static void InvalidateLinkCache()
+        {
+            lock (_linkTakeoffCache) { _linkTakeoffCache.Clear(); }
+        }
+
         private static string LinkSelectionPath(Document doc)
         {
             string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
@@ -1945,15 +1969,49 @@ namespace StingTools.BOQ
                 if (includedTitles != null && includedTitles.Count > 0 && !includedTitles.Contains(linkName)) continue;
                 if (!seenTitles.Add(linkName)) continue;
 
-                var linkEls = CollectCandidateElements(ld, knownCategories);
-                var linkItems = new List<BOQLineItem>(linkEls.Count);
-                foreach (var el in linkEls)
+                // P1.2 — reuse the raw per-link takeoff when it's already cached so a
+                // host-side refresh doesn't re-walk this link's Revit DB.
+                string cacheKey;
+                try { cacheKey = string.IsNullOrEmpty(ld.PathName) ? linkName : ld.PathName; }
+                catch { cacheKey = linkName; }
+
+                List<BOQLineItem> rawItems = null;
+                bool cacheHit;
+                lock (_linkTakeoffCache)
                 {
-                    var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
-                    if (line != null) linkItems.Add(line);
+                    cacheHit = _linkTakeoffCache.TryGetValue(cacheKey, out var entry)
+                        && entry?.RawItems != null;
+                    if (cacheHit) rawItems = entry.RawItems.Select(x => x.Clone()).ToList();
                 }
 
-                linkItems = AggregateLineItems(linkItems, grouping);
+                if (!cacheHit)
+                {
+                    var linkEls = CollectCandidateElements(ld, knownCategories);
+                    rawItems = new List<BOQLineItem>(linkEls.Count);
+                    foreach (var el in linkEls)
+                    {
+                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
+                        if (line != null) rawItems.Add(line);
+                    }
+                    // Store an isolated clone so a later caller mutating the returned
+                    // rows can never corrupt the cache.
+                    lock (_linkTakeoffCache)
+                    {
+                        _linkTakeoffCache[cacheKey] = new LinkTakeoffCacheEntry
+                        { RawItems = rawItems.Select(x => x.Clone()).ToList() };
+                    }
+                    StingLog.Info($"BOQ linked-model takeoff (cache MISS — walked link): "
+                        + $"{rawItems.Count} raw row(s) from '{linkName}'.");
+                }
+                else
+                {
+                    StingLog.Info($"BOQ linked-model takeoff (cache hit — link not re-walked): "
+                        + $"{rawItems.Count} raw row(s) from '{linkName}'.");
+                }
+
+                // Aggregate + neutralise on the (cloned) raw rows every time so
+                // grouping changes stay correct without invalidating the cache.
+                var linkItems = AggregateLineItems(rawItems, grouping);
                 foreach (var li in linkItems)
                 {
                     li.RevitElementId = -1;                       // never resolve against the host doc
@@ -1965,7 +2023,6 @@ namespace StingTools.BOQ
                         : $"{li.Note} [Linked: {linkName}]";
                 }
                 result.AddRange(linkItems);
-                StingLog.Info($"BOQ linked-model takeoff: {linkItems.Count} row(s) from '{linkName}'.");
             }
             return result;
         }
