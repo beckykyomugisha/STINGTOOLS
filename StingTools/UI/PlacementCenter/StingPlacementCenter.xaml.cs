@@ -98,6 +98,11 @@ namespace StingTools.UI.PlacementCenter
             _uiDoc = uiApp?.ActiveUIDocument;
             _doc = _uiDoc?.Document;
 
+            // Findings parsed out of report text (Diagnose/Audit) carry an
+            // ElementId payload; route their clicks to this window's selector.
+            StingResultPanel.ElementSelectAction =
+                id => { try { SelectInModel(new ElementId(id)); } catch { } };
+
             // Combo data sources
             cmbCategory.ItemsSource          = VM.Categories;
             cmbAnchor.ItemsSource            = VM.AnchorTypes;
@@ -1322,8 +1327,22 @@ namespace StingTools.UI.PlacementCenter
         // keeps the builder so the pop-out button can still show the full
         // windowed version on demand.
         private StingResultPanel.Builder _lastReport;
+        private readonly List<(string Title, StingResultPanel.Builder Builder)> _recentReports = new();
+        private bool _suppressRecentSel;
 
         private void Report(string title, StingResultPanel.Builder b)
+        {
+            RenderReport(title, b);
+            try
+            {
+                _recentReports.Insert(0, (title ?? "Report", b));
+                if (_recentReports.Count > 12) _recentReports.RemoveRange(12, _recentReports.Count - 12);
+                RefreshRecentCombo(selectIndex0: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.Report recent: {ex.Message}"); }
+        }
+
+        private void RenderReport(string title, StingResultPanel.Builder b)
         {
             try
             {
@@ -1334,9 +1353,31 @@ namespace StingTools.UI.PlacementCenter
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"PlacementCenter.Report: {ex.Message}");
+                StingLog.Warn($"PlacementCenter.RenderReport: {ex.Message}");
                 try { b?.Show(); } catch { }   // last-resort fallback so the result is still visible
             }
+        }
+
+        private void RefreshRecentCombo(bool selectIndex0)
+        {
+            if (cmbRecentReports == null) return;
+            _suppressRecentSel = true;
+            try
+            {
+                cmbRecentReports.Items.Clear();
+                foreach (var r in _recentReports) cmbRecentReports.Items.Add(r.Title);
+                if (selectIndex0 && cmbRecentReports.Items.Count > 0) cmbRecentReports.SelectedIndex = 0;
+            }
+            finally { _suppressRecentSel = false; }
+        }
+
+        private void OnRecentReport_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressRecentSel) return;
+            int i = cmbRecentReports?.SelectedIndex ?? -1;
+            if (i < 0 || i >= _recentReports.Count) return;
+            var r = _recentReports[i];
+            RenderReport(r.Title, r.Builder);   // re-show without re-pushing onto the recent list
         }
 
         private void OnReportClear_Click(object sender, RoutedEventArgs e)
@@ -1374,6 +1415,29 @@ namespace StingTools.UI.PlacementCenter
                 try { _uiDoc.ShowElements(id); } catch { }
             }
             catch (Exception ex) { StingLog.Warn($"PlacementCenter.SelectInModel: {ex.Message}"); }
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex _idRx =
+            new System.Text.RegularExpressions.Regex(@"\b\d{5,}\b",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// Render report text line-by-line; a line containing a 5+ digit token
+        /// (an ElementId in a real model — counts / dimensions are shorter)
+        /// becomes a clickable Finding that selects it. Non-element numbers
+        /// resolve to nothing on click and are harmless.
+        /// </summary>
+        private void AddTextWithIds(StingResultPanel.Builder panel, string text)
+        {
+            if (panel == null || string.IsNullOrEmpty(text)) return;
+            foreach (var line in text.Replace("\r", "").Split('\n'))
+            {
+                var m = _idRx.Match(line);
+                if (m.Success && long.TryParse(m.Value, out long id))
+                    panel.Finding(line, id);
+                else
+                    panel.Text(line);
+            }
         }
 
         // ── List + add/delete ────────────────────────────────────────
@@ -2190,6 +2254,81 @@ namespace StingTools.UI.PlacementCenter
                 StingDockPanel.DispatchCommand(tag);
         }
 
+        private void OnExportRulesExcel_Click(object sender, RoutedEventArgs e)
+        {
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            if (rules == null || rules.Count == 0) { TaskDialog.Show("STING — Placement Centre", "No rules to export."); return; }
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "STING — Export placement rules to Excel",
+                Filter = "Excel workbook (*.xlsx)|*.xlsx",
+                FileName = "STING_PLACEMENT_RULES.xlsx",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            try
+            {
+                StingTools.Core.Placement.Excel.PlacementRulesExcelExporter.Export(rules, dlg.FileName);
+                var panel = StingResultPanel.Create("STING — Export Rules (Excel)")
+                    .SetSubtitle(dlg.FileName)
+                    .AddSection("RESULT")
+                    .Metric("Rules exported", rules.Count.ToString())
+                    .Text($"Saved to {dlg.FileName}");
+                Report("Export Rules (Excel)", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnExportRulesExcel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Excel export failed: {ex.Message}");
+            }
+        }
+
+        private void OnImportRulesExcel_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "STING — Import placement rules from Excel",
+                Filter = "Excel workbook (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            try
+            {
+                var (rules, errors) = StingTools.Core.Placement.Excel.PlacementRulesExcelImporter.Import(dlg.FileName);
+                int imported = 0;
+                // Write the project overlay beside the .rvt then reload the grid so
+                // the import is live (closes the round-trip refresh gap).
+                if (rules != null && rules.Count > 0 && !string.IsNullOrEmpty(_doc?.PathName))
+                {
+                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string overridePath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.project.json");
+                    var set = new PlacementRuleSet { Version = "v4", Rules = rules };
+                    System.IO.File.WriteAllText(overridePath,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(set, Newtonsoft.Json.Formatting.Indented));
+                    imported = VM.ImportFromFile(overridePath);
+                    VM.ApplyFilter();
+                    UpdateStatus();
+                }
+                var panel = StingResultPanel.Create("STING — Import Rules (Excel)")
+                    .SetSubtitle(dlg.FileName)
+                    .AddSection("RESULT")
+                    .Metric("Rules in workbook", (rules?.Count ?? 0).ToString())
+                    .Metric("Imported into grid", imported.ToString())
+                    .Metric("Warnings", (errors?.Count ?? 0).ToString());
+                if (errors != null && errors.Count > 0)
+                {
+                    panel.AddSection("WARNINGS (top 20)");
+                    foreach (var w in errors.Take(20)) panel.Text(w);
+                }
+                if (string.IsNullOrEmpty(_doc?.PathName))
+                    panel.AddSection("NOTE").Text("Project not saved on disk — rules were read but not written to a project overlay. Save the .rvt then re-import to persist.");
+                Report("Import Rules (Excel)", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnImportRulesExcel", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Excel import failed: {ex.Message}");
+            }
+        }
+
         private void OnDiagnose_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
@@ -2197,8 +2336,9 @@ namespace StingTools.UI.PlacementCenter
             {
                 var (text, path) = StingTools.Commands.Placement.PlacementDiagnoseCommand.BuildReportText(_doc);
                 var panel = StingResultPanel.Create("STING — Placement Diagnose");
-                if (!string.IsNullOrEmpty(path)) panel.SetSubtitle($"Full report: {path}");
-                panel.AddSection("DIAGNOSTIC").Text(text);
+                if (!string.IsNullOrEmpty(path)) panel.SetSubtitle($"Full report: {path}  ·  click a line with an element id to select it");
+                panel.AddSection("DIAGNOSTIC");
+                AddTextWithIds(panel, text);
                 Report("Diagnose", panel);
             }
             catch (Exception ex)
@@ -2219,7 +2359,8 @@ namespace StingTools.UI.PlacementCenter
                      .AddSection("SUMMARY")
                      .Metric("Errors", errs.ToString())
                      .Metric("Warnings", warns.ToString())
-                     .AddSection("DETAIL").Text(text);
+                     .AddSection("DETAIL");
+                AddTextWithIds(panel, text);
                 Report("Audit Setup", panel);
             }
             catch (Exception ex)

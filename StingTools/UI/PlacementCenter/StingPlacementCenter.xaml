@@ -1162,13 +1162,13 @@
                 <GroupBox Header="Rule File Management" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_ExportRulesExcel" Click="OnToolButton_Click"
+                                Click="OnExportRulesExcel_Click"
                                 Content="Export Rules (Excel)"
-                                ToolTip="Export all loaded placement rules to an .xlsx workbook for bulk review / editing."/>
+                                ToolTip="Export all loaded placement rules to an .xlsx workbook for bulk review / editing. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_ImportRulesExcel" Click="OnToolButton_Click"
+                                Click="OnImportRulesExcel_Click"
                                 Content="Import Rules (Excel)"
-                                ToolTip="Merge rules from an .xlsx workbook into the current set (override on MergeKey match)."/>
+                                ToolTip="Import rules from an .xlsx workbook, write the project overlay, and refresh the grid live. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
                                 Click="OnAutoPopulateCatalogue_Click"
                                 Content="Auto-populate Catalogue"
@@ -1237,6 +1237,13 @@
                                    Text="Report" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
                 </Border>
+                <DockPanel DockPanel.Dock="Top" Margin="8,3,8,4" LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Left" Text="Recent" VerticalAlignment="Center"
+                               Margin="0,0,6,0" FontSize="11" Foreground="#607D8B"/>
+                    <ComboBox x:Name="cmbRecentReports" FontSize="11"
+                              SelectionChanged="OnRecentReport_Changed"
+                              ToolTip="Re-open a recent report (Run / Validation / Diagnose / Audit / …)"/>
+                </DockPanel>
                 <Border x:Name="reportHost" Padding="8">
                     <TextBlock x:Name="txtReportEmpty" Foreground="#90A4AE" FontSize="11"
                                TextWrapping="Wrap" VerticalAlignment="Top"

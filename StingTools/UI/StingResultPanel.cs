@@ -120,6 +120,21 @@ namespace StingTools.UI
                 return this;
             }
 
+            /// <summary>
+            /// A clickable finding carrying an ElementId payload; the click is
+            /// wired by <see cref="StingResultPanel.ElementSelectAction"/> at
+            /// render time (so report-text parsers don't need a selector).
+            /// </summary>
+            public Builder Finding(string text, long elementId, SolidColorBrush brush = null)
+            {
+                EnsureSection();
+                _cur.Items.Add(new ResultItem
+                {
+                    Type = ItemType.Finding, Label = text, ValueBrush = brush, ElementIdPayload = elementId
+                });
+                return this;
+            }
+
             public Builder PassFail(string label, bool passed, string detail = null)
             {
                 EnsureSection();
@@ -216,7 +231,16 @@ namespace StingTools.UI
             public string[] TableHeaders;
             public List<string[]> TableRows;
             public Action OnClick;
+            public long? ElementIdPayload;
         }
+
+        /// <summary>
+        /// Optional host hook: when a Finding carries an ElementIdPayload (rather
+        /// than a baked-in OnClick action), clicking it invokes this. The
+        /// Placement Centre sets it to select + zoom the element in the model, so
+        /// findings parsed out of plain report text become clickable too.
+        /// </summary>
+        public static Action<long> ElementSelectAction;
 
         internal enum ItemType
         {
@@ -553,6 +577,12 @@ namespace StingTools.UI
                 ToolTip = "Click to select this element in the model"
             };
             var click = item.OnClick;
+            if (click == null && item.ElementIdPayload.HasValue)
+            {
+                long id = item.ElementIdPayload.Value;
+                var sel = ElementSelectAction;
+                if (sel != null) click = () => sel(id);
+            }
             if (click != null)
                 tb.MouseLeftButtonUp += (s, e) => { try { click(); } catch { } };
             return tb;
