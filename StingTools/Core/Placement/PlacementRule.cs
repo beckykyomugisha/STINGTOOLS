@@ -192,7 +192,7 @@ namespace StingTools.Core.Placement
 
         // ── Integrated routing (PC-15) ───────────────────────────────
 
-        /// <summary>PC-15 — NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. If set, the engine routes from each placed fixture after placement.</summary>
+        /// <summary>NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT. If set (non-NONE), the engine routes from each placed fixture after placement via the matching Core/Routing drop engine.</summary>
         public string RoutingMode { get; set; } = "NONE";
 
         /// <summary>PC-15 — vertical offset in mm from the fixture connector to where the route begins (negative = below connector).</summary>

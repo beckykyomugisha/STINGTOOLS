@@ -1979,10 +1979,11 @@ namespace StingTools.Core.Placement
         /// connector joins and shipped to COBie / schedules as orphaned.
         /// </summary>
         /// <summary>
-        /// Bridge to the conduit-routing engine: run AutoConduitDrop
-        /// across every fixture placed under a rule whose RoutingMode
-        /// is "AUTO_CONDUIT". Returns the number of fixtures the drop
-        /// engine successfully routed. Errors are surfaced into
+        /// Bridge to the drop-routing engines: per rule, run the engine that
+        /// matches RoutingMode — AutoConduitDrop (AUTO_CONDUIT), AutoPipeDrop
+        /// (AUTO_PIPE) or AutoDuctDrop (AUTO_DUCT) — across every fixture
+        /// placed under that rule. Returns the number of elements the drop
+        /// engines successfully created. Errors are surfaced into
         /// result.Warnings so the placement-result panel still renders
         /// — a routing failure must never abort the placement run.
         ///
@@ -2015,33 +2016,78 @@ namespace StingTools.Core.Placement
                 }
                 if (fixtures.Count == 0) continue;
 
+                string rawMode = (rule.RoutingMode ?? "").ToUpperInvariant();
+                string mode = EffectiveRoutingMode(rule);
+                if (mode == "NONE") continue;
+                if (rawMode != mode)
+                    result.Warnings.Add($"[{rule.RuleId}] RoutingMode '{rawMode}' has no dedicated follower engine — routed via {mode} (drop) instead. Set RoutingMode to {mode} to silence this notice.");
                 try
                 {
-                    bool isChased = string.Equals(rule.MountingContext, "CHASED",
-                        StringComparison.OrdinalIgnoreCase);
-
-                    var engine = new StingTools.Core.Routing.AutoConduitDrop(doc)
+                    StingTools.Core.Routing.DropResult dr;
+                    switch (mode)
                     {
-                        ServiceId = "ELC_PWR",
-                        InstallMethod = isChased ? "CHASED" : "CLIPPED",
-                        UseChaseRoutingWhenAvailable = isChased,
-                        UsePathfinder = false,        // opt-in flag; placement bridge stays
-                                                      // on the safe L/Z path until the host
-                                                      // project explicitly requests A*.
-                    };
-                    var dr = engine.Execute(fixtures);
+                        case "AUTO_PIPE":
+                            dr = new StingTools.Core.Routing.AutoPipeDrop(doc).Execute(fixtures);
+                            break;
+                        case "AUTO_DUCT":
+                            dr = new StingTools.Core.Routing.AutoDuctDrop(doc).Execute(fixtures);
+                            break;
+                        case "AUTO_CONDUIT":
+                        default:
+                            bool isChased = string.Equals(rule.MountingContext, "CHASED",
+                                StringComparison.OrdinalIgnoreCase);
+                            dr = new StingTools.Core.Routing.AutoConduitDrop(doc)
+                            {
+                                ServiceId = "ELC_PWR",
+                                InstallMethod = isChased ? "CHASED" : "CLIPPED",
+                                UseChaseRoutingWhenAvailable = isChased,
+                                UsePathfinder = false,    // opt-in flag; placement bridge stays
+                                                          // on the safe L/Z path until the host
+                                                          // project explicitly requests A*.
+                            }.Execute(fixtures);
+                            break;
+                    }
                     totalRouted += dr.CreatedIds.Count;
                     foreach (var w in dr.Warnings)
                         result.Warnings.Add($"[{rule.RuleId}] {w}");
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"[{rule.RuleId}] AutoConduitDrop: {ex.Message}");
+                    result.Warnings.Add($"[{rule.RuleId}] auto-route ({mode}): {ex.Message}");
                 }
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ComplianceScan.InvalidateCache: {ex.Message}"); }
             return totalRouted;
+        }
+
+        /// <summary>
+        /// Resolve a rule's RoutingMode to one of the three modes the engine
+        /// can actually execute (AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT) or NONE.
+        /// Legacy follow tokens (WALL_FOLLOW / CEILING_FOLLOW / FLOOR_FOLLOW /
+        /// CONDUIT_RUN / TRAY_RUN) shipped in older rule packs have no dedicated
+        /// follower router, so they map to the drop engine matching the rule's
+        /// RouteSegmentCategory — a real route rather than a silent no-op.
+        /// </summary>
+        private static string EffectiveRoutingMode(PlacementRule r)
+        {
+            string m = (r?.RoutingMode ?? "").ToUpperInvariant();
+            switch (m)
+            {
+                case "AUTO_CONDUIT":
+                case "AUTO_PIPE":
+                case "AUTO_DUCT":
+                    return m;
+                case "":
+                case "NONE":
+                    return "NONE";
+                default:
+                    // Legacy follow / run tokens → drop engine by segment category.
+                    string cat = (r?.RouteSegmentCategory ?? "").ToUpperInvariant();
+                    if (cat.Contains("PIPE")) return "AUTO_PIPE";
+                    if (cat.Contains("DUCT")) return "AUTO_DUCT";
+                    return "AUTO_CONDUIT"; // Conduit / CableTray / unspecified
+            }
         }
 
         private static void AutoJoinMepConnectors(
@@ -2062,35 +2108,31 @@ namespace StingTools.Core.Placement
             }
             if (!anyRouting) return;
 
-            // Wave B Wire 3 — bridge placement → routing.
-            // Previously, when a rule declared RoutingMode != NONE we
-            // landed here and ran the connector-join pass below, which
-            // only stitched fixtures within a 600 mm radius. The
-            // intended action — actually routing conduit from the
-            // placed fixtures up to a tray — was missing. The silent
-            // return on the original line 1770 has been replaced by a
-            // dispatch into AutoConduitDrop for any rule whose
-            // RoutingMode == "AUTO_CONDUIT". Other modes (NONE / TRAY /
-            // CABLE / CUSTOM) fall through to the legacy connector-
-            // join pass below, preserving existing behaviour.
+            // Bridge placement → routing. Any rule whose RoutingMode is one of
+            // the three real auto-route modes (AUTO_CONDUIT / AUTO_PIPE /
+            // AUTO_DUCT) is dispatched to the matching Core/Routing drop engine
+            // (AutoConduitDrop / AutoPipeDrop / AutoDuctDrop). NONE is a no-op.
+            // The UI dropdown is constrained to exactly these tokens so no
+            // visible mode is a silent no-op. The 600 mm connector-join pass
+            // below still runs afterwards as a secondary stitch for every
+            // routed rule.
             try
             {
-                var autoConduitRules = new List<PlacementRule>();
+                var autoRoutedRules = new List<PlacementRule>();
                 if (rules != null)
                 {
                     foreach (var r in rules)
                     {
                         if (r == null) continue;
-                        if (string.Equals(r.RoutingMode, "AUTO_CONDUIT",
-                                StringComparison.OrdinalIgnoreCase))
-                            autoConduitRules.Add(r);
+                        if (EffectiveRoutingMode(r) != "NONE")
+                            autoRoutedRules.Add(r);
                     }
                 }
-                if (autoConduitRules.Count > 0)
+                if (autoRoutedRules.Count > 0)
                 {
-                    int routed = RouteAfterPlacement(doc, autoConduitRules, result);
+                    int routed = RouteAfterPlacement(doc, autoRoutedRules, result);
                     if (routed > 0)
-                        result.Warnings.Add($"Auto-routed conduit drops for {routed} placed fixture(s).");
+                        result.Warnings.Add($"Auto-routed drops for {routed} placed fixture(s).");
                 }
             }
             catch (Exception ex)

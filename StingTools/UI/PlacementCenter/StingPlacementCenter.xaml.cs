@@ -1390,6 +1390,7 @@ namespace StingTools.UI.PlacementCenter
                     added++;
                 }
                 VM.RebuildCategories();
+                VM.ApplyFilter();   // re-evaluate the live grid filter so imported rows appear under any active pack/search filter
                 VM.Status = $"Imported {added} rule(s) from Excel (Save Project to persist).";
             }
             catch (Exception ex)
