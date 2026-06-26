@@ -311,7 +311,8 @@ namespace StingTools.Core.Placement
             if (!dryRun && _priorPlaced.Count > 0)
                 result.Warnings.Add($"Idempotency: found {_priorPlaced.Count} fixture(s) from previous STING placement runs — coincident positions will be skipped so this re-run won't duplicate them. Use 'Undo last run' first if you intend to replace them.");
 
-            var rooms = CollectRooms(doc, roomIds, result);
+            var roomCtx = new Dictionary<SpatialElement, (Document src, Transform toHost)>();
+            var rooms = CollectRooms(doc, roomIds, result, roomCtx);
             result.RoomsVisited = rooms.Count;
             if (rooms.Count == 0) return result;
 
@@ -324,6 +325,11 @@ namespace StingTools.Core.Placement
                 // users expect fixtures not to sit inside walls.
                 RejectInsideWall = StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall,
             };
+            // One scorer per source document — host rooms use the host scorer;
+            // linked rooms get a scorer bound to their link document so room +
+            // wall / door geometry is read in the same coordinate space.
+            bool rejectInsideWall = StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall;
+            var scorerByDoc = new Dictionary<Document, PlacementScorer> { [doc] = scorer };
             var perCategorySymbol = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
 
             // Rule ordering: higher Priority first so specialised rules
@@ -422,6 +428,21 @@ namespace StingTools.Core.Placement
 
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
+
+                    // Resolve the room's source document + host transform. Linked
+                    // rooms use a link-bound scorer + the simpler linked path.
+                    var rc = roomCtx.TryGetValue(room, out var rcv) ? rcv : (src: doc, toHost: Transform.Identity);
+                    bool roomLinked = rc.toHost != null && !rc.toHost.IsIdentity;
+                    PlacementScorer roomScorer = scorer;
+                    if (rc.src != null && rc.src != doc)
+                    {
+                        if (!scorerByDoc.TryGetValue(rc.src, out roomScorer))
+                        {
+                            roomScorer = new PlacementScorer(rc.src) { RejectInsideWall = rejectInsideWall };
+                            scorerByDoc[rc.src] = roomScorer;
+                        }
+                    }
+
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -455,6 +476,17 @@ namespace StingTools.Core.Placement
                             if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
+                                continue;
+                            }
+
+                            if (roomLinked)
+                            {
+                                // Linked-architecture room: score in link coords,
+                                // place non-hosted on the nearest host level at the
+                                // transformed point. (CoPlaceWith / RELATIVE_TO /
+                                // wet-zone are host-path-only in v1.)
+                                ProcessLinkedRoomRule(doc, room, rule, roomScorer, rc.toHost,
+                                    perCategorySymbol, result, dryRun);
                                 continue;
                             }
 
@@ -619,7 +651,12 @@ namespace StingTools.Core.Placement
             catch { return true; }
         }
 
-        private static List<SpatialElement> CollectRooms(Document doc, IList<ElementId> roomIds, PlacementResult result)
+        // Per-room source context: which document the room's geometry lives in
+        // and the transform from that document to host coordinates. Host rooms
+        // map to (host, Identity); linked rooms to (linkDoc, linkTransform).
+        private static List<SpatialElement> CollectRooms(
+            Document doc, IList<ElementId> roomIds, PlacementResult result,
+            Dictionary<SpatialElement, (Document src, Transform toHost)> ctx)
         {
             var rooms = new List<SpatialElement>();
             try
@@ -629,14 +666,28 @@ namespace StingTools.Core.Placement
                     foreach (var bic in new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces })
                         foreach (var e in new FilteredElementCollector(doc)
                             .OfCategory(bic).WhereElementIsNotElementType())
-                            if (IsPlaceableSpatial(e)) rooms.Add((SpatialElement)e);
+                            if (IsPlaceableSpatial(e))
+                            {
+                                rooms.Add((SpatialElement)e);
+                                if (ctx != null) ctx[(SpatialElement)e] = (doc, Transform.Identity);
+                            }
+
+                    // Linked architecture: read Rooms/Spaces from each loaded link
+                    // and remember its transform so placement maps back to host
+                    // coordinates. Project-scope only (active-view/selection ids
+                    // are host ids and can't reference linked elements).
+                    CollectLinkedRooms(doc, rooms, ctx, result);
                 }
                 else
                 {
                     foreach (var id in roomIds)
                     {
                         var el = doc.GetElement(id);
-                        if (IsPlaceableSpatial(el)) rooms.Add((SpatialElement)el);
+                        if (IsPlaceableSpatial(el))
+                        {
+                            rooms.Add((SpatialElement)el);
+                            if (ctx != null) ctx[(SpatialElement)el] = (doc, Transform.Identity);
+                        }
                     }
                 }
             }
@@ -645,6 +696,59 @@ namespace StingTools.Core.Placement
                 result.Warnings.Add($"Room/Space collection failed: {ex.Message}");
             }
             return rooms;
+        }
+
+        /// <summary>Read Rooms/Spaces from every loaded Revit link and record each
+        /// one's source document + host transform.</summary>
+        private static void CollectLinkedRooms(
+            Document doc, List<SpatialElement> rooms,
+            Dictionary<SpatialElement, (Document src, Transform toHost)> ctx,
+            PlacementResult result)
+        {
+            if (ctx == null) return;
+            try
+            {
+                int linkedCount = 0;
+                foreach (var li in new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>())
+                {
+                    Document ld = null;
+                    try { ld = li.GetLinkDocument(); } catch { }
+                    if (ld == null) continue;                 // link unloaded
+                    Transform tf = Transform.Identity;
+                    try { tf = li.GetTotalTransform() ?? Transform.Identity; } catch { }
+                    foreach (var bic in new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces })
+                        foreach (var e in new FilteredElementCollector(ld)
+                            .OfCategory(bic).WhereElementIsNotElementType())
+                            if (IsPlaceableSpatial(e))
+                            {
+                                var se = (SpatialElement)e;
+                                rooms.Add(se);
+                                ctx[se] = (ld, tf);
+                                linkedCount++;
+                            }
+                }
+                if (linkedCount > 0)
+                    result.Warnings.Add($"Linked architecture: read {linkedCount} room(s)/space(s) from loaded links. Fixtures place non-hosted on the nearest host level at the transformed location (orientation + face-hosting from a linked host are not applied — v1).");
+            }
+            catch (Exception ex) { StingLog.Warn($"CollectLinkedRooms: {ex.Message}"); }
+        }
+
+        /// <summary>Nearest host-document Level to a Z elevation (in host feet).</summary>
+        private static Level NearestHostLevel(Document hostDoc, double zFt)
+        {
+            Level best = null; double bestD = double.MaxValue;
+            try
+            {
+                foreach (var lv in new FilteredElementCollector(hostDoc)
+                    .OfClass(typeof(Level)).Cast<Level>())
+                {
+                    double d = Math.Abs(lv.Elevation - zFt);
+                    if (d < bestD) { bestD = d; best = lv; }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"NearestHostLevel: {ex.Message}"); }
+            return best;
         }
 
         /// <summary>PC-13 per-room state: maps RuleId/MergeKey → list of placed points,
@@ -1131,6 +1235,92 @@ namespace StingTools.Core.Placement
         /// point. Used by CoPlaceWith / RELATIVE_TO. Skips room-scope filters
         /// because the predecessor already validated the room.
         /// </summary>
+        // Linked-architecture room path (v1). Scores in the link document's
+        // coordinates (so room + wall/door geometry is correct), then transforms
+        // each chosen point to host coordinates and places a non-hosted instance
+        // on the nearest host level. CoPlaceWith / RELATIVE_TO / wet-zone /
+        // orientation / face-hosting are host-path-only here.
+        private static void ProcessLinkedRoomRule(
+            Document hostDoc, SpatialElement room, PlacementRule rule,
+            PlacementScorer linkScorer, Transform toHost,
+            Dictionary<string, FamilySymbol> perCategorySymbol,
+            PlacementResult result, bool dryRun)
+        {
+            if (toHost == null) return;
+            var diagRoom = result.Diag(rule.MergeKey);
+            string roomKey = $"{room.Id}::{SafeRoomName(room)}";
+
+            List<PlacementCandidate> candidates;
+            try { candidates = linkScorer.Score(room, rule, new List<XYZ>(), 0); }
+            catch (Exception ex) { result.Warnings.Add($"[linked {SafeRoomName(room)}] score: {ex.Message}"); return; }
+            if (candidates == null || candidates.Count == 0) return;
+            result.CandidatesEvaluated += candidates.Count;
+
+            int cap = ComputeCap(rule, room, candidates.Count, 0);
+            if (cap == 0) return;
+            var chosen = SelectWithSpacing(candidates, cap, rule.MinSpacingMm);
+            if (chosen.Count == 0) return;
+
+            if (dryRun)
+            {
+                result.CountsByRule[rule.MergeKey] =
+                    result.CountsByRule.TryGetValue(rule.MergeKey, out var dn) ? dn + chosen.Count : chosen.Count;
+                return;
+            }
+
+            var symbol = ResolveSymbol(hostDoc, rule.CategoryFilter, rule, perCategorySymbol, result);
+            if (symbol == null) return;
+            try { if (!symbol.IsActive) { symbol.Activate(); hostDoc.Regenerate(); } }
+            catch (Exception ex) { result.Warnings.Add($"[linked] activate {symbol.Name}: {ex.Message}"); return; }
+
+            var placedHost = new List<XYZ>();
+            double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
+            double dedupSq = dedupFt * dedupFt;
+
+            foreach (var c in chosen)
+            {
+                if (c?.Position == null) continue;
+                XYZ hostPos = toHost.OfPoint(c.Position);
+
+                bool tooClose = false;
+                foreach (var p in placedHost)
+                {
+                    double dx = p.X - hostPos.X, dy = p.Y - hostPos.Y, dz = p.Z - hostPos.Z;
+                    if (dx * dx + dy * dy + dz * dz < dedupSq) { tooClose = true; break; }
+                }
+                if (!tooClose && _priorPlaced != null)
+                    foreach (var p in _priorPlaced)
+                    {
+                        if (p == null) continue;
+                        double dx = p.X - hostPos.X, dy = p.Y - hostPos.Y, dz = p.Z - hostPos.Z;
+                        if (dx * dx + dy * dy + dz * dz < dedupSq) { tooClose = true; break; }
+                    }
+                if (tooClose) { result.SkippedCount++; if (diagRoom != null) diagRoom.CandidatesRejectedDedup++; continue; }
+
+                Level lvl = NearestHostLevel(hostDoc, hostPos.Z);
+                if (lvl == null) { result.Warnings.Add("[linked] no host Level found — cannot place."); result.SkippedCount++; continue; }
+
+                try
+                {
+                    var fi = hostDoc.Create.NewFamilyInstance(
+                        hostPos, symbol, lvl, StructuralType.NonStructural);
+                    if (fi == null) { result.SkippedCount++; continue; }
+                    WriteAnchorParameters(fi, rule);
+                    if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
+                        try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(fi, "FixturePlacementEngine", rule?.MergeKey ?? ""); }
+                        catch (Exception pvEx) { result.Warnings.Add($"[linked] provenance: {pvEx.Message}"); }
+                    result.PlacedIds.Add(fi.Id);
+                    result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
+                    result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
+                    placedHost.Add(hostPos);
+                    try { PostPlacementHooks.RunFor(fi, rule); }
+                    catch (Exception hkEx) { result.Warnings.Add($"[linked] post-hook {fi.Id}: {hkEx.Message}"); }
+                }
+                catch (Exception ex) { result.Warnings.Add($"[linked place {rule.CategoryFilter}] {ex.Message}"); result.SkippedCount++; }
+            }
+        }
+
         private static void ProcessRoomRuleAtPoint(
             Document doc,
             SpatialElement room,
