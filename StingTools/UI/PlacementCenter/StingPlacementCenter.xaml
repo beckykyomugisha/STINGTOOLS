@@ -480,7 +480,7 @@
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Routing mode"/>
                             <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRoutingMode" Margin="0,2"
-                                       ToolTip="NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. Engine routes from each placed fixture after placement."/>
+                                       ToolTip="NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT. Engine routes from each placed fixture after placement via the matching Core/Routing drop engine."/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Segment category"/>
                             <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbRouteSegmentCategory" Margin="0,2"
                                        ToolTip="PIPE / CONDUIT / CABLE_TRAY / DUCT. Must match an available Revit system category when Routing Mode ≠ NONE."/>

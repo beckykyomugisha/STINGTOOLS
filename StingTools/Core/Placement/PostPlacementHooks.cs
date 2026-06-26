@@ -47,8 +47,12 @@ namespace StingTools.Core.Placement
         /// <summary>Connectors left open during the current run (reset by BeginRun).</summary>
         public static int MepLeftOpenCount { get; private set; }
 
-        // 600 mm legacy join radius, in Revit internal feet.
-        private const double MepSearchRadiusFt = 600.0 / 304.8;
+        // Connector.ConnectTo only succeeds for physically coincident connectors,
+        // so the search is a tight coincidence tolerance (in Revit internal feet),
+        // not a routing radius — a wider search would just return near-but-not-
+        // coincident connectors that ConnectTo rejects, inflating the left-open
+        // count. 25 mm absorbs minor float drift between snapped origins.
+        private const double MepCoincidenceTolFt = 25.0 / 304.8;
 
         // Per-run tag-pipeline context (built once, reused for every placed
         // instance). Reset by BeginRun so a fresh run picks up manual edits
@@ -171,7 +175,7 @@ namespace StingTools.Core.Placement
                         dom != Domain.DomainCableTrayConduit)
                     { leftOpen++; continue; }
 
-                    var mate = FindNearestCompatibleConnector(doc, src, dom, ownerId, MepSearchRadiusFt);
+                    var mate = FindNearestCompatibleConnector(doc, src, dom, ownerId, MepCoincidenceTolFt);
                     if (mate != null && TryConnect(src, mate)) connected++;
                     else leftOpen++;
                 }

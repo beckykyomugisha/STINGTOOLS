@@ -270,15 +270,15 @@ namespace StingTools.Core.Placement
                      (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
                 if (profileActive)
                 {
-                    // Phase 188 (review fix #5a) — the standards gate keys off the
-                    // structured ApplicableStandards field, but shipped rules cite
-                    // standards via free-text StandardRef instead. Warn when the
-                    // profile declares active standards yet no rule populates
-                    // ApplicableStandards — the standards filter is then inert.
+                    // The standards gate matches a rule's structured
+                    // ApplicableStandards, falling back to its free-text
+                    // StandardRef. Only warn that the filter is inert when no rule
+                    // carries EITHER field — then standards can't gate anything.
                     if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0
-                        && !rules.Any(r => r != null && !string.IsNullOrEmpty(r.ApplicableStandards)))
+                        && !rules.Any(r => r != null
+                            && (!string.IsNullOrEmpty(r.ApplicableStandards) || !string.IsNullOrEmpty(r.StandardRef))))
                     {
-                        result.Warnings.Add("Building profile declares ActiveStandards but no rule populates the structured ApplicableStandards field (rules cite standards via free-text StandardRef) — the standards filter is inert. Populate ApplicableStandards on rules to enable standards-based filtering.");
+                        result.Warnings.Add("Building profile declares ActiveStandards but no rule carries ApplicableStandards or StandardRef — the standards filter is inert. Tag rules with standards to enable standards-based filtering.");
                     }
 
                     int before = rules.Count;
@@ -306,7 +306,7 @@ namespace StingTools.Core.Placement
             // STING runs (they carry a non-empty ASS_PLACEMENT_RULE_TXT). Seeded
             // into the per-room dedup so re-running the same rules doesn't double
             // fixtures. Skipped for dry-run previews (nothing is committed).
-            _priorPlaced = dryRun ? new List<XYZ>() : BuildPriorPlacedIndex(doc);
+            _priorPlaced = dryRun ? new List<XYZ>() : BuildPriorPlacedIndex(doc, ResolvePriorPlacedCategories(doc, rules));
             if (!dryRun && _priorPlaced.Count > 0)
                 result.Warnings.Add($"Idempotency: found {_priorPlaced.Count} fixture(s) from previous STING placement runs — coincident positions will be skipped so this re-run won't duplicate them. Use 'Undo last run' first if you intend to replace them.");
 
@@ -2214,15 +2214,31 @@ namespace StingTools.Core.Placement
         /// ASS_PLACEMENT_RULE_TXT param as a secondary signal. Used to make
         /// re-runs idempotent.
         /// </summary>
-        private static List<XYZ> BuildPriorPlacedIndex(Document doc)
+        private static List<XYZ> BuildPriorPlacedIndex(Document doc, ICollection<BuiltInCategory> cats)
         {
             var pts = new List<XYZ>();
             if (doc == null) return pts;
             try
             {
-                var col = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilyInstance))
-                    .WhereElementIsNotElementType();
+                // Narrow the scan to the categories the active rules place into so a
+                // large model isn't walked in full every run. Falls back to all
+                // family instances when no category could be resolved, or if the
+                // category set isn't a valid multicategory filter.
+                FilteredElementCollector col = null;
+                if (cats != null && cats.Count > 0)
+                {
+                    try
+                    {
+                        col = new FilteredElementCollector(doc)
+                            .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats)))
+                            .WhereElementIsNotElementType();
+                    }
+                    catch (Exception fex) { StingLog.Warn($"BuildPriorPlacedIndex multicat filter: {fex.Message}"); col = null; }
+                }
+                if (col == null)
+                    col = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilyInstance))
+                        .WhereElementIsNotElementType();
                 foreach (var el in col)
                 {
                     bool sting = false;
@@ -2230,11 +2246,43 @@ namespace StingTools.Core.Placement
                     catch { }
                     if (!sting && string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT")))
                         continue;
-                    if ((el.Location as LocationPoint)?.Point is XYZ p) pts.Add(p);
+                    if ((el.Location as LocationPoint)?.Point is XYZ p) { pts.Add(p); continue; }
+                    // Face / work-plane-hosted instances have no LocationPoint —
+                    // fall back to the instance transform origin so they're still
+                    // de-duped on re-run.
+                    if (el is FamilyInstance fiHosted)
+                    {
+                        try { var t = fiHosted.GetTransform(); if (t?.Origin != null) pts.Add(t.Origin); }
+                        catch { }
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BuildPriorPlacedIndex: {ex.Message}"); }
             return pts;
+        }
+
+        /// <summary>
+        /// Distinct BuiltInCategories the active rules place into, resolved from
+        /// each rule's CategoryBic (enum name) or CategoryFilter (display name).
+        /// Used to scope the idempotency scan; empty ⇒ caller scans all instances.
+        /// </summary>
+        private static List<BuiltInCategory> ResolvePriorPlacedCategories(Document doc, IList<PlacementRule> rules)
+        {
+            var set = new HashSet<BuiltInCategory>();
+            if (rules == null) return new List<BuiltInCategory>();
+            foreach (var r in rules)
+            {
+                if (r == null) continue;
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                if (!string.IsNullOrEmpty(r.CategoryBic)
+                    && Enum.TryParse<BuiltInCategory>(r.CategoryBic, true, out var parsed)
+                    && parsed != BuiltInCategory.INVALID)
+                    bic = parsed;
+                else if (!string.IsNullOrEmpty(r.CategoryFilter))
+                    try { bic = ResolveBuiltInCategoryByName(doc, r.CategoryFilter); } catch { }
+                if (bic != BuiltInCategory.INVALID) set.Add(bic);
+            }
+            return new List<BuiltInCategory>(set);
         }
 
         /// <summary>

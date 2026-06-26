@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Placement Centre — review follow-up: five minor fixes)
+
+Branch `claude/placement-centre-review-audit`. Closes the five minor items
+raised in the post-implementation review of the Placement Centre hardening
+pass. **Built without `dotnet build` verification — verify in Revit before
+merge.**
+
+1. **Standards gate now effective for `StandardRef`-only rules**
+   (`PlacementRuleLoader.FilterByProfile`). When a rule has no structured
+   `ApplicableStandards` it now falls back to its free-text `StandardRef`,
+   matched case-insensitively contains-either-direction (profile "BS 6465"
+   ↔ rule "BS 6465-1:2006"). Previously such rules bypassed the standards
+   filter entirely (inert). The engine's inert-standards warning was updated
+   to fire only when no rule carries *either* field.
+2. **Idempotency now covers face / work-plane-hosted instances**
+   (`FixturePlacementEngine.BuildPriorPlacedIndex`). Instances with no
+   `LocationPoint` fall back to the family-instance transform origin so they
+   are de-duped on re-run instead of duplicating.
+3. **MEP auto-connect search retuned to a coincidence tolerance**
+   (`PostPlacementHooks`). `Connector.ConnectTo` only joins coincident
+   connectors, so the 600 mm "radius" was misleading and inflated the
+   left-open count with near-but-not-coincident candidates. Replaced with a
+   25 mm `MepCoincidenceTolFt`.
+4. **Routing tooltip matches the dropdown** (`StingPlacementCenter.xaml`) —
+   dropped the stale `WALL_FOLLOWER` entry; tooltip now reads
+   `NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT`.
+5. **Idempotency scan scoped to active categories**
+   (`FixturePlacementEngine`). `BuildPriorPlacedIndex` now takes the set of
+   `BuiltInCategory` resolved from the (already profile-filtered) active
+   rules via `ResolvePriorPlacedCategories` and uses an
+   `ElementMulticategoryFilter`, instead of walking every `FamilyInstance`
+   in the model each run. Falls back to the full scan when no category
+   resolves or the filter is invalid.
+
 #### Completed (Placement Centre — review, gap-closure & hardening)
 
 Branch `claude/placement-centre-review-audit`. Closes the gaps from the
