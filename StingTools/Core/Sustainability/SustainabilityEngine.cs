@@ -67,8 +67,8 @@ namespace StingTools.Core.Sustainability
             res.Water = EstimateWater(doc, setup, baseline);
             res.Warnings.AddRange(res.Water.Warnings);
 
-            // ── Materials (dual metric; Tier-1 carbon path) ──
-            var lines = GatherMaterialLines(doc);
+            // ── Materials (dual metric; full BOQ carbon path) ──
+            var lines = GatherMaterialLines(doc, setup);
             res.MaterialLines = lines.Count;
             double area = setup.TotalFloorAreaM2 > 0 ? setup.TotalFloorAreaM2 : res.Energy.FloorAreaM2;
             res.Materials = MaterialsRollup.Rollup(lines, area,
@@ -305,23 +305,44 @@ namespace StingTools.Core.Sustainability
             return null;
         }
 
-        // ── Materials (Tier-1 carbon path + MJ track) ──────────────────────
+        // ── Materials — share the BOQ carbon path (WS A3) ──────────────────
+        //
+        // Single source of carbon truth with the BOQ: the SAME CarbonFactorResolver
+        // chain (per-m³ AND per-kg-via-density), the SAME WasteFactor knob
+        // (COST_DEFAULT_WASTE_PCT), and the SAME fossil/biogenic WLCA split. The
+        // per-element material-volume sum is the take-off quantity basis; routing it
+        // through SustainMaterialCarbon.Compute makes the resulting kgCO₂e match
+        // BOQCostManager.ComputeElementCarbon for the same material + density.
 
-        private static List<MaterialLine> GatherMaterialLines(Document doc)
+        // WBLCA scope (LEED v5 / RICS): structure + enclosure + reinforcement. Scoping
+        // to physical categories (vs. every non-type element) also fixes the old O(n)
+        // all-element walk (WS E1) and drops non-physical elements (WS D1).
+        private static readonly BuiltInCategory[] WblcaCategories =
+        {
+            BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors, BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFoundation,
+            BuiltInCategory.OST_Columns, BuiltInCategory.OST_Stairs, BuiltInCategory.OST_Ramps,
+            BuiltInCategory.OST_CurtainWallPanels, BuiltInCategory.OST_CurtainWallMullions,
+            BuiltInCategory.OST_Rebar, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows
+        };
+
+        private static List<MaterialLine> GatherMaterialLines(Document doc, SustainProjectSetup setup)
         {
             var lines = new List<MaterialLine>();
             try
             {
-                // Aggregate model material volumes by material name (the BOQ takeoff
-                // does the rich version; here we sum GetMaterialVolume per element so
-                // the rollup has quantities even without a full BOQ build).
+                double wastePct = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
+                var order = setup?.FactorSources ?? new FactorSourceOrder();
+
+                // Aggregate model material volumes by material name, scoped to the
+                // WBLCA physical categories (matches the BOQ take-off scope).
                 var byMaterial = new Dictionary<long, double>(); // materialId -> m3
-                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var filter = new ElementMulticategoryFilter(WblcaCategories);
+                var coll = new FilteredElementCollector(doc).WherePasses(filter).WhereElementIsNotElementType();
                 foreach (var el in coll)
                 {
                     ICollection<ElementId> matIds = null;
-                    // TODO-VERIFY-API: Element.GetMaterialIds(bool) + GetMaterialVolume(ElementId)
-                    // are documented Revit 2025 APIs; some element types throw — caught per element.
                     try { matIds = el.GetMaterialIds(false); } catch { continue; }
                     if (matIds == null) continue;
                     foreach (var mid in matIds)
@@ -337,38 +358,75 @@ namespace StingTools.Core.Sustainability
 
                 foreach (var kv in byMaterial)
                 {
-                    // TODO-VERIFY-API: new ElementId(long) is the Revit 2024+ ctor (Value is Int64).
                     var mat = doc.GetElement(new ElementId(kv.Key)) as Material;
                     string name = mat?.Name ?? "(unnamed)";
                     double m3 = kv.Value;
 
-                    // Tier-1 carbon path — CarbonFactorResolver (NOT the dead engine).
+                    // Full carbon-factor chain (per-m³ AND per-kg) + WLCA split — the
+                    // BOQ-shared resolver, NOT the dead CarbonTrackingEngine.
                     var cf = CarbonFactorResolver.Resolve(doc, name);
-                    double carbonKg = 0;
-                    if (cf.PerUnit == CarbonFactorUnit.KgCo2ePerM3) carbonKg = cf.Factor * m3;
-                    // (PerKg legacy factors need mass — skipped here; the BOQ path
-                    // applies density. Volume x per-m3 is the honest Tier-1 figure.)
+                    var input = new MaterialCarbonInputs
+                    {
+                        Material = name,
+                        VolumeM3 = m3,
+                        DensityKgM3 = DensityFor(name),
+                        WastePercent = wastePct,
+                        NetFactorPerM3 = cf.PerUnit == CarbonFactorUnit.KgCo2ePerM3 ? cf.Factor : 0,
+                        NetFactorPerKg = cf.PerUnit == CarbonFactorUnit.KgCo2ePerKg ? cf.Factor : 0,
+                        FactorIsEpdSpecific = cf.Source == "material-param"
+                            || !string.IsNullOrWhiteSpace(ParameterHelpers.GetString(mat, ParamRegistry.SUS_EPD_REF)),
+                        FossilFactorPerM3 = CarbonFactorResolver.GetCarbonFossilPerM3(doc, name),
+                        BiogenicFactorPerM3 = CarbonFactorResolver.GetCarbonBiogenicPerM3(doc, name),
+                        // Embodied energy: prefer a material-stamped MJ/m³ (EPD PERT+PENRT);
+                        // per-kg ICE-MJ is not stamped on materials today → 0 ⇒ ratio fallback.
+                        EnergyMjPerM3 = ReadMaterialDouble(mat, ParamRegistry.SUS_MAT_ENERGY_MJ_M2),
+                        EnergyMjPerKg = 0
+                    };
 
-                    // Embodied energy MJ: prefer SUS_MAT_ENERGY_MJ_M2_NR on the material,
-                    // else an indicative MJ/kgCO2e ratio (CED tracks GWP loosely — ~12
-                    // MJ per kgCO2e for common construction materials, a documented
-                    // placeholder until EPD PERT+PENRT data is stamped).
-                    double mjPerM3 = ReadMaterialDouble(mat, "SUS_MAT_ENERGY_MJ_M2_NR");
-                    double energyMj = mjPerM3 > 0 ? mjPerM3 * m3 : carbonKg * 12.0;
-
-                    bool fromEpd = !string.IsNullOrWhiteSpace(ParameterHelpers.GetString(mat, ParamRegistry.SUS_EPD_REF));
+                    var outp = SustainMaterialCarbon.Compute(input, order);
 
                     lines.Add(new MaterialLine
                     {
                         Material = name, Category = mat?.MaterialClass ?? "",
-                        VolumeM3 = m3, CarbonKg = carbonKg, EnergyMj = energyMj,
-                        FromEpd = fromEpd, CarbonSource = cf.Source,
-                        EnergySource = mjPerM3 > 0 ? "material-param" : "indicative-ratio"
+                        VolumeM3 = m3, MassKg = outp.MassKg, WastePercent = wastePct,
+                        CarbonKg = outp.NetCarbonKg,
+                        FossilCarbonKg = outp.FossilCarbonKg,
+                        BiogenicCarbonKg = outp.BiogenicCarbonKg,
+                        EnergyMj = outp.EnergyMj,
+                        FromEpd = outp.FromEpd,
+                        CarbonSource = outp.CarbonSource,
+                        EnergySource = outp.EnergySource
                     });
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Sustain GatherMaterialLines: {ex.Message}"); }
             return lines;
+        }
+
+        /// <summary>Resolve a material density (kg/m³) for the per-kg carbon path,
+        /// mirroring BOQCostManager.EstimateDensityKgPerM3 so the cost-mass and
+        /// carbon-mass paths use one density. Corporate library wins; a small
+        /// keyword fallback covers common construction materials.</summary>
+        private static double DensityFor(string material)
+        {
+            try
+            {
+                double libVal = StingTools.UI.MaterialLookupCsv.GetDensity(material);
+                if (libVal > 0) return libVal;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Sustain.Density", $"density lookup: {ex.Message}"); }
+
+            string lc = (material ?? "").ToLowerInvariant();
+            if (lc.Contains("reinforced") && lc.Contains("concrete")) return 2450;
+            if (lc.Contains("concrete")) return 2400;
+            if (lc.Contains("steel")) return 7850;
+            if (lc.Contains("hardwood")) return 700;
+            if (lc.Contains("timber") || lc.Contains("wood") || lc.Contains("softwood")) return 480;
+            if (lc.Contains("alumin")) return 2700;
+            if (lc.Contains("glass")) return 2500;
+            if (lc.Contains("brick")) return 1920;
+            if (lc.Contains("insulation")) return 40;
+            return 0;   // unknown ⇒ per-kg path skipped (documented)
         }
 
         private static double ReadMaterialDouble(Material mat, string paramName)

@@ -28,8 +28,20 @@ namespace StingTools.Core.Sustainability
         public string Material   { get; set; } = "";
         public string Category   { get; set; } = "";
         public double VolumeM3   { get; set; }
-        /// <summary>Embodied carbon for this line, kgCO2e (A1-A3 GWP).</summary>
+        /// <summary>Material mass for this line, kg (volume×density, waste-grossed).
+        /// 0 when density was unavailable. WS A3.</summary>
+        public double MassKg     { get; set; }
+        /// <summary>Net embodied carbon for this line, kgCO2e (A1-A3 GWP) — INCLUDES
+        /// the biogenic credit for bio-based materials (fossil + biogenic).</summary>
         public double CarbonKg   { get; set; }
+        /// <summary>A1-A3 fossil (upfront) carbon, kgCO2e (≥ 0) — the RICS/RIBA headline
+        /// basis, sequestration excluded. WS A3.</summary>
+        public double FossilCarbonKg   { get; set; }
+        /// <summary>A1-A3 biogenic carbon, kgCO2e (≤ 0 for timber, 0 otherwise). WS A3.</summary>
+        public double BiogenicCarbonKg { get; set; }
+        /// <summary>Wastage allowance applied to the measured volume, % (COST_DEFAULT_WASTE_PCT
+        /// or per-element override) — same convention as the BOQ takeoff. WS A3.</summary>
+        public double WastePercent { get; set; }
         /// <summary>Embodied energy for this line, MJ (CED / PERT+PENRT).</summary>
         public double EnergyMj   { get; set; }
         /// <summary>True when this line used a product-specific EPD (SUS_EPD_REF_TXT).</summary>
@@ -49,6 +61,12 @@ namespace StingTools.Core.Sustainability
     public class MaterialsRollupResult
     {
         public double TotalCarbonKg { get; set; }
+        /// <summary>Σ A1-A3 fossil (upfront) carbon, kgCO2e — RICS/RIBA headline. WS A3.</summary>
+        public double TotalFossilCarbonKg { get; set; }
+        /// <summary>Σ A1-A3 biogenic carbon, kgCO2e (≤ 0) — reported separately. WS A3.</summary>
+        public double TotalBiogenicCarbonKg { get; set; }
+        /// <summary>Σ material mass, kg (waste-grossed). WS A3.</summary>
+        public double TotalMassKg   { get; set; }
         public double TotalEnergyMj { get; set; }
         public double FloorAreaM2   { get; set; }
 
@@ -106,12 +124,17 @@ namespace StingTools.Core.Sustainability
             foreach (var l in list)
             {
                 res.TotalCarbonKg += l.CarbonKg;
+                res.TotalFossilCarbonKg += l.FossilCarbonKg;
+                res.TotalBiogenicCarbonKg += l.BiogenicCarbonKg;
+                res.TotalMassKg += l.MassKg;
                 res.TotalEnergyMj += l.EnergyMj;
                 if (l.FromEpd) res.LinesFromEpd++;
-                if (l.CarbonKg > 0) res.CarbonStampedLines++;
+                // A non-zero carbon factor was applied (fossil ≥ 0 even when the net
+                // is dragged ≤ 0 by a biogenic credit, so key off fossil OR net).
+                if (l.CarbonKg != 0 || l.FossilCarbonKg != 0) res.CarbonStampedLines++;
             }
 
-            res.WblcaCompleted = list.Count > 0 && res.TotalCarbonKg > 0;
+            res.WblcaCompleted = list.Count > 0 && res.CarbonStampedLines > 0;
 
             // Three largest carbon hotspots (group by material name).
             var grouped = list
@@ -147,7 +170,7 @@ namespace StingTools.Core.Sustainability
 
             if (res.FloorAreaM2 <= 0)
                 res.Warnings.Add("Materials NOT computed — no floor area (GFA). Enter floor area in Setup, then re-run.");
-            if (res.TotalCarbonKg <= 0)
+            if (res.CarbonStampedLines <= 0)
                 res.Warnings.Add($"Materials NOT computed — {res.TotalLines} material(s) measured, 0 carbon-stamped. " +
                                  "Stamp STING_EMB_CARBON_NR / SUS_EPD_REF_TXT (run a carbon pass) and re-run.");
 
