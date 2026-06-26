@@ -14,9 +14,11 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System.Collections.Generic;
 using StingTools.BOQ.MeasurementStandard;
 using StingTools.Core;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -46,10 +48,12 @@ namespace StingTools.Commands.Cost
                 // BOQDocument.MeasurementStandardId.
                 TagConfig.SetConfigValue("COST_MEASUREMENT_STANDARD", id);
 
-                TaskDialog.Show("STING — Measurement standard",
-                    $"Measurement standard set to {picked[0].Label} ({id}).\n\n" +
-                    "Future BOQ_Build runs will classify and describe rows per this standard. " +
-                    "Existing snapshots keep the standard they were saved with.");
+                StingResultPanel.Create("Measurement standard")
+                    .AddSection("RESULT")
+                    .Metric("Active standard", $"{picked[0].Label} ({id})")
+                    .Text("Future BOQ_Build runs will classify and describe rows per this standard. " +
+                          "Existing snapshots keep the standard they were saved with.")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -73,13 +77,11 @@ namespace StingTools.Commands.Cost
                                      "Pipes", "Electrical Equipment", "Lighting Fixtures",
                                      "Roads", "Reinforcement" };
 
-                var sb = new StringBuilder();
-                sb.AppendLine("Standard / Category → (Section, Unit)");
-                sb.AppendLine(new string('─', 60));
+                var rp = StingResultPanel.Create("Measurement standard preview")
+                    .SetSubtitle("How each standard classifies + measures common categories");
                 foreach (var std in MeasurementStandardRegistry.All())
                 {
-                    sb.AppendLine();
-                    sb.AppendLine($"━ {std.DisplayName}  [{std.Version}]");
+                    var rows = new List<string[]>();
                     foreach (var cat in samples)
                     {
                         var stubLine = new BOQ.BOQLineItem
@@ -97,11 +99,13 @@ namespace StingTools.Commands.Cost
                         };
                         string section = std.ClassifyRow(stubLine, null);
                         string unit = std.PreferredUnit(cat);
-                        sb.AppendLine($"  {cat,-22} → ({section,-6}, {unit})");
+                        rows.Add(new[] { cat, section, unit });
                     }
+                    rp.AddSection($"{std.DisplayName}  [{std.Version}]")
+                        .Table(new[] { "Category", "Section", "Unit" }, rows);
                 }
 
-                TaskDialog.Show("STING — Measurement standard preview", sb.ToString());
+                rp.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)

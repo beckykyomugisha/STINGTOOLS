@@ -147,7 +147,16 @@ namespace StingTools.Docs
                     string mark = HandoverHelper.Gp(el, BuiltInParameter.ALL_MODEL_MARK);
                     string sysName = HandoverHelper.Gs(el, ParamRegistry.SYS);
 
-                    compLines.Add($"{Esc(tag1)},STING Tools,{DateTime.Now:yyyy-MM-dd},{Esc(typeKey)},{Esc(space)},{Esc(desc)},,,,{Esc(tag1)},{el.Id},{Esc(sysName)}");
+                    // INT-0 — the COBie Component external identifier must be the
+                    // stable 22-char IFC GlobalId, not the volatile Revit
+                    // ElementId (which changes across sessions/exports). This is
+                    // the join key that lets COBie reconcile against the IFC,
+                    // Speckle applicationId, and the server identity map.
+                    // Prefer Revit's own exporter GUID (gold standard) for a live
+                    // Element; falls back to the canonical string encoder off-Revit.
+                    string assetId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
+
+                    compLines.Add($"{Esc(tag1)},STING Tools,{DateTime.Now:yyyy-MM-dd},{Esc(typeKey)},{Esc(space)},{Esc(desc)},,,,{Esc(tag1)},{Esc(assetId)},{Esc(sysName)}");
                 }
 
                 // ── System sheet ──

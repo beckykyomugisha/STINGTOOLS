@@ -22,6 +22,7 @@ using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.CostPlan;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -39,8 +40,10 @@ namespace StingTools.Commands.Cost
                 var registry = CostPlanRegistry.Get(doc);
                 if (registry.BuildingTypes.Count == 0)
                 {
-                    TaskDialog.Show("STING Cost Plan",
-                        "No NRM1 benchmarks loaded. Verify STING_NRM1_BENCHMARKS.csv is present in the data folder.");
+                    StingResultPanel.Create("New Cost Plan")
+                        .AddSection("NO BENCHMARKS")
+                        .Text("No NRM1 benchmarks loaded. Verify STING_NRM1_BENCHMARKS.csv is present in the data folder.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -62,15 +65,17 @@ namespace StingTools.Commands.Cost
                 var plan = CostPlanEngine.Create(doc, buildingType, gifa, label: "Concept");
                 string path = CostPlanEngine.Save(doc, plan);
 
-                TaskDialog.Show("STING — Cost plan created",
-                    $"Cost plan saved.\n\n" +
-                    $"Building type:      {buildingType}\n" +
-                    $"GIFA:               {gifa:N0} m²\n" +
-                    $"Lines:              {plan.Lines.Count}\n" +
-                    $"Subtotal (likely):  {plan.Currency} {plan.SubtotalLikely:N0}\n" +
-                    $"Grand total:        {plan.Currency} {plan.GrandTotalLikely:N0}\n" +
-                    $"Headline {plan.Currency}/m² GIFA: {plan.CostPerSqmLikely:N0}\n\n" +
-                    $"Path: {Path.GetFileName(path)}");
+                StingResultPanel.Create("Cost plan created")
+                    .SetSubtitle($"{buildingType} · {gifa:N0} m² GIFA")
+                    .AddSection("PLAN")
+                    .Metric("Building type", buildingType)
+                    .Metric("GIFA", $"{gifa:N0} m²")
+                    .Metric("Lines", plan.Lines.Count.ToString())
+                    .Metric("Subtotal (likely)", $"{plan.Currency} {plan.SubtotalLikely:N0}")
+                    .Metric("Grand total", $"{plan.Currency} {plan.GrandTotalLikely:N0}")
+                    .Metric($"Headline {plan.Currency}/m² GIFA", $"{plan.CostPerSqmLikely:N0}")
+                    .Text($"Path: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -149,7 +154,10 @@ namespace StingTools.Commands.Cost
                 var paths = CostPlanEngine.ListPlans(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Cost Plan", "No saved cost plans found. Run CostPlan_Create first.");
+                    StingResultPanel.Create("Compare vs BOQ")
+                        .AddSection("NO PLANS")
+                        .Text("No saved cost plans found. Run CostPlan_Create first.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -195,19 +203,23 @@ namespace StingTools.Commands.Cost
             int amber = variances.Count(v => v.Status == "Amber");
             int green = variances.Count(v => v.Status == "Green");
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Plan: {plan.Label}  ({plan.BuildingType}, {plan.GifaM2:N0} m² GIFA)");
-            sb.AppendLine($"Status:  Red {red}  /  Amber {amber}  /  Green {green}");
-            sb.AppendLine();
-            sb.AppendLine("Top 10 variances (by absolute %):");
-            foreach (var v in variances.OrderByDescending(x => Math.Abs(x.DeltaPct)).Take(10))
-            {
-                sb.AppendLine(
-                    $"  [{v.Status[0]}] {v.ElementCode,-5} {Trim(v.ElementName, 28),-28}  " +
-                    $"plan {v.PlannedLikely,12:N0}   actual {v.Actual,12:N0}   {v.DeltaPct,+6:F1}%");
-            }
+            var rp = StingResultPanel.Create("Cost plan compare")
+                .SetSubtitle($"{plan.Label}  ({plan.BuildingType}, {plan.GifaM2:N0} m² GIFA)");
+            rp.AddSection("STATUS")
+                .Metric("Red", red.ToString())
+                .Metric("Amber", amber.ToString())
+                .Metric("Green", green.ToString());
 
-            TaskDialog.Show("STING — Cost plan compare", sb.ToString());
+            var rows = variances.OrderByDescending(x => Math.Abs(x.DeltaPct)).Take(10)
+                .Select(v => new[]
+                {
+                    v.Status, v.ElementCode ?? "", Trim(v.ElementName, 28),
+                    $"{v.PlannedLikely:N0}", $"{v.Actual:N0}", $"{v.DeltaPct:+0.0;-0.0}%"
+                }).ToList();
+            rp.AddSection("TOP 10 VARIANCES (by absolute %)")
+                .Table(new[] { "Status", "Code", "Element", "Plan", "Actual", "Δ%" }, rows);
+
+            rp.Show();
         }
 
         private static string Trim(string s, int max) =>
@@ -228,7 +240,10 @@ namespace StingTools.Commands.Cost
                 var paths = CostPlanEngine.ListPlans(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Cost Plan", "No saved cost plans found.");
+                    StingResultPanel.Create("Export Cost Plan")
+                        .AddSection("NO PLANS")
+                        .Text("No saved cost plans found.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -315,7 +330,12 @@ namespace StingTools.Commands.Cost
                     wb.SaveAs(outPath);
                 }
 
-                TaskDialog.Show("STING — Cost plan exported", $"Saved to:\n{outPath}");
+                StingResultPanel.Create("Cost plan exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Plan", plan.Label)
+                    .Text($"Saved to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)

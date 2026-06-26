@@ -3508,6 +3508,7 @@ namespace StingTools.UI
                     case "BOQAddManualRow":         RunCommand<BOQ.BOQAddManualRowCommand>(app); break;
                     case "SelectInRevit":           RunCommand<BOQ.BOQSelectInRevitCommand>(app); break;
                     case "BOQExport":               RunCommand<BOQ.BOQExportCommand>(app); break;
+                    case "BOQExportIfcQto":         RunCommand<BOQ.BOQExportIfcQtoCommand>(app); break;
                     case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;
@@ -4016,6 +4017,20 @@ namespace StingTools.UI
                     // Clear ExtraParams to prevent cross-command state pollution
                     // (e.g., ElbowMode from tag command bleeding into next selection command)
                     ClearAllExtraParams();
+
+                    // Resolve the BOQ Actions pane's "Running…" placeholder (no-op
+                    // if the command already rendered inline). Runs before the
+                    // statics are cleared so the pane reflects the just-finished run.
+                    try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
+                    catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
+
+                    // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
+                    // hooks so a later ribbon/other-panel command's pickers + result
+                    // panels don't render into the (possibly closed) Actions pane.
+                    StingTools.Select.StingListPicker.InlineHost = null;
+                    StingTools.Select.StingListPicker.InlineHostDoc = null;   // P0.1
+                    StingTools.Select.StingListPicker.InlineTitleSink = null;
+                    StingResultPanel.InlineSink = null;
 
                     // FIX-UI03: Notify panel that command completed so Tag Studio
                     // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently

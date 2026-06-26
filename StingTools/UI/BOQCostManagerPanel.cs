@@ -61,6 +61,10 @@ namespace StingTools.UI
         // open/closed set after every rate edit. Composite (Discipline|NRM2|Name)
         // is stable across rebuilds.
         private readonly HashSet<string> _openSections = new HashSet<string>();
+        // Slice 1.5 — Materials tab expand state, mirrors _openSections so the
+        // Expand-all / Collapse-all toolbar buttons (and per-section chevrons)
+        // drive the Materials tab too and survive a rebuild.
+        private readonly HashSet<string> _openMaterialSections = new HashSet<string>();
         private string _activeSnapshotLabel = "";
         private readonly Dictionary<string, double> _snapshotDeltas = new Dictionary<string, double>();
 
@@ -84,6 +88,105 @@ namespace StingTools.UI
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
+        // P1.3 — per-project UI state persistence. Grouping mode, display currency,
+        // hidden-column set and the expand/collapse sets reset every session unless
+        // we persist them to <project>/_BIM_COORD/boq_ui_state.json. Best-effort:
+        // a read/write failure logs a warning and never blocks the UI. The flag
+        // gates SaveUiState so a write can't fire mid-load (during Build) and
+        // clobber the file we're still reading.
+        private bool _uiStateLoaded;
+        // Set when a persisted OpenSections set was loaded so the first RefreshAsync
+        // doesn't auto-expand-all over a deliberately-empty (collapse-all) state.
+        private bool _suppressAutoOpenOnce;
+
+        private sealed class BoqUiState
+        {
+            public string GroupingMode { get; set; }
+            public string DisplayCurrency { get; set; }
+            public List<string> HiddenColumns { get; set; }
+            public List<string> OpenSections { get; set; }
+            public List<string> OpenMaterialSections { get; set; }
+        }
+
+        private string UiStatePath()
+        {
+            try
+            {
+                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
+                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_ui_state.json");
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Load persisted UI state into the fields before Build() so the
+        /// combos/toggles/columns open in the user's last configuration. Best-effort.</summary>
+        private void LoadUiState()
+        {
+            try
+            {
+                string path = UiStatePath();
+                if (path != null && System.IO.File.Exists(path))
+                {
+                    var st = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqUiState>(
+                        System.IO.File.ReadAllText(path));
+                    if (st != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(st.GroupingMode)
+                            && Enum.TryParse<BoqGroupingMode>(st.GroupingMode, out var gm))
+                            _groupingMode = gm;
+                        if (string.Equals(st.DisplayCurrency, "USD", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(st.DisplayCurrency, "UGX", StringComparison.OrdinalIgnoreCase))
+                            _displayCurrency = st.DisplayCurrency.ToUpperInvariant();
+                        if (st.HiddenColumns != null)
+                        {
+                            _hiddenColumns.Clear();
+                            foreach (var c in st.HiddenColumns)
+                                if (!string.IsNullOrWhiteSpace(c)) _hiddenColumns.Add(c.Trim());
+                        }
+                        if (st.OpenSections != null)
+                        {
+                            _openSections.Clear();
+                            foreach (var s in st.OpenSections)
+                                if (!string.IsNullOrWhiteSpace(s)) _openSections.Add(s);
+                            _suppressAutoOpenOnce = true;   // honour a persisted collapse-all
+                        }
+                        if (st.OpenMaterialSections != null)
+                        {
+                            _openMaterialSections.Clear();
+                            foreach (var s in st.OpenMaterialSections)
+                                if (!string.IsNullOrWhiteSpace(s)) _openMaterialSections.Add(s);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ LoadUiState: {ex.Message}"); }
+            _uiStateLoaded = true;
+        }
+
+        /// <summary>Persist the current UI state. Best-effort, fired on each change.</summary>
+        private void SaveUiState()
+        {
+            if (!_uiStateLoaded) return;   // don't write a partial state during Build
+            try
+            {
+                string path = UiStatePath();
+                if (path == null) return;
+                var st = new BoqUiState
+                {
+                    GroupingMode = _groupingMode.ToString(),
+                    DisplayCurrency = _displayCurrency,
+                    HiddenColumns = _hiddenColumns.ToList(),
+                    OpenSections = _openSections.ToList(),
+                    OpenMaterialSections = _openMaterialSections.ToList()
+                };
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(st, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ SaveUiState: {ex.Message}"); }
+        }
+
         // Phase 108d: transient status-bar message support. FlashHint() writes
         // a short amber line into _paragraphCoverage for 4s, then restores the
         // coverage summary. Used when we cancel an edit on a model-derived cell.
@@ -100,12 +203,49 @@ namespace StingTools.UI
         private StackPanel _sectionsPanel;
         private TabControl _mainTabs;
         private TabItem _materialsTab;
+        // Slice 1.5 — Actions tab master-detail: buttons on the left, a single
+        // inline report pane on the right that renders the last-clicked action's
+        // result (no popup). Reuses the BOQInlineResults sink via ShowInlineResult.
+        private TabItem _actionsTab;
+        private Border _actionReportHost;        // right-pane content holder
+        private TextBlock _actionReportTitle;    // right-pane header (= action label)
+        private UIElement _actionReportEmpty;    // "select an action" placeholder
+        private Button _selectedActionBtn;       // for highlight reset
+        private Button _linksBtn;                 // header "⛓ Links (N)" badge
+        private bool _inlineResultPosted;        // did the current action render inline?
+        // Invoked by StingCommandHandler.Execute's finally when a dispatched action
+        // completes, so the Actions pane can resolve its "Running…" placeholder even
+        // when the command reported via its own TaskDialog (not StingResultPanel).
+        internal static Action PendingActionResolve;
         private ToggleButton _ugxToggle, _usdToggle;
+
+        // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
+        // the InlineHost=1 ExtraParam so commands route their result here via
+        // BOQInlineResults.Post() instead of StingResultPanel.Show(). This is the
+        // "zero external reporting popups" convention the rest of the workspace
+        // (Schedule / cash-flow / sweep) follows.
+        private Border _inlineResultRegion;   // collapsed by default
+        private Border _inlineResultHost;     // receives BuildInlineContent output
+        private TextBlock _inlineResultTitle;
+        private Action<StingResultPanel.Builder> _inlineSink;  // stable delegate for sink (de)registration
 
         public BOQCostManagerPanel(Document doc)
         {
             Doc = doc;
+            LoadUiState();   // P1.3 — restore grouping / currency / columns / expand sets before Build
             Build();
+            // Register the inline-result sink so panel-driven commands render their
+            // results in-panel. Cleared on Unloaded so a closed panel can't capture
+            // a later ribbon/workflow invocation (those fall back to .Show()).
+            // Hold the delegate in a field — a method-group re-conversion would be a
+            // fresh instance, so ReferenceEquals must compare the stored delegate.
+            _inlineSink = PostInlineResult;
+            BOQInlineResults.Sink = _inlineSink;
+            this.Unloaded += (s, e) =>
+            {
+                if (ReferenceEquals(BOQInlineResults.Sink, _inlineSink))
+                    BOQInlineResults.Sink = null;
+            };
             RefreshAsync();
         }
 
@@ -207,6 +347,12 @@ namespace StingTools.UI
             root.Children.Add(BuildFooter());
             DockPanel.SetDock(root.Children[4], Dock.Bottom);
 
+            // Inline result region — sits directly above the footer, collapsed
+            // until a panel-driven command posts a result (no popup).
+            var resultRegion = BuildInlineResultRegion();
+            root.Children.Add(resultRegion);
+            DockPanel.SetDock(resultRegion, Dock.Bottom);
+
             // Main content — TabControl with Bill of Quantities + Materials tabs
             _sectionsPanel = new StackPanel { Margin = new Thickness(0) };
             var boqScroll = new ScrollViewer
@@ -225,7 +371,8 @@ namespace StingTools.UI
             // command from P0 → P8 inline. Replaces the fragmented dock-
             // panel sub-sections so users have one place to find every
             // cost workflow.
-            _mainTabs.Items.Add(new TabItem { Header = "Actions", Content = BuildActionsTab() });
+            _actionsTab = new TabItem { Header = "Actions", Content = BuildActionsTab() };
+            _mainTabs.Items.Add(_actionsTab);
 
             // Phase 108j — wrap the main TabControl in a Grid host so
             // ShowTenderSetupInline can stack the tender-setup UI on top,
@@ -268,10 +415,13 @@ namespace StingTools.UI
             // Currency toggle
             var ccyPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center };
-            _ugxToggle = new ToggleButton { Content = "UGX", IsChecked = true, Width = 52, Height = 26, Margin = new Thickness(0, 0, 4, 0) };
-            _usdToggle = new ToggleButton { Content = "USD", IsChecked = false, Width = 52, Height = 26 };
-            _ugxToggle.Checked += (s, e) => { _usdToggle.IsChecked = false; _displayCurrency = "UGX"; RefreshDisplay(); };
-            _usdToggle.Checked += (s, e) => { _ugxToggle.IsChecked = false; _displayCurrency = "USD"; RefreshDisplay(); };
+            // P1.3 — reflect the persisted currency (handlers attach AFTER the
+            // initializer, so setting IsChecked here doesn't fire RefreshDisplay).
+            bool usd = _displayCurrency == "USD";
+            _ugxToggle = new ToggleButton { Content = "UGX", IsChecked = !usd, Width = 52, Height = 26, Margin = new Thickness(0, 0, 4, 0) };
+            _usdToggle = new ToggleButton { Content = "USD", IsChecked = usd, Width = 52, Height = 26 };
+            _ugxToggle.Checked += (s, e) => { _usdToggle.IsChecked = false; _displayCurrency = "UGX"; SaveUiState(); RefreshDisplay(); };
+            _usdToggle.Checked += (s, e) => { _ugxToggle.IsChecked = false; _displayCurrency = "USD"; SaveUiState(); RefreshDisplay(); };
             ccyPanel.Children.Add(_ugxToggle);
             ccyPanel.Children.Add(_usdToggle);
             Grid.SetColumn(ccyPanel, 1);
@@ -280,12 +430,88 @@ namespace StingTools.UI
             // Header actions
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 0),
                 VerticalAlignment = VerticalAlignment.Center };
-            actions.Children.Add(BuildHeaderBtn("↻ Refresh", () => DispatchAction("BOQRefresh")));
+            // Per-link takeoff chooser. Persisted per project — flexible (pick
+            // which links) + sustainable (survives reopen). Linked rows are
+            // read-only (not cost-stamped / selectable in host).
+            _linksBtn = BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels());
+            actions.Children.Add(_linksBtn);
+
+            // Explicit Refresh forces a full recompute incl. reloaded links — the
+            // per-link takeoff cache (P1.2) is only auto-invalidated on document
+            // close, so a link Reloaded mid-session would otherwise stay stale.
+            // Passive refreshes (filter / rate edit) keep using the cache for speed.
+            actions.Children.Add(BuildHeaderBtn("↻ Refresh", () =>
+            {
+                try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); } catch { }
+                DispatchAction("BOQRefresh");
+            }));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
             Grid.SetColumn(actions, 2);
             grid.Children.Add(actions);
 
             return grid;
+        }
+
+        /// <summary>
+        /// Per-link takeoff chooser: lists the loaded Revit links, pre-ticks the
+        /// persisted selection, and on OK saves it (per project) + refreshes.
+        /// Reuses the multi-select StingListPicker (checkbox list). Reading links
+        /// is read-only — safe from the dockable-pane UI thread.
+        /// </summary>
+        private void ChooseLinkedModels()
+        {
+            try
+            {
+                var doc = Doc;
+                if (doc == null) return;
+
+                var loaded = new List<string>();
+                try
+                {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var links = new FilteredElementCollector(doc)
+                        .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>();
+                    foreach (var rli in links)
+                    {
+                        Document ld = null; try { ld = rli.GetLinkDocument(); } catch { }
+                        if (ld == null) continue;                 // unloaded
+                        string t; try { t = ld.Title; } catch { continue; }
+                        if (!string.IsNullOrWhiteSpace(t) && seen.Add(t)) loaded.Add(t);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ChooseLinkedModels enum: {ex.Message}"); }
+
+                if (loaded.Count == 0)
+                {
+                    TaskDialog.Show("STING — Linked models",
+                        "No loaded Revit links found in this model.\n\n" +
+                        "Link a model and load it (Manage → Links), then choose it here.");
+                    return;
+                }
+
+                var current = StingTools.BOQ.BOQCostManager.GetIncludedLinkTitles(doc);
+                var items = loaded
+                    .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                    .Select(t => new StingTools.Select.StingListPicker.ListItem
+                    {
+                        Label = t,
+                        Detail = current.Contains(t) ? "included" : "",
+                        IsSelected = current.Contains(t)
+                    })
+                    .ToList();
+
+                var picked = StingTools.Select.StingListPicker.Show(
+                    "STING — Linked models in takeoff",
+                    "Tick the links whose quantities to include. Linked rows are read-only — " +
+                    "not cost-stamped or selectable in the host (tagged \"[Linked: <model>]\").",
+                    items, allowMultiSelect: true);
+                if (picked == null) return;   // cancelled — leave selection unchanged
+
+                StingTools.BOQ.BOQCostManager.SetIncludedLinkTitles(doc, picked.Select(p => p.Label));
+                UpdateLinksBadge();
+                DispatchAction("BOQRefresh");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ChooseLinkedModels", ex); }
         }
 
         private Button BuildHeaderBtn(string text, Action click)
@@ -436,12 +662,21 @@ namespace StingTools.UI
             {
                 _openSections.Clear();
                 if (_boq != null) foreach (var s2 in _boq.Sections) _openSections.Add(SectionKey(s2));
+                // Slice 1.5 — also expand every Materials category so the button
+                // works on whichever tab is active (mirrors the BOQ set pattern).
+                _openMaterialSections.Clear();
+                foreach (var k in MaterialCategoryKeys()) _openMaterialSections.Add(k);
+                SaveUiState();
                 RebuildSectionsView();
+                RebuildMaterialsTab();
             }));
             sp.Children.Add(MakeToolbarButton("⊟ Collapse all", () =>
             {
                 _openSections.Clear();
+                _openMaterialSections.Clear();
+                SaveUiState();
                 RebuildSectionsView();
+                RebuildMaterialsTab();
             }));
 
             // Phase 108c: toggle hides/shows the NRM2 description strip on
@@ -476,15 +711,21 @@ namespace StingTools.UI
                 ("Level → work section",BoqGroupingMode.LevelThenWorkSection),
                 ("Zone",                BoqGroupingMode.Zone),
                 ("Location",            BoqGroupingMode.Location),
+                ("Source model",        BoqGroupingMode.SourceModel),
             })
                 groupCombo.Items.Add(new ComboBoxItem { Content = opt.Item1, Tag = opt.Item2 });
-            groupCombo.SelectedIndex = 0;
+            // P1.3 — preselect the persisted grouping (before the handler attaches, so
+            // it doesn't fire a redundant RefreshAsync during Build).
+            var preSel = groupCombo.Items.Cast<ComboBoxItem>()
+                .FirstOrDefault(ci => ci.Tag is BoqGroupingMode gm && gm == _groupingMode);
+            groupCombo.SelectedItem = preSel ?? groupCombo.Items[0];
             groupCombo.SelectionChanged += (s, e) =>
             {
                 if (groupCombo.SelectedItem is ComboBoxItem ci && ci.Tag is BoqGroupingMode m && m != _groupingMode)
                 {
                     _groupingMode = m;
                     _openSections.Clear();   // section keys change — let RefreshAsync re-open all
+                    SaveUiState();
                     RefreshAsync();          // re-aggregate + re-group from the model
                 }
             };
@@ -568,6 +809,7 @@ namespace StingTools.UI
                 mi.Click += (s, e) =>
                 {
                     if (mi.IsChecked) _hiddenColumns.Remove(key); else _hiddenColumns.Add(key);
+                    SaveUiState();
                     RebuildSectionsView();
                 };
                 menu.Items.Add(mi);
@@ -603,6 +845,7 @@ namespace StingTools.UI
                 }
                 catch (Exception ex) { StingLog.Warn($"ApplyPrintProfile({profileId}): {ex.Message}"); }
             }
+            SaveUiState();   // P1.3 — a profile sets the visible-column set; persist it
             RebuildSectionsView();
         }
 
@@ -750,13 +993,83 @@ namespace StingTools.UI
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
 
-            return new ScrollViewer
+            var leftRail = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = sp,
                 Padding = new Thickness(0)
             };
+
+            // Slice 1.5 — master-detail: action buttons on the left, one inline
+            // report pane on the right rendering the last-clicked action's result
+            // (no popup). A draggable splitter lets the user size the panes.
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.35, GridUnitType.Star), MinWidth = 360 });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
+
+            Grid.SetColumn(leftRail, 0);
+            grid.Children.Add(leftRail);
+
+            var splitter = new GridSplitter
+            {
+                Width = 5,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Background = BorderColor,
+                ResizeBehavior = GridResizeBehavior.PreviousAndNext
+            };
+            Grid.SetColumn(splitter, 1);
+            grid.Children.Add(splitter);
+
+            grid.Children.Add(BuildActionReportPane());   // sets _actionReportHost/Title; column 2
+            return grid;
+        }
+
+        /// <summary>Slice 1.5 — the Actions tab's right-hand inline report pane.
+        /// Header (= action label) + scrollable content host seeded with an
+        /// empty-state hint. Populated by RunActionInline / ShowInlineResult.</summary>
+        private UIElement BuildActionReportPane()
+        {
+            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(8, 0, 0, 0) };
+
+            var header = new Border
+            {
+                Background = NavyBrush,
+                Padding = new Thickness(12, 8, 12, 8),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                BorderBrush = BorderColor
+            };
+            _actionReportTitle = new TextBlock
+            {
+                Text = "Action result", Foreground = Brushes.White,
+                FontSize = 12, FontWeight = FontWeights.Bold
+            };
+            header.Child = _actionReportTitle;
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
+
+            _actionReportEmpty = new TextBlock
+            {
+                Text = "Select an action on the left — its result appears here, inline (no popup).",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(14), VerticalAlignment = VerticalAlignment.Top
+            };
+            _actionReportHost = new Border
+            {
+                Background = Brushes.White, Padding = new Thickness(0),
+                Child = _actionReportEmpty
+            };
+            root.Children.Add(new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = _actionReportHost
+            });
+
+            Grid.SetColumn(root, 2);
+            return root;
         }
 
         /// <summary>
@@ -845,8 +1158,77 @@ namespace StingTools.UI
                 btn.BorderThickness = new Thickness(1);
             }
 
-            btn.Click += (s, e) => DispatchAction(tag);
+            btn.Click += (s, e) => RunActionInline(btn, label, tag);
             return btn;
+        }
+
+        /// <summary>
+        /// Slice 1.5 — run an Actions-tab command and route its result to the
+        /// right-hand report pane instead of a popup. Highlights the clicked
+        /// button, shows a running placeholder, and sets InlineHost=1 so commands
+        /// that support the inline gate post here (BOQInlineResults →
+        /// ShowInlineResult → the Actions pane). Commands not yet converted still
+        /// pop their own dialog (that's the Slice 3 sweep); the pane still
+        /// responds per-button so the surface is never dead.
+        /// </summary>
+        private void RunActionInline(Button btn, string label, string tag)
+        {
+            try
+            {
+                // P0.2 — defensively clear any stale inline registration left over by
+                // a prior aborted run (command that threw before the dispatcher's
+                // finally cleared the statics) so we never inherit a foreign sink.
+                StingTools.Select.StingListPicker.InlineHost = null;
+                StingTools.Select.StingListPicker.InlineHostDoc = null;
+                StingTools.Select.StingListPicker.InlineTitleSink = null;
+                StingResultPanel.InlineSink = null;
+
+                HighlightActionButton(btn);
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+                if (_actionReportHost != null)
+                    _actionReportHost.Child = new TextBlock
+                    {
+                        Text = $"Running “{label}” …\nThe result appears here when the action completes.",
+                        Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(14)
+                    };
+                // Slice 1.5 — route this command's input pickers AND result panels
+                // into the Actions report pane instead of popups. The dispatcher
+                // clears these in StingCommandHandler.Execute's finally, once the
+                // (synchronous) command has run.
+                _inlineResultPosted = false;   // set true by the sink if a result lands inline
+                StingTools.Select.StingListPicker.InlineHost = _actionReportHost;
+                StingTools.Select.StingListPicker.InlineHostDoc = Doc;   // P0.1 — txn-state guard target
+                StingTools.Select.StingListPicker.InlineTitleSink = t => { if (_actionReportTitle != null) _actionReportTitle.Text = t; };
+                StingResultPanel.InlineSink = b => { _inlineResultPosted = true; ShowInlineResult(b); };
+
+                // Resolve the "Running…" placeholder when the command finishes. Some
+                // actions still report via their own TaskDialog (Slice-3 conversion
+                // pending) — without this the pane would sit on "Running…" forever
+                // and look broken. The dispatcher invokes + clears this in its finally.
+                string lbl = label;
+                PendingActionResolve = () => ResolveActionPane(lbl);
+
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction(tag);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RunActionInline", ex); }
+        }
+
+        private void HighlightActionButton(Button btn)
+        {
+            try
+            {
+                if (_selectedActionBtn != null && !ReferenceEquals(_selectedActionBtn, btn))
+                {
+                    _selectedActionBtn.BorderBrush = BorderColor;
+                    _selectedActionBtn.BorderThickness = new Thickness(1);
+                }
+                _selectedActionBtn = btn;
+                btn.BorderBrush = NavyBrush;
+                btn.BorderThickness = new Thickness(2);
+            }
+            catch { /* highlight is cosmetic — never break a dispatch */ }
         }
 
         private UIElement BuildFooter()
@@ -869,6 +1251,16 @@ namespace StingTools.UI
             right.Children.Add(BuildActionBtn("Reconcile PS", AmberBrush));
             right.Children.Add(BuildActionBtn("Import Excel", NavyBrush));
             right.Children.Add(BuildActionBtn("Export ↗", GreenBrush));
+
+            // Slice 1 — QTO IFC export (estimator feed). Routes its result inline
+            // via the InlineHost convention rather than a StingResultPanel window.
+            var qtoBtn = BuildActionBtn("⛁ QTO IFC", NavyBrush);
+            qtoBtn.ToolTip = "Export an IFC4 file with base quantities + Pset_StingCost "
+                + "(NRM2 / unit rate) so an external estimator (CostX / iTWO / Candy) can "
+                + "ingest measured quantities. Result shows inline below — no popup.";
+            qtoBtn.Click += (s, e) => ExportQtoIfcInline();
+            right.Children.Add(qtoBtn);
+
             var tenderBtn = BuildActionBtn("★ Tender BOQ", OrangeBrush);
             tenderBtn.ToolTip = "Export a tender-grade NRM2 Bill of Quantities with cover, document control, "
                 + "preliminaries, preambles, bills, collections and grand summary — QS presentation format.";
@@ -909,9 +1301,12 @@ namespace StingTools.UI
                 _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
-                // On first load open every section; subsequent refreshes preserve state
-                if (_openSections.Count == 0 && _boq != null)
+                // On first load open every section; subsequent refreshes preserve
+                // state. P1.3 — suppress the auto-open-all once, so a persisted
+                // "collapse all" (empty OpenSections) isn't immediately re-expanded.
+                if (_openSections.Count == 0 && _boq != null && !_suppressAutoOpenOnce)
                     foreach (var s in _boq.Sections) _openSections.Add(SectionKey(s));
+                _suppressAutoOpenOnce = false;
                 RefreshDisplay();
             }
             catch (Exception ex)
@@ -935,9 +1330,20 @@ namespace StingTools.UI
         private void RefreshDisplay()
         {
             RefreshMetrics();
+            UpdateLinksBadge();
             if (_boq == null) return;
             RebuildSectionsView();
             RebuildMaterialsTab();
+        }
+
+        /// <summary>Show the count of included links on the header button —
+        /// "⛓ Links" when none, "⛓ Links (N)" when N are in the takeoff.</summary>
+        private void UpdateLinksBadge()
+        {
+            if (_linksBtn == null) return;
+            int n = 0;
+            try { if (Doc != null) n = StingTools.BOQ.BOQCostManager.GetIncludedLinkTitles(Doc).Count; } catch { }
+            _linksBtn.Content = n > 0 ? $"⛓ Links ({n})" : "⛓ Links";
         }
 
         /// <summary>
@@ -1139,8 +1545,8 @@ namespace StingTools.UI
             };
             // Capture the stable key — sec will be a new instance on next rebuild
             string capturedKey = secKey;
-            expander.Expanded  += (s, e) => _openSections.Add(capturedKey);
-            expander.Collapsed += (s, e) => _openSections.Remove(capturedKey);
+            expander.Expanded  += (s, e) => { _openSections.Add(capturedKey); SaveUiState(); };
+            expander.Collapsed += (s, e) => { _openSections.Remove(capturedKey); SaveUiState(); };
             return expander;
         }
 
@@ -1217,6 +1623,12 @@ namespace StingTools.UI
             {
                 Header = "Src", Binding = new Binding(nameof(BOQItemViewModel.SourceLabel)),
                 Width = new DataGridLength(48), IsReadOnly = true
+            });
+            // P1.1 — host vs linked-model provenance ("Host" / link Title).
+            AddIfVisible("Model", new DataGridTextColumn
+            {
+                Header = "Model", Binding = new Binding(nameof(BOQItemViewModel.ModelDisplay)),
+                Width = new DataGridLength(120), IsReadOnly = true
             });
             AddIfVisible("Confidence", BuildConfidenceColumn());
             AddIfVisible("Carbon", new DataGridTextColumn
@@ -1749,6 +2161,17 @@ namespace StingTools.UI
             _materialsTab.Content = BuildMaterialsContent();
         }
 
+        /// <summary>Distinct Materials-tab category keys — must match the
+        /// GroupBy in BuildMaterialsContent so Expand-all seeds the right set.</summary>
+        private IEnumerable<string> MaterialCategoryKeys()
+        {
+            if (_boq == null) return System.Linq.Enumerable.Empty<string>();
+            return _boq.AllItems
+                .Where(i => i.Source == BOQRowSource.Model && i.Quantity > 0)
+                .Select(i => i.Category ?? "(uncategorised)")
+                .Distinct();
+        }
+
         private FrameworkElement BuildMaterialsContent()
         {
             if (_boq == null)
@@ -1780,12 +2203,17 @@ namespace StingTools.UI
                 var expander = new Expander
                 {
                     Header = BuildMaterialSectionHeader(grp.Key, disc, grp.Count(), totalUGX, totalCarbon),
-                    IsExpanded = false,
+                    // Slice 1.5 — seed from the persisted set so Expand-all /
+                    // Collapse-all and manual toggles survive a rebuild.
+                    IsExpanded = _openMaterialSections.Contains(grp.Key),
                     Margin = new Thickness(0, 0, 0, 4),
                     BorderThickness = new Thickness(1),
                     BorderBrush = BorderColor,
                     Background = Brushes.White
                 };
+                string matKey = grp.Key;   // capture — grp is reused by the loop
+                expander.Expanded  += (s, e) => { _openMaterialSections.Add(matKey); SaveUiState(); };
+                expander.Collapsed += (s, e) => { _openMaterialSections.Remove(matKey); SaveUiState(); };
 
                 var grid = new DataGrid
                 {
@@ -2054,6 +2482,155 @@ namespace StingTools.UI
         }
 
         // ══════════════════════════════════════════════════════════════════
+        //  Slice 1 — inline result region (the no-popup convention)
+        //  A panel-driven command sets InlineHost=1, runs on the Revit thread,
+        //  builds a StingResultPanel.Builder, and calls BOQInlineResults.Post().
+        //  That invokes PostInlineResult below, which marshals to the UI thread
+        //  and renders the SAME section/metric/table tree via
+        //  StingResultPanel.BuildInlineContent — no window appears.
+        // ══════════════════════════════════════════════════════════════════
+
+        private Border BuildInlineResultRegion()
+        {
+            _inlineResultRegion = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = BorderColor,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(12, 8, 12, 10),
+                Visibility = Visibility.Collapsed
+            };
+
+            var dock = new DockPanel { LastChildFill = true };
+
+            // Header row: title + close ✕
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _inlineResultTitle = new TextBlock
+            {
+                Text = "Result", FontSize = 12, FontWeight = FontWeights.Bold,
+                Foreground = NavyBrush, VerticalAlignment = VerticalAlignment.Center
+            };
+            headerGrid.Children.Add(_inlineResultTitle);
+            var closeBtn = new Button
+            {
+                Content = "✕", Width = 24, Height = 22, Padding = new Thickness(0),
+                Background = Brushes.Transparent, Foreground = Brushes.Gray,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand, FontSize = 12,
+                ToolTip = "Dismiss result"
+            };
+            closeBtn.Click += (s, e) =>
+            {
+                if (_inlineResultRegion != null) _inlineResultRegion.Visibility = Visibility.Collapsed;
+                if (_inlineResultHost != null) _inlineResultHost.Child = null;
+            };
+            Grid.SetColumn(closeBtn, 1);
+            headerGrid.Children.Add(closeBtn);
+            DockPanel.SetDock(headerGrid, Dock.Top);
+            dock.Children.Add(headerGrid);
+
+            _inlineResultHost = new Border { Margin = new Thickness(0, 6, 0, 0) };
+            dock.Children.Add(_inlineResultHost);
+
+            _inlineResultRegion.Child = dock;
+            return _inlineResultRegion;
+        }
+
+        /// <summary>
+        /// Sink target for BOQInlineResults.Post — called on the Revit API thread
+        /// by panel-driven commands. Marshals to the UI thread and renders the
+        /// result inline. Safe if the region hasn't been built yet (no-op).
+        /// </summary>
+        private void PostInlineResult(StingResultPanel.Builder b)
+        {
+            if (b == null) return;
+            try
+            {
+                Dispatcher.BeginInvoke(new Action(() => ShowInlineResult(b)));
+            }
+            catch (Exception ex) { StingLog.Error("BOQ PostInlineResult", ex); }
+        }
+
+        private void ShowInlineResult(StingResultPanel.Builder b)
+        {
+            // Slice 1.5 — when the user is on the Actions tab, render into its
+            // master-detail right pane instead of the global footer region.
+            if (_actionReportHost != null && _mainTabs != null
+                && ReferenceEquals(_mainTabs.SelectedItem, _actionsTab))
+            {
+                try
+                {
+                    if (_actionReportTitle != null && !string.IsNullOrEmpty(b.Title))
+                        _actionReportTitle.Text = b.Title;
+                    _actionReportHost.Child = StingResultPanel.BuildInlineContent(b);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("BOQ ShowInlineResult (actions)", ex);
+                    _actionReportHost.Child = new TextBlock
+                    {
+                        Text = b.Subtitle ?? "Action completed.", TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(14), Foreground = NavyBrush
+                    };
+                }
+                return;
+            }
+
+            if (_inlineResultRegion == null || _inlineResultHost == null) return;
+            try
+            {
+                if (_inlineResultTitle != null)
+                    _inlineResultTitle.Text = string.IsNullOrEmpty(b.Title) ? "Result" : b.Title;
+                _inlineResultHost.Child = StingResultPanel.BuildInlineContent(b);
+                _inlineResultRegion.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQ ShowInlineResult", ex);
+                // Last-ditch fallback so the user still sees something.
+                if (_inlineResultHost != null)
+                    _inlineResultHost.Child = new TextBlock
+                    {
+                        Text = b.Subtitle ?? "Action completed.", TextWrapping = TextWrapping.Wrap,
+                        Foreground = NavyBrush
+                    };
+                if (_inlineResultRegion != null) _inlineResultRegion.Visibility = Visibility.Visible;
+            }
+        }
+
+        /// <summary>Called when a dispatched Actions command finishes. If it
+        /// already rendered a result inline (StingResultPanel-based), do nothing.
+        /// Otherwise the action reported via its own TaskDialog (Slice-3 conversion
+        /// pending), so replace the "Running…" placeholder with a completion note
+        /// rather than leaving the pane stuck.</summary>
+        private void ResolveActionPane(string label)
+        {
+            try
+            {
+                if (_inlineResultPosted) return;                 // result already shown inline
+                if (_actionReportHost == null) return;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"✓  “{label}” completed.",
+                    FontWeight = FontWeights.SemiBold, Foreground = NavyBrush,
+                    FontSize = 12, TextWrapping = TextWrapping.Wrap
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "This action reported in its own dialog. Inline reporting for every " +
+                           "action is being rolled out — those already converted render here directly.",
+                    Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 0, 0)
+                });
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveActionPane: {ex.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         //  Phase 108j — inline tender-setup view
         //  Swaps the BOQ/Materials TabControl for the 4-tab tender setup
         //  built via BOQTenderDialog.CreateInlineTabs. Avoids a modal
@@ -2183,6 +2760,23 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Slice 1 — QTO IFC export driven inline. Sets InlineHost=1 so
+        /// BOQExportIfcQtoCommand posts its result to the inline region instead
+        /// of opening a StingResultPanel window. refreshAfter:false — the export
+        /// doesn't mutate the BOQ view (it stamps + writes a file, then rolls the
+        /// export transaction back), so a 300ms rebuild would only churn the grid.
+        /// </summary>
+        private void ExportQtoIfcInline()
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction("BOQExportIfcQto", refreshAfter: false);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ExportQtoIfcInline", ex); }
+        }
+
+        /// <summary>
         /// Fire-and-forget dispatch of a command tag to the shared ExternalEvent.
         /// When refreshAfter=true (default) schedules a 300ms RefreshAsync so
         /// the panel picks up side effects of the command (spatial changes,
@@ -2202,6 +2796,34 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Error($"BOQ DispatchAction({tag})", ex); }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQInlineResults — static mailbox bridging Revit-thread commands to the
+    //  panel's inline result region. A command that was invoked with the
+    //  InlineHost=1 ExtraParam builds a StingResultPanel.Builder and calls
+    //  Post(builder) instead of builder.Show(). When a BOQCostManagerPanel is
+    //  alive it has registered Sink; otherwise Post returns false and the caller
+    //  falls back to the popup (ribbon / workflow callers keep working).
+    // ══════════════════════════════════════════════════════════════════════
+    internal static class BOQInlineResults
+    {
+        // Set by BOQCostManagerPanel on construction, cleared on Unloaded.
+        public static Action<StingResultPanel.Builder> Sink;
+
+        public static bool Active => Sink != null;
+
+        /// <summary>
+        /// Hand a built result to the live panel. Returns true if a sink consumed
+        /// it (caller must NOT also .Show()); false if no panel is hosting.
+        /// </summary>
+        public static bool Post(StingResultPanel.Builder b)
+        {
+            var s = Sink;
+            if (s == null || b == null) return false;
+            try { s(b); return true; }
+            catch (Exception ex) { StingLog.Error("BOQInlineResults.Post", ex); return false; }
         }
     }
 
@@ -2241,6 +2863,12 @@ namespace StingTools.UI
         // P2.1 — spatial columns.
         public string LevelDisplay => _item.Level ?? "";
         public string LocationDisplay => _item.Location ?? "";
+
+        // P1.1 — provenance as a first-class column. SourceModel is "" / null for
+        // host elements and the linked model's Title for linked rows; surface it as
+        // "Host" so a QS can sort/filter host-vs-link without parsing the Note text.
+        public string ModelDisplay
+            => string.IsNullOrWhiteSpace(_item.SourceModel) ? "Host" : _item.SourceModel;
 
         public string LineRef => _item.BOQLineRef ?? "";
 

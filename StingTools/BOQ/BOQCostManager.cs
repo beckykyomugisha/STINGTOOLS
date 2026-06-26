@@ -60,6 +60,93 @@ namespace StingTools.BOQ
         /// defaults. Merges manual/PS rows from project_boq_manual.json so
         /// a QS can author extra line items without modelling them.
         /// </summary>
+        // ── Linked-model inclusion (per-link, persisted) ─────────────────────
+        // The set holds the Titles of loaded links whose quantities are folded
+        // into the takeoff. Persisted to <project>/_BIM_COORD/boq_links.json so
+        // the choice survives reopen (sustainable) and is per-link (flexible).
+        // Empty ⇒ host model only. Every consumer (panel, QTO export, snapshots)
+        // reads the same persisted set, so the takeoff is consistent everywhere.
+        private static readonly Dictionary<string, HashSet<string>> _linkInclusionCache
+            = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        // ── P1.2 — per-link takeoff cache ────────────────────────────────────
+        // RefreshAsync runs BuildBOQDocument synchronously, and STEP 6c walks every
+        // linked document on every rebuild (filter toggle / rate edit / grouping
+        // change). On a federated model that re-traverse freezes Revit. We cache the
+        // RAW per-link line items (post-BuildLineItemFromElement, PRE-aggregate /
+        // PRE-neutralise) keyed on the linked file's PathName, so a host-side
+        // refresh reuses them without re-reading the link's Revit DB. Grouping is
+        // applied AFTER the cache (cheap CPU on the cached rows) so it stays correct
+        // across grouping changes without invalidating. Cleared on document close.
+        private sealed class LinkTakeoffCacheEntry { public List<BOQLineItem> RawItems; }
+
+        private static readonly Dictionary<string, LinkTakeoffCacheEntry> _linkTakeoffCache
+            = new Dictionary<string, LinkTakeoffCacheEntry>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Drop cached per-link takeoffs. Call when a link may have changed
+        /// (document close, manual rebuild). Selection changes do NOT need this — the
+        /// cache is keyed per-link, so toggling which links are included just changes
+        /// which keys get looked up; a reload of the same selection still hits the
+        /// cache.</summary>
+        internal static void InvalidateLinkCache()
+        {
+            lock (_linkTakeoffCache) { _linkTakeoffCache.Clear(); }
+        }
+
+        private static string LinkSelectionPath(Document doc)
+        {
+            string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+            if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — memory only
+            return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_links.json");
+        }
+
+        /// <summary>Titles of loaded links included in the takeoff for this doc
+        /// (loaded from boq_links.json on first ask, cached per doc path).</summary>
+        internal static HashSet<string> GetIncludedLinkTitles(Document doc)
+        {
+            string key = doc?.PathName ?? "";
+            lock (_linkInclusionCache)
+            {
+                if (_linkInclusionCache.TryGetValue(key, out var cached)) return cached;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string path = LinkSelectionPath(doc);
+                    if (path != null && System.IO.File.Exists(path))
+                    {
+                        var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(
+                            System.IO.File.ReadAllText(path));
+                        if (titles != null) foreach (var t in titles)
+                            if (!string.IsNullOrWhiteSpace(t)) set.Add(t.Trim());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"GetIncludedLinkTitles: {ex.Message}"); }
+                _linkInclusionCache[key] = set;
+                return set;
+            }
+        }
+
+        /// <summary>Persist the per-link inclusion set + refresh the cache.</summary>
+        internal static void SetIncludedLinkTitles(Document doc, IEnumerable<string> titles)
+        {
+            string key = doc?.PathName ?? "";
+            var set = new HashSet<string>(
+                (titles ?? Enumerable.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+            lock (_linkInclusionCache) { _linkInclusionCache[key] = set; }
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path != null)
+                {
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                    System.IO.File.WriteAllText(path,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(set.ToList(), Newtonsoft.Json.Formatting.Indented));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetIncludedLinkTitles: {ex.Message}"); }
+        }
+
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
             BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
         {
@@ -117,6 +204,24 @@ namespace StingTools.BOQ
             // The grouping mode feeds the aggregation key (P2.2) so similar
             // items collapse within the active spatial dimension.
             items = AggregateLineItems(items, grouping);
+
+            // ── STEP 6c: Linked-model takeoff (opt-in) ───────────────────
+            // Quantify elements in loaded Revit links when enabled. Linked rows
+            // are READ-ONLY for cost write-back: a link element's id can collide
+            // with a host id and stamp the wrong element, so RevitElementId is
+            // forced to -1 and IfcQuantitySetWriter / CostStamp / select-in-Revit
+            // all skip them — they contribute quantity + cost + carbon only,
+            // tagged "[Linked: <model>]".
+            var includedLinks = GetIncludedLinkTitles(doc);
+            if (includedLinks.Count > 0)
+            {
+                try
+                {
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks);
+                    if (linkItems.Count > 0) items.AddRange(linkItems);
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
+            }
 
             // ── STEP 7: Group into sections ──────────────────────────────
             boq.Sections = GroupIntoSections(items, grouping);
@@ -322,7 +427,10 @@ namespace StingTools.BOQ
             return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string NormaliseUnit(string u)
+        // internal so IfcQuantitySetWriter (same assembly) can canonicalise
+        // units against the same table — avoids the m²/m2 glyph mismatch that
+        // silently zeroed every exported Qto (P0-1).
+        internal static string NormaliseUnit(string u)
         {
             if (string.IsNullOrEmpty(u)) return "";
             string s = u.Trim().ToLowerInvariant();
@@ -1826,6 +1934,99 @@ namespace StingTools.BOQ
             return set;
         }
 
+        /// <summary>
+        /// STEP 6c — quantify elements in every loaded Revit link. Each link is
+        /// aggregated on its own, then its rows are neutralised for host
+        /// write-back (RevitElementId = -1, UniqueId cleared, constituents
+        /// dropped) and tagged "[Linked: &lt;model&gt;]". Unloaded links are
+        /// skipped. Quantities are parameter-derived, so the link transform does
+        /// not affect them.
+        /// </summary>
+        private static List<BOQLineItem> CollectLinkedItems(
+            Document doc, HashSet<string> knownCategories,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            BoqGroupingMode grouping,
+            HashSet<string> includedTitles)
+        {
+            var result = new List<BOQLineItem>();
+            var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>();
+
+            foreach (var rli in links)
+            {
+                Document ld = null;
+                try { ld = rli.GetLinkDocument(); } catch { }
+                if (ld == null) continue;   // link not loaded / not found
+
+                string linkName;
+                try { linkName = ld.Title; } catch { linkName = "link"; }
+
+                // Per-link gate. Only links the user ticked are quantified; a
+                // shared link placed multiple times is taken off exactly once.
+                if (includedTitles != null && includedTitles.Count > 0 && !includedTitles.Contains(linkName)) continue;
+                if (!seenTitles.Add(linkName)) continue;
+
+                // P1.2 — reuse the raw per-link takeoff when it's already cached so a
+                // host-side refresh doesn't re-walk this link's Revit DB.
+                string cacheKey;
+                try { cacheKey = string.IsNullOrEmpty(ld.PathName) ? linkName : ld.PathName; }
+                catch { cacheKey = linkName; }
+
+                List<BOQLineItem> rawItems = null;
+                bool cacheHit;
+                lock (_linkTakeoffCache)
+                {
+                    cacheHit = _linkTakeoffCache.TryGetValue(cacheKey, out var entry)
+                        && entry?.RawItems != null;
+                    if (cacheHit) rawItems = entry.RawItems.Select(x => x.Clone()).ToList();
+                }
+
+                if (!cacheHit)
+                {
+                    var linkEls = CollectCandidateElements(ld, knownCategories);
+                    rawItems = new List<BOQLineItem>(linkEls.Count);
+                    foreach (var el in linkEls)
+                    {
+                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
+                        if (line != null) rawItems.Add(line);
+                    }
+                    // Store an isolated clone so a later caller mutating the returned
+                    // rows can never corrupt the cache.
+                    lock (_linkTakeoffCache)
+                    {
+                        _linkTakeoffCache[cacheKey] = new LinkTakeoffCacheEntry
+                        { RawItems = rawItems.Select(x => x.Clone()).ToList() };
+                    }
+                    StingLog.Info($"BOQ linked-model takeoff (cache MISS — walked link): "
+                        + $"{rawItems.Count} raw row(s) from '{linkName}'.");
+                }
+                else
+                {
+                    StingLog.Info($"BOQ linked-model takeoff (cache hit — link not re-walked): "
+                        + $"{rawItems.Count} raw row(s) from '{linkName}'.");
+                }
+
+                // Aggregate + neutralise on the (cloned) raw rows every time so
+                // grouping changes stay correct without invalidating the cache.
+                var linkItems = AggregateLineItems(rawItems, grouping);
+                foreach (var li in linkItems)
+                {
+                    li.RevitElementId = -1;                       // never resolve against the host doc
+                    li.UniqueId = "";                             // avoid cross-doc id reuse
+                    li.ConstituentElementIds = new List<long>();  // link-doc ids — not host-resolvable
+                    li.SourceModel = linkName;                    // drives "Group by Source model"
+                    li.Note = string.IsNullOrEmpty(li.Note)
+                        ? $"[Linked: {linkName}]"
+                        : $"{li.Note} [Linked: {linkName}]";
+                }
+                result.AddRange(linkItems);
+            }
+            return result;
+        }
+
         private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)
         {
             var list = new List<Element>();
@@ -2038,6 +2239,8 @@ namespace StingTools.BOQ
                     return GroupBySpatial(items, i => Blank(i.Zone, "(no zone)"));
                 case BoqGroupingMode.Location:
                     return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
+                case BoqGroupingMode.SourceModel:
+                    return GroupBySpatial(items, i => Blank(i.SourceModel, "Host model"));
                 case BoqGroupingMode.LevelThenWorkSection:
                     return GroupByLevelThenSection(items);
                 case BoqGroupingMode.WorkSection:
