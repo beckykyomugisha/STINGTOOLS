@@ -25,6 +25,8 @@ namespace StingTools.UI.Sustainability
         public ObservableCollection<EndUseRow>  EnergyRows  { get; } = new ObservableCollection<EndUseRow>();
         public ObservableCollection<HotspotRow> HotspotRows { get; } = new ObservableCollection<HotspotRow>();
         public ObservableCollection<LccRow>     LccRows     { get; } = new ObservableCollection<LccRow>();
+        // WS B3 — mixed-use zones grid (opt-in; overrides the single building use).
+        private readonly ObservableCollection<ZoneRow> _zoneRows = new ObservableCollection<ZoneRow>();
 
         private static StingSustainabilityPanel _instance;
         public static StingSustainabilityPanel Instance => _instance;
@@ -39,6 +41,7 @@ namespace StingTools.UI.Sustainability
             EnergyGrid.ItemsSource  = EnergyRows;
             HotspotGrid.ItemsSource = HotspotRows;
             LccGrid.ItemsSource     = LccRows;
+            dgZones.ItemsSource     = _zoneRows;   // WS B3 mixed-use zones grid
 
             // Seed the SETUP form with defaults so dropdowns are populated.
             try { LoadSetupForm(SustainProjectSetup.CreateDefault()); }
@@ -124,6 +127,17 @@ namespace StingTools.UI.Sustainability
                 txtEnergyOfficial.Text = PctOrBlank(eo.EnergySavingsPct);
                 txtWaterOfficial.Text  = PctOrBlank(eo.WaterSavingsPct);
                 txtMatOfficial.Text    = PctOrBlank(eo.MaterialsSavingsPct);
+
+                // WS B3 — show the mixed-use grid only for multi-zone projects; a
+                // single-zone project keeps using the building-use fields above.
+                _zoneRows.Clear();
+                if (s.Zones != null && s.Zones.Count > 1)
+                    foreach (var z in s.Zones)
+                        _zoneRows.Add(new ZoneRow
+                        {
+                            Use = z.BuildingUse, AreaM2 = z.FloorAreaM2,
+                            Occupancy = z.Occupancy, CoolingCop = z.CoolingCop
+                        });
             }
             catch (Exception ex) { StingLog.Warn($"Sus LoadSetupForm: {ex.Message}"); }
         }
@@ -175,6 +189,20 @@ namespace StingTools.UI.Sustainability
                     WaterSavingsPct     = ParseNullable(txtWaterOfficial.Text),
                     MaterialsSavingsPct = ParseNullable(txtMatOfficial.Text)
                 };
+
+                // WS B3 — when the mixed-use grid has rows, it is the authoritative
+                // zone list (area-weighted energy/materials, occupancy-weighted water
+                // roll up downstream). Otherwise the single-zone fields above stand.
+                var gridZones = _zoneRows
+                    .Where(r => r != null && r.AreaM2 > 0)
+                    .Select(r => new ZoneSetup
+                    {
+                        ZoneId = string.IsNullOrWhiteSpace(r.Use) ? "zone" : r.Use.Trim(),
+                        BuildingUse = string.IsNullOrWhiteSpace(r.Use) ? "office" : r.Use.Trim(),
+                        FloorAreaM2 = r.AreaM2, Occupancy = r.Occupancy, CoolingCop = r.CoolingCop
+                    })
+                    .ToList();
+                if (gridZones.Count > 0) s.Zones = gridZones;
             }
             catch (Exception ex) { StingLog.Warn($"Sus ReadSetupForm: {ex.Message}"); }
             return s;
@@ -333,6 +361,39 @@ namespace StingTools.UI.Sustainability
             catch (Exception ex) { StingLog.Warn($"Sus PopulateBuildingUses: {ex.Message}"); }
         }
 
+        // ── WS B3 — mixed-use zones grid handlers ─────────────────────────
+        private void AddZone_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            try
+            {
+                // Seed the first row from the single-zone fields so the user's entry
+                // isn't lost when they switch to mixed-use.
+                if (_zoneRows.Count == 0)
+                {
+                    double area = ParseDouble(txtFloorArea.Text, 0);
+                    int occ = ParseInt(txtOccupancy.Text, 0);
+                    if (area > 0 || occ > 0)
+                        _zoneRows.Add(new ZoneRow
+                        {
+                            Use = ContentOf(cmbBuildingUse, "office"),
+                            AreaM2 = area, Occupancy = occ, CoolingCop = ParseDouble(txtCop.Text, 0)
+                        });
+                }
+                _zoneRows.Add(new ZoneRow { Use = ContentOf(cmbBuildingUse, "office") });
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus AddZone: {ex.Message}"); }
+        }
+
+        private void RemoveZone_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            try
+            {
+                if (dgZones.SelectedItem is ZoneRow r) _zoneRows.Remove(r);
+                else if (_zoneRows.Count > 0) _zoneRows.RemoveAt(_zoneRows.Count - 1);
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus RemoveZone: {ex.Message}"); }
+        }
+
         // ── small form helpers ───────────────────────────────────────────
         private static string PctOrBlank(double? v)
             => v.HasValue ? v.Value.ToString("0.#", CultureInfo.InvariantCulture) : "";
@@ -364,4 +425,5 @@ namespace StingTools.UI.Sustainability
     public class EndUseRow  { public string EndUse { get; set; } public string Kwh { get; set; } }
     public class HotspotRow { public string Material { get; set; } public string CarbonKg { get; set; } public string Share { get; set; } }
     public class LccRow     { public string Measure { get; set; } public string Gate { get; set; } public string Capex { get; set; } public string NetBenefit { get; set; } }
+    public class ZoneRow    { public string Use { get; set; } = "office"; public double AreaM2 { get; set; } public int Occupancy { get; set; } public double CoolingCop { get; set; } }
 }

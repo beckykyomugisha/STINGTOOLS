@@ -157,6 +157,23 @@
                                        Style="{StaticResource SusActionBtn}" Tag="Sustain_AutoFill" Click="Cmd_Click" Margin="0,2"/>
                         </Grid>
 
+                        <TextBlock Text="ZONES (MIXED-USE — OPTIONAL)" Style="{StaticResource SusSectionHeader}"/>
+                        <TextBlock Text="Add rows for a mixed-use building (e.g. ground-floor retail + offices above). When any row is present it overrides the single building use above; energy/materials roll up area-weighted, water occupancy-weighted."
+                                   TextWrapping="Wrap" FontSize="9" Margin="2,0,2,2" Foreground="{DynamicResource PanelFg}"/>
+                        <DataGrid x:Name="dgZones" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column"
+                                  Margin="2,2" MaxHeight="150" FontSize="10" Background="Transparent" GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Use"     Binding="{Binding Use}"         Width="*"/>
+                                <DataGridTextColumn Header="Area m²" Binding="{Binding AreaM2}"      Width="70"/>
+                                <DataGridTextColumn Header="Occ."    Binding="{Binding Occupancy}"   Width="55"/>
+                                <DataGridTextColumn Header="COP"     Binding="{Binding CoolingCop}"  Width="48"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <WrapPanel Margin="2,2">
+                            <Button Content="＋ Add zone"    Style="{StaticResource SusActionBtn}" Click="AddZone_Click"    Margin="2"/>
+                            <Button Content="✕ Remove zone" Style="{StaticResource SusActionBtn}" Click="RemoveZone_Click" Margin="2"/>
+                        </WrapPanel>
+
                         <TextBlock Text="PLANT &amp; SUPPLY" Style="{StaticResource SusSectionHeader}"/>
                         <Grid Margin="2,4">
                             <Grid.ColumnDefinitions>
