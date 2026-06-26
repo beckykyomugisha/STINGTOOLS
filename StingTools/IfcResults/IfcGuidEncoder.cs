@@ -1,34 +1,40 @@
 using System;
 using System.Globalization;
+using System.Linq;
 
 namespace StingTools.IfcResults
 {
     /// <summary>
-    /// Canonical IFC GlobalId encoding per the buildingSMART specification —
-    /// the exact algorithm Autodesk's RevitIFC <c>GUIDUtil.ConvertToIFCGuid</c>,
-    /// IfcOpenShell, and xbim all implement. Converts a 128-bit .NET
-    /// <see cref="Guid"/> to the 22-character base64-ish string over the
-    /// alphabet <c>0-9 A-Z a-z _ $</c>, grouping the 16 bytes as
+    /// IFC GlobalId encoding per the buildingSMART specification. Converts a
+    /// 128-bit .NET <see cref="Guid"/> to the 22-character base64-ish string over
+    /// the alphabet <c>0-9 A-Z a-z _ $</c>, grouping the 16 bytes as
     /// <c>1 / 3 / 3 / 3 / 3 / 3</c> bytes → <c>2 / 4 / 4 / 4 / 4 / 4</c> chars.
+    /// The base64 compression (<see cref="FromGuid"/>) is the canonical
+    /// algorithm — identical to Autodesk RevitIFC <c>GUIDUtil.ConvertToIFCGuid</c>,
+    /// IfcOpenShell, and xbim — and is pinned by an independently-verified
+    /// reference vector in <c>StingTools.Boq.Tests/IfcGuidEncoderTests.cs</c>.
     ///
     /// <para><b>Revit UniqueId → IFC GlobalId.</b> A Revit
     /// <c>Element.UniqueId</c> is a 45-char string:
-    /// <c>&lt;36-char episode GUID&gt;-&lt;8-hex element id&gt;</c>. It is NOT a
-    /// valid <c>IfcGloballyUniqueId</c>. Revit's IFC exporter derives the
-    /// GlobalId by XOR-folding the trailing element id into the low 4 bytes of
-    /// the episode GUID and then base64-compressing the result — so the element
-    /// id MUST be folded in (two elements created in the same episode share the
-    /// GUID part and differ only in the suffix). <see cref="FromRevitUniqueId"/>
-    /// reproduces that, so the value matches what an actual Revit IFC export
-    /// writes for the same element (verified by a pinned test vector in
-    /// <c>StingTools.Boq.Tests/IfcGuidEncoderTests.cs</c>).</para>
+    /// <c>&lt;36-char episode GUID&gt;-&lt;8-hex suffix&gt;</c>. It is NOT a valid
+    /// <c>IfcGloballyUniqueId</c>. <see cref="FromRevitUniqueId"/> reconstructs the
+    /// export GUID per the documented relationship — the suffix is XOR-folded into
+    /// the GUID's low 4 bytes (because <c>suffix = origLow4 XOR elementId</c>, the
+    /// fold places the true element id in those bytes), then base64-compressed. The
+    /// fold MUST happen: two elements created in the same episode share the GUID
+    /// part and differ only in the suffix.</para>
     ///
-    /// <para>For a live <c>Element</c> the gold-standard is
-    /// <c>Autodesk.Revit.DB.IFC.ExporterIFCUtils.CreateGUID(el)</c>; this
-    /// string encoder is the equivalent for the BOQ snapshot path (which only
-    /// carries a UniqueId string) and is intentionally the single resolver so
-    /// BOQ rows and COBie Components for the same element produce identical
-    /// GlobalIds.</para>
+    /// <para><b>Verification scope (read before trusting for external interop).</b>
+    /// The compression is proven canonical. The UniqueId→GUID *reconstruction*
+    /// follows the documented episode+XOR-suffix algorithm and is element-id
+    /// sensitive, but is NOT pinned against a real Revit IFC export, so exact
+    /// equality with what Revit's exporter writes is asserted only at the
+    /// compression layer. For a guaranteed match where a live <c>Element</c> is
+    /// available, use <see cref="FromElementGoldStandard"/>, which calls
+    /// <c>ExporterIFCUtils.CreateGUID(el)</c> at runtime via reflection. This
+    /// string encoder is the equivalent for the BOQ snapshot path (UniqueId string
+    /// only) and is the single resolver so BOQ rows and COBie Components for the
+    /// same element produce identical GlobalIds.</para>
     /// </summary>
     public static class IfcGuidEncoder
     {
@@ -61,21 +67,25 @@ namespace StingTools.IfcResults
             if (!Guid.TryParse(guidPart, out var g))
                 return SanitiseFallback(uniqueId);
 
-            // Parse the trailing element-id hex (chars after the '-' at index 36).
-            uint elementId = 0;
+            // Parse the trailing suffix hex (chars after the '-' at index 36).
+            // NOTE: this value is the UniqueId *suffix*, not the element id itself
+            // (suffix = original-low-4-bytes XOR elementId). XOR-folding the suffix
+            // into the GUID's low 4 bytes therefore yields the true element id in
+            // those bytes — exactly the export-GUID reconstruction.
+            uint suffix = 0;
             if (uniqueId.Length > 37 && uniqueId[36] == '-')
             {
                 string idHex = uniqueId.Substring(37);
-                // 64-bit element ids (Revit 2024+) can exceed 8 hex chars; fold
+                // 64-bit element ids (Revit 2024+) can give a longer suffix; fold
                 // the low 32 bits, matching the documented 32-bit XOR.
-                // TODO-VERIFY-API: confirm >32-bit element-id folding against a
-                // real Revit 2024+ export; the live-element gold standard is
-                // ExporterIFCUtils.CreateGUID(el).
+                // TODO-VERIFY-API: confirm >32-bit suffix folding against a real
+                // Revit 2024+ export; the live-element gold standard is
+                // FromElementGoldStandard (ExporterIFCUtils.CreateGUID).
                 if (long.TryParse(idHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long parsed))
-                    elementId = unchecked((uint)parsed);
+                    suffix = unchecked((uint)parsed);
             }
 
-            return FromGuid(FoldElementId(g, elementId));
+            return FromGuid(FoldSuffix(g, suffix));
         }
 
         /// <summary>
@@ -115,21 +125,85 @@ namespace StingTools.IfcResults
         }
 
         /// <summary>
-        /// XOR an element id into the low 4 bytes of a GUID (big-endian), the
-        /// fold Revit's exporter applies before compressing. Returns the GUID
-        /// unchanged for element id 0.
+        /// XOR the UniqueId suffix into the low 4 bytes of a GUID (big-endian),
+        /// the fold Revit's exporter applies before compressing. Because
+        /// <c>suffix = origLow4 XOR elementId</c>, the result carries the true
+        /// element id in those bytes. Returns the GUID unchanged for suffix 0.
         /// </summary>
-        private static Guid FoldElementId(Guid g, uint elementId)
+        private static Guid FoldSuffix(Guid g, uint suffix)
         {
-            if (elementId == 0) return g;
+            if (suffix == 0) return g;
             byte[] b = g.ToByteArray();
             // The GUID's logical last 4 bytes are Data4[4..7] = b[12..15],
             // stored big-endian in .NET's array.
-            b[12] ^= (byte)((elementId >> 24) & 0xFF);
-            b[13] ^= (byte)((elementId >> 16) & 0xFF);
-            b[14] ^= (byte)((elementId >> 8) & 0xFF);
-            b[15] ^= (byte)(elementId & 0xFF);
+            b[12] ^= (byte)((suffix >> 24) & 0xFF);
+            b[13] ^= (byte)((suffix >> 16) & 0xFF);
+            b[14] ^= (byte)((suffix >> 8) & 0xFF);
+            b[15] ^= (byte)(suffix & 0xFF);
             return new Guid(b);
+        }
+
+        /// <summary>
+        /// Gold-standard IFC GlobalId for a live Revit <c>Element</c>: calls
+        /// <c>Autodesk.Revit.DB.IFC.ExporterIFCUtils.CreateGUID(Element)</c> at
+        /// runtime via reflection, returning the EXACT GlobalId Revit's IFC
+        /// exporter assigns. <c>RevitAPIIFC.dll</c> is loaded inside Revit but is
+        /// intentionally NOT a compile-time reference of StingTools (mirrors the
+        /// policy in <c>ClashExportContext.TryGetIfcGuid</c>), so this resolves the
+        /// type by name. Falls back to <see cref="FromRevitUniqueId"/> (the
+        /// canonical string reconstruction) when RevitAPIIFC is unavailable — e.g.
+        /// in unit tests or a non-Revit host.
+        /// <para><paramref name="element"/> is typed <see cref="object"/> so this
+        /// assembly needs no IFC reference and the fallback is unit-testable with a
+        /// stub exposing a string <c>UniqueId</c> property.</para>
+        /// </summary>
+        public static string FromElementGoldStandard(object element)
+        {
+            if (element == null) return "";
+            string uniqueId = element.GetType().GetProperty("UniqueId")?.GetValue(element) as string ?? "";
+            try
+            {
+                // TODO-VERIFY-API: confirm the ExporterIFCUtils.CreateGUID(Element)
+                // overload + the "RevitAPIIFC" assembly name on the target Revit
+                // (2025/2026/2027) — both have been stable but are version-sensitive.
+                var t = Type.GetType("Autodesk.Revit.DB.IFC.ExporterIFCUtils, RevitAPIIFC");
+                var m = t?.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .FirstOrDefault(x => x.Name == "CreateGUID"
+                        && x.GetParameters().Length == 1
+                        && x.GetParameters()[0].ParameterType.Name == "Element");
+                if (m != null && m.Invoke(null, new[] { element }) is string s && !string.IsNullOrEmpty(s))
+                    return s;
+            }
+            catch (Exception ex)
+            {
+                WarnGoldStandardOnce(ex.Message);
+            }
+            // Canonical string reconstruction (compression verified; fold per the
+            // documented episode + XOR-suffix algorithm).
+            return FromRevitUniqueId(uniqueId);
+        }
+
+        private static bool _goldStandardWarned;
+
+        private static void WarnGoldStandardOnce(string msg)
+        {
+            if (_goldStandardWarned) return;
+            _goldStandardWarned = true;
+            // Log via reflection so this file stays dependency-free — it is linked
+            // standalone into StingTools.Boq.Tests (no StingTools.Core reference).
+            // Resolves StingLog inside the real plugin; silently no-ops in tests.
+            // Logging must never break a COBie/handover export.
+            try
+            {
+                Type.GetType("StingTools.Core.StingLog, StingTools")?
+                    .GetMethod("Warn", new[] { typeof(string) })?
+                    .Invoke(null, new object[]
+                    {
+                        "IfcGuidEncoder.FromElementGoldStandard: ExporterIFCUtils.CreateGUID " +
+                        "unavailable; using canonical string encoder. " + msg
+                    });
+            }
+            catch { }
         }
 
         private static string SanitiseFallback(string raw)

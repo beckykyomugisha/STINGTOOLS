@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Review & Hardening — INT-0 encoder hardening)
+
+Follow-up to the INT-0 encoder correction below, closing the one review caveat:
+the canonical *compression* was verified but no *real Revit-export* vector was
+pinned, so equality with what Revit's exporter writes was asserted only at the
+compression layer.
+
+- **Gold-standard path for live elements.** New `IfcGuidEncoder.FromElementGoldStandard(object)`
+  calls `Autodesk.Revit.DB.IFC.ExporterIFCUtils.CreateGUID(Element)` at runtime
+  via reflection — the exact GlobalId Revit's IFC exporter assigns — with no
+  `RevitAPIIFC.dll` compile reference (the codebase deliberately avoids it; mirrors
+  `ClashExportContext.TryGetIfcGuid`). Falls back to the canonical string encoder
+  off-Revit. Parameter typed `object` (reflects `UniqueId`) so the file stays
+  dependency-free and the fallback is unit-testable without a Revit `Element`.
+- **COBie/handover callers repointed** to the gold standard:
+  `BIMManagerCommands` (COBie ExternalIdentifier), `DocAutomationExtCommands`,
+  `HandoverExportCommands`. BOQ snapshot path stays on the string encoder
+  (UniqueId string only). Same element → identical GlobalId across all surfaces.
+- **Docstring accuracy + naming.** Softened the overstated "matches a real Revit
+  export" claim to state the compression is verified canonical, the reconstruction
+  follows the documented episode + XOR-suffix algorithm, and the gold standard is
+  the reflection path; renamed the misleading `elementId` local to `suffix`
+  (the XOR math is unchanged — `origLow4 XOR suffix = elementId`).
+- **Reflection-based logging** (`Type.GetType("StingTools.Core.StingLog, StingTools")`)
+  so the warn fires inside the plugin but the file still links standalone into
+  `StingTools.Boq.Tests`.
+- **Tests:** added a fallback pin (gold standard == string encoder when RevitAPIIFC
+  absent) + null guard. `dotnet test` green — **8/8 IfcGuidEncoder tests pass**,
+  verified locally in the sandbox (pure .NET). (The one unrelated
+  `MaterialLookupPopulate` failure pre-exists on origin/main.)
+- Open: a real Revit-export `UniqueId → GlobalId` vector still can't be pinned
+  without a Revit session — Revit-verify TODO. The reflection gold-standard path
+  closes the gap operationally for live-element callers.
+
 #### Completed (BOQ Review & Hardening — INT-0 encoder correction)
 
 Follow-up from a code review of the INT-0 commit (see

@@ -71,5 +71,30 @@ namespace StingTools.Boq.Tests
             Assert.Equal("", IfcGuidEncoder.FromRevitUniqueId(""));
             Assert.Equal("", IfcGuidEncoder.FromRevitUniqueId(null!));
         }
+
+        // Stub exposing only a UniqueId string — stands in for a Revit Element
+        // (which cannot be constructed in the no-Revit test sandbox).
+        private sealed class FakeElement { public string UniqueId { get; set; } = ""; }
+
+        [Fact]
+        public void FromElementGoldStandard_falls_back_to_string_encoder_when_ifc_absent()
+        {
+            // RevitAPIIFC is not loaded in the test process, so the reflection
+            // path is unavailable and the helper must return exactly the
+            // canonical string-encoder value for the element's UniqueId.
+            string uid = RefGuid + "-0000007b";
+            var fake = new FakeElement { UniqueId = uid };
+            Assert.Equal(IfcGuidEncoder.FromRevitUniqueId(uid),
+                         IfcGuidEncoder.FromElementGoldStandard(fake));
+            // And that value is the canonical folded GlobalId pinned above.
+            Assert.Equal("3t3TDZl_D9NOIWB0BSjzIf",
+                         IfcGuidEncoder.FromElementGoldStandard(fake));
+        }
+
+        [Fact]
+        public void FromElementGoldStandard_null_returns_empty()
+        {
+            Assert.Equal("", IfcGuidEncoder.FromElementGoldStandard(null!));
+        }
     }
 }

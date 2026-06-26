@@ -2731,7 +2731,7 @@ namespace StingTools.BIMManager
                     // Revit UniqueId. It is the cross-tool join key into the IFC,
                     // Speckle applicationId and the server identity map.
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
-                    ["ExternalIdentifier"] = StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(el.UniqueId),
+                    ["ExternalIdentifier"] = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el),
                     ["SerialNumber"] = serialNumber,
                     ["InstallationDate"] = installDate,
                     ["WarrantyStartDate"] = warrantyStart,

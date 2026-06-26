@@ -3126,7 +3126,7 @@ namespace StingTools.Docs
 
                         // INT-0 — ExternalIdentifier is the stable 22-char IFC
                         // GlobalId, not the volatile Revit ElementId.
-                        string globalId = StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(el.UniqueId);
+                        string globalId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
                         WriteRow(wsComp, compRow++,
                             assetName, createdBy, createdOn, typeName, roomName,
                             assetName, "Revit", "IfcElement", globalId,
