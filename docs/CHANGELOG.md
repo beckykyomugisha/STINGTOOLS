@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Review & Hardening — prerequisite cluster: P0-1, P0-2, INT-0)
+
+First slice of `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` on branch
+`claude/boq-implementation`. The prerequisite cluster that most other
+items depend on. **Not compile-verified (Linux sandbox, no Revit API) —
+verify in Revit before merge; do not merge to `main` without it.**
+
+- **P0-1 — IFC Qtos no longer written as zero.** `IfcQuantitySetWriter`
+  compared `item.Unit` against the Unicode glyphs `m²`/`m³`/`m`, but
+  takeoff rules + `cost_rates_5d.csv` use ASCII `m2`/`m3`/`each`, so every
+  comparison was false and `StampQuantity`'s `value <= 0` guard skipped
+  every GrossArea/NetArea/GrossVolume/NetVolume/Length/Weight Qto —
+  external cost tools (CostX, CostOS, Candy) received empty quantity sets.
+  Both sides now canonicalise through `BOQCostManager.NormaliseUnit` (made
+  `internal` as the single unit table); added `Count` stamping for `each`.
+- **P0-2 — deterministic snapshot checksum.** `BoqSnapshotHasher` ordered
+  items by `BOQLineItem.Id` and hashed it, but `Id` is a fresh
+  `Guid.NewGuid()` per build, so an unchanged model produced a different
+  SHA-256 each time and every push looked "new". Now orders by a stable
+  key (UniqueId → RevitElementId → BOQLineRef → Category → ItemName) and
+  drops the random `Id` from the hashed projection.
+- **INT-0 — stable IFC GlobalId spine.** The sync payload field
+  `ifcGlobalId` actually shipped the 45-char Revit UniqueId, and all three
+  COBie Component writers keyed off a volatile/wrong id (`el.Id` or
+  `el.UniqueId`), so BOQ rows + COBie could never join the server's
+  `ExternalElementMapping` (keyed on the real 22-char IFC GlobalId).
+  Added `BOQLineItem.IfcGlobalId` (computed from UniqueId via the one
+  shared encoder `IfcResults.IfcGuidEncoder`); `BuildLinePayload`,
+  `HandoverExportCommands`, `BIMManagerCommands`, and
+  `DocAutomationExtCommands` now all emit the canonical GlobalId. Marked
+  the server's `ElementGlobalIdRegistry` superseded by the authoritative
+  `ExternalElementMapping` (doc note — full table consolidation staged
+  separately as it needs an EF migration + consumer sweep).
+
 #### Completed (BOQ QS Upgrade — integration + Stage-B bug fixes)
 
 Consolidated P1–P4 onto one linear stack (`main→P1→P2→P3→P0fix→P4`) and
