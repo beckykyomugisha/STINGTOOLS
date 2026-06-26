@@ -31,6 +31,7 @@
     <Compile Include="..\StingTools\Core\Sustainability\AnnualWaterEstimator.cs" Link="Engines\AnnualWaterEstimator.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\MaterialsRollup.cs" Link="Engines\MaterialsRollup.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainMaterialCarbon.cs" Link="Engines\SustainMaterialCarbon.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainMeasureCapex.cs" Link="Engines\SustainMeasureCapex.cs" />
     <!-- WS A3 — pure BOQ waste + biogenic helpers shared with the materials carbon path. -->
     <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="Engines\WasteFactor.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="Engines\BiogenicCarbon.cs" />

@@ -16,6 +16,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Sustainability;
+using StingTools.BOQ;
 using StingTools.UI;
 
 namespace StingTools.Commands.Sustainability
@@ -156,6 +157,11 @@ namespace StingTools.Commands.Sustainability
         // via the SETUP tab in a future iteration.
         private const int AnalysisYears = 25;
 
+        // WS A5 — manual BOQ rows minted by this command carry this RateSource so a
+        // re-run replaces them idempotently (never duplicates, never clobbers the
+        // user's own manual / provisional-sum rows).
+        private const string SustainRateSource = "Sustainability";
+
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
             var doc = SustainCmdHelper.Doc(cmd);
@@ -165,61 +171,175 @@ namespace StingTools.Commands.Sustainability
             var res = SustainabilityEngine.Run(doc, setup);
             var measures = SustainabilityRegistries.Measures(doc);
 
+            // Real model quantities sized once for every measure (WS A5 — replaces
+            // the crude floor-area proxies in the old EstimateCapex).
+            var ctx = BuildQuantityContext(doc, setup, res);
+
             var rows = new List<string[]>();
+            var boqRows = new List<BOQLineItem>();
             double totalCapex = 0, totalLifetimeSaving = 0;
+            int proxySized = 0;
 
             foreach (var m in measures.All)
             {
-                double capex = EstimateCapex(m, setup);
+                var sizing = SustainMeasureCapex.Compute(m, ctx);
+                double capex = sizing.Capex;
                 double annualSaving = EstimateAnnualSaving(m, setup, res);
                 double lifetimeSaving = annualSaving * AnalysisYears;
                 double netBenefit = lifetimeSaving - capex;
                 totalCapex += capex;
                 totalLifetimeSaving += lifetimeSaving;
+                if (!sizing.UsedModelQuantity) proxySized++;
+
                 rows.Add(new[]
                 {
-                    m.Name, m.Gate, m.Cost.Key,
+                    m.Name, m.Gate, sizing.BasisLabel,
                     $"{capex:0}", $"{annualSaving:0}/yr",
                     $"{lifetimeSaving:0}", $"{netBenefit:0}"
                 });
+
+                boqRows.Add(BuildBoqRow(m, sizing, lifetimeSaving));
             }
 
             // Push the rows into the COST tab grid (not just the popup).
             try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.ApplyLcc(rows); }
             catch (Exception ex) { StingLog.Warn($"Sustain LCC grid push: {ex.Message}"); }
 
-            // Persist a CSV the BOQ Cost Manager picks up alongside the model so
-            // the measure costs land in the DD Cost/Budget Estimate.
+            // WS A5 — feed the measures into the BOQ Cost Manager's manual store as
+            // real BOQLineItem rows, so they land in the DD Cost/Budget Estimate
+            // (not just a side CSV). Idempotent: prior Sustainability rows replaced.
+            int boqWritten = WriteToBoqManualStore(doc, boqRows);
+
+            // Keep the CSV as a portable artefact (back-compat).
             string csv = WriteLccCsv(doc, rows);
 
             var b = new StingResultPanel.Builder()
                 .SetTitle("STING Sustainability — Life-Cycle Cost Benefit")
-                .SetSubtitle($"{AnalysisYears}-year analysis · feeds the BOQ Cost Manager / DD Cost Estimate");
+                .SetSubtitle($"{AnalysisYears}-year analysis · {boqWritten} measure(s) written to the BOQ Cost Manager");
             b.AddSection("Per-measure LCC")
-             .Table(new[] { "Measure", "Gate", "Cost key", "Capex", "Annual saving", "Lifetime saving", "Net benefit" }, rows);
-            b.AddSection("Totals")
+             .Table(new[] { "Measure", "Gate", "Sizing basis", "Capex", "Annual saving", "Lifetime saving", "Net benefit" }, rows);
+            var totals = b.AddSection("Totals")
              .Metric("Total measure capex", $"{totalCapex:0}")
              .Metric($"Total {AnalysisYears}-yr operational saving", $"{totalLifetimeSaving:0}")
-             .Metric("Net lifetime benefit", $"{totalLifetimeSaving - totalCapex:0}");
+             .Metric("Net lifetime benefit", $"{totalLifetimeSaving - totalCapex:0}")
+             .Metric("Rows in BOQ Cost Manager", $"{boqWritten}");
+            if (proxySized > 0)
+                totals.Metric("Proxy-sized measures", $"{proxySized} (no model quantity — sized by proxy)");
             if (csv != null) b.AddSection("Output").Metric("LCC CSV", Path.GetFileName(csv), csv);
             b.Show();
 
-            StingLog.Info($"Sustain_LccBenefit: {rows.Count} measures, capex {totalCapex:0}, lifetime saving {totalLifetimeSaving:0}.");
+            StingLog.Info($"Sustain_LccBenefit: {rows.Count} measures, capex {totalCapex:0}, " +
+                          $"lifetime saving {totalLifetimeSaving:0}, {boqWritten} BOQ rows, {proxySized} proxy-sized.");
             return Result.Succeeded;
         }
 
-        private static double EstimateCapex(GreenMeasure m, SustainProjectSetup setup)
+        /// <summary>Gather the real model quantities each measure can be sized
+        /// against (PV kWp, glazing m², plumbing-fixture count, floor area,
+        /// occupancy). Cooling kW is left 0 ⇒ the helper uses its documented
+        /// ~80 W/m² proxy until a model cooling capacity is wired.</summary>
+        private static MeasureQuantityContext BuildQuantityContext(
+            Document doc, SustainProjectSetup setup, SustainabilityRunResult res)
         {
-            // capex = defaultRate x a sizing quantity derived from the measure unit.
-            double rate = m.Cost?.DefaultRate ?? 0;
-            switch ((m.Cost?.Unit ?? "").ToLowerInvariant())
+            double floor = setup.TotalFloorAreaM2 > 0 ? setup.TotalFloorAreaM2 : (res?.Energy?.FloorAreaM2 ?? 0);
+            return new MeasureQuantityContext
             {
-                case "kwp":  return rate * (setup.Supply?.PvKwp ?? 0);
-                case "m2":   return rate * setup.TotalFloorAreaM2;
-                case "m3":   return rate * Math.Max(1, setup.TotalFloorAreaM2 / 100.0); // crude m3 proxy
-                case "nr":   return rate * Math.Max(1, setup.TotalOccupancy / 4.0);     // ~1 fixture / 4 ppl
-                case "kw":   return rate * Math.Max(1, setup.TotalFloorAreaM2 * 0.08);  // ~80 W/m² cooling
-                default:     return rate;
+                PvKwp = setup.Supply?.PvKwp ?? 0,
+                FloorAreaM2 = floor,
+                Occupancy = setup.TotalOccupancy,
+                GlazingAreaM2 = SumGlazingAreaM2(doc),
+                FixtureCount = CountPlumbingFixtures(doc),
+                CoolingKw = 0
+            };
+        }
+
+        private static double SumGlazingAreaM2(Document doc)
+        {
+            double total = 0;
+            try
+            {
+                var cats = new[] { BuiltInCategory.OST_Windows, BuiltInCategory.OST_CurtainWallPanels };
+                var filter = new ElementMulticategoryFilter(cats);
+                foreach (var el in new FilteredElementCollector(doc).WherePasses(filter).WhereElementIsNotElementType())
+                {
+                    var p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)
+                            ?? el.LookupParameter("Area");
+                    if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                        total += UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.SquareMeters);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain SumGlazingArea: {ex.Message}"); }
+            return total;
+        }
+
+        private static int CountPlumbingFixtures(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType().GetElementCount();
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain CountFixtures: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>Build a BOQ manual row for one measure. Quantity × RateUGX gives
+        /// the capex (measure rates are in the project's BOQ currency). LifecycleCost
+        /// is the net whole-life position (capex − operational saving; negative ⇒ a
+        /// net benefit over the analysis period).</summary>
+        private static BOQLineItem BuildBoqRow(GreenMeasure m, MeasureCapexResult sizing, double lifetimeSaving)
+        {
+            return new BOQLineItem
+            {
+                ItemName = m.Name,
+                Category = "Sustainability",
+                Discipline = GateDiscipline(m.Gate),
+                Quantity = sizing.Quantity,
+                Unit = string.IsNullOrWhiteSpace(m.Cost?.Unit) ? "item" : m.Cost.Unit,
+                RateUGX = m.Cost?.DefaultRate ?? 0,
+                RateUSD = 0,
+                LifecycleCostUGX = Math.Round(sizing.Capex - lifetimeSaving, 0),
+                Source = BOQRowSource.Manual,
+                RateSource = SustainRateSource,
+                RateConfidence = 50,
+                RevitElementId = -1,
+                BOQLineRef = $"SUS-{m.Id}",
+                Note = ($"{m.Description} [STING sustainability measure · gate {m.Gate} · " +
+                        $"sized by {sizing.BasisLabel} · {AnalysisYears}-yr op. saving {lifetimeSaving:0}]").Trim()
+            };
+        }
+
+        /// <summary>Map a measure gate to the BOQ discipline code for grouping.</summary>
+        private static string GateDiscipline(string gate)
+        {
+            switch ((gate ?? "").Trim().ToLowerInvariant())
+            {
+                case "energy":    return "M";   // mechanical / electrical services
+                case "water":     return "P";   // public health / plumbing
+                case "materials": return "A";   // architectural / structural fabric
+                default:          return "M";
+            }
+        }
+
+        /// <summary>Merge the sustainability measures into the BOQ manual store
+        /// (BOQCostManager.SaveManualRows) so BuildBOQDocument picks them up. Replaces
+        /// any prior Sustainability-tagged rows (idempotent re-run) while preserving
+        /// the user's own manual / provisional rows and the project budget.</summary>
+        private static int WriteToBoqManualStore(Document doc, List<BOQLineItem> sustainRows)
+        {
+            try
+            {
+                var store = BOQCostManager.LoadManualStore(doc);
+                var kept = (store.ManualRows ?? new List<BOQLineItem>())
+                    .Where(r => !string.Equals(r.RateSource, SustainRateSource, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                kept.AddRange(sustainRows);
+                BOQCostManager.SaveManualRows(doc, kept, store.ProjectBudgetUGX);
+                return sustainRows.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Sustain LCC -> BOQ manual store: {ex.Message}");
+                return 0;
             }
         }
 
@@ -255,7 +375,7 @@ namespace StingTools.Commands.Sustainability
         {
             try
             {
-                var lines = new List<string> { "Measure,Gate,CostKey,Capex,AnnualSaving,LifetimeSaving,NetBenefit" };
+                var lines = new List<string> { "Measure,Gate,SizingBasis,Capex,AnnualSaving,LifetimeSaving,NetBenefit" };
                 lines.AddRange(rows.Select(r => string.Join(",", r.Select(c => "\"" + (c ?? "").Replace("\"", "\"\"") + "\""))));
                 string path = OutputLocationHelper.GetOutputPath(doc,
                     $"STING_Sustain_LCC_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
