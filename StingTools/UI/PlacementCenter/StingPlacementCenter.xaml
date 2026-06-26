@@ -1174,13 +1174,13 @@
                                 Content="Auto-populate Catalogue"
                                 ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
-                                Tag="Placement_AuditSetup" Click="OnToolButton_Click"
+                                Click="OnAuditSetup_Click"
                                 Content="Audit Setup"
-                                ToolTip="Detect missing DependsOn targets, invalid MergeKeys, and orphaned rules."/>
+                                ToolTip="Detect missing DependsOn targets, invalid MergeKeys, and orphaned rules. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
-                                Tag="Placement_Diagnose" Click="OnToolButton_Click"
+                                Click="OnDiagnose_Click"
                                 Content="Diagnose"
-                                ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log."/>
+                                ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 

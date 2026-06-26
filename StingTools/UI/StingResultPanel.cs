@@ -103,6 +103,23 @@ namespace StingTools.UI
                 return this;
             }
 
+            /// <summary>
+            /// A clickable finding line. Rendered as a hyperlink-styled row that
+            /// fires <paramref name="onClick"/> when clicked — used to select /
+            /// zoom the offending element in the model. Falls back to plain text
+            /// when onClick is null.
+            /// </summary>
+            public Builder Finding(string text, Action onClick, SolidColorBrush brush = null)
+            {
+                EnsureSection();
+                _cur.Items.Add(new ResultItem
+                {
+                    Type = onClick == null ? ItemType.Text : ItemType.Finding,
+                    Label = text, ValueBrush = brush, OnClick = onClick
+                });
+                return this;
+            }
+
             public Builder PassFail(string label, bool passed, string detail = null)
             {
                 EnsureSection();
@@ -198,11 +215,12 @@ namespace StingTools.UI
             public bool? Passed;
             public string[] TableHeaders;
             public List<string[]> TableRows;
+            public Action OnClick;
         }
 
         internal enum ItemType
         {
-            Metric, Text, RAGBar, PassFail, Table, Alert, Separator
+            Metric, Text, RAGBar, PassFail, Table, Alert, Separator, Finding
         }
 
         internal class ActionDef
@@ -514,9 +532,30 @@ namespace StingTools.UI
                         Height = 1, Margin = new Thickness(0, 4, 0, 4),
                         Background = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)))
                     };
+                case ItemType.Finding:
+                    return BuildFinding(item);
                 default:
                     return new TextBlock { Text = item.Label ?? "" };
             }
+        }
+
+        private static UIElement BuildFinding(ResultItem item)
+        {
+            var tb = new TextBlock
+            {
+                Text = "▸ " + (item.Label ?? ""),
+                FontSize = 11.5,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 2),
+                Foreground = item.ValueBrush ?? FZ(new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0))),
+                TextDecorations = TextDecorations.Underline,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Click to select this element in the model"
+            };
+            var click = item.OnClick;
+            if (click != null)
+                tb.MouseLeftButtonUp += (s, e) => { try { click(); } catch { } };
+            return tb;
         }
 
         private static UIElement BuildMetric(ResultItem item)

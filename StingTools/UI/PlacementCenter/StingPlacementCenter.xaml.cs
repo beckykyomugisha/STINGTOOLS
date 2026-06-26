@@ -935,20 +935,30 @@ namespace StingTools.UI.PlacementCenter
             ShowFindings(scopeToProvenance: false, headline: "Project-wide validation");
         }
 
-        private void ShowFindings(bool scopeToProvenance, string headline)
+        private void ShowFindings(bool scopeToProvenance, string headline, ISet<string> forceMask = null)
         {
             try
             {
-                // PC-23 — collect picked validators.
-                var mask = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (vClearance.IsChecked   == true) mask.Add("Clearance");
-                if (vMaintenance.IsChecked == true) mask.Add("Maintenance");
-                if (vConnectivity.IsChecked == true) mask.Add("Connectivity");
-                if (vFill.IsChecked        == true) mask.Add("Fill");
-                if (vSpec.IsChecked        == true) mask.Add("Spec");
-                if (vTermination.IsChecked == true) mask.Add("Termination");
-                if (vSlope.IsChecked       == true) mask.Add("Slope");
-                if (vSeparation.IsChecked  == true) mask.Add("Separation");
+                // Collect picked validators (or use the caller's forced mask, e.g.
+                // "All Validators" runs the full set regardless of the checklist).
+                ISet<string> mask;
+                if (forceMask != null)
+                {
+                    mask = forceMask;
+                }
+                else
+                {
+                    var picked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (vClearance.IsChecked   == true) picked.Add("Clearance");
+                    if (vMaintenance.IsChecked == true) picked.Add("Maintenance");
+                    if (vConnectivity.IsChecked == true) picked.Add("Connectivity");
+                    if (vFill.IsChecked        == true) picked.Add("Fill");
+                    if (vSpec.IsChecked        == true) picked.Add("Spec");
+                    if (vTermination.IsChecked == true) picked.Add("Termination");
+                    if (vSlope.IsChecked       == true) picked.Add("Slope");
+                    if (vSeparation.IsChecked  == true) picked.Add("Separation");
+                    mask = picked;
+                }
                 var findings = PlacementCenterBridge.RunValidators(_doc, mask);
                 if (scopeToProvenance && _lastRunUtc.HasValue)
                 {
@@ -985,9 +995,15 @@ namespace StingTools.UI.PlacementCenter
 
                 if (findings.Count > 0)
                 {
-                    panel.AddSection("FINDINGS (top 40)");
+                    panel.AddSection("FINDINGS (top 40) — click to select in model");
                     foreach (var f in findings.OrderByDescending(x => x.Severity).Take(40))
-                        panel.Text(f.ToString());
+                    {
+                        var fid = f.ElementId;
+                        if (fid != null && fid != ElementId.InvalidElementId)
+                            panel.Finding(f.ToString(), () => SelectInModel(fid));
+                        else
+                            panel.Text(f.ToString());
+                    }
                 }
                 Report("Validation", panel);
 
@@ -1119,9 +1135,11 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 // RunLearn only reads elements + writes a JSON file (no Revit
-                // transaction), so it is safe to call directly on the dockable
-                // panel's API thread. It shows its own result TaskDialog.
-                int n = StingTools.Commands.Placement.LearnPlacementV4Command.RunLearn(_doc);
+                // transaction), so it is safe on the modeless window's thread.
+                // showDialog:false suppresses its own TaskDialog so the result
+                // renders inline in the shared Report panel instead.
+                int n = StingTools.Commands.Placement.LearnPlacementV4Command.RunLearn(_doc, out string summary, showDialog: false);
+                int imported = 0;
                 if (n > 0 && !string.IsNullOrEmpty(_doc.PathName))
                 {
                     // Reload the just-written learned rules into the grid so they
@@ -1130,12 +1148,19 @@ namespace StingTools.UI.PlacementCenter
                     string learnedPath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.learned.json");
                     if (System.IO.File.Exists(learnedPath))
                     {
-                        int imported = VM.ImportFromFile(learnedPath);
+                        imported = VM.ImportFromFile(learnedPath);
                         VM.ApplyFilter();
                         VM.Status = $"Learned {n} rule(s); imported {imported} into the grid for review (Save Project to persist).";
                         UpdateStatus();
                     }
                 }
+
+                var panel = StingResultPanel.Create("STING — Learn from model")
+                    .AddSection("RESULT")
+                    .Text(string.IsNullOrEmpty(summary) ? $"Learned {n} rule(s)." : summary);
+                if (imported > 0)
+                    panel.Text($"Imported {imported} learned rule(s) into the grid for review (Save Project to persist).");
+                Report("Learn", panel);
             }
             catch (Exception ex)
             {
@@ -1333,6 +1358,22 @@ namespace StingTools.UI.PlacementCenter
         {
             try { _lastReport?.Show(); }
             catch (Exception ex) { StingLog.Warn($"PlacementCenter.ReportPopOut: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Select + zoom an element in the model from a clicked report finding.
+        /// Selection / ShowElements need no transaction and are safe from this
+        /// modeless window (same pattern as the History double-click select).
+        /// </summary>
+        private void SelectInModel(ElementId id)
+        {
+            if (_uiDoc == null || id == null || id == ElementId.InvalidElementId) return;
+            try
+            {
+                _uiDoc.Selection.SetElementIds(new List<ElementId> { id });
+                try { _uiDoc.ShowElements(id); } catch { }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.SelectInModel: {ex.Message}"); }
         }
 
         // ── List + add/delete ────────────────────────────────────────
@@ -1986,7 +2027,12 @@ namespace StingTools.UI.PlacementCenter
             => StingDockPanel.DispatchCommand("Routing_PlaceHangers");
 
         private void OnRunAllValidators_Click(object sender, RoutedEventArgs e)
-            => StingDockPanel.DispatchCommand("Validation_RunAll");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "Clearance", "Maintenance", "Connectivity", "Fill", "Spec", "Termination", "Slope", "Separation" };
+            ShowFindings(false, "All validators", all);
+        }
 
         private void OnBS6465Audit_Click(object sender, RoutedEventArgs e)
         {
@@ -2059,23 +2105,59 @@ namespace StingTools.UI.PlacementCenter
                 StingDockPanel.DispatchCommand(tag);
         }
 
+        private void OnDiagnose_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                var (text, path) = StingTools.Commands.Placement.PlacementDiagnoseCommand.BuildReportText(_doc);
+                var panel = StingResultPanel.Create("STING — Placement Diagnose");
+                if (!string.IsNullOrEmpty(path)) panel.SetSubtitle($"Full report: {path}");
+                panel.AddSection("DIAGNOSTIC").Text(text);
+                Report("Diagnose", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnDiagnose", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Diagnose failed: {ex.Message}");
+            }
+        }
+
+        private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                var text = StingTools.Commands.Placement.PlacementSetupAuditCommand.BuildReportText(_doc, out int errs, out int warns, out string csv);
+                var panel = StingResultPanel.Create("STING — Placement Setup Audit");
+                panel.SetSubtitle((string.IsNullOrEmpty(csv) ? "" : $"CSV: {csv}"))
+                     .AddSection("SUMMARY")
+                     .Metric("Errors", errs.ToString())
+                     .Metric("Warnings", warns.ToString())
+                     .AddSection("DETAIL").Text(text);
+                Report("Audit Setup", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnAuditSetup", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Audit Setup failed: {ex.Message}");
+            }
+        }
+
         // ── Inline result panel ──────────────────────────────────────
 
         private void ShowInlineResult(string headline,
                                       IEnumerable<string> metrics,
                                       IEnumerable<string> findings)
         {
-            if (txtRunResultHeadline != null)
-                txtRunResultHeadline.Text = headline ?? "";
-
-            if (lstRunMetrics != null)
-                lstRunMetrics.ItemsSource = metrics?.ToList() ?? new List<string>();
-
-            if (lstRunFindings != null)
-                lstRunFindings.ItemsSource = findings?.ToList() ?? new List<string>();
-
-            if (grpRunResult != null)
-                grpRunResult.Visibility = System.Windows.Visibility.Visible;
+            // Route through the shared right-hand Report panel so every button
+            // reports in one place (was: the separate grpRunResult group).
+            var panel = StingResultPanel.Create(headline);
+            var m = metrics?.ToList() ?? new List<string>();
+            if (m.Count > 0) { panel.AddSection("SUMMARY"); foreach (var s in m) panel.Text(s); }
+            var f = findings?.ToList() ?? new List<string>();
+            if (f.Count > 0) { panel.AddSection("DETAIL"); foreach (var s in f) panel.Text(s); }
+            Report(headline, panel);
         }
 
         // ── DrawingType context strip ────────────────────────────────
