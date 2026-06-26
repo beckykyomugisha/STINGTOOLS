@@ -152,7 +152,9 @@ namespace StingTools.Docs
                     // ElementId (which changes across sessions/exports). This is
                     // the join key that lets COBie reconcile against the IFC,
                     // Speckle applicationId, and the server identity map.
-                    string assetId = StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(el.UniqueId);
+                    // Prefer Revit's own exporter GUID (gold standard) for a live
+                    // Element; falls back to the canonical string encoder off-Revit.
+                    string assetId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
 
                     compLines.Add($"{Esc(tag1)},STING Tools,{DateTime.Now:yyyy-MM-dd},{Esc(typeKey)},{Esc(space)},{Esc(desc)},,,,{Esc(tag1)},{Esc(assetId)},{Esc(sysName)}");
                 }
