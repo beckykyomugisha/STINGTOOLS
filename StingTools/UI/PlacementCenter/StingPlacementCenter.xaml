@@ -1170,9 +1170,9 @@
                                 Content="Import Rules (Excel)"
                                 ToolTip="Merge rules from an .xlsx workbook into the current set (override on MergeKey match)."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_AutoPopulateCatalogue" Click="OnToolButton_Click"
+                                Click="OnAutoPopulateCatalogue_Click"
                                 Content="Auto-populate Catalogue"
-                                ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types."/>
+                                ToolTip="Scan loaded families and auto-populate the placement catalogue with detected fixture types. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="100" Height="30" Margin="4,3"
                                 Click="OnAuditSetup_Click"
                                 Content="Audit Setup"
@@ -1191,9 +1191,9 @@
                                 Content="Wall Chase Routing"
                                 ToolTip="Plan wall-chase routing for conduit and pipe in masonry walls."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ExportNogginRequirements" Click="OnToolButton_Click"
+                                Click="OnNoggin_Click"
                                 Content="Noggin Requirements"
-                                ToolTip="Export noggin / blocking requirements for bracket-mounted fixtures to CSV."/>
+                                ToolTip="Export noggin / blocking requirements for bracket-mounted fixtures to CSV. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 

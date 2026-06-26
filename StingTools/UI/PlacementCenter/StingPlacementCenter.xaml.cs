@@ -2063,7 +2063,92 @@ namespace StingTools.UI.PlacementCenter
             => ShowFindings(false, "Clearance scan");
 
         private void OnPenetrationCoverage_Click(object sender, RoutedEventArgs e)
-            => StingDockPanel.DispatchCommand("Validation_PenetrationCoverage");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                var findings = StingTools.Core.Validation.PenetrationCoverageValidator.Validate(_doc);
+                int errors   = findings.Count(f => f.Severity == ValidationSeverity.Error);
+                int warnings = findings.Count(f => f.Severity == ValidationSeverity.Warning);
+                var panel = StingResultPanel.Create("STING — Penetration Coverage Audit")
+                    .SetSubtitle("Firestop register integrity + structural review (beams)")
+                    .AddSection("SUMMARY")
+                    .Metric("Errors", errors.ToString())
+                    .Metric("Warnings", warnings.ToString())
+                    .Metric("Total findings", findings.Count.ToString());
+                if (findings.Count > 0)
+                {
+                    panel.AddSection("FINDINGS (top 50) — click to select in model");
+                    foreach (var f in findings.OrderByDescending(x => x.Severity).Take(50))
+                    {
+                        var fid = f.ElementId;
+                        if (fid != null && fid != ElementId.InvalidElementId)
+                            panel.Finding(f.ToString(), () => SelectInModel(fid));
+                        else
+                            panel.Text(f.ToString());
+                    }
+                    if (findings.Count > 50) panel.Text($"(+{findings.Count - 50} more — see StingLog)");
+                }
+                Report("Penetration Coverage", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnPenetrationCoverage", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Penetration coverage failed: {ex.Message}");
+            }
+        }
+
+        private void OnAutoPopulateCatalogue_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                var (created, updated, contributing) =
+                    StingTools.Core.Placement.ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(_doc);
+                var panel = StingResultPanel.Create("STING — Manufacturer Catalogue")
+                    .AddSection("SUMMARY")
+                    .Metric("New entries", created.ToString())
+                    .Metric("Updated entries", updated.ToString());
+                if (contributing != null && contributing.Count > 0)
+                {
+                    panel.AddSection("CONTRIBUTING FAMILIES");
+                    foreach (var c in contributing.Take(40)) panel.Text(c);
+                    if (contributing.Count > 40) panel.Text($"(+{contributing.Count - 40} more)");
+                }
+                else
+                {
+                    panel.AddSection("RESULT")
+                         .Text("No families carrying MK_* shared parameters were found in this project.");
+                }
+                Report("Catalogue", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnAutoPopulateCatalogue", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Auto-populate failed: {ex.Message}");
+            }
+        }
+
+        private void OnNoggin_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                string text = StingTools.Commands.Placement.NogginRequirementExportCommand
+                    .BuildReportText(_doc, out string csvPath, out int count);
+                var panel = StingResultPanel.Create("STING — Noggin Requirements")
+                    .SetSubtitle(string.IsNullOrEmpty(csvPath) ? "" : $"CSV: {csvPath}")
+                    .AddSection("RESULT")
+                    .Metric("Noggin requirements", count.ToString())
+                    .Text(text);
+                Report("Noggin Requirements", panel);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnNoggin", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Noggin export failed: {ex.Message}");
+            }
+        }
 
         private void OnScoreThreshold_Changed(object sender, RoutedEventArgs e)
         {
