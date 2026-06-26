@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Review & Hardening — INT-1 QTO IFC + pro-export round-trip key)
+
+Closed the two "known limitations" left after INT-2.
+
+- **Professional export now carries the join key.** `BOQProfessionalExportCommand`
+  adds an **"Ifc GlobalId"** column to its **audit/takeoff sheet** (next to the
+  existing "Revit ID"), so the priced professional export can reconcile back to
+  the model. The printed *tender* bill is left clean (no machine ids on it) — the
+  primary round-trip remains the standard `BOQExportCommand` schema.
+- **INT-1 — QTO-conformant IFC export** (`BOQ/BOQExportIfcQtoCommand`, tag
+  `BOQExportIfcQto`). Builds the BOQ, stamps `Qto_*.*` + `Pset_StingCost.*`
+  (`IfcQuantitySetWriter.StampAllElements`) in a committed transaction, then
+  exports **IFC4 with `ExportBaseQuantities=true`** + the cost/classification
+  psets — the practical estimator feed CostX/iTWO consume.
+  - **Honest scope (documented in the command):** Revit has **no literal
+    "Quantity Takeoff MVD"** enum — IFC4 + base quantities is the equivalent.
+    NRM2/ICMS rides `Pset_StingCost.NRM2Section`; a true `IfcClassificationReference`
+    needs a Revit classification-mapping file (not settable via headless
+    `IFCExportOptions`) — `TODO-VERIFY-API` / future. The base quantities (core
+    QTO payload) come from `ExportBaseQuantities` and don't depend on the cost-pset
+    emission, which itself needs in-Revit confirmation.
+  - GAEB DA XML remains scope-only (the `IPricedExchange` interface is still TBD).
+- Built without Revit (main-project files; only the encoder is sandbox-compiled).
+  Dock-panel button for `BOQExportIfcQto` is a trivial follow-up. Verify in Revit.
+
 #### Completed (BOQ Review & Hardening — INT-2 priced-BOQ round-trip)
 
 GUID-keyed priced round-trip so an external estimator can fill rates and

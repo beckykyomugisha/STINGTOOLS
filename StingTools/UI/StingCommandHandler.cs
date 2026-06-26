@@ -3508,6 +3508,7 @@ namespace StingTools.UI
                     case "BOQAddManualRow":         RunCommand<BOQ.BOQAddManualRowCommand>(app); break;
                     case "SelectInRevit":           RunCommand<BOQ.BOQSelectInRevitCommand>(app); break;
                     case "BOQExport":               RunCommand<BOQ.BOQExportCommand>(app); break;
+                    case "BOQExportIfcQto":         RunCommand<BOQ.BOQExportIfcQtoCommand>(app); break;
                     case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;

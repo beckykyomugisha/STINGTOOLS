@@ -1334,7 +1334,10 @@ namespace StingTools.BOQ
             ws.Row(r).Height = 36;
             r += 2;
 
-            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID" };
+            // INT-2 — the audit/takeoff sheet carries the stable join key so the
+            // priced professional export can also reconcile back to the model
+            // (the printed tender bill stays clean — no machine ids on it).
+            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID", "Ifc GlobalId" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var c = ws.Cell(r, 2 + i);
@@ -1371,7 +1374,8 @@ namespace StingTools.BOQ
                     ws.Cell(r, 7).Value = item.Level ?? "";
                     ws.Cell(r, 8).Value = item.Location ?? "";
                     ws.Cell(r, 9).Value = item.RevitElementId > 0 ? item.RevitElementId.ToString() : "";
-                    for (int i = 2; i <= 9; i++)
+                    ws.Cell(r, 10).Value = item.IfcGlobalId ?? "";   // INT-2 round-trip join key
+                    for (int i = 2; i <= 10; i++)
                     {
                         ws.Cell(r, i).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                             .Border.SetBottomBorder(XLBorderStyleValues.Hair)
