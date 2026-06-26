@@ -176,6 +176,13 @@ namespace StingTools.BOQ
                 };
                 store.ManualRows.Add(newRow);
                 BOQCostManager.SaveManualRows(ctx.Doc, store.ManualRows, store.ProjectBudgetUGX);
+                UI.StingResultPanel.Create("Manual row added")
+                    .AddSection("ROW")
+                    .Metric("Item", newRow.ItemName)
+                    .Metric("Type", newRow.Category)
+                    .Metric("Quantity", $"{newRow.Quantity:N3} {newRow.Unit}")
+                    .Metric("Rate", $"UGX {newRow.RateUGX:N0}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("BOQAddManualRow", ex); return Result.Failed; }
@@ -432,7 +439,10 @@ namespace StingTools.BOQ
                 var matches = BOQCostManager.ReconcileProvisionals(ctx.Doc, boq);
                 if (matches.Count == 0)
                 {
-                    TaskDialog.Show("STING BOQ", "No provisional sums could be automatically matched to modeled elements.");
+                    UI.StingResultPanel.Create("Reconcile Provisionals")
+                        .AddSection("NO MATCHES")
+                        .Text("No provisional sums could be automatically matched to modeled elements.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
@@ -473,7 +483,10 @@ namespace StingTools.BOQ
                     }
                     tx.Commit();
                 }
-                TaskDialog.Show("STING BOQ", $"Promoted {promoted.Count} provisional sum(s) to modeled rows.");
+                UI.StingResultPanel.Create("Reconcile Provisionals")
+                    .AddSection("RESULT")
+                    .Metric("Provisional sums promoted", promoted.Count.ToString(), "to modeled rows")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex) { StingLog.Error("BOQReconcileProvisionals", ex); return Result.Failed; }

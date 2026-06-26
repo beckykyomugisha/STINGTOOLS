@@ -3,6 +3,66 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — Slice 3: convert Actions commands to inline StingResultPanel)
+
+Every Actions-tab-dispatched command now reports through `StingResultPanel`
+instead of a terminal `TaskDialog`, so each result renders in the right-hand
+inline pane (no popup) and the placeholder-resolver no longer falls back to
+"✓ completed (reported in a dialog)". `Builder.Show()` auto-routes to the
+inline sink when the pane is hosting and falls back to the modal dialog from
+the ribbon/workflow path — so conversion is safe in both surfaces. Reporting
+surface only — no command logic, transaction scope, or panel changes.
+
+Files converted (one commit each):
+
+- `Commands/Cost/CostCommands.cs` — Cost_ValidateAll (table report + dialog-only
+  "select affected" action), Cost_ClearStale, Cost_RunWorkflow (no-presets
+  guard), Cost_ToggleStaleMarker, Cost_ReloadRules, Cost_MigrateCurrencyParams,
+  Cost_MigrateESEntities.
+- `Commands/Cost/MeasurementStandardCommands.cs` — Cost_SetMeasurementStandard,
+  Cost_StandardInspect (per-standard tables).
+- `Commands/Cost/IfcAndIcmsCommands.cs` — Cost_StampIfcQuantities,
+  Cost_ExportIcms3Report (SetCsvPath → Open Export on dialog path).
+- `Commands/Cost/CostPlanCommands.cs` — CostPlan_Create, CostPlan_Compare
+  (variance table), CostPlan_Export.
+- `Commands/Cost/PaymentCertCommands.cs` — PaymentCert_Issue/Approve/Register.
+- `Commands/Cost/CostControlCommands.cs` — PaymentCert_SetProgress,
+  PaymentCert_ExportDoc (folder-open command-link → SetCsvPath). (Cost_Anticipated
+  FinalCost already used StingResultPanel.)
+- `Commands/Cost/VariationAndEvmCommands.cs` — Variation_FromDiff,
+  Variation_BuildStarRate, Variation_ExportRegister, Variation_ReclassifyLegacy,
+  Evm_Calculate, Evm_ImportActuals, Evm_ExportReport.
+- `BOQ/BOQQsRoundtripCommands.cs` — BOQQsExport (terminal + folder-open →
+  SetCsvPath), BOQQsImport (two guards + two terminals).
+- `BOQ/BOQSupportCommands.cs` — BOQAddManualRow (added an inline success report;
+  it previously reported nothing), BOQReconcileProvisionals (no-match guard +
+  terminal).
+
+TaskDialogs deliberately kept (interactive input / hard confirmation that must
+interrupt — not terminal reports, so out of the inline-result scope):
+
+- `CostPlanCommands.PromptForGifa` — TaskDialog command-links picking the GIFA
+  source (model rooms vs literal). Genuine input prompt.
+- `VariationAndEvmCommands` — PickEotDays / contract-form / kind / reason /
+  liability StingListPicker pickers and the `PromptForReasonDetail` WPF input
+  window (all input).
+- `BOQQsExportCommand` — the priced/unpriced TaskDialog command-link (input).
+- `BOQQsImportCommand` — the `StingDataGridDialog` diff-preview (input).
+- `BOQReconcileProvisionalsCommand` — the Yes/No confirmation before promoting
+  provisional sums to modelled rows (destructive confirm).
+
+Compile-verified headless (Nice3point): 0 errors per file. Deployed to
+CompiledPlugin per group. Not pushed/merged.
+
+**Revit smoke test (human):** Open the BOQ & Cost Manager → Actions tab. Click
+Run Cost Workflow, Validate Cost, New Cost Plan, Compare vs BOQ, Issue Cert,
+Calculate EVM, Variation from Diff, ICMS3 Report, Export QS Bill, Import QS Bill,
+Add Manual Row, Reconcile Provisionals — each result must render in the right
+pane with no popup, and the pane must never stay on "Running…". Confirm the input
+pickers for New Cost Plan / Issue Cert / Variation still render inline (no
+regression). Dispatch any one of the same commands from the ribbon and confirm it
+still shows a modal dialog (automatic fallback).
+
 #### Completed (BOQ 5D — resolve stuck Actions "Running…" placeholder)
 
 In-Revit finding: the Actions inline pane only renders results for the ~9
