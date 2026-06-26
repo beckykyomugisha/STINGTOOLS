@@ -3,6 +3,95 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 — EDGE/LEED Sustainability Module)
+
+Built to the approved design spec
+(`docs/superpowers/specs/2026-06-26-edge-leed-sustainability-design.md`).
+Driver: WBG Country Office, Bangui, Central African Republic (RFP 26-0404),
+target EDGE Advanced + LEED v5. The pilot is **one row of data** — every
+function generalises to other countries, climates, building types and schemes.
+
+**Phase 1 (this build) — EDGE three-gate dashboard + LEED-ready layer.**
+
+*Data layer (`StingTools/Data/`):*
+- `STING_GREEN_SCHEMES.json` — certification-agnostic gate definitions (EDGE
+  live with Certified/Advanced/ZeroCarbon levels; LEED v5 present as data with
+  pointSum bands + WBLCA prereq). No `if (scheme=="EDGE")` ladder anywhere.
+- `STING_GREEN_BASELINES.json` — climate-zone-keyed baselines with a four-hop
+  proxy resolver (`country+zone+use → zone+use → use → global`), provenance
+  always "indicative", never invented in code. Starter catalogue (global
+  default + hot-humid 0A office + temperate 4A office/residential).
+- `STING_WATER_USAGE_PROFILES.json` — office/residential/healthcare/retail/hotel
+  fixture-use frequencies.
+- `STING_GREEN_MEASURES.json` — 8 measures (PV / solar glazing / HVAC / LED /
+  low-flow / RWH / greywater / low-carbon materials) each with a cost handle
+  for the LCC roll-up.
+- `STING_CLIMATE_MONTHLY.json` — additive monthly means + GHI + rainfall for
+  bangui/kampala/nairobi/london; the `ClimateMonthlyRegistry` synthesises a
+  profile + logs a warning for design-day-only sites. Added the missing
+  Bangui design-day site to `STING_CLIMATE_DATA.json`.
+
+*Engines (`StingTools/Core/Sustainability/`, pure POCO, Revit-free, unit-tested):*
+`ClimateMonthlyRegistry`, `GreenSchemeRegistry`, `GreenBaselineRegistry`
+(proxy + provenance), `WaterUsageProfileRegistry`, `GreenMeasureRegistry`,
+`AnnualEnergyEstimator` (monthly quasi-steady EN ISO 13790 balance — annual
+kWh, NOT BlockLoad peak W; cooling/heating utilisation flips on climate sign;
+COP/SEER + PV are inputs), `SupplyAndGenerationLayer` (demand → PV → net import
+→ carbon; grid/off-grid/diesel by data), `AnnualWaterEstimator`, `MaterialsRollup`
+(dual metric — kgCO2e/m² AND MJ/m², never conflated; three carbon hotspots),
+`IMetricProvider` + `MetricProviderRegistry`, `SchemeEvaluator` (all_required AND
++ pointSum band), `SustainabilityResult`/`EdgeKpiSnapshot` POCOs. Carbon reads
+the `CarbonFactorResolver` **Tier-1** path (not the dead `CarbonTrackingEngine`).
+
+*Revit layer:* `SustainabilityRegistries` (per-doc cache + `_BIM_COORD/`
+overrides), `SustainabilityEngine` (gathers LoadZones from Spaces + material
+lines, runs the four estimators, evaluates all selected schemes); 5th dockable
+pane `StingSustainabilityPanel` (SETUP / DASHBOARD / MATERIALS / COST tabs, the
+SETUP tab is the zero-hardcoding options surface) + provider (stable PaneGuid
+`A3C5E7B9-…`) + command handler; commands `Sustain_ProjectSetup / Dashboard /
+SetBaseline / SupplyConfig / EdgeExport / LccBenefit`; `ToggleSustainabilityPanelCommand`
+ribbon toggle + registration + cache invalidation in `StingToolsApp`.
+
+*Parameters:* 6 new `SUS_*` shared params in a new group 35 `SUS_SUSTAINABILITY`
+(`SUS_ENERGY_KWH_M2_NR`, `SUS_WATER_L_PD_NR`, `SUS_MAT_CARBON_KGM2_NR`,
+`SUS_MAT_ENERGY_MJ_M2_NR`, `SUS_EDGE_LEVEL_TXT`, `SUS_EPD_REF_TXT`) — added to
+`MR_PARAMETERS.txt` + `.csv` + `PARAMETER_REGISTRY.json` + `ParamRegistry`
+constants with stable UUIDv5-convention GUIDs.
+
+**Phase 2 scaffold (behind a flag):** `Sustain_EpdAssign` + `Sustain_LeedScorecard`
+compile as stubs (LEED-selected → scorecard preview; EPD register full impl
+deferred). No engine changes needed — LEED is already data.
+
+**Tests:** `StingTools.Sustainability.Tests` (xUnit, mirrors `StingTools.Boq.Tests`
+by `<Compile Include>`-ing the pure-POCO engines). **61/61 pass** via
+`dotnet test` (no Revit dependency) — scheme AND/pointSum logic + level switch,
+baseline resolution fallback + proxy path + override merge + "never proxies on
+nearest country", monthly energy balance + cooling/heating flip + COP scaling +
+PV offset + off-grid/diesel carbon, water L/person·day + occupancy scaling +
+RWH/greywater + residential-vs-office same-engine, dual-metric materials +
+hotspots + EPD-preferred, flexibility (two configs no recompile) + mixed-use
+area-/occupancy-weighted rollup, plus JSON-validity of the hand-edited
+PARAMETER_REGISTRY / climate files.
+
+**Caveats:**
+1. Built WITHOUT `dotnet build` / Revit verification (Linux sandbox) — the
+   Revit-facing commands/panel/providers/`SustainabilityEngine` were not
+   compile-checked. Revit API calls use documented signatures; verify in Revit
+   2025/2026/2027 before merge. The pure engines + the 61-test suite DO build +
+   pass with `dotnet test`.
+2. `AnnualEnergyEstimator` + `AnnualWaterEstimator` are **indicative** simplified
+   methods. The EDGE app owns the certified energy/water % AND the certified
+   materials (embodied-energy) %. The dashboard labels every STING figure
+   "indicative" beside an EDGE-official entry field.
+3. Baselines in `STING_GREEN_BASELINES.json` are seeded from ASHRAE 90.1 / EDGE
+   defaults as a STARTER catalogue. CAR resolves via the hot-humid 0A office
+   proxy + a logged proxy path; capturing the official CAR baseline is a data
+   task (drop a row into the project override), not a code change.
+4. Material gathering sums `GetMaterialVolume` per element x the Tier-1 per-m³
+   carbon factor; embodied energy MJ uses `SUS_MAT_ENERGY_MJ_M2_NR` when stamped,
+   else a documented MJ/kgCO2e ratio until EPD PERT+PENRT data is populated.
+   Fixture-flow reading from the model is a hook (currently a 25%-over-baseline
+   indicative default).
 #### Completed (Placement Centre — review follow-up: five minor fixes)
 
 Branch `claude/placement-centre-review-audit`. Closes the five minor items

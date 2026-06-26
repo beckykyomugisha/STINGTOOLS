@@ -1,0 +1,73 @@
+{
+  "schema": "sting.climate.monthly/v1",
+  "_notes": [
+    "Additive monthly climate columns for the sustainability annual energy/water estimators",
+    "(Phase 195). Keyed by climate-site id (same id as STING_CLIMATE_DATA.json). Per site:",
+    "  meanDbC[12]      monthly mean dry-bulb temperature, degC (Jan..Dec)",
+    "  meanRhPct[12]    monthly mean relative humidity, %",
+    "  ghiKwhM2Day[12]  monthly mean global horizontal irradiance, kWh/m2.day",
+    "  annualGhiKwhM2Yr annual GHI total (kWh/m2.yr) — used for PV yield + facade solar",
+    "  rainfallMm[12]   monthly rainfall, mm (used by RWH inside the water estimator)",
+    "  gridCarbonKgco2eKwh default grid emission factor for this location.",
+    "Sites WITHOUT a monthly record fall back to design-day values from",
+    "STING_CLIMATE_DATA.json with a logged warning (ClimateMonthlyRegistry).",
+    "Project override merged by id from",
+    "<project>/_BIM_COORD/sustainability/climate_monthly.json.",
+    "Sources: NASA POWER monthly climatology, ASHRAE 2021, national met normals.",
+    "Bangui (CAR) values are estimates from NASA POWER for confirmation before certified use."
+  ],
+  "sites": [
+    {
+      "id": "bangui",
+      "label": "Bangui (Central African Republic)",
+      "country": "CF",
+      "climateZone": "0A",
+      "meanDbC":      [25.0, 26.4, 26.7, 26.3, 25.6, 24.7, 24.2, 24.3, 24.7, 25.0, 25.0, 24.6],
+      "meanRhPct":    [62, 60, 66, 73, 79, 83, 86, 87, 85, 82, 76, 66],
+      "ghiKwhM2Day":  [5.3, 5.6, 5.6, 5.4, 5.1, 4.6, 4.3, 4.5, 4.9, 5.0, 5.1, 5.1],
+      "annualGhiKwhM2Yr": 1850,
+      "rainfallMm":   [12, 38, 110, 130, 165, 145, 190, 215, 180, 200, 110, 25],
+      "gridCarbonKgco2eKwh": 0.80,
+      "source": "NASA POWER monthly climatology (estimate; confirm against on-site data before certified use)"
+    },
+    {
+      "id": "kampala",
+      "label": "Kampala (Uganda)",
+      "country": "UG",
+      "climateZone": "0A",
+      "meanDbC":      [22.6, 22.9, 22.8, 22.4, 22.1, 21.8, 21.4, 21.7, 22.1, 22.0, 21.8, 22.1],
+      "meanRhPct":    [70, 68, 72, 76, 78, 76, 75, 75, 75, 76, 78, 74],
+      "ghiKwhM2Day":  [5.7, 5.8, 5.7, 5.4, 5.0, 4.9, 4.8, 5.1, 5.5, 5.5, 5.4, 5.5],
+      "annualGhiKwhM2Yr": 1940,
+      "rainfallMm":   [60, 75, 130, 175, 145, 75, 55, 90, 110, 130, 150, 95],
+      "gridCarbonKgco2eKwh": 0.20,
+      "source": "NASA POWER monthly climatology"
+    },
+    {
+      "id": "nairobi",
+      "label": "Nairobi (Kenya)",
+      "country": "KE",
+      "climateZone": "1A",
+      "meanDbC":      [19.6, 20.3, 20.7, 20.1, 19.2, 17.9, 17.0, 17.4, 18.7, 19.6, 19.2, 19.0],
+      "meanRhPct":    [60, 56, 60, 70, 72, 68, 66, 65, 60, 60, 70, 67],
+      "ghiKwhM2Day":  [6.2, 6.5, 6.3, 5.7, 5.2, 5.0, 4.6, 5.0, 6.0, 6.0, 5.6, 5.9],
+      "annualGhiKwhM2Yr": 2090,
+      "rainfallMm":   [40, 50, 90, 215, 160, 45, 15, 25, 30, 55, 150, 80],
+      "gridCarbonKgco2eKwh": 0.10,
+      "source": "NASA POWER monthly climatology"
+    },
+    {
+      "id": "london",
+      "label": "London (Heathrow)",
+      "country": "GB",
+      "climateZone": "4A",
+      "meanDbC":      [5.2, 5.3, 7.6, 9.7, 13.1, 16.2, 18.3, 18.0, 15.2, 11.6, 7.8, 5.4],
+      "meanRhPct":    [85, 81, 76, 70, 70, 68, 67, 70, 75, 81, 85, 86],
+      "ghiKwhM2Day":  [0.6, 1.2, 2.2, 3.6, 4.6, 4.9, 4.7, 4.1, 2.9, 1.6, 0.8, 0.5],
+      "annualGhiKwhM2Yr": 1010,
+      "rainfallMm":   [55, 41, 42, 44, 49, 45, 45, 50, 49, 69, 59, 55],
+      "gridCarbonKgco2eKwh": 0.21,
+      "source": "Met Office 1991-2020 normals + NASA POWER GHI"
+    }
+  ]
+}

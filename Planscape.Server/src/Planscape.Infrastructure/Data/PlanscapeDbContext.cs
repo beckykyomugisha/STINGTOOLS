@@ -177,6 +177,8 @@ public class PlanscapeDbContext : DbContext
     // One row per sizing / balance / drift / loads / carbon run; mobile
     // HVAC dashboard reads via /api/projects/{id}/hvac/...
     public DbSet<HvacSnapshot>                HvacSnapshots                => Set<HvacSnapshot>();
+    // EDGE/LEED sustainability snapshots via /api/projects/{id}/sustainability/... (WS A6).
+    public DbSet<SustainabilitySnapshot>      SustainabilitySnapshots      => Set<SustainabilitySnapshot>();
 
     // Phase 178f — penetration commissioning sign-off captured by the
     // mobile app on-site. One row per FRP / fire damper / acoustic

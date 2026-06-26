@@ -25557,6 +25557,78 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
+    },
+    {
+      "param_name": "SUS_ENERGY_KWH_M2_NR",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01",
+      "description": "Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED]",
+      "datatype": "NUMBER",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "project",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
+    },
+    {
+      "param_name": "SUS_WATER_L_PD_NR",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02",
+      "description": "Design water use in litres per person per day from AnnualWaterEstimator [Phase 195 EDGE/LEED]",
+      "datatype": "NUMBER",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "project",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
+    },
+    {
+      "param_name": "SUS_MAT_CARBON_KGM2_NR",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03",
+      "description": "Embodied carbon intensity kgCO2e/m2 (A1-A3 GWP EN 15978) from MaterialsRollup [Phase 195 EDGE/LEED]",
+      "datatype": "NUMBER",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "project",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
+    },
+    {
+      "param_name": "SUS_MAT_ENERGY_MJ_M2_NR",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04",
+      "description": "Embodied energy intensity MJ/m2 (CED EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED]",
+      "datatype": "NUMBER",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "project",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
+    },
+    {
+      "param_name": "SUS_EDGE_LEVEL_TXT",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05",
+      "description": "Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED]",
+      "datatype": "TEXT",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "project",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
+    },
+    {
+      "param_name": "SUS_EPD_REF_TXT",
+      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06",
+      "description": "Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]",
+      "datatype": "TEXT",
+      "group_id": 35,
+      "group_name": "SUS_SUSTAINABILITY",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Sustainability",
+      "curated": true
     }
   ],
   "token_presets": {

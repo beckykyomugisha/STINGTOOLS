@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+    <!-- Engines use Newtonsoft for the JSON registry loaders. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- Pure-POCO engine + registry sources linked from the main project (Revit-free).
+       Mirrors StingTools.Boq.Tests: <Compile Include> the individual files that have
+       no Revit dependency, so the suite runs with `dotnet test` and no Revit API. -->
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\Sustainability\SustainabilityResult.cs" Link="Engines\SustainabilityResult.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainProjectSetup.cs" Link="Engines\SustainProjectSetup.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\GreenSchemeRegistry.cs" Link="Engines\GreenSchemeRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\GreenBaselineRegistry.cs" Link="Engines\GreenBaselineRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\WaterUsageProfileRegistry.cs" Link="Engines\WaterUsageProfileRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\GreenMeasureRegistry.cs" Link="Engines\GreenMeasureRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\ClimateMonthlyRegistry.cs" Link="Engines\ClimateMonthlyRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\AnnualEnergyEstimator.cs" Link="Engines\AnnualEnergyEstimator.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SupplyAndGenerationLayer.cs" Link="Engines\SupplyAndGenerationLayer.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\AnnualWaterEstimator.cs" Link="Engines\AnnualWaterEstimator.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\MaterialsRollup.cs" Link="Engines\MaterialsRollup.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainMaterialCarbon.cs" Link="Engines\SustainMaterialCarbon.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainMeasureCapex.cs" Link="Engines\SustainMeasureCapex.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\BuildingUseCatalog.cs" Link="Engines\BuildingUseCatalog.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainSavings.cs" Link="Engines\SustainSavings.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\AshraeClimateZone.cs" Link="Engines\AshraeClimateZone.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\MonthlyClimateSynthesizer.cs" Link="Engines\MonthlyClimateSynthesizer.cs" />
+    <!-- WS A3 — pure BOQ waste + biogenic helpers shared with the materials carbon path. -->
+    <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="Engines\WasteFactor.cs" />
+    <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="Engines\BiogenicCarbon.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\IMetricProvider.cs" Link="Engines\IMetricProvider.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SchemeEvaluator.cs" Link="Engines\SchemeEvaluator.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\EdgeKpiSnapshot.cs" Link="Engines\EdgeKpiSnapshot.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainUnitConverter.cs" Link="Engines\SustainUnitConverter.cs" />
+    <!-- AnnualEnergyEstimator references LoadZone/EnvelopeSegment from the HVAC
+         loads namespace; these POCOs are also Revit-free. -->
+    <Compile Include="..\StingTools\Core\Hvac\Loads\LoadInputs.cs" Link="Engines\LoadInputs.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ship the shipped corporate data files so registry tests run against
+         production JSON (mirrors the BOQ test project's Data copy). -->
+    <None Include="..\StingTools\Data\STING_GREEN_SCHEMES.json" Link="Data\STING_GREEN_SCHEMES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_GREEN_BASELINES.json" Link="Data\STING_GREEN_BASELINES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_WATER_USAGE_PROFILES.json" Link="Data\STING_WATER_USAGE_PROFILES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_GREEN_MEASURES.json" Link="Data\STING_GREEN_MEASURES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_CLIMATE_MONTHLY.json" Link="Data\STING_CLIMATE_MONTHLY.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

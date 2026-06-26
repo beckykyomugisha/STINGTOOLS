@@ -1,0 +1,80 @@
+{
+  "schema": "sting.green.measures/v1",
+  "_notes": [
+    "The sustainability measures STING tracks (Phase 195). Each carries the gate it",
+    "affects (energy/water/materials), a description, and a COST HANDLE (a BOQ rate key",
+    "or CST_* link) so Sustain_LccBenefit can roll capex + lifetime opex/savings into the",
+    "Design Development Cost/Budget Estimate via the BOQ Cost Manager. costHandle.type is",
+    "'boqRateKey' (lookup into the project rate book) or 'cstParam' (read CST_* off elements).",
+    "savingsModel gives a simple annual operational saving estimate for the LCC roll-up;",
+    "values are indicative defaults, overridable in the project measures override.",
+    "Project override merged by id from",
+    "<project>/_BIM_COORD/sustainability/green_measures.json."
+  ],
+  "measures": [
+    {
+      "id": "solar_pv",
+      "name": "Roof / facade solar PV",
+      "gate": "energy",
+      "description": "On-site PV generation offsetting grid/diesel import.",
+      "costHandle": { "type": "boqRateKey", "key": "RENEW.PV.KWP", "unit": "kWp", "defaultRate": 950 },
+      "savingsModel": { "kind": "energyOffsetKwhYr", "annualSavingPerUnit": 0, "note": "Driven by SupplyAndGenerationLayer PV kWh x energy tariff." }
+    },
+    {
+      "id": "solar_control_glazing",
+      "name": "Laminated solar-control glazing",
+      "gate": "energy",
+      "description": "Low-SHGC laminated glazing cutting cooling load in hot climates.",
+      "costHandle": { "type": "boqRateKey", "key": "ENV.GLAZ.SOLARCTRL", "unit": "m2", "defaultRate": 280 },
+      "savingsModel": { "kind": "coolingReductionPct", "value": 8 }
+    },
+    {
+      "id": "high_eff_hvac",
+      "name": "High-performance HVAC + BMS",
+      "gate": "energy",
+      "description": "Higher seasonal COP/SEER chillers + demand-controlled ventilation via BMS.",
+      "costHandle": { "type": "boqRateKey", "key": "MECH.CHILLER.HIEFF", "unit": "kW", "defaultRate": 420 },
+      "savingsModel": { "kind": "coolingReductionPct", "value": 15 }
+    },
+    {
+      "id": "led_lighting",
+      "name": "LED lighting + daylight controls",
+      "gate": "energy",
+      "description": "Low-LPD LED luminaires with occupancy + daylight dimming.",
+      "costHandle": { "type": "boqRateKey", "key": "ELEC.LIGHT.LED", "unit": "m2", "defaultRate": 45 },
+      "savingsModel": { "kind": "lightingReductionPct", "value": 30 }
+    },
+    {
+      "id": "low_flow_fixtures",
+      "name": "Low-flow sanitary fixtures",
+      "gate": "water",
+      "description": "Dual-flush WCs, low-flow taps/showers, waterless / low-volume urinals.",
+      "costHandle": { "type": "boqRateKey", "key": "PLM.FIXTURE.LOWFLOW", "unit": "nr", "defaultRate": 65 },
+      "savingsModel": { "kind": "waterReductionPct", "value": 25 }
+    },
+    {
+      "id": "rainwater_harvesting",
+      "name": "Rainwater harvesting",
+      "gate": "water",
+      "description": "Roof rainwater capture + storage for WC flushing / irrigation (BS 8515).",
+      "costHandle": { "type": "boqRateKey", "key": "PLM.RWH.SYSTEM", "unit": "m3", "defaultRate": 850 },
+      "savingsModel": { "kind": "waterOffsetM3Yr", "note": "Driven by AnnualWaterEstimator RWH yield x water tariff." }
+    },
+    {
+      "id": "greywater_reuse",
+      "name": "Grey-water reuse",
+      "gate": "water",
+      "description": "Treated grey-water reused for WC flushing / irrigation.",
+      "costHandle": { "type": "boqRateKey", "key": "PLM.GREYWATER.SYSTEM", "unit": "nr", "defaultRate": 12000 },
+      "savingsModel": { "kind": "waterReductionPct", "value": 15 }
+    },
+    {
+      "id": "low_carbon_materials",
+      "name": "Low-carbon structural materials",
+      "gate": "materials",
+      "description": "GGBS/PFA cement replacement, recycled steel, responsibly-sourced timber.",
+      "costHandle": { "type": "boqRateKey", "key": "STRUCT.LOWCARBON.PREMIUM", "unit": "m3", "defaultRate": 0 },
+      "savingsModel": { "kind": "embodiedCarbonReductionPct", "value": 20 }
+    }
+  ]
+}
