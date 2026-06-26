@@ -3,6 +3,41 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — P2.1 Schedule / 4D + EVM tab)
+
+Branch `claude/placement-centre-review-audit`. Adds a **Schedule** tab to the
+BOQ & Cost Manager (`UI/BOQCostManagerPanel.cs`) — 4D programme + cash-flow
+S-curve + Earned Value, all inline (no popups). Reuses `EvmCalculator`
+(`Core/Evm/`) and persists to `_BIM_COORD/boq_schedule.json` (same convention
+as `boq_ui_state.json`). Compile-verified clean (Release, `-t:Rebuild`,
+0 errors).
+
+- **Phase grid** — editable `DataGrid` of programme phases (Name / Start /
+  End / % Complete + read-only Planned cost). Seeded from Revit Phases on
+  first use; edits persist to `boq_schedule.json` on cell-edit and reload
+  across sessions. `＋ Phase` / `⟳ Seed from Revit phases` buttons.
+- **Cash-flow S-curve** — plain `Canvas` (no chart lib): planned cumulative
+  cost (cost-loaded baseline, BAC × duration share, sampled across the
+  programme) + earned (EV) and actual (AC) to-date ramps + as-of guide +
+  legend. Redraws on resize + recalculate.
+- **EVM strip** — PV / EV / AC / SPI / CPI / EAC / ETC / VAC from
+  `EvmCalculator.Compute`, RAG-coloured (SPI/CPI <0.95 amber, <0.9 red).
+  Editable as-of date + ACWP box; `⤓ Import actuals` sums
+  `_bim_manager/actuals/actuals_*.csv` via the reused
+  `EvmCalculator.ImportAllActualsToDate`; `↻ Recalculate` refreshes strip +
+  curve.
+- **Export** — `↗ Export schedule/EVM` writes a CSV next to the schedule
+  json and renders a `StingResultPanel` inline (with Open-file) via
+  `ShowInlineResult`. `⛏ Stamp 4D dates on model` dispatches the existing
+  `AssignPhaseDates` command (stamps `STING_4D_*_DATE_TXT` from Revit phase
+  order on the current selection).
+
+**Revit smoke test** (human): open BOQ Cost Manager → Schedule tab; confirm
+phases seed from Revit Phases, edit a Start/End/% and re-open the panel to
+confirm persistence; press Recalculate and confirm the S-curve + EVM strip
+render from the live BOQ total; press Export and confirm the inline result
+with an Open-file button. No popups anywhere.
+
 #### Completed (Placement — seed tier, swap bridge, placement-quality & diagnostics)
 
 Branch `claude/placement-centre-review-audit`. Implements the four items in

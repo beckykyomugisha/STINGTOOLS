@@ -229,6 +229,21 @@ namespace StingTools.UI
         private TextBlock _inlineResultTitle;
         private Action<StingResultPanel.Builder> _inlineSink;  // stable delegate for sink (de)registration
 
+        // P2.1 — Schedule / 4D + EVM tab. Phase rows are the tab's own source of
+        // truth, persisted to <project>/_BIM_COORD/boq_schedule.json (same
+        // convention as boq_ui_state.json). EVM is computed via the reused
+        // EvmCalculator engine; the S-curve is drawn on a plain Canvas (no chart lib).
+        private TabItem _scheduleTab;
+        private System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase> _schedulePhases
+            = new System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase>();
+        private DataGrid _scheduleGrid;
+        private Canvas _sCurveCanvas;
+        private StackPanel _evmStrip;
+        private System.Windows.Controls.TextBox _evmActualsBox;
+        private System.Windows.Controls.TextBox _evmAsOfBox;
+        private double _scheduleActualToDate;
+        private bool _scheduleLoaded;
+
         public BOQCostManagerPanel(Document doc)
         {
             Doc = doc;
@@ -373,6 +388,10 @@ namespace StingTools.UI
             // cost workflow.
             _actionsTab = new TabItem { Header = "Actions", Content = BuildActionsTab() };
             _mainTabs.Items.Add(_actionsTab);
+
+            // P2.1 — Schedule (4D programme + cash-flow S-curve + EVM), inline.
+            _scheduleTab = new TabItem { Header = "Schedule", Content = BuildScheduleTab() };
+            _mainTabs.Items.Add(_scheduleTab);
 
             // Phase 108j — wrap the main TabControl in a Grid host so
             // ShowTenderSetupInline can stack the tender-setup UI on top,
@@ -1334,6 +1353,7 @@ namespace StingTools.UI
             if (_boq == null) return;
             RebuildSectionsView();
             RebuildMaterialsTab();
+            RefreshScheduleTab();   // P2.1 — cheap recompute (planned cost share + EVM + S-curve)
         }
 
         /// <summary>Show the count of included links on the header button —
@@ -2797,6 +2817,546 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Error($"BOQ DispatchAction({tag})", ex); }
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  P2.1 — Schedule tab (4D programme + cash-flow S-curve + EVM)
+        //  All inline, no popups. Phase rows persist to boq_schedule.json;
+        //  EVM is computed via the reused EvmCalculator engine; the S-curve
+        //  is drawn on a plain Canvas. Reads run on the dockable pane's
+        //  thread (Revit main thread) so direct model reads are safe; writes
+        //  go through DispatchAction.
+        // ══════════════════════════════════════════════════════════════════
+
+        private string SchedulePath()
+        {
+            try
+            {
+                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                if (string.IsNullOrEmpty(parent)) return null;
+                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_schedule.json");
+            }
+            catch { return null; }
+        }
+
+        private UIElement BuildScheduleTab()
+        {
+            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(0) };
+
+            // Toolbar
+            var bar = new Border { Background = NavyBrush, Padding = new Thickness(12, 8, 12, 8) };
+            var barSp = new StackPanel { Orientation = Orientation.Horizontal };
+            barSp.Children.Add(new TextBlock
+            {
+                Text = "4D Programme + Earned Value", Foreground = Brushes.White,
+                FontSize = 13, FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0)
+            });
+            barSp.Children.Add(new TextBlock { Text = "As-of", Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Margin = new Thickness(0, 0, 4, 0) });
+            _evmAsOfBox = new TextBox { Width = 100, Height = 24, FontSize = 11,
+                Text = DateTime.Today.ToString("yyyy-MM-dd"), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "EVM cut-off date (yyyy-MM-dd)" };
+            barSp.Children.Add(_evmAsOfBox);
+            barSp.Children.Add(new TextBlock { Text = "Actual cost (ACWP)", Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Margin = new Thickness(10, 0, 4, 0) });
+            _evmActualsBox = new TextBox { Width = 120, Height = 24, FontSize = 11, Text = "0",
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Actual cost incurred to the as-of date (editable; or use Import actuals)" };
+            barSp.Children.Add(_evmActualsBox);
+
+            barSp.Children.Add(BuildScheduleBtn("↻ Recalculate", () => { SaveSchedule(); RecalcSchedule(); }));
+            barSp.Children.Add(BuildScheduleBtn("＋ Phase", AddSchedulePhaseRow));
+            barSp.Children.Add(BuildScheduleBtn("⟳ Seed from Revit phases", SeedScheduleFromRevitPhases));
+            barSp.Children.Add(BuildScheduleBtn("⤓ Import actuals", ImportScheduleActuals));
+            barSp.Children.Add(BuildScheduleBtn("⛏ Stamp 4D dates on model", () => DispatchAction("AssignPhaseDates")));
+            barSp.Children.Add(BuildScheduleBtn("↗ Export schedule/EVM", ExportScheduleEvmInline));
+            bar.Child = barSp;
+            DockPanel.SetDock(bar, Dock.Top);
+            root.Children.Add(bar);
+
+            // EVM strip
+            _evmStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 10, 12, 6) };
+            DockPanel.SetDock(_evmStrip, Dock.Top);
+            root.Children.Add(_evmStrip);
+
+            // S-curve
+            var curveCard = new Border
+            {
+                Background = Brushes.White, BorderBrush = BorderColor, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4), Margin = new Thickness(12, 0, 12, 8), Height = 220
+            };
+            _sCurveCanvas = new Canvas { Background = Brushes.White, ClipToBounds = true };
+            _sCurveCanvas.SizeChanged += (s, e) => DrawSCurve();
+            curveCard.Child = _sCurveCanvas;
+            DockPanel.SetDock(curveCard, Dock.Top);
+            root.Children.Add(curveCard);
+
+            // Phase grid (fills remaining space)
+            _scheduleGrid = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                Margin = new Thickness(12, 0, 12, 12),
+                ItemsSource = _schedulePhases,
+                FontSize = 11
+            };
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Phase", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
+                Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Start", Width = 110,
+                Binding = new Binding("StartStr") { Mode = BindingMode.TwoWay } });
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "End", Width = 110,
+                Binding = new Binding("EndStr") { Mode = BindingMode.TwoWay } });
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete", Width = 90,
+                Binding = new Binding("PercentComplete") { Mode = BindingMode.TwoWay, StringFormat = "0.#" } });
+            var planCol = new DataGridTextColumn { Header = "Planned (UGX)", Width = 130, IsReadOnly = true,
+                Binding = new Binding("PlannedCost") { StringFormat = "N0" } };
+            _scheduleGrid.Columns.Add(planCol);
+            _scheduleGrid.CellEditEnding += (s, e) =>
+            {
+                // Commit the edit to the source first, then persist + recompute.
+                Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            };
+            var gridScroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = _scheduleGrid
+            };
+            root.Children.Add(gridScroll);
+
+            return root;
+        }
+
+        private Button BuildScheduleBtn(string label, Action onClick)
+        {
+            var b = new Button
+            {
+                Content = label, FontSize = 11, Height = 24, Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(8, 0, 0, 0), Cursor = Cursors.Hand,
+                Background = Brushes.White, Foreground = NavyBrush, BorderBrush = BorderColor,
+                BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center
+            };
+            b.Click += (s, e) => { try { onClick(); } catch (Exception ex) { StingLog.Error($"BOQ schedule btn '{label}'", ex); } };
+            return b;
+        }
+
+        /// <summary>Load phases from boq_schedule.json; seed from Revit phases on first use.</summary>
+        private void EnsureScheduleLoaded()
+        {
+            if (_scheduleLoaded) return;
+            _scheduleLoaded = true;
+            try
+            {
+                string path = SchedulePath();
+                if (path != null && System.IO.File.Exists(path))
+                {
+                    var st = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqScheduleState>(
+                        System.IO.File.ReadAllText(path));
+                    if (st != null)
+                    {
+                        _schedulePhases.Clear();
+                        foreach (var p in st.Phases ?? new List<BoqSchedulePhase>())
+                            if (p != null) _schedulePhases.Add(p);
+                        _scheduleActualToDate = st.ActualCostToDate;
+                        if (_evmActualsBox != null) _evmActualsBox.Text = st.ActualCostToDate.ToString("F0", CultureInfo.InvariantCulture);
+                        if (_evmAsOfBox != null && !string.IsNullOrWhiteSpace(st.AsOf)) _evmAsOfBox.Text = st.AsOf;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ EnsureScheduleLoaded: {ex.Message}"); }
+
+            if (_schedulePhases.Count == 0) SeedScheduleFromRevitPhases();
+        }
+
+        private void SeedScheduleFromRevitPhases()
+        {
+            try
+            {
+                _schedulePhases.Clear();
+                var phases = new FilteredElementCollector(Doc).OfClass(typeof(Phase)).Cast<Phase>().ToList();
+                var start = DateTime.Today;
+                if (phases.Count > 0)
+                {
+                    int i = 0;
+                    foreach (var ph in phases)
+                    {
+                        _schedulePhases.Add(new BoqSchedulePhase
+                        {
+                            Name = ph.Name ?? $"Phase {i + 1}",
+                            Start = start.AddMonths(i),
+                            End = start.AddMonths(i + 1),
+                            PercentComplete = 0
+                        });
+                        i++;
+                    }
+                }
+                else
+                {
+                    // No Revit phases — a single construction phase spanning a year.
+                    _schedulePhases.Add(new BoqSchedulePhase
+                    { Name = "Construction", Start = start, End = start.AddMonths(12), PercentComplete = 0 });
+                }
+                SaveSchedule();
+                RecalcSchedule();
+            }
+            catch (Exception ex) { StingLog.Error("BOQ SeedScheduleFromRevitPhases", ex); }
+        }
+
+        private void AddSchedulePhaseRow()
+        {
+            var last = _schedulePhases.LastOrDefault();
+            var start = last?.End ?? DateTime.Today;
+            _schedulePhases.Add(new BoqSchedulePhase
+            { Name = "New phase", Start = start, End = start.AddMonths(1), PercentComplete = 0 });
+            SaveSchedule();
+            RecalcSchedule();
+        }
+
+        private void SaveSchedule()
+        {
+            if (!_scheduleLoaded) return;
+            try
+            {
+                string path = SchedulePath();
+                if (path == null) return;
+                double acwp = ParseActualsBox();
+                string asOf = _evmAsOfBox?.Text?.Trim();
+                var st = new BoqScheduleState
+                {
+                    Phases = _schedulePhases.ToList(),
+                    ActualCostToDate = acwp,
+                    AsOf = asOf
+                };
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(st, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ SaveSchedule: {ex.Message}"); }
+        }
+
+        private double ParseActualsBox()
+        {
+            if (_evmActualsBox != null
+                && double.TryParse(_evmActualsBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                return v;
+            return _scheduleActualToDate;
+        }
+
+        private DateTime ParseAsOf()
+        {
+            if (_evmAsOfBox != null
+                && DateTime.TryParse(_evmAsOfBox.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                return d;
+            return DateTime.Today;
+        }
+
+        /// <summary>Cheap recompute called on every RefreshDisplay + explicit Recalculate.</summary>
+        private void RefreshScheduleTab()
+        {
+            if (_scheduleGrid == null) return;   // tab not built yet
+            EnsureScheduleLoaded();
+            RecalcSchedule();
+        }
+
+        /// <summary>
+        /// Allocate the BOQ total across phases by duration, compute the EVM
+        /// period via the reused EvmCalculator, refresh the metric strip and
+        /// redraw the S-curve. No model writes.
+        /// </summary>
+        private void RecalcSchedule()
+        {
+            try
+            {
+                _scheduleActualToDate = ParseActualsBox();
+                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX
+                           : (_boq?.GrandTotalUGX ?? 0);
+
+                // Planned cost per phase = BAC × duration share.
+                double totalDays = _schedulePhases.Sum(p => Math.Max(1, (p.End - p.Start).TotalDays));
+                foreach (var p in _schedulePhases)
+                {
+                    double days = Math.Max(1, (p.End - p.Start).TotalDays);
+                    p.PlannedCost = totalDays > 0 ? Math.Round(bac * days / totalDays, 0) : 0;
+                }
+
+                var asOf = ParseAsOf();
+                double bcws = 0, bcwp = 0;
+                foreach (var p in _schedulePhases)
+                {
+                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                    double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
+                    bcws += p.PlannedCost * frac;
+                    bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
+                }
+                double acwp = _scheduleActualToDate;
+
+                var period = StingTools.Core.Evm.EvmCalculator.Compute(bac, bcws, bcwp, acwp, asOf);
+                RenderEvmStrip(period);
+                DrawSCurve();
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RecalcSchedule", ex); }
+        }
+
+        private void RenderEvmStrip(StingTools.Core.Evm.EvmPeriod p)
+        {
+            if (_evmStrip == null) return;
+            _evmStrip.Children.Clear();
+            if (p == null) return;
+            string cur = "UGX";
+            _evmStrip.Children.Add(EvmMetric("PV (BCWS)", $"{cur} {p.Bcws:N0}", null));
+            _evmStrip.Children.Add(EvmMetric("EV (BCWP)", $"{cur} {p.Bcwp:N0}", null));
+            _evmStrip.Children.Add(EvmMetric("AC (ACWP)", $"{cur} {p.Acwp:N0}", null));
+            _evmStrip.Children.Add(EvmMetric("SPI", p.Spi.ToString("0.000"), RagFor(p.Spi)));
+            _evmStrip.Children.Add(EvmMetric("CPI", p.Cpi.ToString("0.000"), RagFor(p.Cpi)));
+            _evmStrip.Children.Add(EvmMetric("EAC", $"{cur} {p.Eac:N0}", null));
+            _evmStrip.Children.Add(EvmMetric("ETC", $"{cur} {p.Etc:N0}", null));
+            _evmStrip.Children.Add(EvmMetric("VAC", $"{cur} {p.Vac:N0}", p.Vac < 0 ? RedBrush : GreenBrush));
+        }
+
+        private Brush RagFor(double index)
+        {
+            if (index <= 0) return Brushes.Gray;
+            if (index < 0.90) return RedBrush;
+            if (index < 0.95) return AmberBrush;
+            return GreenBrush;
+        }
+
+        private UIElement EvmMetric(string label, string value, Brush valueBrush)
+        {
+            var card = new Border
+            {
+                Background = Brushes.White, BorderBrush = BorderColor, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(10, 5, 10, 5),
+                Margin = new Thickness(0, 0, 8, 0), MinWidth = 92
+            };
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock { Text = label, FontSize = 9.5, Foreground = Brushes.Gray });
+            sp.Children.Add(new TextBlock { Text = value, FontSize = 13, FontWeight = FontWeights.Bold,
+                Foreground = valueBrush ?? NavyBrush });
+            card.Child = sp;
+            return card;
+        }
+
+        /// <summary>
+        /// Draw a lightweight cash-flow S-curve on the Canvas: the planned
+        /// cumulative cost over the programme (cost-loaded baseline) plus the
+        /// earned (BCWP) and actual (ACWP) cumulative-to-date ramps, with an
+        /// as-of guide. No external chart library.
+        /// </summary>
+        private void DrawSCurve()
+        {
+            var c = _sCurveCanvas;
+            if (c == null) return;
+            c.Children.Clear();
+            double w = c.ActualWidth, h = c.ActualHeight;
+            if (w < 40 || h < 40 || _schedulePhases.Count == 0) return;
+
+            var phases = _schedulePhases.Where(p => p.End > p.Start).OrderBy(p => p.Start).ToList();
+            if (phases.Count == 0) return;
+
+            DateTime t0 = phases.Min(p => p.Start);
+            DateTime t1 = phases.Max(p => p.End);
+            double totalDays = Math.Max(1, (t1 - t0).TotalDays);
+            DateTime asOf = ParseAsOf();
+
+            double bacTotal = phases.Sum(p => p.PlannedCost);
+            double bcwp = phases.Sum(p => p.PlannedCost * (p.PercentComplete / 100.0));
+            double acwp = _scheduleActualToDate;
+            double maxVal = Math.Max(bacTotal, Math.Max(bcwp, acwp));
+            if (maxVal <= 0) maxVal = 1;
+
+            const double padL = 8, padR = 8, padT = 10, padB = 18;
+            double plotW = w - padL - padR, plotH = h - padT - padB;
+
+            Func<DateTime, double> X = t => padL + plotW * Math.Max(0, Math.Min(1, (t - t0).TotalDays / totalDays));
+            Func<double, double> Y = v => padT + plotH * (1 - Math.Max(0, Math.Min(1, v / maxVal)));
+
+            // Baseline axes.
+            c.Children.Add(MakeLine(padL, padT + plotH, padL + plotW, padT + plotH, BorderColor, 1));
+
+            // Planned cumulative — sampled across the programme.
+            var planned = new PointCollection();
+            int samples = 48;
+            for (int i = 0; i <= samples; i++)
+            {
+                DateTime t = t0.AddDays(totalDays * i / samples);
+                double cum = 0;
+                foreach (var p in phases)
+                {
+                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                    double frac = Math.Max(0, Math.Min(1, (t - p.Start).TotalDays / span));
+                    cum += p.PlannedCost * frac;
+                }
+                planned.Add(new System.Windows.Point(X(t), Y(cum)));
+            }
+            c.Children.Add(new Polyline { Points = planned, Stroke = NavyBrush, StrokeThickness = 2 });
+
+            // Earned + actual cumulative-to-date ramps (single scalar each at as-of).
+            double asOfX = X(asOf);
+            c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(bcwp), GreenBrush, 2));
+            c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(acwp), AmberBrush, 2));
+
+            // As-of vertical guide.
+            var guide = MakeLine(asOfX, padT, asOfX, padT + plotH, Brushes.Gray, 1);
+            guide.StrokeDashArray = new DoubleCollection { 3, 3 };
+            c.Children.Add(guide);
+
+            // Legend.
+            AddLegend(c, padL + 4, padT, "Planned", NavyBrush, "Earned (EV)", GreenBrush, "Actual (AC)", AmberBrush);
+        }
+
+        private System.Windows.Shapes.Line MakeLine(double x1, double y1, double x2, double y2, Brush stroke, double thick)
+        {
+            return new System.Windows.Shapes.Line { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2, Stroke = stroke, StrokeThickness = thick };
+        }
+
+        private void AddLegend(Canvas c, double x, double y, params object[] pairs)
+        {
+            double cx = x;
+            for (int i = 0; i + 1 < pairs.Length; i += 2)
+            {
+                string label = pairs[i] as string;
+                var brush = pairs[i + 1] as Brush;
+                var sw = new System.Windows.Shapes.Rectangle { Width = 10, Height = 10, Fill = brush };
+                Canvas.SetLeft(sw, cx); Canvas.SetTop(sw, y); c.Children.Add(sw);
+                var tb = new TextBlock { Text = label, FontSize = 9.5, Foreground = Brushes.Gray };
+                Canvas.SetLeft(tb, cx + 13); Canvas.SetTop(tb, y - 2); c.Children.Add(tb);
+                cx += 13 + Math.Max(48, (label?.Length ?? 6) * 6) + 12;
+            }
+        }
+
+        private void ImportScheduleActuals()
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(
+                    StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(Doc), "actuals");
+                double total = StingTools.Core.Evm.EvmCalculator.ImportAllActualsToDate(
+                    dir, ParseAsOf(), out int filesRead, out int dupsSkipped);
+                if (filesRead == 0)
+                {
+                    FlashHint(null, $"No actuals_*.csv found under {dir} — enter ACWP manually in the box.");
+                    return;
+                }
+                _scheduleActualToDate = total;
+                if (_evmActualsBox != null) _evmActualsBox.Text = total.ToString("F0", CultureInfo.InvariantCulture);
+                SaveSchedule();
+                RecalcSchedule();
+                FlashHint(null, $"Imported {filesRead} actuals file(s) ({dupsSkipped} dup skipped) — ACWP {total:N0}.");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ImportScheduleActuals", ex); }
+        }
+
+        private void ExportScheduleEvmInline()
+        {
+            try
+            {
+                SaveSchedule();
+                RecalcSchedule();
+                var asOf = ParseAsOf();
+                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.GrandTotalUGX ?? 0);
+                double bcws = 0, bcwp = 0;
+                foreach (var p in _schedulePhases)
+                {
+                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                    double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
+                    bcws += p.PlannedCost * frac; bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
+                }
+                var period = StingTools.Core.Evm.EvmCalculator.Compute(bac, bcws, bcwp, _scheduleActualToDate, asOf);
+
+                // CSV next to the schedule json.
+                string csvPath = null;
+                try
+                {
+                    string parent = System.IO.Path.GetDirectoryName(SchedulePath() ?? "");
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        System.IO.Directory.CreateDirectory(parent);
+                        csvPath = System.IO.Path.Combine(parent, $"schedule_evm_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine("Phase,Start,End,PercentComplete,PlannedUGX");
+                        foreach (var p in _schedulePhases)
+                            sb.AppendLine($"\"{p.Name}\",{p.StartStr},{p.EndStr},{p.PercentComplete:0.#},{p.PlannedCost:0}");
+                        sb.AppendLine();
+                        sb.AppendLine("Metric,Value");
+                        sb.AppendLine($"BAC,{bac:0}");
+                        sb.AppendLine($"PV (BCWS),{period.Bcws:0}");
+                        sb.AppendLine($"EV (BCWP),{period.Bcwp:0}");
+                        sb.AppendLine($"AC (ACWP),{period.Acwp:0}");
+                        sb.AppendLine($"SPI,{period.Spi:0.000}");
+                        sb.AppendLine($"CPI,{period.Cpi:0.000}");
+                        sb.AppendLine($"EAC,{period.Eac:0}");
+                        sb.AppendLine($"ETC,{period.Etc:0}");
+                        sb.AppendLine($"VAC,{period.Vac:0}");
+                        System.IO.File.WriteAllText(csvPath, sb.ToString());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ schedule CSV write: {ex.Message}"); csvPath = null; }
+
+                var b = StingResultPanel.Create("Schedule + EVM");
+                b.SetSubtitle($"As-of {asOf:yyyy-MM-dd} · {_schedulePhases.Count} phase(s) · BAC UGX {bac:N0}");
+                b.AddSection("EARNED VALUE")
+                    .Metric("PV (BCWS)", $"UGX {period.Bcws:N0}")
+                    .Metric("EV (BCWP)", $"UGX {period.Bcwp:N0}")
+                    .Metric("AC (ACWP)", $"UGX {period.Acwp:N0}")
+                    .Metric("SPI", period.Spi.ToString("0.000"), period.ScheduleHealth)
+                    .Metric("CPI", period.Cpi.ToString("0.000"), period.CostHealth)
+                    .Metric("EAC", $"UGX {period.Eac:N0}")
+                    .Metric("ETC", $"UGX {period.Etc:N0}")
+                    .Metric("VAC", $"UGX {period.Vac:N0}");
+                b.AddSection("PROGRAMME");
+                foreach (var p in _schedulePhases)
+                    b.Metric(p.Name, $"{p.PercentComplete:0.#}%", $"{p.StartStr} → {p.EndStr} · UGX {p.PlannedCost:N0}");
+                if (!string.IsNullOrEmpty(csvPath)) b.SetCsvPath(csvPath);
+                ShowInlineResult(b);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ExportScheduleEvmInline", ex); }
+        }
+    }
+
+    /// <summary>P2.1 — a single programme phase row (editable in the Schedule grid).</summary>
+    internal class BoqSchedulePhase : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+
+        private string _name = "";
+        private DateTime _start = DateTime.Today;
+        private DateTime _end = DateTime.Today.AddMonths(1);
+        private double _pct;
+
+        public string Name { get => _name; set { _name = value ?? ""; N(nameof(Name)); } }
+        public DateTime Start { get => _start; set { _start = value; N(nameof(Start)); N(nameof(StartStr)); } }
+        public DateTime End { get => _end; set { _end = value; N(nameof(End)); N(nameof(EndStr)); } }
+        public double PercentComplete { get => _pct; set { _pct = Math.Max(0, Math.Min(100, value)); N(nameof(PercentComplete)); } }
+
+        [Newtonsoft.Json.JsonIgnore]
+        public string StartStr
+        {
+            get => _start.ToString("yyyy-MM-dd");
+            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Start = d; }
+        }
+        [Newtonsoft.Json.JsonIgnore]
+        public string EndStr
+        {
+            get => _end.ToString("yyyy-MM-dd");
+            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) End = d; }
+        }
+        /// <summary>Computed in RecalcSchedule (BAC × duration share); not persisted as authoritative.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public double PlannedCost { get; set; }
+    }
+
+    /// <summary>P2.1 — persisted schedule state in &lt;project&gt;/_BIM_COORD/boq_schedule.json.</summary>
+    internal class BoqScheduleState
+    {
+        public List<BoqSchedulePhase> Phases { get; set; } = new List<BoqSchedulePhase>();
+        public double ActualCostToDate { get; set; }
+        public string AsOf { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════════
