@@ -468,7 +468,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnRunPlacement_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             var rules = PlacementCenterBridge.ToRules(VM.Rules);
             if (rules.Count == 0)
@@ -901,12 +901,12 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnPreview_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             var rules = PlacementCenterBridge.ToRules(VM.Rules);
             if (rules.Count == 0)
             {
-                TaskDialog.Show("STING — Placement Centre", "No valid rules to preview.");
+                Toast("No valid rules to preview."); 
                 return;
             }
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
@@ -936,7 +936,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnValidate_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             ShowFindings(scopeToProvenance: false, headline: "Project-wide validation");
         }
 
@@ -1025,7 +1025,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnInspectFamily_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             if (VM.Selected == null || string.IsNullOrEmpty(VM.Selected.CategoryFilter))
             {
                 VM.SetFamilyHints(null);
@@ -1050,10 +1050,10 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnPushFamilies_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             if (VM.Selected == null)
             {
-                TaskDialog.Show("STING — Placement Centre", "Pick a rule first.");
+                Toast("Pick a rule first."); 
                 return;
             }
             if (string.IsNullOrEmpty(VM.Selected.CategoryFilter))
@@ -1114,7 +1114,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnHeatmap_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 using (var t = new Transaction(_doc, "STING — Placement Centre · AVF compliance heat-map"))
@@ -1136,7 +1136,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnLearnFromModel_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 // RunLearn only reads elements + writes a JSON file (no Revit
@@ -1239,7 +1239,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnUndoLast_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
 
             // Prefer the in-memory _lastPlacedIds when this centre instance ran a
             // placement; fall back to the most-recent provenance bucket otherwise.
@@ -1296,7 +1296,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnSaveViewPreset_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             var view = _doc.ActiveView;
             if (view == null) { TaskDialog.Show("STING — Placement Centre", "No active view."); return; }
 
@@ -1399,6 +1399,84 @@ namespace StingTools.UI.PlacementCenter
         {
             try { _lastReport?.Show(); }
             catch (Exception ex) { StingLog.Warn($"PlacementCenter.ReportPopOut: {ex.Message}"); }
+        }
+
+        // ── Transient status toast (replaces one-line guard TaskDialogs) ──
+        private System.Windows.Threading.DispatcherTimer _toastTimer;
+
+        private void Toast(string msg)
+        {
+            try
+            {
+                if (txtToast == null || bdrToast == null) { VM.Status = msg; UpdateStatus(); return; }
+                txtToast.Text = msg ?? "";
+                bdrToast.Visibility = System.Windows.Visibility.Visible;
+                if (_toastTimer == null)
+                {
+                    _toastTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+                    _toastTimer.Tick += (s, e) =>
+                    {
+                        _toastTimer.Stop();
+                        if (bdrToast != null) bdrToast.Visibility = System.Windows.Visibility.Collapsed;
+                    };
+                }
+                _toastTimer.Stop();
+                _toastTimer.Start();
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.Toast: {ex.Message}"); }
+        }
+
+        // ── Generic API-thread action (real ExternalEvent) ──────────────
+        // The placement run handler in MergeRecoveryStubs is a no-op stub, so
+        // model-modifying / interactive actions (e.g. Wall Chase) get their own
+        // real event. The work returns a result Builder which is reported inline.
+        private ExternalEvent _actionEvent;
+        private PlacementActionHandler _actionHandler;
+        private Func<UIApplication, StingResultPanel.Builder> _pendingAction;
+        private string _pendingActionTitle;
+
+        private void RunInlineAction(string title, Func<UIApplication, StingResultPanel.Builder> work)
+        {
+            if (work == null) return;
+            try
+            {
+                if (_actionHandler == null) _actionHandler = new PlacementActionHandler(this);
+                if (_actionEvent == null)   _actionEvent   = ExternalEvent.Create(_actionHandler);
+                _pendingActionTitle = title;
+                _pendingAction = work;
+                Toast($"{title}…");
+                _actionEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"PlacementCenter.RunInlineAction {title}", ex);
+                Toast($"{title} could not start: {ex.Message}");
+            }
+        }
+
+        private sealed class PlacementActionHandler : IExternalEventHandler
+        {
+            private readonly StingPlacementCenter _o;
+            public PlacementActionHandler(StingPlacementCenter o) { _o = o; }
+            public string GetName() => "STING Placement Centre Action";
+            public void Execute(UIApplication app)
+            {
+                var work = _o._pendingAction;
+                var title = _o._pendingActionTitle;
+                _o._pendingAction = null;
+                if (work == null) return;
+                StingResultPanel.Builder builder;
+                try { builder = work(app); }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                { builder = StingResultPanel.Create(title).AddSection("RESULT").Text("Cancelled."); }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"PlacementCenter action '{title}'", ex);
+                    builder = StingResultPanel.Create(title).AddSection("ERROR").Text(ex.Message);
+                }
+                var b = builder;
+                try { _o.Dispatcher.BeginInvoke(new Action(() => { if (b != null) _o.Report(title, b); })); } catch { }
+            }
         }
 
         /// <summary>
@@ -2092,7 +2170,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnRunAllValidators_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 { "Clearance", "Maintenance", "Connectivity", "Fill", "Spec", "Termination", "Slope", "Separation" };
             ShowFindings(false, "All validators", all);
@@ -2128,7 +2206,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnPenetrationCoverage_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 var findings = StingTools.Core.Validation.PenetrationCoverageValidator.Validate(_doc);
@@ -2164,7 +2242,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnAutoPopulateCatalogue_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 var (created, updated, contributing) =
@@ -2195,7 +2273,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnNoggin_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 string text = StingTools.Commands.Placement.NogginRequirementExportCommand
@@ -2252,6 +2330,16 @@ namespace StingTools.UI.PlacementCenter
         {
             if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
                 StingDockPanel.DispatchCommand(tag);
+        }
+
+        private void OnWallChase_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            // Interactive + model-modifying: runs on the API thread via the real
+            // action event; the mid-flow Yes/No confirm stays, the final result
+            // renders inline in the Report panel.
+            RunInlineAction("Wall Chase",
+                app => StingTools.Commands.Placement.RunWallChaseCommand.RunInteractive(app));
         }
 
         private void OnExportRulesExcel_Click(object sender, RoutedEventArgs e)
@@ -2331,7 +2419,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnDiagnose_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 var (text, path) = StingTools.Commands.Placement.PlacementDiagnoseCommand.BuildReportText(_doc);
@@ -2350,7 +2438,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
         {
-            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (_doc == null) { Toast("No document open."); return; }
             try
             {
                 var text = StingTools.Commands.Placement.PlacementSetupAuditCommand.BuildReportText(_doc, out int errs, out int warns, out string csv);

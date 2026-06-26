@@ -1187,9 +1187,9 @@
                 <GroupBox Header="Construction Coordination" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="148" Height="30" Margin="4,3"
-                                Tag="Placement_RunWallChase" Click="OnToolButton_Click"
+                                Click="OnWallChase_Click"
                                 Content="Wall Chase Routing"
-                                ToolTip="Plan wall-chase routing for conduit and pipe in masonry walls."/>
+                                ToolTip="Pick a wall + two points, preview the depth check, confirm, then route conduit/pipe. Result renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtnSecondary}" Width="168" Height="30" Margin="4,3"
                                 Click="OnNoggin_Click"
                                 Content="Noggin Requirements"
@@ -1200,13 +1200,13 @@
                 <GroupBox Header="Batch Data Exchange" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ExportExcel" Click="OnToolButton_Click"
-                                Content="Export Results (Excel)"
-                                ToolTip="Export last placement result to .xlsx: element IDs, room, rule, world position."/>
+                                Click="OnExportRulesExcel_Click"
+                                Content="Export Rules (Excel)"
+                                ToolTip="Export all loaded placement rules to an .xlsx workbook. Renders in the Report panel."/>
                         <Button Style="{StaticResource ToolBtn}" Width="168" Height="30" Margin="4,3"
-                                Tag="Placement_ImportExcel" Click="OnToolButton_Click"
-                                Content="Import Overrides (Excel)"
-                                ToolTip="Apply position and mounting-height overrides from .xlsx to placed fixtures."/>
+                                Click="OnImportRulesExcel_Click"
+                                Content="Import Rules (Excel)"
+                                ToolTip="Import rules from an .xlsx workbook, write the project overlay, and refresh the grid live. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 
@@ -1252,6 +1252,15 @@
             </DockPanel>
         </Border>
         </Grid>
+
+        <!-- Transient status toast (guard / progress messages) -->
+        <Border x:Name="bdrToast" Grid.Row="2" Panel.ZIndex="100"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,16" Padding="14,8" CornerRadius="4"
+                Background="#323232" Visibility="Collapsed">
+            <TextBlock x:Name="txtToast" Foreground="White" FontSize="12"
+                       TextWrapping="Wrap" MaxWidth="520"/>
+        </Border>
 
         <!-- Status bar -->
         <Border Grid.Row="3" Background="{DynamicResource HeaderBg}" Padding="8,4">
