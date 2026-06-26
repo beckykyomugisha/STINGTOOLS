@@ -59,6 +59,8 @@ namespace StingTools.UI.Sustainability
                         Run<StingTools.Commands.Sustainability.SustainEpdAssignCommand>(app); break;
                     case "Sustain_LeedScorecard":
                         Run<StingTools.Commands.Sustainability.SustainLeedScorecardCommand>(app); break;
+                    case "Sustain_PublishToServer":
+                        Run<StingTools.Commands.Sustainability.SustainPublishToServerCommand>(app); break;
 
                     default:
                         // Unknown tags fall through to the main handler via the

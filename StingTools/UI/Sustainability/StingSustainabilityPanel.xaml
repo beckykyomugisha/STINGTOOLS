@@ -221,6 +221,8 @@
                         <WrapPanel Margin="2,4">
                             <Button Content="Run dashboard" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_Dashboard" Click="Cmd_Click" Margin="2"/>
                             <Button Content="Set baseline" Style="{StaticResource SusActionBtn}" Tag="Sustain_SetBaseline" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="Publish to server" Style="{StaticResource SusActionBtn}" Tag="Sustain_PublishToServer" Click="Cmd_Click" Margin="2"
+                                    ToolTip="Push the latest dashboard snapshot to Planscape Server (disabled for offline projects). Run the dashboard first."/>
                         </WrapPanel>
 
                         <TextBlock Text="EDGE GATES (STING-indicative vs EDGE-official)" Style="{StaticResource SusSectionHeader}"/>
