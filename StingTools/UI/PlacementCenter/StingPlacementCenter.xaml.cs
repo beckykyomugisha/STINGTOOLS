@@ -705,6 +705,12 @@ namespace StingTools.UI.PlacementCenter
             bool prevLearn = StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned;
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = VM.RunOpts.StampProvenance;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
+            // Push the live building-profile selection so the building-type /
+            // standards gate + wet-zone / accessibility / coverage toggles take
+            // effect WITHOUT requiring a Save first. Cleared in OnRunCompleted /
+            // the error path below.
+            try { SyncProfileToVm(); StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile = VM.Profile?.Clone(); }
+            catch (Exception pex) { StingLog.Warn($"PlacementCenter: push session profile: {pex.Message}"); }
 
             DateTime startUtc = DateTime.UtcNow;
             // Show a modeless progress dialog so the user can see per-room
@@ -773,6 +779,7 @@ namespace StingTools.UI.PlacementCenter
                 try { progress?.Close(); } catch { }
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile  = null;
                 try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
                 return;
             }
@@ -790,6 +797,7 @@ namespace StingTools.UI.PlacementCenter
             try { req?.Progress?.Close(); } catch { }
             StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
             StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
+            StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile  = null;
 
             try { if (btnRunPlacement != null) btnRunPlacement.IsEnabled = true; } catch { }
             if (err != null)
@@ -905,6 +913,10 @@ namespace StingTools.UI.PlacementCenter
                     $"Scope '{VM.RunOpts.Scope}' resolved zero rooms — preview cancelled.");
                 return;
             }
+            // Preview honours the live building-profile selection too (dry-run,
+            // so no commit). Set the session override; the next Run resets it.
+            try { SyncProfileToVm(); StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile = VM.Profile?.Clone(); }
+            catch (Exception pex) { StingLog.Warn($"PlacementCenter preview: push session profile: {pex.Message}"); }
             try
             {
                 var src = new PlacementPreviewSource(_doc, roomIds, rules);

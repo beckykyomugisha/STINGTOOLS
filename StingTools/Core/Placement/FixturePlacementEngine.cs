@@ -75,6 +75,7 @@ namespace StingTools.Core.Placement
         public int RoomsBlockedByDependsOn { get; set; }
         public int CandidatesGenerated { get; set; }
         public int CandidatesRejectedDedup { get; set; }
+        public int CandidatesRejectedWetZone { get; set; }
         public int CandidatesPlaced { get; set; }
         public int SkippedNoSymbol { get; set; }
         public int SkippedHostPreflight { get; set; }
@@ -85,7 +86,7 @@ namespace StingTools.Core.Placement
         {
             return $"{MergeKey}: rooms={RoomsConsidered}/-{RoomsFilteredByName}/-{RoomsFilteredByExclude} " +
                    $"cand={CandidatesGenerated} placed={CandidatesPlaced} " +
-                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, " +
+                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, wetzone={CandidatesRejectedWetZone}, " +
                    $"conflict={RoomsBlockedByConflict}, dep={RoomsBlockedByDependsOn}, mfr={ManufacturerMisses})" +
                    (string.IsNullOrEmpty(FirstSkipReason) ? "" : $" • first: {FirstSkipReason}");
         }
@@ -104,6 +105,13 @@ namespace StingTools.Core.Placement
         // "Pre-flight: two-phase first-fix" / "Per-room loop" instead of
         // an opaque elapsed-time counter.
         public static volatile string CurrentPhase = "";
+
+        // Per-run wet-zone exclusion state, set from the active building
+        // profile's "Wet-zone checks" toggle. ProcessRoomRule filters
+        // candidates through _wetZoneChecker when enabled and the rule
+        // declares a WetZoneExclusion level.
+        private static bool _wetZoneEnabled;
+        private static WetZoneExclusionChecker _wetZoneChecker;
 
         // Phase 139.21 — build stamp. Reads the assembly's PE-header
         // timestamp (the second the DLL was linked) so the Centre title
@@ -194,16 +202,37 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect rule-loader validation warnings: {ex.Message}"); }
 
-            // Phase 139.27 (N-05) — accessibility / mounting-height validation
-            // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
+            // Resolve the active building profile once (in-session UI selection
+            // wins over the on-disk file so the gate works WITHOUT a Save first).
+            // Used by the accessibility / wet-zone / coverage toggles below and
+            // by the rule filter further down.
+            ProjectBuildingProfile activeProfile = null;
             try
             {
-                var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
-                if (hsw != null)
-                    foreach (var w in hsw)
-                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+                activeProfile = StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile
+                                ?? ProjectBuildingProfileIO.Load(doc.PathName);
             }
-            catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: load building profile: {ex.Message}"); }
+
+            // Wet-zone exclusion state for ProcessRoomRule. Default ON unless the
+            // profile explicitly disables it.
+            _wetZoneEnabled = activeProfile == null || activeProfile.EnableWetZoneChecks;
+            _wetZoneChecker = _wetZoneEnabled ? new WetZoneExclusionChecker(doc) : null;
+
+            // Accessibility / mounting-height validation against
+            // STING_HEIGHT_STANDARDS.json — gated by the profile's
+            // "Accessibility checks" toggle (default ON).
+            if (activeProfile == null || activeProfile.EnableAccessibilityChecks)
+            {
+                try
+                {
+                    var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
+                    if (hsw != null)
+                        foreach (var w in hsw)
+                            if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
+                }
+                catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
+            }
 
             if (rules.Count == 0)
             {
@@ -219,7 +248,9 @@ namespace StingTools.Core.Placement
             // + ActiveStandards → FilterByProfile returns the set unchanged).
             try
             {
-                var profile = ProjectBuildingProfileIO.Load(doc.PathName);
+                // Use the profile resolved above (in-session UI selection wins
+                // over the on-disk file so the gate works WITHOUT a Save first).
+                var profile = activeProfile;
                 bool profileActive = profile != null &&
                     (!string.IsNullOrEmpty(profile.BuildingType) ||
                      (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
@@ -643,6 +674,33 @@ namespace StingTools.Core.Placement
                 result.CandidatesEvaluated += candidates.Count;
             }
             if (candidates.Count == 0) return;
+
+            // Wet-zone exclusion (BS 7671 / IEC 60364-7-701) — gated by the
+            // building profile's "Wet-zone checks" toggle and the rule's
+            // WetZoneExclusion level. Drops candidates that fall inside a
+            // bath/shower/basin exclusion volume. No-op when the toggle is off
+            // or the rule sets no exclusion level.
+            if (_wetZoneEnabled && _wetZoneChecker != null
+                && !string.IsNullOrEmpty(effRule.WetZoneExclusion)
+                && !effRule.WetZoneExclusion.Equals("NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                var keep = new List<PlacementCandidate>(candidates.Count);
+                foreach (var c in candidates)
+                {
+                    bool rejected = false;
+                    try { rejected = _wetZoneChecker.Check(room, c.Position, effRule.WetZoneExclusion).Rejected; }
+                    catch (Exception wzEx) { StingLog.Warn($"WetZone check ({effRule.RuleId}): {wzEx.Message}"); }
+                    if (!rejected) keep.Add(c);
+                }
+                int dropped = candidates.Count - keep.Count;
+                if (dropped > 0)
+                {
+                    StingLog.Info($"WetZone: rule '{effRule.RuleId}' dropped {dropped} candidate(s) in room {room.Id} (exclusion {effRule.WetZoneExclusion}).");
+                    diagRoom.CandidatesRejectedWetZone += dropped;
+                }
+                candidates = keep;
+                if (candidates.Count == 0) return;
+            }
 
             // PC-12 — derive the count for Density / Linear rules from the room's
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
