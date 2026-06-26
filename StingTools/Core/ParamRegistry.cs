@@ -212,6 +212,21 @@ namespace StingTools.Core
         /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string FOHLIO_REF = "FOHLIO_REF_TXT";
         public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
+        /// <summary>Phase 195 — EDGE/LEED Sustainability shared params (group 35
+        /// SUS_SUSTAINABILITY). SUS_*_NR intensities are project-scoped; SUS_EDGE_LEVEL_TXT
+        /// is project-scoped; SUS_EPD_REF_TXT binds to materials/types.</summary>
+        public const string SUS_ENERGY_KWH_M2 = "SUS_ENERGY_KWH_M2_NR";
+        public const string SUS_ENERGY_KWH_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01";
+        public const string SUS_WATER_L_PD = "SUS_WATER_L_PD_NR";
+        public const string SUS_WATER_L_PD_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02";
+        public const string SUS_MAT_CARBON_KGM2 = "SUS_MAT_CARBON_KGM2_NR";
+        public const string SUS_MAT_CARBON_KGM2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03";
+        public const string SUS_MAT_ENERGY_MJ_M2 = "SUS_MAT_ENERGY_MJ_M2_NR";
+        public const string SUS_MAT_ENERGY_MJ_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04";
+        public const string SUS_EDGE_LEVEL = "SUS_EDGE_LEVEL_TXT";
+        public const string SUS_EDGE_LEVEL_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05";
+        public const string SUS_EPD_REF = "SUS_EPD_REF_TXT";
+        public const string SUS_EPD_REF_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06";
         /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
         /// lighting schedule). UUIDv5 in namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>

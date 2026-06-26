@@ -37,6 +37,7 @@ GROUP	31	CEQ_CLINICAL
 GROUP	32	LIG_BEHAVIOURAL
 GROUP	33	Identity
 GROUP	34	Routing
+GROUP	35	SUS_SUSTAINABILITY
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1	0
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1	0
@@ -3421,3 +3422,9 @@ PARAM	98edec6a-cfd6-5ce7-9080-50e3f3fae0ba	STING_MASTER_SETUP_TS	TEXT		13	1	Stin
 PARAM	f5f8e898-1b01-5f00-94c5-0b24dd00e1bc	STING_RETROFIT_TS	TEXT		13	1	Sting Retrofit Ts [STING]	1	0
 PARAM	7ed7e5cb-2dde-536b-89b6-76bff797358c	STING_P6_PCT_TXT	TEXT		24	1	Sting P6 Pct Txt [STING]	1	0
 PARAM	4db709a2-5fa2-5161-97f6-907df588c9ef	PLM_FLOW_LS	TEXT		6	1	Plm Flow Ls [STING]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01	SUS_ENERGY_KWH_M2_NR	NUMBER		35	1	Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02	SUS_WATER_L_PD_NR	NUMBER		35	1	Design water use in litres per person per day from AnnualWaterEstimator [Phase 195 EDGE/LEED]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03	SUS_MAT_CARBON_KGM2_NR	NUMBER		35	1	Embodied carbon intensity kgCO2e/m2 (A1-A3 GWP, EN 15978) from MaterialsRollup [Phase 195 EDGE/LEED]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04	SUS_MAT_ENERGY_MJ_M2_NR	NUMBER		35	1	Embodied energy intensity MJ/m2 (CED, EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05	SUS_EDGE_LEVEL_TXT	TEXT		35	1	Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED]	1	0
+PARAM	5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06	SUS_EPD_REF_TXT	TEXT		35	1	Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]	1	0
