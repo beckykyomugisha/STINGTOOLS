@@ -3,6 +3,24 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D — resolve stuck Actions "Running…" placeholder)
+
+In-Revit finding: the Actions inline pane only renders results for the ~9
+commands that report via StingResultPanel; the ~7 that use TaskDialog (Run Cost
+Workflow, stale-flag/migration/Meas setters) left the pane stuck on "Running…".
+
+- `BOQCostManagerPanel`: `_inlineResultPosted` flips true when a result lands
+  inline; `RunActionInline` registers `PendingActionResolve = () =>
+  ResolveActionPane(label)`. `StingCommandHandler.Execute`'s finally invokes +
+  clears it once the command returns. If no inline result was posted (TaskDialog
+  command), `ResolveActionPane` replaces the placeholder with "✓ <label>
+  completed" + a note that the action reported in its own dialog — so the pane is
+  never stuck. No-op when a result already rendered inline.
+- Full inline conversion of the TaskDialog actions is the Slice 3 sweep — added
+  to docs/BOQ_5D_ENHANCEMENTS_PROMPT.md as **P1.4 (high priority)**.
+
+Compile-verified headless (Nice3point): 0 errors. Not pushed/merged.
+
 #### Completed (BOQ 5D — P1.3: persist Cost Manager UI state per project)
 
 Link selection already persisted (`boq_links.json`), but grouping mode, display

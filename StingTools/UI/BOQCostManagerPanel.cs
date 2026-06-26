@@ -212,6 +212,11 @@ namespace StingTools.UI
         private UIElement _actionReportEmpty;    // "select an action" placeholder
         private Button _selectedActionBtn;       // for highlight reset
         private Button _linksBtn;                 // header "⛓ Links (N)" badge
+        private bool _inlineResultPosted;        // did the current action render inline?
+        // Invoked by StingCommandHandler.Execute's finally when a dispatched action
+        // completes, so the Actions pane can resolve its "Running…" placeholder even
+        // when the command reported via its own TaskDialog (not StingResultPanel).
+        internal static Action PendingActionResolve;
         private ToggleButton _ugxToggle, _usdToggle;
 
         // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
@@ -1191,10 +1196,18 @@ namespace StingTools.UI
                 // into the Actions report pane instead of popups. The dispatcher
                 // clears these in StingCommandHandler.Execute's finally, once the
                 // (synchronous) command has run.
+                _inlineResultPosted = false;   // set true by the sink if a result lands inline
                 StingTools.Select.StingListPicker.InlineHost = _actionReportHost;
                 StingTools.Select.StingListPicker.InlineHostDoc = Doc;   // P0.1 — txn-state guard target
                 StingTools.Select.StingListPicker.InlineTitleSink = t => { if (_actionReportTitle != null) _actionReportTitle.Text = t; };
-                StingResultPanel.InlineSink = b => ShowInlineResult(b);
+                StingResultPanel.InlineSink = b => { _inlineResultPosted = true; ShowInlineResult(b); };
+
+                // Resolve the "Running…" placeholder when the command finishes. Some
+                // actions still report via their own TaskDialog (Slice-3 conversion
+                // pending) — without this the pane would sit on "Running…" forever
+                // and look broken. The dispatcher invokes + clears this in its finally.
+                string lbl = label;
+                PendingActionResolve = () => ResolveActionPane(lbl);
 
                 StingCommandHandler.SetExtraParam("InlineHost", "1");
                 DispatchAction(tag);
@@ -2584,6 +2597,37 @@ namespace StingTools.UI
                     };
                 if (_inlineResultRegion != null) _inlineResultRegion.Visibility = Visibility.Visible;
             }
+        }
+
+        /// <summary>Called when a dispatched Actions command finishes. If it
+        /// already rendered a result inline (StingResultPanel-based), do nothing.
+        /// Otherwise the action reported via its own TaskDialog (Slice-3 conversion
+        /// pending), so replace the "Running…" placeholder with a completion note
+        /// rather than leaving the pane stuck.</summary>
+        private void ResolveActionPane(string label)
+        {
+            try
+            {
+                if (_inlineResultPosted) return;                 // result already shown inline
+                if (_actionReportHost == null) return;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"✓  “{label}” completed.",
+                    FontWeight = FontWeights.SemiBold, Foreground = NavyBrush,
+                    FontSize = 12, TextWrapping = TextWrapping.Wrap
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "This action reported in its own dialog. Inline reporting for every " +
+                           "action is being rolled out — those already converted render here directly.",
+                    Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 0, 0)
+                });
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveActionPane: {ex.Message}"); }
         }
 
         // ══════════════════════════════════════════════════════════════════

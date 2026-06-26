@@ -4018,6 +4018,12 @@ namespace StingTools.UI
                     // (e.g., ElbowMode from tag command bleeding into next selection command)
                     ClearAllExtraParams();
 
+                    // Resolve the BOQ Actions pane's "Running…" placeholder (no-op
+                    // if the command already rendered inline). Runs before the
+                    // statics are cleared so the pane reflects the just-finished run.
+                    try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
+                    catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
+
                     // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
                     // hooks so a later ribbon/other-panel command's pickers + result
                     // panels don't render into the (possibly closed) Actions pane.

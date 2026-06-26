@@ -192,6 +192,31 @@ project → all restored.
 
 ---
 
+### P1.4 — Convert remaining Actions commands to inline (Slice 3) — HIGH PRIORITY
+**Why (found in Revit smoke-test):** the Actions inline pane works only for the
+~9 commands that report via `StingResultPanel.Show()`. The other ~7 (e.g.
+`Cost_RunWorkflow`, `Cost_ClearStale`, `Cost_ToggleStaleMarker`,
+`Cost_MigrateCurrencyParams`, `Cost_MigrateEs*`, the `Meas_*` setters) report via
+`TaskDialog.Show(...)`, so they pop a modal and the pane sat on "Running…".
+A post-review fix (commit on this branch) now **resolves** the placeholder to
+"✓ completed" via `BOQCostManagerPanel.PendingActionResolve` — but the user wants
+the **result itself inline**, not a TaskDialog.
+- **Task:** convert the `TaskDialog.Show(...)` calls in the Actions-dispatched
+  commands (`Commands/Cost/*.cs` — `CostCommands.cs`, `MeasurementStandardCommands.cs`,
+  and any other tag wired into `BuildActionsTab`) to build a
+  `StingResultPanel.Create(title)...` and call `.Show()`. Because `Builder.Show()`
+  already routes to the inline sink when set, **no panel changes are needed** —
+  converted commands render inline automatically and `_inlineResultPosted` flips
+  true (so `ResolveActionPane` no-ops). For genuinely trivial confirmations
+  ("Cleared N stale flags"), a one-section `StingResultPanel` with a single metric
+  is fine.
+- **Do not** change the command's actual work / transactions — only its
+  *reporting surface* (TaskDialog → StingResultPanel). Keep `TaskDialog` only for
+  true blocking confirmations that must interrupt (rare; note any you keep).
+- **Acceptance:** every button in the Actions tab renders its result in the right
+  pane; none leaves the pane on the bare "Running…" placeholder. Multi-step
+  commands (Run Cost Workflow) can stream a final summary panel.
+
 ## P2 — Larger slices (only after P0/P1 land + smoke-test green)
 
 ### P2.1 — 4D / Schedule tab (the real 5D payoff)
