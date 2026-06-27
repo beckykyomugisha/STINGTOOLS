@@ -54,6 +54,18 @@ namespace StingTools.Core.Sustainability
             if (!res.Baseline.Found)
                 res.Warnings.Add(res.Baseline.Summary);
 
+            // The baseline is keyed on climate zone + building use. When NEITHER a
+            // climate site NOR a zone is set, the zone is a best-guess derived from
+            // the project's stamped / fallback climate site — which can default to a
+            // temperate zone for a project that is anything but. Surface it loudly so
+            // an indicative figure for the wrong climate isn't mistaken for the real
+            // one (a hot/tropical site has a very different base case from temperate 4A).
+            if (string.IsNullOrWhiteSpace(setup.ClimateZone) && string.IsNullOrWhiteSpace(setup.ClimateSiteId))
+                res.Warnings.Insert(0,
+                    $"No climate site or zone set — the baseline location is a best-guess " +
+                    $"({res.Baseline?.Summary}). Set Climate site id and/or Climate zone in Setup for a " +
+                    "defensible baseline; hot / tropical sites differ materially from the temperate default.");
+
             // ── Energy (annual; reuse LoadZone inventory) ──
             var zones = GatherZones(doc, setup);
             res.ZonesGathered = zones.Count;
@@ -368,8 +380,8 @@ namespace StingTools.Core.Sustainability
                 rwhYieldLPerYr: 0, greywaterReuseFraction: setup.Supply?.GreywaterReuseFraction ?? 0);
             w.IsIndicativeDefault = indicative;
             if (indicative)
-                w.Warnings.Add("Water % is an indicative 25%-over-baseline default — no low-flow " +
-                               "fixture data read from the model (stamp PLM_* flows for a real figure).");
+                w.Warnings.Add("Water % is an indicative default of 25% below baseline (i.e. a 25% saving) — " +
+                               "no low-flow fixture data was read from the model (stamp PLM_* flows for a real figure).");
             return w;
         }
 
@@ -379,7 +391,7 @@ namespace StingTools.Core.Sustainability
         {
             // Fixtures rarely carry consistent flow params across libraries; this is
             // a hook for projects that stamp PLM_* flow data. Until then, return null
-            // so the engine uses the 25%-over-baseline indicative default.
+            // so the engine uses the indicative "25% below baseline" (25% saving) default.
             return null;
         }
 

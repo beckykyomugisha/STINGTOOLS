@@ -65,7 +65,7 @@ namespace StingTools.Core.Sustainability
         public List<string> Warnings { get; } = new List<string>();
 
         /// <summary>True when the design fixture flows are the hardcoded
-        /// 25%-over-baseline placeholder (no real fixture data read off the model).
+        /// "25% below baseline" (25% saving) placeholder — no real fixture data read off the model.
         /// Set by the orchestration engine. When true the savings % is the same on
         /// every project and must be shown as "indicative default", not a pass.</summary>
         public bool IsIndicativeDefault { get; set; }
