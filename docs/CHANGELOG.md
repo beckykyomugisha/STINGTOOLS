@@ -3,6 +3,48 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #5 — export coverage gate + sweep close)
+
+Branch `claude/placement-centre-review-audit`. Closes the inline-forms sweep.
+
+**Export coverage gate** (`BOQExportCommand.cs`): the low-NRM2-coverage warning was a
+blocking `TaskDialog` (Yes/No/Cancel "continue anyway"). It is now skipped when the
+export is driven from the panel — the footer **Export ↗** button sets `InlineHost=1`,
+and the command suppresses the modal in that context. No information is lost: the panel
+shows BOQ Health + coverage live in the budget strip, and the export result already
+surfaces the "Paragraph coverage" metric. The modal is kept for ribbon / non-panel
+callers. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Already compliant (no change needed):**
+- **★ Tender BOQ** (`BOQProfessionalExportCommand`) — already has the inline path via
+  the `BOQTender_SkipDialog` ExtraParam (the panel's inline tender-setup view); the
+  modal `BOQTenderDialog` is the documented ribbon fallback.
+- **Anticipated Final Cost**, **Cost Report**, **Labour rollup**, **Rate Gap /
+  Carbon Gap reports**, **Rate-Source Heat Map**, **Standard Preview** — pure
+  compute/report commands with no input popup (results already inline).
+- **Set Standard / New Cost Plan / Compare / Export / Run Cost Workflow / Variation /
+  Star Rate / Issue Cert / Approve Cert / Cert Document** — converted in sweeps #1–#4
+  and P0.3.
+
+**Deliberately kept as modal (noted with reason — not data-entry choices):**
+- **Import BOQ** (`BOQImportCommand`) and **Import QS Bill** (`BOQQsImportCommand`) —
+  use a `Microsoft.Win32.OpenFileDialog` to choose the workbook. A filesystem browser
+  has no inline equivalent; file selection is intrinsic to an import. Import QS Bill
+  additionally shows a **diff-review grid** before applying QS rates — a
+  review-before-bulk-write safety step, kept intentionally.
+- **Reconcile Provisionals (auto-match)** (`BOQReconcileProvisionalsCommand`, reached
+  from the footer **Reconcile PS**) — a Yes/No confirmation before **promoting**
+  high-confidence PS→model matches (removes PS rows from the manual store and rewrites
+  element params). This is a genuine destructive/mutating confirmation, kept per the
+  sweep rule. (The Actions-tab **Reconcile Provisionals** button is a separate,
+  fully-inline estimate→actual trail form — `ShowProvisionalReconcileForm`.)
+
+**Revit smoke test** (human): from the panel, footer **Export ↗** on a bill with <80%
+paragraph coverage exports without the coverage warning popping (coverage still shows
+in the strip + result). Invoking the same export from the ribbon still shows the
+warning. Import BOQ / Import QS Bill still open a file picker (expected); the QS import
+diff grid and the Reconcile-PS auto-match Yes/No still confirm before writing.
+
 #### Completed (BOQ 5D inline-forms sweep #4 — Payment cert pickers)
 
 Branch `claude/placement-centre-review-audit`. **Approve Cert** (`PaymentCert_Approve`,

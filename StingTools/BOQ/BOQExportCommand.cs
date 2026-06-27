@@ -51,7 +51,13 @@ namespace StingTools.BOQ
                 // gate actually reflects what the exporter will write.
                 EnsureAllParagraphsResolved(boq, doc);
 
-                if (boq.ParagraphCoveragePct < 80)
+                // P0.3 — the low-coverage warning is a modal TaskDialog gate. When the
+                // export is driven from the BOQ panel (InlineHost=1) it is skipped: the
+                // panel already shows BOQ Health + coverage live, and the export result
+                // surfaces the "Paragraph coverage" metric, so no information is lost and
+                // no popup interrupts. The modal is kept for ribbon / non-panel callers.
+                bool fromPanel = UI.StingCommandHandler.GetExtraParam("InlineHost") == "1";
+                if (boq.ParagraphCoveragePct < 80 && !fromPanel)
                 {
                     var td = new TaskDialog("BOQ paragraph coverage")
                     {

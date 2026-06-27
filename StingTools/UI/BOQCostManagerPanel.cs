@@ -2596,7 +2596,13 @@ namespace StingTools.UI
                     if (caption.StartsWith("＋")) b.Click += (s, e) => AddManualRow();
                     else if (caption.StartsWith("Reconcile")) b.Click += (s, e) => DispatchAction("ReconcileProvisionals");
                     else if (caption.StartsWith("Import")) b.Click += (s, e) => DispatchAction("BOQImport");
-                    else if (caption.StartsWith("Export")) b.Click += (s, e) => DispatchAction("BOQExport");
+                    else if (caption.StartsWith("Export")) b.Click += (s, e) =>
+                    {
+                        // P0.3 — signal panel context so the export skips its modal
+                        // low-coverage warning (coverage is live in the strip + result).
+                        StingCommandHandler.SetExtraParam("InlineHost", "1");
+                        DispatchAction("BOQExport");
+                    };
                     else if (caption.StartsWith("★")) b.Click += (s, e) => ShowTenderSetupInline();
                 }
             }
