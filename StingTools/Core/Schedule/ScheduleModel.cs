@@ -220,6 +220,109 @@ namespace StingTools.Core.Schedule
             catch (Exception ex) { StingLog.Warn($"ScheduleStore.Save: {ex.Message}"); return false; }
         }
 
+        // ── 4D-engine JObject bridge ─────────────────────────────────────────
+        //  The BCC 4D commands + Scheduling4DEngine speak the legacy
+        //  schedule_4d.json JObject shape (tasks[] with start/finish/duration/
+        //  predecessors/element_count). These two adapters let those commands
+        //  read/write the SINGLE unified store instead of their own file — so
+        //  there is one source of truth without rewriting their internals.
+
+        /// <summary>Persist a 4D-engine JObject schedule into the unified store.
+        /// Replaces the Tasks list (a regenerate / import) while preserving
+        /// Periods / Milestones / actuals. Returns false on an unsaved project.</summary>
+        public static bool Save4d(Document doc, JObject schedule4d)
+        {
+            if (schedule4d == null) return false;
+            var model = Load(doc);
+            if (string.IsNullOrEmpty(model.ProjectName))
+                model.ProjectName = (string)schedule4d["project_name"] ?? model.ProjectName;
+
+            var tasks = new List<ScheduleTask>();
+            int nextId = 1;
+            foreach (var t in schedule4d["tasks"] as JArray ?? new JArray())
+            {
+                string name = (string)t["name"] ?? "";
+                if (string.IsNullOrEmpty(name)) continue;
+                var task = new ScheduleTask
+                {
+                    Id = (int?)t["task_id"] ?? nextId,
+                    MsUid = (string)t["ms_project_uid"] ?? "",
+                    Wbs = (string)t["wbs"] ?? "",
+                    Name = name,
+                    Start = ParseDate(t["start"], DateTime.Today),
+                    End = ParseDate(t["finish"] ?? t["end"], DateTime.Today.AddMonths(1)),
+                    PercentComplete = (double?)t["percent_complete"] ?? 0,
+                    IsSummary = (bool?)t["is_summary"]
+                        ?? string.Equals((string)t["category"], "SUMMARY", StringComparison.OrdinalIgnoreCase),
+                    OutlineLevel = (int?)t["outline_level"] ?? 0,
+                    Category = (string)t["category"] ?? "",
+                    Notes = (string)t["notes"] ?? "",
+                };
+                foreach (var pred in t["predecessors"] as JArray ?? new JArray())
+                    task.Predecessors.Add(new SchedulePredecessor
+                    {
+                        TaskId = (string)(pred["predecessor_uid"] ?? pred["TaskId"]) ?? "",
+                        Type = (string)pred["type"] ?? "FS",
+                    });
+                foreach (var eid in t["element_ids"] as JArray ?? new JArray())
+                    if (long.TryParse(eid.ToString(), out long lv)) task.ElementIds.Add(lv);
+                tasks.Add(task);
+                nextId = Math.Max(nextId, task.Id) + 1;
+            }
+            model.Tasks = tasks;
+            model.Source = schedule4d["source_file"] != null
+                ? "import:" + (string)schedule4d["source_file"]
+                : "4d-generated";
+            model.ImportedDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            return Save(doc, model);
+        }
+
+        /// <summary>Project the unified model back into the legacy 4D-engine JObject
+        /// shape so the existing timeline / export / cash-flow commands +
+        /// Scheduling4DEngine.ExportToMSProjectXML keep working off the one store.</summary>
+        public static JObject Load4dJObject(Document doc)
+        {
+            var model = Load(doc);
+            var jt = new JArray();
+            foreach (var t in model.Tasks)
+            {
+                var preds = new JArray();
+                foreach (var p in t.Predecessors)
+                    preds.Add(new JObject { ["predecessor_uid"] = p.TaskId, ["type"] = p.Type });
+                jt.Add(new JObject
+                {
+                    ["task_id"] = t.Id,
+                    ["ms_project_uid"] = t.MsUid,
+                    ["wbs"] = t.Wbs,
+                    ["name"] = t.Name,
+                    ["category"] = t.Category,
+                    ["start"] = t.Start.ToString("yyyy-MM-dd"),
+                    ["finish"] = t.End.ToString("yyyy-MM-dd"),
+                    ["duration_days"] = Math.Max(1, (int)(t.End - t.Start).TotalDays),
+                    ["element_count"] = t.ElementIds.Count,
+                    ["percent_complete"] = t.PercentComplete,
+                    ["status"] = t.PercentComplete >= 100 ? "Complete"
+                                : t.PercentComplete > 0 ? "In Progress" : "Not Started",
+                    ["is_summary"] = t.IsSummary,
+                    ["outline_level"] = t.OutlineLevel,
+                    ["predecessors"] = preds,
+                    ["notes"] = t.Notes,
+                });
+            }
+            DateTime pStart = model.Tasks.Count > 0 ? model.Tasks.Min(t => t.Start) : DateTime.Today;
+            DateTime pEnd = model.Tasks.Count > 0 ? model.Tasks.Max(t => t.End) : DateTime.Today;
+            return new JObject
+            {
+                ["project_name"] = model.ProjectName,
+                ["project_start"] = pStart.ToString("yyyy-MM-dd"),
+                ["project_end"] = pEnd.ToString("yyyy-MM-dd"),
+                ["total_tasks"] = model.Tasks.Count,
+                ["total_duration_days"] = (int)(pEnd - pStart).TotalDays,
+                ["total_duration_weeks"] = Math.Round((pEnd - pStart).TotalDays / 7.0, 1),
+                ["tasks"] = jt,
+            };
+        }
+
         /// <summary>Idempotent migration trigger for DocumentOpened. Writes
         /// schedule.json only when it is absent AND a legacy store exists; returns
         /// true when it materialised the unified store this call.</summary>

@@ -534,19 +534,15 @@ namespace StingTools.BIMManager
             var scan = ComplianceScan.Scan(doc);
             double currentCompliance = scan?.CompliancePercent ?? 0;
 
-            // ── 1. Load 4D schedule if available ──
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
+            // ── 1. Load 4D schedule from the single unified store (Phase 1b) ──
             JObject schedule = null;
             JArray tasks = null;
-            if (File.Exists(schedulePath))
+            try
             {
-                try
-                {
-                    schedule = JObject.Parse(File.ReadAllText(schedulePath));
-                    tasks = schedule["tasks"] as JArray;
-                }
-                catch (Exception ex) { StingLog.Warn($"Link4DToHandover: failed to load schedule: {ex.Message}"); }
+                schedule = StingTools.Core.Schedule.ScheduleStore.Load4dJObject(doc);
+                tasks = schedule["tasks"] as JArray;
             }
+            catch (Exception ex) { StingLog.Warn($"Link4DToHandover: failed to load schedule: {ex.Message}"); }
 
             bool hasSchedule = tasks != null && tasks.Count > 0;
             sb.AppendLine(hasSchedule

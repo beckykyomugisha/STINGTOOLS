@@ -24,7 +24,10 @@ namespace StingTools.BIMManager
     //  5D BIM links model elements to cost data (cost dimension).
     //
     //  Architecture:
-    //    - Schedule data stored as JSON in STING_BIM_MANAGER/schedule_4d.json
+    //    - Schedule data persists to the single unified store
+    //      (_BIM_COORD/schedule.json) via Core.Schedule.ScheduleStore (Phase 1b).
+    //      Legacy STING_BIM_MANAGER/schedule_4d.json is read once by the migration
+    //      importer only; these commands no longer touch it directly.
     //    - Cost rates stored in STING_BIM_MANAGER/cost_rates_5d.json
     //    - MS Project XML import parsed via System.Xml.Linq
     //    - Element-to-task linkage via Revit Phase + Level + Category mapping
@@ -1238,8 +1241,10 @@ namespace StingTools.BIMManager
 
             var schedule = Scheduling4DEngine.AutoGenerateSchedule(doc, startDate);
 
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
-            BIMManagerEngine.SaveJsonFile(schedulePath, schedule);
+            // BOQ 5D Phase 1b — persist to the single unified store
+            // (_BIM_COORD/schedule.json) via the 4D adapter, not schedule_4d.json.
+            StingTools.Core.Schedule.ScheduleStore.Save4d(doc, schedule);
+            string schedulePath = StingTools.Core.Schedule.ScheduleStore.PathFor(doc);
 
             var tasks = schedule["tasks"] as JArray;
             var report = new StringBuilder();
@@ -1360,9 +1365,9 @@ namespace StingTools.BIMManager
             if (tasks != null)
                 linked = Scheduling4DEngine.AutoLinkTasksToElements(doc, tasks);
 
-            // Save
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
-            BIMManagerEngine.SaveJsonFile(schedulePath, schedule);
+            // Save to the single unified store (Phase 1b) — not schedule_4d.json.
+            StingTools.Core.Schedule.ScheduleStore.Save4d(doc, schedule);
+            string schedulePath = StingTools.Core.Schedule.ScheduleStore.PathFor(doc);
 
             var report = new StringBuilder();
             report.AppendLine("MS Project Schedule Imported");
@@ -1398,18 +1403,13 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
-            if (!File.Exists(schedulePath))
-            {
-                TaskDialog.Show("STING 4D BIM", "No schedule found.\nUse 'Auto Schedule' or 'Import MS Project' first.");
-                return Result.Succeeded;
-            }
-
-            var schedule = BIMManagerEngine.LoadJsonFile(schedulePath);
+            // Phase 1b — read the single unified store via the 4D adapter.
+            var schedule = StingTools.Core.Schedule.ScheduleStore.Load4dJObject(doc);
+            string schedulePath = StingTools.Core.Schedule.ScheduleStore.PathFor(doc);
             var tasks = schedule["tasks"] as JArray;
             if (tasks == null || tasks.Count == 0)
             {
-                TaskDialog.Show("STING 4D BIM", "Schedule has no tasks.");
+                TaskDialog.Show("STING 4D BIM", "No schedule found.\nUse 'Auto Schedule' or 'Import MS Project' first.");
                 return Result.Succeeded;
             }
 
@@ -1473,14 +1473,13 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
-            if (!File.Exists(schedulePath))
+            // Phase 1b — read the single unified store via the 4D adapter.
+            var schedule = StingTools.Core.Schedule.ScheduleStore.Load4dJObject(doc);
+            if ((schedule["tasks"] as JArray)?.Count is null or 0)
             {
                 TaskDialog.Show("STING 4D BIM", "No schedule found. Generate one first.");
                 return Result.Succeeded;
             }
-
-            var schedule = BIMManagerEngine.LoadJsonFile(schedulePath);
 
             var dlg = new TaskDialog("STING 4D BIM — Export Format");
             dlg.MainInstruction = "Export schedule as:";
@@ -1751,10 +1750,13 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
+            // Phase 1b — schedule from the single unified store; the 5D cost
+            // estimate stays in its own file (cost_estimate_5d.json).
             string estimatePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cost_estimate_5d.json");
+            var schedule = StingTools.Core.Schedule.ScheduleStore.Load4dJObject(doc);
+            bool haveSchedule = (schedule["tasks"] as JArray)?.Count > 0;
 
-            if (!File.Exists(schedulePath) || !File.Exists(estimatePath))
+            if (!haveSchedule || !File.Exists(estimatePath))
             {
                 TaskDialog.Show("STING 4D/5D BIM",
                     "Cash flow requires both:\n" +
@@ -1764,7 +1766,6 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            var schedule = BIMManagerEngine.LoadJsonFile(schedulePath);
             var estimate = BIMManagerEngine.LoadJsonFile(estimatePath);
 
             if (schedule == null || estimate == null || estimate["grand_total"] == null)

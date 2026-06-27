@@ -47,6 +47,42 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Phase 1 slice b — both surfaces read/render the unified store)
+
+Branch `claude/placement-centre-review-audit`. Repoints both schedule surfaces at the
+single `ScheduleStore` (Phase 1.2) and removes the independent `schedule_4d.json` write
+path — one source of truth.
+
+**ScheduleStore — 4D-engine JObject bridge** (`Core/Schedule/ScheduleModel.cs`): two
+adapters so the BCC/Scheduling4DEngine code (which speaks the legacy `schedule_4d.json`
+JObject shape) reads/writes the unified store without rewriting their internals —
+`Save4d(doc, JObject)` (replaces Tasks from a regenerate/import, preserving Periods/
+Milestones/actuals) and `Load4dJObject(doc)` (projects the model back into the
+`tasks[]` shape the timeline/export/cash-flow commands consume).
+
+**Cost Manager Schedule tab** (`BOQCostManagerPanel`): now a thin view onto the unified
+model. The grids bind directly to `ScheduleTask` / `SchedulePeriod` / `ScheduleMilestone`
+(same property names as the retired `Boq*` view-models, which are deleted), so editing a
+row mutates the model task in place and **preserves its WBS / predecessors / element
+links** on save. `EnsureScheduleLoaded` → `ScheduleStore.Load`; `SaveSchedule` →
+`ScheduleStore.Save` (updates the held `_scheduleModel`); `SchedulePath()` → the unified
+path. `boq_schedule.json` is no longer read or written by the panel.
+
+**4D scheduling commands** (`SchedulingCommands.cs` + `GapFixCommands.cs`): every direct
+`schedule_4d.json` read/write replaced — `AutoSchedule4D` + `ImportMSProject` →
+`ScheduleStore.Save4d`; `ViewTimeline4D` + `ExportSchedule4D` + `CashFlow5D` +
+`Schedule4DHandover` → `ScheduleStore.Load4dJObject`. (`cost_estimate_5d.json` is the 5D
+cost layer, not the schedule, so it's untouched.)
+
+**BCC 4D/5D tab** (`BIMCoordinationCenter.Build4D5DTab`): now a **read-only summary**
+populated straight from `ScheduleStore` (task count, milestones complete/total, overall
+% from the latest period or task average — previously these KPIs were never assigned, so
+they read 0) + a **"Open in Cost Manager →" deep-link** and a banner stating the schedule
+is the single unified store edited in the Cost Manager. No second copy.
+
+Compile-verified Release `-t:Rebuild`, 0 errors. (Smoke-test checklist consolidated at
+the end of slice c.)
+
 #### Deferred follow-ups (BOQ inline-forms sweep — tracked, not yet done)
 
 - **Run Cost Workflow** (`Cost_RunWorkflow`) still surfaces its internal **progress

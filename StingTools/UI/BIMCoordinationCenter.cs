@@ -5714,6 +5714,50 @@ namespace StingTools.UI
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
             var stack = new StackPanel();
 
+            // Phase 1b — the 4D/5D tab is now a READ-ONLY summary onto the single
+            // unified schedule store (_BIM_COORD/schedule.json). It no longer keeps
+            // a second copy: the KPI cards below are populated straight from
+            // ScheduleStore, and editing happens in the Cost Manager Schedule tab.
+            try
+            {
+                var schedDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (schedDoc != null)
+                {
+                    var sched = StingTools.Core.Schedule.ScheduleStore.Load(schedDoc);
+                    _data.ScheduledTasks = sched.Tasks?.Count ?? 0;
+                    _data.MilestonesTotal = sched.Milestones?.Count ?? 0;
+                    _data.MilestonesComplete = sched.Milestones?.Count(m => m.Done) ?? 0;
+                    var lastP = sched.Periods?.OrderBy(p => p.Date).LastOrDefault();
+                    _data.EarnedValuePct = lastP?.PercentComplete
+                        ?? ((sched.Tasks != null && sched.Tasks.Count > 0) ? sched.Tasks.Average(t => t.PercentComplete) : 0);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BCC 4D/5D summary load: {ex.Message}"); }
+
+            // Unified-store banner + deep-link to the Cost Manager (the 5D editor).
+            var unifiedBanner = MakeCard();
+            var ubRow = new DockPanel { LastChildFill = true };
+            var openCm = new Button
+            {
+                Content = "Open in Cost Manager →", FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(8, 0, 0, 0),
+                Background = Br(Color.FromRgb(0x2E, 0x5E, 0x8E)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            openCm.Click += (s, e) => DispatchAction("BOQCostManager");
+            DockPanel.SetDock(openCm, Dock.Right);
+            ubRow.Children.Add(openCm);
+            ubRow.Children.Add(new TextBlock
+            {
+                Text = "Reads the single unified schedule (_BIM_COORD/schedule.json). Edit phases, "
+                     + "cost-load and EVM in the Cost Manager Schedule tab — changes reflect here on refresh (F5).",
+                FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            unifiedBanner.Child = ubRow;
+            stack.Children.Add(unifiedBanner);
+
             // ── KPI cards row 1: Core metrics ──
             var kpiGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
             kpiGrid.Children.Add(MakeKPICard("TASKS", _data.ScheduledTasks.ToString(), Br(Color.FromRgb(0x15, 0x65, 0xC0)),

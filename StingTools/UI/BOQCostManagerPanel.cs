@@ -27,6 +27,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.BOQ;
 using StingTools.Core;
+using StingTools.Core.Schedule;   // Phase 1b — unified ScheduleModel / ScheduleStore
 // Disambiguate WPF vs Revit short names (per-file aliases — narrower than fully-qualified paths)
 using Color = System.Windows.Media.Color;
 using Grid = System.Windows.Controls.Grid;
@@ -268,13 +269,19 @@ namespace StingTools.UI
         // convention as boq_ui_state.json). EVM is computed via the reused
         // EvmCalculator engine; the S-curve is drawn on a plain Canvas (no chart lib).
         private TabItem _scheduleTab;
-        private System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase> _schedulePhases
-            = new System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase>();
-        // G6 — per-period actuals (PV/EV/AC over time) + milestones, persisted to boq_schedule.json.
-        private System.Collections.ObjectModel.ObservableCollection<BoqSchedulePeriod> _schedulePeriods
-            = new System.Collections.ObjectModel.ObservableCollection<BoqSchedulePeriod>();
-        private System.Collections.ObjectModel.ObservableCollection<BoqMilestone> _milestones
-            = new System.Collections.ObjectModel.ObservableCollection<BoqMilestone>();
+        // Phase 1b — the Schedule tab is now a thin view onto the unified
+        // ScheduleModel (ScheduleStore, _BIM_COORD/schedule.json). The grids bind
+        // directly to the model types (same property names as the retired Boq*
+        // view-models), so editing a row mutates the model task in place and
+        // preserves its WBS / predecessors / element links on save.
+        private System.Collections.ObjectModel.ObservableCollection<ScheduleTask> _schedulePhases
+            = new System.Collections.ObjectModel.ObservableCollection<ScheduleTask>();
+        private System.Collections.ObjectModel.ObservableCollection<SchedulePeriod> _schedulePeriods
+            = new System.Collections.ObjectModel.ObservableCollection<SchedulePeriod>();
+        private System.Collections.ObjectModel.ObservableCollection<ScheduleMilestone> _milestones
+            = new System.Collections.ObjectModel.ObservableCollection<ScheduleMilestone>();
+        // Backing model — holds provenance + the same task instances the grids show.
+        private ScheduleModel _scheduleModel;
         private DataGrid _scheduleGrid;
         private DataGrid _periodsGrid;
         private DataGrid _milestonesGrid;
@@ -4434,16 +4441,9 @@ namespace StingTools.UI
         //  go through DispatchAction.
         // ══════════════════════════════════════════════════════════════════
 
-        private string SchedulePath()
-        {
-            try
-            {
-                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
-                if (string.IsNullOrEmpty(parent)) return null;
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_schedule.json");
-            }
-            catch { return null; }
-        }
+        // Phase 1b — the unified store path (_BIM_COORD/schedule.json). Kept as a
+        // helper because the EVM CSV export derives its output dir from it.
+        private string SchedulePath() => ScheduleStore.PathFor(Doc);
 
         private UIElement BuildScheduleTab()
         {
@@ -4599,14 +4599,14 @@ namespace StingTools.UI
             var lastDate = _schedulePeriods.LastOrDefault()?.Date ?? DateTime.Today;
             double lastPct = _schedulePeriods.LastOrDefault()?.PercentComplete ?? 0;
             double lastAc = _schedulePeriods.LastOrDefault()?.Acwp ?? 0;
-            _schedulePeriods.Add(new BoqSchedulePeriod
+            _schedulePeriods.Add(new SchedulePeriod
             { Date = lastDate.AddMonths(1), PercentComplete = lastPct, Acwp = lastAc });
             SaveSchedule(); RecalcSchedule();
         }
 
         private void AddMilestoneRow()
         {
-            _milestones.Add(new BoqMilestone { Name = "New milestone", Date = DateTime.Today.AddMonths(1), Done = false });
+            _milestones.Add(new ScheduleMilestone { Name = "New milestone", Date = DateTime.Today.AddMonths(1), Done = false });
             SaveSchedule(); RecalcSchedule();
         }
 
@@ -4636,7 +4636,7 @@ namespace StingTools.UI
                 var period = _schedulePeriods.LastOrDefault();
                 if (period == null)
                 {
-                    period = new BoqSchedulePeriod { Date = DateTime.Today, PercentComplete = pct, Acwp = _scheduleActualToDate };
+                    period = new SchedulePeriod { Date = DateTime.Today, PercentComplete = pct, Acwp = _scheduleActualToDate };
                     _schedulePeriods.Add(period);
                 }
                 else period.PercentComplete = pct;
@@ -4659,34 +4659,27 @@ namespace StingTools.UI
             return Guarded(b);
         }
 
-        /// <summary>Load phases from boq_schedule.json; seed from Revit phases on first use.</summary>
+        /// <summary>Phase 1b — load the unified ScheduleModel (ScheduleStore migrates
+        /// the legacy stores on first use); seed from Revit phases only when empty.</summary>
         private void EnsureScheduleLoaded()
         {
             if (_scheduleLoaded) return;
             _scheduleLoaded = true;
             try
             {
-                string path = SchedulePath();
-                if (path != null && System.IO.File.Exists(path))
-                {
-                    var st = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqScheduleState>(
-                        System.IO.File.ReadAllText(path));
-                    if (st != null)
-                    {
-                        _schedulePhases.Clear();
-                        foreach (var p in st.Phases ?? new List<BoqSchedulePhase>())
-                            if (p != null) _schedulePhases.Add(p);
-                        _schedulePeriods.Clear();
-                        foreach (var pr in st.Periods ?? new List<BoqSchedulePeriod>())
-                            if (pr != null) _schedulePeriods.Add(pr);
-                        _milestones.Clear();
-                        foreach (var m in st.Milestones ?? new List<BoqMilestone>())
-                            if (m != null) _milestones.Add(m);
-                        _scheduleActualToDate = st.ActualCostToDate;
-                        if (_evmActualsBox != null) _evmActualsBox.Text = st.ActualCostToDate.ToString("F0", CultureInfo.InvariantCulture);
-                        if (_evmAsOfBox != null && !string.IsNullOrWhiteSpace(st.AsOf)) _evmAsOfBox.Text = st.AsOf;
-                    }
-                }
+                _scheduleModel = ScheduleStore.Load(Doc) ?? new ScheduleModel();
+                _schedulePhases.Clear();
+                foreach (var t in _scheduleModel.Tasks ?? new List<ScheduleTask>())
+                    if (t != null) _schedulePhases.Add(t);
+                _schedulePeriods.Clear();
+                foreach (var pr in _scheduleModel.Periods ?? new List<SchedulePeriod>())
+                    if (pr != null) _schedulePeriods.Add(pr);
+                _milestones.Clear();
+                foreach (var m in _scheduleModel.Milestones ?? new List<ScheduleMilestone>())
+                    if (m != null) _milestones.Add(m);
+                _scheduleActualToDate = _scheduleModel.ActualCostToDate;
+                if (_evmActualsBox != null) _evmActualsBox.Text = _scheduleModel.ActualCostToDate.ToString("F0", CultureInfo.InvariantCulture);
+                if (_evmAsOfBox != null && !string.IsNullOrWhiteSpace(_scheduleModel.AsOf)) _evmAsOfBox.Text = _scheduleModel.AsOf;
             }
             catch (Exception ex) { StingLog.Warn($"BOQ EnsureScheduleLoaded: {ex.Message}"); }
 
@@ -4705,12 +4698,14 @@ namespace StingTools.UI
                     int i = 0;
                     foreach (var ph in phases)
                     {
-                        _schedulePhases.Add(new BoqSchedulePhase
+                        _schedulePhases.Add(new ScheduleTask
                         {
+                            Id = i + 1,
                             Name = ph.Name ?? $"Phase {i + 1}",
                             Start = start.AddMonths(i),
                             End = start.AddMonths(i + 1),
-                            PercentComplete = 0
+                            PercentComplete = 0,
+                            Category = "Phase"
                         });
                         i++;
                     }
@@ -4718,8 +4713,8 @@ namespace StingTools.UI
                 else
                 {
                     // No Revit phases — a single construction phase spanning a year.
-                    _schedulePhases.Add(new BoqSchedulePhase
-                    { Name = "Construction", Start = start, End = start.AddMonths(12), PercentComplete = 0 });
+                    _schedulePhases.Add(new ScheduleTask
+                    { Id = 1, Name = "Construction", Start = start, End = start.AddMonths(12), PercentComplete = 0, Category = "Phase" });
                 }
                 SaveSchedule();
                 RecalcSchedule();
@@ -4731,8 +4726,9 @@ namespace StingTools.UI
         {
             var last = _schedulePhases.LastOrDefault();
             var start = last?.End ?? DateTime.Today;
-            _schedulePhases.Add(new BoqSchedulePhase
-            { Name = "New phase", Start = start, End = start.AddMonths(1), PercentComplete = 0 });
+            int nextId = _schedulePhases.Count == 0 ? 1 : _schedulePhases.Max(t => t.Id) + 1;
+            _schedulePhases.Add(new ScheduleTask
+            { Id = nextId, Name = "New phase", Start = start, End = start.AddMonths(1), PercentComplete = 0, Category = "Phase" });
             SaveSchedule();
             RecalcSchedule();
         }
@@ -4742,21 +4738,16 @@ namespace StingTools.UI
             if (!_scheduleLoaded) return;
             try
             {
-                string path = SchedulePath();
-                if (path == null) return;
-                double acwp = ParseActualsBox();
-                string asOf = _evmAsOfBox?.Text?.Trim();
-                var st = new BoqScheduleState
-                {
-                    Phases = _schedulePhases.ToList(),
-                    ActualCostToDate = acwp,
-                    AsOf = asOf,
-                    Periods = _schedulePeriods.ToList(),
-                    Milestones = _milestones.ToList()
-                };
-                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
-                System.IO.File.WriteAllText(path,
-                    Newtonsoft.Json.JsonConvert.SerializeObject(st, Newtonsoft.Json.Formatting.Indented));
+                if (_scheduleModel == null) _scheduleModel = new ScheduleModel();
+                // The collections hold the model's own ScheduleTask instances, so
+                // edits (WBS / predecessors / element links included) are preserved;
+                // ToList() captures adds / removes / reorders.
+                _scheduleModel.Tasks = _schedulePhases.ToList();
+                _scheduleModel.Periods = _schedulePeriods.ToList();
+                _scheduleModel.Milestones = _milestones.ToList();
+                _scheduleModel.ActualCostToDate = ParseActualsBox();
+                _scheduleModel.AsOf = _evmAsOfBox?.Text?.Trim();
+                ScheduleStore.Save(Doc, _scheduleModel);
             }
             catch (Exception ex) { StingLog.Warn($"BOQ SaveSchedule: {ex.Message}"); }
         }
@@ -5213,93 +5204,11 @@ namespace StingTools.UI
         }
     }
 
-    /// <summary>P2.1 — a single programme phase row (editable in the Schedule grid).</summary>
-    internal class BoqSchedulePhase : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
-
-        private string _name = "";
-        private DateTime _start = DateTime.Today;
-        private DateTime _end = DateTime.Today.AddMonths(1);
-        private double _pct;
-
-        public string Name { get => _name; set { _name = value ?? ""; N(nameof(Name)); } }
-        public DateTime Start { get => _start; set { _start = value; N(nameof(Start)); N(nameof(StartStr)); } }
-        public DateTime End { get => _end; set { _end = value; N(nameof(End)); N(nameof(EndStr)); } }
-        public double PercentComplete { get => _pct; set { _pct = Math.Max(0, Math.Min(100, value)); N(nameof(PercentComplete)); } }
-
-        [Newtonsoft.Json.JsonIgnore]
-        public string StartStr
-        {
-            get => _start.ToString("yyyy-MM-dd");
-            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Start = d; }
-        }
-        [Newtonsoft.Json.JsonIgnore]
-        public string EndStr
-        {
-            get => _end.ToString("yyyy-MM-dd");
-            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) End = d; }
-        }
-        /// <summary>Computed in RecalcSchedule (BAC × duration share); not persisted as authoritative.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public double PlannedCost { get; set; }
-    }
-
-    /// <summary>P2.1 — persisted schedule state in &lt;project&gt;/_BIM_COORD/boq_schedule.json.</summary>
-    internal class BoqScheduleState
-    {
-        public List<BoqSchedulePhase> Phases { get; set; } = new List<BoqSchedulePhase>();
-        public double ActualCostToDate { get; set; }
-        public string AsOf { get; set; }
-        // G6 — per-period actuals (PV/EV/AC timeline) + milestones.
-        public List<BoqSchedulePeriod> Periods { get; set; } = new List<BoqSchedulePeriod>();
-        public List<BoqMilestone> Milestones { get; set; } = new List<BoqMilestone>();
-    }
-
-    /// <summary>
-    /// G6 — one reporting period: the overall % complete (EV driver) and the
-    /// cumulative actual cost (AC) at the period end. PV is derived from the
-    /// cost-loaded phase baseline. Editable in the Periods grid; persisted.
-    /// </summary>
-    internal class BoqSchedulePeriod : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
-        private DateTime _date = DateTime.Today;
-        private double _pct;
-        private double _acwp;
-
-        public DateTime Date { get => _date; set { _date = value; N(nameof(Date)); N(nameof(DateStr)); } }
-        [Newtonsoft.Json.JsonIgnore]
-        public string DateStr
-        {
-            get => _date.ToString("yyyy-MM-dd");
-            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Date = d; }
-        }
-        public double PercentComplete { get => _pct; set { _pct = Math.Max(0, Math.Min(100, value)); N(nameof(PercentComplete)); } }
-        public double Acwp { get => _acwp; set { _acwp = Math.Max(0, value); N(nameof(Acwp)); } }
-    }
-
-    /// <summary>G6 — a dated programme milestone, plotted on the S-curve.</summary>
-    internal class BoqMilestone : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
-        private string _name = "Milestone";
-        private DateTime _date = DateTime.Today;
-        private bool _done;
-
-        public string Name { get => _name; set { _name = value ?? ""; N(nameof(Name)); } }
-        public DateTime Date { get => _date; set { _date = value; N(nameof(Date)); N(nameof(DateStr)); } }
-        [Newtonsoft.Json.JsonIgnore]
-        public string DateStr
-        {
-            get => _date.ToString("yyyy-MM-dd");
-            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Date = d; }
-        }
-        public bool Done { get => _done; set { _done = value; N(nameof(Done)); } }
-    }
+    // Phase 1b — the BoqSchedulePhase / BoqScheduleState / BoqSchedulePeriod /
+    // BoqMilestone view-models were retired: the Schedule tab now binds directly
+    // to the unified Core.Schedule.ScheduleTask / SchedulePeriod / ScheduleMilestone
+    // (single source of truth). boq_schedule.json is no longer written — the
+    // migration importer reads it once into schedule.json.
 
     // ══════════════════════════════════════════════════════════════════════
     //  BOQInlineResults — static mailbox bridging Revit-thread commands to the
