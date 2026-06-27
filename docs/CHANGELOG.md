@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G7 — first-run Cost Setup wizard)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #7 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New inline multi-page **Cost Setup** wizard in
+`BOQCostManagerPanel` (`ShowCostSetupWizard` / `RenderWizardPage`), launched from a
+new **✦ Cost Setup** header button and auto-offered once per project
+(`MaybeOfferWizard`, gated on no budget set + not previously completed). Six pages:
+(1) plain-English intro + layman's-guide pointer; (2) model-readiness scan
+(rooms / phases / modelled items / auto-priced %, gaps flagged amber);
+(3) budget + currency; (4) pricing path radios (Auto / QS round-trip / Manual)
+with one-click **Export QS Bill** (dispatches `BOQQsExport`); (5) markups (flat %
+or open the prelims schedule); (6) finish → `RefreshAsync` + direct
+`BOQCostManager.SaveSnapshot` baseline. Per the inline-no-popups convention it
+renders into the Actions pane (not a modal `StingWizardDialog`) and **orchestrates
+existing commands** — budget via `BOQSetBudget`, export via `BOQQsExport`, prelims
+via `ShowPrelimsForm` — rather than duplicating them. Back/Next/Skip navigation;
+`WizardCompleted` persists in `boq_ui_state.json` so it doesn't nag.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): open the BOQ on a fresh project with no budget → the
+Cost Setup wizard is offered in the Actions pane → step through (set a budget, pick
+a pricing path, finish) → the bill is built, the budget shows in the strip, and a
+"Baseline" snapshot appears in the snapshot dropdown; reopening the project does
+not re-offer the wizard.
+
 #### Completed (BOQ QS gap G6 — Schedule / EVM tab maturity)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #5 in

@@ -308,8 +308,13 @@ This is the part a real guide hides and you find out the hard way. We won't.
    the per-element costing IS the heavy compute and is inseparable from the API
    reads, so it can't move off-thread without re-architecting the take-off engine.
    Refresh deliberately, not constantly.
-7. **No first-run wizard.** There's no guided "set up costing" walkthrough yet —
-   this document is the stand-in. *(Coming.)*
+7. ~~**No first-run wizard.**~~ ✓ **Closed (G7).** The **✦ Cost Setup** button (top
+   of the panel) runs a guided, inline walkthrough — what this does → model
+   readiness scan → budget + currency → pricing path (auto / QS round-trip /
+   manual, with one-click Export QS Bill) → markups → finish (refresh + baseline
+   snapshot). It's auto-offered once on a fresh project with no budget set, and it
+   orchestrates the existing commands rather than duplicating them. "Completed"
+   persists in `boq_ui_state.json` so it won't nag.
 8. ~~**Provisional-sum reconciliation** is light — you replace the number.~~
    ✓ **Closed (G2).** **Actions → Reconcile Provisionals** now opens an inline
    editable trail: each provisional sum keeps its **frozen original allowance**

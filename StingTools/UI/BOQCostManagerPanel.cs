@@ -108,7 +108,16 @@ namespace StingTools.UI
             public List<string> HiddenColumns { get; set; }
             public List<string> OpenSections { get; set; }
             public List<string> OpenMaterialSections { get; set; }
+            public bool WizardCompleted { get; set; }   // G7 — first-run Cost Setup wizard
         }
+
+        // G7 — Cost Setup wizard state.
+        private bool _wizardCompleted;       // persisted in boq_ui_state.json
+        private bool _wizardOffered;         // session flag — offer at most once per open
+        private int _wizardPage;
+        private string _wizardBudget = "";
+        private string _wizardCurrency = "UGX";
+        private string _wizardPricing = "Auto";   // Auto | RoundTrip | Manual
 
         private string UiStatePath()
         {
@@ -159,6 +168,7 @@ namespace StingTools.UI
                             foreach (var s in st.OpenMaterialSections)
                                 if (!string.IsNullOrWhiteSpace(s)) _openMaterialSections.Add(s);
                         }
+                        _wizardCompleted = st.WizardCompleted;   // G7
                     }
                 }
             }
@@ -180,7 +190,8 @@ namespace StingTools.UI
                     DisplayCurrency = _displayCurrency,
                     HiddenColumns = _hiddenColumns.ToList(),
                     OpenSections = _openSections.ToList(),
-                    OpenMaterialSections = _openMaterialSections.ToList()
+                    OpenMaterialSections = _openMaterialSections.ToList(),
+                    WizardCompleted = _wizardCompleted   // G7
                 };
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
                 System.IO.File.WriteAllText(path,
@@ -474,6 +485,7 @@ namespace StingTools.UI
                 DispatchAction("BOQRefresh");
             }));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
+            actions.Children.Add(BuildHeaderBtn("✦ Cost Setup", () => ShowCostSetupWizard()));   // G7
             Grid.SetColumn(actions, 2);
             grid.Children.Add(actions);
 
@@ -1827,6 +1839,281 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Error("BOQ ShowPrelimsForm", ex); }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  G7 — Cost Setup wizard (inline, multi-page; orchestrates existing
+        //  commands — never duplicates them). Rendered into the Actions pane
+        //  per the "inline, no popups" convention; "wizard completed" persists
+        //  to boq_ui_state.json so it doesn't nag.
+        // ══════════════════════════════════════════════════════════════════
+        private const int WizardLastPage = 5;
+
+        private void MaybeOfferWizard()
+        {
+            try
+            {
+                if (_wizardCompleted || _wizardOffered || _boq == null) return;
+                if (_boq.ProjectBudgetUGX > 0) return;   // only a fresh, unpriced project
+                _wizardOffered = true;
+                ShowCostSetupWizard();
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ MaybeOfferWizard: {ex.Message}"); }
+        }
+
+        public void ShowCostSetupWizard()
+        {
+            _wizardPage = 0;
+            _wizardCurrency = _displayCurrency;
+            _wizardBudget = _boq != null && _boq.ProjectBudgetUGX > 0
+                ? _boq.ProjectBudgetUGX.ToString("F0", CultureInfo.InvariantCulture) : "";
+            RenderWizardPage();
+        }
+
+        private void RenderWizardPage()
+        {
+            if (_actionReportHost == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = "Cost Setup wizard";
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"Cost Setup  —  step {_wizardPage + 1} of {WizardLastPage + 1}",
+                    FontSize = 13, FontWeight = FontWeights.Bold, Foreground = NavyBrush,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                TextBox budgetTb = null;
+                System.Windows.Controls.ComboBox ccyCb = null;
+                var pricingRadios = new List<(string id, RadioButton rb)>();
+
+                switch (_wizardPage)
+                {
+                    case 0:
+                        sp.Children.Add(WizardText(
+                            "This sets your project up to produce a costed Bill of Quantities. The BOQ reads "
+                            + "quantities straight from the model; you add prices (auto rates, a QS round-trip, or "
+                            + "by hand), markups and a budget, then save a baseline snapshot.\n\n"
+                            + "It takes about a minute, nothing here is irreversible, and you can re-run it any time "
+                            + "from the ✦ Cost Setup button.\n\n"
+                            + "Full walkthrough: BOQ_QS_LAYMANS_GUIDE.md (in the project docs)."));
+                        break;
+                    case 1:
+                        sp.Children.Add(WizardText("Model readiness — a quick scan so you know what the take-off has to work with:"));
+                        sp.Children.Add(BuildReadinessReport());
+                        break;
+                    case 2:
+                        sp.Children.Add(WizardText("Set the project budget and the display currency."));
+                        var g = WizardTwoCol();
+                        budgetTb = new TextBox { Text = _wizardBudget, Height = 26, FontSize = 12 };
+                        ccyCb = new System.Windows.Controls.ComboBox { Height = 26, FontSize = 12 };
+                        ccyCb.Items.Add(new ComboBoxItem { Content = "UGX", Tag = "UGX" });
+                        ccyCb.Items.Add(new ComboBoxItem { Content = "USD", Tag = "USD" });
+                        ccyCb.SelectedIndex = string.Equals(_wizardCurrency, "USD", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                        WizardRow(g, 0, "Project budget (UGX)", budgetTb);
+                        WizardRow(g, 1, "Display currency", ccyCb);
+                        sp.Children.Add(g);
+                        break;
+                    case 3:
+                        sp.Children.Add(WizardText("How will this bill be priced?"));
+                        pricingRadios.Add(("Auto", WizardRadio(sp, "Auto rates",
+                            "STING's rate library + any project rate card. Fastest — review the Rate Gap Report after.", _wizardPricing == "Auto")));
+                        pricingRadios.Add(("RoundTrip", WizardRadio(sp, "QS round-trip",
+                            "Export the bill to Excel, a QS prices it, re-import. Most defensible.", _wizardPricing == "RoundTrip")));
+                        pricingRadios.Add(("Manual", WizardRadio(sp, "Manual",
+                            "Type rates into the Rate column yourself.", _wizardPricing == "Manual")));
+                        var exportBtn = WizardActionBtn("⤓ Export QS Bill now", () => DispatchAction("BOQQsExport"));
+                        exportBtn.Margin = new Thickness(0, 8, 0, 0);
+                        sp.Children.Add(exportBtn);
+                        break;
+                    case 4:
+                        sp.Children.Add(WizardText(
+                            $"Markups. Default flat percentages: Preliminaries {_boq?.PrelimPct:0.#}%, "
+                            + $"Contingency {_boq?.ContingencyPct:0.#}%, Overhead & profit {_boq?.OverheadPct:0.#}%.\n\n"
+                            + "Keep the flat % for a quick estimate, or build an itemised preliminaries schedule."));
+                        sp.Children.Add(WizardActionBtn("Open preliminaries schedule…",
+                            () => ShowPrelimsForm("Preliminaries schedule")));
+                        break;
+                    case 5:
+                        string budgetTxt = _boq != null && _boq.ProjectBudgetUGX > 0
+                            ? "UGX " + _boq.ProjectBudgetUGX.ToString("N0") : "— not set —";
+                        sp.Children.Add(WizardText(
+                            "Ready to finish. This refreshes the bill and saves a baseline snapshot.\n\n"
+                            + $"Budget: {budgetTxt}\n"
+                            + $"Pricing path: {_wizardPricing}\n"
+                            + $"Items in the bill: {_boq?.AllItems.Count ?? 0}"));
+                        break;
+                }
+
+                var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+                if (_wizardPage > 0)
+                    nav.Children.Add(WizardNavBtn("‹ Back", false, () =>
+                    { CaptureWizardPage(budgetTb, ccyCb, pricingRadios); _wizardPage--; RenderWizardPage(); }));
+                if (_wizardPage < WizardLastPage)
+                    nav.Children.Add(WizardNavBtn("Next ›", true, () =>
+                    { ApplyWizardPage(budgetTb, ccyCb, pricingRadios); _wizardPage++; RenderWizardPage(); }));
+                else
+                    nav.Children.Add(WizardNavBtn("✓ Finish", true, FinishWizard));
+                nav.Children.Add(WizardNavBtn("Skip", false, () =>
+                {
+                    _actionReportHost.Child = new TextBlock
+                    {
+                        Text = "Cost Setup dismissed. Re-open it any time via the ✦ Cost Setup button.",
+                        Margin = new Thickness(14), Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                    };
+                }));
+                sp.Children.Add(nav);
+
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RenderWizardPage", ex); }
+        }
+
+        // Capture page values into fields WITHOUT side effects (used by Back).
+        private void CaptureWizardPage(TextBox budgetTb, System.Windows.Controls.ComboBox ccyCb,
+            List<(string id, RadioButton rb)> pricing)
+        {
+            if (budgetTb != null) _wizardBudget = budgetTb.Text?.Trim() ?? _wizardBudget;
+            if (ccyCb != null) _wizardCurrency = (ccyCb.SelectedItem as ComboBoxItem)?.Tag as string ?? _wizardCurrency;
+            if (pricing != null && pricing.Count > 0)
+            {
+                var sel = pricing.FirstOrDefault(p => p.rb.IsChecked == true);
+                if (sel.id != null) _wizardPricing = sel.id;
+            }
+        }
+
+        // Capture + apply this page's side effects (used by Next).
+        private void ApplyWizardPage(TextBox budgetTb, System.Windows.Controls.ComboBox ccyCb,
+            List<(string id, RadioButton rb)> pricing)
+        {
+            CaptureWizardPage(budgetTb, ccyCb, pricing);
+            if (_wizardPage == 2)
+            {
+                // Currency — set the display toggle + persist.
+                if (!string.Equals(_displayCurrency, _wizardCurrency, StringComparison.OrdinalIgnoreCase))
+                {
+                    _displayCurrency = _wizardCurrency;
+                    if (_ugxToggle != null) _ugxToggle.IsChecked = _displayCurrency == "UGX";
+                    if (_usdToggle != null) _usdToggle.IsChecked = _displayCurrency == "USD";
+                    SaveUiState();
+                    RefreshDisplay();
+                }
+                // Budget — orchestrate the existing BOQSetBudget command (writes the param).
+                if (double.TryParse(_wizardBudget, NumberStyles.Any, CultureInfo.InvariantCulture, out double bud) && bud > 0)
+                {
+                    StingCommandHandler.SetExtraParam("ProjectBudgetUgx", bud.ToString("F0", CultureInfo.InvariantCulture));
+                    DispatchAction("BOQSetBudget");
+                }
+            }
+        }
+
+        private void FinishWizard()
+        {
+            try
+            {
+                _wizardCompleted = true;
+                SaveUiState();
+                RefreshAsync();   // rebuild on the UI thread (picks up the budget just set)
+                try
+                {
+                    if (_boq != null)
+                    {
+                        StingTools.BOQ.BOQCostManager.SaveSnapshot(Doc, _boq,
+                            $"Baseline — {DateTime.Now:yyyy-MM-dd}", "Manual");
+                        LoadSnapshotDropdown();
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ wizard snapshot: {ex.Message}"); }
+                _actionReportHost.Child = WizardText(
+                    "✓ Cost Setup complete. The bill is built and a baseline snapshot is saved. "
+                    + "Use Actions → Rate Gap Report to see what still needs a price, or Export to hand it over.");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ FinishWizard", ex); }
+        }
+
+        private UIElement BuildReadinessReport()
+        {
+            var grid = WizardTwoCol();
+            int rooms = 0, phases = 0;
+            try { rooms = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount(); } catch { }
+            try { phases = new FilteredElementCollector(Doc).OfClass(typeof(Phase)).GetElementCount(); } catch { }
+            int items = _boq?.AllItems.Count ?? 0;
+            int priced = _boq?.AllItems.Count(i => i.RateUGX > 0) ?? 0;
+            double pricedPct = items > 0 ? 100.0 * priced / items : 0;
+
+            void Row(int r, string k, string v, bool warn)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var lk = new TextBlock { Text = k, FontSize = 11, Foreground = NavyBrush, Margin = new Thickness(0, 3, 8, 3) };
+                var lv = new TextBlock { Text = v, FontSize = 11, FontWeight = FontWeights.SemiBold,
+                    Foreground = warn ? AmberBrush : GreenBrush, Margin = new Thickness(0, 3, 0, 3), TextWrapping = TextWrapping.Wrap };
+                Grid.SetRow(lk, r); Grid.SetColumn(lk, 0); grid.Children.Add(lk);
+                Grid.SetRow(lv, r); Grid.SetColumn(lv, 1); grid.Children.Add(lv);
+            }
+            Row(0, "Rooms", rooms > 0 ? $"{rooms} — spatial codes/locations available" : "none — locations will be blank (place rooms for §spatial grouping)", rooms == 0);
+            Row(1, "Phases", phases > 0 ? $"{phases} — used to cost-load the 4D schedule" : "none — the schedule will use one default phase", phases == 0);
+            Row(2, "Modelled items", items > 0 ? items.ToString() : "none — the model has no costable elements yet", items == 0);
+            Row(3, "Auto-priced", $"{priced} / {items} ({pricedPct:0.#}%)", pricedPct < 50);
+            return grid;
+        }
+
+        // ── G7 wizard UI helpers ────────────────────────────────────────────
+        private TextBlock WizardText(string t) => new TextBlock
+        {
+            Text = t, FontSize = 11.5, Foreground = NavyBrush, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 6)
+        };
+
+        private Grid WizardTwoCol()
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            return g;
+        }
+
+        private void WizardRow(Grid g, int r, string label, System.Windows.Controls.Control ctl)
+        {
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var lbl = new TextBlock { Text = label, FontSize = 11, Foreground = NavyBrush,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) };
+            ctl.Margin = new Thickness(0, 4, 0, 4);
+            Grid.SetRow(lbl, r); Grid.SetColumn(lbl, 0); g.Children.Add(lbl);
+            Grid.SetRow(ctl, r); Grid.SetColumn(ctl, 1); g.Children.Add(ctl);
+        }
+
+        private RadioButton WizardRadio(System.Windows.Controls.Panel host, string title, string detail, bool isChecked)
+        {
+            var rb = new RadioButton { IsChecked = isChecked, GroupName = "WizardPricing", Margin = new Thickness(0, 4, 0, 0) };
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = NavyBrush });
+            sp.Children.Add(new TextBlock { Text = detail, FontSize = 10.5, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap });
+            rb.Content = sp;
+            host.Children.Add(rb);
+            return rb;
+        }
+
+        private Button WizardActionBtn(string label, Action onClick)
+        {
+            var b = new Button { Content = label, FontSize = 11, Height = 28, MinWidth = 160,
+                HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0),
+                Background = Brushes.White, Foreground = NavyBrush, BorderBrush = BorderColor,
+                BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
+            b.Click += (s, e) => { try { onClick(); } catch (Exception ex) { StingLog.Error($"BOQ wizard btn '{label}'", ex); } };
+            return b;
+        }
+
+        private Button WizardNavBtn(string label, bool primary, Action onClick)
+        {
+            var b = new Button { Content = label, FontSize = 12, FontWeight = FontWeights.Bold, Height = 30, MinWidth = 90,
+                Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand,
+                Background = primary ? GreenBrush : Brushes.White, Foreground = primary ? Brushes.White : NavyBrush,
+                BorderBrush = BorderColor, BorderThickness = new Thickness(primary ? 0 : 1) };
+            b.Click += (s, e) => { try { onClick(); } catch (Exception ex) { StingLog.Error($"BOQ wizard nav '{label}'", ex); } };
+            return b;
+        }
+
         private void HighlightActionButton(Button btn)
         {
             try
@@ -1946,6 +2233,7 @@ namespace StingTools.UI
                     foreach (var s in _boq.Sections) _openSections.Add(SectionKey(s));
                 _suppressAutoOpenOnce = false;
                 RefreshDisplay();
+                MaybeOfferWizard();   // G7 — offer the Cost Setup wizard on a fresh, unpriced project
             }
             catch (Exception ex)
             {
