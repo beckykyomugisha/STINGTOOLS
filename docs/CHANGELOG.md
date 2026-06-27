@@ -47,6 +47,25 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 3: per-row delete)
+
+Branch `claude/placement-centre-review-audit`. Each of the three Schedule grids gains a
+fixed-width (34px) trailing **✕** column (`DataGridTemplateColumn`, non-resizable /
+non-sortable / non-reorderable). New generic `MakeDeleteColumn<T>` builds the button via
+a code `FrameworkElementFactory`; its click reads the row's `DataContext` and calls
+`DeleteScheduleRow<T>` — remove the item from its `ObservableCollection`, then
+`SaveSchedule()` + `RecalcSchedule()` so PV/EV and the S-curve update immediately and the
+change persists to `_BIM_COORD/schedule.json`. No popup (immediate delete; re-addable via
+the existing ＋ Phase / ＋ Period / ＋ Milestone). The last-row case is graceful — the
+collection simply empties (`RecalcSchedule`/`DrawSCurve` already no-op on an empty list).
+After a delete a sensible neighbour row is selected + scrolled into view. ✕ is themed
+navy/grey-bordered with red glyph. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → click the ✕ on a phase / period / milestone
+row → it disappears, the S-curve + EVM strip recompute, and the deletion survives closing
+and reopening the project. Deleting every phase leaves an empty grid (no crash); ＋ Phase
+adds one back.
+
 #### Completed (BOQ 5D Schedule-tab interactivity — slice 2: resizable/sortable columns)
 
 Branch `claude/placement-centre-review-audit`. All three Schedule grids now set

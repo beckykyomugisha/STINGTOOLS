@@ -4485,6 +4485,62 @@ namespace StingTools.UI
             };
         }
 
+        /// <summary>Slice 3 — a fixed-width trailing column with a small ✕ button that
+        /// removes the bound row from its ObservableCollection, then persists +
+        /// recomputes. No popup — immediate, and re-addable via the ＋ buttons.</summary>
+        private DataGridTemplateColumn MakeDeleteColumn<T>(
+            System.Collections.ObjectModel.ObservableCollection<T> coll, DataGrid grid)
+        {
+            var col = new DataGridTemplateColumn
+            {
+                Header = "", Width = 34, CanUserResize = false, CanUserSort = false, CanUserReorder = false
+            };
+            var factory = new FrameworkElementFactory(typeof(Button));
+            factory.SetValue(System.Windows.Controls.ContentControl.ContentProperty, "✕");
+            factory.SetValue(Button.FontSizeProperty, 11.0);
+            factory.SetValue(Button.WidthProperty, 22.0);
+            factory.SetValue(Button.HeightProperty, 22.0);
+            factory.SetValue(Button.PaddingProperty, new Thickness(0));
+            factory.SetValue(Button.CursorProperty, Cursors.Hand);
+            factory.SetValue(Button.ToolTipProperty, "Remove this row");
+            factory.SetValue(Button.BackgroundProperty, Brushes.White);
+            factory.SetValue(Button.ForegroundProperty, RedBrush);
+            factory.SetValue(Button.BorderBrushProperty, BorderColor);
+            factory.SetValue(Button.BorderThicknessProperty, new Thickness(1));
+            factory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            factory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            factory.AddHandler(Button.ClickEvent, new RoutedEventHandler((s, e) =>
+            {
+                if ((s as Button)?.DataContext is T item) DeleteScheduleRow(coll, item, grid);
+            }));
+            col.CellTemplate = new DataTemplate { VisualTree = factory };
+            return col;
+        }
+
+        /// <summary>Remove a schedule row + persist + recompute (the S-curve / EVM
+        /// update immediately). Selects a sensible neighbour so the grid keeps focus.</summary>
+        private void DeleteScheduleRow<T>(
+            System.Collections.ObjectModel.ObservableCollection<T> coll, T item, DataGrid grid)
+        {
+            try
+            {
+                if (coll == null || item == null) return;
+                int idx = coll.IndexOf(item);
+                if (idx < 0) return;
+                coll.Remove(item);
+                SaveSchedule();
+                RecalcSchedule();
+                // Slice 4 polish — keep a row selected + in view after the delete.
+                if (grid != null && coll.Count > 0)
+                {
+                    int sel = Math.Min(idx, coll.Count - 1);
+                    grid.SelectedIndex = sel;
+                    try { grid.ScrollIntoView(coll[sel]); } catch { /* non-fatal */ }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("BOQ DeleteScheduleRow", ex); }
+        }
+
         private UIElement BuildScheduleTab()
         {
             var root = new DockPanel { LastChildFill = true, Margin = new Thickness(0) };
@@ -4574,6 +4630,7 @@ namespace StingTools.UI
             var planCol = new DataGridTextColumn { Header = "Planned (UGX)", Width = DataGridLength.Auto, MinWidth = 110, IsReadOnly = true,
                 Binding = new Binding("PlannedCost") { StringFormat = "N0" } };
             _scheduleGrid.Columns.Add(planCol);
+            _scheduleGrid.Columns.Add(MakeDeleteColumn(_schedulePhases, _scheduleGrid));   // Slice 3
             _scheduleGrid.CellEditEnding += (s, e) =>
             {
                 // Commit the edit to the source first, then persist + recompute.
@@ -4604,6 +4661,7 @@ namespace StingTools.UI
             // Actual-cost column takes the slack so the periods grid fills the width.
             _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Actual cost (cum, UGX)", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 170,
                 Binding = new Binding("Acwp") { Mode = BindingMode.TwoWay, StringFormat = "N0" } });
+            _periodsGrid.Columns.Add(MakeDeleteColumn(_schedulePeriods, _periodsGrid));   // Slice 3
             _periodsGrid.CellEditEnding += (s, e) =>
                 Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
                     System.Windows.Threading.DispatcherPriority.Background);
@@ -4629,6 +4687,7 @@ namespace StingTools.UI
                 Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
             _milestonesGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Done", Width = DataGridLength.Auto, MinWidth = 56,
                 Binding = new Binding("Done") { Mode = BindingMode.TwoWay } });
+            _milestonesGrid.Columns.Add(MakeDeleteColumn(_milestones, _milestonesGrid));   // Slice 3
             _milestonesGrid.CellEditEnding += (s, e) =>
                 Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
                     System.Windows.Threading.DispatcherPriority.Background);
