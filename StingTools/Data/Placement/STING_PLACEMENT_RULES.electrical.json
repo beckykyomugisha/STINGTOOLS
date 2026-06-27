@@ -27,7 +27,8 @@
       "MinSpacingMm": 1500.0,
       "Priority": 60,
       "StandardRef": "BCO 2019",
-      "Notes": "1 floor box per 10 m\u00b2 in open-plan."
+      "Notes": "1 floor box per 10 m\u00b2 in open-plan.",
+      "VariantHint": "ELEC_FLOOR_BOX_DENSITY"
     },
     {
       "RuleId": "elec-equipment-db",
@@ -39,7 +40,8 @@
       "PerAreaM2": 250.0,
       "Priority": 65,
       "StandardRef": "BS 7671",
-      "Notes": "1 DB per 250 m\u00b2 (or per floor for areas <500 m\u00b2)."
+      "Notes": "1 DB per 250 m\u00b2 (or per floor for areas <500 m\u00b2).",
+      "VariantHint": "ELEC_EQUIPMENT_DB"
     },
     {
       "RuleId": "elec-equipment-isolator-plant",
@@ -51,7 +53,8 @@
       "MaxPerRoom": 2,
       "Priority": 65,
       "StandardRef": "BS 7671 \u00a7537",
-      "Notes": "Local isolator at 1.2 m AFF in plant rooms."
+      "Notes": "Local isolator at 1.2 m AFF in plant rooms.",
+      "VariantHint": "ELEC_EQUIPMENT_ISOLATOR_PLANT"
     },
     {
       "RuleId": "elec-light-stair-2way",
@@ -131,7 +134,8 @@
       "MinSpacingMm": 6000.0,
       "Priority": 60,
       "StandardRef": "BS 5839-8",
-      "Notes": "Public-address speaker per 60 m\u00b2 of corridor."
+      "Notes": "Public-address speaker per 60 m\u00b2 of corridor.",
+      "VariantHint": "ELEC_COMMS_PA_CORRIDOR"
     },
     {
       "RuleId": "elec-comms-pa-wc",
@@ -142,7 +146,8 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "StandardRef": "BS 5839-8",
-      "Notes": "1 PA speaker per WC compartment."
+      "Notes": "1 PA speaker per WC compartment.",
+      "VariantHint": "ELEC_COMMS_PA_WC"
     },
     {
       "RuleId": "elec-data-twin-rj45",
@@ -227,7 +232,8 @@
       "MinSpacingMm": 2400.0,
       "Priority": 60,
       "StandardRef": "BS EN 12464-1 (300\u2013500 lux)",
-      "Notes": "Classroom luminaires on tile grid for 300+ lux."
+      "Notes": "Classroom luminaires on tile grid for 300+ lux.",
+      "VariantHint": "ELEC_LIGHT_CLASSROOM"
     }
   ]
 }

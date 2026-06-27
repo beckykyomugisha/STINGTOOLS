@@ -95,7 +95,8 @@
       "IpRatingMin": "IP44",
       "PerAreaM2": 50.0,
       "MaxPerRoom": 20,
-      "Priority": 55
+      "Priority": 55,
+      "VariantHint": "ECTRICAL_FIXTURES_CARPARK_PILLAR"
     },
     {
       "RuleId": "baseline-electrical-fixtures-external-garden",
@@ -142,7 +143,8 @@
       "AnchorType": "RAISED_FLOOR_TILE",
       "MountingHeightMm": 300.0,
       "PerAreaM2": 15.0,
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "ECTRICAL_FIXTURES_RECEPTION_DESK"
     },
     {
       "RuleId": "baseline-electrical-fixtures-cinema-theatre",
@@ -289,7 +291,8 @@
       "ApplicableStandards": [
         "BS5839"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "NE_FIRE_ALARM_SMOKE_FLAT_CEILING"
     },
     {
       "RuleId": "baseline-fire-alarm-heat-kitchen",
@@ -303,7 +306,8 @@
       "ApplicableStandards": [
         "BS5839"
       ],
-      "Priority": 85
+      "Priority": 85,
+      "VariantHint": "BASELINE_FIRE_ALARM_HEAT_KITCHEN"
     },
     {
       "RuleId": "baseline-fire-alarm-heat-sloped-ceiling",
@@ -313,7 +317,8 @@
       "ApplicableStandards": [
         "BS5839"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "E_FIRE_ALARM_HEAT_SLOPED_CEILING"
     },
     {
       "RuleId": "baseline-fire-alarm-beam-detector",
@@ -385,7 +390,8 @@
       "ApplicableStandards": [
         "BS5839"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "BASELINE_FIRE_ALARM_SOUNDER"
     },
     {
       "RuleId": "baseline-fire-alarm-multi-sensor",
@@ -412,7 +418,8 @@
       "ApplicableStandards": [
         "NFPA13"
       ],
-      "Priority": 85
+      "Priority": 85,
+      "VariantHint": "BASELINE_SPRINKLERS_LIGHT_HAZARD"
     },
     {
       "RuleId": "baseline-sprinklers-ordinary-hazard-1",
@@ -427,7 +434,8 @@
       "ApplicableStandards": [
         "NFPA13"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "INE_SPRINKLERS_ORDINARY_HAZARD_1"
     },
     {
       "RuleId": "baseline-sprinklers-ordinary-hazard-2",
@@ -439,7 +447,8 @@
       "ApplicableStandards": [
         "NFPA13"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "INE_SPRINKLERS_ORDINARY_HAZARD_2"
     },
     {
       "RuleId": "baseline-sprinklers-extra-hazard",
@@ -451,7 +460,8 @@
       "ApplicableStandards": [
         "NFPA13"
       ],
-      "Priority": 85
+      "Priority": 85,
+      "VariantHint": "BASELINE_SPRINKLERS_EXTRA_HAZARD"
     },
     {
       "RuleId": "baseline-sprinklers-beam-soffit",

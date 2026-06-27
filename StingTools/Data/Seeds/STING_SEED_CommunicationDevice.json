@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Communication Devices (BS EN 50173, BICSI ANSI/TIA-568)",
+  "standard": "STING SEED FAMILY \u2014 Communication Devices (BS EN 50173, BICSI ANSI/TIA-568)",
   "_notes": [
     "12 type variants covering: WiFi APs (standard / Wi-Fi 6E), data",
     "outlets (Cat5e/6/6A, fibre), patch panels, CCTV cameras, network",
@@ -10,7 +10,7 @@
   "symbols": [
     {
       "id": "STING_SEED_CommunicationDevice",
-      "name": "STING Seed — Communication Device",
+      "name": "STING Seed \u2014 Communication Device",
       "category": "Communication Devices",
       "familyType": "SeedFamily",
       "discipline": "Electrical",
@@ -106,15 +106,53 @@
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
-          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
         ],
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.15, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 180 },
-          { "cx": 0, "cy": 0, "r": 0.45, "startDeg": 0, "endDeg": 180 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 180
+          }
         ]
       },
       "solid3D": {
@@ -272,6 +310,30 @@
             "ASS_PRODCT_COD_TXT": "PBX",
             "COM_DEV_PORTS_NR": "1"
           }
+        },
+        {
+          "name": "ELEC_COMMS_PA_CORRIDOR",
+          "params": {}
+        },
+        {
+          "name": "ELEC_COMMS_PA_WC",
+          "params": {}
+        },
+        {
+          "name": "NURSE_CALL",
+          "params": {}
+        },
+        {
+          "name": "_COMMUNICATION_DEVICES_PA_OFFICE",
+          "params": {}
+        },
+        {
+          "name": "MMUNICATION_DEVICES_PA_CLASSROOM",
+          "params": {}
+        },
+        {
+          "name": "OMMUNICATION_DEVICES_PA_CORRIDOR",
+          "params": {}
         }
       ]
     }

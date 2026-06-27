@@ -68,7 +68,8 @@
       "PlasterOffsetMode": "None",
       "Priority": 60,
       "StandardRef": "BS 7671 kitchen supplement",
-      "Notes": "Island socket above worktop."
+      "Notes": "Island socket above worktop.",
+      "VariantHint": "MK_SOCKET_KITCHEN_ISLAND"
     },
     {
       "RuleId": "mk-socket-bedroom-twin",
@@ -289,7 +290,8 @@
       "Priority": 60,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "45A DP cooker switch."
+      "Notes": "45A DP cooker switch.",
+      "VariantHint": "COOKER"
     },
     {
       "RuleId": "mk-socket-accessible",
@@ -608,7 +610,8 @@
       "Priority": 50,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 / BS 5733",
-      "Notes": "20A junction box on ring final mid-span."
+      "Notes": "20A junction box on ring final mid-span.",
+      "VariantHint": "MK_JB_RING_FINAL"
     },
     {
       "RuleId": "mk-jb-lighting-circuit",
@@ -631,7 +634,8 @@
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "5A 3-terminal lighting JB at ceiling void."
+      "Notes": "5A 3-terminal lighting JB at ceiling void.",
+      "VariantHint": "MK_JB_LIGHTING_CIRCUIT"
     },
     {
       "RuleId": "mk-socket-office-density",
@@ -678,7 +682,8 @@
       "BuildingType": "Office",
       "Priority": 60,
       "StandardRef": "BCO 2019",
-      "Notes": "Floor box density 1 per 9m\u00b2."
+      "Notes": "Floor box density 1 per 9m\u00b2.",
+      "VariantHint": "MK_SOCKET_FLOORBOX_DENSITY"
     },
     {
       "RuleId": "mk-socket-plant-metalclad",
@@ -877,7 +882,8 @@
       "Priority": 70,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "45A cooker connection unit at 150mm AFF (below worktop)."
+      "Notes": "45A cooker connection unit at 150mm AFF (below worktop).",
+      "VariantHint": "COOKER_CONNECTION"
     }
   ]
 }

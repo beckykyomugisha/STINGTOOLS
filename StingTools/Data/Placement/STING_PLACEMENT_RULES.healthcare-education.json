@@ -108,7 +108,8 @@
       "MaxPerRoom": 0,
       "Priority": 55,
       "StandardRef": "BB103",
-      "Notes": "Coat / locker run at 400 mm centres."
+      "Notes": "Coat / locker run at 400 mm centres.",
+      "VariantHint": "ED_CASEWORK_CLOAK"
     },
     {
       "RuleId": "ed-data-teacher-wallplate",
@@ -136,7 +137,8 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BB103",
-      "Notes": "1 dining seat per pupil at peak sitting."
+      "Notes": "1 dining seat per pupil at peak sitting.",
+      "VariantHint": "ED_FURNITURE_CANTEEN_DENSITY"
     }
   ]
 }

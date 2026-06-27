@@ -1,12 +1,12 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Plumbing Fixtures (BS EN 12056, BS 6465, BS 8558)",
+  "standard": "STING SEED FAMILY \u2014 Plumbing Fixtures (BS EN 12056, BS 6465, BS 8558)",
   "_notes": [
     "16 type variants covering standard sanitary (WC, basin, urinal,",
     "shower, sink), baths, kitchen sinks, cleaner / mop sinks, drinking",
     "fountains, accessible fixtures (WC, basin, shower wheelchair), bidet,",
     "slop hopper, shower tray.",
-    "Phase 192 (E4): STING_SEED_BaptismalFont symbol added — DCW + DHW",
+    "Phase 192 (E4): STING_SEED_BaptismalFont symbol added \u2014 DCW + DHW",
     "supply, SAN drain, and a recirculation supply/return pair (heated +",
     "treated loop). Font-specific params: fill rate, heater capacity (kW),",
     "water-treatment loop, working volume. Recirc connectors carry the",
@@ -15,7 +15,7 @@
   "symbols": [
     {
       "id": "STING_SEED_PlumbingFixture",
-      "name": "STING Seed — Plumbing Fixture",
+      "name": "STING Seed \u2014 Plumbing Fixture",
       "category": "Plumbing Fixtures",
       "familyType": "SeedFamily",
       "discipline": "Plumbing",
@@ -139,12 +139,42 @@
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.4, "y1": -0.5, "x2": 0.4, "y2": -0.5 },
-          { "x1": 0.4, "y1": -0.5, "x2": 0.5, "y2": 0.0 },
-          { "x1": 0.5, "y1": 0.0, "x2": 0.4, "y2": 0.5 },
-          { "x1": 0.4, "y1": 0.5, "x2": -0.4, "y2": 0.5 },
-          { "x1": -0.4, "y1": 0.5, "x2": -0.5, "y2": 0.0 },
-          { "x1": -0.5, "y1": 0.0, "x2": -0.4, "y2": -0.5 }
+          {
+            "x1": -0.4,
+            "y1": -0.5,
+            "x2": 0.4,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.0,
+            "x2": 0.4,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.5,
+            "x2": -0.4,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.4,
+            "y2": -0.5
+          }
         ]
       },
       "solid3D": {
@@ -348,12 +378,112 @@
             "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",
             "PLM_FIX_ACCESSIBLE_BOOL": "1"
           }
+        },
+        {
+          "name": "BING_FIXTURES_BATHROOM_WC_TOILET",
+          "params": {}
+        },
+        {
+          "name": "NG_FIXTURES_BATHROOM_WC_TOILET_X",
+          "params": {}
+        },
+        {
+          "name": "PLUMBING_FIXTURES_SHOWER_WETROOM",
+          "params": {}
+        },
+        {
+          "name": "LUMBING_FIXTURES_KITCHEN_UTILITY",
+          "params": {}
+        },
+        {
+          "name": "LUMBING_FIXTURES_CLEANER_JANITOR",
+          "params": {}
+        },
+        {
+          "name": "WALL_HUNG",
+          "params": {}
+        },
+        {
+          "name": "CLOSE_COUPLED",
+          "params": {}
+        },
+        {
+          "name": "URINAL_ADA",
+          "params": {}
+        },
+        {
+          "name": "LAVATORY_ADA",
+          "params": {}
+        },
+        {
+          "name": "WASH_TROUGH",
+          "params": {}
+        },
+        {
+          "name": "SHOWER_HEAD",
+          "params": {}
+        },
+        {
+          "name": "THERMOSTATIC_VALVE",
+          "params": {}
+        },
+        {
+          "name": "FLOOR_DRAIN",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_PLUMBING_WC_ACCESSIBLE",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_PLUMBING_URINAL_WALL",
+          "params": {}
+        },
+        {
+          "name": "ELINE_PLUMBING_URINAL_ACCESSIBLE",
+          "params": {}
+        },
+        {
+          "name": "SELINE_PLUMBING_BASIN_ACCESSIBLE",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_PLUMBING_BASIN_QUANTITY",
+          "params": {}
+        },
+        {
+          "name": "THERMOSTATIC",
+          "params": {}
+        },
+        {
+          "name": "ASELINE_PLUMBING_BATH_ACCESSIBLE",
+          "params": {}
+        },
+        {
+          "name": "ELINE_PLUMBING_DRINKING_FOUNTAIN",
+          "params": {}
+        },
+        {
+          "name": "SELINE_PLUMBING_MOP_SINK_CLEANER",
+          "params": {}
+        },
+        {
+          "name": "ELINE_PLUMBING_HOSE_BIB_EXTERNAL",
+          "params": {}
+        },
+        {
+          "name": "LAB",
+          "params": {}
+        },
+        {
+          "name": "BEDPAN",
+          "params": {}
         }
       ]
     },
     {
       "id": "STING_SEED_BaptismalFont",
-      "name": "STING Seed — Baptismal Font",
+      "name": "STING Seed \u2014 Baptismal Font",
       "category": "Plumbing Fixtures",
       "familyType": "SeedFamily",
       "discipline": "Plumbing",
@@ -363,38 +493,218 @@
       "hosting": "FaceBased",
       "symbolSize": 9.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_BaptismalFont" },
-        { "name": "STING_DESIGN_REF_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "ASS_TAG_1", "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "P" },
-        { "name": "ASS_PRODCT_COD_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "FONT" },
-        { "name": "PLM_FIX_TYPE_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "BAPTISMAL_FONT" },
-        { "name": "PLM_FIX_HOT_COLD_TXT", "type": "Text", "shared": true, "isInstance": true, "default": "HOT_COLD" },
-        { "name": "PLM_FIX_FLOWRATE_LMIN", "type": "Text", "shared": true, "isInstance": false, "default": "30", "_comment": "fill rate L/min" },
-        { "name": "PLM_FIX_DRAIN_DN_MM", "type": "Text", "shared": true, "isInstance": false, "default": "100" },
-        { "name": "PLM_FONT_VOLUME_L", "type": "Text", "shared": false, "isInstance": false, "default": "1500", "_comment": "working volume (L)" },
-        { "name": "PLM_FONT_HEATER_KW", "type": "Text", "shared": false, "isInstance": false, "default": "18", "_comment": "immersion / inline heater capacity (kW)" },
-        { "name": "PLM_FONT_TREATMENT_TXT", "type": "Text", "shared": false, "isInstance": false, "default": "Filtration + UV + chlorine dosing", "_comment": "water-treatment loop description" },
-        { "name": "PLM_FONT_RECIRC_LMIN", "type": "Text", "shared": false, "isInstance": false, "default": "60", "_comment": "recirculation flow (L/min)" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_BaptismalFont"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "P"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "FONT"
+        },
+        {
+          "name": "PLM_FIX_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "BAPTISMAL_FONT"
+        },
+        {
+          "name": "PLM_FIX_HOT_COLD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "HOT_COLD"
+        },
+        {
+          "name": "PLM_FIX_FLOWRATE_LMIN",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "30",
+          "_comment": "fill rate L/min"
+        },
+        {
+          "name": "PLM_FIX_DRAIN_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "100"
+        },
+        {
+          "name": "PLM_FONT_VOLUME_L",
+          "type": "Text",
+          "shared": false,
+          "isInstance": false,
+          "default": "1500",
+          "_comment": "working volume (L)"
+        },
+        {
+          "name": "PLM_FONT_HEATER_KW",
+          "type": "Text",
+          "shared": false,
+          "isInstance": false,
+          "default": "18",
+          "_comment": "immersion / inline heater capacity (kW)"
+        },
+        {
+          "name": "PLM_FONT_TREATMENT_TXT",
+          "type": "Text",
+          "shared": false,
+          "isInstance": false,
+          "default": "Filtration + UV + chlorine dosing",
+          "_comment": "water-treatment loop description"
+        },
+        {
+          "name": "PLM_FONT_RECIRC_LMIN",
+          "type": "Text",
+          "shared": false,
+          "isInstance": false,
+          "default": "60",
+          "_comment": "recirculation flow (L/min)"
+        }
       ],
       "connectors": [
-        { "domain": "Piping", "systemType": "DomesticCold", "shape": "Round", "sizeMm": 25, "direction": "In",  "offsetX": -0.35, "offsetY": 0.0, "offsetZ": 0.5,  "facing": "+Z" },
-        { "domain": "Piping", "systemType": "DomesticHot",  "shape": "Round", "sizeMm": 25, "direction": "In",  "offsetX": 0.35,  "offsetY": 0.0, "offsetZ": 0.5,  "facing": "+Z" },
-        { "domain": "Piping", "systemType": "Sanitary",     "shape": "Round", "sizeMm": 100,"direction": "Out", "offsetX": 0.0,   "offsetY": 0.5, "offsetZ": -0.5, "facing": "-Z" },
-        { "domain": "Piping", "systemType": "DomesticHot",  "shape": "Round", "sizeMm": 20, "direction": "In",  "offsetX": -0.45, "offsetY": -0.4,"offsetZ": -0.3, "facing": "-Y", "_comment": "recirculation supply (heated + treated)" },
-        { "domain": "Piping", "systemType": "DomesticHot",  "shape": "Round", "sizeMm": 20, "direction": "Out", "offsetX": 0.45,  "offsetY": -0.4,"offsetZ": -0.3, "facing": "-Y", "_comment": "recirculation return to treatment / heater" }
+        {
+          "domain": "Piping",
+          "systemType": "DomesticCold",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "offsetX": -0.35,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "offsetX": 0.35,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "Out",
+          "offsetX": 0.0,
+          "offsetY": 0.5,
+          "offsetZ": -0.5,
+          "facing": "-Z"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 20,
+          "direction": "In",
+          "offsetX": -0.45,
+          "offsetY": -0.4,
+          "offsetZ": -0.3,
+          "facing": "-Y",
+          "_comment": "recirculation supply (heated + treated)"
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 20,
+          "direction": "Out",
+          "offsetX": 0.45,
+          "offsetY": -0.4,
+          "offsetZ": -0.3,
+          "facing": "-Y",
+          "_comment": "recirculation return to treatment / heater"
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
-          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.3, "y1": -0.3, "x2": 0.3, "y2": -0.3 },
-          { "x1": 0.3, "y1": -0.3, "x2": 0.3, "y2": 0.3 },
-          { "x1": 0.3, "y1": 0.3, "x2": -0.3, "y2": 0.3 },
-          { "x1": -0.3, "y1": 0.3, "x2": -0.3, "y2": -0.3 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3
+          }
         ]
       },
       "solid3D": {
@@ -404,7 +714,13 @@
         "heightMm": 1200
       },
       "swapCandidates": [
-        { "label": "Manufacturer baptismal font / immersion pool", "familyPath": "", "variantPattern": "BAPTISMAL_FONT", "priority": 1, "autoLoad": false }
+        {
+          "label": "Manufacturer baptismal font / immersion pool",
+          "familyPath": "",
+          "variantPattern": "BAPTISMAL_FONT",
+          "priority": 1,
+          "autoLoad": false
+        }
       ],
       "typeVariants": [
         {

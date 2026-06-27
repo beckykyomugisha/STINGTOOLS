@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Plumbing Equipment (BS 8558, BS 6700, HSG 274)",
+  "standard": "STING SEED FAMILY \u2014 Plumbing Equipment (BS 8558, BS 6700, HSG 274)",
   "_notes": [
     "14 type variants: calorifiers (indirect/direct), DHW cylinders",
     "(unvented/vented), water heaters, booster sets, manifolds,",
@@ -10,7 +10,7 @@
   "symbols": [
     {
       "id": "STING_SEED_PlumbingEquipment",
-      "name": "STING Seed — Plumbing Equipment",
+      "name": "STING Seed \u2014 Plumbing Equipment",
       "category": "Plumbing Equipment",
       "familyType": "SeedFamily",
       "discipline": "Plumbing",
@@ -20,49 +20,174 @@
       "hosting": "Standalone",
       "symbolSize": 8.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_PlumbingEquipment" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "P" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true, "default": "CAL" },
-        { "name": "PLM_EQP_TYPE_TXT",          "type": "Text", "shared": true, "isInstance": true, "default": "CALORIFIER" },
-        { "name": "PLM_EQP_CAPACITY_LITRES",   "type": "Text", "shared": true, "isInstance": false, "default": "300" },
-        { "name": "PLM_EQP_HEAT_OUTPUT_KW",    "type": "Text", "shared": true, "isInstance": false, "default": "9" },
-        { "name": "PLM_EQP_PRESSURE_BAR",      "type": "Text", "shared": true, "isInstance": false, "default": "6" },
-        { "name": "PLM_EQP_INLET_DN_MM",       "type": "Text", "shared": true, "isInstance": false, "default": "22" },
-        { "name": "PLM_EQP_OUTLET_DN_MM",      "type": "Text", "shared": true, "isInstance": false, "default": "22" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_PlumbingEquipment"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "P"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "CAL"
+        },
+        {
+          "name": "PLM_EQP_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "CALORIFIER"
+        },
+        {
+          "name": "PLM_EQP_CAPACITY_LITRES",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "300"
+        },
+        {
+          "name": "PLM_EQP_HEAT_OUTPUT_KW",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "9"
+        },
+        {
+          "name": "PLM_EQP_PRESSURE_BAR",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "6"
+        },
+        {
+          "name": "PLM_EQP_INLET_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "22"
+        },
+        {
+          "name": "PLM_EQP_OUTLET_DN_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "22"
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
-          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.5, "y1": 0.0, "x2": 0.5, "y2": 0.0 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 600, "depthMm": 600, "heightMm": 1500 },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 600,
+        "depthMm": 600,
+        "heightMm": 1500
+      },
       "connectors": [
         {
-          "domain": "Piping", "systemType": "DomesticCold", "shape": "Round",
-          "sizeMm": 22, "direction": "In",
-          "offsetX": -0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+          "domain": "Piping",
+          "systemType": "DomesticCold",
+          "shape": "Round",
+          "sizeMm": 22,
+          "direction": "In",
+          "offsetX": -0.4,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
         },
         {
-          "domain": "Piping", "systemType": "DomesticHot", "shape": "Round",
-          "sizeMm": 22, "direction": "Out",
-          "offsetX": 0.4, "offsetY": 0.0, "offsetZ": 0.5, "facing": "+Z"
+          "domain": "Piping",
+          "systemType": "DomesticHot",
+          "shape": "Round",
+          "sizeMm": 22,
+          "direction": "Out",
+          "offsetX": 0.4,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z"
         },
         {
-          "domain": "Piping", "systemType": "SupplyHydronic", "shape": "Round",
-          "sizeMm": 28, "direction": "In",
-          "offsetX": 0.0, "offsetY": -0.5, "offsetZ": 0.0, "facing": "-Y"
+          "domain": "Piping",
+          "systemType": "SupplyHydronic",
+          "shape": "Round",
+          "sizeMm": 28,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": -0.5,
+          "offsetZ": 0.0,
+          "facing": "-Y"
         },
         {
-          "domain": "Piping", "systemType": "ReturnHydronic", "shape": "Round",
-          "sizeMm": 28, "direction": "Out",
-          "offsetX": 0.0, "offsetY": -0.5, "offsetZ": -0.3, "facing": "-Y"
+          "domain": "Piping",
+          "systemType": "ReturnHydronic",
+          "shape": "Round",
+          "sizeMm": 28,
+          "direction": "Out",
+          "offsetX": 0.0,
+          "offsetY": -0.5,
+          "offsetZ": -0.3,
+          "facing": "-Y"
         }
       ],
       "swapCandidates": [
@@ -211,6 +336,14 @@
             "ASS_PRODCT_COD_TXT": "GRT",
             "PLM_EQP_CAPACITY_LITRES": "100"
           }
+        },
+        {
+          "name": "MECH_PLUMBING_CYLINDER",
+          "params": {}
+        },
+        {
+          "name": "MECH_PLUMBING_EXPANSION",
+          "params": {}
         }
       ]
     }

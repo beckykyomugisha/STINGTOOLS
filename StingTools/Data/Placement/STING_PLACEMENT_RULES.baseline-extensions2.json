@@ -97,7 +97,8 @@
       "ApplicableStandards": [
         "BS5266"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "BASELINE_EMLIT_ANTI_PANIC_OPEN"
     },
     {
       "RuleId": "baseline-emlit-high-risk-task",
@@ -108,7 +109,8 @@
       "ApplicableStandards": [
         "BS5266"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "BASELINE_EMLIT_HIGH_RISK_TASK"
     },
     {
       "RuleId": "baseline-emlit-exit-sign-above-door",
@@ -149,7 +151,8 @@
       "ApplicableStandards": [
         "BS5266"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "ASELINE_EMLIT_CARPARK_ANTI_PANIC"
     },
     {
       "RuleId": "baseline-air-terminal-supply-diffuser-density",
@@ -160,7 +163,8 @@
       "ApplicableStandards": [
         "ASHRAE621"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "TERMINAL_SUPPLY_DIFFUSER_DENSITY"
     },
     {
       "RuleId": "baseline-air-terminal-supply-office-high",
@@ -172,7 +176,8 @@
       "ApplicableStandards": [
         "ASHRAE621"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "_AIR_TERMINAL_SUPPLY_OFFICE_HIGH"
     },
     {
       "RuleId": "baseline-air-terminal-supply-retail",
@@ -183,7 +188,8 @@
       "ApplicableStandards": [
         "ASHRAE621"
       ],
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "ELINE_AIR_TERMINAL_SUPPLY_RETAIL"
     },
     {
       "RuleId": "baseline-air-terminal-supply-restaurant",
@@ -195,7 +201,8 @@
       "ApplicableStandards": [
         "ASHRAE621"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "E_AIR_TERMINAL_SUPPLY_RESTAURANT"
     },
     {
       "RuleId": "baseline-air-terminal-supply-classroom",
@@ -208,7 +215,8 @@
         "ASHRAE621",
         "BB103"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "NE_AIR_TERMINAL_SUPPLY_CLASSROOM"
     },
     {
       "RuleId": "baseline-air-terminal-supply-hospital-ward",
@@ -220,7 +228,8 @@
       "ApplicableStandards": [
         "SHTM03-01"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "IR_TERMINAL_SUPPLY_HOSPITAL_WARD"
     },
     {
       "RuleId": "baseline-air-terminal-supply-theatre",
@@ -231,7 +240,8 @@
       "ApplicableStandards": [
         "SHTM03-01"
       ],
-      "Priority": 85
+      "Priority": 85,
+      "VariantHint": "LINE_AIR_TERMINAL_SUPPLY_THEATRE"
     },
     {
       "RuleId": "baseline-air-terminal-supply-corridor",
@@ -242,7 +252,8 @@
       "ApplicableStandards": [
         "CIBSE_GuideB"
       ],
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "INE_AIR_TERMINAL_SUPPLY_CORRIDOR"
     },
     {
       "RuleId": "baseline-air-terminal-return-grille-wall",
@@ -250,7 +261,8 @@
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 2400.0,
       "DependsOn": "supply-diffuser",
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "_AIR_TERMINAL_RETURN_GRILLE_WALL"
     },
     {
       "RuleId": "baseline-air-terminal-exhaust-wc",
@@ -261,7 +273,8 @@
       "ApplicableStandards": [
         "ApprovedDocF"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "BASELINE_AIR_TERMINAL_EXHAUST_WC"
     },
     {
       "RuleId": "baseline-air-terminal-exhaust-kitchen-extract",
@@ -272,7 +285,8 @@
       "ApplicableStandards": [
         "ApprovedDocF"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "TERMINAL_EXHAUST_KITCHEN_EXTRACT"
     },
     {
       "RuleId": "baseline-air-terminal-transfer-grille-door",
@@ -282,7 +296,8 @@
       "ApplicableStandards": [
         "ApprovedDocF"
       ],
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "IR_TERMINAL_TRANSFER_GRILLE_DOOR"
     },
     {
       "RuleId": "baseline-air-terminal-fcu-cassette",
@@ -320,7 +335,8 @@
         "BSEN12464",
         "ApprovedDocL"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "BASELINE_LIGHT_OFFICE_LED_PANEL"
     },
     {
       "RuleId": "baseline-light-conference-linear",
@@ -342,7 +358,8 @@
         "BSEN12464",
         "BB103"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "BASELINE_LIGHT_CLASSROOM_DIFFUSE"
     },
     {
       "RuleId": "baseline-light-corridor-downlight",
@@ -350,7 +367,8 @@
       "RoomFilter": "(?i)corridor",
       "AnchorType": "CEILING_CENTRE",
       "PerLinearMetre": 3.0,
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "ASELINE_LIGHT_CORRIDOR_DOWNLIGHT"
     },
     {
       "RuleId": "baseline-light-stair-tread",
@@ -371,7 +389,8 @@
       "ApplicableStandards": [
         "BSEN12464"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "BASELINE_LIGHT_TOILET_AMBIENT"
     },
     {
       "RuleId": "baseline-light-kitchen-worktop",
@@ -383,7 +402,8 @@
       "ApplicableStandards": [
         "BSEN12464"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "BASELINE_LIGHT_KITCHEN_WORKTOP"
     },
     {
       "RuleId": "baseline-light-kitchen-ambient",
@@ -393,7 +413,8 @@
       "ApplicableStandards": [
         "BSEN12464"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "BASELINE_LIGHT_KITCHEN_AMBIENT"
     },
     {
       "RuleId": "baseline-light-storage-minimal",
@@ -403,7 +424,8 @@
       "ApplicableStandards": [
         "ApprovedDocL"
       ],
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "BASELINE_LIGHT_STORAGE_MINIMAL"
     },
     {
       "RuleId": "baseline-light-parking-covered",
@@ -414,7 +436,8 @@
       "ApplicableStandards": [
         "BSEN12464"
       ],
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "BASELINE_LIGHT_PARKING_COVERED"
     },
     {
       "RuleId": "baseline-light-reception-feature",
@@ -441,7 +464,8 @@
       "ApplicableStandards": [
         "HTM"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "BASELINE_LIGHT_WARD_BEDHEAD"
     },
     {
       "RuleId": "baseline-light-operating-theatre",
@@ -471,7 +495,8 @@
       "MountingHeightMm": 1000.0,
       "PerLinearMetre": 5.0,
       "IpRatingMin": "IP65",
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "BASELINE_LIGHT_EXTERNAL_BOLLARD"
     },
     {
       "RuleId": "baseline-light-rcp-uplighter",
@@ -497,7 +522,8 @@
       "AnchorType": "PERIMETER_OFFSET",
       "OffsetXMm": 600.0,
       "PerLinearMetre": 1.2,
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "BASELINE_LIGHT_RETAIL_PERIMETER"
     },
     {
       "RuleId": "baseline-light-daylight-sensor-pair",
@@ -523,7 +549,8 @@
         "BS8300",
         "PartM"
       ],
-      "Priority": 85
+      "Priority": 85,
+      "VariantHint": "BASELINE_PLUMBING_WC_ACCESSIBLE"
     },
     {
       "RuleId": "baseline-plumbing-urinal-wall",
@@ -537,7 +564,8 @@
       "ApplicableStandards": [
         "BS6465"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "BASELINE_PLUMBING_URINAL_WALL"
     },
     {
       "RuleId": "baseline-plumbing-urinal-accessible",
@@ -550,7 +578,8 @@
       "ApplicableStandards": [
         "BS8300"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "ELINE_PLUMBING_URINAL_ACCESSIBLE"
     },
     {
       "RuleId": "baseline-plumbing-basin-accessible",
@@ -564,7 +593,8 @@
       "ApplicableStandards": [
         "BS8300"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "SELINE_PLUMBING_BASIN_ACCESSIBLE"
     },
     {
       "RuleId": "baseline-plumbing-basin-quantity",
@@ -575,7 +605,8 @@
       "ApplicableStandards": [
         "BS6465"
       ],
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "BASELINE_PLUMBING_BASIN_QUANTITY"
     },
     {
       "RuleId": "baseline-plumbing-shower-thermostatic",
@@ -599,7 +630,8 @@
       "ApplicableStandards": [
         "BS8300"
       ],
-      "Priority": 75
+      "Priority": 75,
+      "VariantHint": "ASELINE_PLUMBING_BATH_ACCESSIBLE"
     },
     {
       "RuleId": "baseline-plumbing-drinking-fountain",
@@ -612,7 +644,8 @@
       "ApplicableStandards": [
         "PartM"
       ],
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "ELINE_PLUMBING_DRINKING_FOUNTAIN"
     },
     {
       "RuleId": "baseline-plumbing-mop-sink-cleaner",
@@ -621,7 +654,8 @@
       "AnchorType": "WALL_CORNER",
       "MountingHeightMm": 450.0,
       "MaxPerRoom": 1,
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "SELINE_PLUMBING_MOP_SINK_CLEANER"
     },
     {
       "RuleId": "baseline-plumbing-hose-bib-external",
@@ -632,7 +666,8 @@
       "IpRatingMin": "IP65",
       "MinSpacingMm": 15000.0,
       "MaxPerRoom": 4,
-      "Priority": 60
+      "Priority": 60,
+      "VariantHint": "ELINE_PLUMBING_HOSE_BIB_EXTERNAL"
     },
     {
       "RuleId": "baseline-plumbing-lab-sink",
@@ -688,7 +723,8 @@
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 60.0,
       "CoverageRadiusMm": 8000.0,
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "_COMMUNICATION_DEVICES_PA_OFFICE"
     },
     {
       "RuleId": "baseline-communication-devices-pa-classroom",
@@ -697,7 +733,8 @@
       "AnchorType": "CEILING_CENTRE",
       "MaxPerRoom": 2,
       "CoverageRadiusMm": 6000.0,
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "MMUNICATION_DEVICES_PA_CLASSROOM"
     },
     {
       "RuleId": "baseline-communication-devices-pa-corridor",
@@ -706,7 +743,8 @@
       "AnchorType": "CEILING_CENTRE",
       "PerLinearMetre": 8.0,
       "CoverageRadiusMm": 8000.0,
-      "Priority": 65
+      "Priority": 65,
+      "VariantHint": "OMMUNICATION_DEVICES_PA_CORRIDOR"
     },
     {
       "RuleId": "baseline-communication-devices-nurse-call-bed",
@@ -720,7 +758,8 @@
       "ApplicableStandards": [
         "HTM0201"
       ],
-      "Priority": 80
+      "Priority": 80,
+      "VariantHint": "UNICATION_DEVICES_NURSE_CALL_BED"
     },
     {
       "RuleId": "baseline-communication-devices-nurse-call-cord",

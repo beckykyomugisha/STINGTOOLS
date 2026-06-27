@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Mechanical Equipment (CIBSE Guide B, BS EN 1886)",
+  "standard": "STING SEED FAMILY \u2014 Mechanical Equipment (CIBSE Guide B, BS EN 1886)",
   "_notes": [
     "15 type variants covering: AHU, FCU, chiller, boiler, pump,",
     "heat pumps (air-source / ground-source), cooling tower, plate HEX,",
@@ -10,7 +10,7 @@
   "symbols": [
     {
       "id": "STING_SEED_MechanicalEquipment",
-      "name": "STING Seed — Mechanical Equipment",
+      "name": "STING Seed \u2014 Mechanical Equipment",
       "category": "Mechanical Equipment",
       "familyType": "SeedFamily",
       "discipline": "Mechanical",
@@ -124,11 +124,36 @@
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.4, "x2": 0.5, "y2": -0.4 },
-          { "x1": 0.5, "y1": -0.4, "x2": 0.5, "y2": 0.4 },
-          { "x1": 0.5, "y1": 0.4, "x2": -0.5, "y2": 0.4 },
-          { "x1": -0.5, "y1": 0.4, "x2": -0.5, "y2": -0.4 },
-          { "x1": 0.0, "y1": -0.4, "x2": 0.0, "y2": 0.4 }
+          {
+            "x1": -0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.4,
+            "x2": 0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.4,
+            "x2": -0.5,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.4,
+            "x2": 0.0,
+            "y2": 0.4
+          }
         ]
       },
       "solid3D": {
@@ -307,6 +332,10 @@
             "ASS_PRODCT_COD_TXT": "PRU",
             "HVC_EQP_DUTY_KW": "0.5"
           }
+        },
+        {
+          "name": "ECHANICAL_EQUIPMENT_PLANT_BOILER",
+          "params": {}
         }
       ]
     }

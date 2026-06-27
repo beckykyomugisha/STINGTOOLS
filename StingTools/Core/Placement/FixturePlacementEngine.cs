@@ -1601,13 +1601,22 @@ namespace StingTools.Core.Placement
                     if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
 
                     if (firstForCategory == null) firstForCategory = fs;
+                    // VariantHint resolves against the STING_FIXTURE_VARIANT_TXT
+                    // param when present AND against the TYPE NAME. Seed-minted
+                    // variants name the type after the variant (SOCKET_1G) but do
+                    // NOT bind that param (it isn't a registered shared parameter),
+                    // so name-matching is what actually makes VariantHint resolve
+                    // against seed families — without this, every VariantHint-only
+                    // rule fell through to the first symbol (wrong type).
                     string variant = fs.LookupParameter("STING_FIXTURE_VARIANT_TXT")?.AsString() ?? "";
+                    string variantName = fs.Name ?? "";
 
                     if (chain.Count > 0)
                     {
                         for (int i = 0; i < chain.Count && i < bestChainIndex; i++)
                         {
-                            if (string.Equals(variant, chain[i], StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(variant, chain[i], StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(variantName, chain[i], StringComparison.OrdinalIgnoreCase))
                             {
                                 picked = fs;
                                 bestChainIndex = i;
@@ -1618,7 +1627,7 @@ namespace StingTools.Core.Placement
                     }
                     else if (variantRx != null)
                     {
-                        if (variantRx.IsMatch(variant))
+                        if (variantRx.IsMatch(variant) || variantRx.IsMatch(variantName))
                         {
                             picked = fs;
                             goto done;
@@ -1626,7 +1635,8 @@ namespace StingTools.Core.Placement
                     }
                     else if (!string.IsNullOrEmpty(hint))
                     {
-                        if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(variantName, hint, StringComparison.OrdinalIgnoreCase))
                         {
                             picked = fs;
                             goto done;
