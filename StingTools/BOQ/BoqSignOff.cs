@@ -120,5 +120,39 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.Warn($"BoqSignOffStore.StampWorkbook: {ex.Message}"); }
         }
+
+        /// <summary>
+        /// G9 follow-up — stamp a DRAFT/CERTIFIED footer on EVERY worksheet (not
+        /// just the Status sheet) so the draft mark can't be missed when a reader
+        /// jumps straight to a data tab. Unsigned exports also get a red sheet-tab
+        /// tint as an unmissable on-screen cue. Non-intrusive: writes only the
+        /// print footer + tab colour, never a cell. Call AFTER all sheets
+        /// (including the Status sheet) have been added.
+        /// </summary>
+        public static void StampSheetFooters(IXLWorkbook wb, Document doc, BOQDocument boq)
+        {
+            if (wb == null) return;
+            try
+            {
+                bool signed = IsSignedFor(doc, boq);
+                var rec = Load(doc);
+                string footer = signed
+                    ? $"CERTIFIED — {rec.SignedBy} ({rec.Role}) {rec.Date}  ·  Snapshot {rec.SnapshotRef}"
+                    : "DRAFT — not a certified bill of quantities; subject to QS verification";
+                foreach (var ws in wb.Worksheets)
+                {
+                    try
+                    {
+                        ws.PageSetup.Footer.Left.Clear();
+                        ws.PageSetup.Footer.Left.AddText(footer);
+                        ws.PageSetup.Footer.Right.Clear();
+                        ws.PageSetup.Footer.Right.AddText("Page &P of &N");
+                        if (!signed) ws.SetTabColor(XLColor.FromArgb(198, 40, 40));
+                    }
+                    catch (Exception inner) { StingLog.Warn($"StampSheetFooters[{ws.Name}]: {inner.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BoqSignOffStore.StampSheetFooters: {ex.Message}"); }
+        }
     }
 }

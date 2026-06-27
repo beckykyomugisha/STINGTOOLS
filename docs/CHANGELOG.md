@@ -3,6 +3,21 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G9 follow-up — per-sheet draft footer)
+
+Branch `claude/placement-centre-review-audit`. Refines G9 so the DRAFT/CERTIFIED
+mark can't be missed by a reader who opens a data tab directly. New
+`BoqSignOffStore.StampSheetFooters(wb, doc, boq)` applies a print footer
+("DRAFT — not a certified bill of quantities…" / "CERTIFIED — <signer> · Snapshot
+<ref>") to **every** worksheet and tints each sheet tab red when unsigned —
+non-intrusive (footer + tab colour only, never a cell). Wired into both
+`BOQExportCommand` and `BOQProfessionalExportCommand` after `StampWorkbook`.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Export the BOQ unsigned → every sheet tab is red and
+each sheet's print/PDF footer reads DRAFT; Record QS Sign-off → re-export the
+signed snapshot → tabs no longer red, footers read CERTIFIED — <name>.
+
 #### Completed (BOQ QS gap G8 — big-model Refresh feedback)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #6 in

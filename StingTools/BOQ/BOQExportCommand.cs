@@ -98,6 +98,9 @@ namespace StingTools.BOQ
 
                     // G9 — DRAFT / CERTIFIED status banner (first sheet).
                     BoqSignOffStore.StampWorkbook(wb, doc, boq);
+                    // G9 follow-up — DRAFT/CERTIFIED footer on EVERY sheet so the
+                    // mark can't be missed (+ red tab tint when unsigned).
+                    BoqSignOffStore.StampSheetFooters(wb, doc, boq);
 
                     wb.SaveAs(outputPath);
                 }

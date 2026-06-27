@@ -296,7 +296,9 @@ This is the part a real guide hides and you find out the hard way. We won't.
    certification on a real contract. Use it to do 90% of the work and to make the
    QS's job an hour, not a week. *(G9 closed: every export is now stamped
    **DRAFT — UNCERTIFIED** until a QS records a sign-off via **Actions → Record
-   QS Sign-off**, which prints exports of that snapshot as **CERTIFIED**.)*
+   QS Sign-off**, which prints exports of that snapshot as **CERTIFIED**. The
+   draft/certified mark now appears as a **footer on every sheet** — and unsigned
+   exports tint every sheet tab red — so the status can't be missed on any tab.)*
 
 ---
 
