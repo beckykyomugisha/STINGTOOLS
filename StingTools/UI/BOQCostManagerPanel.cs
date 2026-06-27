@@ -1322,6 +1322,8 @@ namespace StingTools.UI
                 // before the generic form/dispatch path.
                 if (tag == "ReconcileProvisionals") { ShowProvisionalReconcileForm(label); return; }
                 if (tag == "BOQ_Prelims") { ShowPrelimsForm(label); return; }
+                // Star rate is a dynamic multi-line build-up — its own inline editor.
+                if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
 
                 // P2.2 — input-heavy actions render a single inline editable form
                 // first; on Run the form sets the command's ExtraParams and then
@@ -1650,6 +1652,74 @@ namespace StingTools.UI
                     }, get => StingCommandHandler.SetExtraParam("CostPlanPath", get("CostPlanPath")));
                     return true;
                 }
+                case "Variation_FromDiff":
+                {
+                    // P0.3 — the 6-step Variation picker chain rendered as one inline
+                    // form (two snapshot combos + contract/kind/reason/liability/EOT
+                    // combos + a free-text rationale). Values are enum names the
+                    // command parses; an empty liability means auto-suggest.
+                    var snaps = BOQCostManager.ListSnapshots(Doc);
+                    // < 2 snapshots — let the command surface its own NEED SNAPSHOTS panel.
+                    if (snaps.Count < 2) return false;
+                    var snapOpts = snaps
+                        .Select(s => ($"{s.Type} · {s.Label} · {s.Date:yyyy-MM-dd HH:mm} · UGX {s.GrandTotalUGX:N0}", s.Path))
+                        .ToList();
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "VarSnapA", Label = "Baseline (A)", Kind = BoqFormKind.Combo, Options = snapOpts },
+                        new BoqFormField { Key = "VarSnapB", Label = "Revised (B)", Kind = BoqFormKind.Combo, Options = snapOpts },
+                        new BoqFormField { Key = "VarContractForm", Label = "Contract form", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("JCT 2024", "JCT2024"), ("JCT 2016", "JCT2016"), ("NEC4 ECC", "NEC4"),
+                                ("FIDIC 2017 Red", "FIDIC2017Red"), ("FIDIC 2017 Yellow", "FIDIC2017Yellow"),
+                                ("FIDIC 2017 Silver", "FIDIC2017Silver"), ("GC/Works", "GCWorks"), ("Bespoke", "Bespoke"),
+                            } },
+                        new BoqFormField { Key = "VarKind", Label = "Kind", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("Architect's / engineer's instruction", "Instruction"),
+                                ("NEC4 compensation event", "CompensationEvent"),
+                                ("FIDIC engineer instruction", "EngineerInstruction"),
+                                ("Contractor claim", "ContractorClaim"),
+                            } },
+                        new BoqFormField { Key = "VarReason", Label = "Reason", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("Design change", "DesignChange"), ("Client request", "ClientRequest"),
+                                ("Site condition", "SiteCondition"), ("Statutory change", "StatutoryChange"),
+                                ("Error / omission", "ErrorOmission"), ("Contractor proposal", "ContractorProposal"),
+                                ("Scope addition", "ScopeAddition"), ("Scope omission", "ScopeOmission"),
+                                ("Specification", "Specification"), ("Quality", "Quality"),
+                                ("Programme change", "ProgrammeChange"), ("Other", "Other"),
+                            } },
+                        new BoqFormField { Key = "VarLiability", Label = "Liability", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("(auto-suggest from reason)", ""), ("Employer / client", "Employer"),
+                                ("Contractor", "Contractor"), ("Designer", "Designer"),
+                                ("Shared", "Shared"), ("Force majeure", "ForceMajeure"),
+                            } },
+                        new BoqFormField { Key = "VarEot", Label = "EOT (days)", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("0 days", "0"), ("1 day", "1"), ("3 days", "3"), ("5 days", "5"), ("7 days", "7"),
+                                ("14 days", "14"), ("21 days", "21"), ("30 days", "30"), ("60 days", "60"), ("90 days", "90"),
+                            } },
+                        new BoqFormField { Key = "VarReasonDetail", Label = "Rationale (optional)", Kind = BoqFormKind.Text },
+                    }, get =>
+                    {
+                        StingCommandHandler.SetExtraParam("VarSnapA", get("VarSnapA"));
+                        StingCommandHandler.SetExtraParam("VarSnapB", get("VarSnapB"));
+                        StingCommandHandler.SetExtraParam("VarContractForm", get("VarContractForm"));
+                        StingCommandHandler.SetExtraParam("VarKind", get("VarKind"));
+                        StingCommandHandler.SetExtraParam("VarReason", get("VarReason"));
+                        StingCommandHandler.SetExtraParam("VarLiability", get("VarLiability"));
+                        StingCommandHandler.SetExtraParam("VarEot", get("VarEot"));
+                        StingCommandHandler.SetExtraParam("VarReasonDetail", get("VarReasonDetail"));
+                    });
+                    return true;
+                }
             }
             return false;
         }
@@ -1672,6 +1742,167 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"BOQ SuggestGifaM2: {ex.Message}"); }
             return Math.Round(m2);
+        }
+
+        // ── Star-rate first-principles build-up (dynamic inline form) ─────────
+        //  Labour / plant / materials line items + overhead% / profit% → a
+        //  StarRate serialized into the StarRateJson ExtraParam; the command
+        //  deserializes + saves (no modal builder dialog). Blank rows ignored.
+        private void ShowStarRateForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                string cc = _boq?.Currency ?? "UGX";
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock { Text = "Star rate — first-principles build-up",
+                    FontSize = 13, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6) });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Build a rate from labour + plant + materials, then overhead and profit. "
+                         + "Blank rows are ignored; click + add row for more lines.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                var descTb = new TextBox { Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 6) };
+                sp.Children.Add(LabeledRow("Description", descTb));
+                var unitTb = new TextBox { Text = "each", Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 10) };
+                sp.Children.Add(LabeledRow("Unit", unitTb));
+
+                var labour = new List<(TextBox res, TextBox num, TextBox rate)>();
+                var plant = new List<(TextBox res, TextBox num, TextBox rate)>();
+                var materials = new List<(TextBox res, TextBox num, TextBox rate)>();
+
+                sp.Children.Add(BuildStarRateSection("LABOUR", $"Resource · hours · {cc} per hr", labour));
+                sp.Children.Add(BuildStarRateSection("PLANT", $"Resource · hours · {cc} per hr", plant));
+                sp.Children.Add(BuildStarRateSection("MATERIALS", $"Resource · qty · {cc} per unit", materials));
+
+                var ohTb = new TextBox { Text = "8", Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 6) };
+                sp.Children.Add(LabeledRow("Overhead %", ohTb));
+                var profitTb = new TextBox { Text = "5", Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 10) };
+                sp.Children.Add(LabeledRow("Profit %", profitTb));
+
+                var runBtn = new Button
+                {
+                    Content = "Run", FontSize = 12, FontWeight = FontWeights.Bold, Height = 30, MinWidth = 100,
+                    HorizontalAlignment = HorizontalAlignment.Left, Background = GreenBrush, Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand
+                };
+                runBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        double ParseD(string t, double def = 0)
+                            => double.TryParse(t?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : def;
+
+                        var rate = new StingTools.Core.Variation.StarRate
+                        {
+                            Description = descTb.Text?.Trim() ?? "",
+                            Unit = string.IsNullOrWhiteSpace(unitTb.Text) ? "each" : unitTb.Text.Trim(),
+                            Currency = cc,
+                            OverheadPercent = ParseD(ohTb.Text, 8),
+                            ProfitPercent = ParseD(profitTb.Text, 5),
+                        };
+                        void Collect(List<(TextBox res, TextBox num, TextBox rate)> rows,
+                            List<StingTools.Core.Variation.StarRateLine> dest, string unit, bool isMaterials)
+                        {
+                            foreach (var row in rows)
+                            {
+                                string res = row.res.Text?.Trim() ?? "";
+                                double num = ParseD(row.num.Text);
+                                double r = ParseD(row.rate.Text);
+                                if (res.Length == 0 && num == 0 && r == 0) continue;
+                                var line = new StingTools.Core.Variation.StarRateLine { Resource = res, UnitRate = r, Unit = unit };
+                                if (isMaterials) line.Quantity = num; else line.Hours = num;
+                                dest.Add(line);
+                            }
+                        }
+                        Collect(labour, rate.LabourLines, "hr", false);
+                        Collect(plant, rate.PlantLines, "hr", false);
+                        Collect(materials, rate.MaterialsLines, "unit", true);
+
+                        if (rate.LabourLines.Count + rate.PlantLines.Count + rate.MaterialsLines.Count == 0)
+                        {
+                            _actionReportHost.Child = new TextBlock
+                            {
+                                Text = "Add at least one labour / plant / material line.",
+                                Foreground = AmberBrush, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                                Margin = new Thickness(14)
+                            };
+                            return;
+                        }
+                        string json = Newtonsoft.Json.JsonConvert.SerializeObject(rate);
+                        StingCommandHandler.SetExtraParam("StarRateJson", json);
+                        DispatchInline(label, "Variation_BuildStarRate");
+                    }
+                    catch (Exception ex) { StingLog.Error("BOQ ShowStarRateForm Run", ex); }
+                };
+                sp.Children.Add(runBtn);
+
+                _actionReportHost.Child = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = sp
+                };
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowStarRateForm", ex); }
+        }
+
+        /// <summary>P0.3 — 120px-label + control row used by the star-rate form.</summary>
+        private UIElement LabeledRow(string label, FrameworkElement control)
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var t = new TextBlock { Text = label, FontSize = 11, Foreground = NavyBrush, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(t, 0); g.Children.Add(t);
+            Grid.SetColumn(control, 1); g.Children.Add(control);
+            return g;
+        }
+
+        /// <summary>P0.3 — one labour/plant/materials section: a header + dynamically
+        /// growable rows (Resource · number · rate) + an "+ add row" button. Editors
+        /// are appended to <paramref name="editors"/> so the Run handler can read them.</summary>
+        private UIElement BuildStarRateSection(string title, string hint,
+            List<(TextBox res, TextBox num, TextBox rate)> editors)
+        {
+            var outer = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            outer.Children.Add(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = NavyBrush });
+            outer.Children.Add(new TextBlock { Text = hint, FontSize = 9, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 4) });
+            var rowsPanel = new StackPanel();
+            outer.Children.Add(rowsPanel);
+
+            void AddRow()
+            {
+                var g = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                var res = new TextBox { Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 4, 0) };
+                var num = new TextBox { Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 4, 0) };
+                var rate = new TextBox { Height = 24, FontSize = 11 };
+                Grid.SetColumn(res, 0); Grid.SetColumn(num, 1); Grid.SetColumn(rate, 2);
+                g.Children.Add(res); g.Children.Add(num); g.Children.Add(rate);
+                rowsPanel.Children.Add(g);
+                editors.Add((res, num, rate));
+            }
+            AddRow(); AddRow();   // start with two rows
+
+            var addBtn = new Button
+            {
+                Content = "+ add row", FontSize = 10, Height = 22, MinWidth = 70,
+                HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 0),
+                Background = Brushes.White, Foreground = NavyBrush, BorderBrush = BorderColor,
+                BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+            };
+            addBtn.Click += (s, e) => AddRow();
+            outer.Children.Add(addBtn);
+            return outer;
         }
 
         // ── G2 — provisional-sum reconciliation trail (dynamic inline form) ──

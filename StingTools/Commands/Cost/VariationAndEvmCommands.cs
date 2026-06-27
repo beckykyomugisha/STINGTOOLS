@@ -52,37 +52,54 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                var items = snapshots.Select(s => new StingListPicker.ListItem
-                {
-                    Label = $"{s.Type,-8} {s.Label}",
-                    Detail = $"{s.Date:yyyy-MM-dd HH:mm} — UGX {s.GrandTotalUGX:N0}",
-                    Tag = s
-                }).ToList();
-                var pickedA = StingListPicker.Show("STING — Variation: baseline (A)",
-                    "Pick the BASELINE snapshot (the one before the change).",
-                    items, allowMultiSelect: false);
-                if (pickedA == null || pickedA.Count == 0) return Result.Cancelled;
-                var pickedB = StingListPicker.Show("STING — Variation: revised (B)",
-                    "Pick the REVISED snapshot (after the change).",
-                    items, allowMultiSelect: false);
-                if (pickedB == null || pickedB.Count == 0) return Result.Cancelled;
+                // P0.3 — inline-form gate. When the BOQ panel supplied the Var*
+                // ExtraParams, gather every input without a popup; otherwise fall
+                // back to the modal picker chain (ribbon / non-panel callers).
+                string fA = UI.StingCommandHandler.GetExtraParam("VarSnapA");
+                string fB = UI.StingCommandHandler.GetExtraParam("VarSnapB");
+                bool inline = !string.IsNullOrEmpty(fA) && !string.IsNullOrEmpty(fB)
+                    && snapshots.Any(s => s.Path == fA) && snapshots.Any(s => s.Path == fB);
 
-                var snapA = (pickedA[0].Tag as BOQSnapshotMeta);
-                var snapB = (pickedB[0].Tag as BOQSnapshotMeta);
-                if (snapA == null || snapB == null) return Result.Cancelled;
+                string snapAPath, snapBPath;
+                if (inline)
+                {
+                    snapAPath = fA; snapBPath = fB;
+                }
+                else
+                {
+                    var items = snapshots.Select(s => new StingListPicker.ListItem
+                    {
+                        Label = $"{s.Type,-8} {s.Label}",
+                        Detail = $"{s.Date:yyyy-MM-dd HH:mm} — UGX {s.GrandTotalUGX:N0}",
+                        Tag = s
+                    }).ToList();
+                    var pickedA = StingListPicker.Show("STING — Variation: baseline (A)",
+                        "Pick the BASELINE snapshot (the one before the change).",
+                        items, allowMultiSelect: false);
+                    if (pickedA == null || pickedA.Count == 0) return Result.Cancelled;
+                    var pickedB = StingListPicker.Show("STING — Variation: revised (B)",
+                        "Pick the REVISED snapshot (after the change).",
+                        items, allowMultiSelect: false);
+                    if (pickedB == null || pickedB.Count == 0) return Result.Cancelled;
+
+                    var snapA = (pickedA[0].Tag as BOQSnapshotMeta);
+                    var snapB = (pickedB[0].Tag as BOQSnapshotMeta);
+                    if (snapA == null || snapB == null) return Result.Cancelled;
+                    snapAPath = snapA.Path; snapBPath = snapB.Path;
+                }
 
                 // Sanity-check that both snapshot files exist + parse,
                 // then hand the paths to CompareSnapshots (which takes
                 // string paths, not loaded docs).
-                var docA = BOQCostManager.LoadSnapshot(snapA.Path);
-                var docB = BOQCostManager.LoadSnapshot(snapB.Path);
+                var docA = BOQCostManager.LoadSnapshot(snapAPath);
+                var docB = BOQCostManager.LoadSnapshot(snapBPath);
                 if (docA == null || docB == null)
                 {
                     message = "Failed to load one of the snapshots.";
                     return Result.Failed;
                 }
 
-                var diff = BOQCostManager.CompareSnapshots(snapA.Path, snapB.Path);
+                var diff = BOQCostManager.CompareSnapshots(snapAPath, snapBPath);
                 if (diff == null || diff.CategoryDiffs.Count == 0)
                 {
                     StingResultPanel.Create("Variation from Diff")
@@ -92,96 +109,124 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Pick contract family (Phase 184q — distinct from Kind so
-                // the liability map can match precisely on JCT2024 vs
-                // FIDIC2017Yellow etc.).
-                var formItems = new List<StingListPicker.ListItem>
+                // Gather the variation detail fields — inline (ExtraParams) or via
+                // the modal picker chain.
+                VariationContractForm contractForm;
+                VariationKind kind;
+                VariationReason reason;
+                VariationLiability liability;
+                int eotDays;
+                string reasonDetail;
+
+                if (inline)
                 {
-                    new StingListPicker.ListItem { Label = "JCT 2024",                Detail = "Standard Building Contract 2024 ed.",              Tag = VariationContractForm.JCT2024 },
-                    new StingListPicker.ListItem { Label = "JCT 2016",                Detail = "Legacy SBC 2016 ed. (clauses 5.1 split)",          Tag = VariationContractForm.JCT2016 },
-                    new StingListPicker.ListItem { Label = "NEC4 ECC",                Detail = "Engineering and Construction Contract — Option A-F", Tag = VariationContractForm.NEC4 },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Red",          Detail = "Conditions of Contract — employer-design",        Tag = VariationContractForm.FIDIC2017Red },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Yellow",       Detail = "Plant + Design-Build — contractor-design",        Tag = VariationContractForm.FIDIC2017Yellow },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Silver",       Detail = "EPC / Turnkey — contractor owns nearly everything", Tag = VariationContractForm.FIDIC2017Silver },
-                    new StingListPicker.ListItem { Label = "GC/Works",                Detail = "Legacy UK public-sector forms",                    Tag = VariationContractForm.GCWorks },
-                    new StingListPicker.ListItem { Label = "Bespoke",                 Detail = "Project-specific bespoke contract",                Tag = VariationContractForm.Bespoke },
-                };
-                var formPicked = StingListPicker.Show("STING — Contract form",
-                    "Pick the contract family. Drives liability defaults and clause references.",
-                    formItems, allowMultiSelect: false);
-                VariationContractForm contractForm = (formPicked != null && formPicked.Count > 0 &&
-                    formPicked[0].Tag is VariationContractForm cf) ? cf : VariationContractForm.JCT2024;
-
-                // Pick kind (contractual route — i.e. how the change is being routed).
-                var kindItems = new List<StingListPicker.ListItem>
+                    contractForm = EnumOr(UI.StingCommandHandler.GetExtraParam("VarContractForm"), VariationContractForm.JCT2024);
+                    kind = EnumOr(UI.StingCommandHandler.GetExtraParam("VarKind"), VariationKind.Instruction);
+                    reason = EnumOr(UI.StingCommandHandler.GetExtraParam("VarReason"), VariationReason.Other);
+                    // Liability: an explicit pick wins; an empty value means
+                    // "auto-suggest" via the contract/reason map.
+                    VariationLiability suggested = VariationLiabilityMap
+                        .Get(doc).Resolve(contractForm.ToString(), reason, SuggestLiability(reason));
+                    string fLiab = UI.StingCommandHandler.GetExtraParam("VarLiability");
+                    liability = (!string.IsNullOrEmpty(fLiab) && Enum.TryParse(fLiab, out VariationLiability vl))
+                        ? vl : suggested;
+                    eotDays = int.TryParse(UI.StingCommandHandler.GetExtraParam("VarEot"),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out int e) ? e : 0;
+                    reasonDetail = UI.StingCommandHandler.GetExtraParam("VarReasonDetail") ?? "";
+                }
+                else
                 {
-                    new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
-                    new StingListPicker.ListItem { Label = "NEC4 compensation event", Tag = VariationKind.CompensationEvent },
-                    new StingListPicker.ListItem { Label = "FIDIC engineer instruction", Tag = VariationKind.EngineerInstruction },
-                    new StingListPicker.ListItem { Label = "Contractor claim", Tag = VariationKind.ContractorClaim }
-                };
-                var kindPicked = StingListPicker.Show("STING — Variation kind",
-                    "Pick the contractual route — how this change is being issued under the form.",
-                    kindItems, allowMultiSelect: false);
-                VariationKind kind = (kindPicked != null && kindPicked.Count > 0 &&
-                    kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
+                    // Pick contract family (Phase 184q — distinct from Kind so
+                    // the liability map can match precisely on JCT2024 vs
+                    // FIDIC2017Yellow etc.).
+                    var formItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "JCT 2024",                Detail = "Standard Building Contract 2024 ed.",              Tag = VariationContractForm.JCT2024 },
+                        new StingListPicker.ListItem { Label = "JCT 2016",                Detail = "Legacy SBC 2016 ed. (clauses 5.1 split)",          Tag = VariationContractForm.JCT2016 },
+                        new StingListPicker.ListItem { Label = "NEC4 ECC",                Detail = "Engineering and Construction Contract — Option A-F", Tag = VariationContractForm.NEC4 },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Red",          Detail = "Conditions of Contract — employer-design",        Tag = VariationContractForm.FIDIC2017Red },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Yellow",       Detail = "Plant + Design-Build — contractor-design",        Tag = VariationContractForm.FIDIC2017Yellow },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Silver",       Detail = "EPC / Turnkey — contractor owns nearly everything", Tag = VariationContractForm.FIDIC2017Silver },
+                        new StingListPicker.ListItem { Label = "GC/Works",                Detail = "Legacy UK public-sector forms",                    Tag = VariationContractForm.GCWorks },
+                        new StingListPicker.ListItem { Label = "Bespoke",                 Detail = "Project-specific bespoke contract",                Tag = VariationContractForm.Bespoke },
+                    };
+                    var formPicked = StingListPicker.Show("STING — Contract form",
+                        "Pick the contract family. Drives liability defaults and clause references.",
+                        formItems, allowMultiSelect: false);
+                    contractForm = (formPicked != null && formPicked.Count > 0 &&
+                        formPicked[0].Tag is VariationContractForm cf) ? cf : VariationContractForm.JCT2024;
 
-                // Phase 184o — pick reason (why) + liability (who pays).
-                // Drives EOT, insurance routing, month-end reporting.
-                var reasonItems = new List<StingListPicker.ListItem>
-                {
-                    new StingListPicker.ListItem { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs", Tag = VariationReason.DesignChange },
-                    new StingListPicker.ListItem { Label = "Client request",       Detail = "Employer-initiated scope or quality change",     Tag = VariationReason.ClientRequest },
-                    new StingListPicker.ListItem { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",   Tag = VariationReason.SiteCondition },
-                    new StingListPicker.ListItem { Label = "Statutory change",     Detail = "Change in law, permit, building control",         Tag = VariationReason.StatutoryChange },
-                    new StingListPicker.ListItem { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",   Tag = VariationReason.ErrorOmission },
-                    new StingListPicker.ListItem { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer", Tag = VariationReason.ContractorProposal },
-                    new StingListPicker.ListItem { Label = "Scope addition",       Detail = "New scope added to contract",                     Tag = VariationReason.ScopeAddition },
-                    new StingListPicker.ListItem { Label = "Scope omission",       Detail = "Scope removed from contract",                     Tag = VariationReason.ScopeOmission },
-                    new StingListPicker.ListItem { Label = "Specification",        Detail = "Material / spec substitution",                    Tag = VariationReason.Specification },
-                    new StingListPicker.ListItem { Label = "Quality",              Detail = "Quality-driven enhancement / rework",             Tag = VariationReason.Quality },
-                    new StingListPicker.ListItem { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",     Tag = VariationReason.ProgrammeChange },
-                    new StingListPicker.ListItem { Label = "Other",                Detail = "Bespoke / non-standard cause",                    Tag = VariationReason.Other }
-                };
-                var reasonPicked = StingListPicker.Show("STING — Variation reason",
-                    "Why did this variation arise? Drives EOT entitlement, insurance routing and month-end reporting.",
-                    reasonItems, allowMultiSelect: false);
-                VariationReason reason = (reasonPicked != null && reasonPicked.Count > 0 &&
-                    reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+                    // Pick kind (contractual route — i.e. how the change is being routed).
+                    var kindItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
+                        new StingListPicker.ListItem { Label = "NEC4 compensation event", Tag = VariationKind.CompensationEvent },
+                        new StingListPicker.ListItem { Label = "FIDIC engineer instruction", Tag = VariationKind.EngineerInstruction },
+                        new StingListPicker.ListItem { Label = "Contractor claim", Tag = VariationKind.ContractorClaim }
+                    };
+                    var kindPicked = StingListPicker.Show("STING — Variation kind",
+                        "Pick the contractual route — how this change is being issued under the form.",
+                        kindItems, allowMultiSelect: false);
+                    kind = (kindPicked != null && kindPicked.Count > 0 &&
+                        kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
 
-                // Suggest liability — consult the config-driven contract
-                // map (Phase 184q now passes the precise contract form,
-                // not Kind.ToString(), so FIDIC Yellow / Silver carry
-                // their contractor-design defaults correctly).
-                VariationLiability codeDefault = SuggestLiability(reason);
-                VariationLiability suggested = VariationLiabilityMap
-                    .Get(doc).Resolve(contractForm.ToString(), reason, codeDefault);
-                var liabilityItems = new List<StingListPicker.ListItem>
-                {
-                    new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
-                    new StingListPicker.ListItem { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
-                    new StingListPicker.ListItem { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
-                    new StingListPicker.ListItem { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
-                    new StingListPicker.ListItem { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
-                };
-                var liabilityPicked = StingListPicker.Show("STING — Liability",
-                    $"Who pays for this variation? Suggested from reason: {suggested}.",
-                    liabilityItems, allowMultiSelect: false);
-                VariationLiability liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
-                    liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
+                    // Phase 184o — pick reason (why) + liability (who pays).
+                    // Drives EOT, insurance routing, month-end reporting.
+                    var reasonItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs", Tag = VariationReason.DesignChange },
+                        new StingListPicker.ListItem { Label = "Client request",       Detail = "Employer-initiated scope or quality change",     Tag = VariationReason.ClientRequest },
+                        new StingListPicker.ListItem { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",   Tag = VariationReason.SiteCondition },
+                        new StingListPicker.ListItem { Label = "Statutory change",     Detail = "Change in law, permit, building control",         Tag = VariationReason.StatutoryChange },
+                        new StingListPicker.ListItem { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",   Tag = VariationReason.ErrorOmission },
+                        new StingListPicker.ListItem { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer", Tag = VariationReason.ContractorProposal },
+                        new StingListPicker.ListItem { Label = "Scope addition",       Detail = "New scope added to contract",                     Tag = VariationReason.ScopeAddition },
+                        new StingListPicker.ListItem { Label = "Scope omission",       Detail = "Scope removed from contract",                     Tag = VariationReason.ScopeOmission },
+                        new StingListPicker.ListItem { Label = "Specification",        Detail = "Material / spec substitution",                    Tag = VariationReason.Specification },
+                        new StingListPicker.ListItem { Label = "Quality",              Detail = "Quality-driven enhancement / rework",             Tag = VariationReason.Quality },
+                        new StingListPicker.ListItem { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",     Tag = VariationReason.ProgrammeChange },
+                        new StingListPicker.ListItem { Label = "Other",                Detail = "Bespoke / non-standard cause",                    Tag = VariationReason.Other }
+                    };
+                    var reasonPicked = StingListPicker.Show("STING — Variation reason",
+                        "Why did this variation arise? Drives EOT entitlement, insurance routing and month-end reporting.",
+                        reasonItems, allowMultiSelect: false);
+                    reason = (reasonPicked != null && reasonPicked.Count > 0 &&
+                        reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
 
-                // Phase 184r — EOT band picker. Capturing this on
-                // mint means the cash-flow's monthly_eot_adjusted curve
-                // (Phase 184q) lights up automatically once the QS
-                // approves the VO, rather than the user having to edit
-                // the JSON sidecar manually.
-                int eotDays = PickEotDays();
+                    // Suggest liability — consult the config-driven contract
+                    // map (Phase 184q now passes the precise contract form,
+                    // not Kind.ToString(), so FIDIC Yellow / Silver carry
+                    // their contractor-design defaults correctly).
+                    VariationLiability codeDefault = SuggestLiability(reason);
+                    VariationLiability suggested = VariationLiabilityMap
+                        .Get(doc).Resolve(contractForm.ToString(), reason, codeDefault);
+                    var liabilityItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
+                        new StingListPicker.ListItem { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
+                        new StingListPicker.ListItem { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
+                        new StingListPicker.ListItem { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
+                        new StingListPicker.ListItem { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
+                    };
+                    var liabilityPicked = StingListPicker.Show("STING — Liability",
+                        $"Who pays for this variation? Suggested from reason: {suggested}.",
+                        liabilityItems, allowMultiSelect: false);
+                    liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
+                        liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
 
-                // Phase 184r — short free-text rationale via the existing
-                // WPF input prompt. The PaymentCert detail dialog uses
-                // a similar lightweight prompt; reuse the pattern via a
-                // small Window so we don't pull in a heavier dependency.
-                string reasonDetail = PromptForReasonDetail();
+                    // Phase 184r — EOT band picker. Capturing this on
+                    // mint means the cash-flow's monthly_eot_adjusted curve
+                    // (Phase 184q) lights up automatically once the QS
+                    // approves the VO, rather than the user having to edit
+                    // the JSON sidecar manually.
+                    eotDays = PickEotDays();
+
+                    // Phase 184r — short free-text rationale via the existing
+                    // WPF input prompt. The PaymentCert detail dialog uses
+                    // a similar lightweight prompt; reuse the pattern via a
+                    // small Window so we don't pull in a heavier dependency.
+                    reasonDetail = PromptForReasonDetail();
+                }
 
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
@@ -298,6 +343,10 @@ namespace StingTools.Commands.Cost
             }
         }
 
+        // P0.3 — parse an ExtraParam enum value, falling back when empty/unknown.
+        private static T EnumOr<T>(string s, T fallback) where T : struct
+            => (!string.IsNullOrEmpty(s) && Enum.TryParse<T>(s, out var v)) ? v : fallback;
+
         // Default liability suggestion per reason. The picker still lets
         // the QS override — this just front-loads the common case so
         // they can hit Enter on the typical assignment.
@@ -332,12 +381,27 @@ namespace StingTools.Commands.Cost
                 Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                // P4.2 — interactive first-principles build-up (labour + plant +
-                // materials + OH&P), replacing the canned demo seed.
-                var dlg = new StingTools.UI.StarRateBuilderDialog();
-                StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
-                if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
-                var rate = dlg.Result;
+                // P0.3 — inline-form gate. When the BOQ panel supplied a serialized
+                // StarRate (StarRateJson ExtraParam), use it and skip the modal
+                // builder dialog (no popup). Falls back to the dialog otherwise.
+                StarRate rate;
+                string fJson = UI.StingCommandHandler.GetExtraParam("StarRateJson");
+                if (!string.IsNullOrEmpty(fJson))
+                {
+                    try { rate = Newtonsoft.Json.JsonConvert.DeserializeObject<StarRate>(fJson); }
+                    catch (Exception jx) { StingLog.Warn($"StarRateJson parse: {jx.Message}"); rate = null; }
+                    if (rate == null) { message = "Invalid star-rate payload."; return Result.Failed; }
+                    if (string.IsNullOrEmpty(rate.Currency)) rate.Currency = "UGX";
+                }
+                else
+                {
+                    // P4.2 — interactive first-principles build-up (labour + plant +
+                    // materials + OH&P), replacing the canned demo seed.
+                    var dlg = new StingTools.UI.StarRateBuilderDialog();
+                    StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
+                    if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
+                    rate = dlg.Result;
+                }
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
                 string cc = rate.Currency ?? "UGX";

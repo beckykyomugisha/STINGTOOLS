@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #3 — Variation + Star Rate)
+
+Branch `claude/placement-centre-review-audit`. The trickiest group of the sweep —
+`VariationAndEvmCommands.cs`. Both commands now gather input inline (no popup); the
+modal chains remain as the ribbon/non-panel fallback.
+
+- **Variation from Diff** (`Variation_FromDiff`) — the 6-step modal picker chain
+  (baseline snapshot → revised snapshot → contract form → kind → reason → liability →
+  EOT → free-text rationale) collapses into **one inline form**: two snapshot combos
+  (from `BOQCostManager.ListSnapshots`) + contract/kind/reason/liability/EOT combos +
+  a rationale text field. ExtraParams `VarSnapA/VarSnapB/VarContractForm/VarKind/
+  VarReason/VarLiability/VarEot/VarReasonDetail` (enum names; empty liability =
+  auto-suggest via the contract/reason map). The command was refactored to gather A/B
+  (gate or pickers) → compare + "no change" early-out → gather the 6 detail fields
+  (gate or pickers) → mint, so the modal early-out is preserved. `< 2` snapshots →
+  the panel returns `false` so the command shows its own NEED SNAPSHOTS panel.
+- **Star Rate Build-Up** (`Variation_BuildStarRate`) — was a bespoke modal
+  `StarRateBuilderDialog`; now a **dynamic inline editor** (`ShowStarRateForm`):
+  description + unit, three growable line sections (Labour / Plant / Materials, each
+  Resource · hours-or-qty · rate, with "+ add row"), overhead % and profit %. On Run
+  the panel builds a `StarRate` and serializes it into the `StarRateJson` ExtraParam;
+  the command deserializes it and saves (skipping the dialog). Blank rows are ignored;
+  an empty build-up shows an inline hint rather than dispatching.
+
+Results render inline via `StingResultPanel.InlineSink`. No `DispatcherFrame`/
+`PushFrame` — the banned nested pump is never reintroduced. Compile-verified Release
+`-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): VARIATIONS card → **★ Variation from Diff** renders a
+single inline form (two snapshot combos + the contract/kind/reason/liability/EOT combos
++ rationale) + Run, no popup; pick two different snapshots, Run → the VO mints and the
+result shows inline (picking the same snapshot twice → inline "NO CHANGE"). **Star Rate
+Build-Up** renders an inline build-up editor; add labour/plant/material rows, set OH/
+profit, Run → the star rate saves and the build-up totals show inline. Rapid-clicking
+never wedges the panel.
+
 #### Completed (BOQ 5D inline-forms sweep #2 — Run Cost Workflow)
 
 Branch `claude/placement-centre-review-audit`. `CostCommands.cs` — **Run Cost Workflow**
