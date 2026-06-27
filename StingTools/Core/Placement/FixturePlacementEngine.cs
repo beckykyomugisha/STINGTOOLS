@@ -1091,7 +1091,18 @@ namespace StingTools.Core.Placement
                 if (!state.PlacedByCategory.TryGetValue(catKey, out catPlaced))
                 { catPlaced = new List<XYZ>(); state.PlacedByCategory[catKey] = catPlaced; }
             }
-            double catMergeFt = effRule.MinSpacingMm > 0 ? effRule.MinSpacingMm * MmToFt : 0.0;
+            // ~290 of the shipped rules leave MinSpacingMm = 0, which would
+            // disable the crowding guard and let overlapping pack rules stack
+            // (the audit's #1 finding). When a rule sets no MinSpacing, fall back
+            // to an anchor-appropriate crowding FLOOR so cross-rule stacking is
+            // still prevented: ceiling/grid fixtures (lights, diffusers,
+            // sprinklers) 1000 mm; wall/point devices (switches, sockets) 250 mm.
+            // An explicit MinSpacingMm always wins.
+            bool ceilGrid = anchor == "CEILING_CENTRE" || anchor == "LIGHTING_GRID"
+                         || anchor == "LUX_GRID" || anchor.StartsWith("CEILING_TILE");
+            double crowdMm = effRule.MinSpacingMm > 0 ? effRule.MinSpacingMm
+                                                      : (ceilGrid ? 1000.0 : 250.0);
+            double catMergeFt = crowdMm * MmToFt;
             double catMergeSq = catMergeFt * catMergeFt;
 
             foreach (var c in chosen)
