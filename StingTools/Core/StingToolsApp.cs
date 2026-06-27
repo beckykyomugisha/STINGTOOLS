@@ -949,6 +949,19 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
                 }
 
+                // BOQ 5D Phase 1 (slice a) — unify the two legacy schedule stores
+                // (Cost Manager boq_schedule.json + BCC schedule_4d.json) into the
+                // single canonical <project>/_BIM_COORD/schedule.json. Idempotent:
+                // writes only when schedule.json is absent AND a legacy store exists.
+                try
+                {
+                    Core.Schedule.ScheduleStore.EnsureMigrated(e.Document);
+                }
+                catch (Exception schEx)
+                {
+                    StingLog.Warn($"DocumentOpened schedule migration: {schEx.Message}");
+                }
+
                 // Pack 0 — project-scoped offline config override. File is at
                 // <project>/_BIM_COORD/sting_config.json. Missing file keeps defaults.
                 try

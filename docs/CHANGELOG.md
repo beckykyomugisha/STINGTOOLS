@@ -3,6 +3,60 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Phase 1 slice a — unified ScheduleModel + single store)
+
+Branch `claude/placement-centre-review-audit`. First slice of schedule unification
+(`docs/BOQ_5D_ENHANCED_REBUILD_PROMPT.md` Phase 1.1). Establishes ONE canonical
+schedule model + ONE store; the two surfaces are repointed in slice (b) and MSP/P6 XML
+import lands in slice (c).
+
+**The problem:** two schedule stores that didn't share state —
+`_BIM_COORD/boq_schedule.json` (Cost Manager: `BoqScheduleState` = Phases/Periods/
+Milestones) and `STING_BIM_MANAGER/schedule_4d.json` (BCC: a `JObject` of tasks with
+WBS + predecessors + element links, written by `Scheduling4DEngine`). Edit one, the
+other was stale.
+
+**New:** `StingTools/Core/Schedule/ScheduleModel.cs` —
+- `ScheduleModel` (Tasks / Periods / Milestones + ProjectName / Source / ImportedDate /
+  AsOf / ActualCostToDate, plus a `Version` for future in-place upgrades).
+- `ScheduleTask` (INPC) — the superset both legacy models needed: `Id`, `MsUid`, `Wbs`,
+  `Name`, `Start`/`End` (+ `StartStr`/`EndStr` for binding), `PercentComplete`,
+  `CostLoadUGX` (5D driver), `Predecessors` (`SchedulePredecessor` FS/SS/FF/SF),
+  `ElementIds` (4D link), `IsMilestone`/`IsSummary`/`OutlineLevel`/`Category`/`Notes`.
+- `SchedulePeriod` (Date/%/ACWP) + `ScheduleMilestone` (Name/Date/Done), INPC, mirroring
+  the legacy shapes so slice (b) can bind directly.
+- `ScheduleStore` (single source of truth) — `Load`/`Save` against
+  `_BIM_COORD/schedule.json`; `Migrate(doc)` one-time importer that reads **either /
+  both** legacy files (JObject-parsed, so no coupling to the UI's `BoqScheduleState`),
+  mapping boq phases→Tasks + periods + milestones and 4D tasks→Tasks (deduped by name so
+  a phase isn't double-listed; `Source` records what merged). `EnsureMigrated(doc)` is
+  the idempotent trigger — writes schedule.json only when it's absent AND a legacy store
+  exists.
+
+**Wiring:** `StingToolsApp.OnDocumentOpened` calls `ScheduleStore.EnsureMigrated` (a
+guarded try/catch step alongside the template extraction). No surface reads the new
+store yet — that is slice (b) — so existing behaviour is unchanged. Compile-verified
+Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): open a project that already has a `_BIM_COORD/
+boq_schedule.json` (saved from the Cost Manager Schedule tab) and/or a
+`STING_BIM_MANAGER/schedule_4d.json` (saved from BCC's Auto-Schedule 4D). On open, a new
+`_BIM_COORD/schedule.json` appears merging both — phases + periods + milestones from the
+BOQ store and any non-duplicate 4D tasks (with WBS/predecessors) — and `StingTools.log`
+shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source migrated:…)"
+line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
+4D/5D tab are unchanged in this slice.
+
+#### Deferred follow-ups (BOQ inline-forms sweep — tracked, not yet done)
+
+- **Run Cost Workflow** (`Cost_RunWorkflow`) still surfaces its internal **progress
+  dialog** + a **"Snapshot saved" `TaskDialog`** mid-run — these are step notifications
+  from `WorkflowEngine` / `BOQSnapshotSaveCommand`, not input prompts. Fold them into the
+  inline result pane in a later pass.
+- **Set % Complete** (`PaymentCert_SetProgress`) requires the shared parameter
+  `ASS_PMT_PCT_COMPLETE_NR` to be bound; its inline result already says "bind via Load
+  Params first" when it isn't. Expected behaviour — noted for awareness.
+
 #### Completed (BOQ 5D inline-forms sweep #6 — EVM planned-% + Reclassify Legacy)
 
 Branch `claude/placement-centre-review-audit`. Two Actions-reachable pickers caught by
