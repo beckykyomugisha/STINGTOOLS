@@ -33,7 +33,7 @@
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen|utility",
       "AnchorType": "WALL_FACE_OFFSET",
-      "MountingHeightMm": 975,
+      "MountingHeightMm": 1150,
       "ManufacturerCode": "MK",
       "CatalogueRef": "SP7782ALM",
       "BoxDepthMm": 25,

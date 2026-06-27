@@ -25,7 +25,7 @@
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)bedroom",
       "AnchorType": "WALL_MIDPOINT",
-      "MountingHeightMm": 300.0,
+      "MountingHeightMm": 450,
       "MinSpacingMm": 2000.0,
       "MaxPerRoom": 6,
       "ApplicableStandards": [
@@ -39,7 +39,7 @@
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)lounge|living",
       "AnchorType": "PERIMETER_OFFSET",
-      "MountingHeightMm": 300.0,
+      "MountingHeightMm": 450,
       "PerLinearMetre": 2.0,
       "ApplicableStandards": [
         "BS7671"
