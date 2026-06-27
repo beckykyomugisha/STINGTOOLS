@@ -1343,12 +1343,10 @@ namespace StingTools.UI
         {
             try
             {
-                // P0.2 — defensively clear any stale inline registration left over by
-                // a prior aborted run (command that threw before the dispatcher's
-                // finally cleared the statics) so we never inherit a foreign sink.
-                StingTools.Select.StingListPicker.InlineHost = null;
-                StingTools.Select.StingListPicker.InlineHostDoc = null;
-                StingTools.Select.StingListPicker.InlineTitleSink = null;
+                // P0.2 — defensively clear any stale result sink left over by a prior
+                // aborted run (command that threw before the dispatcher's finally
+                // cleared it) so we never inherit a foreign sink. Picker routing is
+                // gone — input pickers are modal now (no nested pump).
                 StingResultPanel.InlineSink = null;
 
                 if (_actionReportHost != null)
@@ -1358,14 +1356,12 @@ namespace StingTools.UI
                         Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(14)
                     };
-                // Slice 1.5 — route this command's input pickers AND result panels
-                // into the Actions report pane instead of popups. The dispatcher
-                // clears these in StingCommandHandler.Execute's finally, once the
-                // (synchronous) command has run.
+                // Route this command's result panels into the Actions report pane
+                // instead of popups (StingResultPanel.InlineSink sets a Border child —
+                // no message pump, so it's safe). Input pickers are modal. The
+                // dispatcher clears the sink in StingCommandHandler.Execute's finally,
+                // once the (synchronous) command has run.
                 _inlineResultPosted = false;   // set true by the sink if a result lands inline
-                StingTools.Select.StingListPicker.InlineHost = _actionReportHost;
-                StingTools.Select.StingListPicker.InlineHostDoc = Doc;   // P0.1 — txn-state guard target
-                StingTools.Select.StingListPicker.InlineTitleSink = t => { if (_actionReportTitle != null) _actionReportTitle.Text = t; };
                 StingResultPanel.InlineSink = b => { _inlineResultPosted = true; ShowInlineResult(b); };
 
                 // Resolve the "Running…" placeholder when the command finishes. Some

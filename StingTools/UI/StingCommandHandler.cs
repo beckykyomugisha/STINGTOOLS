@@ -4037,12 +4037,10 @@ namespace StingTools.UI
                     try { var g = BOQCostManagerPanel.DispatchGuardReset; BOQCostManagerPanel.CommandRunning = false; g?.Invoke(); }
                     catch (Exception exG) { StingLog.Warn($"BOQ DispatchGuardReset: {exG.Message}"); }
 
-                    // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
-                    // hooks so a later ribbon/other-panel command's pickers + result
-                    // panels don't render into the (possibly closed) Actions pane.
-                    StingTools.Select.StingListPicker.InlineHost = null;
-                    StingTools.Select.StingListPicker.InlineHostDoc = null;   // P0.1
-                    StingTools.Select.StingListPicker.InlineTitleSink = null;
+                    // P0.2 — tear down the BOQ Cost Manager inline result sink so a
+                    // later ribbon/other-panel command's result panels don't render
+                    // into the (possibly closed) Actions pane. Picker routing is gone
+                    // (input pickers are modal now — no nested pump to clear).
                     StingResultPanel.InlineSink = null;
 
                     // FIX-UI03: Notify panel that command completed so Tag Studio

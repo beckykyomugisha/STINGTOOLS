@@ -3,6 +3,32 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.2: remove the DispatcherFrame pump)
+
+Branch `claude/placement-centre-review-audit`. Second gap of Phase 0. Deletes the
+nested-message-pump that was the deadlock's mechanism. `StingListPicker`'s Slice-1.5
+inline-hosting path (`InlineHost` / `InlineHostDoc` / `InlineTitleSink` / `InlineSafe`
+/ `ShowInline` / `_inlineFrame` / `FinishInlineOrClose`) ran `Dispatcher.PushFrame`
+**inside the running ExternalEvent** — pumping a nested loop that left the dock panel
+live and re-clickable mid-command. Removed entirely: both `Show(...)` overloads now
+always render as a standard **modal `ShowDialog`** (which disables its Revit owner, so
+the panel can't be re-entered behind it), and the OK/Cancel/Esc paths call `Close()`.
+
+Callers updated in lockstep so nothing references the removed members:
+`BOQCostManagerPanel.DispatchInline` no longer sets/clears the picker statics (keeps
+only `StingResultPanel.InlineSink`, which sets a `Border` child with no pump — safe);
+`StingCommandHandler.Execute`'s finally and `BOQCostManagerWindow`'s `Closed` likewise
+drop the three picker clears and keep the result-sink clear. `PendingActionResolve`
+is retained, so the Actions pane never sticks on "Running…". Input pickers are now
+modal; results still render inline. Combined with P0.1, the re-entry vector is closed
+at both ends (guard + no pump). Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager, click an action that asks for
+a choice (e.g. a snapshot/standard picker) — it opens as a normal modal dialog over
+Revit, not an inline panel; while it's open the dock panel behind is not clickable;
+OK/Cancel returns and the result renders inline. Rapid-clicking actions never wedges
+the panel.
+
 #### Completed (BOQ 5D Enhanced Rebuild — Phase 0.1: dispatch busy-guard)
 
 Branch `claude/placement-centre-review-audit`. First gap of the BOQ 5D Enhanced

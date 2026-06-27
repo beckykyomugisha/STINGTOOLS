@@ -27,12 +27,9 @@ namespace StingTools.UI
             Closed += (s, e) =>
             {
                 if (ReferenceEquals(_current, this)) _current = null;
-                // P0.2 — the Actions pane is gone; null the process-global inline
-                // sinks so a later command from another surface can't render into
-                // (or pump against) this disposed pane.
-                StingTools.Select.StingListPicker.InlineHost = null;
-                StingTools.Select.StingListPicker.InlineHostDoc = null;
-                StingTools.Select.StingListPicker.InlineTitleSink = null;
+                // P0.2 — the Actions pane is gone; null the process-global result
+                // sink so a later command from another surface can't render into this
+                // disposed pane. Picker routing is removed — input pickers are modal.
                 StingResultPanel.InlineSink = null;
             };
         }
