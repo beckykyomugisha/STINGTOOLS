@@ -774,6 +774,12 @@ namespace StingTools.Core.Placement
                 = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, XYZ> LastPointByRule { get; }
                 = new Dictionary<string, XYZ>(StringComparer.OrdinalIgnoreCase);
+            // Phase 195 — every placement in this room indexed by CATEGORY, so
+            // overlapping rules from different packs (e.g. 22 "Lighting Devices"
+            // rules) can't crowd the same spot. A candidate is rejected when a
+            // same-category fixture already sits within the rule's MinSpacingMm.
+            public Dictionary<string, List<XYZ>> PlacedByCategory { get; }
+                = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool RuleHasConflict(PlacementRule rule, RoomState state)
@@ -1072,6 +1078,22 @@ namespace StingTools.Core.Placement
             double dedupFt = Math.Max(effRule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
 
+            // Phase 195 — same-category cross-rule crowding guard. Fetch (or create)
+            // this category's running placement list for the room so a candidate can
+            // be rejected when a same-category fixture (placed by ANY rule this run)
+            // already sits within the rule's MinSpacingMm. This collapses the
+            // overlapping pack rules (e.g. 22 "Lighting Devices" rules) that were
+            // each placing a full set, into one fixture per spot.
+            string catKey = effRule.CategoryFilter ?? "";
+            List<XYZ> catPlaced = null;
+            if (state != null && !string.IsNullOrEmpty(catKey))
+            {
+                if (!state.PlacedByCategory.TryGetValue(catKey, out catPlaced))
+                { catPlaced = new List<XYZ>(); state.PlacedByCategory[catKey] = catPlaced; }
+            }
+            double catMergeFt = effRule.MinSpacingMm > 0 ? effRule.MinSpacingMm * MmToFt : 0.0;
+            double catMergeSq = catMergeFt * catMergeFt;
+
             foreach (var c in chosen)
             {
                 bool tooClose = false;
@@ -1088,6 +1110,24 @@ namespace StingTools.Core.Placement
                     result.SkippedCount++;
                     if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
                     continue;
+                }
+                // Phase 195 — same-category crowding: reject when a fixture of this
+                // category already sits within MinSpacing horizontally (any rule).
+                if (catMergeSq > 0 && catPlaced != null && catPlaced.Count > 0)
+                {
+                    bool crowded = false;
+                    foreach (var ex in catPlaced)
+                    {
+                        if (ex == null) continue;
+                        double dx = ex.X - c.Position.X, dy = ex.Y - c.Position.Y;
+                        if (dx * dx + dy * dy < catMergeSq) { crowded = true; break; }
+                    }
+                    if (crowded)
+                    {
+                        result.SkippedCount++;
+                        if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
+                        continue;
+                    }
                 }
                 try
                 {
@@ -1136,6 +1176,7 @@ namespace StingTools.Core.Placement
                     if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
                     existingNearby.Add(c.Position); // Phase 139.25 — live dedup
+                    catPlaced?.Add(c.Position);     // Phase 195 — same-category crowding index
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)
@@ -2044,6 +2085,39 @@ namespace StingTools.Core.Placement
                                || anchor == "DOOR_STRIKE_SIDE"
                                || anchor == "DOOR_CLOSER_ZONE"
                                || anchor == "WINDOW_SILL" || anchor == "WINDOW_HEAD";
+
+                // Phase 195 — ceiling / grid fixtures: when the rule didn't pin a
+                // RotationDeg, snap the instance's facing to the nearest 90° so
+                // luminaires sit orthogonal to an axis-aligned room instead of at
+                // the family's default diagonal angle (the "placed anyhow" look).
+                // Cosmetic + undo-safe; only moves genuinely off-axis fixtures.
+                bool ceilingAnchor = anchor == "CEILING_CENTRE" || anchor == "LIGHTING_GRID"
+                                  || anchor == "LUX_GRID" || anchor.StartsWith("CEILING_TILE")
+                                  || anchor == "RAISED_FLOOR_TILE_EDGE";
+                if (ceilingAnchor && Math.Abs(rule.RotationDeg) < 0.001
+                    && fi.Location is LocationPoint lpCeil && lpCeil.Point != null)
+                {
+                    try
+                    {
+                        XYZ f = fi.FacingOrientation;
+                        if (f != null && !f.IsZeroLength())
+                        {
+                            double ang = Math.Atan2(f.Y, f.X);
+                            double quarter = Math.PI / 2.0;
+                            double snapped = Math.Round(ang / quarter) * quarter;
+                            double delta = snapped - ang;
+                            while (delta > Math.PI) delta -= 2 * Math.PI;
+                            while (delta <= -Math.PI) delta += 2 * Math.PI;
+                            if (Math.Abs(delta) > 0.02)
+                            {
+                                var axis = Line.CreateBound(lpCeil.Point, lpCeil.Point + XYZ.BasisZ);
+                                ElementTransformUtils.RotateElement(doc, fi.Id, axis, delta);
+                            }
+                        }
+                    }
+                    catch (Exception ceilEx) { StingLog.Warn($"OrientPlacedInstance ceiling-snap {fi.Id}: {ceilEx.Message}"); }
+                }
+
                 if (!wallAnchor) return;
 
                 // Phase 139.18 — drop the `fi.Host is Wall` gate. Un-hosted

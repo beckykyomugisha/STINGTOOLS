@@ -483,6 +483,33 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 195 — #2 pack scope. Honour the SourcePack dropdown at run time:
+            // when the user selects a specific pack (not "All"), only that pack's
+            // rules run — so a residential run can be scoped to MK-Electrical /
+            // Lighting-Pendants without editing JSON. "All" runs every pack (now
+            // safe: the engine's same-category crowding guard stops overlapping
+            // packs stacking fixtures). The pick is the existing grid dropdown.
+            var packSel = VM?.SelectedSourcePack;
+            if (!string.IsNullOrEmpty(packSel) && !packSel.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                int beforePack = rules.Count;
+                rules = rules.Where(r =>
+                {
+                    var p = string.IsNullOrEmpty(r.SourcePack) ? "Baseline" : r.SourcePack;
+                    return p.Equals(packSel, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+                StingLog.Info($"PlacementCenter: pack scope '{packSel}' kept {rules.Count}/{beforePack} rules for the run.");
+                if (rules.Count == 0)
+                {
+                    Report("Run", StingResultPanel.Create("Placement — pack scope")
+                        .SetSubtitle($"Pack '{packSel}' has no rules.")
+                        .AddSection("Nothing to place")
+                        .Alert($"The selected pack '{packSel}' contains no rules. Pick a different pack or 'All' in the Rules-tab dropdown."));
+                    Toast($"Pack '{packSel}' has no rules — see Report panel.");
+                    return;
+                }
+            }
+
             // Phase 139.8 — apply the explicit category checklist if any
             // box is ticked. Empty checklist = "every category in the rule
             // pack is allowed" (legacy behaviour).
