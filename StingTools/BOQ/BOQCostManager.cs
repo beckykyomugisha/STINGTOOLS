@@ -242,6 +242,11 @@ namespace StingTools.BOQ
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
+            // G3 — itemised preliminaries schedule (flat % stays the default).
+            var prelims = BoqPrelimsStore.Load(doc);
+            boq.PrelimsItemised = prelims.Enabled;
+            boq.PrelimLines = prelims.Lines ?? new List<BoqPrelimLine>();
+
             // ── STEP 2: Load rate tables (3-source merge) ────────────────
             //   (a) project cost_rates_5d.csv  — highest priority
             //   (b) COBie type map             — category → cost-rate code

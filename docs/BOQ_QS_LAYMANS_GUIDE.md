@@ -270,8 +270,13 @@ This is the part a real guide hides and you find out the hard way. We won't.
 2. **No labour/plant/material split per rate yet.** NRM2 ideally breaks a rate into
    labour + plant + material; today a rate is a single number. Dayworks capture
    labour-hours separately, but measured items don't. *(Coming.)*
-3. **Prelims/contingency/overhead are flat percentages**, not a built-up
-   preliminaries schedule. Fine for a tender estimate; not a detailed prelims bill.
+3. ~~**Prelims/contingency/overhead are flat percentages.**~~ ✓ **Closed (G3) for
+   prelims.** Prelims can now be a **built-up schedule**: **Actions → Preliminaries
+   schedule** lets you keep the flat % (still the default) or switch to itemised
+   lines (site set-up, staff, welfare, insurances…), each a fixed value or a
+   %-of-works. The active basis rolls into the grand total and exports as its own
+   **Preliminaries** section in the XLSX. *(Contingency + overhead are still flat
+   percentages.)*
 4. **Carbon factors are a starter set** (ICE database + overrides). Treat embodied
    carbon as *indicative*, not a verified EPD-grade figure.
 5. **The Schedule / EVM tab (P2) is new and basic** — phase grid + a simple

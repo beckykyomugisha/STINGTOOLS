@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G3 — built-up preliminaries schedule)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #3 (prelims) in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqPrelimLine` / `BoqPrelimsSchedule` +
+`BoqPrelimsStore` (corporate baseline `Data/STING_PRELIMS_TEMPLATE.json`, 10
+starter lines, disabled; project override `_BIM_COORD/boq_prelims.json` wins).
+Each line is a fixed value or a %-of-works-subtotal. `BOQDocument` gains
+`PrelimsItemised` + `PrelimLines` + `PrelimsItemisedUGX`; `GrandTotalUGX`
+refactored to `Subtotal + PrelimContribution + Subtotal*(Cont+OH)/100` —
+identical to the historic single-round formula in the flat case (zero
+delivered-number change), swapping to the itemised total when active.
+`BuildBOQDocument` loads the schedule. New inline editable form
+`BOQCostManagerPanel.ShowPrelimsForm` (Actions → COST REPORT P4.4 → Preliminaries
+schedule): an Enable-itemised checkbox + add/delete/edit grid (name / category /
+basis combo / value-or-% / live amount) + Save → persists + rebuilds so the grand
+total reflects the active basis. Itemised prelims export as their own section:
+a dedicated **Preliminaries** sheet in `BOQExportCommand` (summary prelims line
+posts the itemised total) and a priced built-up table appended to the
+**General Preliminaries** sheet + grand-summary figure in
+`BOQProfessionalExportCommand`. Flat % stays the default everywhere.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup (inline form, JSON
+persistence).
+
+**Revit smoke test** (human): Actions → Preliminaries schedule → tick "Use
+itemised preliminaries" → add/keep 3 lines with values → Save → the grand-total
+metric updates; Export (XLSX) → a Preliminaries sheet lists the lines and the
+summary prelims line shows the itemised total. Untick → grand total reverts to
+the flat %.
+
 #### Completed (BOQ QS gap G2 — provisional-sum reconciliation trail)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #8 in

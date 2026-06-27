@@ -301,6 +301,10 @@ namespace StingTools.BOQ
             public double ContingencyPct;
             public double OverheadPct;
             public double VatPct;
+            // G3 — itemised preliminaries (when active, replaces the flat prelim %).
+            public bool PrelimsItemised;
+            public List<BoqPrelimLine> PrelimLines = new List<BoqPrelimLine>();
+            public double WorksSubtotalUGX;   // works basis for % prelim lines on the narrative sheet
         }
 
         private ProjectMeta BuildProjectMetadata(Document doc, BOQDocument boq, BOQTenderConfig tcfg)
@@ -334,6 +338,9 @@ namespace StingTools.BOQ
                 ContingencyPct      = tcfg.ContingencyPct,
                 OverheadPct         = tcfg.OverheadProfitPct,
                 VatPct              = tcfg.VatPct,
+                PrelimsItemised     = boq.PrelimsItemised,
+                PrelimLines         = boq.PrelimLines ?? new List<BoqPrelimLine>(),
+                WorksSubtotalUGX    = boq.SubtotalUGX,
             };
         }
 
@@ -778,6 +785,37 @@ namespace StingTools.BOQ
                     row++;
                 }
                 row++;
+            }
+
+            // G3 — when the project uses an itemised prelims schedule, append the
+            // priced built-up table so the Preliminaries section carries the money,
+            // not just the narrative clauses.
+            if (m.PrelimsItemised && m.PrelimLines != null && m.PrelimLines.Count > 0)
+            {
+                row++;
+                ws.Cell(row, 2).Value = "1.9";
+                ws.Cell(row, 3).Value = "PRELIMINARIES — BUILT-UP SCHEDULE";
+                ws.Cell(row, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(11).Font.SetBold(true).Font.SetFontColor(Orange);
+                ws.Cell(row, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(11).Font.SetBold(true).Font.SetFontColor(Navy);
+                ws.Range(row, 2, row, 3).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin).Border.SetBottomBorderColor(Navy);
+                ws.Row(row).Height = 20; row++;
+
+                double measured = m.WorksSubtotalUGX;
+                foreach (var line in m.PrelimLines)
+                {
+                    bool pct = string.Equals(line.Basis, "percent", StringComparison.OrdinalIgnoreCase);
+                    string basisTxt = pct ? $"{line.Value:0.###}% of works" : "fixed sum";
+                    ws.Cell(row, 3).Value = $"{line.Name}  —  {basisTxt}";
+                    ws.Cell(row, 4).Value = line.AmountFor(measured);
+                    ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0";
+                    ws.Cell(row, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10);
+                    row++;
+                }
+                ws.Cell(row, 3).Value = "TOTAL PRELIMINARIES";
+                ws.Cell(row, 4).Value = m.PrelimLines.Sum(l => l.AmountFor(measured));
+                ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0";
+                ws.Range(row, 3, row, 4).Style.Font.SetBold().Font.SetFontColor(Navy);
+                ws.Column(4).Width = 18;
             }
         }
 
@@ -1543,7 +1581,11 @@ namespace StingTools.BOQ
             SheetBanner(ws, "GRAND SUMMARY", m);
 
             double measured = rows.Sum(x => x.TotalUGX);
-            double prelims = measured * (m.PrelimPct / 100.0);
+            // G3 — itemised preliminaries replace the flat % when active (% lines
+            // resolved against this summary's measured subtotal).
+            double prelims = m.PrelimsItemised
+                ? m.PrelimLines.Sum(l => l.AmountFor(measured))
+                : measured * (m.PrelimPct / 100.0);
             double contingency = measured * (m.ContingencyPct / 100.0);
             double overhead = measured * (m.OverheadPct / 100.0);
             double subTotal = measured + prelims + contingency + overhead;
@@ -1554,7 +1596,7 @@ namespace StingTools.BOQ
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>
             {
                 ("A", "Total Measured Works (from Collections)", measured, false),
-                ("B", $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
+                ("B", m.PrelimsItemised ? "General Preliminaries (itemised schedule)" : $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
                 ("C", $"Contingency ({m.ContingencyPct:F1}%)", contingency, false),
                 ("D", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}%)", overhead, false),
                 (null, null, null, false),

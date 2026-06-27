@@ -84,6 +84,9 @@ namespace StingTools.BOQ
                     BuildItemScheduleSheet(wb.Worksheets.Add("Item Schedule"), boq);
                     BuildMaterialScheduleSheet(wb.Worksheets.Add("Material Schedule"), boq);
                     BuildProvisionalSumsSheet(wb.Worksheets.Add("Provisional Sums"), boq);
+                    // G3 — itemised preliminaries get their own section when active.
+                    if (boq.PrelimsItemised && boq.PrelimLines != null && boq.PrelimLines.Count > 0)
+                        BuildPreliminariesScheduleSheet(wb.Worksheets.Add("Preliminaries"), boq);
                     BuildNrm2ReferenceSheet(wb.Worksheets.Add("NRM2 Reference"), boq);
                     BuildCarbonSheet(wb.Worksheets.Add("Carbon & Lifecycle"), boq);
                     BuildAuditTrailSheet(wb.Worksheets.Add("Audit Trail"), boq);
@@ -231,8 +234,19 @@ namespace StingTools.BOQ
             ws.Cell(row, 6).Value = "Subtotal"; ws.Cell(row, 6).Style.Font.SetBold();
             ws.Cell(row, 7).FormulaA1 = $"SUM(G{firstDataRow}:G{row - 4})"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
             int subtotalRow = row; row++;
-            ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
-            ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.PrelimPct / 100:F4}"; row++;
+            if (boq.PrelimsItemised)
+            {
+                // G3 — itemised prelims: post the schedule total (see Preliminaries sheet).
+                ws.Cell(row, 6).Value = "Preliminaries (itemised — see Preliminaries sheet)";
+                ws.Cell(row, 7).Value = boq.PrelimsItemisedUGX;
+                ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
+            }
+            else
+            {
+                ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
+                ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.PrelimPct / 100:F4}";
+            }
+            row++;
             ws.Cell(row, 6).Value = $"Contingency ({boq.ContingencyPct:F0}%)";
             ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.ContingencyPct / 100:F4}"; row++;
             ws.Cell(row, 6).Value = $"Overhead & profit ({boq.OverheadPct:F0}%)";
@@ -250,6 +264,48 @@ namespace StingTools.BOQ
                 var vc = boq.BudgetVarianceUGX >= 0 ? XLColor.LightGreen : XLColor.MistyRose;
                 ws.Range(row, 6, row, 9).Merge().Style.Fill.SetBackgroundColor(vc);
             }
+        }
+
+        // ── G3 — itemised preliminaries schedule as its own section ──────────
+        private void BuildPreliminariesScheduleSheet(IXLWorksheet ws, BOQDocument boq)
+        {
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.Cell(1, 1).Value = $"{boq.ProjectName} — Preliminaries (built-up schedule)";
+            ws.Range(1, 1, 1, 5).Merge().Style.Font.SetBold().Font.SetFontSize(13)
+                .Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(NavyFill);
+
+            int hr = 3;
+            string[] cols = { "Item", "Category", "Basis", "Value / %", "Amount UGX" };
+            for (int i = 0; i < cols.Length; i++) ws.Cell(hr, i + 1).Value = cols[i];
+            ws.Range(hr, 1, hr, cols.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+                .Fill.SetBackgroundColor(HeaderFill);
+            double[] widths = { 40, 22, 10, 14, 16 };
+            for (int i = 0; i < widths.Length; i++) ws.Column(i + 1).Width = widths[i];
+
+            double subtotal = boq.SubtotalUGX;
+            int row = hr + 1;
+            foreach (var line in boq.PrelimLines)
+            {
+                ws.Cell(row, 1).Value = line.Name ?? "";
+                ws.Cell(row, 2).Value = line.Category ?? "";
+                bool pct = string.Equals(line.Basis, "percent", StringComparison.OrdinalIgnoreCase);
+                ws.Cell(row, 3).Value = pct ? "% works" : "Value";
+                ws.Cell(row, 4).Value = pct ? $"{line.Value:0.###}%" : line.Value.ToString("N0");
+                ws.Cell(row, 5).Value = line.AmountFor(subtotal);
+                ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+                row++;
+            }
+            ws.Cell(row, 4).Value = "TOTAL PRELIMINARIES";
+            ws.Cell(row, 4).Style.Font.SetBold();
+            ws.Cell(row, 5).Value = boq.PrelimsItemisedUGX;
+            ws.Range(row, 4, row, 5).Style.Fill.SetBackgroundColor(NavyFill)
+                .Font.SetFontColor(XLColor.White).Font.SetBold();
+            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+
+            ws.Cell(row + 2, 1).Value =
+                "Itemised preliminaries replace the flat preliminaries % in the grand total (works subtotal basis for % lines).";
+            ws.Range(row + 2, 1, row + 2, 5).Merge().Style.Font.SetItalic().Font.SetFontSize(9)
+                .Font.SetFontColor(XLColor.FromArgb(90, 90, 90));
         }
 
         private void BuildItemScheduleSheet(IXLWorksheet ws, BOQDocument boq)

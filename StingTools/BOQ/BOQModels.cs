@@ -249,14 +249,36 @@ namespace StingTools.BOQ
         /// </summary>
         public string MeasurementStandardId = "nrm2";
 
+        // ── G3 — optional built-up preliminaries schedule ───────────────────
+        // When PrelimsItemised is true the grand total uses the itemised prelim
+        // total (PrelimsItemisedUGX) instead of the flat PrelimPct. Loaded by
+        // BuildBOQDocument from BoqPrelimsStore; flat % stays the default so
+        // nothing regresses (Enabled defaults false → these fields stay inert).
+        public bool PrelimsItemised = false;
+        public List<BoqPrelimLine> PrelimLines = new List<BoqPrelimLine>();
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();
         public double ModeledTotalUGX => AllItems.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvTotalUGX => AllItems.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double SubtotalUGX => AllItems.Sum(i => i.TotalUGX);
+
+        /// <summary>Σ of the itemised prelim lines resolved against the works subtotal.</summary>
+        public double PrelimsItemisedUGX => PrelimLines?.Sum(l => l.AmountFor(SubtotalUGX)) ?? 0;
+
+        /// <summary>
+        /// The preliminaries contribution to the grand total — the itemised
+        /// schedule total when active, else the flat PrelimPct of the works
+        /// subtotal. Left unrounded in the flat case so GrandTotalUGX matches the
+        /// historic single-round formula exactly (zero delivered-number change).
+        /// </summary>
+        public double PrelimContributionUGX =>
+            PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
+
         public double GrandTotalUGX =>
-            Math.Round(SubtotalUGX * (1 + PrelimPct / 100.0 + ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
+            Math.Round(SubtotalUGX + PrelimContributionUGX
+                       + SubtotalUGX * (ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
         public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);

@@ -1038,6 +1038,8 @@ namespace StingTools.UI
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
                      "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
+                    ("Preliminaries schedule", "BOQ_Prelims",
+                     "Keep the flat prelims % or switch to an itemised built-up preliminaries schedule (site set-up, staff, welfare, insurances…). The active basis rolls into the grand total and the XLSX export.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
@@ -1257,6 +1259,7 @@ namespace StingTools.UI
                 // trail form (not the fixed-field ShowInlineForm), so intercept it
                 // before the generic form/dispatch path.
                 if (tag == "ReconcileProvisionals") { ShowProvisionalReconcileForm(label); return; }
+                if (tag == "BOQ_Prelims") { ShowPrelimsForm(label); return; }
 
                 // P2.2 — input-heavy actions render a single inline editable form
                 // first; on Run the form sets the command's ExtraParams and then
@@ -1657,6 +1660,158 @@ namespace StingTools.UI
                 _actionReportHost.Child = sp;
             }
             catch (Exception ex) { StingLog.Error("BOQ ShowProvisionalReconcileForm", ex); }
+        }
+
+        // ── G3 — preliminaries schedule (toggle + inline editable grid) ──────
+        //  Keep the flat prelims % (default) or switch to an itemised built-up
+        //  schedule. Each line is a fixed value or a % of the works subtotal.
+        //  Save persists to _BIM_COORD/boq_prelims.json and triggers a rebuild
+        //  so the grand total + export pick up the active basis. No popup.
+        private void ShowPrelimsForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var schedule = BoqPrelimsStore.Load(Doc);
+                var working = (schedule.Lines ?? new List<BoqPrelimLine>()).Select(l => l.Clone()).ToList();
+                bool enabled = schedule.Enabled;
+
+                var editors = new List<(BoqPrelimLine line, TextBox name, TextBox cat,
+                    System.Windows.Controls.ComboBox basis, TextBox val)>();
+                CheckBox enableCb = null;
+
+                double Subtotal() => _boq?.SubtotalUGX ?? 0;
+
+                void Commit()
+                {
+                    foreach (var ed in editors)
+                    {
+                        ed.line.Name = ed.name.Text?.Trim() ?? "";
+                        ed.line.Category = ed.cat.Text?.Trim() ?? "";
+                        ed.line.Basis = ((ed.basis.SelectedItem as ComboBoxItem)?.Tag as string) ?? "value";
+                        if (double.TryParse(ed.val.Text?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                            ed.line.Value = v;
+                    }
+                    if (enableCb != null) enabled = enableCb.IsChecked == true;
+                }
+
+                Action render = null;
+                render = () =>
+                {
+                    editors.Clear();
+                    var sp = new StackPanel { Margin = new Thickness(14) };
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "Preliminaries schedule", FontSize = 13, FontWeight = FontWeights.Bold,
+                        Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6)
+                    });
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "Keep the flat prelims % or switch to an itemised built-up schedule. Each line is a "
+                             + "fixed value or a % of the works subtotal. The active basis rolls into the grand total "
+                             + "and the XLSX export.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+
+                    enableCb = new CheckBox
+                    {
+                        Content = "Use itemised preliminaries (instead of the flat %)", IsChecked = enabled,
+                        FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    sp.Children.Add(enableCb);
+
+                    var grid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+
+                    void H(string t, int c)
+                    {
+                        var x = new TextBlock { Text = t, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = NavyBrush, Margin = new Thickness(0, 0, 6, 6) };
+                        Grid.SetRow(x, 0); Grid.SetColumn(x, c); grid.Children.Add(x);
+                    }
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    H("Item", 0); H("Category", 1); H("Basis", 2); H("Value / %", 3); H("Amount UGX", 4); H("", 5);
+
+                    double subtotal = Subtotal();
+                    int r = 1;
+                    foreach (var line in working)
+                    {
+                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        var nameTb = new TextBox { Text = line.Name, Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 6, 2) };
+                        var catTb = new TextBox { Text = line.Category, Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 6, 2) };
+                        var basisCb = new System.Windows.Controls.ComboBox { Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 6, 2) };
+                        basisCb.Items.Add(new ComboBoxItem { Content = "Value", Tag = "value" });
+                        basisCb.Items.Add(new ComboBoxItem { Content = "% works", Tag = "percent" });
+                        basisCb.SelectedIndex = string.Equals(line.Basis, "percent", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                        var valTb = new TextBox { Text = line.Value.ToString("0.######", CultureInfo.InvariantCulture),
+                            Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 6, 2) };
+                        var amtTb = new TextBlock { Text = line.AmountFor(subtotal).ToString("N0", CultureInfo.InvariantCulture),
+                            FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2) };
+                        var delBtn = new Button { Content = "×", Width = 22, Height = 22, FontSize = 12,
+                            Cursor = Cursors.Hand, ToolTip = "Remove line" };
+                        var capLine = line;
+                        delBtn.Click += (s, e) => { Commit(); working.Remove(capLine); render(); };
+
+                        Grid.SetRow(nameTb, r); Grid.SetColumn(nameTb, 0); grid.Children.Add(nameTb);
+                        Grid.SetRow(catTb, r); Grid.SetColumn(catTb, 1); grid.Children.Add(catTb);
+                        Grid.SetRow(basisCb, r); Grid.SetColumn(basisCb, 2); grid.Children.Add(basisCb);
+                        Grid.SetRow(valTb, r); Grid.SetColumn(valTb, 3); grid.Children.Add(valTb);
+                        Grid.SetRow(amtTb, r); Grid.SetColumn(amtTb, 4); grid.Children.Add(amtTb);
+                        Grid.SetRow(delBtn, r); Grid.SetColumn(delBtn, 5); grid.Children.Add(delBtn);
+
+                        editors.Add((line, nameTb, catTb, basisCb, valTb));
+                        r++;
+                    }
+                    sp.Children.Add(grid);
+
+                    double itemTotal = working.Sum(l => l.AmountFor(subtotal));
+                    double flatTotal = subtotal * (_boq?.PrelimPct ?? 0) / 100.0;
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = $"Itemised prelims total: UGX {itemTotal:N0}   ·   flat % would be: UGX {flatTotal:N0}   "
+                             + $"(active: {(enabled ? "itemised" : "flat %")})",
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = NavyBrush,
+                        Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap
+                    });
+
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    var addBtn = new Button { Content = "+ Add line", FontSize = 12, Height = 28, MinWidth = 90,
+                        Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+                    addBtn.Click += (s, e) => { Commit(); working.Add(new BoqPrelimLine { Basis = "value" }); render(); };
+                    var saveBtn = new Button { Content = "Save schedule", FontSize = 12, FontWeight = FontWeights.Bold,
+                        Height = 28, MinWidth = 120, Background = GreenBrush, Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    saveBtn.Click += (s, e) =>
+                    {
+                        try
+                        {
+                            Commit();
+                            schedule.Enabled = enabled;
+                            schedule.Lines = working;
+                            BoqPrelimsStore.Save(Doc, schedule);
+                            RefreshAsync();   // rebuild so grand total + metrics pick up the active basis
+                            render();         // re-render with the rebuilt subtotal
+                        }
+                        catch (Exception ex) { StingLog.Error("BOQ Prelims save", ex); }
+                    };
+                    btnRow.Children.Add(addBtn);
+                    btnRow.Children.Add(saveBtn);
+                    sp.Children.Add(btnRow);
+
+                    _actionReportHost.Child = sp;
+                };
+                render();
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowPrelimsForm", ex); }
         }
 
         private void HighlightActionButton(Button btn)
