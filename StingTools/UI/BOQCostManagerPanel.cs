@@ -238,7 +238,14 @@ namespace StingTools.UI
         private TabItem _scheduleTab;
         private System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase> _schedulePhases
             = new System.Collections.ObjectModel.ObservableCollection<BoqSchedulePhase>();
+        // G6 — per-period actuals (PV/EV/AC over time) + milestones, persisted to boq_schedule.json.
+        private System.Collections.ObjectModel.ObservableCollection<BoqSchedulePeriod> _schedulePeriods
+            = new System.Collections.ObjectModel.ObservableCollection<BoqSchedulePeriod>();
+        private System.Collections.ObjectModel.ObservableCollection<BoqMilestone> _milestones
+            = new System.Collections.ObjectModel.ObservableCollection<BoqMilestone>();
         private DataGrid _scheduleGrid;
+        private DataGrid _periodsGrid;
+        private DataGrid _milestonesGrid;
         private Canvas _sCurveCanvas;
         private StackPanel _evmStrip;
         private System.Windows.Controls.TextBox _evmActualsBox;
@@ -3540,6 +3547,9 @@ namespace StingTools.UI
 
             barSp.Children.Add(BuildScheduleBtn("↻ Recalculate", () => { SaveSchedule(); RecalcSchedule(); }));
             barSp.Children.Add(BuildScheduleBtn("＋ Phase", AddSchedulePhaseRow));
+            barSp.Children.Add(BuildScheduleBtn("＋ Period", AddSchedulePeriodRow));            // G6
+            barSp.Children.Add(BuildScheduleBtn("＋ Milestone", AddMilestoneRow));              // G6
+            barSp.Children.Add(BuildScheduleBtn("⤿ Sync % from cert", SyncPercentFromCert));   // G6
             barSp.Children.Add(BuildScheduleBtn("⟳ Seed from Revit phases", SeedScheduleFromRevitPhases));
             barSp.Children.Add(BuildScheduleBtn("⤓ Import actuals", ImportScheduleActuals));
             barSp.Children.Add(BuildScheduleBtn("⛏ Stamp 4D dates on model", () => DispatchAction("AssignPhaseDates")));
@@ -3594,15 +3604,120 @@ namespace StingTools.UI
                 Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
                     System.Windows.Threading.DispatcherPriority.Background);
             };
+
+            // G6 — Periods grid (PV/EV/AC over time). EV driver = overall % complete;
+            // AC = cumulative actual at the period end. PV is derived from the baseline.
+            _periodsGrid = new DataGrid
+            {
+                AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                Margin = new Thickness(0), ItemsSource = _schedulePeriods, FontSize = 11, MaxHeight = 160
+            };
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Period end", Width = 120,
+                Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete (overall)", Width = 140,
+                Binding = new Binding("PercentComplete") { Mode = BindingMode.TwoWay, StringFormat = "0.#" } });
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Actual cost (cum, UGX)", Width = 160,
+                Binding = new Binding("Acwp") { Mode = BindingMode.TwoWay, StringFormat = "N0" } });
+            _periodsGrid.CellEditEnding += (s, e) =>
+                Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
+                    System.Windows.Threading.DispatcherPriority.Background);
+
+            // G6 — Milestones grid.
+            _milestonesGrid = new DataGrid
+            {
+                AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                Margin = new Thickness(0), ItemsSource = _milestones, FontSize = 11, MaxHeight = 140
+            };
+            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Milestone", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
+                Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
+            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Date", Width = 120,
+                Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
+            _milestonesGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Done", Width = 60,
+                Binding = new Binding("Done") { Mode = BindingMode.TwoWay } });
+            _milestonesGrid.CellEditEnding += (s, e) =>
+                Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
+                    System.Windows.Threading.DispatcherPriority.Background);
+
+            UIElement SubHeader(string t) => new TextBlock
+            {
+                Text = t, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = NavyBrush,
+                Margin = new Thickness(0, 10, 0, 4)
+            };
+
+            var lower = new StackPanel { Margin = new Thickness(12, 0, 12, 12) };
+            lower.Children.Add(SubHeader("PROGRAMME PHASES (cost-loaded baseline → PV)"));
+            lower.Children.Add(_scheduleGrid);
+            lower.Children.Add(SubHeader("REPORTING PERIODS (overall % → EV · cumulative actual → AC)"));
+            lower.Children.Add(_periodsGrid);
+            lower.Children.Add(SubHeader("MILESTONES (red = slipped: past-due and not done)"));
+            lower.Children.Add(_milestonesGrid);
+
             var gridScroll = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = _scheduleGrid
+                Content = lower
             };
             root.Children.Add(gridScroll);
 
             return root;
+        }
+
+        // ── G6 — period / milestone row helpers ─────────────────────────────
+        private void AddSchedulePeriodRow()
+        {
+            var lastDate = _schedulePeriods.LastOrDefault()?.Date ?? DateTime.Today;
+            double lastPct = _schedulePeriods.LastOrDefault()?.PercentComplete ?? 0;
+            double lastAc = _schedulePeriods.LastOrDefault()?.Acwp ?? 0;
+            _schedulePeriods.Add(new BoqSchedulePeriod
+            { Date = lastDate.AddMonths(1), PercentComplete = lastPct, Acwp = lastAc });
+            SaveSchedule(); RecalcSchedule();
+        }
+
+        private void AddMilestoneRow()
+        {
+            _milestones.Add(new BoqMilestone { Name = "New milestone", Date = DateTime.Today.AddMonths(1), Done = false });
+            SaveSchedule(); RecalcSchedule();
+        }
+
+        /// <summary>
+        /// G6 — link the schedule's % complete to the Payment-Cert %-complete so
+        /// they're one source of truth. Reads the latest non-draft cert's
+        /// OverallPercentComplete and writes it into the latest reporting period
+        /// (creating one for today if none exists).
+        /// </summary>
+        private void SyncPercentFromCert()
+        {
+            try
+            {
+                var certPaths = StingTools.Core.PaymentCert.PaymentCertEngine.ListCerts(Doc);
+                var cert = certPaths
+                    .Select(StingTools.Core.PaymentCert.PaymentCertEngine.Load)
+                    .Where(c => c != null && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Draft
+                                          && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Superseded)
+                    .OrderByDescending(c => c.CertNumber)
+                    .FirstOrDefault();
+                if (cert == null)
+                {
+                    FlashHint(null, "No issued payment certificate found — issue a cert first (PAYMENT CERTS P5.1).");
+                    return;
+                }
+                double pct = Math.Round(cert.OverallPercentComplete, 1);
+                var period = _schedulePeriods.LastOrDefault();
+                if (period == null)
+                {
+                    period = new BoqSchedulePeriod { Date = DateTime.Today, PercentComplete = pct, Acwp = _scheduleActualToDate };
+                    _schedulePeriods.Add(period);
+                }
+                else period.PercentComplete = pct;
+                SaveSchedule(); RecalcSchedule();
+                FlashHint(null, $"Synced overall % complete from Cert #{cert.CertNumber}: {pct:0.#}%.");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ SyncPercentFromCert", ex); }
         }
 
         private Button BuildScheduleBtn(string label, Action onClick)
@@ -3635,6 +3750,12 @@ namespace StingTools.UI
                         _schedulePhases.Clear();
                         foreach (var p in st.Phases ?? new List<BoqSchedulePhase>())
                             if (p != null) _schedulePhases.Add(p);
+                        _schedulePeriods.Clear();
+                        foreach (var pr in st.Periods ?? new List<BoqSchedulePeriod>())
+                            if (pr != null) _schedulePeriods.Add(pr);
+                        _milestones.Clear();
+                        foreach (var m in st.Milestones ?? new List<BoqMilestone>())
+                            if (m != null) _milestones.Add(m);
                         _scheduleActualToDate = st.ActualCostToDate;
                         if (_evmActualsBox != null) _evmActualsBox.Text = st.ActualCostToDate.ToString("F0", CultureInfo.InvariantCulture);
                         if (_evmAsOfBox != null && !string.IsNullOrWhiteSpace(st.AsOf)) _evmAsOfBox.Text = st.AsOf;
@@ -3703,7 +3824,9 @@ namespace StingTools.UI
                 {
                     Phases = _schedulePhases.ToList(),
                     ActualCostToDate = acwp,
-                    AsOf = asOf
+                    AsOf = asOf,
+                    Periods = _schedulePeriods.ToList(),
+                    Milestones = _milestones.ToList()
                 };
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
                 System.IO.File.WriteAllText(path,
@@ -3758,15 +3881,38 @@ namespace StingTools.UI
                 }
 
                 var asOf = ParseAsOf();
-                double bcws = 0, bcwp = 0;
-                foreach (var p in _schedulePhases)
+                double bcws = 0, bcwp = 0, acwp;
+
+                // G6 — when reporting periods exist they are the source of truth for
+                // EV + AC: EV = BAC × overall % complete at the latest period; AC =
+                // its cumulative actual; PV = the cost-loaded baseline at the period
+                // date. Otherwise fall back to the legacy single-as-of computation
+                // (phase %-complete + the manual ACWP box) so nothing regresses.
+                var lastPeriod = _schedulePeriods.OrderBy(p => p.Date).LastOrDefault();
+                if (lastPeriod != null)
                 {
-                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
-                    double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
-                    bcws += p.PlannedCost * frac;
-                    bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
+                    asOf = lastPeriod.Date;
+                    bcwp = bac * (lastPeriod.PercentComplete / 100.0);
+                    acwp = lastPeriod.Acwp;
+                    foreach (var p in _schedulePhases)
+                    {
+                        double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                        double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
+                        bcws += p.PlannedCost * frac;
+                    }
+                    _scheduleActualToDate = acwp;
                 }
-                double acwp = _scheduleActualToDate;
+                else
+                {
+                    foreach (var p in _schedulePhases)
+                    {
+                        double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                        double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
+                        bcws += p.PlannedCost * frac;
+                        bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
+                    }
+                    acwp = _scheduleActualToDate;
+                }
 
                 var period = StingTools.Core.Evm.EvmCalculator.Compute(bac, bcws, bcwp, acwp, asOf);
                 RenderEvmStrip(period);
@@ -3789,6 +3935,31 @@ namespace StingTools.UI
             _evmStrip.Children.Add(EvmMetric("EAC", $"{cur} {p.Eac:N0}", null));
             _evmStrip.Children.Add(EvmMetric("ETC", $"{cur} {p.Etc:N0}", null));
             _evmStrip.Children.Add(EvmMetric("VAC", $"{cur} {p.Vac:N0}", p.Vac < 0 ? RedBrush : GreenBrush));
+            // G6 — show the Payment-Cert overall % alongside so the two % sources
+            // are visibly reconciled (one source of truth).
+            double? certPct = LatestCertPercent();
+            if (certPct.HasValue)
+            {
+                double schedPct = p.Bac > 0 ? 100.0 * p.Bcwp / p.Bac : 0;
+                bool match = Math.Abs(certPct.Value - schedPct) < 0.5;
+                _evmStrip.Children.Add(EvmMetric("Cert %", $"{certPct.Value:0.#}%", match ? GreenBrush : AmberBrush));
+            }
+        }
+
+        /// <summary>G6 — latest issued payment certificate's overall % complete (or null).</summary>
+        private double? LatestCertPercent()
+        {
+            try
+            {
+                var cert = StingTools.Core.PaymentCert.PaymentCertEngine.ListCerts(Doc)
+                    .Select(StingTools.Core.PaymentCert.PaymentCertEngine.Load)
+                    .Where(c => c != null && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Draft
+                                          && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Superseded)
+                    .OrderByDescending(c => c.CertNumber)
+                    .FirstOrDefault();
+                return cert != null ? (double?)Math.Round(cert.OverallPercentComplete, 1) : null;
+            }
+            catch { return null; }
         }
 
         private Brush RagFor(double index)
@@ -3838,9 +4009,46 @@ namespace StingTools.UI
             DateTime asOf = ParseAsOf();
 
             double bacTotal = phases.Sum(p => p.PlannedCost);
-            double bcwp = phases.Sum(p => p.PlannedCost * (p.PercentComplete / 100.0));
-            double acwp = _scheduleActualToDate;
-            double maxVal = Math.Max(bacTotal, Math.Max(bcwp, acwp));
+
+            // G6 — period series (PV/EV/AC over time) drives the curve when present.
+            var periods = _schedulePeriods.Where(p => p.Date >= t0.AddDays(-1) && p.Date <= t1.AddDays(1))
+                .OrderBy(p => p.Date).ToList();
+            double bcwp, acwp;
+            if (periods.Count > 0)
+            {
+                var last = periods.Last();
+                bcwp = bacTotal * (last.PercentComplete / 100.0);
+                acwp = last.Acwp;
+                asOf = last.Date;
+            }
+            else
+            {
+                bcwp = phases.Sum(p => p.PlannedCost * (p.PercentComplete / 100.0));
+                acwp = _scheduleActualToDate;
+            }
+
+            // BCWS at as-of (for SPI → forecast band).
+            double BcwsAt(DateTime t)
+            {
+                double cum = 0;
+                foreach (var p in phases)
+                {
+                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
+                    cum += p.PlannedCost * Math.Max(0, Math.Min(1, (t - p.Start).TotalDays / span));
+                }
+                return cum;
+            }
+
+            // Forecast band (EAC range) — low = CPI=1, high = SPI×CPI weighted.
+            double cpi = acwp > 0 ? bcwp / acwp : 0;
+            double spi = BcwsAt(asOf) > 0 ? bcwp / BcwsAt(asOf) : 0;
+            double remaining = Math.Max(0, bacTotal - bcwp);
+            double eacLow = acwp + remaining;
+            double eacHigh = (cpi > 0 && spi > 0) ? acwp + remaining / (cpi * spi)
+                           : (cpi > 0 ? acwp + remaining / cpi : eacLow);
+            if (eacHigh < eacLow) { var t = eacLow; eacLow = eacHigh; eacHigh = t; }
+
+            double maxVal = Math.Max(bacTotal, Math.Max(bcwp, Math.Max(acwp, periods.Count > 0 ? eacHigh : 0)));
             if (maxVal <= 0) maxVal = 1;
 
             const double padL = 8, padR = 8, padT = 10, padB = 18;
@@ -3858,29 +4066,81 @@ namespace StingTools.UI
             for (int i = 0; i <= samples; i++)
             {
                 DateTime t = t0.AddDays(totalDays * i / samples);
-                double cum = 0;
-                foreach (var p in phases)
-                {
-                    double span = Math.Max(1, (p.End - p.Start).TotalDays);
-                    double frac = Math.Max(0, Math.Min(1, (t - p.Start).TotalDays / span));
-                    cum += p.PlannedCost * frac;
-                }
-                planned.Add(new System.Windows.Point(X(t), Y(cum)));
+                planned.Add(new System.Windows.Point(X(t), Y(BcwsAt(t))));
             }
             c.Children.Add(new Polyline { Points = planned, Stroke = NavyBrush, StrokeThickness = 2 });
 
-            // Earned + actual cumulative-to-date ramps (single scalar each at as-of).
             double asOfX = X(asOf);
-            c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(bcwp), GreenBrush, 2));
-            c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(acwp), AmberBrush, 2));
+            if (periods.Count > 0)
+            {
+                // EV + AC polylines through the reporting periods.
+                var evPts = new PointCollection { new System.Windows.Point(X(t0), Y(0)) };
+                var acPts = new PointCollection { new System.Windows.Point(X(t0), Y(0)) };
+                foreach (var p in periods)
+                {
+                    double px = X(p.Date);
+                    evPts.Add(new System.Windows.Point(px, Y(bacTotal * (p.PercentComplete / 100.0))));
+                    acPts.Add(new System.Windows.Point(px, Y(p.Acwp)));
+                }
+                c.Children.Add(new Polyline { Points = evPts, Stroke = GreenBrush, StrokeThickness = 2 });
+                c.Children.Add(new Polyline { Points = acPts, Stroke = AmberBrush, StrokeThickness = 2 });
+
+                // Forecast band from the last actual point to completion.
+                double endX = X(t1);
+                var band = new System.Windows.Shapes.Polygon
+                {
+                    Fill = new SolidColorBrush(Color.FromArgb(40, 200, 120, 60)),
+                    Points = new PointCollection
+                    {
+                        new System.Windows.Point(asOfX, Y(acwp)),
+                        new System.Windows.Point(endX, Y(eacLow)),
+                        new System.Windows.Point(endX, Y(eacHigh)),
+                    }
+                };
+                c.Children.Add(band);
+                var lowLine = MakeLine(asOfX, Y(acwp), endX, Y(eacLow), GreenBrush, 1);
+                lowLine.StrokeDashArray = new DoubleCollection { 4, 3 }; c.Children.Add(lowLine);
+                var highLine = MakeLine(asOfX, Y(acwp), endX, Y(eacHigh), RedBrush, 1);
+                highLine.StrokeDashArray = new DoubleCollection { 4, 3 }; c.Children.Add(highLine);
+            }
+            else
+            {
+                // Legacy single-as-of ramps.
+                c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(bcwp), GreenBrush, 2));
+                c.Children.Add(MakeLine(padL, Y(0), asOfX, Y(acwp), AmberBrush, 2));
+            }
 
             // As-of vertical guide.
             var guide = MakeLine(asOfX, padT, asOfX, padT + plotH, Brushes.Gray, 1);
             guide.StrokeDashArray = new DoubleCollection { 3, 3 };
             c.Children.Add(guide);
 
+            // G6 — milestone markers: diamond + tick; red = slipped (past-due, not done).
+            foreach (var m in _milestones)
+            {
+                if (m.Date < t0 || m.Date > t1) continue;
+                double mx = X(m.Date);
+                bool slipped = !m.Done && m.Date < DateTime.Today;
+                Brush mb = m.Done ? GreenBrush : slipped ? RedBrush : Brushes.Gray;
+                var tick = MakeLine(mx, padT + 9, mx, padT + plotH, mb, 1);
+                tick.StrokeDashArray = new DoubleCollection { 2, 4 };
+                c.Children.Add(tick);
+                c.Children.Add(new System.Windows.Shapes.Polygon
+                {
+                    Fill = mb,
+                    Points = new PointCollection
+                    {
+                        new System.Windows.Point(mx, padT - 1),
+                        new System.Windows.Point(mx + 4, padT + 4),
+                        new System.Windows.Point(mx, padT + 9),
+                        new System.Windows.Point(mx - 4, padT + 4),
+                    }
+                });
+            }
+
             // Legend.
-            AddLegend(c, padL + 4, padT, "Planned", NavyBrush, "Earned (EV)", GreenBrush, "Actual (AC)", AmberBrush);
+            AddLegend(c, padL + 4, padT, "Planned", NavyBrush, "Earned (EV)", GreenBrush,
+                "Actual (AC)", AmberBrush, "EAC band", RedBrush);
         }
 
         private System.Windows.Shapes.Line MakeLine(double x1, double y1, double x2, double y2, Brush stroke, double thick)
@@ -3933,14 +4193,19 @@ namespace StingTools.UI
                 RecalcSchedule();
                 var asOf = ParseAsOf();
                 double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.GrandTotalUGX ?? 0);
-                double bcws = 0, bcwp = 0;
+                // G6 — mirror the period-aware EVM used on screen.
+                double bcws = 0, bcwp, acwp;
+                var lastPeriod = _schedulePeriods.OrderBy(p => p.Date).LastOrDefault();
+                if (lastPeriod != null) { asOf = lastPeriod.Date; bcwp = bac * (lastPeriod.PercentComplete / 100.0); acwp = lastPeriod.Acwp; }
+                else { bcwp = 0; acwp = _scheduleActualToDate; }
                 foreach (var p in _schedulePhases)
                 {
                     double span = Math.Max(1, (p.End - p.Start).TotalDays);
                     double frac = Math.Max(0, Math.Min(1, (asOf - p.Start).TotalDays / span));
-                    bcws += p.PlannedCost * frac; bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
+                    bcws += p.PlannedCost * frac;
+                    if (lastPeriod == null) bcwp += p.PlannedCost * (p.PercentComplete / 100.0);
                 }
-                var period = StingTools.Core.Evm.EvmCalculator.Compute(bac, bcws, bcwp, _scheduleActualToDate, asOf);
+                var period = StingTools.Core.Evm.EvmCalculator.Compute(bac, bcws, bcwp, acwp, asOf);
 
                 // CSV next to the schedule json.
                 string csvPath = null;
@@ -3955,6 +4220,27 @@ namespace StingTools.UI
                         sb.AppendLine("Phase,Start,End,PercentComplete,PlannedUGX");
                         foreach (var p in _schedulePhases)
                             sb.AppendLine($"\"{p.Name}\",{p.StartStr},{p.EndStr},{p.PercentComplete:0.#},{p.PlannedCost:0}");
+                        sb.AppendLine();
+                        // G6 — per-period PV/EV/AC timeline.
+                        sb.AppendLine("PeriodEnd,PercentComplete,PV_BCWS_UGX,EV_BCWP_UGX,AC_ACWP_UGX");
+                        foreach (var pr in _schedulePeriods.OrderBy(p => p.Date))
+                        {
+                            double pv = 0;
+                            foreach (var ph in _schedulePhases)
+                            {
+                                double span = Math.Max(1, (ph.End - ph.Start).TotalDays);
+                                pv += ph.PlannedCost * Math.Max(0, Math.Min(1, (pr.Date - ph.Start).TotalDays / span));
+                            }
+                            sb.AppendLine($"{pr.DateStr},{pr.PercentComplete:0.#},{pv:0},{bac * pr.PercentComplete / 100.0:0},{pr.Acwp:0}");
+                        }
+                        sb.AppendLine();
+                        // G6 — milestones with slippage flag.
+                        sb.AppendLine("Milestone,Date,Done,Status");
+                        foreach (var m in _milestones.OrderBy(m => m.Date))
+                        {
+                            string status = m.Done ? "Done" : (m.Date < DateTime.Today ? "Slipped" : "Upcoming");
+                            sb.AppendLine($"\"{m.Name}\",{m.DateStr},{(m.Done ? "Y" : "N")},{status}");
+                        }
                         sb.AppendLine();
                         sb.AppendLine("Metric,Value");
                         sb.AppendLine($"BAC,{bac:0}");
@@ -3985,6 +4271,15 @@ namespace StingTools.UI
                 b.AddSection("PROGRAMME");
                 foreach (var p in _schedulePhases)
                     b.Metric(p.Name, $"{p.PercentComplete:0.#}%", $"{p.StartStr} → {p.EndStr} · UGX {p.PlannedCost:N0}");
+                if (_milestones.Count > 0)
+                {
+                    b.AddSection("MILESTONES");
+                    foreach (var m in _milestones.OrderBy(m => m.Date))
+                    {
+                        string status = m.Done ? "Done" : (m.Date < DateTime.Today ? "SLIPPED" : "Upcoming");
+                        b.Metric(m.Name, status, m.DateStr);
+                    }
+                }
                 if (!string.IsNullOrEmpty(csvPath)) b.SetCsvPath(csvPath);
                 ShowInlineResult(b);
             }
@@ -4031,6 +4326,53 @@ namespace StingTools.UI
         public List<BoqSchedulePhase> Phases { get; set; } = new List<BoqSchedulePhase>();
         public double ActualCostToDate { get; set; }
         public string AsOf { get; set; }
+        // G6 — per-period actuals (PV/EV/AC timeline) + milestones.
+        public List<BoqSchedulePeriod> Periods { get; set; } = new List<BoqSchedulePeriod>();
+        public List<BoqMilestone> Milestones { get; set; } = new List<BoqMilestone>();
+    }
+
+    /// <summary>
+    /// G6 — one reporting period: the overall % complete (EV driver) and the
+    /// cumulative actual cost (AC) at the period end. PV is derived from the
+    /// cost-loaded phase baseline. Editable in the Periods grid; persisted.
+    /// </summary>
+    internal class BoqSchedulePeriod : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+        private DateTime _date = DateTime.Today;
+        private double _pct;
+        private double _acwp;
+
+        public DateTime Date { get => _date; set { _date = value; N(nameof(Date)); N(nameof(DateStr)); } }
+        [Newtonsoft.Json.JsonIgnore]
+        public string DateStr
+        {
+            get => _date.ToString("yyyy-MM-dd");
+            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Date = d; }
+        }
+        public double PercentComplete { get => _pct; set { _pct = Math.Max(0, Math.Min(100, value)); N(nameof(PercentComplete)); } }
+        public double Acwp { get => _acwp; set { _acwp = Math.Max(0, value); N(nameof(Acwp)); } }
+    }
+
+    /// <summary>G6 — a dated programme milestone, plotted on the S-curve.</summary>
+    internal class BoqMilestone : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+        private string _name = "Milestone";
+        private DateTime _date = DateTime.Today;
+        private bool _done;
+
+        public string Name { get => _name; set { _name = value ?? ""; N(nameof(Name)); } }
+        public DateTime Date { get => _date; set { _date = value; N(nameof(Date)); N(nameof(DateStr)); } }
+        [Newtonsoft.Json.JsonIgnore]
+        public string DateStr
+        {
+            get => _date.ToString("yyyy-MM-dd");
+            set { if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) Date = d; }
+        }
+        public bool Done { get => _done; set { _done = value; N(nameof(Done)); } }
     }
 
     // ══════════════════════════════════════════════════════════════════════

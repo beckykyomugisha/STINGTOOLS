@@ -290,9 +290,14 @@ This is the part a real guide hides and you find out the hard way. We won't.
    the EPD-verified % in the coverage strip), and **Actions → Carbon Gap Report**
    lists every material still on a weak/missing factor with a CSV worklist. ICE
    stays the fallback — un-mapped materials are unchanged.
-5. **The Schedule / EVM tab (P2) is new and basic** — phase grid + a simple
-   S-curve + headline EVM. It is **not** a full 4D programme tool; treat SPI/CPI as
-   a directional health check until it matures.
+5. ~~**The Schedule / EVM tab (P2) is new and basic.**~~ ✓ **Matured (G6).** The
+   Schedule tab now takes **reporting periods** (enter overall % complete + actual
+   cost per period) and plots **PV / EV / AC over time** with a dashed **EAC
+   forecast band**; **milestones** render on the curve (red = slipped). **Sync %
+   from cert** pulls the latest payment certificate's overall % so the schedule and
+   certs are one source of truth (a Cert % chip turns green when they agree). All
+   inline; persists to `_BIM_COORD/boq_schedule.json`. Still treat it as a
+   directional tool, not a replacement for Primavera/MSP.
 6. ~~**Big-model performance.**~~ ✓ **Closed (G8).** On a large host model
    (≥ 1,500 elements, configurable via `COST_BIG_MODEL_THRESHOLD`), **Refresh** now
    shows a "Building bill of quantities…" progress dialog so it reads as working,

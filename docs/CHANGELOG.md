@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G6 — Schedule / EVM tab maturity)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #5 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. The P2 Schedule tab in `BOQCostManagerPanel`
+gains: (a) **per-period EVM** — a new Reporting-Periods grid (`BoqSchedulePeriod`:
+period-end date, overall % complete = EV driver, cumulative actual = AC); when
+present it is the source of truth (EV = BAC×%, AC = period actual, PV = cost-loaded
+baseline at the period date), and `RecalcSchedule`/export mirror it. The S-curve
+plots **PV/EV/AC as polylines over the real periods**. (b) a dashed **EAC forecast
+band** (low = CPI=1, high = CPI×SPI weighted) from the last actual to completion,
+with `maxVal` rescaled to fit. (c) **milestones** (`BoqMilestone`: name/date/done)
+in their own grid, rendered as diamond+tick markers on the curve, **red when
+slipped** (past-due and not done); slippage also flagged in the export CSV/report.
+(d) **Sync % from cert** button + a **Cert %** EVM chip reading
+`PaymentCert.OverallPercentComplete` (latest issued cert) — writes it into the
+latest period so the schedule and certs are one source of truth (chip green when
+they agree). Legacy single-as-of behaviour preserved when no periods entered (no
+regression). All inline; periods + milestones persist to `_BIM_COORD/boq_schedule.json`.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Schedule tab → ＋ Period ×3, enter % complete +
+actual cost for each → curve shows PV/EV/AC ramps + EAC band, SPI/CPI update;
+＋ Milestone with a past date (not done) → red marker; issue a payment cert →
+Sync % from cert → latest period % matches the cert and the Cert % chip is green.
+
 #### Completed (BOQ QS gap G5 — carbon toward EPD-grade)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #4 in
