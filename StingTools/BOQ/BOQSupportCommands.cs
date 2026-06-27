@@ -679,6 +679,93 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Error("BOQReconcileProvisionals", ex); return Result.Failed; }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQLabourRollupCommand (G4) — labour-content rollup. Read-only.
+    //  Sums the labour/plant/material rate split (where present) by NRM2
+    //  section, and rolls up labour HOURS by trade via LabourHoursEngine
+    //  (read-only). Renders inline via StingResultPanel — no popup, no writes.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQLabourRollupCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                string ccy = boq.Currency ?? "UGX";
+
+                // (1) Rate split L/P/M content (rows that carry a split).
+                var split = boq.AllItems.Where(i => i.HasRateSplit).ToList();
+                double lab = split.Sum(i => i.LabourTotalUGX);
+                double pla = split.Sum(i => i.PlantTotalUGX);
+                double mat = split.Sum(i => i.MaterialTotalUGX);
+
+                var builder = UI.StingResultPanel.Create("Labour content rollup")
+                    .SetSubtitle($"{boq.ProjectName} · {DateTime.Now:dd MMM yyyy}")
+                    .AddSection("RATE SPLIT — LABOUR / PLANT / MATERIAL")
+                    .Metric("Rows with split rate", $"{split.Count} / {boq.AllItems.Count}")
+                    .Metric("Labour content", $"{ccy} {lab:N0}")
+                    .Metric("Plant content", $"{ccy} {pla:N0}")
+                    .Metric("Material content", $"{ccy} {mat:N0}");
+
+                if (split.Count > 0)
+                {
+                    var bySection = split
+                        .GroupBy(i => string.IsNullOrEmpty(i.NRM2Section) ? "(unsectioned)" : i.NRM2Section)
+                        .OrderBy(g => g.Key)
+                        .Select(g => new[]
+                        {
+                            g.Key,
+                            $"{ccy} {g.Sum(i => i.LabourTotalUGX):N0}",
+                            $"{ccy} {g.Sum(i => i.PlantTotalUGX):N0}",
+                            $"{ccy} {g.Sum(i => i.MaterialTotalUGX):N0}",
+                        }).ToList();
+                    builder.AddSection("BY NRM2 SECTION")
+                        .Table(new[] { "§", "Labour", "Plant", "Material" }, bySection);
+                }
+                else
+                {
+                    builder.AddSection("BY NRM2 SECTION").Text(
+                        "No rows carry a labour/plant/material split yet. Add labour/plant/material "
+                        + "columns to the project rate card (_BIM_COORD/rate_card.json) to populate them.");
+                }
+
+                // (2) Labour HOURS by trade (crew) — read-only LabourHoursEngine rollup.
+                var elems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WhereElementIsViewIndependent()
+                    .ToElements();
+                var roll = StingTools.V6.LabourHoursEngine.Rollup(elems);
+                builder.AddSection("LABOUR HOURS BY TRADE (crew)")
+                    .Metric("Elements matched", roll.ElementsTouched.ToString())
+                    .Metric("Total labour hours", $"{roll.TotalHours:N1} h")
+                    .Metric("Total labour cost", $"GBP {roll.TotalCostGbp:N0}");
+                if (roll.ByCrew.Count > 0)
+                {
+                    var crewRows = roll.ByCrew.OrderByDescending(kv => kv.Value.hours)
+                        .Select(kv => new[] { kv.Key, kv.Value.count.ToString(), $"{kv.Value.hours:N1} h" })
+                        .ToList();
+                    builder.Table(new[] { "Crew / trade", "Elements", "Hours" }, crewRows);
+                }
+                else
+                {
+                    builder.Text("No elements matched the labour-rates CSV "
+                        + "(Data/Labour/STING_LABOUR_RATES.csv).");
+                }
+
+                builder.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("BOQLabourRollup", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  BOQWriteItemParamsCommand — Phase 108b. Writes inline-edited rate,
     //  NRM2 paragraph, and note back onto a modeled element's shared params.

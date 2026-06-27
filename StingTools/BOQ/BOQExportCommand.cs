@@ -313,7 +313,9 @@ namespace StingTools.BOQ
             BannerRow(ws, $"{boq.ProjectName} — Item Schedule (edit in place and re-import via BOQ → Import)");
             string[] cols = { "Line ref", "NRM2 §", "Category", "Discipline", "Item", "Family", "Unit", "Quantity",
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Note", "Source Model", "Revit ElementId",
-                "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence" };
+                "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence",
+                // G4 — per-unit labour / plant / material split (blank when none).
+                "Labour UGX", "Plant UGX", "Material UGX" };
             WriteHeader(ws, 3, cols);
 
             int row = 4;
@@ -341,6 +343,9 @@ namespace StingTools.BOQ
                 ws.Cell(row, 20).Value = it.EmbodiedCarbonKg;
                 ws.Cell(row, 21).Value = it.LifecycleCostUGX;
                 ws.Cell(row, 22).Value = it.RateConfidence;
+                if (it.LabourUGX.HasValue) ws.Cell(row, 23).Value = it.LabourUGX.Value;
+                if (it.PlantUGX.HasValue) ws.Cell(row, 24).Value = it.PlantUGX.Value;
+                if (it.MaterialUGX.HasValue) ws.Cell(row, 25).Value = it.MaterialUGX.Value;
                 row++;
             }
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();

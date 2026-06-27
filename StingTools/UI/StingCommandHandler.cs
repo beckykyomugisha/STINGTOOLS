@@ -3516,6 +3516,7 @@ namespace StingTools.UI
                     case "BOQ_SignOff":             RunCommand<BOQ.BOQSignOffCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+                    case "BOQ_LabourRollup":        RunCommand<BOQ.BOQLabourRollupCommand>(app); break;
                     case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
                     case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
                     case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;

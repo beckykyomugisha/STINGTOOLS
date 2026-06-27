@@ -267,9 +267,14 @@ This is the part a real guide hides and you find out the hard way. We won't.
    items still need a price (no rate / low confidence / defaulted), totals the
    *value at risk*, and exports a CSV worklist to hand the QS. Still **do the QS
    Round-trip** (Step 4.2) on any real job.
-2. **No labour/plant/material split per rate yet.** NRM2 ideally breaks a rate into
-   labour + plant + material; today a rate is a single number. Dayworks capture
-   labour-hours separately, but measured items don't. *(Coming.)*
+2. ~~**No labour/plant/material split per rate yet.**~~ ✓ **Closed (G2 of this list /
+   G4).** A rate can now carry an optional **labour + plant + material** split where
+   the source provides one — add `labour` / `plant` / `material` columns to a
+   project rate-card entry (`_BIM_COORD/rate_card.json`). Rows with a split show
+   optional **Labour / Plant / Material** grid columns (toggle via **▦ Columns**)
+   and export to the Item Schedule; rows without a split are unchanged (rate stays
+   one number). **Actions → Labour rollup** sums the split by NRM2 section and
+   rolls up labour **hours by trade**.
 3. ~~**Prelims/contingency/overhead are flat percentages.**~~ ✓ **Closed (G3) for
    prelims.** Prelims can now be a **built-up schedule**: **Actions → Preliminaries
    schedule** lets you keep the flat % (still the default) or switch to itemised

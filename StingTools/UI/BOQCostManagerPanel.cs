@@ -85,7 +85,9 @@ namespace StingTools.UI
         // has hidden. Empty = show every column. Keyed by canonical column key
         // (Level / Location / Source / Confidence / Carbon / Note).
         private readonly HashSet<string> _hiddenColumns =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // G4 — the L/P/M rate-split columns are off by default (only relevant
+            // when a rate source provides a split). Persisted ui-state overrides this.
+            new HashSet<string>(new[] { "Labour", "Plant", "Material" }, StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
         // P1.3 — per-project UI state persistence. Grouping mode, display currency,
@@ -1040,6 +1042,8 @@ namespace StingTools.UI
                      "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
                     ("Preliminaries schedule", "BOQ_Prelims",
                      "Keep the flat prelims % or switch to an itemised built-up preliminaries schedule (site set-up, staff, welfare, insurances…). The active basis rolls into the grand total and the XLSX export.", false),
+                    ("Labour rollup", "BOQ_LabourRollup",
+                     "Σ labour / plant / material rate-split content by NRM2 section, plus labour hours by trade (crew). Read-only.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
@@ -2291,6 +2295,23 @@ namespace StingTools.UI
                 Width = new DataGridLength(75), IsReadOnly = true
             });
             AddIfVisible("Note", BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
+            // G4 — optional labour / plant / material rate-split columns (off by
+            // default; toggle via the Columns menu). Read-only; "—" when no split.
+            AddIfVisible("Labour", new DataGridTextColumn
+            {
+                Header = "Labour", Binding = new Binding(nameof(BOQItemViewModel.LabourDisplay)),
+                Width = new DataGridLength(95), IsReadOnly = true
+            });
+            AddIfVisible("Plant", new DataGridTextColumn
+            {
+                Header = "Plant", Binding = new Binding(nameof(BOQItemViewModel.PlantDisplay)),
+                Width = new DataGridLength(95), IsReadOnly = true
+            });
+            AddIfVisible("Material", new DataGridTextColumn
+            {
+                Header = "Material", Binding = new Binding(nameof(BOQItemViewModel.MaterialDisplay)),
+                Width = new DataGridLength(95), IsReadOnly = true
+            });
 
             // NRM2 detail panel — shown under every row by default so the BOQ
             // description (the whole point of a BOQ) is always visible. The
@@ -4113,6 +4134,18 @@ namespace StingTools.UI
 
         public string TotalDisplay => _currency == "USD"
             ? $"$ {_item.TotalUSD:N2}" : $"UGX {_item.TotalUGX:N0}";
+
+        // G4 — labour / plant / material rate split (per-unit). "—" when the rate
+        // source carries no split (most rows). Read-only.
+        public string LabourDisplay => FmtComponent(_item.LabourUGX);
+        public string PlantDisplay => FmtComponent(_item.PlantUGX);
+        public string MaterialDisplay => FmtComponent(_item.MaterialUGX);
+        private string FmtComponent(double? v)
+            => v.HasValue
+                ? (_currency == "USD"
+                    ? $"$ {(_ugxPerUsd > 0 ? v.Value / _ugxPerUsd : 0):N2}"
+                    : $"UGX {v.Value:N0}")
+                : "—";
 
         public string Note
         {

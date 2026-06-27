@@ -390,7 +390,8 @@ namespace StingTools.BOQ
             string rateSource;
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
-                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence);
+                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
@@ -441,7 +442,10 @@ namespace StingTools.BOQ
                 Zone = GetZoneName(el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
-                RateConfidence = rateConfidence
+                RateConfidence = rateConfidence,
+                LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
+                PlantUGX = splitPlant,
+                MaterialUGX = splitMaterial
             };
 
             // Mark provisional sums on the element if configured via existing parameter.
@@ -457,8 +461,10 @@ namespace StingTools.BOQ
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            out string rateSource, out int rateConfidence)
+            out string rateSource, out int rateConfidence,
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
         {
+            splitLabour = splitPlant = splitMaterial = null;
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -493,6 +499,9 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
+            splitPlant = lookup.PlantRate;
+            splitMaterial = lookup.MaterialRate;
             return (lookup.UnitRate, lookup.Unit, lookup.MatchedKey ?? catName);
         }
 
@@ -1715,6 +1724,9 @@ namespace StingTools.BOQ
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
                     item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
+                    // G4 — a single-number manual override has no split; drop any
+                    // inherited L/P/M so the columns don't show a stale breakdown.
+                    item.LabourUGX = item.PlantUGX = item.MaterialUGX = null;
                 }
                 if (!string.IsNullOrEmpty(ov.NRM2Paragraph)) item.ResolvedNRM2Paragraph = ov.NRM2Paragraph;
                 if (!string.IsNullOrEmpty(ov.Note)) item.Note = ov.Note;
@@ -2297,6 +2309,9 @@ namespace StingTools.BOQ
                         .First().Key;
                     agg.RateUGX = modalRate;
                     agg.RateUSD = ugxPerUsd > 0 ? Math.Round(modalRate / ugxPerUsd, 2) : 0;
+                    // G4 — the representative's L/P/M split no longer sums to the
+                    // chosen modal rate; drop it rather than show a misleading split.
+                    agg.LabourUGX = agg.PlantUGX = agg.MaterialUGX = null;
                     StingLog.WarnRateLimited("BOQAggRate",
                         $"Aggregated row '{agg.ItemName}' had {distinctRates.Count} differing rates; " +
                         $"took modal {modalRate:N0} UGX across {rows.Count} elements.");

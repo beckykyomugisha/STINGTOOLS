@@ -143,6 +143,18 @@ namespace StingTools.BOQ
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
 
+        // ── G4 — optional labour / plant / material rate split (per-unit, same
+        // currency/unit as RateUGX). Null when the rate source carries no split,
+        // so the rate stays a single number (no regression). Totals derive by
+        // ×Quantity.
+        public double? LabourUGX;
+        public double? PlantUGX;
+        public double? MaterialUGX;
+        public bool HasRateSplit => LabourUGX.HasValue || PlantUGX.HasValue || MaterialUGX.HasValue;
+        public double LabourTotalUGX => (LabourUGX ?? 0) * Quantity;
+        public double PlantTotalUGX => (PlantUGX ?? 0) * Quantity;
+        public double MaterialTotalUGX => (MaterialUGX ?? 0) * Quantity;
+
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
         // row, SimilarCount holds the element count and ConstituentElementIds
@@ -192,6 +204,9 @@ namespace StingTools.BOQ
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
                 SortOrder = this.SortOrder,
+                LabourUGX = this.LabourUGX,
+                PlantUGX = this.PlantUGX,
+                MaterialUGX = this.MaterialUGX,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),

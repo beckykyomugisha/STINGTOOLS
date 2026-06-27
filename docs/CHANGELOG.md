@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G4 — labour / plant / material rate split)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #2 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. `RateLookup` gains optional `LabourRate` /
+`PlantRate` / `MaterialRate` (per-unit, nullable); `ProjectRateCardProvider`
+reads optional `labour` / `plant` / `material` columns from `_BIM_COORD/
+rate_card.json` entries. `ResolveRate` threads the split out;
+`BuildLineItemFromElement` populates new nullable `BOQLineItem.LabourUGX` /
+`PlantUGX` / `MaterialUGX` (+ `HasRateSplit`, `LabourTotalUGX` etc., Clone copy).
+Absent → null (rate stays one number, no regression). Aggregation drops the split
+when a modal rate is chosen that no longer matches; a manual rate override clears
+it too. Three optional **Labour / Plant / Material** grid columns (off by default,
+toggle via ▦ Columns; added to `BoqPrintProfileRegistry.ToggleableColumns` +
+`BOQItemViewModel` display props) and three columns on the XLSX **Item Schedule**.
+New read-only `LabourHoursEngine.Rollup` (no param writes) + `BOQLabourRollupCommand`
+(`BOQ_LabourRollup`, Actions → COST REPORT P4.4 → Labour rollup, StingCommandHandler
+dispatch): Σ labour/plant/material rate-content by NRM2 section + labour hours by
+trade (crew), inline via `StingResultPanel`. Compile-verified Release `-t:Rebuild`,
+0 errors. No popup.
+
+**Revit smoke test** (human): add `rate_card.json` to `_BIM_COORD/` with an entry
+carrying `labour`/`plant`/`material` for a category → Refresh → enable Labour/Plant/
+Material via ▦ Columns → those rows show the split (others show "—"); Actions →
+Labour rollup → split totals by section + labour hours by trade.
+
 #### Completed (BOQ QS gap G3 — built-up preliminaries schedule)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #3 (prelims) in

@@ -67,7 +67,11 @@ namespace StingTools.BOQ.Rates.Providers
                         Provenance = string.IsNullOrEmpty(e.Note)
                             ? "Project rate card"
                             : $"Project rate card: {e.Note}",
-                        MatchedKey = e.Category
+                        MatchedKey = e.Category,
+                        // G4 — optional L/P/M split (only when the entry provides one).
+                        LabourRate = e.Labour > 0 ? e.Labour : (double?)null,
+                        PlantRate = e.Plant > 0 ? e.Plant : (double?)null,
+                        MaterialRate = e.Material > 0 ? e.Material : (double?)null
                     };
                 }
                 StingLog.Info($"ProjectRateCardProvider: loaded {map.Count} entries from {Path.GetFileName(path)}");
@@ -92,6 +96,10 @@ namespace StingTools.BOQ.Rates.Providers
             public string Currency { get; set; }
             public string Unit { get; set; }
             public string Note { get; set; }
+            // G4 — optional per-unit labour / plant / material split.
+            public double Labour { get; set; }
+            public double Plant { get; set; }
+            public double Material { get; set; }
         }
     }
 }
