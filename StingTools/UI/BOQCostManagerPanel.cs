@@ -1324,6 +1324,8 @@ namespace StingTools.UI
                 if (tag == "BOQ_Prelims") { ShowPrelimsForm(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
+                // Reclassify legacy = a per-VO reason/liability grid — its own editor.
+                if (tag == "Variation_ReclassifyLegacy") { ShowReclassifyForm(label); return; }
 
                 // P2.2 — input-heavy actions render a single inline editable form
                 // first; on Run the form sets the command's ExtraParams and then
@@ -1749,6 +1751,19 @@ namespace StingTools.UI
                     }, get => StingCommandHandler.SetExtraParam("CertPath", get("CertPath")));
                     return true;
                 }
+                case "Evm_Calculate":
+                {
+                    // P0.3 — planned %% (BCWS) band rendered inline. "earned" ⇒ the
+                    // command uses BCWP (SV = 0); a number sets planned completion.
+                    var evmOpts = new List<(string, string)> { ("Use earned % (SV = 0)", "earned") };
+                    foreach (var p in new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 })
+                        evmOpts.Add(($"{p}% planned", p.ToString()));
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "EvmPlannedPct", Label = "Planned % (BCWS)", Kind = BoqFormKind.Combo, Options = evmOpts },
+                    }, get => StingCommandHandler.SetExtraParam("EvmPlannedPct", get("EvmPlannedPct")));
+                    return true;
+                }
             }
             return false;
         }
@@ -1932,6 +1947,153 @@ namespace StingTools.UI
             addBtn.Click += (s, e) => AddRow();
             outer.Children.Add(addBtn);
             return outer;
+        }
+
+        /// <summary>P0.3 — a combo bound to (display, value) option pairs (value on Tag).</summary>
+        private System.Windows.Controls.ComboBox MakeCombo(List<(string display, string value)> opts)
+        {
+            var cb = new System.Windows.Controls.ComboBox { Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 6, 0) };
+            foreach (var (display, value) in opts)
+                cb.Items.Add(new ComboBoxItem { Content = display, Tag = value });
+            if (cb.Items.Count > 0) cb.SelectedIndex = 0;
+            return cb;
+        }
+
+        // ── Reclassify legacy variations (per-VO reason/liability grid) ───────
+        //  Each legacy VO (Reason=Other & Liability=Employer) gets a reason combo
+        //  ("— skip —" first) + a liability combo ("(auto-suggest)" first). On Run
+        //  the assignments serialize into the ReclassifyJson ExtraParam
+        //  ({VO number → "Reason|Liability"}); the command applies + saves. No popup.
+        private void ShowReclassifyForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var legacy = new List<(string number, string title)>();
+                try
+                {
+                    foreach (var p in StingTools.Core.Variation.VariationEngine.ListVariations(Doc))
+                    {
+                        var v = StingTools.Core.Variation.VariationEngine.Load(p);
+                        if (v == null) continue;
+                        if (v.Reason == StingTools.Core.Variation.VariationReason.Other
+                            && v.Liability == StingTools.Core.Variation.VariationLiability.Employer)
+                            legacy.Add((v.Number, v.Title));
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ reclassify list: {ex.Message}"); }
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock { Text = "Reclassify legacy variations",
+                    FontSize = 13, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6) });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Variations still on the default Other / Employer. Set a reason (and optionally a "
+                         + "liability — blank auto-suggests) per row, then Run. Rows left on “— skip —” are untouched.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                if (legacy.Count == 0)
+                {
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "Every variation has a non-default reason / liability assigned.",
+                        FontSize = 11, Foreground = AmberBrush, TextWrapping = TextWrapping.Wrap
+                    });
+                    _actionReportHost.Child = sp;
+                    return;
+                }
+
+                var reasonOpts = new List<(string, string)>
+                {
+                    ("— skip —", ""), ("Design change", "DesignChange"), ("Client request", "ClientRequest"),
+                    ("Site condition", "SiteCondition"), ("Statutory change", "StatutoryChange"),
+                    ("Error / omission", "ErrorOmission"), ("Contractor proposal", "ContractorProposal"),
+                    ("Scope addition", "ScopeAddition"), ("Scope omission", "ScopeOmission"),
+                    ("Specification", "Specification"), ("Quality", "Quality"),
+                    ("Programme change", "ProgrammeChange"), ("Other", "Other"),
+                };
+                var liabOpts = new List<(string, string)>
+                {
+                    ("(auto-suggest)", ""), ("Employer / client", "Employer"), ("Contractor", "Contractor"),
+                    ("Designer", "Designer"), ("Shared", "Shared"), ("Force majeure", "ForceMajeure"),
+                };
+
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                void Header(string t, int col)
+                {
+                    var tb = new TextBlock { Text = t, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 6, 6) };
+                    Grid.SetRow(tb, 0); Grid.SetColumn(tb, col); grid.Children.Add(tb);
+                }
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Header("Variation", 0); Header("Reason", 1); Header("Liability", 2);
+
+                var editors = new List<(string number, System.Windows.Controls.ComboBox reason, System.Windows.Controls.ComboBox liab)>();
+                int r = 1;
+                foreach (var vo in legacy)
+                {
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var lbl = new TextBlock { Text = $"{vo.number}  {vo.title}", FontSize = 11,
+                        VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                        Margin = new Thickness(0, 2, 6, 2) };
+                    Grid.SetRow(lbl, r); Grid.SetColumn(lbl, 0); grid.Children.Add(lbl);
+                    var rc = MakeCombo(reasonOpts);
+                    Grid.SetRow(rc, r); Grid.SetColumn(rc, 1); grid.Children.Add(rc);
+                    var lc = MakeCombo(liabOpts);
+                    Grid.SetRow(lc, r); Grid.SetColumn(lc, 2); grid.Children.Add(lc);
+                    editors.Add((vo.number, rc, lc));
+                    r++;
+                }
+                sp.Children.Add(grid);
+
+                var runBtn = new Button
+                {
+                    Content = "Run", FontSize = 12, FontWeight = FontWeights.Bold, Height = 30, MinWidth = 100,
+                    Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
+                    Background = GreenBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand
+                };
+                runBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        string Sel(System.Windows.Controls.ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                        var map = new Dictionary<string, string>();
+                        foreach (var ed in editors)
+                        {
+                            string reason = Sel(ed.reason);
+                            if (string.IsNullOrEmpty(reason)) continue;   // skipped row
+                            map[ed.number] = reason + "|" + Sel(ed.liab);
+                        }
+                        if (map.Count == 0)
+                        {
+                            _actionReportHost.Child = new TextBlock
+                            {
+                                Text = "Set a reason on at least one variation (or there's nothing to apply).",
+                                Foreground = AmberBrush, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(14)
+                            };
+                            return;
+                        }
+                        StingCommandHandler.SetExtraParam("ReclassifyJson", Newtonsoft.Json.JsonConvert.SerializeObject(map));
+                        DispatchInline(label, "Variation_ReclassifyLegacy");
+                    }
+                    catch (Exception ex) { StingLog.Error("BOQ ShowReclassifyForm Run", ex); }
+                };
+                sp.Children.Add(runBtn);
+
+                _actionReportHost.Child = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = sp
+                };
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowReclassifyForm", ex); }
         }
 
         // ── G2 — provisional-sum reconciliation trail (dynamic inline form) ──

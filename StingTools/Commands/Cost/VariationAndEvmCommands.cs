@@ -534,13 +534,26 @@ namespace StingTools.Commands.Cost
                 // P4.3 — BCWS (planned value) from a QS-entered planned %% rather
                 // than the old optimistic BCWS == BCWP. Cancel ⇒ fall back to the
                 // earned %% (no schedule variance) so the command stays one-click.
+                // P0.3 — inline-form gate: the planned %% comes from the EvmPlannedPct
+                // ExtraParam ("earned" ⇒ use BCWP, else a number) when driven from the
+                // panel; otherwise the modal band picker (Cancel ⇒ earned %%).
                 double plannedPct = pctEarned;
-                var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
-                    .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
-                var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
-                    $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
-                    "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
-                if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
+                if (!string.IsNullOrEmpty(fPlan))
+                {
+                    if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
+                        && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
+                        plannedPct = Math.Max(0, Math.Min(100, pp0));
+                }
+                else
+                {
+                    var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                        .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                    var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                        $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                        "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
+                    if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                }
                 double bcws = bac * plannedPct / 100.0;
 
                 // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
@@ -781,59 +794,89 @@ namespace StingTools.Commands.Cost
                     return Result.Succeeded;
                 }
 
-                // Multi-select picker — QS chooses which legacy VOs to walk.
-                var items = legacy.Select(v => new StingListPicker.ListItem
-                {
-                    Label = $"{v.Number}  ({v.Kind}, {v.Currency} {v.TotalValue:N0})",
-                    Detail = v.Title,
-                    Tag = v
-                }).ToList();
-
-                var picked = StingListPicker.Show("STING — Reclassify legacy variations",
-                    $"{legacy.Count} variation(s) still on the default Other / Employer. " +
-                    "Pick which to reclassify (multi-select).",
-                    items, allowMultiSelect: true);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-
                 int reclassified = 0;
                 int skipped = 0;
-                foreach (var li in picked)
+
+                // P0.3 — inline gate: when the panel supplied ReclassifyJson (a
+                // {VO number → "Reason|Liability"} map; empty liability ⇒ auto-suggest)
+                // apply it without popups; otherwise the modal multi-select + per-VO
+                // reason/liability pickers.
+                string fJson = UI.StingCommandHandler.GetExtraParam("ReclassifyJson");
+                if (!string.IsNullOrEmpty(fJson))
                 {
-                    if (!(li.Tag is VariationInstruction vo)) { skipped++; continue; }
-
-                    // Reason picker per-variation.
-                    var reasonItems = BuildReasonItems();
-                    var reasonPicked = StingListPicker.Show(
-                        $"STING — Reason for {vo.Number}",
-                        $"{vo.Title}\n\nWhy did this variation arise?",
-                        reasonItems, allowMultiSelect: false);
-                    if (reasonPicked == null || reasonPicked.Count == 0)
+                    System.Collections.Generic.Dictionary<string, string> map = null;
+                    try { map = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, string>>(fJson); }
+                    catch (Exception jx) { StingLog.Warn($"ReclassifyJson parse: {jx.Message}"); }
+                    if (map == null) { message = "Invalid reclassify payload."; return Result.Failed; }
+                    foreach (var vo in legacy)
                     {
-                        skipped++;
-                        continue;
+                        if (!map.TryGetValue(vo.Number, out string spec) || string.IsNullOrEmpty(spec)) { skipped++; continue; }
+                        var parts = spec.Split('|');
+                        var reason = (parts.Length > 0 && Enum.TryParse(parts[0], out VariationReason rr)) ? rr : VariationReason.Other;
+                        var codeDefault = SuggestLiabilityShared(reason);
+                        var suggested = VariationLiabilityMap.Get(doc).Resolve(vo.ContractForm.ToString(), reason, codeDefault);
+                        string liabStr = parts.Length > 1 ? parts[1] : "";
+                        var liability = (!string.IsNullOrEmpty(liabStr) && Enum.TryParse(liabStr, out VariationLiability ll)) ? ll : suggested;
+                        vo.Reason = reason;
+                        vo.Liability = liability;
+                        VariationEngine.Save(doc, vo);
+                        reclassified++;
                     }
-                    var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+                }
+                else
+                {
+                    // Multi-select picker — QS chooses which legacy VOs to walk.
+                    var items = legacy.Select(v => new StingListPicker.ListItem
+                    {
+                        Label = $"{v.Number}  ({v.Kind}, {v.Currency} {v.TotalValue:N0})",
+                        Detail = v.Title,
+                        Tag = v
+                    }).ToList();
 
-                    // Liability picker, pre-suggested from the map. Use
-                    // the precise contract form (Phase 184q); legacy VOs
-                    // that haven't been touched default to JCT2024 which
-                    // is the safest UK QS assumption.
-                    var codeDefault = SuggestLiabilityShared(reason);
-                    var suggested = VariationLiabilityMap.Get(doc)
-                        .Resolve(vo.ContractForm.ToString(), reason, codeDefault);
-                    var liabilityItems = BuildLiabilityItems();
-                    var liabilityPicked = StingListPicker.Show(
-                        $"STING — Liability for {vo.Number}",
-                        $"Who pays? Suggested: {suggested}.",
-                        liabilityItems, allowMultiSelect: false);
-                    var liability = (liabilityPicked != null && liabilityPicked.Count > 0
-                        && liabilityPicked[0].Tag is VariationLiability lib)
-                            ? lib : suggested;
+                    var picked = StingListPicker.Show("STING — Reclassify legacy variations",
+                        $"{legacy.Count} variation(s) still on the default Other / Employer. " +
+                        "Pick which to reclassify (multi-select).",
+                        items, allowMultiSelect: true);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
 
-                    vo.Reason = reason;
-                    vo.Liability = liability;
-                    VariationEngine.Save(doc, vo);
-                    reclassified++;
+                    foreach (var li in picked)
+                    {
+                        if (!(li.Tag is VariationInstruction vo)) { skipped++; continue; }
+
+                        // Reason picker per-variation.
+                        var reasonItems = BuildReasonItems();
+                        var reasonPicked = StingListPicker.Show(
+                            $"STING — Reason for {vo.Number}",
+                            $"{vo.Title}\n\nWhy did this variation arise?",
+                            reasonItems, allowMultiSelect: false);
+                        if (reasonPicked == null || reasonPicked.Count == 0)
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+
+                        // Liability picker, pre-suggested from the map. Use
+                        // the precise contract form (Phase 184q); legacy VOs
+                        // that haven't been touched default to JCT2024 which
+                        // is the safest UK QS assumption.
+                        var codeDefault = SuggestLiabilityShared(reason);
+                        var suggested = VariationLiabilityMap.Get(doc)
+                            .Resolve(vo.ContractForm.ToString(), reason, codeDefault);
+                        var liabilityItems = BuildLiabilityItems();
+                        var liabilityPicked = StingListPicker.Show(
+                            $"STING — Liability for {vo.Number}",
+                            $"Who pays? Suggested: {suggested}.",
+                            liabilityItems, allowMultiSelect: false);
+                        var liability = (liabilityPicked != null && liabilityPicked.Count > 0
+                            && liabilityPicked[0].Tag is VariationLiability lib)
+                                ? lib : suggested;
+
+                        vo.Reason = reason;
+                        vo.Liability = liability;
+                        VariationEngine.Save(doc, vo);
+                        reclassified++;
+                    }
                 }
 
                 StingResultPanel.Create("Reclassification complete")

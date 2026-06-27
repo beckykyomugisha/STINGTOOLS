@@ -3,6 +3,38 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #6 — EVM planned-% + Reclassify Legacy)
+
+Branch `claude/placement-centre-review-audit`. Two Actions-reachable pickers caught by
+the final verification grep, now inline:
+
+- **Calculate EVM** (`Evm_Calculate`) — the planned-% (BCWS) band picker becomes an
+  inline combo (`EvmPlannedPct`: `"earned"` ⇒ use BCWP / SV=0, or a numeric %). The
+  command reads it and skips the picker; modal kept as the ribbon fallback.
+- **Reclassify Legacy** (`Variation_ReclassifyLegacy`) — was a per-VO modal loop
+  (multi-select → reason picker → liability picker, ×N). Now a **dynamic inline grid**
+  (`ShowReclassifyForm`): one row per legacy VO with a reason combo ("— skip —" first)
+  + a liability combo ("(auto-suggest)" first). On Run the assignments serialize into
+  the `ReclassifyJson` ExtraParam (`{VO number → "Reason|Liability"}`, empty liability
+  ⇒ auto-suggest via the contract/reason map); the command applies + saves, skipping
+  the picker loop. Results inline. No nested message pump. Compile-verified Release
+  `-t:Rebuild`, 0 errors.
+
+**Final verification grep** — every `StingListPicker.Show` / `new TaskDialog` /
+`ShowDialog` for input across `StingTools/Commands/Cost/*.cs` + `StingTools/BOQ/*.cs` is
+now either (a) inside an `else` ribbon-fallback after an ExtraParam gate, (b) an
+empty-state / error / result message (not input), (c) the `BOQTender_SkipDialog`-gated
+tender dialog, or (d) one of the four noted hard popups: the two import OS file pickers
+(`OpenFileDialog`), the QS-import diff-review grid, and the Reconcile-PS auto-match
+mutating Yes/No confirmation. No Actions-reachable command pops a picker/TaskDialog for
+data entry any more.
+
+**Revit smoke test** (human): EARNED VALUE MGMT card → **★ Calculate EVM** renders a
+planned-% combo + Run inline (pick "Use earned %" or a band), result inline. VARIATIONS
+card → **Reclassify Legacy** renders a per-VO grid (reason + liability combos) + Run
+inline; set a couple of rows, Run → they reclassify and the result shows inline; with
+nothing legacy it shows the inline "nothing to reclassify" note.
+
 #### Completed (BOQ 5D inline-forms sweep #5 — export coverage gate + sweep close)
 
 Branch `claude/placement-centre-review-audit`. Closes the inline-forms sweep.
