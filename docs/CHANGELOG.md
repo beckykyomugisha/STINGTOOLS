@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.1: dispatch busy-guard)
+
+Branch `claude/placement-centre-review-audit`. First gap of the BOQ 5D Enhanced
+Rebuild (`docs/BOQ_5D_ENHANCED_REBUILD_PROMPT.md` Phase 0). Stops the confirmed
+"lifeless panel" deadlock at its re-entry root: a second action clicked while the
+first command is still in flight called `ExternalEvent.Raise()` again, which
+returns `Pending`; `SetCommand` overwrote the live tag and the event never idled —
+every later button (including the footer **QTO IFC**) went dead.
+
+`BOQCostManagerPanel` gains a panel-wide busy-guard claimed at the single dispatch
+chokepoint (`DispatchAction` → `StingDockPanel.DispatchCommand`): new static
+`CommandRunning` flag + `BeginDispatchGuard`/`EndDispatchGuard`. While a command
+runs, further action clicks are ignored (logged, not crashed) and every
+dispatch-capable button is greyed (`IsEnabled=false`) via a `_dispatchButtons`
+registry fed by the central button factories (`BuildActionButton`, `BuildActionBtn`,
+`BuildHeaderBtn`, `WizardActionBtn`, `BuildScheduleBtn` now route through `Guarded`).
+The slot is released from `StingCommandHandler.Execute`'s `finally` — the universal
+command-completion hook — via the live instance's `DispatchGuardReset`, so it covers
+footer/schedule dispatches that don't register a `PendingActionResolve`. Immediate
+release on a non-accepted `Raise()` avoids a permanently frozen panel; the panel's
+`Unloaded` clears the static flag + hook so a closed/reopened panel can't strand it.
+This is the re-entry fix only — the `DispatcherFrame` pump removal is Phase 0.2.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager, rapidly click 5 different
+actions in sequence; click a second action while a modal/picker from the first is
+open; run the footer **QTO IFC** after several actions. The panel must stay alive —
+buttons grey while a command runs and re-enable when it finishes, no button goes
+permanently dead, and nothing hangs.
+
 #### Completed (BOQ QS gap G7 — first-run Cost Setup wizard)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #7 in

@@ -4028,6 +4028,15 @@ namespace StingTools.UI
                     try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
                     catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
 
+                    // P0.1 — release the BOQ dispatch busy-guard so the Actions
+                    // surface accepts the next click and the buttons un-grey. This
+                    // is the universal reset point (fires on every command, not just
+                    // those that registered a PendingActionResolve). Clear the flag
+                    // even when the panel hook is gone, so a closed panel never
+                    // strands the static flag.
+                    try { var g = BOQCostManagerPanel.DispatchGuardReset; BOQCostManagerPanel.CommandRunning = false; g?.Invoke(); }
+                    catch (Exception exG) { StingLog.Warn($"BOQ DispatchGuardReset: {exG.Message}"); }
+
                     // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
                     // hooks so a later ribbon/other-panel command's pickers + result
                     // panels don't render into the (possibly closed) Actions pane.

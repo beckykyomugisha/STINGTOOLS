@@ -232,6 +232,27 @@ namespace StingTools.UI
         internal static Action PendingActionResolve;
         private ToggleButton _ugxToggle, _usdToggle;
 
+        // ── P0.1 — dispatch busy-guard ───────────────────────────────────────
+        // The confirmed "lifeless panel" deadlock: a second action clicked while
+        // the first is still in flight calls ExternalEvent.Raise() again, which
+        // returns Pending; SetCommand overwrites the live tag and the event never
+        // idles, so every later button (including the footer QTO IFC) goes dead.
+        // This guard claims a single in-flight dispatch slot at the DispatchAction
+        // chokepoint: while a command runs, further action clicks are ignored and
+        // every dispatch-capable button is greyed. The slot is released from
+        // StingCommandHandler.Execute's finally (the universal command-completion
+        // hook) via DispatchGuardReset, so it covers footer/schedule dispatches
+        // that don't register a PendingActionResolve.
+        internal static volatile bool CommandRunning;
+        // Re-enable hook the static completion path fires on the live instance to
+        // un-grey buttons. Set in the ctor, cleared on Unloaded.
+        internal static Action DispatchGuardReset;
+        // Every dispatch-capable button, greyed (IsEnabled=false) while busy.
+        private readonly List<Button> _dispatchButtons = new List<Button>();
+        // Held delegate for DispatchGuardReset (de)registration — a method-group
+        // re-conversion would be a fresh instance, so ReferenceEquals needs this.
+        private Action _dispatchGuardReset;
+
         // Slice 1 (5D workspace) — inline result region. Panel-driven actions set
         // the InlineHost=1 ExtraParam so commands route their result here via
         // BOQInlineResults.Post() instead of StingResultPanel.Show(). This is the
@@ -276,10 +297,20 @@ namespace StingTools.UI
             // fresh instance, so ReferenceEquals must compare the stored delegate.
             _inlineSink = PostInlineResult;
             BOQInlineResults.Sink = _inlineSink;
+            // P0.1 — register this live instance's guard-release so the static
+            // command-completion hook (StingCommandHandler.Execute finally) can
+            // un-grey the buttons + free the dispatch slot when a command finishes.
+            _dispatchGuardReset = EndDispatchGuard;
+            DispatchGuardReset = _dispatchGuardReset;
             this.Unloaded += (s, e) =>
             {
                 if (ReferenceEquals(BOQInlineResults.Sink, _inlineSink))
                     BOQInlineResults.Sink = null;
+                // Drop the guard hook + clear the busy flag so a closed panel can't
+                // strand the static flag (which would block a future re-opened panel).
+                if (ReferenceEquals(DispatchGuardReset, _dispatchGuardReset))
+                    DispatchGuardReset = null;
+                CommandRunning = false;
             };
             RefreshAsync();
         }
@@ -614,7 +645,7 @@ namespace StingTools.UI
             };
             if (!string.IsNullOrEmpty(tooltip)) b.ToolTip = tooltip;
             b.Click += (s, e) => click();
-            return b;
+            return Guarded(b);
         }
 
         private UIElement BuildBudgetStrip()
@@ -701,12 +732,12 @@ namespace StingTools.UI
 
         private Button BuildActionBtn(string text, Brush bg)
         {
-            return new Button
+            return Guarded(new Button
             {
                 Content = text, Height = 28, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(4, 0, 0, 0),
                 Background = bg, Foreground = Brushes.White, BorderThickness = new Thickness(0),
                 FontSize = 11, Cursor = Cursors.Hand
-            };
+            });
         }
 
         private UIElement BuildToolbar()
@@ -1267,7 +1298,7 @@ namespace StingTools.UI
             }
 
             btn.Click += (s, e) => RunActionInline(btn, label, tag);
-            return btn;
+            return Guarded(btn);
         }
 
         /// <summary>
@@ -2107,7 +2138,7 @@ namespace StingTools.UI
                 Background = Brushes.White, Foreground = NavyBrush, BorderBrush = BorderColor,
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
             b.Click += (s, e) => { try { onClick(); } catch (Exception ex) { StingLog.Error($"BOQ wizard btn '{label}'", ex); } };
-            return b;
+            return Guarded(b);
         }
 
         private Button WizardNavBtn(string label, bool primary, Action onClick)
@@ -3779,18 +3810,65 @@ namespace StingTools.UI
         /// the edit is already visible in the mutated VM and the 300ms rebuild
         /// races the async parameter write, causing the edit to flash-and-revert.
         /// </summary>
+        // ── P0.1 — dispatch busy-guard helpers ───────────────────────────────
+
+        /// <summary>P0.1 — register a dispatch-capable button so the busy-guard can
+        /// grey it while a command is in flight. Fluent: returns the button.</summary>
+        private Button Guarded(Button b) { if (b != null) _dispatchButtons.Add(b); return b; }
+
+        /// <summary>P0.1 — grey/un-grey every registered dispatch button.</summary>
+        private void SetDispatchEnabled(bool enabled)
+        {
+            try { foreach (var b in _dispatchButtons) if (b != null) b.IsEnabled = enabled; }
+            catch (Exception ex) { StingLog.Warn($"BOQ SetDispatchEnabled: {ex.Message}"); }
+        }
+
+        /// <summary>P0.1 — claim the single in-flight dispatch slot. Returns false
+        /// (caller must abort) when a command is already running, so a second click
+        /// can't re-enter the ExternalEvent and wedge it.</summary>
+        private bool BeginDispatchGuard()
+        {
+            if (CommandRunning) return false;
+            CommandRunning = true;
+            SetDispatchEnabled(false);
+            return true;
+        }
+
+        /// <summary>P0.1 — release the dispatch slot + re-enable buttons. Idempotent;
+        /// called from the completion hook and from the immediate-failure path.</summary>
+        private void EndDispatchGuard()
+        {
+            CommandRunning = false;
+            SetDispatchEnabled(true);
+        }
+
         private void DispatchAction(string tag, bool refreshAfter = true)
         {
+            // P0.1 — single in-flight dispatch. Ignore clicks while a command runs
+            // so a second Raise() can't return Pending and leave the panel lifeless.
+            if (!BeginDispatchGuard())
+            {
+                StingLog.Info($"BOQ DispatchAction('{tag}') ignored — a command is already running.");
+                return;
+            }
+            bool accepted = false;
             try
             {
-                StingDockPanel.DispatchCommand(tag);
-                if (refreshAfter)
+                accepted = StingDockPanel.DispatchCommand(tag);
+                if (accepted && refreshAfter)
                 {
                     System.Threading.Tasks.Task.Delay(300)
                         .ContinueWith(_ => Dispatcher.BeginInvoke(new Action(RefreshAsync)));
                 }
             }
             catch (Exception ex) { StingLog.Error($"BOQ DispatchAction({tag})", ex); }
+            finally
+            {
+                // If the event wasn't accepted the command never runs, so its
+                // completion hook will never fire — release the guard now to avoid a
+                // permanently frozen panel. When accepted, Execute's finally releases it.
+                if (!accepted) EndDispatchGuard();
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -4024,7 +4102,7 @@ namespace StingTools.UI
                 BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center
             };
             b.Click += (s, e) => { try { onClick(); } catch (Exception ex) { StingLog.Error($"BOQ schedule btn '{label}'", ex); } };
-            return b;
+            return Guarded(b);
         }
 
         /// <summary>Load phases from boq_schedule.json; seed from Revit phases on first use.</summary>
