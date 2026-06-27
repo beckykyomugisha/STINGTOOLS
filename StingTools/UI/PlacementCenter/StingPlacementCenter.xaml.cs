@@ -587,16 +587,20 @@ namespace StingTools.UI.PlacementCenter
 
                 if (blockers.Count > 0)
                 {
-                    RaiseRevitToFront();
-                    var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
+                    // Render the blockers INLINE in the Report panel (not a pop-up).
+                    var rb = StingResultPanel.Create("Placement — prerequisites missing")
+                        .SetSubtitle($"{blockers.Count} prerequisite(s) failed — run aborted.")
+                        .AddSection("Blockers");
+                    foreach (var bl in blockers) rb.Alert(bl);
+                    rb.AddSection("Why")
+                      .Text("The run is hard-failed when these are present so we don't produce silently-wrong placements.");
+                    if (helpfulHints.Count > 0)
                     {
-                        MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
-                        MainContent = string.Join("\n\n", blockers)
-                            + "\n\nThe run is hard-failed when these are present so we don't produce silently-wrong placements. "
-                            + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
-                        CommonButtons = TaskDialogCommonButtons.Close,
-                    };
-                    dlg.Show();
+                        rb.AddSection("Also noted");
+                        foreach (var h in helpfulHints) rb.Text(h);
+                    }
+                    Report("Run", rb);
+                    Toast($"{blockers.Count} prerequisite(s) failed — see Report panel.");
                     StingLog.Warn($"PlacementCenter: prerequisites preflight failed — {blockers.Count} blocker(s). Run aborted.");
                     foreach (var b in blockers) StingLog.Warn("  " + b);
                     return;
@@ -636,11 +640,15 @@ namespace StingTools.UI.PlacementCenter
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
             if (roomIds.Count == 0)
             {
-                TaskDialog.Show("STING — Placement Centre",
-                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.\n\n" +
-                    "• Try scope = Project, or open a plan view that shows the rooms/spaces.\n" +
-                    "• If this is an MEP model, place MEP Spaces (Analyze → Space) — the engine now places into Spaces as well as Rooms.\n" +
-                    "• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement.");
+                // Render the guard INLINE in the Report panel (not a pop-up window).
+                Report("Run", StingResultPanel.Create("Placement — no rooms in scope")
+                    .SetSubtitle($"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.")
+                    .AddSection("Nothing to place")
+                    .Alert($"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.")
+                    .Text("• Try scope = Project, or open a plan view that shows the rooms/spaces.")
+                    .Text("• MEP model: place MEP Spaces (Analyze → Space) — the engine places into Spaces as well as Rooms.")
+                    .Text("• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement."));
+                Toast($"Scope '{VM.RunOpts.Scope}' has no rooms/spaces — see Report panel.");
                 return;
             }
 
