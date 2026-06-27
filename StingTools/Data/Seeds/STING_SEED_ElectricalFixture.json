@@ -170,7 +170,23 @@
         "type": "Box",
         "widthMm": 150,
         "depthMm": 35,
-        "heightMm": 85
+        "heightMm": 85,
+        "components": [
+          {
+            "type": "Box",
+            "widthMm": 86,
+            "depthMm": 86,
+            "heightMm": 6,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Box",
+            "widthMm": 75,
+            "depthMm": 75,
+            "heightMm": 40,
+            "offsetZMm": -40
+          }
+        ]
       },
       "typeVariants": [
         {

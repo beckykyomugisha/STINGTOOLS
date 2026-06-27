@@ -139,7 +139,21 @@
         "type": "Box",
         "widthMm": 110,
         "depthMm": 110,
-        "heightMm": 50
+        "heightMm": 50,
+        "components": [
+          {
+            "type": "Cylinder",
+            "diameterMm": 100,
+            "heightMm": 18,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Cylinder",
+            "diameterMm": 70,
+            "heightMm": 28,
+            "offsetZMm": 18
+          }
+        ]
       },
       "swapCandidates": [
         {

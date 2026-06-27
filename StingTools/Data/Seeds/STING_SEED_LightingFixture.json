@@ -191,7 +191,23 @@
         "type": "Box",
         "widthMm": 600,
         "depthMm": 600,
-        "heightMm": 100
+        "heightMm": 100,
+        "components": [
+          {
+            "type": "Box",
+            "widthMm": 600,
+            "depthMm": 600,
+            "heightMm": 14,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Box",
+            "widthMm": 560,
+            "depthMm": 560,
+            "heightMm": 80,
+            "offsetZMm": 14
+          }
+        ]
       },
       "swapCandidates": [
         {
