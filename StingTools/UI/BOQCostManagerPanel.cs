@@ -1588,6 +1588,25 @@ namespace StingTools.UI
                     }, get => StingCommandHandler.SetExtraParam("MeasStandardId", get("MeasStandardId")));
                     return true;
                 }
+                case "Cost_RunWorkflow":
+                {
+                    // P0.3 — preset picker rendered inline. Options come from the same
+                    // discovery the command uses (CostRunWorkflowCommand.DiscoverBoqPresets).
+                    var wfOpts = new List<(string, string)>();
+                    try
+                    {
+                        foreach (var p in StingTools.Commands.Cost.CostRunWorkflowCommand.DiscoverBoqPresets())
+                            wfOpts.Add((p.Name ?? System.IO.Path.GetFileNameWithoutExtension(p.Path), p.Path));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BOQ cost-workflow list: {ex.Message}"); }
+                    // No presets — let the command surface its own NO PRESETS panel.
+                    if (wfOpts.Count == 0) return false;
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "CostWorkflowPath", Label = "Workflow preset", Kind = BoqFormKind.Combo, Options = wfOpts },
+                    }, get => StingCommandHandler.SetExtraParam("CostWorkflowPath", get("CostWorkflowPath")));
+                    return true;
+                }
                 case "CostPlan_Create":
                 {
                     // P0.3 — building-type picker + GIFA TaskDialog rendered inline.

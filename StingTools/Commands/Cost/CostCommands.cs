@@ -208,33 +208,46 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Replaced the 4-link TaskDialog cap with StingListPicker
-                // so the picker scales as more BOQ workflow presets are
-                // authored. Each item's Tag holds the preset summary so
-                // we can round-trip the file path without re-parsing.
-                var items = presets.Select(p => new StingListPicker.ListItem
+                // P0.3 — inline-form gate: when the BOQ panel supplied the
+                // CostWorkflowPath ExtraParam, skip the preset picker (no popup).
+                // Falls back to the modal picker for ribbon / other callers.
+                string chosenPath;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CostWorkflowPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    Label = p.Name ?? Path.GetFileNameWithoutExtension(p.Path),
-                    Detail = string.IsNullOrEmpty(p.Description)
-                        ? Path.GetFileName(p.Path)
-                        : p.Description,
-                    Tag = p
-                }).ToList();
+                    chosenPath = fPath;
+                }
+                else
+                {
+                    // Replaced the 4-link TaskDialog cap with StingListPicker
+                    // so the picker scales as more BOQ workflow presets are
+                    // authored. Each item's Tag holds the preset summary so
+                    // we can round-trip the file path without re-parsing.
+                    var items = presets.Select(p => new StingListPicker.ListItem
+                    {
+                        Label = p.Name ?? Path.GetFileNameWithoutExtension(p.Path),
+                        Detail = string.IsNullOrEmpty(p.Description)
+                            ? Path.GetFileName(p.Path)
+                            : p.Description,
+                        Tag = p
+                    }).ToList();
 
-                var picked = StingListPicker.Show(
-                    "STING — Run cost workflow",
-                    "Pick a BOQ workflow preset to execute.",
-                    items,
-                    allowMultiSelect: false);
+                    var picked = StingListPicker.Show(
+                        "STING — Run cost workflow",
+                        "Pick a BOQ workflow preset to execute.",
+                        items,
+                        allowMultiSelect: false);
 
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-                var chosen = picked[0].Tag as PresetSummary;
-                if (chosen == null) return Result.Cancelled;
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    var chosen = picked[0].Tag as PresetSummary;
+                    if (chosen == null) return Result.Cancelled;
+                    chosenPath = chosen.Path;
+                }
 
-                var preset = LoadPreset(chosen.Path);
+                var preset = LoadPreset(chosenPath);
                 if (preset == null)
                 {
-                    message = $"Failed to load preset: {chosen.Path}";
+                    message = $"Failed to load preset: {chosenPath}";
                     return Result.Failed;
                 }
                 return WorkflowEngine.ExecutePreset(preset, commandData, elements);
@@ -247,7 +260,9 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static List<PresetSummary> DiscoverBoqPresets()
+        // P0.3 — internal so the BOQ panel can build the inline preset combo from the
+        // same discovery (single source of truth — no forked enumeration).
+        internal static List<PresetSummary> DiscoverBoqPresets()
         {
             var list = new List<PresetSummary>();
             try
@@ -279,7 +294,7 @@ namespace StingTools.Commands.Cost
             catch (Exception ex) { StingLog.Warn($"Cost_RunWorkflow.LoadPreset: {ex.Message}"); return null; }
         }
 
-        private class PresetSummary
+        internal class PresetSummary
         {
             public string Path;
             public string Name;

@@ -3,6 +3,23 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #2 — Run Cost Workflow)
+
+Branch `claude/placement-centre-review-audit`. `CostCommands.cs` — **Run Cost Workflow**
+(`Cost_RunWorkflow`) was a `WORKFLOW_BOQ_*.json` preset **picker**; now an inline combo
+of presets + Run in the Actions pane. The command reads the chosen preset path via the
+`CostWorkflowPath` ExtraParam and skips its picker when present (modal kept as the
+ribbon fallback). To keep one source of truth, the command's preset discovery
+(`DiscoverBoqPresets` + `PresetSummary`) was promoted `private` → `internal` and the
+panel builds the combo from it directly — no forked enumeration. When no presets exist
+the panel returns `false` so the command surfaces its own inline "NO PRESETS" panel.
+Results render inline via `StingResultPanel.InlineSink`. No nested message pump.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): BOQ Cost Manager → AUTOMATION card → **★ Run Cost
+Workflow** renders a preset combo (Full Refresh / Quick Valuation / Tender Pack …) +
+Run inline, no popup; Run → the workflow executes and the result shows inline.
+
 #### Completed (BOQ 5D inline-forms sweep #1 — Cost Plan)
 
 Branch `claude/placement-centre-review-audit`. Continues the zero-input-popup sweep
