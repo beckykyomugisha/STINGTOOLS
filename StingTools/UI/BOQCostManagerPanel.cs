@@ -264,10 +264,10 @@ namespace StingTools.UI
         private TextBlock _inlineResultTitle;
         private Action<StingResultPanel.Builder> _inlineSink;  // stable delegate for sink (de)registration
 
-        // P2.1 — Schedule / 4D + EVM tab. Phase rows are the tab's own source of
-        // truth, persisted to <project>/_BIM_COORD/boq_schedule.json (same
-        // convention as boq_ui_state.json). EVM is computed via the reused
-        // EvmCalculator engine; the S-curve is drawn on a plain Canvas (no chart lib).
+        // P2.1 / Phase 1b — Schedule / 4D + EVM tab. A thin view onto the single
+        // unified schedule (Core.Schedule.ScheduleStore, <project>/_BIM_COORD/
+        // schedule.json) — the same model BCC's 4D/5D tab reads. EVM is computed via
+        // the reused EvmCalculator engine; the S-curve is drawn on a plain Canvas.
         private TabItem _scheduleTab;
         // Phase 1b — the Schedule tab is now a thin view onto the unified
         // ScheduleModel (ScheduleStore, _BIM_COORD/schedule.json). The grids bind
@@ -4433,8 +4433,9 @@ namespace StingTools.UI
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  P2.1 — Schedule tab (4D programme + cash-flow S-curve + EVM)
-        //  All inline, no popups. Phase rows persist to boq_schedule.json;
+        //  P2.1 / Phase 1b — Schedule tab (4D programme + cash-flow S-curve + EVM)
+        //  All inline, no popups (except the OS file-open for MSP/P6 import). Tasks
+        //  persist to the unified store (ScheduleStore, _BIM_COORD/schedule.json);
         //  EVM is computed via the reused EvmCalculator engine; the S-curve
         //  is drawn on a plain Canvas. Reads run on the dockable pane's
         //  thread (Revit main thread) so direct model reads are safe; writes
@@ -4477,6 +4478,7 @@ namespace StingTools.UI
             barSp.Children.Add(BuildScheduleBtn("＋ Milestone", AddMilestoneRow));              // G6
             barSp.Children.Add(BuildScheduleBtn("⤿ Sync % from cert", SyncPercentFromCert));   // G6
             barSp.Children.Add(BuildScheduleBtn("⟳ Seed from Revit phases", SeedScheduleFromRevitPhases));
+            barSp.Children.Add(BuildScheduleBtn("⤓ Import MSP/P6 XML", ImportProgrammeXmlInline));   // Phase 1c
             barSp.Children.Add(BuildScheduleBtn("⤓ Import actuals", ImportScheduleActuals));
             barSp.Children.Add(BuildScheduleBtn("⛏ Stamp 4D dates on model", () => DispatchAction("AssignPhaseDates")));
             barSp.Children.Add(BuildScheduleBtn("↗ Export schedule/EVM", ExportScheduleEvmInline));
@@ -5078,6 +5080,46 @@ namespace StingTools.UI
                 Canvas.SetLeft(tb, cx + 13); Canvas.SetTop(tb, y - 2); c.Children.Add(tb);
                 cx += 13 + Math.Max(48, (label?.Length ?? 6) * 6) + 12;
             }
+        }
+
+        // Phase 1c — import a real programme (MS Project XML or Primavera P6 XML)
+        // into the unified schedule. The only popup is the OS file-open; tasks land
+        // in _BIM_COORD/schedule.json via the 4D adapter and the tab reloads inline.
+        // Binary .mpp / .xer are out of scope (export to XML from MS Project / P6).
+        private void ImportProgrammeXmlInline()
+        {
+            try
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Import programme — MS Project XML / Primavera P6 XML",
+                    Filter = "Programme XML (*.xml)|*.xml"
+                };
+                if (dlg.ShowDialog() != true) return;
+
+                var schedule = StingTools.BIMManager.Scheduling4DEngine.ImportProgrammeXML(dlg.FileName);
+                if (schedule["error"] != null)
+                {
+                    FlashHint(null, $"Import failed: {schedule["error"]}");
+                    return;
+                }
+                int n = (int)(schedule["total_tasks"] ?? 0);
+                if (n == 0)
+                {
+                    FlashHint(null, "No tasks / activities found. Export to MS Project XML or Primavera P6 XML "
+                        + "(.mpp / .xer binaries are not supported).");
+                    return;
+                }
+
+                // Persist to the single unified store, then reload the tab from it.
+                ScheduleStore.Save4d(Doc, schedule);
+                _scheduleLoaded = false;
+                EnsureScheduleLoaded();
+                RecalcSchedule();
+                FlashHint(null, $"Imported {n} task(s) from {System.IO.Path.GetFileName(dlg.FileName)} "
+                    + "into the unified schedule.");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ImportProgrammeXmlInline", ex); }
         }
 
         private void ImportScheduleActuals()

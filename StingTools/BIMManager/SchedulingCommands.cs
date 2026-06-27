@@ -492,6 +492,98 @@ namespace StingTools.BIMManager
             return schedule;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  Primavera P6 XML (PMXML) import
+        //  P6 exports <Activity> elements (namespaced); matched by local
+        //  name so any P6 namespace version parses. Produces the same task
+        //  JObject schema as the MS Project importer.
+        // ═══════════════════════════════════════════════════════════
+        internal static JObject ImportP6XML(string xmlPath)
+        {
+            var schedule = new JObject();
+            try
+            {
+                var xdoc = XDocument.Load(xmlPath);
+                schedule["source_file"] = Path.GetFileName(xmlPath);
+                schedule["imported_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+                var projEl = xdoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Project");
+                string? Local(System.Xml.Linq.XElement? el, string n)
+                    => el?.Elements().FirstOrDefault(x => x.Name.LocalName == n)?.Value;
+                schedule["project_name"] = Local(projEl, "Name") ?? Local(projEl, "Id") ?? "";
+
+                var tasks = new JArray();
+                int imported = 0;
+                foreach (var a in xdoc.Descendants().Where(e => e.Name.LocalName == "Activity"))
+                {
+                    string name = Local(a, "Name");
+                    if (string.IsNullOrEmpty(name)) continue;
+                    string id = Local(a, "Id") ?? Local(a, "ObjectId") ?? "";
+                    string startStr = Local(a, "StartDate") ?? Local(a, "PlannedStartDate") ?? Local(a, "ActualStartDate") ?? "";
+                    string finishStr = Local(a, "FinishDate") ?? Local(a, "PlannedFinishDate") ?? Local(a, "ActualFinishDate") ?? "";
+                    string pctStr = Local(a, "PercentComplete") ?? Local(a, "PhysicalPercentComplete")
+                                    ?? Local(a, "DurationPercentComplete") ?? "0";
+
+                    DateTime.TryParse(startStr, out DateTime start);
+                    DateTime.TryParse(finishStr, out DateTime finish);
+                    int durationDays = (finish > start) ? Math.Max(1, (int)(finish - start).TotalDays) : 1;
+                    double.TryParse(pctStr, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double pct);
+                    if (pct > 0 && pct <= 1) pct *= 100;   // P6 sometimes stores a 0..1 fraction
+
+                    tasks.Add(new JObject
+                    {
+                        ["task_id"] = imported + 1,
+                        ["ms_project_uid"] = id,
+                        ["wbs"] = Local(a, "WBSObjectId") ?? Local(a, "WBSCode") ?? "",
+                        ["name"] = name,
+                        ["start"] = start != DateTime.MinValue ? start.ToString("yyyy-MM-dd") : startStr,
+                        ["finish"] = finish != DateTime.MinValue ? finish.ToString("yyyy-MM-dd") : finishStr,
+                        ["duration_days"] = durationDays,
+                        ["outline_level"] = 0,
+                        ["is_summary"] = false,
+                        ["percent_complete"] = (int)Math.Round(pct),
+                        ["predecessors"] = new JArray(),   // P6 <Relationship> links are a later pass
+                        ["element_filters"] = new JArray(),
+                        ["category"] = "",
+                        ["element_count"] = 0,
+                        ["auto_linked"] = false,
+                        ["notes"] = ""
+                    });
+                    imported++;
+                }
+
+                schedule["tasks"] = tasks;
+                schedule["total_tasks"] = imported;
+                StingLog.Info($"P6 XML import: {imported} activities from {xmlPath}");
+            }
+            catch (Exception ex)
+            {
+                schedule["error"] = ex.Message;
+                StingLog.Error($"P6 XML import failed: {xmlPath}", ex);
+            }
+            return schedule;
+        }
+
+        /// <summary>Auto-detect MS Project XML (&lt;Task&gt;) vs Primavera P6 XML
+        /// (&lt;Activity&gt;) and dispatch to the right parser. Binary `.mpp` /
+        /// `.xer` are out of scope — export to XML from MS Project / P6.</summary>
+        internal static JObject ImportProgrammeXML(string xmlPath)
+        {
+            try
+            {
+                var xdoc = XDocument.Load(xmlPath);
+                bool hasActivity = xdoc.Descendants().Any(e => e.Name.LocalName == "Activity");
+                bool hasTask = xdoc.Descendants().Any(e => e.Name.LocalName == "Task");
+                if (hasActivity && !hasTask) return ImportP6XML(xmlPath);
+                return ImportMSProjectXML(xmlPath);
+            }
+            catch (Exception ex)
+            {
+                return new JObject { ["error"] = ex.Message };
+            }
+        }
+
         private static int ParseDuration(string isoDuration)
         {
             // MS Project duration format: PT8H0M0S, P5D, P0DT12H30M, PT1M, etc.

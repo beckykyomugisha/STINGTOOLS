@@ -47,6 +47,58 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Phase 1 slice c — MSP/P6 XML import + Phase 1 acceptance)
+
+Branch `claude/placement-centre-review-audit`. Wires real-programme import into the Cost
+Manager Schedule tab and closes Phase 1.
+
+**MSP/P6 XML import** — new `Scheduling4DEngine.ImportP6XML` (Primavera P6 PMXML —
+`<Activity>` elements matched by local name so any P6 namespace parses; Id / Name /
+Start / Finish / %; 0..1 fractions normalised) + `ImportProgrammeXML` auto-detect
+dispatcher (`<Task>` ⇒ MS Project XML via the existing `ImportMSProjectXML`; `<Activity>`
+⇒ P6). New Schedule-tab button **⤓ Import MSP/P6 XML** (`ImportProgrammeXmlInline`): the
+only popup is the OS file-open; the parsed JObject is written to the unified store via
+`ScheduleStore.Save4d` and the tab reloads inline. Binary `.mpp` / `.xer` are out of
+scope (export to XML from MS Project / P6) — stated in the UI hint + the dispatcher
+docstring.
+
+**Phase 1 self-check (programmatically verified):**
+1. **One source of truth** — no code path reads/writes `boq_schedule.json` or
+   `schedule_4d.json` directly. Every remaining textual reference is a comment or the
+   migration importer's `LegacyBoqFileName` / `Legacy4dFileName` constants in
+   `ScheduleStore`; the only file the importer touches the legacy pair from is
+   `ScheduleStore.Migrate`. Everything else reads/writes `_BIM_COORD/schedule.json`.
+2. **Both surfaces render from `ScheduleStore`** — the Cost Manager Schedule tab
+   (`EnsureScheduleLoaded` → `Load`, `SaveSchedule` → `Save`) and BCC's 4D/5D tab
+   (`Build4D5DTab` populates its KPIs from `ScheduleStore.Load` + deep-links to the
+   Cost Manager).
+3. **MSP/P6 XML import produces tasks in the unified model** — `ImportProgrammeXML` →
+   `ScheduleStore.Save4d` → `schedule.json`.
+
+Full Release `-t:Rebuild`: **0 Warning(s), 0 Error(s).**
+
+**Consolidated Phase 1 Revit smoke test** (human — one pass for slices a + b + c):
+1. **Migration (a):** open a project with a legacy `_BIM_COORD/boq_schedule.json` and/or
+   `STING_BIM_MANAGER/schedule_4d.json`. On open, `_BIM_COORD/schedule.json` appears
+   merging both (phases + periods + milestones + non-duplicate 4D tasks with WBS/
+   predecessors); `StingTools.log` shows the "Schedule unified → …" line. Re-open = no-op.
+2. **Cost Manager Schedule tab (b):** open the BOQ Cost Manager → Schedule tab. It shows
+   the unified tasks/periods/milestones. Edit a phase name / date / %, add a phase /
+   period / milestone → the S-curve + EVM strip recompute, and the changes persist to
+   `schedule.json` (not `boq_schedule.json`, which is never rewritten). 4D tasks keep
+   their WBS/predecessors through an edit-and-save round-trip.
+3. **BCC 4D/5D tab (b):** open the BIM Coordination Center → 4D/5D tab. The KPI cards
+   (Tasks / Milestones / Earned Value) reflect the same unified schedule; the banner +
+   **Open in Cost Manager →** deep-link opens the Cost Manager window.
+4. **Cross-surface single source (b):** run BCC → Auto Schedule 4D (or Import MS Project)
+   → reopen the Cost Manager Schedule tab → the generated/imported tasks are there (one
+   store, both views).
+5. **MSP/P6 import (c):** Schedule tab → **⤓ Import MSP/P6 XML** → pick an MS Project XML
+   (and separately a P6 PMXML) export → the activities import as tasks into the schedule
+   and render inline; the inline hint notes `.mpp`/`.xer` aren't supported.
+6. **No regressions:** the inline-forms panel is still popup-free and the dispatch
+   busy-guard still prevents wedging under rapid clicks.
+
 #### Completed (BOQ 5D Phase 1 slice b — both surfaces read/render the unified store)
 
 Branch `claude/placement-centre-review-audit`. Repoints both schedule surfaces at the
