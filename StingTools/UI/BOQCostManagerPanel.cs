@@ -1540,6 +1540,54 @@ namespace StingTools.UI
                     });
                     return true;
                 }
+                case "BOQQsExport":
+                {
+                    // P0.3 — priced/unpriced was a TaskDialog; render it inline.
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "QsExportPriced", Label = "Pricing", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("Priced — include current rates", "1"),
+                                ("Unpriced — blank for the QS to price", "0"),
+                            } },
+                    }, get => StingCommandHandler.SetExtraParam("QsExportPriced", get("QsExportPriced")));
+                    return true;
+                }
+                case "PaymentCert_Issue":
+                {
+                    // P0.3 — contract-form picker rendered inline (no popup). Values
+                    // are the ContractForm enum names PaymentCertIssueCommand parses.
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "CertContractForm", Label = "Contract form", Kind = BoqFormKind.Combo,
+                            Options = new List<(string, string)>
+                            {
+                                ("NEC4 ECC", "NEC4"),
+                                ("JCT 2024 Standard Building Contract", "JCT2024"),
+                                ("FIDIC Red Book 2017", "FIDIC2017Red"),
+                            } },
+                    }, get => StingCommandHandler.SetExtraParam("CertContractForm", get("CertContractForm")));
+                    return true;
+                }
+                case "Cost_SetMeasurementStandard":
+                {
+                    // P0.3 — measurement-standard picker rendered inline. Options come
+                    // from the same registry the command validates against.
+                    var stdOpts = new List<(string, string)>();
+                    try
+                    {
+                        foreach (var s in StingTools.BOQ.MeasurementStandard.MeasurementStandardRegistry.All())
+                            stdOpts.Add(($"{s.DisplayName}  ({s.Version})", s.Id));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BOQ standard options: {ex.Message}"); }
+                    if (stdOpts.Count == 0) stdOpts.Add(("NRM2", "nrm2"));
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "MeasStandardId", Label = "Standard", Kind = BoqFormKind.Combo, Options = stdOpts },
+                    }, get => StingCommandHandler.SetExtraParam("MeasStandardId", get("MeasStandardId")));
+                    return true;
+                }
             }
             return false;
         }

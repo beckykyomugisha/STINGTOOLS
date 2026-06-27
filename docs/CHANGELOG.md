@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.3: input commands → inline forms)
+
+Branch `claude/placement-centre-review-audit`. Third gap of Phase 0. Migrates the
+input-gathering Actions commands that still popped a dialog to the existing inline
+`ShowInlineForm` pattern (render fields in the Actions pane → on Run set ExtraParams →
+dispatch once → the command reads them and skips its dialog; the dialog stays as the
+ribbon-caller fallback). Each command got an ExtraParam gate; each tag got a
+`TryShowInlineFormFor` case in `BOQCostManagerPanel`:
+
+- **Export QS Bill** (`BOQQsExport`) — the priced/unpriced **TaskDialog** is now an
+  inline combo (`QsExportPriced` 1/0). This was the literal "still pops a TaskDialog"
+  target.
+- **Issue Cert** (`PaymentCert_Issue`) — the contract-form picker is an inline combo
+  (`CertContractForm` → `ContractForm` enum: NEC4 / JCT2024 / FIDIC2017Red).
+- **Set Standard** (`Cost_SetMeasurementStandard`) — the standard picker is an inline
+  combo (`MeasStandardId`), options sourced from the same `MeasurementStandardRegistry`
+  the command validates against.
+
+All three results render inline via `StingResultPanel.InlineSink` (no popup). Each gate
+validates its ExtraParam and falls through to the original modal dialog when absent or
+invalid, so ribbon / wizard callers keep working unchanged.
+
+**Still modal (acceptance-compliant — Phase 0 permits "modal or inline-form"), flagged
+for a later dedicated inline pass:** `Variation_FromDiff` (a 6-step picker chain + a
+free-text rationale window + EOT band — too large for a flat one-shot form to do
+faithfully) and `Variation_BuildStarRate` (the bespoke `StarRateBuilderDialog` build-up
+editor, not a flat field set). Both are stable modal dialogs after P0.2 (no nested
+pump), so they don't reintroduce the deadlock. Compile-verified Release `-t:Rebuild`,
+0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager Actions tab, click **★ Export QS
+Bill** → a small Pricing combo + Run renders in the pane (no popup); pick Unpriced, Run
+→ the bill exports and the result shows inline. Same for **Issue Cert** (contract-form
+combo) and **Set Standard** (standard combo). The ribbon/wizard "Export QS Bill now"
+path still falls back to its dialog. Rapid-clicking these never wedges the panel.
+
 #### Completed (BOQ 5D Enhanced Rebuild — Phase 0.2: remove the DispatcherFrame pump)
 
 Branch `claude/placement-centre-review-audit`. Second gap of Phase 0. Deletes the

@@ -55,8 +55,15 @@ namespace StingTools.Commands.Cost
                 // ASS_PMT_PCT_COMPLETE_NR weighted by ContractValue.
                 AggregatePercentComplete(doc, sov);
 
-                // Pick contract form.
-                ContractForm form = PickContractForm();
+                // Pick contract form. P0.3 — inline-form gate: when the BOQ panel
+                // supplied the CertContractForm ExtraParam, skip the picker (no popup).
+                // Falls back to the modal picker for ribbon / other callers.
+                ContractForm form;
+                string fForm = UI.StingCommandHandler.GetExtraParam("CertContractForm");
+                if (!string.IsNullOrEmpty(fForm) && Enum.TryParse(fForm, out ContractForm parsedForm))
+                    form = parsedForm;
+                else
+                    form = PickContractForm();
 
                 var cert = PaymentCertEngine.CreateDraft(doc, contractRef, form, sov);
                 cert.Currency = boq.Currency ?? "UGX";   // B.1 — project currency, not a hardcoded literal
