@@ -155,6 +155,15 @@ namespace StingTools.BOQ
         public double PlantTotalUGX => (PlantUGX ?? 0) * Quantity;
         public double MaterialTotalUGX => (MaterialUGX ?? 0) * Quantity;
 
+        // ── G5 — carbon factor provenance + data-quality. CarbonSource is the
+        // resolver source ("epd:…" / "material-param" / "material-lookup-csv" /
+        // "carbon-factors-csv" / "none"); CarbonQuality is the band the QS reads
+        // (Verified-EPD / Database / Missing); CarbonMaterial is the primary
+        // material (drives the carbon-gap report).
+        public string CarbonSource;
+        public string CarbonQuality;
+        public string CarbonMaterial;
+
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
         // row, SimilarCount holds the element count and ConstituentElementIds
@@ -207,6 +216,9 @@ namespace StingTools.BOQ
                 LabourUGX = this.LabourUGX,
                 PlantUGX = this.PlantUGX,
                 MaterialUGX = this.MaterialUGX,
+                CarbonSource = this.CarbonSource,
+                CarbonQuality = this.CarbonQuality,
+                CarbonMaterial = this.CarbonMaterial,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),

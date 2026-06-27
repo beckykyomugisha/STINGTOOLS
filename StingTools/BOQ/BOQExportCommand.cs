@@ -441,8 +441,9 @@ namespace StingTools.BOQ
         private void BuildCarbonSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, "Carbon & Lifecycle — per-element embodied carbon and 25-year NPV lifecycle cost");
+            // G5 — carbon data-quality + factor source columns.
             string[] cols = { "Line ref", "Category", "Discipline", "Quantity", "Unit",
-                "Carbon kgCO₂e", "Lifecycle UGX" };
+                "Carbon kgCO₂e", "Lifecycle UGX", "Material", "CO₂ data quality", "Carbon factor source" };
             WriteHeader(ws, 3, cols);
             int row = 4;
             foreach (var it in boq.AllItems)
@@ -454,6 +455,9 @@ namespace StingTools.BOQ
                 ws.Cell(row, 5).Value = it.Unit;
                 ws.Cell(row, 6).Value = it.EmbodiedCarbonKg;
                 ws.Cell(row, 7).Value = it.LifecycleCostUGX;
+                ws.Cell(row, 8).Value = it.CarbonMaterial ?? "";
+                ws.Cell(row, 9).Value = it.CarbonQuality ?? "";
+                ws.Cell(row, 10).Value = it.CarbonSource ?? "";
                 row++;
             }
             row += 1;

@@ -282,8 +282,14 @@ This is the part a real guide hides and you find out the hard way. We won't.
    %-of-works. The active basis rolls into the grand total and exports as its own
    **Preliminaries** section in the XLSX. *(Contingency + overhead are still flat
    percentages.)*
-4. **Carbon factors are a starter set** (ICE database + overrides). Treat embodied
-   carbon as *indicative*, not a verified EPD-grade figure.
+4. ~~**Carbon factors are a starter set** (ICE database + overrides).~~ ✓ **Closed
+   (G5).** You can now map a material to a **verified EPD** (A1–A3 + source) in
+   `_BIM_COORD/boq_epd_map.json`; that overrides the ICE/library default for every
+   row of that material. Each row carries a **carbon data-quality** flag
+   (Verified-EPD / Database / Missing — toggle the **CO₂ quality** column, and see
+   the EPD-verified % in the coverage strip), and **Actions → Carbon Gap Report**
+   lists every material still on a weak/missing factor with a CSV worklist. ICE
+   stays the fallback — un-mapped materials are unchanged.
 5. **The Schedule / EVM tab (P2) is new and basic** — phase grid + a simple
    S-curve + headline EVM. It is **not** a full 4D programme tool; treat SPI/CPI as
    a directional health check until it matures.

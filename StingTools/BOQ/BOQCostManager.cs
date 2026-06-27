@@ -256,6 +256,9 @@ namespace StingTools.BOQ
 
             // ── STEP 3: Load embodied carbon factors ─────────────────────
             CarbonTrackingEngine.EnsureLoaded();
+            // G5 — drop the cached EPD map so an edit to boq_epd_map.json is
+            // picked up on this Refresh.
+            BoqEpdStore.Invalidate(doc);
 
             // ── STEP 4: Collect elements ─────────────────────────────────
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
@@ -406,8 +409,9 @@ namespace StingTools.BOQ
             //      then a template resolution, then a safe fallback.
             string paragraph = ResolveNrm2Paragraph(doc, el, catName);
 
-            // (d) Embodied carbon
-            double carbonKg = ComputeElementCarbon(el, quantity, unit);
+            // (d) Embodied carbon (+ G5 data-quality + source + material)
+            double carbonKg = ComputeElementCarbon(el, quantity, unit,
+                out string carbonSource, out string carbonQuality, out string carbonMaterial);
 
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
@@ -445,7 +449,10 @@ namespace StingTools.BOQ
                 RateConfidence = rateConfidence,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
-                MaterialUGX = splitMaterial
+                MaterialUGX = splitMaterial,
+                CarbonSource = carbonSource, // G5 — carbon factor provenance + quality
+                CarbonQuality = carbonQuality,
+                CarbonMaterial = carbonMaterial
             };
 
             // Mark provisional sums on the element if configured via existing parameter.
@@ -720,7 +727,16 @@ namespace StingTools.BOQ
         // ── Carbon + lifecycle ─────────────────────────────────────────────
 
         private static double ComputeElementCarbon(Element el, double quantity, string unit)
+            => ComputeElementCarbon(el, quantity, unit, out _, out _, out _);
+
+        // G5 — detailed overload: also reports the carbon factor SOURCE, the
+        // data-quality band (Verified-EPD / Database / Missing) and the primary
+        // material so the BOQ row can carry a carbon-confidence indicator and the
+        // carbon-gap report can list weak/missing factors.
+        private static double ComputeElementCarbon(Element el, double quantity, string unit,
+            out string carbonSource, out string carbonQuality, out string carbonMaterial)
         {
+            carbonSource = "none"; carbonQuality = BoqEpdStore.QualityMissing; carbonMaterial = "";
             try
             {
                 // R-1 — Carbon factor source-aware unit treatment.
@@ -730,10 +746,13 @@ namespace StingTools.BOQ
                 // bug the LCA audit flagged. Route through CarbonFactorResolver so the
                 // calling convention is explicit.
                 string material = GetPrimaryMaterialName(el);
+                carbonMaterial = material ?? "";
                 if (string.IsNullOrEmpty(material)) return 0;
 
                 var resolved = CarbonFactorResolver.Resolve(el.Document, material);
-                if (resolved.Factor <= 0) return 0;
+                carbonSource = string.IsNullOrEmpty(resolved.Source) ? "none" : resolved.Source;
+                carbonQuality = BoqEpdStore.QualityForSource(carbonSource);
+                if (resolved.Factor <= 0) { carbonQuality = BoqEpdStore.QualityMissing; return 0; }
 
                 if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
                 {

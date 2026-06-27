@@ -179,6 +179,133 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQCarbonGapReportCommand (G5) — read-only report of materials whose
+    //  embodied-carbon factor is missing or only database-grade (not an EPD).
+    //  Mirrors the rate-gap report: EPD-verified %, by-material gap table, the
+    //  biggest carbon contributors that are not yet EPD-backed, and a CSV
+    //  worklist (Open-file button) to drive EPD sourcing.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQCarbonGapReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                // Carbon-bearing modelled rows with a resolvable material.
+                var rows = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model
+                    && !string.IsNullOrEmpty(i.CarbonMaterial)).ToList();
+                int total = rows.Count;
+
+                bool IsMissing(BOQLineItem i) => i.EmbodiedCarbonKg <= 0
+                    || string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase);
+                bool IsVerified(BOQLineItem i) => string.Equals(i.CarbonQuality, "Verified-EPD", StringComparison.OrdinalIgnoreCase);
+
+                // Aggregate by material → worst quality + carbon mass.
+                var byMaterial = rows
+                    .GroupBy(i => i.CarbonMaterial, StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        bool anyMissing = g.Any(IsMissing);
+                        bool allVerified = g.All(IsVerified);
+                        string quality = anyMissing ? "Missing" : allVerified ? "Verified-EPD" : "Database";
+                        return new
+                        {
+                            Material = g.Key,
+                            Rows = g.Count(),
+                            CarbonKg = g.Sum(i => i.EmbodiedCarbonKg),
+                            Quality = quality
+                        };
+                    })
+                    .ToList();
+
+                var gaps = byMaterial.Where(m => m.Quality != "Verified-EPD")
+                    .OrderByDescending(m => m.CarbonKg).ToList();
+                int verifiedRows = rows.Count(IsVerified);
+                int missingRows = rows.Count(IsMissing);
+                double epdPct = total > 0 ? 100.0 * verifiedRows / total : 100.0;
+                double totalCarbon = rows.Sum(i => i.EmbodiedCarbonKg);
+                double gapCarbon = rows.Where(i => !IsVerified(i)).Sum(i => i.EmbodiedCarbonKg);
+
+                // CSV worklist.
+                string csvPath = null;
+                try
+                {
+                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        Directory.CreateDirectory(dir);
+                        csvPath = Path.Combine(dir, $"boq_carbon_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Material,Rows,CarbonKg,Quality,Suggestion");
+                        foreach (var m in gaps)
+                            sb.AppendLine(string.Join(",",
+                                CsvF(m.Material), m.Rows.ToString(CultureInfo.InvariantCulture),
+                                m.CarbonKg.ToString("0", CultureInfo.InvariantCulture), CsvF(m.Quality),
+                                CsvF(m.Quality == "Missing" ? "No factor — add an EPD or library factor"
+                                     : "Database factor — source a verified EPD")));
+                        File.WriteAllText(csvPath, sb.ToString());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ carbon-gap CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — Carbon-gap report");
+                panel.SetSubtitle($"{epdPct:0.#}% EPD-verified · {gaps.Count} material(s) need a better factor");
+                panel.AddSection("SUMMARY")
+                    .Metric("Carbon-bearing rows", total.ToString())
+                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPct:0.#}%)")
+                    .Metric("Missing-factor rows", missingRows.ToString())
+                    .Metric("Total embodied carbon", $"{totalCarbon / 1000.0:N1} tCO₂e")
+                    .Metric("Carbon not EPD-backed", $"{gapCarbon / 1000.0:N1} tCO₂e",
+                        "Σ embodied carbon resting on database / missing factors");
+
+                if (gaps.Count > 0)
+                {
+                    var rowsTbl = gaps.Take(30).Select(m => new[]
+                    {
+                        m.Material, m.Rows.ToString(),
+                        $"{m.CarbonKg / 1000.0:N2} t", m.Quality
+                    }).ToList();
+                    panel.AddSection("MATERIALS NEEDING A BETTER FACTOR")
+                        .Table(new[] { "Material", "Rows", "Carbon", "Quality" }, rowsTbl);
+                }
+                else
+                {
+                    panel.AddSection("CLEAN").Text(
+                        "Every carbon-bearing material is EPD-verified. Whole-life carbon is on its strongest footing.");
+                }
+
+                panel.AddSection("NEXT").Text(
+                    "Map weak/missing materials to verified EPDs in _BIM_COORD/boq_epd_map.json "
+                    + "(material → a1a3 + unit + source). ICE/library factors remain the fallback.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQCarbonGapReportCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string CsvF(string s)
+        {
+            s = s ?? "";
+            return (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQSignOffCommand (G9) — record a QS sign-off against the current
     //  snapshot. Reads SignOffBy / SignOffRole / SignOffScope ExtraParams
     //  (set by the panel's inline form). Clears the DRAFT mark on exports of

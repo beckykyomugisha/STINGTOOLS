@@ -3,6 +3,33 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G5 — carbon toward EPD-grade)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #4 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqEpdEntry` / `BoqEpdMap` + `BoqEpdStore`
+(per-doc cached, `Invalidate` at every `BuildBOQDocument`): per-material EPD
+override map at `_BIM_COORD/boq_epd_map.json` (`material → a1a3 + unit(m3|kg) +
+source + quality`). `CarbonFactorResolver.Resolve` gains Tier 0 — a mapped
+material uses its verified A1–A3 figure (`Source="epd:<ref>"`); ICE/library/legacy
+remain the fallback. `ComputeElementCarbon` gets a detailed overload emitting the
+factor source + data-quality band (`Verified-EPD` / `Database` / `Missing`, via
+`BoqEpdStore.QualityForSource`) + primary material; new nullable-free
+`BOQLineItem.CarbonSource` / `CarbonQuality` / `CarbonMaterial` (Clone copy).
+Panel: a toggleable **CO₂ quality** column (off by default) + a carbon-quality
+breakdown in the coverage strip (EPD-verified % · missing %). New read-only
+`BOQCarbonGapReportCommand` (`BOQ_CarbonGapReport`, Actions → COST REPORT P4.4 →
+Carbon Gap Report, StingCommandHandler dispatch) mirrors the rate-gap report:
+EPD-verified %, by-material gap table (worst quality + carbon at stake), CSV
+worklist via `SetCsvPath`. XLSX Carbon sheet gains Material / CO₂ data quality /
+Carbon factor source columns. Compile-verified Release `-t:Rebuild`, 0 errors.
+No popup.
+
+**Revit smoke test** (human): add `_BIM_COORD/boq_epd_map.json` mapping one
+material to a verified `a1a3` → Refresh → that material's rows show the new carbon
++ the **CO₂ quality** column reads "Verified-EPD" (others "Database"/"Missing");
+Actions → Carbon Gap Report → lists the remaining weak/missing materials with a
+CSV worklist.
+
 #### Completed (BOQ QS gap G4 — labour / plant / material rate split)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #2 in

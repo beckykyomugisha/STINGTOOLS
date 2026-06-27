@@ -87,7 +87,7 @@ namespace StingTools.UI
         private readonly HashSet<string> _hiddenColumns =
             // G4 — the L/P/M rate-split columns are off by default (only relevant
             // when a rate source provides a split). Persisted ui-state overrides this.
-            new HashSet<string>(new[] { "Labour", "Plant", "Material" }, StringComparer.OrdinalIgnoreCase);
+            new HashSet<string>(new[] { "Labour", "Plant", "Material", "CO2 Quality" }, StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
         // P1.3 — per-project UI state persistence. Grouping mode, display currency,
@@ -1044,6 +1044,8 @@ namespace StingTools.UI
                      "Keep the flat prelims % or switch to an itemised built-up preliminaries schedule (site set-up, staff, welfare, insurances…). The active basis rolls into the grand total and the XLSX export.", false),
                     ("Labour rollup", "BOQ_LabourRollup",
                      "Σ labour / plant / material rate-split content by NRM2 section, plus labour hours by trade (crew). Read-only.", false),
+                    ("Carbon Gap Report", "BOQ_CarbonGapReport",
+                     "List materials whose embodied-carbon factor is missing or only database-grade (not an EPD), the carbon at stake, and a CSV worklist to drive EPD sourcing. Read-only.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
@@ -2055,6 +2057,23 @@ namespace StingTools.UI
                     _defaultCoverageText += $" | PS movement UGX {psMovement:+#,##0;-#,##0;0}";
             }
             catch (Exception ex) { StingLog.Warn($"BOQ PS movement strip: {ex.Message}"); }
+            // G5 — carbon data-quality breakdown (mirrors rate confidence): share of
+            // carbon-bearing rows that are EPD-verified vs database vs missing.
+            try
+            {
+                var carbonRows = _boq.AllItems.Where(i => i.Source == BOQRowSource.Model
+                    && !string.IsNullOrEmpty(i.CarbonMaterial)).ToList();
+                if (carbonRows.Count > 0)
+                {
+                    int epd = carbonRows.Count(i => string.Equals(i.CarbonQuality, "Verified-EPD", StringComparison.OrdinalIgnoreCase));
+                    int miss = carbonRows.Count(i => i.EmbodiedCarbonKg <= 0
+                        || string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase));
+                    double epdPct = 100.0 * epd / carbonRows.Count;
+                    double missPct = 100.0 * miss / carbonRows.Count;
+                    _defaultCoverageText += $" | Carbon EPD-verified {epdPct:F0}% · missing {missPct:F0}%";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ carbon-quality strip: {ex.Message}"); }
             _paragraphCoverage.Text = _defaultCoverageText;
             _paragraphCoverage.Foreground = Brushes.Gray;
         }
@@ -2310,6 +2329,12 @@ namespace StingTools.UI
             AddIfVisible("Material", new DataGridTextColumn
             {
                 Header = "Material", Binding = new Binding(nameof(BOQItemViewModel.MaterialDisplay)),
+                Width = new DataGridLength(95), IsReadOnly = true
+            });
+            // G5 — carbon data-quality column (off by default; toggle via Columns).
+            AddIfVisible("CO2 Quality", new DataGridTextColumn
+            {
+                Header = "CO₂ quality", Binding = new Binding(nameof(BOQItemViewModel.CarbonQualityDisplay)),
                 Width = new DataGridLength(95), IsReadOnly = true
             });
 
@@ -4204,6 +4229,10 @@ namespace StingTools.UI
         public string CarbonDisplay => _item.EmbodiedCarbonKg > 0
             ? _item.EmbodiedCarbonKg.ToString("N0", CultureInfo.InvariantCulture) + " kg"
             : "";
+
+        // G5 — carbon data-quality band (Verified-EPD / Database / Missing).
+        public string CarbonQualityDisplay => string.IsNullOrEmpty(_item.CarbonQuality)
+            ? "—" : _item.CarbonQuality;
 
         // ── Binding brushes ─────────────────────────────────────────────────
         // Row background: manual = cream, PS = lavender, model = transparent

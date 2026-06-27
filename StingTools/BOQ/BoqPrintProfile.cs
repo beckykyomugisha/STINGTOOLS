@@ -51,7 +51,9 @@ namespace StingTools.BOQ
         public static readonly string[] ToggleableColumns =
             { "Level", "Location", "Source", "Model", "Confidence", "Carbon", "Note",
               // G4 — labour / plant / material rate-split columns (off by default).
-              "Labour", "Plant", "Material" };
+              "Labour", "Plant", "Material",
+              // G5 — carbon data-quality column (off by default).
+              "CO2 Quality" };
 
         private static readonly ConcurrentDictionary<string, BoqPrintProfileRegistry> _cache
             = new ConcurrentDictionary<string, BoqPrintProfileRegistry>(StringComparer.OrdinalIgnoreCase);
