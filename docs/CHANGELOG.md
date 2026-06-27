@@ -47,6 +47,34 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 1: layout + scroll)
+
+Branch `claude/placement-centre-review-audit`. Fixes the Schedule tab's three grids
+(`_scheduleGrid` / `_periodsGrid` / `_milestonesGrid`) rendering ~150px wide with
+truncated headers ("Pr St Er % Pl").
+
+**Root cause:** the outer `ScrollViewer` wrapping the phases/periods/milestones
+`StackPanel` had `HorizontalScrollBarVisibility = Auto`, which hands its content
+*unbounded* width — so the star (`*`) name columns collapse to their minimum and each
+grid shrinks to the sum of its minimal columns.
+
+**Fix:** the outer `ScrollViewer` is now `HorizontalScrollBarVisibility = Disabled`
+(bounds content to the viewport width → star columns stretch full-width; vertical scroll
+stays Auto). Each grid gains `HorizontalAlignment = Stretch`, a bounded `MaxHeight`
+(phases 240, periods/milestones 200) with `VerticalScrollBarVisibility = Auto` so long
+lists scroll *inside* the grid instead of pushing the tab, and its own
+`HorizontalScrollBarVisibility = Auto` for column overflow. New `AttachScheduleGridWheel`
+(+ `FindChildScrollViewer`) implements nested-scroll: the wheel scrolls the grid's rows
+and only forwards to the enclosing `ScrollViewer` at the grid's scroll boundary
+(extends the existing Phase-108d wheel-forward pattern). Section headers (PROGRAMME
+PHASES / REPORTING PERIODS / MILESTONES) unchanged. Compile-verified Release
+`-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): open the BOQ Cost Manager → Schedule tab. All three grids
+now fill the panel width with full, non-truncated headers; a long phase list scrolls
+within the 240px grid (wheel over the grid scrolls its rows; past the end it scrolls the
+whole tab); the S-curve + EVM strip above are unaffected.
+
 #### Completed (BOQ 5D Phase 1 slice c — MSP/P6 XML import + Phase 1 acceptance)
 
 Branch `claude/placement-centre-review-audit`. Wires real-programme import into the Cost

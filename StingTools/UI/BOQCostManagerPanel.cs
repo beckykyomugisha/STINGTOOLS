@@ -4446,6 +4446,45 @@ namespace StingTools.UI
         // helper because the EVM CSV export derives its output dir from it.
         private string SchedulePath() => ScheduleStore.PathFor(Doc);
 
+        /// <summary>Find a DataGrid's internal ScrollViewer (DG_ScrollViewer) so the
+        /// nested-scroll wheel logic can tell whether the grid can still scroll.</summary>
+        private static ScrollViewer FindChildScrollViewer(DependencyObject parent)
+        {
+            if (parent == null) return null;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is ScrollViewer sv) return sv;
+                var nested = FindChildScrollViewer(child);
+                if (nested != null) return nested;
+            }
+            return null;
+        }
+
+        /// <summary>Slice 1 — wheel over a schedule grid scrolls the grid's own rows;
+        /// at the grid's scroll boundary (or when it has nothing to scroll) the event
+        /// is forwarded to the enclosing ScrollViewer so the whole tab still scrolls.</summary>
+        private void AttachScheduleGridWheel(DataGrid grid)
+        {
+            grid.PreviewMouseWheel += (s, e) =>
+            {
+                if (e.Handled) return;
+                var sv = FindChildScrollViewer(grid);
+                if (sv != null && sv.ScrollableHeight > 0)
+                {
+                    bool atTop = sv.VerticalOffset <= 0.0;
+                    bool atBottom = sv.VerticalOffset >= sv.ScrollableHeight - 0.5;
+                    // Let the grid consume the wheel unless it's at the boundary that way.
+                    if ((e.Delta < 0 && !atBottom) || (e.Delta > 0 && !atTop)) return;
+                }
+                e.Handled = true;
+                var fwd = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                { RoutedEvent = UIElement.MouseWheelEvent, Source = grid };
+                (grid.Parent as UIElement)?.RaiseEvent(fwd);
+            };
+        }
+
         private UIElement BuildScheduleTab()
         {
             var root = new DockPanel { LastChildFill = true, Margin = new Thickness(0) };
@@ -4503,7 +4542,7 @@ namespace StingTools.UI
             DockPanel.SetDock(curveCard, Dock.Top);
             root.Children.Add(curveCard);
 
-            // Phase grid (fills remaining space)
+            // Phase grid — full width, bounded height with its own vertical scroll.
             _scheduleGrid = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -4511,10 +4550,15 @@ namespace StingTools.UI
                 CanUserDeleteRows = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                Margin = new Thickness(12, 0, 12, 12),
+                Margin = new Thickness(0, 0, 0, 12),
                 ItemsSource = _schedulePhases,
-                FontSize = 11
+                FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                MaxHeight = 240,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            AttachScheduleGridWheel(_scheduleGrid);
             _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Phase", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
                 Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
             _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Start", Width = 110,
@@ -4540,8 +4584,13 @@ namespace StingTools.UI
                 AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                Margin = new Thickness(0), ItemsSource = _schedulePeriods, FontSize = 11, MaxHeight = 160
+                Margin = new Thickness(0, 0, 0, 4), ItemsSource = _schedulePeriods, FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                MaxHeight = 200,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            AttachScheduleGridWheel(_periodsGrid);
             _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Period end", Width = 120,
                 Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
             _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete (overall)", Width = 140,
@@ -4558,8 +4607,13 @@ namespace StingTools.UI
                 AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                Margin = new Thickness(0), ItemsSource = _milestones, FontSize = 11, MaxHeight = 140
+                Margin = new Thickness(0, 0, 0, 4), ItemsSource = _milestones, FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                MaxHeight = 200,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            AttachScheduleGridWheel(_milestonesGrid);
             _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Milestone", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
                 Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
             _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Date", Width = 120,
@@ -4584,10 +4638,15 @@ namespace StingTools.UI
             lower.Children.Add(SubHeader("MILESTONES (red = slipped: past-due and not done)"));
             lower.Children.Add(_milestonesGrid);
 
+            // Slice 1 — horizontal scrolling is DISABLED on the outer ScrollViewer so
+            // it bounds the content to the viewport width. (With it Auto/Visible the
+            // ScrollViewer hands the content unbounded width, which collapses the
+            // star columns and shrinks each grid to ~150px — the truncation bug.)
+            // Each grid scrolls horizontally on its own when its columns overflow.
             var gridScroll = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = lower
             };
             root.Children.Add(gridScroll);
