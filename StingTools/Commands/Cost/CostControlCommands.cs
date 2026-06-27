@@ -165,18 +165,31 @@ namespace StingTools.Commands.Cost
                         .Show();
                     return Result.Cancelled;
                 }
-                var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null)
-                    .OrderByDescending(c => c.CertNumber).ToList();
-                var items = certs.Select(c => new StingListPicker.ListItem
+                // P0.3 — inline-form gate: when the BOQ panel supplied CertPath,
+                // render that cert without a popup. Falls back to the modal picker.
+                PaymentCertificate cert;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CertPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    Label = $"Cert #{c.CertNumber}  ({c.Status})",
-                    Detail = $"{c.ContractRef} — {c.Currency} {c.TotalPayable:N0} — {c.ValuationDate:yyyy-MM-dd}",
-                    Tag = c
-                }).ToList();
-                var picked = StingListPicker.Show("STING — Export certificate document",
-                    "Pick the certificate to render as XLSX.", items, allowMultiSelect: false);
-                if (picked == null || picked.Count == 0 || !(picked[0].Tag is PaymentCertificate cert))
-                    return Result.Cancelled;
+                    cert = PaymentCertEngine.Load(fPath);
+                    if (cert == null) { message = "Failed to load certificate."; return Result.Failed; }
+                }
+                else
+                {
+                    var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null)
+                        .OrderByDescending(c => c.CertNumber).ToList();
+                    var items = certs.Select(c => new StingListPicker.ListItem
+                    {
+                        Label = $"Cert #{c.CertNumber}  ({c.Status})",
+                        Detail = $"{c.ContractRef} — {c.Currency} {c.TotalPayable:N0} — {c.ValuationDate:yyyy-MM-dd}",
+                        Tag = c
+                    }).ToList();
+                    var picked = StingListPicker.Show("STING — Export certificate document",
+                        "Pick the certificate to render as XLSX.", items, allowMultiSelect: false);
+                    if (picked == null || picked.Count == 0 || !(picked[0].Tag is PaymentCertificate pc))
+                        return Result.Cancelled;
+                    cert = pc;
+                }
 
                 string path = OutputLocationHelper.GetTimestampedPath(
                     doc, $"STING_PaymentCert_{cert.CertNumber:D3}", ".xlsx");

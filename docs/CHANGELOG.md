@@ -3,6 +3,24 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #4 — Payment cert pickers)
+
+Branch `claude/placement-centre-review-audit`. **Approve Cert** (`PaymentCert_Approve`,
+`PaymentCertCommands.cs`) and **Cert Document** (`PaymentCert_ExportDoc`,
+`CostControlCommands.cs`) were modal cert pickers; both now render an inline combo of
+certificate files in the Actions pane. The panel builds the options from
+`PaymentCertEngine.ListCerts`/`Load` (Approve offers only advanceable Draft/Issued
+certs; Cert Document offers all), value = the cert file path. Each command reads the
+`CertPath` ExtraParam and loads/advances/renders that cert, skipping its picker (modal
+kept as the ribbon fallback). When none are available the panel returns `false` so the
+command surfaces its own NO CERTS / NOTHING TO APPROVE panel. Results render inline.
+No nested message pump. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): PAYMENT CERTS card → **Approve Cert** renders a cert
+combo (Draft/Issued only) + Run inline, no popup; Run advances the cert state and the
+result shows inline. **Cert Document** renders an all-certs combo + Run → the XLSX is
+written and the result shows inline.
+
 #### Completed (BOQ 5D inline-forms sweep #3 — Variation + Star Rate)
 
 Branch `claude/placement-centre-review-audit`. The trickiest group of the sweep —

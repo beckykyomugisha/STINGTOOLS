@@ -1720,6 +1720,35 @@ namespace StingTools.UI
                     });
                     return true;
                 }
+                case "PaymentCert_Approve":
+                case "PaymentCert_ExportDoc":
+                {
+                    // P0.3 — cert picker rendered inline (combo of cert files). Approve
+                    // offers only advanceable (Draft/Issued) certs; Cert Document offers
+                    // all. Value = cert file path the command loads.
+                    bool approveOnly = tag == "PaymentCert_Approve";
+                    var certOpts = new List<(string, string)>();
+                    try
+                    {
+                        foreach (var p in StingTools.Core.PaymentCert.PaymentCertEngine.ListCerts(Doc))
+                        {
+                            var c = StingTools.Core.PaymentCert.PaymentCertEngine.Load(p);
+                            if (c == null) continue;
+                            if (approveOnly
+                                && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Draft
+                                && c.Status != StingTools.Core.PaymentCert.PaymentCertStatus.Issued) continue;
+                            certOpts.Add(($"Cert #{c.CertNumber} ({c.Status}) — {c.Currency} {c.TotalPayable:N0} — {c.ValuationDate:yyyy-MM-dd}", p));
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BOQ cert list: {ex.Message}"); }
+                    // None available — let the command surface its own NO CERTS / NOTHING TO APPROVE panel.
+                    if (certOpts.Count == 0) return false;
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "CertPath", Label = "Certificate", Kind = BoqFormKind.Combo, Options = certOpts },
+                    }, get => StingCommandHandler.SetExtraParam("CertPath", get("CertPath")));
+                    return true;
+                }
             }
             return false;
         }
