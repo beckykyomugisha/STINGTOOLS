@@ -70,7 +70,8 @@
       "MaxPerRoom": 1,
       "Priority": 80,
       "Notes": "Light switch 300mm from door hinge, hinge side (Approved Doc M 2015)",
-      "RuleId": "baseline-lighting-devices-"
+      "RuleId": "baseline-lighting-devices-",
+      "VariantHint": "One Way Switch"
     },
     {
       "CategoryFilter": "Lighting Devices",
@@ -84,7 +85,8 @@
       "MaxPerRoom": 2,
       "Priority": 75,
       "Notes": "Two-way switch pair in corridors",
-      "RuleId": "baseline-lighting-devices-corridor-circulation"
+      "RuleId": "baseline-lighting-devices-corridor-circulation",
+      "VariantHint": "One Way Switch"
     },
     {
       "CategoryFilter": "Lighting Devices",
@@ -98,7 +100,8 @@
       "MaxPerRoom": 2,
       "Priority": 80,
       "Notes": "Two-way at each stair landing",
-      "RuleId": "baseline-lighting-devices-stair"
+      "RuleId": "baseline-lighting-devices-stair",
+      "VariantHint": "Two Way Switch"
     },
     {
       "CategoryFilter": "Communication Devices",

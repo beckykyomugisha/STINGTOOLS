@@ -68,7 +68,8 @@
       "MaxPerRoom": 2,
       "Priority": 80,
       "StandardRef": "Approved Doc M",
-      "Notes": "2-way switch at each stair landing."
+      "Notes": "2-way switch at each stair landing.",
+      "VariantHint": "Two Way Switch"
     },
     {
       "RuleId": "elec-light-conf-dimmer",
@@ -81,7 +82,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "StandardRef": "Approved Doc M / DALI",
-      "VariantHint": "DIMMER,DALI",
+      "VariantHint": "Dimmer Switch,DIMMER,DALI",
       "Notes": "Rocker dimmer / DALI controller in conference rooms."
     },
     {
@@ -94,7 +95,7 @@
       "SideConstraint": "HINGE_SIDE",
       "MaxPerRoom": 1,
       "Priority": 75,
-      "VariantHint": "KEY",
+      "VariantHint": "One Way Switch,KEY",
       "StandardRef": "BS 7671",
       "Notes": "Key-switch only in plant / restricted areas."
     },

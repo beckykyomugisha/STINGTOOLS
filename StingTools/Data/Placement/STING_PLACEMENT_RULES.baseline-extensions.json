@@ -173,7 +173,8 @@
       "Priority": 80,
       "MaxPerRoom": 2,
       "ExcludeRoomFilter": "(?i)\\b(wardrobe|closet|cupboard|store|external|verandah|veranda|porch|balcony|terrace|patio|garage|plant|riser|shaft|void)\\b",
-      "Notes": "Accessible-rated 2-gang switch at door hinge side, capped to 2 per room. Excluded from wardrobes / external / plant rooms / risers."
+      "Notes": "Accessible-rated 2-gang switch at door hinge side, capped to 2 per room. Excluded from wardrobes / external / plant rooms / risers.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "baseline-lighting-devices-bathroom-shaver",
@@ -188,7 +189,8 @@
       "ApplicableStandards": [
         "BS7671"
       ],
-      "Priority": 70
+      "Priority": 70,
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "baseline-lighting-devices-outdoor-porch",
@@ -197,7 +199,7 @@
       "AnchorType": "DOOR_JAMB",
       "MountingHeightMm": 1100.0,
       "IpRatingMin": "IP44",
-      "VariantHint": "OUTDOOR",
+      "VariantHint": "One Way Switch,OUTDOOR",
       "MaxPerRoom": 1,
       "Priority": 65
     },
@@ -207,7 +209,7 @@
       "RoomFilter": "(?i)cinema",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1100.0,
-      "VariantHint": "DIMMER",
+      "VariantHint": "One Way Switch,DIMMER",
       "DependsOn": "area-circuit",
       "MaxPerRoom": 2,
       "Priority": 70
@@ -240,7 +242,7 @@
       "RoomFilter": "(?i)conference|boardroom",
       "AnchorType": "DOOR_HINGE",
       "MountingHeightMm": 1100.0,
-      "VariantHint": "SCENE,MULTI",
+      "VariantHint": "One Way Switch,SCENE,MULTI",
       "MaxPerRoom": 1,
       "Priority": 65
     },
@@ -251,7 +253,7 @@
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1100.0,
       "IpRatingMin": "IP65",
-      "VariantHint": "OUTDOOR",
+      "VariantHint": "One Way Switch,OUTDOOR",
       "ApplicableStandards": [
         "BS7671"
       ],
@@ -274,7 +276,7 @@
       "RoomFilter": "(?i)bedroom",
       "AnchorType": "DOOR_HINGE",
       "MountingHeightMm": 1100.0,
-      "VariantHint": "DIMMER",
+      "VariantHint": "Dimmer Switch,DIMMER",
       "MaxPerRoom": 1,
       "Priority": 60
     },

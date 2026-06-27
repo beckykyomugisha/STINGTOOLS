@@ -194,7 +194,8 @@
       "Priority": 70,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "1-gang light switch latch-side."
+      "Notes": "1-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-2g-light",
@@ -218,7 +219,8 @@
         "BS7671"
       ],
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "2-gang light switch latch-side."
+      "Notes": "2-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-3g-light",
@@ -242,7 +244,8 @@
         "BS7671"
       ],
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "3-gang light switch latch-side."
+      "Notes": "3-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-1g-dimmer",
@@ -255,7 +258,7 @@
       "BoxDepthMm": 35,
       "GangCount": 1,
       "MountType": "Flush",
-      "VariantHint": "DIMMER",
+      "VariantHint": "Dimmer Switch,DIMMER",
       "IpRatingMin": "IP2X",
       "InsertionOrigin": "FixingCentreMidpoint",
       "PlasterOffsetMode": "Auto",
@@ -291,7 +294,7 @@
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
       "Notes": "45A DP cooker switch.",
-      "VariantHint": "COOKER"
+      "VariantHint": "One Way Switch,COOKER"
     },
     {
       "RuleId": "mk-socket-accessible",
@@ -341,7 +344,8 @@
       "Priority": 80,
       "MaxPerRoom": 1,
       "StandardRef": "BS 8300:2018 Table 3",
-      "Notes": "Accessible switch 1000mm FFL."
+      "Notes": "Accessible switch 1000mm FFL.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-cluster-ws-triple-power",
