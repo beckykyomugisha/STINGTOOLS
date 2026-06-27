@@ -3,6 +3,33 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G8 — big-model Refresh feedback)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #6 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. `BOQCostManagerPanel.RefreshAsync` now shows a
+`StingProgressDialog` ("Building bill of quantities from N elements…") during the
+synchronous build when the host model is large (≥ `COST_BIG_MODEL_THRESHOLD`
+elements, default 1,500), gated by a cheap `FilteredElementCollector` count so
+small models keep instant refresh. A new `PumpDispatcher()` helper pumps the WPF
+dispatcher to Background priority once so the dialog paints before the API thread
+blocks. Closed in a `finally`.
+
+**Why the full off-thread split was deferred (documented per the brief):**
+`BOQCostManager.BuildBOQDocument` MUST run on the Revit API thread — its
+per-element costing reads parameters + geometry inline (that *is* the heavy
+compute), `ResolveNrm2Paragraph` runs a `FilteredElementCollector` per element,
+the linked-model take-off uses collectors, and the build ends with a
+parameter-write `Transaction` (`ClearStaleFlagsForCostedRows`). A clean
+read-into-POCOs-then-compute-off-thread split would require re-architecting the
+~2k-line take-off engine into separate read/compute/write passes — high
+regression risk and an engine fork the brief forbids. The Revit API is never
+touched off the API thread. Compile-verified Release `-t:Rebuild`, 0 errors.
+No popup (modeless progress dialog only).
+
+**Revit smoke test** (human): Refresh a large model (≥ 1,500 elements) → a
+"Building bill of quantities…" progress dialog appears during the build, then the
+BOQ renders correctly; on a small model Refresh is unchanged (no dialog).
+
 #### Completed (BOQ QS gap G9 — QS sign-off + uncertified stamp)
 
 Branch `claude/placement-centre-review-audit`. Closes gap #9 in

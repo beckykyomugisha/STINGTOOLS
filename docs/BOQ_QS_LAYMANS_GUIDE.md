@@ -277,9 +277,16 @@ This is the part a real guide hides and you find out the hard way. We won't.
 5. **The Schedule / EVM tab (P2) is new and basic** — phase grid + a simple
    S-curve + headline EVM. It is **not** a full 4D programme tool; treat SPI/CPI as
    a directional health check until it matures.
-6. **Big-model performance:** linked-model take-off is cached, but a very large
-   host model still rebuilds on the UI thread on **Refresh** — it can pause for a
-   few seconds. Refresh deliberately, not constantly. *(Coming: background rebuild.)*
+6. ~~**Big-model performance.**~~ ✓ **Closed (G8).** On a large host model
+   (≥ 1,500 elements, configurable via `COST_BIG_MODEL_THRESHOLD`), **Refresh** now
+   shows a "Building bill of quantities…" progress dialog so it reads as working,
+   not frozen. The take-off itself still runs on Revit's API thread — it must,
+   because it reads element parameters/geometry and ends with a parameter-write
+   transaction, and the Revit API is single-threaded — so a very large model can
+   still take a few seconds. A full background rebuild was deliberately deferred:
+   the per-element costing IS the heavy compute and is inseparable from the API
+   reads, so it can't move off-thread without re-architecting the take-off engine.
+   Refresh deliberately, not constantly.
 7. **No first-run wizard.** There's no guided "set up costing" walkthrough yet —
    this document is the stand-in. *(Coming.)*
 8. **Provisional-sum reconciliation** exists but is light — you replace the number;

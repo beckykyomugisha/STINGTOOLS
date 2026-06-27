@@ -1559,8 +1559,34 @@ namespace StingTools.UI
         public void RefreshAsync()
         {
             if (Doc == null) return;
+            // ── G8: big-model Refresh feedback ───────────────────────────────
+            //  BuildBOQDocument MUST run on the Revit API thread: its per-element
+            //  costing reads parameters + geometry inline (that IS the heavy
+            //  compute), ResolveNrm2Paragraph runs a FilteredElementCollector per
+            //  element, the linked-model take-off uses collectors, and the build
+            //  ends with a parameter-write Transaction (ClearStaleFlagsForCostedRows).
+            //  A clean "read into POCOs on the API thread, then group/rate/aggregate
+            //  off-thread" split is infeasible without re-architecting the ~2k-line
+            //  take-off engine into separate read/compute/write passes — high
+            //  regression risk and an engine fork the brief forbids. Fallback per
+            //  the prompt: show a progress dialog during the synchronous build on
+            //  large models so Refresh reads as "working", not frozen. Small models
+            //  (below the threshold) skip it so nothing regresses. The Revit API is
+            //  NEVER touched off the API thread.
+            StingProgressDialog progress = null;
             try
             {
+                int elemCount = 0;
+                try { elemCount = new FilteredElementCollector(Doc).WhereElementIsNotElementType().GetElementCount(); }
+                catch { /* count is advisory only */ }
+                int bigThreshold = (int)TagConfig.GetConfigDouble("COST_BIG_MODEL_THRESHOLD", 1500);
+                if (elemCount >= bigThreshold)
+                {
+                    progress = StingProgressDialog.Show("BOQ Refresh", 1);
+                    progress.SetStatus($"Building bill of quantities from {elemCount:N0} elements — please wait…");
+                    PumpDispatcher();   // force the dialog to paint before the blocking build
+                }
+
                 _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
@@ -1578,6 +1604,26 @@ namespace StingTools.UI
                 if (_paragraphCoverage != null)
                     _paragraphCoverage.Text = $"Refresh failed — see log. {ex.Message}";
             }
+            finally
+            {
+                progress?.Close();
+            }
+        }
+
+        /// <summary>
+        /// G8 — pump the WPF dispatcher down to Background priority once so a
+        /// just-shown modeless window completes its layout + render pass before
+        /// the caller blocks the API thread with a long synchronous build. The
+        /// standard WPF "DoEvents" idiom; safe to call from the API thread.
+        /// </summary>
+        private static void PumpDispatcher()
+        {
+            try
+            {
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                    new Action(() => { }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex) { StingLog.Warn($"PumpDispatcher: {ex.Message}"); }
         }
 
         /// <summary>
