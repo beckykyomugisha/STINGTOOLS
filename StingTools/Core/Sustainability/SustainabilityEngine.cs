@@ -67,7 +67,7 @@ namespace StingTools.Core.Sustainability
                     "defensible baseline; hot / tropical sites differ materially from the temperate default.");
 
             // ── Energy (annual; reuse LoadZone inventory) ──
-            var zones = GatherZones(doc, setup);
+            var zones = GatherZones(doc, setup, res.Warnings);
             res.ZonesGathered = zones.Count;
             double baselineCop = baseline?.BaselineCoolingCop ?? 3.0;
             // Per-zone COP override from setup (first zone with a non-zero cop).
@@ -158,9 +158,12 @@ namespace StingTools.Core.Sustainability
 
         // ── Zone gathering (mirrors HvacBlockLoadCommand) ──────────────────
 
-        private static List<LoadZone> GatherZones(Document doc, SustainProjectSetup setup)
+        private static List<LoadZone> GatherZones(Document doc, SustainProjectSetup setup, List<string> warnings)
         {
             var zones = new List<LoadZone>();
+            // Maps each gathered zone to its Level (for top-level roof detection in
+            // the synthesised envelope). Absent ⇒ treated as top level (worst case).
+            var levelOf = new Dictionary<LoadZone, ElementId>();
             // The per-space-type load-profile library (12 ASHRAE/CIBSE profiles) is
             // the single source of LPD/EPD/occupant density/OA/setpoints/schedules —
             // building use now genuinely drives the loads (office vs healthcare vs
@@ -186,6 +189,7 @@ namespace StingTools.Core.Sustainability
                         if (z == null) continue;
                         ApplyProfile(z, profile, dhw);
                         zones.Add(z);
+                        try { levelOf[z] = s.LevelId; } catch { }
                     }
                 }
             }
@@ -216,6 +220,7 @@ namespace StingTools.Core.Sustainability
                             if (z == null) continue;
                             ApplyProfile(z, profile, dhw);
                             zones.Add(z);
+                            try { levelOf[z] = r.LevelId; } catch { }
                         }
                     }
                 }
@@ -236,9 +241,91 @@ namespace StingTools.Core.Sustainability
                     };
                     ApplyProfile(z, profiles?.Get(ProfileIdForUse(zs.BuildingUse)), DhwForUse(zs.BuildingUse));
                     zones.Add(z);
+                    // No level for a synthetic setup zone ⇒ left out of levelOf ⇒
+                    // treated as top level (includes a roof segment).
                 }
             }
+
+            // ── Gap fix #1: synthesise a representative envelope for any zone that
+            //    has none, so energy isn't fabric-blind. Conduction + solar are now
+            //    counted using the active construction profile's U-values. ──
+            EnsureEnvelopes(doc, zones, levelOf, warnings);
             return zones;
+        }
+
+        /// <summary>Resolve the active HVAC construction profile and add a
+        /// floor-area-derived envelope to every zone that has none. Top-level zones
+        /// also get a roof segment. Adds a one-time "synthesised" note.</summary>
+        private static void EnsureEnvelopes(Document doc, List<LoadZone> zones,
+            Dictionary<LoadZone, ElementId> levelOf, List<string> warnings)
+        {
+            try
+            {
+                var inp = ResolveEnvelopeInputs(doc);
+                ElementId topId = TopLevelId(doc);
+                bool synthesised = false;
+                foreach (var z in zones)
+                {
+                    if (z.Envelope.Count > 0) continue;   // measured envelope present
+                    bool top = !levelOf.TryGetValue(z, out var lid)
+                               || lid == null || lid == ElementId.InvalidElementId
+                               || (topId != null && topId != ElementId.InvalidElementId && lid == topId);
+                    var segs = SustainEnvelopeSynth.FromFloorArea(z.FloorAreaM2, z.HeightM, top, inp);
+                    if (segs.Count > 0) { z.Envelope.AddRange(segs); synthesised = true; }
+                }
+                if (synthesised)
+                    warnings?.Add("Envelope synthesised from floor area (representative estimate using the active " +
+                                  "construction profile's U-values) — conduction + solar are now counted. This is an " +
+                                  "estimate, not measured per-wall geometry; model exterior walls + windows for an exact figure.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain EnsureEnvelopes: {ex.Message}"); }
+        }
+
+        /// <summary>Map the active <see cref="ConstructionProfile"/> (Part L / Passivhaus
+        /// / IECC / etc.) onto the Revit-free <see cref="EnvelopeSynthInputs"/>.</summary>
+        private static EnvelopeSynthInputs ResolveEnvelopeInputs(Document doc)
+        {
+            var inp = new EnvelopeSynthInputs();
+            try
+            {
+                var cp = ConstructionProfileRegistry.Active(doc);
+                if (cp != null)
+                {
+                    inp.WallUvalue    = cp.WallUvalue;
+                    inp.RoofUvalue    = cp.RoofUvalue;
+                    inp.WindowUvalue  = cp.WindowUvalue;
+                    inp.WindowShgc    = cp.WindowSHGC;
+                    inp.WindowShading = cp.WindowShadingFactor;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ResolveEnvelopeInputs: {ex.Message}"); }
+            return inp;
+        }
+
+        // Per-document cache of the highest-elevation Level id (roof detection).
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ElementId> _topLevelCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, ElementId>();
+
+        private static ElementId TopLevelId(Document doc)
+        {
+            if (doc == null) return ElementId.InvalidElementId;
+            return _topLevelCache.GetOrAdd(doc.PathName ?? "<no-doc>", _ =>
+            {
+                try
+                {
+                    var top = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level)).Cast<Level>()
+                        .OrderByDescending(l => l.Elevation).FirstOrDefault();
+                    return top?.Id ?? ElementId.InvalidElementId;
+                }
+                catch { return ElementId.InvalidElementId; }
+            });
+        }
+
+        /// <summary>Drop the cached top-level lookup for a closing document.</summary>
+        public static void InvalidateCaches(Document doc)
+        {
+            try { _topLevelCache.TryRemove(doc?.PathName ?? "<no-doc>", out _); } catch { }
         }
 
         /// <summary>Map a sustainability building-use to a load-profile id. Uses with
@@ -362,7 +449,7 @@ namespace StingTools.Core.Sustainability
             var baselineFlows = FixtureFlows.FromBaseline(baseline);
             // Design flows: read model low-flow fixtures if available; else assume a
             // 25% improvement over the baseline (indicative until fixtures carry flows).
-            var modelFlows = ReadDesignFixtureFlows(doc);
+            var modelFlows = ReadDesignFixtureFlows(doc, out string flowNote);
             bool indicative = modelFlows == null;
             var designFlows = modelFlows ?? new FixtureFlows
             {
@@ -381,18 +468,120 @@ namespace StingTools.Core.Sustainability
             w.IsIndicativeDefault = indicative;
             if (indicative)
                 w.Warnings.Add("Water % is an indicative default of 25% below baseline (i.e. a 25% saving) — " +
-                               "no low-flow fixture data was read from the model (stamp PLM_* flows for a real figure).");
+                               "no low-flow fixture data was read from the model (name the fixture types with " +
+                               "their ratings, e.g. \"WC Dual Flush 6/4L\", or stamp PLM_* flows for a real figure).");
+            else if (!string.IsNullOrEmpty(flowNote))
+                w.Warnings.Add(flowNote);
             return w;
         }
 
-        /// <summary>Read low-flow fixture flows from the model (best-effort).
-        /// Returns null when no flow data is found (caller falls back).</summary>
-        private static FixtureFlows ReadDesignFixtureFlows(Document doc)
+        /// <summary>Read low-flow fixture flows from the model (gap fix #2). Scans
+        /// plumbing fixtures, classifies each (WC / urinal / basin / shower / kitchen),
+        /// reads an explicitly-stamped flow param when present and in-band, else parses
+        /// the rating off the fixture TYPE / family name (e.g. "Basin Mixer 5 L/min"),
+        /// and aggregates a median per kind. Returns null only when NO fixture yielded
+        /// a rating (caller then uses the indicative default). <paramref name="note"/>
+        /// records which kinds were read.</summary>
+        private static FixtureFlows ReadDesignFixtureFlows(Document doc, out string note)
         {
-            // Fixtures rarely carry consistent flow params across libraries; this is
-            // a hook for projects that stamp PLM_* flow data. Until then, return null
-            // so the engine uses the indicative "25% below baseline" (25% saving) default.
+            note = null;
+            try
+            {
+                var fixtures = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (fixtures.Count == 0) return null;
+
+                var byKind = new Dictionary<FixtureKind, List<double>>();
+                foreach (var el in fixtures)
+                {
+                    string name = FixtureNameText(doc, el);
+                    var kind = FixtureFlowReader.ClassifyKind(name);
+                    if (kind == FixtureKind.Unknown) continue;
+                    double? v = ReadFixtureFlowParam(el, kind) ?? FixtureFlowReader.ParseFlow(kind, name);
+                    if (v.HasValue && v.Value > 0)
+                    {
+                        if (!byKind.TryGetValue(kind, out var list)) { list = new List<double>(); byKind[kind] = list; }
+                        list.Add(v.Value);
+                    }
+                }
+                if (byKind.Count == 0) return null;
+
+                var f = new FixtureFlows();   // class low-flow defaults 6/4/8/10/8
+                var got = new List<string>();
+                if (TryMedian(byKind, FixtureKind.Wc, out var wc))        { f.WcLpf = wc;          got.Add($"WC {wc:0.#} L/flush"); }
+                if (TryMedian(byKind, FixtureKind.Urinal, out var ur))    { f.UrinalLpf = ur;      got.Add($"urinal {ur:0.#} L/flush"); }
+                if (TryMedian(byKind, FixtureKind.Basin, out var ba))     { f.BasinTapLpm = ba;    got.Add($"basin tap {ba:0.#} L/min"); }
+                if (TryMedian(byKind, FixtureKind.Shower, out var sh))    { f.ShowerLpm = sh;      got.Add($"shower {sh:0.#} L/min"); }
+                if (TryMedian(byKind, FixtureKind.KitchenTap, out var kt)){ f.KitchenTapLpm = kt;  got.Add($"kitchen tap {kt:0.#} L/min"); }
+                if (got.Count == 0) return null;
+
+                note = "Design fixture flows read from the model: " + string.Join(", ", got) +
+                       " (kinds with no rating in the schedule name kept the standard low-flow default).";
+                return f;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ReadDesignFixtureFlows: {ex.Message}"); note = null; return null; }
+        }
+
+        /// <summary>Candidate explicit flow-param names a plumbing-aware project may
+        /// stamp, per fixture kind (read as a plain number, band-guarded).</summary>
+        private static readonly Dictionary<FixtureKind, string[]> FlowParamNames =
+            new Dictionary<FixtureKind, string[]>
+            {
+                [FixtureKind.Wc]         = new[] { "PLM_WC_LPF", "WC_FLUSH_L", "Flush Volume", "Full Flush" },
+                [FixtureKind.Urinal]     = new[] { "PLM_URINAL_LPF", "Urinal Flush" },
+                [FixtureKind.Basin]      = new[] { "PLM_TAP_LPM", "Basin Flow", "Flow Rate" },
+                [FixtureKind.Shower]     = new[] { "PLM_SHOWER_LPM", "Shower Flow", "Flow Rate" },
+                [FixtureKind.KitchenTap] = new[] { "PLM_KITCHEN_LPM", "Sink Flow", "Flow Rate" },
+            };
+
+        private static double? ReadFixtureFlowParam(Element el, FixtureKind kind)
+        {
+            if (!FlowParamNames.TryGetValue(kind, out var names)) return null;
+            foreach (var pn in names)
+            {
+                try
+                {
+                    var p = el.LookupParameter(pn);
+                    if (p == null || !p.HasValue) continue;
+                    double v = 0; bool got = false;
+                    if (p.StorageType == StorageType.Double)  { v = p.AsDouble(); got = true; }
+                    else if (p.StorageType == StorageType.Integer) { v = p.AsInteger(); got = true; }
+                    else if (p.StorageType == StorageType.String)
+                        got = double.TryParse((p.AsString() ?? "").Trim(),
+                            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v);
+                    if (got && FixtureFlowReader.InBand(kind, v)) return v;
+                }
+                catch { }
+            }
             return null;
+        }
+
+        private static bool TryMedian(Dictionary<FixtureKind, List<double>> byKind, FixtureKind kind, out double median)
+        {
+            median = 0;
+            if (!byKind.TryGetValue(kind, out var list) || list.Count == 0) return false;
+            var sorted = list.OrderBy(x => x).ToList();
+            int n = sorted.Count;
+            median = (n % 2 == 1) ? sorted[n / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
+            return true;
+        }
+
+        /// <summary>Combined searchable name text for a fixture: family + type +
+        /// instance name + Mark — whichever carries the low-flow rating.</summary>
+        private static string FixtureNameText(Document doc, Element el)
+        {
+            var parts = new List<string>();
+            try
+            {
+                if (doc.GetElement(el.GetTypeId()) is ElementType sym)
+                { parts.Add(sym.FamilyName ?? ""); parts.Add(sym.Name ?? ""); }
+            }
+            catch { }
+            try { parts.Add(el.Name ?? ""); } catch { }
+            try { parts.Add(ParameterHelpers.GetString(el, "Mark")); } catch { }
+            return string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
         }
 
         // ── Materials — share the BOQ carbon path (WS A3) ──────────────────
@@ -485,7 +674,8 @@ namespace StingTools.Core.Sustainability
                         EnergyMj = outp.EnergyMj,
                         FromEpd = outp.FromEpd,
                         CarbonSource = outp.CarbonSource,
-                        EnergySource = outp.EnergySource
+                        EnergySource = outp.EnergySource,
+                        IndicativeOnly = outp.IndicativeOnly
                     });
                 }
             }
