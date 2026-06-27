@@ -268,13 +268,10 @@ namespace StingTools.UI.PlacementCenter
 
         public string IpRatingMin
         {
-            get => _rule.IpRatingMin.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            set
-            {
-                int.TryParse(value ?? "0", System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture, out var n);
-                if (_rule.IpRatingMin != n) { _rule.IpRatingMin = n; MarkDirty(); }
-            }
+            // IP ingress-protection CODE (e.g. "IP44", "IP2X") — a string, not an
+            // integer ("IP2X" isn't numeric). Stored verbatim on the rule.
+            get => _rule.IpRatingMin ?? "";
+            set { if (_rule.IpRatingMin != value) { _rule.IpRatingMin = value ?? ""; MarkDirty(); } }
         }
         public string WetZoneExclusion  { get => _rule.WetZoneExclusion;  set { if (_rule.WetZoneExclusion  != value) { _rule.WetZoneExclusion  = value ?? "NONE"; MarkDirty(); } } }
         public bool   AccessibilityCheck { get => _rule.AccessibilityCheck; set { if (_rule.AccessibilityCheck != value) { _rule.AccessibilityCheck = value; MarkDirty(); } } }

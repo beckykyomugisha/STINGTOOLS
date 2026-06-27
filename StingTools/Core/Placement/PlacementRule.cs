@@ -438,7 +438,7 @@ namespace StingTools.Core.Placement
         public string ApplicableStandards { get; set; } = "";
 
         /// <summary>Minimum IP rating required (numeric, e.g. 44 for IP44).</summary>
-        public int IpRatingMin { get; set; } = 0;
+        public string IpRatingMin { get; set; } = "";
 
         /// <summary>Wet zone exclusion zone class string (e.g. "ZONE_1", "ZONE_2").</summary>
         public string WetZoneExclusion { get; set; } = "";
