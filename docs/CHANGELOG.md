@@ -47,6 +47,24 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 2: resizable/sortable columns)
+
+Branch `claude/placement-centre-review-audit`. All three Schedule grids now set
+`CanUserResizeColumns = true` + `CanUserSortColumns = true` (explicit), and columns are
+sized so headers + content never clip: the name column is star-width (Phase / Milestone,
+`MinWidth` 140); date / number columns are `DataGridLength.Auto` (size to max of header
+and content, so "% Complete", "Period end", "Actual cost (cum, UGX)", "Planned (UGX)",
+"Date", "Done" all render in full) with sensible `MinWidth`s. The periods grid's
+Actual-cost column is star so that grid fills the width too. Date columns carry
+`SortMemberPath = "Start"/"End"/"Date"` so clicking the header sorts by the real
+`DateTime`, not the `yyyy-MM-dd` text. Users can drag column borders to widen any column.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → every header reads in full ("Phase",
+"% Complete", "Period end", "Actual cost (cum, UGX)", "Milestone", "Planned (UGX)");
+drag a column border → it resizes; click a date/number header → rows sort (dates
+chronologically); the name columns stretch to fill remaining width.
+
 #### Completed (BOQ 5D Schedule-tab interactivity — slice 1: layout + scroll)
 
 Branch `claude/placement-centre-review-audit`. Fixes the Schedule tab's three grids

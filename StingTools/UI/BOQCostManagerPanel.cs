@@ -4556,18 +4556,22 @@ namespace StingTools.UI
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 MaxHeight = 240,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                CanUserResizeColumns = true,
+                CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_scheduleGrid);
-            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Phase", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
+            // Name fills (star); date/number columns Auto-size to header+content so
+            // nothing clips. SortMemberPath sorts dates by the real DateTime, not text.
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Phase", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 140,
                 Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
-            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Start", Width = 110,
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Start", Width = DataGridLength.Auto, MinWidth = 92, SortMemberPath = "Start",
                 Binding = new Binding("StartStr") { Mode = BindingMode.TwoWay } });
-            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "End", Width = 110,
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "End", Width = DataGridLength.Auto, MinWidth = 92, SortMemberPath = "End",
                 Binding = new Binding("EndStr") { Mode = BindingMode.TwoWay } });
-            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete", Width = 90,
+            _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete", Width = DataGridLength.Auto, MinWidth = 90,
                 Binding = new Binding("PercentComplete") { Mode = BindingMode.TwoWay, StringFormat = "0.#" } });
-            var planCol = new DataGridTextColumn { Header = "Planned (UGX)", Width = 130, IsReadOnly = true,
+            var planCol = new DataGridTextColumn { Header = "Planned (UGX)", Width = DataGridLength.Auto, MinWidth = 110, IsReadOnly = true,
                 Binding = new Binding("PlannedCost") { StringFormat = "N0" } };
             _scheduleGrid.Columns.Add(planCol);
             _scheduleGrid.CellEditEnding += (s, e) =>
@@ -4588,14 +4592,17 @@ namespace StingTools.UI
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 MaxHeight = 200,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                CanUserResizeColumns = true,
+                CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_periodsGrid);
-            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Period end", Width = 120,
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Period end", Width = DataGridLength.Auto, MinWidth = 100, SortMemberPath = "Date",
                 Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
-            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete (overall)", Width = 140,
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete (overall)", Width = DataGridLength.Auto, MinWidth = 140,
                 Binding = new Binding("PercentComplete") { Mode = BindingMode.TwoWay, StringFormat = "0.#" } });
-            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Actual cost (cum, UGX)", Width = 160,
+            // Actual-cost column takes the slack so the periods grid fills the width.
+            _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Actual cost (cum, UGX)", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 170,
                 Binding = new Binding("Acwp") { Mode = BindingMode.TwoWay, StringFormat = "N0" } });
             _periodsGrid.CellEditEnding += (s, e) =>
                 Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
@@ -4611,14 +4618,16 @@ namespace StingTools.UI
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 MaxHeight = 200,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                CanUserResizeColumns = true,
+                CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_milestonesGrid);
-            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Milestone", Width = new DataGridLength(2, DataGridLengthUnitType.Star),
+            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Milestone", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 140,
                 Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
-            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Date", Width = 120,
+            _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Date", Width = DataGridLength.Auto, MinWidth = 100, SortMemberPath = "Date",
                 Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
-            _milestonesGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Done", Width = 60,
+            _milestonesGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Done", Width = DataGridLength.Auto, MinWidth = 56,
                 Binding = new Binding("Done") { Mode = BindingMode.TwoWay } });
             _milestonesGrid.CellEditEnding += (s, e) =>
                 Dispatcher.BeginInvoke(new Action(() => { SaveSchedule(); RecalcSchedule(); }),
