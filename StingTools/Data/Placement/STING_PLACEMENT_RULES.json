@@ -4,6 +4,7 @@
   "Rules": [
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -17,6 +18,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -30,6 +32,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)\\b(bathroom|wc|toilet|shower|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -43,6 +46,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)office|study|workstation",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -56,6 +60,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -69,6 +74,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)corridor|circulation",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -82,6 +88,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)stair",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -95,6 +102,7 @@
     },
     {
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)living|lounge|reception",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -108,6 +116,7 @@
     },
     {
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)bedroom",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -121,6 +130,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)office|study",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -147,6 +157,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)server|comms|idf|mdf",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 500.0,
@@ -173,6 +184,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)entrance|reception",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": -200.0,
@@ -186,6 +198,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)server|comms|plant",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": -200.0,
@@ -225,6 +238,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)corridor|escape",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": 0.0,
@@ -238,6 +252,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)stair|lobby",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": 0.0,
@@ -446,6 +461,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)corridor",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -459,6 +475,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)plant|boiler|pump",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 500.0,
@@ -498,6 +515,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)classroom|lecture",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -511,6 +529,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)lab|laboratory",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -524,6 +543,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)ward|bedroom|office",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,

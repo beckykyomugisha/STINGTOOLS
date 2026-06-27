@@ -5,6 +5,7 @@
     {
       "RuleId": "mk-socket-living-13a",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)living|lounge|sitting|dining|hall|reception",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -29,6 +30,7 @@
     {
       "RuleId": "mk-socket-kitchen-worktop",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen|utility",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 975,
@@ -71,6 +73,7 @@
     {
       "RuleId": "mk-socket-bedroom-twin",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)bedroom|bed *room",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -96,6 +99,7 @@
     {
       "RuleId": "mk-shaver-bathroom",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)shaver",
       "RoomFilter": "(?i)bathroom|wet *room|en *suite|shower",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1200,
@@ -122,6 +126,7 @@
     {
       "RuleId": "mk-socket-utility-ip2x",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)garage|utility|store",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -145,6 +150,7 @@
     {
       "RuleId": "mk-socket-external-ip66",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)external|outside|patio|terrace",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 500,
@@ -288,6 +294,7 @@
     {
       "RuleId": "mk-socket-accessible",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)accessible|wheelchair|wc accessible|bedroom accessible",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 750,
@@ -312,6 +319,7 @@
     {
       "RuleId": "mk-switch-accessible",
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)accessible|wheelchair",
       "AnchorType": "DOOR_LATCH_SIDE",
       "MountingHeightMm": 1000,
@@ -336,6 +344,7 @@
     {
       "RuleId": "mk-cluster-ws-triple-power",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -359,6 +368,7 @@
     {
       "RuleId": "mk-cluster-ws-triple-power-b",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -382,6 +392,7 @@
     {
       "RuleId": "mk-cluster-ws-triple-data",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -405,6 +416,7 @@
     {
       "RuleId": "mk-cluster-av-quad-hdmi",
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -428,6 +440,7 @@
     {
       "RuleId": "mk-cluster-av-quad-usbc",
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -451,6 +464,7 @@
     {
       "RuleId": "mk-cluster-av-quad-13a",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -474,6 +488,7 @@
     {
       "RuleId": "mk-cluster-av-quad-rj45",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -621,6 +636,7 @@
     {
       "RuleId": "mk-socket-office-density",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RuleKind": "Density",
       "RoomFilter": "(?i)open *plan|open *office|workstation",
       "AnchorType": "PERIMETER_OFFSET",
@@ -667,6 +683,7 @@
     {
       "RuleId": "mk-socket-plant-metalclad",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)plant|boiler|switch *room|comms|riser",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 450,
@@ -690,6 +707,7 @@
     {
       "RuleId": "mk-socket-plant-ip66",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)external|plant *yard|substation|generator",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 500,
@@ -713,6 +731,7 @@
     {
       "RuleId": "mk-bedhead-socket",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)ward|bed *bay|treatment",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1000,
@@ -740,6 +759,7 @@
     {
       "RuleId": "mk-bedhead-data",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)ward|bed *bay|treatment",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1000,
