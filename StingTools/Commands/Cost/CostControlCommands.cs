@@ -331,8 +331,14 @@ namespace StingTools.Commands.Cost
                     ? $"Cert #{baseCert.CertNumber} SOV (frozen)"
                     : "live BOQ grand total — no issued cert, assumption";
 
-                double afcAgreedOnly = Math.Round(contractSum + agreedVo, 0);
-                double afc = Math.Round(contractSum + agreedVo + pendingVo, 0);
+                // G2 — provisional-sum movement (Σ reconciled actual − original)
+                // from the reconciliation trail. The baseline carries PS at their
+                // ORIGINAL allowances, so adding the movement (a delta, not the
+                // full actual) lands the AFC on PS actuals without double-counting.
+                double psMovement = BoqProvisionalTrail.MovementUGX(doc);
+
+                double afcAgreedOnly = Math.Round(contractSum + agreedVo + psMovement, 0);
+                double afc = Math.Round(contractSum + agreedVo + pendingVo + psMovement, 0);
                 double variance = budget > 0 ? budget - afc : 0;
 
                 // On-screen summary.
@@ -351,6 +357,7 @@ namespace StingTools.Commands.Cost
                     .AddSection("ANTICIPATED FINAL COST")
                     .Metric("Contract sum (baseline)", $"{ccy} {contractSum:N0}")
                     .Metric("Baseline basis", contractSumBasis)
+                    .Metric("Provisional-sum movement", $"{(psMovement >= 0 ? "+" : "")}{ccy} {psMovement:N0}")
                     .Metric("AFC (agreed only)", $"{ccy} {afcAgreedOnly:N0}")
                     .Metric("AFC (incl. pending)", $"{ccy} {afc:N0}")
                     .Metric("Budget", budget > 0 ? $"{ccy} {budget:N0}" : "— not set —")
@@ -391,6 +398,7 @@ namespace StingTools.Commands.Cost
                     Line("BOQ grand total (live)", grand, true);
                     r++;
                     Line($"Contract sum baseline [{contractSumBasis}]", contractSum, true);
+                    Line("Provisional-sum movement", psMovement);
                     Line("Agreed variations", agreedVo);
                     Line("Pending variations", pendingVo);
                     r++;

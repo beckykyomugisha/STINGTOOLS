@@ -289,8 +289,13 @@ This is the part a real guide hides and you find out the hard way. We won't.
    Refresh deliberately, not constantly.
 7. **No first-run wizard.** There's no guided "set up costing" walkthrough yet —
    this document is the stand-in. *(Coming.)*
-8. **Provisional-sum reconciliation** exists but is light — you replace the number;
-   there's no full PS adjudication trail yet.
+8. ~~**Provisional-sum reconciliation** is light — you replace the number.~~
+   ✓ **Closed (G2).** **Actions → Reconcile Provisionals** now opens an inline
+   editable trail: each provisional sum keeps its **frozen original allowance**
+   and you record the **final-account actual** + a note. Each save appends a dated
+   adjustment to `_BIM_COORD/boq_provisionals.json` (persists across reopen), and
+   Σ(actual − original) — the **provisional-sum movement** — shows in the coverage
+   strip and is folded into the **Anticipated Final Cost**.
 9. **You still need a human QS for contractual sign-off.** This tool produces a
    strong, defensible cost picture fast — it does **not** replace professional
    certification on a real contract. Use it to do 90% of the work and to make the

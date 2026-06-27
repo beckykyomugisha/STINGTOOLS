@@ -3,6 +3,31 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ QS gap G2 — provisional-sum reconciliation trail)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #8 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqProvisionalRecord` / `BoqProvisionalStore`
++ `BoqProvisionalTrail` helper persist a per-PS reconciliation record to
+`_BIM_COORD/boq_provisionals.json` (`id, description, originalSum,
+adjustments:[{date,amount,note}], reconciledActual, status: Open|PartlyReconciled|
+Closed`), keyed off `BOQLineItem.Id` (stable — `Clone` preserves Id, PS rows come
+from the manual store). The **Reconcile Provisionals** action (Actions → COST
+REPORT P4.4) now renders an inline dynamic editable form
+(`BOQCostManagerPanel.ShowProvisionalReconcileForm`) listing each PS with its
+FROZEN original allowance + an editable actual + note; Save appends a dated
+adjustment and stamps the delta. Σ(actual − original) — the **provisional-sum
+movement** — is shown in the form + the panel coverage strip and folded into
+`Cost_AnticipatedFinalCost` (added as a delta to the frozen baseline, so PS land
+on actuals without double-counting; surfaced as a metric + XLSX line). The prior
+auto-match-and-promote `BOQReconcileProvisionalsCommand` stays in the codebase
+(still dispatchable) but the button now drives the trail form. Compile-verified
+Release `-t:Rebuild`, 0 errors. No popup (inline form, JSON persistence).
+
+**Revit smoke test** (human): Add a Provisional Sum → Actions → Reconcile
+Provisionals → enter an actual + note → Save (form re-renders showing the
+movement) → reopen the project → Reconcile Provisionals again → the actual +
+movement persist; Anticipated Final Cost shows the provisional-sum movement line.
+
 #### Completed (BOQ QS gap G9 follow-up — per-sheet draft footer)
 
 Branch `claude/placement-centre-review-audit`. Refines G9 so the DRAFT/CERTIFIED

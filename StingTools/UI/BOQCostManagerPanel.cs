@@ -1037,7 +1037,7 @@ namespace StingTools.UI
                     ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
-                     "Match provisional sums to modelled elements and reconcile against outturn (final account).", false),
+                     "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
@@ -1252,6 +1252,11 @@ namespace StingTools.UI
             {
                 HighlightActionButton(btn);
                 if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                // G2 — the reconcile action renders a dynamic per-PS editable
+                // trail form (not the fixed-field ShowInlineForm), so intercept it
+                // before the generic form/dispatch path.
+                if (tag == "ReconcileProvisionals") { ShowProvisionalReconcileForm(label); return; }
 
                 // P2.2 — input-heavy actions render a single inline editable form
                 // first; on Run the form sets the command's ExtraParams and then
@@ -1476,6 +1481,182 @@ namespace StingTools.UI
                 }
             }
             return false;
+        }
+
+        // ── G2 — provisional-sum reconciliation trail (dynamic inline form) ──
+        //  Lists every PS row with its FROZEN original allowance + an editable
+        //  "actual" + note. On Save it appends a dated adjustment to the trail
+        //  (boq_provisionals.json), so estimate → actual is recorded, not
+        //  overwritten. Σ(actual − original) is the provisional-sum movement,
+        //  shown here, in the coverage strip, and folded into Anticipated Final
+        //  Cost. No popup; persists like SaveUiState (UI = Revit main thread).
+        private void ShowProvisionalReconcileForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var psRows = _boq?.AllItems?
+                    .Where(i => i.Source == BOQRowSource.ProvisionalSum)
+                    .ToList() ?? new List<BOQLineItem>();
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Provisional-sum reconciliation", FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6)
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Record the final-account actual against each provisional sum. The original "
+                         + "allowance is frozen on first sight; the movement (actual − original) is added "
+                         + "to the Anticipated Final Cost.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                if (psRows.Count == 0)
+                {
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "No provisional sums in this bill yet. Add one via Actions → Add Manual / PS / "
+                             + "Daywork and mark it a Provisional Sum.",
+                        FontSize = 11, Foreground = AmberBrush, TextWrapping = TextWrapping.Wrap
+                    });
+                    _actionReportHost.Child = sp;
+                    return;
+                }
+
+                var store = BoqProvisionalTrail.Load(Doc);
+
+                var grid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+
+                void HeaderCell(string text, int col)
+                {
+                    var t = new TextBlock { Text = text, FontSize = 10, FontWeight = FontWeights.Bold,
+                        Foreground = NavyBrush, Margin = new Thickness(0, 0, 8, 6) };
+                    Grid.SetRow(t, 0); Grid.SetColumn(t, col); grid.Children.Add(t);
+                }
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                HeaderCell("Provisional sum", 0);
+                HeaderCell("Original (UGX)", 1);
+                HeaderCell("Actual (UGX)", 2);
+                HeaderCell("Note", 3);
+
+                var editors = new List<(string id, string desc, double original, TextBox actual, TextBox note)>();
+                int r = 1;
+                foreach (var ps in psRows)
+                {
+                    var rec = store.Records.FirstOrDefault(x => x.Id == ps.Id);
+                    double original = rec?.OriginalSum ?? ps.TotalUGX;   // freeze on first sight
+                    string actualStr = rec?.ReconciledActual?.ToString("F0", CultureInfo.InvariantCulture) ?? "";
+                    string noteStr = rec?.Adjustments != null && rec.Adjustments.Count > 0
+                        ? rec.Adjustments[rec.Adjustments.Count - 1].Note : "";
+
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var descTb = new TextBlock { Text = ps.ItemName ?? ps.Category ?? "(PS)", FontSize = 11,
+                        VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                        Margin = new Thickness(0, 3, 8, 3) };
+                    Grid.SetRow(descTb, r); Grid.SetColumn(descTb, 0); grid.Children.Add(descTb);
+
+                    var origTb = new TextBlock { Text = original.ToString("N0", CultureInfo.InvariantCulture),
+                        FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 3, 8, 3) };
+                    Grid.SetRow(origTb, r); Grid.SetColumn(origTb, 1); grid.Children.Add(origTb);
+
+                    var actualTb = new TextBox { Text = actualStr, Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 8, 2) };
+                    Grid.SetRow(actualTb, r); Grid.SetColumn(actualTb, 2); grid.Children.Add(actualTb);
+
+                    var noteTb = new TextBox { Text = noteStr, Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 0, 2) };
+                    Grid.SetRow(noteTb, r); Grid.SetColumn(noteTb, 3); grid.Children.Add(noteTb);
+
+                    editors.Add((ps.Id, ps.ItemName ?? ps.Category ?? "(PS)", original, actualTb, noteTb));
+                    r++;
+                }
+                sp.Children.Add(grid);
+
+                int reconciled0 = store.Records.Count(x => x.ReconciledActual.HasValue);
+                double mv0 = BoqProvisionalTrail.MovementUGX(store);
+                var movementText = new TextBlock
+                {
+                    Text = $"Provisional-sum movement: UGX {mv0:+#,##0;-#,##0;0}   ·   {reconciled0}/{psRows.Count} reconciled",
+                    FontSize = 12, FontWeight = FontWeights.SemiBold,
+                    Foreground = mv0 > 0 ? RedBrush : mv0 < 0 ? GreenBrush : NavyBrush,
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                sp.Children.Add(movementText);
+
+                var saveBtn = new Button
+                {
+                    Content = "Save reconciliation", FontSize = 12, FontWeight = FontWeights.Bold, Height = 30, MinWidth = 150,
+                    HorizontalAlignment = HorizontalAlignment.Left, Background = GreenBrush, Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand
+                };
+                saveBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        string today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                        foreach (var ed in editors)
+                        {
+                            var rec = store.Records.FirstOrDefault(x => x.Id == ed.id);
+                            if (rec == null)
+                            {
+                                rec = new BoqProvisionalRecord { Id = ed.id, Description = ed.desc, OriginalSum = ed.original };
+                                store.Records.Add(rec);
+                            }
+                            else { rec.Description = ed.desc; }  // OriginalSum stays frozen
+
+                            string raw = ed.actual.Text?.Trim() ?? "";
+                            double? newActual = null;
+                            if (!string.IsNullOrEmpty(raw) &&
+                                double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double a))
+                                newActual = Math.Round(a, 0);
+                            string note = ed.note.Text?.Trim() ?? "";
+                            double? prevActual = rec.ReconciledActual;
+
+                            if (newActual.HasValue)
+                            {
+                                if (!prevActual.HasValue || Math.Abs(newActual.Value - prevActual.Value) > 0.5)
+                                {
+                                    // Actual changed → append a dated adjustment (estimate→actual trail).
+                                    double priorBasis = prevActual ?? rec.OriginalSum;
+                                    rec.Adjustments.Add(new BoqProvisionalAdjustment
+                                    {
+                                        Date = today, Amount = Math.Round(newActual.Value - priorBasis, 0), Note = note
+                                    });
+                                    rec.ReconciledActual = newActual;
+                                }
+                                else if (note.Length > 0 && rec.Adjustments.Count > 0)
+                                {
+                                    // Same actual, note edited → annotate the latest adjustment in place.
+                                    rec.Adjustments[rec.Adjustments.Count - 1].Note = note;
+                                }
+                                else if (note.Length > 0)
+                                {
+                                    rec.Adjustments.Add(new BoqProvisionalAdjustment { Date = today, Amount = 0, Note = note });
+                                    rec.ReconciledActual = newActual;
+                                }
+                            }
+                            rec.Status = rec.ReconciledActual.HasValue ? "Closed"
+                                       : rec.Adjustments.Count > 0 ? "PartlyReconciled" : "Open";
+                        }
+                        BoqProvisionalTrail.Save(Doc, store);
+                        RefreshMetrics();          // coverage strip picks up the new movement
+                        ShowProvisionalReconcileForm(label);  // re-render with persisted state + movement
+                    }
+                    catch (Exception ex) { StingLog.Error("BOQ ProvisionalReconcile save", ex); }
+                };
+                sp.Children.Add(saveBtn);
+
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowProvisionalReconcileForm", ex); }
         }
 
         private void HighlightActionButton(Button btn)
@@ -1707,6 +1888,14 @@ namespace StingTools.UI
             _defaultCoverageText = $"Description coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
                 + $"| Avg rate confidence {_boq.AverageRateConfidence:F0} "
                 + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
+            // G2 — show provisional-sum movement (Σ actual − original) when reconciled.
+            try
+            {
+                double psMovement = BoqProvisionalTrail.MovementUGX(Doc);
+                if (Math.Abs(psMovement) >= 1)
+                    _defaultCoverageText += $" | PS movement UGX {psMovement:+#,##0;-#,##0;0}";
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ PS movement strip: {ex.Message}"); }
             _paragraphCoverage.Text = _defaultCoverageText;
             _paragraphCoverage.Foreground = Brushes.Gray;
         }
