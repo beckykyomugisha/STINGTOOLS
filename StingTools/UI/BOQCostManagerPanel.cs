@@ -1588,8 +1588,71 @@ namespace StingTools.UI
                     }, get => StingCommandHandler.SetExtraParam("MeasStandardId", get("MeasStandardId")));
                     return true;
                 }
+                case "CostPlan_Create":
+                {
+                    // P0.3 — building-type picker + GIFA TaskDialog rendered inline.
+                    var btOpts = new List<(string, string)>();
+                    try
+                    {
+                        foreach (var b in StingTools.Core.CostPlan.CostPlanRegistry.Get(Doc).BuildingTypes)
+                            btOpts.Add((b, b));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BOQ cost-plan building types: {ex.Message}"); }
+                    // No benchmarks loaded — let the command surface its own NO BENCHMARKS panel.
+                    if (btOpts.Count == 0) return false;
+                    string gifaDefault = SuggestGifaM2().ToString("F0", CultureInfo.InvariantCulture);
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "CostPlanBuildingType", Label = "Building type", Kind = BoqFormKind.Combo, Options = btOpts },
+                        new BoqFormField { Key = "CostPlanGifa", Label = "GIFA (m²)", Kind = BoqFormKind.Number, Default = gifaDefault },
+                    }, get =>
+                    {
+                        StingCommandHandler.SetExtraParam("CostPlanBuildingType", get("CostPlanBuildingType"));
+                        StingCommandHandler.SetExtraParam("CostPlanGifa", get("CostPlanGifa"));
+                    });
+                    return true;
+                }
+                case "CostPlan_Compare":
+                case "CostPlan_Export":
+                {
+                    // P0.3 — saved-plan picker rendered inline (combo of plan files).
+                    var planOpts = new List<(string, string)>();
+                    try
+                    {
+                        foreach (var p in StingTools.Core.CostPlan.CostPlanEngine.ListPlans(Doc))
+                            planOpts.Add((System.IO.Path.GetFileNameWithoutExtension(p), p));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BOQ cost-plan list: {ex.Message}"); }
+                    // No saved plans — let the command surface its own NO PLANS panel.
+                    if (planOpts.Count == 0) return false;
+                    ShowInlineForm(label, tag, new List<BoqFormField>
+                    {
+                        new BoqFormField { Key = "CostPlanPath", Label = "Cost plan", Kind = BoqFormKind.Combo, Options = planOpts },
+                    }, get => StingCommandHandler.SetExtraParam("CostPlanPath", get("CostPlanPath")));
+                    return true;
+                }
             }
             return false;
+        }
+
+        /// <summary>P0.3 — sum of model Room.Area (ft² → m²) as a GIFA default for the
+        /// Cost Plan inline form. Reads run on the dockable pane's Revit-main thread.
+        /// Returns 0 when there are no rooms (the form shows a blank, editable field).</summary>
+        private double SuggestGifaM2()
+        {
+            double m2 = 0;
+            try
+            {
+                if (Doc == null) return 0;
+                var col = new FilteredElementCollector(Doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType();
+                foreach (Element el in col)
+                    if (el is Autodesk.Revit.DB.Architecture.Room room && room.Area > 0)
+                        m2 += room.Area * 0.092903;   // ft² → m²
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ SuggestGifaM2: {ex.Message}"); }
+            return Math.Round(m2);
         }
 
         // ── G2 — provisional-sum reconciliation trail (dynamic inline form) ──

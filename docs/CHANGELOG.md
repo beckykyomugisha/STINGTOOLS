@@ -3,6 +3,34 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D inline-forms sweep #1 — Cost Plan)
+
+Branch `claude/placement-centre-review-audit`. Continues the zero-input-popup sweep
+(matches the P0.3 pattern). `CostPlanCommands.cs` — all three Actions commands now
+render their input inline in the Actions pane via `ShowInlineForm` + the ExtraParam
+contract; each command reads the values via `GetExtraParam` and skips its dialog when
+present (modal kept as the ribbon/non-panel fallback):
+
+- **New Cost Plan** (`CostPlan_Create`) — was a building-type **picker** + a GIFA
+  **TaskDialog**; now a 2-field inline form: building-type combo (options from
+  `CostPlanRegistry.BuildingTypes`) + a GIFA (m²) numeric field pre-filled from the
+  model's summed `Room.Area` (ft²→m², `SuggestGifaM2`). ExtraParams
+  `CostPlanBuildingType` + `CostPlanGifa`.
+- **Compare vs BOQ** (`CostPlan_Compare`) + **Export Cost Plan** (`CostPlan_Export`) —
+  were saved-plan **pickers**; now a single combo of saved plan files (display =
+  filename, value = path) via `CostPlanEngine.ListPlans`. ExtraParam `CostPlanPath`.
+
+When there are no benchmarks / no saved plans the panel returns `false` so the command
+runs and surfaces its own inline "NO BENCHMARKS" / "NO PLANS" panel. Results render
+inline via `StingResultPanel.InlineSink`. No `DispatcherFrame`/`PushFrame` — the banned
+nested pump is never reintroduced. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): BOQ Cost Manager → COST PLAN card → **★ New Cost Plan**
+renders a building-type combo + GIFA field (pre-filled from model rooms) + Run, no
+popup; Run → the plan builds and the result shows inline. **Compare vs BOQ** and
+**Export Cost Plan** each render a saved-plan combo + Run inline. Rapid-clicking never
+wedges the panel.
+
 #### Completed (BOQ 5D Enhanced Rebuild — Phase 0.3: input commands → inline forms)
 
 Branch `claude/placement-centre-review-audit`. Third gap of Phase 0. Migrates the
