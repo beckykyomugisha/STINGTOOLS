@@ -1105,6 +1105,14 @@ namespace StingTools.Core.Placement
             double catMergeFt = crowdMm * MmToFt;
             double catMergeSq = catMergeFt * catMergeFt;
 
+            // Tier 1 — collect placed instances and orient them AFTER one
+            // doc.Regenerate() (below the loop). Reading FacingOrientation before
+            // a regen returns zero/default on a freshly-created non-hosted
+            // instance, so the post-hoc wall alignment no-opped and fixtures
+            // stayed diagonal. One regen per rule-room (not per instance) keeps
+            // it cheap while making orientation reliable.
+            var toOrient = new List<FamilyInstance>();
+
             foreach (var c in chosen)
             {
                 bool tooClose = false;
@@ -1160,15 +1168,12 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, effRule);
-                    // Phase 188 (review pass-2 #1) — orient the freshly-placed
-                    // instance. OrientPlacedInstance applies RotationDeg, flips
-                    // the family to face INTO the room, and snaps it off the wall
-                    // centerline onto the wall face. It was wired only into the
-                    // CoPlaceWith path (ProcessRoomRuleAtPoint), so the MAIN path —
-                    // where most fixtures are placed — left switches/sockets facing
-                    // world-X and sitting inside the wall. Run it here too.
-                    try { OrientPlacedInstance(doc, fi, effRule, room); }
-                    catch (Exception oex) { result.Warnings.Add($"Orient {rule.CategoryFilter} in {SafeRoomName(room)}: {oex.Message}"); }
+                    // Tier 1 — defer orientation. OrientPlacedInstance applies
+                    // RotationDeg, flips the family to face INTO the room, and
+                    // snaps it onto the wall face — but it needs a valid
+                    // FacingOrientation, which only exists after a regen. Collect
+                    // here; orient all after one regen below the loop.
+                    toOrient.Add(fi);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -1209,6 +1214,23 @@ namespace StingTools.Core.Placement
                 {
                     result.SkippedCount++;
                     result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex2.Message}");
+                }
+            }
+
+            // Tier 1 — orient every just-placed instance after ONE regen so
+            // FamilyInstance.FacingOrientation is valid. Previously orientation
+            // ran inline on a freshly-created instance whose facing was still
+            // zero/default, so the wall-alignment in OrientPlacedInstance no-opped
+            // and fixtures stayed diagonal. One regen per rule-room is cheap.
+            if (toOrient.Count > 0)
+            {
+                try { doc.Regenerate(); }
+                catch (Exception rex) { StingLog.Warn($"Regenerate before orient: {rex.Message}"); }
+                foreach (var ofi in toOrient)
+                {
+                    if (ofi == null || !ofi.IsValidObject) continue;
+                    try { OrientPlacedInstance(doc, ofi, effRule, room); }
+                    catch (Exception oex) { result.Warnings.Add($"Orient {rule.CategoryFilter} in {SafeRoomName(room)}: {oex.Message}"); }
                 }
             }
         }
@@ -1500,6 +1522,8 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
+                // Tier 1 — regen so FacingOrientation is valid before aligning.
+                try { doc.Regenerate(); } catch { }
                 OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
