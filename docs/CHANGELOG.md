@@ -47,6 +47,33 @@ shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source mig
 line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
 4D/5D tab are unchanged in this slice.
 
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 4: selection / keys / scroll)
+
+Branch `claude/placement-centre-review-audit`. Interactivity polish on the three Schedule
+grids via `StyleScheduleGrid<T>`:
+- **Selection** — `SelectionMode = Single`, `SelectionUnit = FullRow`, with a
+  theme-navy highlight (overrides the OS blue via `SystemColors.HighlightBrushKey` /
+  `InactiveSelectionHighlightBrushKey` in the grid's resources; white / navy text).
+- **Delete key** — pressing Delete on a focused row removes it through the same
+  `DeleteScheduleRow` path as the ✕. Guarded by `e.OriginalSource is DataGridCell` so it
+  only fires on a selected row, never while editing a cell's text (where the source is the
+  editor `TextBox`).
+- **Scroll-into-view** — `SelectScheduleRow` selects + `ScrollIntoView`s the new row after
+  ＋ Phase / ＋ Period / ＋ Milestone, and the again-current neighbour after a delete
+  (slice 3). Totals (PV/EV + S-curve) already recompute on every add / edit / delete.
+
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → click a row → it highlights navy; press
+Delete → the row is removed and the S-curve/EVM update (editing a cell's text and pressing
+Delete still deletes a character, not the row); ＋ Phase / ＋ Period / ＋ Milestone adds a
+row, selects it and scrolls it into view.
+
+**Acceptance (slices 1–4):** all three grids fill the panel width with non-truncated,
+resizable, sortable columns; long lists scroll within each grid (240/200px) with the wheel;
+each row has a working ✕ (and Delete key) that removes it, updates the S-curve/EVM, and
+persists across reopen; navy selection highlight; no popups; build 0 errors.
+
 #### Completed (BOQ 5D Schedule-tab interactivity — slice 3: per-row delete)
 
 Branch `claude/placement-centre-review-audit`. Each of the three Schedule grids gains a

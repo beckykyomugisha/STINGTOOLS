@@ -4541,6 +4541,46 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Error("BOQ DeleteScheduleRow", ex); }
         }
 
+        /// <summary>Slice 4 — single full-row selection with a theme-navy highlight, and
+        /// the Delete key removes the focused row (same path as the ✕). Editing a cell is
+        /// not affected (the keystroke's source is the editor TextBox, not a cell).</summary>
+        private void StyleScheduleGrid<T>(
+            DataGrid grid, System.Collections.ObjectModel.ObservableCollection<T> coll)
+        {
+            grid.SelectionMode = DataGridSelectionMode.Single;
+            grid.SelectionUnit = DataGridSelectionUnit.FullRow;
+
+            var sel = new SolidColorBrush(Color.FromRgb(0x2E, 0x5E, 0x8E)); sel.Freeze();
+            var selInactive = new SolidColorBrush(Color.FromRgb(0xC9, 0xD6, 0xE5)); selInactive.Freeze();
+            grid.Resources[SystemColors.HighlightBrushKey] = sel;
+            grid.Resources[SystemColors.HighlightTextBrushKey] = Brushes.White;
+            grid.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = selInactive;
+            grid.Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = NavyBrush;
+
+            grid.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Delete
+                    && e.OriginalSource is DataGridCell
+                    && grid.SelectedItem is T item)
+                {
+                    DeleteScheduleRow(coll, item, grid);
+                    e.Handled = true;
+                }
+            };
+        }
+
+        /// <summary>Slice 4 — select the just-added item and scroll it into view.</summary>
+        private void SelectScheduleRow(DataGrid grid, object item)
+        {
+            try
+            {
+                if (grid == null || item == null) return;
+                grid.SelectedItem = item;
+                grid.ScrollIntoView(item);
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ SelectScheduleRow: {ex.Message}"); }
+        }
+
         private UIElement BuildScheduleTab()
         {
             var root = new DockPanel { LastChildFill = true, Margin = new Thickness(0) };
@@ -4617,6 +4657,7 @@ namespace StingTools.UI
                 CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_scheduleGrid);
+            StyleScheduleGrid(_scheduleGrid, _schedulePhases);
             // Name fills (star); date/number columns Auto-size to header+content so
             // nothing clips. SortMemberPath sorts dates by the real DateTime, not text.
             _scheduleGrid.Columns.Add(new DataGridTextColumn { Header = "Phase", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 140,
@@ -4654,6 +4695,7 @@ namespace StingTools.UI
                 CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_periodsGrid);
+            StyleScheduleGrid(_periodsGrid, _schedulePeriods);
             _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "Period end", Width = DataGridLength.Auto, MinWidth = 100, SortMemberPath = "Date",
                 Binding = new Binding("DateStr") { Mode = BindingMode.TwoWay } });
             _periodsGrid.Columns.Add(new DataGridTextColumn { Header = "% Complete (overall)", Width = DataGridLength.Auto, MinWidth = 140,
@@ -4681,6 +4723,7 @@ namespace StingTools.UI
                 CanUserSortColumns = true
             };
             AttachScheduleGridWheel(_milestonesGrid);
+            StyleScheduleGrid(_milestonesGrid, _milestones);
             _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Milestone", Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 140,
                 Binding = new Binding("Name") { Mode = BindingMode.TwoWay } });
             _milestonesGrid.Columns.Add(new DataGridTextColumn { Header = "Date", Width = DataGridLength.Auto, MinWidth = 100, SortMemberPath = "Date",
@@ -4728,15 +4771,18 @@ namespace StingTools.UI
             var lastDate = _schedulePeriods.LastOrDefault()?.Date ?? DateTime.Today;
             double lastPct = _schedulePeriods.LastOrDefault()?.PercentComplete ?? 0;
             double lastAc = _schedulePeriods.LastOrDefault()?.Acwp ?? 0;
-            _schedulePeriods.Add(new SchedulePeriod
-            { Date = lastDate.AddMonths(1), PercentComplete = lastPct, Acwp = lastAc });
+            var row = new SchedulePeriod { Date = lastDate.AddMonths(1), PercentComplete = lastPct, Acwp = lastAc };
+            _schedulePeriods.Add(row);
             SaveSchedule(); RecalcSchedule();
+            SelectScheduleRow(_periodsGrid, row);   // Slice 4 — scroll the new row into view
         }
 
         private void AddMilestoneRow()
         {
-            _milestones.Add(new ScheduleMilestone { Name = "New milestone", Date = DateTime.Today.AddMonths(1), Done = false });
+            var row = new ScheduleMilestone { Name = "New milestone", Date = DateTime.Today.AddMonths(1), Done = false };
+            _milestones.Add(row);
             SaveSchedule(); RecalcSchedule();
+            SelectScheduleRow(_milestonesGrid, row);   // Slice 4
         }
 
         /// <summary>
@@ -4856,10 +4902,12 @@ namespace StingTools.UI
             var last = _schedulePhases.LastOrDefault();
             var start = last?.End ?? DateTime.Today;
             int nextId = _schedulePhases.Count == 0 ? 1 : _schedulePhases.Max(t => t.Id) + 1;
-            _schedulePhases.Add(new ScheduleTask
-            { Id = nextId, Name = "New phase", Start = start, End = start.AddMonths(1), PercentComplete = 0, Category = "Phase" });
+            var row = new ScheduleTask
+            { Id = nextId, Name = "New phase", Start = start, End = start.AddMonths(1), PercentComplete = 0, Category = "Phase" };
+            _schedulePhases.Add(row);
             SaveSchedule();
             RecalcSchedule();
+            SelectScheduleRow(_scheduleGrid, row);   // Slice 4 — scroll the new row into view
         }
 
         private void SaveSchedule()
