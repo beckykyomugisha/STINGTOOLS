@@ -472,7 +472,12 @@ namespace StingTools.UI
             // Per-link takeoff chooser. Persisted per project — flexible (pick
             // which links) + sustainable (survives reopen). Linked rows are
             // read-only (not cost-stamped / selectable in host).
-            _linksBtn = BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels());
+            _linksBtn = BuildHeaderBtn("⛓ Links", () => ChooseLinkedModels(),
+                "Include linked Revit models in this bill of quantities.\n" +
+                "Tick which loaded links to take off — their quantities, cost and carbon are added\n" +
+                "(read-only, tagged \"[Linked: …]\"; view them via Group → Source model).\n" +
+                "The count in the button shows how many links are included. Needs at least one link\n" +
+                "loaded first (Manage → Links in Revit).");
             actions.Children.Add(_linksBtn);
 
             // Explicit Refresh forces a full recompute incl. reloaded links — the
@@ -599,7 +604,7 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Error("BOQ ChooseLinkedModels", ex); }
         }
 
-        private Button BuildHeaderBtn(string text, Action click)
+        private Button BuildHeaderBtn(string text, Action click, string tooltip = null)
         {
             var b = new Button
             {
@@ -607,6 +612,7 @@ namespace StingTools.UI
                 Background = OrangeBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
                 FontSize = 11, Cursor = Cursors.Hand
             };
+            if (!string.IsNullOrEmpty(tooltip)) b.ToolTip = tooltip;
             b.Click += (s, e) => click();
             return b;
         }
