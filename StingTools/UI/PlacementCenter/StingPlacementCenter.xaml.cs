@@ -87,6 +87,13 @@ namespace StingTools.UI.PlacementCenter
             {
                 _runHandler = new PlacementRunHandler(this);
                 _runEvent   = ExternalEvent.Create(_runHandler);
+                // Same rule for the generic inline-action event (Rebuild Seeds,
+                // Wall Chase, Import Overrides, …): ExternalEvent.Create must run
+                // in this API context, NOT lazily from a button click — doing it
+                // there throws "Attempting to create an ExternalEvent outside of a
+                // standard API execution".
+                _actionHandler = new PlacementActionHandler(this);
+                _actionEvent   = ExternalEvent.Create(_actionHandler);
             }
             catch (Exception evEx)
             {
@@ -1578,8 +1585,15 @@ namespace StingTools.UI.PlacementCenter
             if (work == null) return;
             try
             {
-                if (_actionHandler == null) _actionHandler = new PlacementActionHandler(this);
-                if (_actionEvent == null)   _actionEvent   = ExternalEvent.Create(_actionHandler);
+                // _actionEvent is created in the ctor (the only valid API context).
+                // Creating it here — off the API thread on a button click — throws
+                // "Attempting to create an ExternalEvent outside of a standard API
+                // execution", so if it's null, fail clearly instead.
+                if (_actionEvent == null)
+                {
+                    Toast($"{title} unavailable — close and reopen the Placement Centre.");
+                    return;
+                }
                 _pendingActionTitle = title;
                 _pendingAction = work;
                 Toast($"{title}…");
