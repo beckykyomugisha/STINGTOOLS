@@ -113,6 +113,74 @@ namespace StingTools.Core.Placement
             return result;
         }
 
+        /// <summary>
+        /// FORCE-rebuild: regenerate the mapped seed family for every distinct
+        /// rule category from JSON (latest geometry + variants) and reload it into
+        /// the project — overwriting cached .rfa and the loaded family — so placed
+        /// instances pick up the new definitions. Unlike EnsureSeeds (missing-only)
+        /// this rebuilds even when the family is already loaded. Call OUTSIDE any
+        /// open transaction.
+        /// </summary>
+        public static SeedEnsureResult RebuildAllForRules(Document doc, IEnumerable<PlacementRule> rules)
+        {
+            var result = new SeedEnsureResult();
+            if (doc == null) return result;
+            var cats = (rules ?? Enumerable.Empty<PlacementRule>())
+                .Select(r => r?.CategoryFilter ?? "")
+                .Where(c => !string.IsNullOrWhiteSpace(c));
+            var distinct = new HashSet<string>(cats, StringComparer.OrdinalIgnoreCase);
+            if (distinct.Count == 0) return result;
+
+            // Distinct mapped seed ids.
+            var seeds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var cat in distinct)
+            {
+                string sid = CategoryToSeedRegistry.Resolve(doc, cat);
+                if (!string.IsNullOrWhiteSpace(sid)) seeds.Add(sid);
+                else result.CategoriesSeedless++;
+            }
+            if (seeds.Count == 0) return result;
+
+            string outRoot = ResolveSeedOutputFolder(doc);
+            try { Directory.CreateDirectory(outRoot); } catch (Exception ex) { StingLog.Warn($"SeedEnsurer.RebuildAll mkdir: {ex.Message}"); }
+
+            foreach (var seedId in seeds)
+            {
+                try
+                {
+                    string spec = StingToolsApp.FindDataFile(seedId + ".json");
+                    if (string.IsNullOrEmpty(spec) || !File.Exists(spec))
+                    {
+                        result.Messages.Add($"Seed '{seedId}' — spec Data/Seeds/{seedId}.json not found; cannot rebuild.");
+                        continue;
+                    }
+                    // Delete the cached .rfa so CreateAllFromFile regenerates it
+                    // (it skips a build when the .rfa already exists).
+                    try
+                    {
+                        string rfa = Path.Combine(outRoot, seedId + ".rfa");
+                        if (File.Exists(rfa)) File.Delete(rfa);
+                    }
+                    catch (Exception dex) { StingLog.Warn($"SeedEnsurer.RebuildAll delete '{seedId}.rfa': {dex.Message}"); }
+
+                    var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot, loadIntoProject: true);
+                    int touched = r.Created + r.Existed;
+                    result.SeedsBuiltOrLoaded += touched;
+                    if (touched > 0)
+                        result.Messages.Add($"Seed '{seedId}' — {r.Created} rebuilt, {r.Existed} reloaded into project.");
+                    else if (r.Failed > 0)
+                        result.Messages.Add($"Seed '{seedId}' — rebuild FAILED ({r.Failed}).");
+                    foreach (var w in r.Warnings.Take(2)) StingLog.Info($"SeedEnsurer.RebuildAll[{seedId}]: {w}");
+                }
+                catch (Exception ex)
+                {
+                    result.Messages.Add($"Seed '{seedId}' — error: {ex.Message}");
+                    StingLog.Warn($"SeedEnsurer.RebuildAll '{seedId}': {ex.Message}");
+                }
+            }
+            return result;
+        }
+
         /// <summary>Set of Category.Name values that have at least one loaded FamilySymbol.</summary>
         private static HashSet<string> LoadedCategoryNames(Document doc)
         {
