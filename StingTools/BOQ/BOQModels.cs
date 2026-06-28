@@ -95,8 +95,25 @@ namespace StingTools.BOQ
         public string ItemName;
         public string FamilyName;
         public string TypeName;
-        public double Quantity;
+        public double Quantity;             // NET measured quantity — the value used for cost
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
+
+        // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
+        // The gross→net derivation so a QS can see exactly how a modelled
+        // geometry became a measured quantity. GrossQuantity is the raw Revit
+        // geometry (pre-deduction, pre-wastage); DeductionQuantity is the
+        // opening/void area removed per the active standard's measurement rules
+        // (NRM2 / CESMM4); WastageQuantity is the cutting/offcut/lap allowance
+        // added as a distinct, visible step (never folded silently into the
+        // rate). Quantity = GrossQuantity − DeductionQuantity + WastageQuantity.
+        // MeasurementNote is the human-readable one-liner (e.g.
+        // "Gross 43.0 m² − openings 5.2 m² + wastage 5% = 39.8 m²").
+        // GrossQuantity == 0 on a model row means "not measured separately"
+        // (manual/PS rows, or pre-2A snapshots) — readers fall back to Quantity.
+        public double GrossQuantity;
+        public double DeductionQuantity;
+        public double WastageQuantity;
+        public string MeasurementNote;
         public double RateUGX;
         public double RateUSD;
         public double EmbodiedCarbonKg;     // kgCO2e
@@ -194,6 +211,10 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
+                GrossQuantity = this.GrossQuantity,
+                DeductionQuantity = this.DeductionQuantity,
+                WastageQuantity = this.WastageQuantity,
+                MeasurementNote = this.MeasurementNote,
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,

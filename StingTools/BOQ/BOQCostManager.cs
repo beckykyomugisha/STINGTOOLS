@@ -17,6 +17,7 @@ using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.BIMManager;
+using StingTools.BOQ.MeasurementStandard;
 using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
@@ -242,6 +243,13 @@ namespace StingTools.BOQ
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
+            // Phase 2A — active measurement standard (project_config.json key set
+            // by Cost_SetMeasurementStandard). Drives rules-based measurement
+            // (NRM2 vs CESMM4 give different nets) + classification + description.
+            boq.MeasurementStandardId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+            if (string.IsNullOrWhiteSpace(boq.MeasurementStandardId)) boq.MeasurementStandardId = "nrm2";
+            var measStd = MeasurementStandardRegistry.Get(boq.MeasurementStandardId);
+
             // G3 — itemised preliminaries schedule (flat % stays the default).
             var prelims = BoqPrelimsStore.Load(doc);
             boq.PrelimsItemised = prelims.Enabled;
@@ -268,7 +276,7 @@ namespace StingTools.BOQ
             var items = new List<BOQLineItem>(allElements.Count);
             foreach (var el in allElements)
             {
-                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes);
+                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
                 if (line != null) items.Add(line);
             }
 
@@ -299,7 +307,7 @@ namespace StingTools.BOQ
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks);
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks, measStd);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
@@ -381,7 +389,8 @@ namespace StingTools.BOQ
 
         private static BOQLineItem BuildLineItemFromElement(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes)
+            Dictionary<string, string> cobieCostCodes,
+            IMeasurementStandard std = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName)) return null;
@@ -398,7 +407,26 @@ namespace StingTools.BOQ
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
-            double quantity = DeriveQuantity(el, unit);
+
+            // Phase 2A — rules-based measurement. Gross modelled geometry →
+            // standard deductions (NRM2/CESMM4 openings & voids) → visible
+            // wastage step → net measured quantity. Raw geometry survives in
+            // GrossQuantity; the gross→net derivation is captured in
+            // MeasurementNote for the audit surface. Falls back to the legacy
+            // DeriveQuantity (gross × waste) when no standard is supplied.
+            double quantity;
+            double grossQty = 0, deductQty = 0, wasteQty = 0;
+            string measNote = null;
+            if (std != null)
+            {
+                quantity = MeasureQuantity(el, unit, catName, std,
+                    out grossQty, out deductQty, out wasteQty, out measNote);
+            }
+            else
+            {
+                quantity = DeriveQuantity(el, unit);
+                grossQty = quantity;
+            }
 
             // (b) Currency
             double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -431,6 +459,10 @@ namespace StingTools.BOQ
                 TypeName = el.Name ?? "",
                 Quantity = quantity,
                 Unit = unit,
+                GrossQuantity = grossQty,
+                DeductionQuantity = deductQty,
+                WastageQuantity = wasteQty,
+                MeasurementNote = measNote,
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
@@ -658,6 +690,173 @@ namespace StingTools.BOQ
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2A — rules-based measurement pipeline.
+        //  Gross geometry → standard deductions (openings/voids) → visible
+        //  wastage step → net measured quantity, with an auditable
+        //  gross→net derivation note. The net is the value used for cost;
+        //  the gross is preserved so nothing is lost.
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static double MeasureQuantity(Element el, string unit, string catName,
+            IMeasurementStandard std, out double gross, out double deduction,
+            out double wastage, out string note)
+        {
+            gross = DeriveGrossQuantity(el, unit);
+            deduction = 0; wastage = 0; note = null;
+            double net = gross;
+            try
+            {
+                // 1. Standard deductions (NRM2/CESMM4 openings & voids).
+                double netOfDeductions = gross;
+                if (std != null && el != null)
+                {
+                    var scratch = new BOQLineItem
+                    {
+                        Quantity = gross,
+                        Unit = unit,
+                        Category = catName,
+                        Discipline = DisciplineForCategory(catName)
+                    };
+                    netOfDeductions = std.ApplyDeductions(scratch, el);
+                    if (double.IsNaN(netOfDeductions) || netOfDeductions < 0) netOfDeductions = gross;
+                }
+                deduction = Math.Max(0, gross - netOfDeductions);
+
+                // 2. Wastage — a distinct, visible step (never folded into the
+                //    rate), applied once to the post-deduction base. Mirrors the
+                //    existing DeriveQuantity waste + measured-addition behaviour.
+                double wastePct = EffectiveWastePercent(el, unit, catName, std);
+                double grossedUp = wastePct > 0
+                    ? netOfDeductions * (1.0 + wastePct / 100.0)
+                    : netOfDeductions;
+                wastage = Math.Max(0, grossedUp - netOfDeductions);
+                net = grossedUp;
+
+                note = BuildMeasurementNote(unit, gross, deduction, wastePct, net);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("MeasureQuantity", $"MeasureQuantity({unit}): {ex.Message}");
+                net = gross; deduction = 0; wastage = 0; note = null;
+            }
+            return net;
+        }
+
+        /// <summary>
+        /// Raw modelled geometry for a unit — the SAME geometry resolution as
+        /// DeriveQuantity but WITHOUT the wastage / measured-addition gross-up
+        /// (which the measurement pipeline applies as a separate visible step).
+        /// </summary>
+        private static double DeriveGrossQuantity(Element el, string unit)
+        {
+            // Data-driven take-off rule path — raw EvaluateQuantity, no waste.
+            try
+            {
+                Document doc = el?.Document;
+                if (doc != null)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    string disc = DisciplineForCategory(catName);
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (rule != null && UnitsAlign(rule.Unit, unit))
+                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
+
+            // Legacy geometry — raw measure, no waste.
+            try
+            {
+                switch ((unit ?? "").ToLowerInvariant())
+                {
+                    case "m²": case "m2": case "sqm":
+                        Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : 1.0;
+                    case "m³": case "m3": case "cum":
+                        Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                        return (volP != null && volP.HasValue) ? volP.AsDouble() * 0.0283168 : 1.0;
+                    case "m":
+                        if (el.Location is LocationCurve lc) return lc.Curve.Length * 0.3048;
+                        Parameter lenP = el.LookupParameter("Length")
+                            ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : 1.0;
+                    case "kg": case "tonne": case "tonnes":
+                        Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        return (massP != null && massP.HasValue) ? massP.AsDouble() : 1.0;
+                    default:
+                        return 1.0;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return 1.0; }
+        }
+
+        /// <summary>
+        /// The effective wastage % to apply (matches DeriveQuantity's existing
+        /// behaviour, plus the optional per-category override from the NRM2/CESMM4
+        /// measurement-rules JSON). Priority: measurement-rule pinned % →
+        /// take-off-rule % → legacy override/COST_DEFAULT_WASTE_PCT + opt-in
+        /// measured additions (rebar lap on mass, concrete over-order on volume).
+        /// </summary>
+        private static double EffectiveWastePercent(Element el, string unit, string catName, IMeasurementStandard std)
+        {
+            try
+            {
+                Document doc = el?.Document;
+                string disc = DisciplineForCategory(catName);
+
+                // 1. Measurement-rule per-category wastage wins when pinned (>= 0).
+                if (doc != null && std != null)
+                {
+                    try
+                    {
+                        var reg = MeasurementRuleRegistry.Get(doc, std.Id);
+                        var mrule = reg.Match(catName, disc, null);
+                        if (mrule != null && mrule.WastePercent >= 0) return mrule.WastePercent;
+                    }
+                    catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Rule", $"meas-rule waste: {exr.Message}"); }
+                }
+
+                // 2. Take-off rule wastage (the existing data-driven path).
+                if (doc != null)
+                {
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var trule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (trule != null && UnitsAlign(trule.Unit, unit)) return trule.WastePercent;
+                }
+
+                // 3. Legacy fallback — measured units only.
+                if (!WasteFactor.AppliesTo(unit)) return 0;
+                double overrideWaste = 0;
+                try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+                catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
+                double wastePct = WasteFactor.ResolveWastePercent(
+                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+
+                string nu = (unit ?? "").ToLowerInvariant();
+                if (nu == "kg" || nu == "tonne" || nu == "tonnes")
+                    wastePct += MeasuredAddition.RebarLapPercent(
+                        IsRebarElement(el), TagConfig.GetConfigDouble("REBAR_LAP_ALLOWANCE_PCT", 0.0));
+                else if (nu == "m³" || nu == "m3" || nu == "cum")
+                    wastePct += MeasuredAddition.ConcreteOverOrderPercent(
+                        IsConcreteElement(el), TagConfig.GetConfigDouble("CONCRETE_OVERORDER_PCT", 0.0));
+                return wastePct;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("EffWaste", $"EffectiveWastePercent: {ex.Message}"); return 0; }
+        }
+
+        private static string BuildMeasurementNote(string unit, double gross, double deduction, double wastePct, double net)
+        {
+            string u = unit ?? "";
+            var sb = new StringBuilder();
+            sb.Append($"Gross {gross:0.##} {u}");
+            if (deduction > 0.0005) sb.Append($" − openings/voids {deduction:0.##} {u}");
+            if (wastePct > 0) sb.Append($" + wastage {wastePct:0.#}%");
+            sb.Append($" = {net:0.##} {u}");
+            return sb.ToString().Trim();
         }
 
         // ── NRM2 paragraph resolution ──────────────────────────────────────
@@ -2078,7 +2277,8 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             BoqGroupingMode grouping,
-            HashSet<string> includedTitles)
+            HashSet<string> includedTitles,
+            IMeasurementStandard measStd)
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2127,7 +2327,7 @@ namespace StingTools.BOQ
                     rawItems = new List<BOQLineItem>(linkEls.Count);
                     foreach (var el in linkEls)
                     {
-                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
+                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes, measStd);
                         if (line != null) rawItems.Add(line);
                     }
                     // Store an isolated clone so a later caller mutating the returned
