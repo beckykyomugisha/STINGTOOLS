@@ -3,6 +3,83 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Phase 2B–2E — live rates · drift · incremental · WBS/ERP)
+
+Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phases
+2B → 2E, one continuous pass after 2A was approved. Each slice compile-verified
+`-c Release -t:Rebuild` (0 errors) and committed separately; all inline (no popups),
+engines reused not forked, `_BIM_COORD` JSON for persistence, Revit reads on the API
+thread, no secrets committed.
+
+**2B — Live rate feeds inline (BCIS / Planscape).** `RateFeedsConfig` + `RateFeedsStore`
+persist BCIS (base URL / key / TTL) + Planscape on/off to `_BIM_COORD/rate_feeds.json`
+(API key in the project file only — never committed). `RateProviderRegistry.Build` now
+attaches the configured feeds so the chain *and* `ResolveAll` include them; new
+`GetLiveFeedProviders(doc)` exposes just the Revit-free network feeds for off-thread
+fetching. `PlanscapeRateProvider` reuses `PlanscapeServerClient` auth via a new public
+`GetBoqRateAsync` (null offline). Inline **Rate feeds** config form + **★ Fetch live
+rates** action: candidates fetched off the UI thread, per-line table (current vs best
+live candidate, ⚠ amber < 60 confidence, as-of date), per-line + bulk Accept; manual
+Override lines flagged "protected" and never auto-applied; Accept writes via the
+model-override sidecar (RateSource=BCIS/Planscape, survives rebuild) and re-totals.
+
+**2C — Drift / auto-reprice.** `CompareSnapshots` refactored to `BuildDiff(a,b)` +
+`CompareLiveToSnapshot` (diff the live bill vs a snapshot file, no temp write); shared
+`LineKey`. Inline **Drift check** action: checksum-changed + net Δ cost/carbon/% headline,
+element-linked Findings grouped by change type (qty moved / new / rate revised / removed),
+and a **Re-price** action → `Cost_RepriceDrift` command (`RepriceElements`, API thread)
+re-runs the rate chain incl. live feeds on qty-moved + new non-override elements, pins the
+fresh rate only when it moves (>1%), re-totals. Passive amber **drift banner** on the
+dashboard strip (checksum compare each refresh; classify only when changed) persisted to
+`_BIM_COORD/boq_drift.json` (`BoqDriftStore`), deep-links to Drift check.
+
+**2D — Incremental host take-off (highest-risk; conservative).** Default Refresh
+re-takes-off only changed/added elements over a cached raw host-item set; identical to a
+full rebuild by construction (STEP 6–9 run unchanged on the same raw set; checksum
+excludes `LastCosted`). `StingCostDirtyMarker` IUpdater (GetChangeTypeAny on cost
+categories) records changed ids; type/level/grid/material edits or >500-element bulk edits
+force a full rebuild. `BuildBOQDocument` is suppress-wrapped so its own STEP 9 stale-flag
+transaction doesn't self-dirty every element. Add/delete handled by a cheap id-universe
+diff. Safety rails: incremental gated on the marker being enabled; rate/measurement config
+changes + document close invalidate the host cache; **↻ Refresh (full)** button forces a
+complete re-walk (the always-correct fallback). 2D.2 (off-thread compute) skipped per the
+prompt — the dirty set removes the per-refresh cost without the threading/regression risk.
+
+**2E — User-defined WBS/CBS + ERP export.** `BOQLineItem.WbsCode`/`CbsCode`; `BoqWbsMap` +
+`BoqWbsMapStore` (rules from category/discipline/NRM2/level/zone → WBS/CBS, persisted to
+`_BIM_COORD/boq_wbs_map.json`); inline **WBS / CBS map** editor. `ApplyWbsCbs` (build STEP
+6d): map rule wins, else inherit the linked 4D `ScheduleTask.Wbs` (one breakdown shared by
+4D + 5D). `BoqGroupingMode.Wbs/Cbs` + Group dropdown + optional WBS/CBS columns. **★ Export
+to ERP**: `BoqErpExporter` writes a flat import-ready CSV (WBS · CBS · cost code · qty ·
+rate · total · level · location · source · IfcGuid) + optional Primavera P6 activity-cost
+XML, inline with an Open-file button. Existing 8-sheet XLSX + IFC Qto exports unchanged.
+
+**Consolidated smoke test (human, in Revit — covers 2A → 2E):**
+1. **2A measurement:** wall with door + window (> 0.5 m²) measures **net** of the openings;
+   toggle Gross/Deduct/Waste/Net columns (Gross − Deduct = Net); **Measurement audit**
+   action lists the derivation inline; switch standard NRM2↔CESMM4 + Refresh changes nets;
+   a floor with a by-face opening > 1 m² measures net of the void; pipes show "Centre-line".
+2. **2B live rates:** **Rate feeds** → enable BCIS (any base URL/key) or Planscape, save
+   (confirm `_BIM_COORD/rate_feeds.json` written, key only in project). **Fetch live rates**
+   → candidate table renders inline; Accept (per-line + bulk) applies + re-totals; a manual
+   Override line shows "protected"; with feeds unreachable it degrades cleanly (no blank
+   rates, no throw). No popups.
+3. **2C drift:** Save a snapshot. Edit a few elements + Refresh → amber **drift banner**
+   appears on the dashboard. **Drift check** lists the changed lines element-linked (click
+   selects in Revit). **Re-price** updates only drifted non-override lines + re-totals.
+   Banner survives panel reopen; Save a new snapshot resets it next refresh.
+4. **2D incremental:** On a large model, after the first build edit a handful of elements +
+   **↻ Refresh** → visibly faster, only those re-taken-off (log: "incremental host
+   take-off: re-took-off N of M"). **↻ Refresh (full)** gives an identical grand total +
+   per-section totals (verify they match). Switch measurement standard / Reload Rules →
+   next refresh is full. No Revit error in `StingTools.log`.
+5. **2E WBS/ERP:** **WBS / CBS map** → add a rule (e.g. category "Wall" → WBS "2.1"),
+   Save + Refresh; toggle WBS/CBS columns; Group dropdown → **WBS** files the bill by code;
+   a line with no rule but in a 4D task inherits that task's WBS. **Export to ERP** writes
+   the CSV (open it — WBS/CBS columns populated) + optional P6 XML; existing XLSX/IFC
+   exports still work.
+6. Confirm no data-entry popups anywhere in 2B–2E (all inline) and no errors in the log.
+
 #### Completed (BOQ 5D Phase 2A — NRM2 rules-based measurement)
 
 Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phase 2A.
