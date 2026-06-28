@@ -3,6 +3,75 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Phase 2A — NRM2 rules-based measurement)
+
+Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phase 2A.
+Take-off was raw Revit geometry × rate — `IMeasurementStandard.ApplyDeductions` was a
+stub and `TakeoffRule.WastePercent` was reserved-but-unused. Phase 2A adds a measurement-
+rules layer that turns *modelled geometry* into a *measured quantity* with an auditable
+gross→net trail. Four slices, each compile-verified `-c Release -t:Rebuild` (0 errors)
+and committed separately.
+
+**New model fields** (`BOQ/BOQModels.cs`): `BOQLineItem.GrossQuantity` (raw geometry),
+`DeductionQuantity` (openings/voids removed), `WastageQuantity` (visible waste step),
+`MeasurementNote` ("Area 43.0 m² − openings/voids 5.2 m² + wastage 5% = 37.8 m²").
+`Quantity` is now the **net measured** value used for cost; the raw geometry is never
+lost. Added to `Clone()`. `GrossQuantity == 0` ⇒ no separate measurement (manual/PS /
+pre-2A snapshots) — readers fall back to `Quantity`.
+
+**New measurement layer** (`BOQ/MeasurementStandard/`):
+- `MeasurementRules.cs` — `MeasurementRule` POCO + `MeasurementRuleRegistry` (corporate
+  `Data/STING_NRM2_MEASUREMENT_RULES.json` + project override
+  `<project>/_BIM_COORD/{id}_measurement_rules.json`, merged by id, project wins;
+  mirrors `TakeoffRuleRegistry`). Per-category de-minimis thresholds + per-category
+  wastage (-1 = inherit). CESMM4 reuses the NRM2 ruleset with its own threshold.
+- `MeasurementDeductionEngine.cs` — the geometry side. **Walls:** opening areas via
+  `Wall.FindInserts` (doors/windows/wall openings) net of the de-minimis. **Floors/
+  slabs/roofs/ceilings:** by-face/by-host `Opening` void areas (a per-document
+  host→openings index built lazily + reset each `BuildBOQDocument`; sketch-drawn holes
+  already excluded by `HOST_AREA_COMPUTED` so no double-count; shaft/host-less openings
+  deferred). **Linear (pipe/duct/conduit/cable tray/framing/railing):** centre-line /
+  running-girth measure points (net = centre-line; no false deductions).
+- `Nrm2Standard.ApplyDeductions` / `Cesmm4Standard.ApplyDeductions` now implemented (were
+  stubs) through the engine + registry.
+
+**Pipeline** (`BOQ/BOQCostManager.cs`): `BuildLineItemFromElement` runs
+`MeasureQuantity` — `DeriveGrossQuantity` (raw geometry, no waste) →
+`IMeasurementStandard.ApplyDeductions` → `EffectiveWastePercent` (visible wastage step,
+preserving the existing waste / rebar-lap / concrete-over-order numbers) → net +
+`MeasurementNote`. The active standard is resolved from `COST_MEASUREMENT_STANDARD` and
+threaded through both host and linked take-off, so NRM2 vs CESMM4 give different nets.
+Wastage is now a distinct, visible step — never folded into the rate. Non-deducted
+items keep identical totals (zero regression there).
+
+**Audit surface** (`UI/BOQCostManagerPanel.cs` + `BOQ/BoqPrintProfile.cs`): optional
+Gross / Deduct / Waste / Net grid columns (off by default; toggle via Columns menu /
+print profiles); the per-row NRM2 detail panel shows the measurement note; a new inline
+**Measurement audit** action (`BOQ_MeasurementAudit`) renders a panel-local read-only
+`StingResultPanel` — summary counts + a per-line gross/deduct/waste/net table — into the
+Actions report pane (no popup).
+
+**Smoke test (human, in Revit):**
+1. Model a wall with a door + window (each > 0.5 m²). Build/Refresh the BOQ → the wall
+   line's **Qty is net of the openings** (less than the gross wall area); toggle on the
+   Gross/Deduct/Waste/Net columns to see Gross − Deduct = Net; the row-detail shows
+   "Area … − openings/voids … = …".
+2. **Measurement audit** action lists that wall (and any floor with a by-face opening)
+   with its gross→net derivation; no popup, renders inline.
+3. Switch standard (Set Standard → CESMM4) and Refresh → wall nets recompute (0.5 m²
+   threshold); switch back to NRM2.
+4. A floor with a shaft/by-face opening > 1.0 m² measures net of the void.
+5. Confirm non-wall/floor items (pipes, equipment) are unchanged in total; pipes show
+   "Centre-line … m" in the audit.
+6. Drop a `_BIM_COORD/nrm2_measurement_rules.json` with a wall `wastePercent: 7.5` →
+   the wall's Waste column / note shows 7.5%.
+7. Verify no errors in `StingTools.log`.
+
+**Caveats:** shaft openings with no single host are not yet attributed to a floor
+(by-face/by-host openings are); the aggregated-constituent per-element stamp
+(`WriteElementParameters` re-derive) still uses the legacy `DeriveQuantity` (gross×waste,
+no deductions) — a stamping detail that doesn't affect line-item totals.
+
 #### Completed (BOQ 5D Phase 1 slice a — unified ScheduleModel + single store)
 
 Branch `claude/placement-centre-review-audit`. First slice of schedule unification
