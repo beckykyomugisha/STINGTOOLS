@@ -1122,6 +1122,8 @@ namespace StingTools.UI
                 {
                     ("WBS / CBS map", "BOQ_WbsMap",
                      "Edit rules that assign WBS / CBS codes from element attributes (category / discipline / NRM2 § / level / zone). Saved to the project; lines with no rule inherit the linked 4D task's WBS. Group the bill by WBS / CBS via the Group dropdown.", false),
+                    ("★ Export to ERP", "BOQ_ExportErp",
+                     "Write a flat, import-ready CSV (WBS · CBS · cost code · qty · rate · total · level · location · source · IfcGuid) — the union most ERP / accounting importers accept — plus an optional Primavera P6 activity-cost XML. Opens inline.", true),
                 }));
 
             sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
@@ -1421,8 +1423,9 @@ namespace StingTools.UI
                 if (tag == "BOQ_FetchLiveRates") { ShowFetchLiveRates(label); return; }
                 // Phase 2C — drift check (live bill vs last snapshot) + re-price.
                 if (tag == "BOQ_DriftCheck") { ShowDriftCheck(label); return; }
-                // Phase 2E — WBS/CBS map editor.
+                // Phase 2E — WBS/CBS map editor + ERP export.
                 if (tag == "BOQ_WbsMap") { ShowWbsMapForm(label); return; }
+                if (tag == "BOQ_ExportErp") { ShowErpExport(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
                 // Reclassify legacy = a per-VO reason/liability grid — its own editor.
@@ -2204,6 +2207,100 @@ namespace StingTools.UI
         {
             s = (s ?? "").Trim();
             return string.IsNullOrEmpty(s) ? "*" : s;
+        }
+
+        // ── Phase 2E — ERP export (inline) ──────────────────────────────────
+
+        private void ShowErpExport(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                if (_boq == null || _boq.AllItems == null || _boq.AllItems.Count == 0)
+                {
+                    var b0 = StingResultPanel.Create("Export to ERP").SetSubtitle("No bill built yet — press Refresh first.");
+                    ShowInlineResult(b0); return;
+                }
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Export to ERP", FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6)
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"Writes a flat, import-ready CSV ({_boq.AllItems.Count} rows) with WBS · CBS · cost code · "
+                         + "qty · rate · total · level · location · source · IfcGuid. Optionally also a Primavera "
+                         + "P6 activity-cost XML grouped by WBS. The 8-sheet XLSX + IFC Qto exports are unchanged.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                var p6Cb = new CheckBox { Content = "Also write Primavera P6 activity-cost XML", IsChecked = false,
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) };
+                sp.Children.Add(p6Cb);
+
+                var runBtn = new Button { Content = "Export", FontSize = 12, FontWeight = FontWeights.Bold,
+                    Height = 28, MinWidth = 120, Background = GreenBrush, Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                runBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        string dir = ResolveExportDir();
+                        System.IO.Directory.CreateDirectory(dir);
+                        string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+                        string csvPath = System.IO.Path.Combine(dir, $"boq_erp_{stamp}.csv");
+                        StingTools.BOQ.BoqErpExporter.ExportCsv(_boq, csvPath);
+
+                        string p6Path = null;
+                        if (p6Cb.IsChecked == true)
+                        {
+                            p6Path = System.IO.Path.Combine(dir, $"boq_p6_{stamp}.xml");
+                            StingTools.BOQ.BoqErpExporter.ExportP6Xml(_boq, p6Path);
+                        }
+
+                        int withWbs = _boq.AllItems.Count(i => !string.IsNullOrEmpty(i.WbsCode));
+                        var b = StingResultPanel.Create("Export to ERP");
+                        b.SetSubtitle("ERP export written.");
+                        b.AddSection("RESULT")
+                         .Metric("Rows", _boq.AllItems.Count.ToString(CultureInfo.InvariantCulture))
+                         .Metric("Lines with WBS", withWbs.ToString(CultureInfo.InvariantCulture))
+                         .Metric("Grand total", $"UGX {_boq.GrandTotalUGX:N0}");
+                        if (p6Path != null)
+                            b.AddSection("PRIMAVERA P6").Text($"P6 activity-cost XML: {p6Path}");
+                        b.SetCsvPath(csvPath);   // renders an inline "Open file" button
+                        ShowInlineResult(b);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("BOQ ERP export", ex);
+                        var b = StingResultPanel.Create("Export to ERP").SetSubtitle($"Export failed: {ex.Message}");
+                        ShowInlineResult(b);
+                    }
+                };
+                sp.Children.Add(runBtn);
+
+                _actionReportHost.Child = sp;
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowErpExport", ex); }
+        }
+
+        /// <summary>Export folder — &lt;project&gt;/_BIM_COORD/exports (falls back to temp).</summary>
+        private string ResolveExportDir()
+        {
+            try
+            {
+                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                if (!string.IsNullOrEmpty(parent))
+                    return System.IO.Path.Combine(parent, "_BIM_COORD", "exports");
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveExportDir: {ex.Message}"); }
+            return System.IO.Path.Combine(System.IO.Path.GetTempPath(), "STING_BOQ_exports");
         }
 
         // ── P2.2 — reusable inline editable form host ───────────────────────
