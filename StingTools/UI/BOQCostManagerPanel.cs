@@ -1045,6 +1045,16 @@ namespace StingTools.UI
                      "Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / lock)", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("RATE FEEDS (Phase 2B)",
+                "Configure live rate feeds (BCIS / Planscape) and pull candidate rates onto the bill.",
+                new[]
+                {
+                    ("Rate feeds", "BOQ_RateFeedsConfig",
+                     "Configure the BCIS feed (base URL · API key · TTL) and the Planscape feed on/off. Saved to the project file only — the API key is never committed.", false),
+                    ("★ Fetch live rates", "BOQ_FetchLiveRates",
+                     "Pull candidate rates for the current bill from every configured feed, side-by-side with the current rate + confidence. Accept the best live rate per line or in bulk. Manual overrides are protected.", true),
+                }));
+
             sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
                 "Elemental cost planning for RIBA 1-3 — £/m² GIFA benchmarks per building type.",
                 new[]
@@ -1337,6 +1347,9 @@ namespace StingTools.UI
                 if (tag == "BOQ_Prelims") { ShowPrelimsForm(label); return; }
                 // Phase 2A — panel-local read-only report over the current bill.
                 if (tag == "BOQ_MeasurementAudit") { ShowMeasurementAudit(label); return; }
+                // Phase 2B — live rate feeds: inline config form + fetch/accept.
+                if (tag == "BOQ_RateFeedsConfig") { ShowRateFeedsForm(label); return; }
+                if (tag == "BOQ_FetchLiveRates") { ShowFetchLiveRates(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
                 // Reclassify legacy = a per-VO reason/liability grid — its own editor.
@@ -1474,6 +1487,405 @@ namespace StingTools.UI
         {
             if (string.IsNullOrEmpty(s)) return "";
             return s.Length <= max ? s : s.Substring(0, max - 1) + "…";
+        }
+
+        // ── Phase 2B — live rate feeds (inline config + fetch/accept) ───────
+
+        /// <summary>Inline BCIS / Planscape feed config form. Persists to
+        /// _BIM_COORD/rate_feeds.json (API key in the project file only).</summary>
+        private void ShowRateFeedsForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var cfg = StingTools.BOQ.Rates.RateFeedsStore.Load(Doc);
+
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Live rate feeds", FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6)
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Configure external price books. Settings save to the project file only "
+                         + "(_BIM_COORD/rate_feeds.json) — the BCIS API key is never committed to the repo. "
+                         + "Use 'Fetch live rates' to pull candidates onto the bill.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 12)
+                });
+
+                TextBox Row(string lbl, string val, double w = 320)
+                {
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+                    row.Children.Add(new TextBlock { Text = lbl, Width = 120, FontSize = 11,
+                        Foreground = NavyBrush, VerticalAlignment = VerticalAlignment.Center });
+                    var tb = new TextBox { Text = val ?? "", Width = w, Height = 24, FontSize = 11 };
+                    row.Children.Add(tb);
+                    sp.Children.Add(row);
+                    return tb;
+                }
+
+                var bcisCb = new CheckBox { Content = "Enable BCIS feed", IsChecked = cfg.BcisEnabled,
+                    FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 8) };
+                sp.Children.Add(bcisCb);
+                var urlTb = Row("Base URL", cfg.BcisBaseUrl);
+                var keyTb = Row("API key", cfg.BcisApiKey);
+                var ttlTb = Row("Cache TTL (min)", cfg.BcisTtlMinutes.ToString(CultureInfo.InvariantCulture), 120);
+
+                var planCb = new CheckBox { Content = "Enable Planscape feed (uses the current Planscape login)",
+                    IsChecked = cfg.PlanscapeEnabled, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                    Foreground = NavyBrush, Margin = new Thickness(0, 10, 0, 10) };
+                sp.Children.Add(planCb);
+
+                var saveBtn = new Button { Content = "Save feed settings", FontSize = 12, FontWeight = FontWeights.Bold,
+                    Height = 28, MinWidth = 140, Background = GreenBrush, Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                saveBtn.Click += (s, e) =>
+                {
+                    try
+                    {
+                        cfg.BcisEnabled = bcisCb.IsChecked == true;
+                        cfg.BcisBaseUrl = urlTb.Text?.Trim() ?? "";
+                        cfg.BcisApiKey = keyTb.Text ?? "";
+                        if (int.TryParse(ttlTb.Text?.Trim(), out int ttl) && ttl > 0) cfg.BcisTtlMinutes = ttl;
+                        cfg.PlanscapeEnabled = planCb.IsChecked == true;
+                        bool ok = StingTools.BOQ.Rates.RateFeedsStore.Save(Doc, cfg);
+                        StingTools.BOQ.Rates.RateProviderRegistry.Invalidate();
+
+                        var b = StingResultPanel.Create("Rate feeds");
+                        b.SetSubtitle(ok ? "Saved to _BIM_COORD/rate_feeds.json." : "Could not save (unsaved project?).");
+                        b.AddSection("ACTIVE FEEDS")
+                         .PassFail("BCIS", cfg.BcisEnabled, cfg.BcisEnabled ? cfg.BcisBaseUrl : "disabled")
+                         .PassFail("Planscape", cfg.PlanscapeEnabled, cfg.PlanscapeEnabled ? "uses current login" : "disabled")
+                         .Text("Now run 'Fetch live rates' to pull candidate rates onto the bill.");
+                        ShowInlineResult(b);
+                    }
+                    catch (Exception ex) { StingLog.Error("BOQ RateFeeds save", ex); }
+                };
+                sp.Children.Add(saveBtn);
+
+                _actionReportHost.Child = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = sp
+                };
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowRateFeedsForm", ex); }
+        }
+
+        private sealed class LiveCandidate
+        {
+            public string Source;
+            public double RateUgx;
+            public int Confidence;
+            public DateTime AsOf;
+            public string Provenance;
+        }
+
+        private sealed class LiveRateRow
+        {
+            public BOQLineItem Line;
+            public string Ref, Item, Unit, Category, Discipline, Location;
+            public double CurrentRateUgx;
+            public string CurrentSource;
+            public int CurrentConfidence;
+            public bool IsOverride;
+            public List<LiveCandidate> Candidates = new List<LiveCandidate>();
+            public LiveCandidate Best =>
+                Candidates.Count == 0 ? null : Candidates.OrderByDescending(c => c.Confidence).ThenByDescending(c => c.RateUgx).First();
+        }
+
+        /// <summary>Fetch candidate rates from the configured feeds (off the UI
+        /// thread — feeds are Revit-free) and render a per-line accept surface.</summary>
+        private void ShowFetchLiveRates(string label)
+        {
+            if (_actionReportHost == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                if (_boq == null || _boq.AllItems == null || _boq.AllItems.Count == 0)
+                {
+                    var b0 = StingResultPanel.Create("Fetch live rates")
+                        .SetSubtitle("No bill built yet — press Refresh first.");
+                    ShowInlineResult(b0); return;
+                }
+
+                var feeds = StingTools.BOQ.Rates.RateProviderRegistry.GetLiveFeedProviders(Doc);
+                if (feeds.Count == 0)
+                {
+                    var b1 = StingResultPanel.Create("Fetch live rates");
+                    b1.SetSubtitle("No live feed is enabled.");
+                    b1.AddSection("SETUP").Text("Enable BCIS or Planscape first via the 'Rate feeds' action, then re-run.");
+                    b1.Action("Open Rate feeds", "Configure a live feed", _ => ShowRateFeedsForm("Rate feeds"));
+                    ShowInlineResult(b1); return;
+                }
+
+                // Snapshot model rows on the WPF thread (no Revit reads — the line
+                // items already carry every field the feeds need).
+                double ugxPerUsd = _boq.ExchangeRateUgxPerUsd > 0 ? _boq.ExchangeRateUgxPerUsd : 3700.0;
+                double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                var rows = _boq.AllItems
+                    .Where(i => i.Source == BOQRowSource.Model && i.Quantity > 0)
+                    .GroupBy(i => (i.Category ?? "") + "|" + (i.Unit ?? ""))
+                    .Select(g => g.First())   // one representative request per category|unit
+                    .Select(i => new LiveRateRow
+                    {
+                        Line = i, Ref = i.BOQLineRef ?? "", Item = i.ItemName ?? "", Unit = i.Unit ?? "",
+                        Category = i.Category ?? "", Discipline = i.Discipline ?? "", Location = i.Location ?? "",
+                        CurrentRateUgx = i.RateUGX, CurrentSource = i.RateSource ?? "", CurrentConfidence = i.RateConfidence,
+                        IsOverride = string.Equals(i.RateSource, "Override", StringComparison.OrdinalIgnoreCase)
+                    })
+                    .ToList();
+
+                _actionReportHost.Child = new TextBlock
+                {
+                    Text = $"Fetching live rates for {rows.Count} distinct category/unit group(s) from "
+                         + $"{feeds.Count} feed(s)…", Foreground = Brushes.Gray, FontSize = 11,
+                    Margin = new Thickness(14), TextWrapping = TextWrapping.Wrap
+                };
+
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    foreach (var r in rows)
+                    {
+                        var req = new StingTools.BOQ.Rates.RateRequest
+                        {
+                            CategoryName = r.Category, Discipline = r.Discipline, Unit = r.Unit,
+                            LocationCode = r.Location, CurrencyCode = "UGX", AsOf = DateTime.UtcNow
+                        };
+                        foreach (var p in feeds)
+                        {
+                            try
+                            {
+                                var lk = p.Resolve(req);
+                                if (lk == null || lk.UnitRate <= 0) continue;
+                                r.Candidates.Add(new LiveCandidate
+                                {
+                                    Source = MapFeedLabel(p.Id),
+                                    RateUgx = ToUgx(lk.UnitRate, lk.CurrencyCode, ugxPerUsd, ugxPerGbp),
+                                    Confidence = lk.Confidence,
+                                    AsOf = lk.FetchedUtc,
+                                    Provenance = lk.Provenance ?? ""
+                                });
+                            }
+                            catch (Exception ex) { StingLog.WarnRateLimited("LiveFetch", $"feed {p.Id}: {ex.Message}"); }
+                        }
+                    }
+                    foreach (var p in feeds) (p as IDisposable)?.Dispose();
+
+                    Dispatcher.BeginInvoke(new Action(() => RenderLiveRates(label, rows, feeds.Count)));
+                });
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowFetchLiveRates", ex); }
+        }
+
+        private static string MapFeedLabel(string providerId)
+        {
+            switch (providerId)
+            {
+                case "bcis-http": return "BCIS";
+                case "planscape": return "Planscape";
+                default: return providerId ?? "Feed";
+            }
+        }
+
+        private static double ToUgx(double rate, string ccy, double ugxPerUsd, double ugxPerGbp)
+        {
+            switch ((ccy ?? "UGX").ToUpperInvariant())
+            {
+                case "USD": return rate * ugxPerUsd;
+                case "GBP": return rate * ugxPerGbp;
+                default:    return rate; // UGX or unknown — treat as base
+            }
+        }
+
+        private void RenderLiveRates(string label, List<LiveRateRow> rows, int feedCount)
+        {
+            try
+            {
+                if (_actionReportHost == null) return;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var withCandidates = rows.Where(r => r.Candidates.Count > 0).ToList();
+                var sp = new StackPanel { Margin = new Thickness(14) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Live rate candidates", FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4)
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = withCandidates.Count == 0
+                        ? $"No feed returned a rate ({feedCount} feed(s) reachable but no match, or offline). "
+                          + "Existing rates are unchanged."
+                        : $"{withCandidates.Count} category group(s) have a live candidate. "
+                          + "Best = highest confidence. Manual overrides are protected (no auto-apply). "
+                          + "UGX. ⚠ = confidence < 60.",
+                    FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                if (withCandidates.Count > 0)
+                {
+                    var grid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
+
+                    void H(string t, int c)
+                    {
+                        var x = new TextBlock { Text = t, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = NavyBrush, Margin = new Thickness(0, 0, 6, 6) };
+                        Grid.SetRow(x, 0); Grid.SetColumn(x, c); grid.Children.Add(x);
+                    }
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    H("Category", 0); H("Unit", 1); H("Current (source)", 2); H("Best live candidate", 3); H("", 4);
+
+                    var amber = new SolidColorBrush(Color.FromRgb(180, 120, 0));
+                    int rr = 1;
+                    foreach (var r in withCandidates)
+                    {
+                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        var best = r.Best;
+
+                        var catTb = new TextBlock { Text = AuditTrunc(r.Category, 28), FontSize = 11,
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2) };
+                        var unitTb = new TextBlock { Text = r.Unit, FontSize = 11,
+                            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2) };
+                        var curTb = new TextBlock
+                        {
+                            Text = $"UGX {r.CurrentRateUgx:N0}  ({r.CurrentSource}/{r.CurrentConfidence})",
+                            FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2)
+                        };
+                        bool low = best.Confidence < 60;
+                        var candTb = new TextBlock
+                        {
+                            Text = $"{(low ? "⚠ " : "")}UGX {best.RateUgx:N0}  ({best.Source}/{best.Confidence}, {best.AsOf:dd MMM})",
+                            FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2),
+                            Foreground = low ? amber : (Brush)new SolidColorBrush(Color.FromRgb(40, 50, 80)),
+                            TextWrapping = TextWrapping.Wrap
+                        };
+
+                        Grid.SetRow(catTb, rr);  Grid.SetColumn(catTb, 0);  grid.Children.Add(catTb);
+                        Grid.SetRow(unitTb, rr); Grid.SetColumn(unitTb, 1); grid.Children.Add(unitTb);
+                        Grid.SetRow(curTb, rr);  Grid.SetColumn(curTb, 2);  grid.Children.Add(curTb);
+                        Grid.SetRow(candTb, rr); Grid.SetColumn(candTb, 3); grid.Children.Add(candTb);
+
+                        if (r.IsOverride)
+                        {
+                            var prot = new TextBlock { Text = "protected", FontSize = 10, FontStyle = FontStyles.Italic,
+                                Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 2) };
+                            Grid.SetRow(prot, rr); Grid.SetColumn(prot, 4); grid.Children.Add(prot);
+                        }
+                        else
+                        {
+                            var acc = new Button { Content = "Accept", FontSize = 11, Height = 22, Cursor = Cursors.Hand,
+                                Margin = new Thickness(0, 2, 0, 2) };
+                            var capRow = r;
+                            acc.Click += (s, e) => { AcceptLiveRate(capRow, capRow.Best); acc.IsEnabled = false; acc.Content = "✓"; };
+                            Grid.SetRow(acc, rr); Grid.SetColumn(acc, 4); grid.Children.Add(acc);
+                        }
+                        rr++;
+                    }
+                    sp.Children.Add(grid);
+
+                    int eligible = withCandidates.Count(r => !r.IsOverride);
+                    var bulkBtn = new Button
+                    {
+                        Content = $"Accept best live rate on {eligible} line group(s)", FontSize = 12, FontWeight = FontWeights.Bold,
+                        Height = 28, MinWidth = 220, Background = GreenBrush, Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left,
+                        IsEnabled = eligible > 0
+                    };
+                    bulkBtn.Click += (s, e) =>
+                    {
+                        int applied = 0;
+                        foreach (var r in withCandidates.Where(x => !x.IsOverride && x.Best != null))
+                        { AcceptLiveRate(r, r.Best); applied++; }
+                        bulkBtn.Content = $"✓ Applied to {applied} group(s)";
+                        bulkBtn.IsEnabled = false;
+                    };
+                    sp.Children.Add(bulkBtn);
+
+                    int protectedCount = withCandidates.Count(r => r.IsOverride);
+                    if (protectedCount > 0)
+                        sp.Children.Add(new TextBlock
+                        {
+                            Text = $"{protectedCount} line group(s) carry a manual Override and were left untouched — "
+                                 + "edit the rate inline if you want to replace it.",
+                            FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray,
+                            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0)
+                        });
+                }
+
+                _actionReportHost.Child = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = sp
+                };
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RenderLiveRates", ex); }
+        }
+
+        /// <summary>Apply a live candidate to every model line in the same
+        /// category/unit group (the snapshot row is one representative). Persists
+        /// via the model-override sidecar (survives rebuild) and re-totals.</summary>
+        private void AcceptLiveRate(LiveRateRow row, LiveCandidate cand)
+        {
+            if (row?.Line == null || cand == null || _boq == null) return;
+            try
+            {
+                double ugxPerUsd = _boq.ExchangeRateUgxPerUsd > 0 ? _boq.ExchangeRateUgxPerUsd : 3700.0;
+                double rateUgx = Math.Round(cand.RateUgx, 0);
+                double rateUsd = ugxPerUsd > 0 ? Math.Round(rateUgx / ugxPerUsd, 2) : 0;
+
+                // Apply to every model line sharing this category/unit (skip
+                // manual overrides — never silently clobbered).
+                var targets = _boq.AllItems.Where(i =>
+                    i.Source == BOQRowSource.Model &&
+                    string.Equals(i.Category ?? "", row.Category, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(i.Unit ?? "", row.Unit, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(i.RateSource, "Override", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                foreach (var line in targets)
+                {
+                    line.RateUGX = rateUgx;
+                    line.RateUSD = rateUsd;
+                    line.RateSource = cand.Source;          // "BCIS" / "Planscape"
+                    line.RateConfidence = cand.Confidence;
+                    line.LastCosted = DateTime.UtcNow;
+
+                    // Persist so a full rebuild re-applies it (RateSource carried).
+                    try
+                    {
+                        BOQCostManager.UpsertModelOverride(Doc, new BOQModelOverride
+                        {
+                            UniqueId = line.UniqueId,
+                            ElementId = line.RevitElementId,
+                            RateUGX = rateUgx,
+                            RateUSD = rateUsd,
+                            NRM2Paragraph = line.ResolvedNRM2Paragraph ?? "",
+                            Note = line.Note ?? "",
+                            RateSource = cand.Source,
+                            ModifiedBy = Environment.UserName ?? ""
+                        });
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("AcceptLive.Persist", $"persist {line.RevitElementId}: {ex.Message}"); }
+                }
+
+                RefreshDisplay();   // re-render + re-total from _boq (no Revit rebuild)
+            }
+            catch (Exception ex) { StingLog.Error("BOQ AcceptLiveRate", ex); }
         }
 
         // ── P2.2 — reusable inline editable form host ───────────────────────

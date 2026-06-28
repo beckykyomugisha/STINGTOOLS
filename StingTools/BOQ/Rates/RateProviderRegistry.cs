@@ -97,7 +97,69 @@ namespace StingTools.BOQ.Rates
                 new CobieRateProvider(cobieCostCodes, csvRates),
                 new DefaultRateProvider()
             };
+
+            // Phase 2B — live-rate feeds, configured inline via the "Rate feeds"
+            // action (persisted to _BIM_COORD/rate_feeds.json). Added here so the
+            // priority chain — and ResolveAll (the Fetch live rates surface) —
+            // include them automatically. Disabled feeds add nothing (legacy
+            // projects unaffected); a misconfigured / unreachable feed simply
+            // returns null at Resolve time (offline-safe).
+            try
+            {
+                AddConfiguredFeeds(providers, doc);
+            }
+            catch (Exception ex) { StingLog.Warn($"RateProviderRegistry feeds: {ex.Message}"); }
+
             return new RateProviderRegistry(providers, ugxPerUsd, ugxPerGbp);
+        }
+
+        /// <summary>
+        /// Phase 2B — just the configured live-rate feed providers (BCIS /
+        /// Planscape), with NO model-reading providers. The Fetch-live-rates
+        /// surface calls Resolve on these off the UI thread; they only touch the
+        /// network (category/unit), never the Revit API — safe to run off the
+        /// API thread. Returns an empty list when no feed is enabled.
+        /// </summary>
+        public static List<IRateProvider> GetLiveFeedProviders(Document doc)
+        {
+            var list = new List<IRateProvider>();
+            try { AddConfiguredFeeds(list, doc); }
+            catch (Exception ex) { StingLog.Warn($"RateProviderRegistry.GetLiveFeedProviders: {ex.Message}"); }
+            return list;
+        }
+
+        /// <summary>Append the BCIS / Planscape live-rate providers when the
+        /// project's rate_feeds.json enables them.</summary>
+        private static void AddConfiguredFeeds(List<IRateProvider> providers, Document doc)
+        {
+            if (doc == null) return;
+            var cfg = RateFeedsStore.Load(doc);
+            if (cfg == null) return;
+
+            if (cfg.BcisEnabled && !string.IsNullOrWhiteSpace(cfg.BcisBaseUrl))
+            {
+                string cacheDir = null;
+                try
+                {
+                    string bimDir = StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
+                    if (!string.IsNullOrEmpty(bimDir))
+                        cacheDir = System.IO.Path.Combine(bimDir, "rate_cache");
+                }
+                catch (Exception ex) { StingLog.Warn($"RateProviderRegistry BCIS cacheDir: {ex.Message}"); }
+
+                providers.Add(new Providers.BcisHttpRateProvider(
+                    cfg.BcisBaseUrl, cfg.BcisApiKey, cfg.BcisTtlMinutes, cacheDir));
+                StingLog.Info("RateProviderRegistry: BCIS live feed enabled.");
+            }
+
+            if (cfg.PlanscapeEnabled)
+            {
+                Guid pid = Guid.Empty;
+                try { pid = StingTools.BIMManager.PlanscapeServerClient.Instance?.CurrentProjectId ?? Guid.Empty; }
+                catch (Exception ex) { StingLog.Warn($"RateProviderRegistry Planscape pid: {ex.Message}"); }
+                providers.Add(new Providers.PlanscapeRateProvider(pid));
+                StingLog.Info("RateProviderRegistry: Planscape live feed enabled.");
+            }
         }
 
         /// <summary>

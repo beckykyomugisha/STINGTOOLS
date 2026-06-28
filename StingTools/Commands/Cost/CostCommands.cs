@@ -337,49 +337,20 @@ namespace StingTools.Commands.Cost
             StingTools.BOQ.CostStamp.Invalidate();
             StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
             StingTools.BOQ.MeasurementStandard.Icms3PhaseMap.Invalidate();
+            // Phase 2A — also drop the measurement rule + void caches.
+            StingTools.BOQ.MeasurementStandard.MeasurementRuleRegistry.Invalidate();
+            StingTools.BOQ.MeasurementStandard.MeasurementDeductionEngine.ResetCaches();
 
-            // P8 — register external rate providers lazily. The default
-            // chain (param / ES / CSV / COBie / scheduled) is built by
-            // RateProviderRegistry.Get on next call; we then attach any
-            // configured external providers (BCIS, project rate card).
-            try
-            {
-                Document doc = ParameterHelpers.GetDoc(commandData);
-                if (doc != null)
-                {
-                    double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-                    double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                    var registry = RateProviderRegistry.Get(doc,
-                        new Dictionary<string, (double rate, string unit)>(),
-                        new Dictionary<string, string>(),
-                        ugxPerUsd, ugxPerGbp);
-
-                    // P3.4 — the project rate card (incl. QS-imported rates) is
-                    // now part of the default build chain (RateProviderRegistry.
-                    // Build → ProjectRateCardProvider.Load), so it no longer
-                    // needs re-registering here.
-
-                    // BCIS HTTP — only if configured.
-                    string bcisUrl = (TagConfig.GetConfigDouble("BCIS_ENABLED", 0.0) > 0)
-                        ? "https://service.bcis.co.uk/api" : "";
-                    if (!string.IsNullOrEmpty(bcisUrl))
-                    {
-                        string cacheDir = System.IO.Path.Combine(
-                            StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc),
-                            "rate_cache");
-                        registry.RegisterExternalProvider(
-                            new StingTools.BOQ.Rates.Providers.BcisHttpRateProvider(
-                                bcisUrl, apiKey: "", ttlMinutes: 1440, cacheDir: cacheDir));
-                    }
-                }
-            }
-            catch (Exception extEx) { StingLog.Warn($"Cost_ReloadRules external providers: {extEx.Message}"); }
+            // Phase 2B — external live-rate feeds (BCIS / Planscape) are now part
+            // of the default build chain (RateProviderRegistry.Build →
+            // AddConfiguredFeeds reads _BIM_COORD/rate_feeds.json). Invalidate
+            // above is enough; the next Get rebuilds with the configured feeds.
 
             StingResultPanel.Create("Reload rules")
                 .AddSection("CACHES CLEARED")
-                .Text("Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
-                      "External rate providers (project rate card, BCIS HTTP if configured) re-registered. " +
-                      "The next BOQ build will reload from disk.")
+                .Text("Rate provider + take-off rule + measurement rule + default-cost-rates caches cleared " +
+                      "(and CostStamp config). Live-rate feeds (BCIS / Planscape, if enabled in Rate feeds) " +
+                      "re-attach on the next BOQ build, which reloads from disk.")
                 .Show();
             return Result.Succeeded;
         }
