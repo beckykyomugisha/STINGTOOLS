@@ -738,7 +738,8 @@ namespace StingTools.BOQ
                 wastage = Math.Max(0, grossedUp - netOfDeductions);
                 net = grossedUp;
 
-                note = BuildMeasurementNote(unit, gross, deduction, wastePct, net);
+                string measureLabel = ResolveMeasureLabel(el, catName, std);
+                note = BuildMeasurementNote(measureLabel, unit, gross, deduction, wastePct, net);
             }
             catch (Exception ex)
             {
@@ -851,11 +852,39 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.WarnRateLimited("EffWaste", $"EffectiveWastePercent: {ex.Message}"); return 0; }
         }
 
-        private static string BuildMeasurementNote(string unit, double gross, double deduction, double wastePct, double net)
+        /// <summary>
+        /// Slice 3 — the NRM2 measurement-point label for a category, so the
+        /// audit note reads "Centre-line 12.40 m" / "Running girth 8.30 m" /
+        /// "Area 43.0 m²" rather than a bare "Gross". Resolved from the active
+        /// standard's measurement rule; defaults to "Gross" when no rule matches.
+        /// </summary>
+        private static string ResolveMeasureLabel(Element el, string catName, IMeasurementStandard std)
+        {
+            try
+            {
+                if (el?.Document == null || std == null) return "Gross";
+                var reg = MeasurementRuleRegistry.Get(el.Document, std.Id);
+                var rule = reg.Match(catName, DisciplineForCategory(catName), null);
+                if (rule == null) return "Gross";
+                switch ((rule.Measure ?? "").ToLowerInvariant())
+                {
+                    case "length": return "Centre-line";
+                    case "girth":  return "Running girth";
+                    case "area":   return "Area";
+                    case "volume": return "Volume";
+                    default:       return "Gross";
+                }
+            }
+            catch { return "Gross"; }
+        }
+
+        private static string BuildMeasurementNote(string measureLabel, string unit,
+            double gross, double deduction, double wastePct, double net)
         {
             string u = unit ?? "";
+            string lbl = string.IsNullOrEmpty(measureLabel) ? "Gross" : measureLabel;
             var sb = new StringBuilder();
-            sb.Append($"Gross {gross:0.##} {u}");
+            sb.Append($"{lbl} {gross:0.##} {u}");
             if (deduction > 0.0005) sb.Append($" − openings/voids {deduction:0.##} {u}");
             if (wastePct > 0) sb.Append($" + wastage {wastePct:0.#}%");
             sb.Append($" = {net:0.##} {u}");
