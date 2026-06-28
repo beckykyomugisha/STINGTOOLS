@@ -891,6 +891,22 @@ namespace StingTools.BOQ
             return sb.ToString().Trim();
         }
 
+        /// <summary>
+        /// Measurement note for an aggregated (collapsed) row. The per-element
+        /// wastage % varies across the group, so the aggregate states absolute
+        /// summed quantities rather than a single %.
+        /// </summary>
+        private static string BuildAggregateMeasurementNote(BOQLineItem agg, int count)
+        {
+            string u = agg.Unit ?? "";
+            var sb = new StringBuilder();
+            sb.Append($"{count}× — gross {agg.GrossQuantity:0.##} {u}");
+            if (agg.DeductionQuantity > 0.0005) sb.Append($" − openings/voids {agg.DeductionQuantity:0.##} {u}");
+            if (agg.WastageQuantity > 0.0005) sb.Append($" + wastage {agg.WastageQuantity:0.##} {u}");
+            sb.Append($" = {agg.Quantity:0.##} {u}");
+            return sb.ToString().Trim();
+        }
+
         // ── NRM2 paragraph resolution ──────────────────────────────────────
 
         private static readonly Regex _tokenRx = new Regex(@"\[([a-zA-Z0-9_]+)\]", RegexOptions.Compiled);
@@ -2536,6 +2552,14 @@ namespace StingTools.BOQ
                 agg.SimilarCount = rows.Count;
                 agg.AggregationKey = grp.Key;
                 agg.Quantity = rows.Sum(r => r.Quantity);
+                // Phase 2A — sum the measurement audit fields so the Gross/Deduct/
+                // Waste columns stay consistent with the summed Net (= Quantity)
+                // on a collapsed row, and rebuild the note for the aggregate.
+                agg.GrossQuantity = rows.Sum(r => r.GrossQuantity);
+                agg.DeductionQuantity = rows.Sum(r => r.DeductionQuantity);
+                agg.WastageQuantity = rows.Sum(r => r.WastageQuantity);
+                if (agg.GrossQuantity > 0)
+                    agg.MeasurementNote = BuildAggregateMeasurementNote(agg, rows.Count);
                 agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
                 agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
                 agg.RateConfidence = rows.Min(r => r.RateConfidence);
