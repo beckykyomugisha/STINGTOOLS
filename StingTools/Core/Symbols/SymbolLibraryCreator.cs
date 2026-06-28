@@ -226,10 +226,15 @@ namespace StingTools.Core.Symbols
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        // Per-standard variant-build loop dropped by the merge. The
-                        // `kv` iteration over def.StandardOverrides used to live here
-                        // and produced a BuildVariant call per standard. Skipped
-                        // until the StandardOverrides surface is restored.
+                        // Count the build AND load the freshly-built family into the
+                        // project. A merge had emptied this branch (leaving only a
+                        // comment about a dropped per-standard loop), so every seed
+                        // built its .rfa on disk but Created stayed 0 and nothing was
+                        // loaded — placement never saw the seed. Restored here.
+                        result.Created++;
+                        result.CreatedRfaPaths.Add(built);
+                        if (loadIntoProject && !TryLoadFamily(hostDoc, built, result))
+                            result.Warnings.Add($"{def.Id}: built '{Path.GetFileName(built)}' but failed to load it into the project.");
                     }
                     else
                     {
