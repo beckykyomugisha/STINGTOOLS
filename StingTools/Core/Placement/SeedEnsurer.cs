@@ -143,6 +143,7 @@ namespace StingTools.Core.Placement
 
             string outRoot = ResolveSeedOutputFolder(doc);
             try { Directory.CreateDirectory(outRoot); } catch (Exception ex) { StingLog.Warn($"SeedEnsurer.RebuildAll mkdir: {ex.Message}"); }
+            result.Messages.Add($"Attempting {seeds.Count} seed(s) from {distinct.Count} categor(ies) → {outRoot}");
 
             foreach (var seedId in seeds)
             {
@@ -154,22 +155,27 @@ namespace StingTools.Core.Placement
                         result.Messages.Add($"Seed '{seedId}' — spec Data/Seeds/{seedId}.json not found; cannot rebuild.");
                         continue;
                     }
-                    // Delete the cached .rfa so CreateAllFromFile regenerates it
-                    // (it skips a build when the .rfa already exists).
+                    // Force a clean rebuild: delete the cached .rfa AND the
+                    // .sting-finalized sidecar so CreateAllFromFile regenerates
+                    // instead of skipping it as protected/existing.
                     try
                     {
                         string rfa = Path.Combine(outRoot, seedId + ".rfa");
                         if (File.Exists(rfa)) File.Delete(rfa);
+                        string fin = Path.Combine(outRoot, seedId + ".sting-finalized");
+                        if (File.Exists(fin)) File.Delete(fin);
                     }
-                    catch (Exception dex) { StingLog.Warn($"SeedEnsurer.RebuildAll delete '{seedId}.rfa': {dex.Message}"); }
+                    catch (Exception dex) { StingLog.Warn($"SeedEnsurer.RebuildAll delete '{seedId}': {dex.Message}"); }
 
                     var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot, loadIntoProject: true);
                     int touched = r.Created + r.Existed;
                     result.SeedsBuiltOrLoaded += touched;
-                    if (touched > 0)
-                        result.Messages.Add($"Seed '{seedId}' — {r.Created} rebuilt, {r.Existed} reloaded into project.");
-                    else if (r.Failed > 0)
-                        result.Messages.Add($"Seed '{seedId}' — rebuild FAILED ({r.Failed}).");
+                    // Always report the full breakdown so a "0" is self-diagnosing
+                    // (built / loaded / failed / protected + first error/warning).
+                    string detail = $"'{seedId}': built {r.Created}, loaded {r.Existed}, failed {r.Failed}, protected {r.Protected}";
+                    if (r.Errors != null && r.Errors.Count > 0) detail += " · ERR: " + r.Errors[0];
+                    else if (touched == 0 && r.Warnings != null && r.Warnings.Count > 0) detail += " · WARN: " + r.Warnings[0];
+                    result.Messages.Add(detail);
                     foreach (var w in r.Warnings.Take(2)) StingLog.Info($"SeedEnsurer.RebuildAll[{seedId}]: {w}");
                 }
                 catch (Exception ex)
