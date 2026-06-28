@@ -2576,6 +2576,32 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        private void OnRebuildSeeds_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            RunInlineAction("Rebuild Seeds", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                // Force-regenerate the mapped seed families from JSON (latest
+                // geometry + variants) and reload them into the project so placed
+                // instances pick up the new definitions. Runs outside any
+                // transaction (CreateAllFromFile opens its own).
+                var res = StingTools.Core.Placement.SeedEnsurer.RebuildAllForRules(doc, rules);
+                var panel = StingResultPanel.Create("STING — Rebuild Seeds")
+                    .SetSubtitle("Regenerated seed families from JSON and reloaded them into the project.")
+                    .AddSection("RESULT")
+                    .Metric("Seeds rebuilt / reloaded", res.SeedsBuiltOrLoaded.ToString())
+                    .Metric("Seedless categories", res.CategoriesSeedless.ToString());
+                foreach (var m in res.Messages.Take(40)) panel.Text(m);
+                if (res.SeedsBuiltOrLoaded == 0)
+                    panel.Text("No seeds rebuilt — check that the rule categories map to a seed and the seed specs (Data/Seeds/*.json) ship with the build.");
+                else
+                    panel.Text("Done. Run Placement to use the refreshed seeds.");
+                return panel;
+            });
+        }
+
         private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null) { Toast("No document open."); return; }
