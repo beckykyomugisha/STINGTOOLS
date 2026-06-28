@@ -424,8 +424,13 @@ namespace StingTools.Core.Symbols
                         AddConnectors(fdoc, def, result);
                     }
                     if (def.Solid3D != null
+                        && !string.IsNullOrWhiteSpace(def.FamilyType)
                         && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
                     {
+                        // Only model-family templates support SketchPlane/NewExtrusion.
+                        // A null/blank FamilyType resolves to an annotation template,
+                        // where AddSolid3D would throw (caught + warned, geometry
+                        // silently dropped) — skip cleanly instead.
                         AddSolid3D(fdoc, def, result);
                     }
 
