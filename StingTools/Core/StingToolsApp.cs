@@ -137,6 +137,11 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Phase 2D — incremental BOQ take-off dirty marker. Records which
+                // cost elements changed so the Cost Manager can re-take-off only
+                // those. Registered disabled; the BOQ panel enables it on open.
+                StingTools.BOQ.StingCostDirtyMarker.Register(application);
+
                 // Wave 3 — flag LPS elements (ATs / DCs / earth / bonding /
                 // SPDs) as stale when their geometry changes so the LPS
                 // panel + compliance check pick up modifications without
@@ -431,6 +436,11 @@ namespace StingTools.Core
                 // serving stale rows.
                 try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing BOQCostManager.InvalidateLinkCache: {ex.Message}"); }
+                // Phase 2D — drop the per-document incremental host take-off cache
+                // + dirty set so a reopen rebuilds fully (the dirty set can't be
+                // trusted across a close).
+                try { StingTools.BOQ.BOQCostManager.ClearHostIncremental(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing BOQCostManager.ClearHostIncremental: {ex.Message}"); }
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, drawing-type, tag-scheme, and BOQ link caches");
             }
             catch (Exception ex)
@@ -1555,6 +1565,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { StingTools.BOQ.StingCostDirtyMarker.Unregister(); } catch { }
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();

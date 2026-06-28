@@ -66,6 +66,10 @@ namespace StingTools.Commands.Cost
                 // BOQ engine reads this key when building snapshots; see
                 // BOQDocument.MeasurementStandardId.
                 TagConfig.SetConfigValue("COST_MEASUREMENT_STANDARD", id);
+                // Phase 2D — the standard drives measurement nets; the incremental
+                // host cache holds rows measured under the old standard, so force a
+                // full rebuild on the next refresh.
+                StingTools.BOQ.BOQCostManager.InvalidateHostCache();
 
                 StingResultPanel.Create("Measurement standard")
                     .AddSection("RESULT")

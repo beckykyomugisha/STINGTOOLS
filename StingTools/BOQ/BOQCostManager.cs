@@ -94,6 +94,160 @@ namespace StingTools.BOQ
             lock (_linkTakeoffCache) { _linkTakeoffCache.Clear(); }
         }
 
+        // ── Phase 2D — incremental host take-off ─────────────────────────────
+        //  The host walk (CollectCandidateElements + BuildLineItemFromElement
+        //  per element) is the heavy part of a full build. We cache the RAW host
+        //  line items (pre-aggregate / pre-group / pre-override, keyed per
+        //  document) exactly like the per-link cache, plus a per-document dirty
+        //  set fed by StingCostDirtyMarker (an IUpdater watching cost categories).
+        //  On an incremental refresh only the dirty + newly-added elements are
+        //  re-taken-off; removed elements drop their cached line; everything else
+        //  reuses the cached row. Aggregation / grouping / overrides / line-refs
+        //  then run identically to a full build, so the result is correct BY
+        //  CONSTRUCTION whenever the dirty set is complete. Any change the dirty
+        //  set can't safely localise (type / material / level / grid edits, rate
+        //  or measurement config changes, a tracking gap) forces a full rebuild.
+        //  Incremental only runs when the panel asks for it AND the marker is
+        //  enabled; a full rebuild is always available and always correct.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQLineItem>> _hostTakeoffCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQLineItem>>(StringComparer.OrdinalIgnoreCase);
+
+        private sealed class HostIncrementalState
+        {
+            public readonly HashSet<long> Dirty = new HashSet<long>();
+            public bool ForceFull = true;   // first build is always full
+            public readonly object Lock = new object();
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HostIncrementalState> _hostIncremental
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, HostIncrementalState>(StringComparer.OrdinalIgnoreCase);
+
+        // Set while a plugin-owned transaction runs (e.g. BuildBOQDocument's own
+        // STEP 9 stale-flag write, or WriteElementParameters) so the dirty marker
+        // doesn't self-dirty every costed element on each build — which would make
+        // the next "incremental" refresh re-walk the whole model. Single API
+        // thread ⇒ a plain static is safe.
+        private static volatile bool _suppressDirty;
+        internal static bool IsDirtySuppressed => _suppressDirty;
+
+        private static HostIncrementalState IncrementalState(Document doc)
+            => _hostIncremental.GetOrAdd(doc?.PathName ?? "default", _ => new HostIncrementalState());
+
+        /// <summary>IUpdater hook — record elements changed in any way so the next
+        /// incremental refresh re-takes-off only those.</summary>
+        internal static void MarkHostDirty(Document doc, IEnumerable<long> ids)
+        {
+            if (doc == null || ids == null || _suppressDirty) return;
+            var st = IncrementalState(doc);
+            lock (st.Lock) foreach (var id in ids) if (id > 0) st.Dirty.Add(id);
+        }
+
+        /// <summary>IUpdater hook — a broad-impact change (type / material / level /
+        /// grid) was seen; the cached rows can't be trusted, so force a full rebuild.</summary>
+        internal static void ForceHostFull(Document doc)
+        {
+            if (doc == null) return;
+            string key = doc.PathName ?? "default";
+            _hostTakeoffCache.TryRemove(key, out _);
+            var st = IncrementalState(doc);
+            lock (st.Lock) { st.ForceFull = true; st.Dirty.Clear(); }
+        }
+
+        /// <summary>Global host-cache invalidation — used when rate / carbon /
+        /// measurement config changes (Cost_ReloadRules, measurement-standard
+        /// switch), since those affect every cached row.</summary>
+        internal static void InvalidateHostCache()
+        {
+            _hostTakeoffCache.Clear();
+            foreach (var st in _hostIncremental.Values)
+                lock (st.Lock) { st.ForceFull = true; st.Dirty.Clear(); }
+        }
+
+        /// <summary>Drop the per-document host cache + dirty state (document close).</summary>
+        internal static void ClearHostIncremental(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            _hostTakeoffCache.TryRemove(key, out _);
+            _hostIncremental.TryRemove(key, out _);
+        }
+
+        // Host raw-item builder — full walk, or incremental (dirty + added only).
+        private static List<BOQLineItem> BuildHostRawItems(Document doc, HashSet<string> knownCats,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            IMeasurementStandard measStd, bool allowIncremental)
+        {
+            string key = doc?.PathName ?? "default";
+            var st = IncrementalState(doc);
+            bool haveCache = _hostTakeoffCache.TryGetValue(key, out var cached) && cached != null;
+            bool forceFull; HashSet<long> dirtySnapshot;
+            lock (st.Lock) { forceFull = st.ForceFull; dirtySnapshot = new HashSet<long>(st.Dirty); }
+
+            bool incremental = allowIncremental && haveCache && !forceFull;
+
+            // The element collection (cheap iteration) runs in both paths; the
+            // expensive BuildLineItemFromElement is what incremental skips.
+            var currentElements = CollectCandidateElements(doc, knownCats);
+
+            if (!incremental)
+            {
+                var items = new List<BOQLineItem>(currentElements.Count);
+                foreach (var el in currentElements)
+                {
+                    var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    if (line != null) items.Add(line);
+                }
+                StoreHostCache(key, items, st);
+                return items;
+            }
+
+            // ── Incremental ──────────────────────────────────────────────────
+            var currentById = new Dictionary<long, Element>();
+            foreach (var e in currentElements)
+            {
+                long id = e.Id?.Value ?? -1;
+                if (id > 0) currentById[id] = e;
+            }
+            var currentIds = new HashSet<long>(currentById.Keys);
+
+            var cachedById = new Dictionary<long, BOQLineItem>();
+            foreach (var it in cached)
+                if (it.RevitElementId > 0 && !cachedById.ContainsKey(it.RevitElementId))
+                    cachedById[it.RevitElementId] = it;
+
+            // Re-take-off = newly-added (in current, not cached) ∪ dirty-existing.
+            var reTakeoff = new HashSet<long>();
+            foreach (var id in currentIds) if (!cachedById.ContainsKey(id)) reTakeoff.Add(id);
+            foreach (var id in dirtySnapshot) if (currentIds.Contains(id)) reTakeoff.Add(id);
+
+            var result = new List<BOQLineItem>(cached.Count + reTakeoff.Count);
+            foreach (var it in cached)
+            {
+                if (!currentIds.Contains(it.RevitElementId)) continue;   // removed → drop
+                if (reTakeoff.Contains(it.RevitElementId)) continue;     // will rebuild
+                result.Add(it.Clone());
+            }
+            int rebuilt = 0;
+            foreach (var id in reTakeoff)
+            {
+                if (!currentById.TryGetValue(id, out var el) || el == null) continue;
+                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                if (line != null) { result.Add(line); rebuilt++; }
+            }
+            StingLog.Info($"BOQ incremental host take-off: re-took-off {rebuilt} of {currentIds.Count} element(s) " +
+                          $"(cache had {cachedById.Count}).");
+            StoreHostCache(key, result, st);
+            return result;
+        }
+
+        private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
+        {
+            // Store an isolated clone so a later caller mutating the returned rows
+            // (aggregate / group / override) can never corrupt the cache.
+            _hostTakeoffCache[key] = items.Select(i => i.Clone()).ToList();
+            lock (st.Lock) { st.ForceFull = false; st.Dirty.Clear(); }
+        }
+
         private static string LinkSelectionPath(Document doc)
         {
             string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
@@ -223,10 +377,26 @@ namespace StingTools.BOQ
         }
 
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
-            BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
+            BoqGroupingMode grouping = BoqGroupingMode.WorkSection, bool allowIncremental = false)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
+            // Phase 2D — suppress the dirty marker for the duration of the build so
+            // the build's own STEP 9 stale-flag transaction doesn't self-dirty every
+            // costed element (which would make the next incremental refresh re-walk
+            // the whole model). Single API thread ⇒ no user edit is suppressed.
+            bool prevSuppress = _suppressDirty;
+            _suppressDirty = true;
+            try
+            {
+            return BuildBOQDocumentCore(doc, extraManualRows, grouping, allowIncremental);
+            }
+            finally { _suppressDirty = prevSuppress; }
+        }
+
+        private static BOQDocument BuildBOQDocumentCore(Document doc, IEnumerable<BOQLineItem> extraManualRows,
+            BoqGroupingMode grouping, bool allowIncremental)
+        {
             var boq = new BOQDocument
             {
                 ProjectName = ReadProjectName(doc),
@@ -271,17 +441,13 @@ namespace StingTools.BOQ
             // picked up on this Refresh.
             BoqEpdStore.Invalidate(doc);
 
-            // ── STEP 4: Collect elements ─────────────────────────────────
+            // ── STEP 4 + 5: Collect + cost host elements ─────────────────
+            // Phase 2D — full walk, or incremental (dirty + added only) when the
+            // panel asks and a trusted cache exists. The result is the SAME raw
+            // host item set a full walk would produce (correct by construction);
+            // STEP 6 onward runs identically either way.
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
-            var allElements = CollectCandidateElements(doc, knownCats);
-
-            // ── STEP 5: Per-element costing ──────────────────────────────
-            var items = new List<BOQLineItem>(allElements.Count);
-            foreach (var el in allElements)
-            {
-                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
-                if (line != null) items.Add(line);
-            }
+            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental);
 
             // ── STEP 6: Merge manual + PS rows ───────────────────────────
             var manualStore = LoadManualStore(doc);

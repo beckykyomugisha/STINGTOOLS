@@ -324,6 +324,12 @@ namespace StingTools.UI
                     DispatchGuardReset = null;
                 CommandRunning = false;
             };
+            // Phase 2D — enable the incremental take-off dirty marker while the
+            // Cost Manager is in use. Kept enabled across panel hide/show so the
+            // dirty set stays continuous (so the cache stays trustworthy); the
+            // first build is always full (state defaults to force-full).
+            try { StingTools.BOQ.StingCostDirtyMarker.SetEnabled(true); }
+            catch (Exception ex) { StingLog.Warn($"BOQ enable dirty marker: {ex.Message}"); }
             RefreshAsync();
         }
 
@@ -531,7 +537,19 @@ namespace StingTools.UI
             {
                 try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); } catch { }
                 DispatchAction("BOQRefresh");
-            }));
+            }, "Refresh the bill. Phase 2D — re-takes-off only the elements you changed since the\n" +
+               "last build (incremental), reusing cached rows for the rest. Identical result to a full\n" +
+               "rebuild, just faster on large models. Links are re-walked. Use 'Refresh (full)' to force\n" +
+               "a complete re-walk."));
+            // Phase 2D — explicit full rebuild: clears the incremental host cache so
+            // every element is re-taken-off (the always-correct fallback).
+            actions.Children.Add(BuildHeaderBtn("↻ Refresh (full)", () =>
+            {
+                try { StingTools.BOQ.BOQCostManager.ForceHostFull(Doc); } catch { }
+                try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); } catch { }
+                DispatchAction("BOQRefresh");
+            }, "Force a complete rebuild — re-takes-off every element (host + links) from scratch.\n" +
+               "Use this if you ever suspect the incremental refresh is out of step (it shouldn't be)."));
             actions.Children.Add(BuildHeaderBtn("Set Budget", () => ShowBudgetDialog()));
             actions.Children.Add(BuildHeaderBtn("✦ Cost Setup", () => ShowCostSetupWizard()));   // G7
             Grid.SetColumn(actions, 2);
@@ -3446,9 +3464,23 @@ namespace StingTools.UI
         //  the handler completes it calls RefreshAsync() on the UI thread.
         // ══════════════════════════════════════════════════════════════════
 
-        public void RefreshAsync()
+        public void RefreshAsync() => RefreshAsync(false);
+
+        /// <summary>
+        /// Rebuild the bill. Phase 2D — when <paramref name="forceFull"/> is false
+        /// and the dirty marker is enabled, the host take-off runs incrementally
+        /// (re-takes-off only changed/added elements over a cached raw set); the
+        /// result is identical to a full rebuild by construction. forceFull (the
+        /// "Refresh (full)" button) always re-walks the whole model.
+        /// </summary>
+        public void RefreshAsync(bool forceFull)
         {
             if (Doc == null) return;
+            if (forceFull)
+            {
+                try { BOQCostManager.ForceHostFull(Doc); } catch (Exception ex) { StingLog.Warn($"BOQ ForceHostFull: {ex.Message}"); }
+            }
+            bool allowIncremental = !forceFull && StingTools.BOQ.StingCostDirtyMarker.IsEnabled;
             // ── G8: big-model Refresh feedback ───────────────────────────────
             //  BuildBOQDocument MUST run on the Revit API thread: its per-element
             //  costing reads parameters + geometry inline (that IS the heavy
@@ -3477,7 +3509,7 @@ namespace StingTools.UI
                     PumpDispatcher();   // force the dialog to paint before the blocking build
                 }
 
-                _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode);
+                _boq = BOQCostManager.BuildBOQDocument(Doc, null, _groupingMode, allowIncremental);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
                 // On first load open every section; subsequent refreshes preserve

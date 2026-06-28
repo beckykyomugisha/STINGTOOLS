@@ -340,6 +340,9 @@ namespace StingTools.Commands.Cost
             // Phase 2A — also drop the measurement rule + void caches.
             StingTools.BOQ.MeasurementStandard.MeasurementRuleRegistry.Invalidate();
             StingTools.BOQ.MeasurementStandard.MeasurementDeductionEngine.ResetCaches();
+            // Phase 2D — rate / measure config changed; the incremental host cache
+            // holds rows priced under the old config, so force a full rebuild next.
+            BOQCostManager.InvalidateHostCache();
 
             // Phase 2B — external live-rate feeds (BCIS / Planscape) are now part
             // of the default build chain (RateProviderRegistry.Build →
