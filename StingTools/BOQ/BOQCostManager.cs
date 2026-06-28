@@ -1704,9 +1704,25 @@ namespace StingTools.BOQ
 
         internal static BOQSnapshotDiff CompareSnapshots(string pathA, string pathB)
         {
-            var diff = new BOQSnapshotDiff();
             var a = LoadSnapshot(pathA);
             var b = LoadSnapshot(pathB);
+            return BuildDiff(a, b);
+        }
+
+        /// <summary>
+        /// Phase 2C — diff the LIVE bill (newer, B) against a saved snapshot
+        /// (older, A) so the drift check can compare the current model to the
+        /// last saved baseline without writing the live bill to disk first.
+        /// </summary>
+        internal static BOQSnapshotDiff CompareLiveToSnapshot(string olderSnapshotPath, BOQDocument liveNewer)
+        {
+            var a = LoadSnapshot(olderSnapshotPath);
+            return BuildDiff(a, liveNewer);
+        }
+
+        private static BOQSnapshotDiff BuildDiff(BOQDocument a, BOQDocument b)
+        {
+            var diff = new BOQSnapshotDiff();
             if (a == null || b == null) return diff;
 
             diff.LabelA = a.SnapshotLabel; diff.LabelB = b.SnapshotLabel;
@@ -1766,17 +1782,120 @@ namespace StingTools.BOQ
             return diff;
         }
 
+        /// <summary>Stable diff-matching key for a line — BOQ line ref when set,
+        /// else category + item name. Shared by the snapshot diff and the Phase
+        /// 2C drift check so both classify the same way.</summary>
+        internal static string LineKey(BOQLineItem it)
+        {
+            if (it == null) return "";
+            return !string.IsNullOrEmpty(it.BOQLineRef)
+                ? "ref:" + it.BOQLineRef
+                : "cat:" + (it.Category ?? "") + "|" + (it.ItemName ?? "");
+        }
+
         private static Dictionary<string, BOQLineItem> IndexByKey(BOQDocument d)
         {
             var map = new Dictionary<string, BOQLineItem>(StringComparer.OrdinalIgnoreCase);
-            foreach (var it in d.AllItems)
-            {
-                string k = !string.IsNullOrEmpty(it.BOQLineRef)
-                    ? "ref:" + it.BOQLineRef
-                    : "cat:" + (it.Category ?? "") + "|" + (it.ItemName ?? "");
-                map[k] = it;
-            }
+            foreach (var it in d.AllItems) map[LineKey(it)] = it;
             return map;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2C — auto-reprice drifted lines. Re-runs the rate-provider
+        //  chain (incl. the live feeds from 2B) for the given elements and
+        //  pins the fresh rate via the model-override sidecar. Manual
+        //  Override rows are left untouched. MUST run on the Revit API thread
+        //  (reads element params through the provider chain).
+        // ══════════════════════════════════════════════════════════════════
+
+        internal sealed class RepriceOutcome
+        {
+            public int Considered;
+            public int Repriced;
+            public int SkippedOverride;
+            public int NoRate;
+            public int Unchanged;
+            public double OldTotalUgx;
+            public double NewTotalUgx;
+            public List<string[]> Rows = new List<string[]>();   // [category, oldRate, newRate, source]
+        }
+
+        internal static RepriceOutcome RepriceElements(Document doc, IEnumerable<long> elementIds)
+        {
+            var outcome = new RepriceOutcome();
+            if (doc == null || elementIds == null) return outcome;
+            try
+            {
+                var csvRates = LoadCsvRates();
+                var cobie = LoadCobieCostCodes();
+                double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                var registry = RateProviderRegistry.Get(doc, csvRates, cobie, ugxPerUsd, ugxPerGbp);
+
+                foreach (long id in elementIds.Distinct())
+                {
+                    Element el;
+                    try { el = doc.GetElement(new ElementId(id)); } catch { continue; }
+                    if (el == null) continue;
+                    outcome.Considered++;
+
+                    // Never silently clobber a manual override.
+                    string curSource = ParameterHelpers.GetString(el, "CST_RATE_SOURCE") ?? "";
+                    if (string.Equals(curSource, "Override", StringComparison.OrdinalIgnoreCase))
+                    { outcome.SkippedOverride++; continue; }
+
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrEmpty(catName)) continue;
+
+                    var req = new RateRequest
+                    {
+                        CategoryName = catName,
+                        Discipline = DisciplineForCategory(catName),
+                        ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
+                        MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                        Unit = csvRates != null && csvRates.TryGetValue(catName, out var hint) ? hint.unit : "",
+                        CurrencyCode = "UGX",
+                        AsOf = DateTime.UtcNow,
+                        Element = el
+                    };
+
+                    var lk = registry.Resolve(req);
+                    if (lk == null || lk.UnitRate <= 0) { outcome.NoRate++; continue; }
+
+                    double newRate = lk.UnitRate;   // already converted to UGX
+                    double oldRate = 0;
+                    double.TryParse(ParameterHelpers.GetString(el, "CST_UNIT_RATE_UGX"),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out oldRate);
+
+                    // Only pin a fresh rate when it actually moved (>1%) so we
+                    // don't freeze every drifted line at an unchanged value.
+                    if (oldRate > 0 && Math.Abs(newRate - oldRate) / oldRate <= 0.01)
+                    { outcome.Unchanged++; outcome.OldTotalUgx += oldRate; outcome.NewTotalUgx += oldRate; continue; }
+
+                    string src = MapProviderIdToLegacySource(lk.SourceId);
+                    UpsertModelOverride(doc, new BOQModelOverride
+                    {
+                        UniqueId = el.UniqueId,
+                        ElementId = id,
+                        RateUGX = newRate,
+                        RateUSD = ugxPerUsd > 0 ? Math.Round(newRate / ugxPerUsd, 2) : 0,
+                        RateSource = src,
+                        ModifiedBy = Environment.UserName ?? ""
+                    });
+                    outcome.Repriced++;
+                    outcome.OldTotalUgx += oldRate;
+                    outcome.NewTotalUgx += newRate;
+                    outcome.Rows.Add(new[]
+                    {
+                        catName,
+                        oldRate.ToString("N0", CultureInfo.InvariantCulture),
+                        newRate.ToString("N0", CultureInfo.InvariantCulture),
+                        src
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RepriceElements", ex); }
+            return outcome;
         }
 
         private static BOQChangeType ClassifyChange(BOQLineItem a, BOQLineItem b)

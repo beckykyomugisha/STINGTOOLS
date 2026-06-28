@@ -1055,6 +1055,14 @@ namespace StingTools.UI
                      "Pull candidate rates for the current bill from every configured feed, side-by-side with the current rate + confidence. Accept the best live rate per line or in bulk. Manual overrides are protected.", true),
                 }));
 
+            sp.Children.Add(BuildActionGroup("DRIFT (Phase 2C)",
+                "Detect when the bill has moved from the last saved snapshot and re-price what changed.",
+                new[]
+                {
+                    ("★ Drift check", "BOQ_DriftCheck",
+                     "Compare the live bill against the last saved snapshot — what changed (qty moved / new / removed / rate revised), element-linked. Then re-price the changed lines via the rate chain (incl. live feeds). Overrides protected.", true),
+                }));
+
             sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
                 "Elemental cost planning for RIBA 1-3 — £/m² GIFA benchmarks per building type.",
                 new[]
@@ -1350,6 +1358,8 @@ namespace StingTools.UI
                 // Phase 2B — live rate feeds: inline config form + fetch/accept.
                 if (tag == "BOQ_RateFeedsConfig") { ShowRateFeedsForm(label); return; }
                 if (tag == "BOQ_FetchLiveRates") { ShowFetchLiveRates(label); return; }
+                // Phase 2C — drift check (live bill vs last snapshot) + re-price.
+                if (tag == "BOQ_DriftCheck") { ShowDriftCheck(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
                 // Reclassify legacy = a per-VO reason/liability grid — its own editor.
@@ -1886,6 +1896,121 @@ namespace StingTools.UI
                 RefreshDisplay();   // re-render + re-total from _boq (no Revit rebuild)
             }
             catch (Exception ex) { StingLog.Error("BOQ AcceptLiveRate", ex); }
+        }
+
+        // ── Phase 2C — drift check (live bill vs last snapshot) + re-price ──
+
+        /// <summary>Compare the live bill to the last saved snapshot and render
+        /// the element-linked changes + a re-price action, inline.</summary>
+        private void ShowDriftCheck(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var b = StingResultPanel.Create("Drift check");
+                if (_boq == null || _boq.AllItems == null || _boq.AllItems.Count == 0)
+                {
+                    b.SetSubtitle("No bill built yet — press Refresh first."); ShowInlineResult(b); return;
+                }
+
+                var snaps = BOQCostManager.ListSnapshots(Doc);
+                if (snaps.Count == 0)
+                {
+                    b.SetSubtitle("No saved snapshot to compare against.");
+                    b.AddSection("BASELINE").Text("Save a snapshot first (Save Snapshot) to set the baseline this check drifts from.");
+                    ShowInlineResult(b); return;
+                }
+
+                var last = snaps[0];
+                var snap = BOQCostManager.LoadSnapshot(last.Path);
+                string liveCk = StingTools.BOQ.Sync.BoqSnapshotHasher.ComputeChecksum(_boq);
+                string snapCk = !string.IsNullOrEmpty(last.Checksum)
+                    ? last.Checksum
+                    : (snap != null ? StingTools.BOQ.Sync.BoqSnapshotHasher.ComputeChecksum(snap) : "");
+                bool checksumChanged = !string.Equals(liveCk, snapCk, StringComparison.Ordinal);
+
+                var diff = BOQCostManager.CompareLiveToSnapshot(last.Path, _boq);
+
+                // Per-line classification (for element-linked findings + reprice ids).
+                var snapIndex = new Dictionary<string, BOQLineItem>(StringComparer.OrdinalIgnoreCase);
+                if (snap != null)
+                    foreach (var s in snap.AllItems) snapIndex[BOQCostManager.LineKey(s)] = s;
+
+                var newLines = new List<BOQLineItem>();
+                var qtyLines = new List<BOQLineItem>();
+                var rateLines = new List<BOQLineItem>();
+                foreach (var li in _boq.AllItems.Where(i => i.Source == BOQRowSource.Model))
+                {
+                    string k = BOQCostManager.LineKey(li);
+                    if (!snapIndex.TryGetValue(k, out var s)) { newLines.Add(li); continue; }
+                    bool qtyCh = s.Quantity > 0 && Math.Abs(li.Quantity - s.Quantity) / s.Quantity > 0.001;
+                    bool rateCh = s.RateUGX > 0 && Math.Abs(li.RateUGX - s.RateUGX) / s.RateUGX > 0.01;
+                    if (qtyCh) qtyLines.Add(li);
+                    else if (rateCh) rateLines.Add(li);
+                }
+                var liveKeys = new HashSet<string>(_boq.AllItems.Select(BOQCostManager.LineKey), StringComparer.OrdinalIgnoreCase);
+                var removed = snap?.AllItems
+                    .Where(i => i.Source == BOQRowSource.Model && !liveKeys.Contains(BOQCostManager.LineKey(i)))
+                    .ToList() ?? new List<BOQLineItem>();
+
+                int changed = newLines.Count + qtyLines.Count + rateLines.Count + removed.Count;
+                b.SetSubtitle(checksumChanged
+                    ? $"Bill drifted from snapshot '{last.Label}' ({last.Date:dd MMM yyyy})."
+                    : $"No drift — bill matches snapshot '{last.Label}'.");
+                b.AddSection("SUMMARY")
+                 .Metric("Checksum", checksumChanged ? "CHANGED" : "match")
+                 .Metric("Net Δ cost", $"UGX {diff.NetChange:N0}", $"{diff.NetChangePct:+0.0;-0.0;0.0}%")
+                 .Metric("Net Δ carbon", $"{diff.NetCarbonChange:N0} kg")
+                 .Metric("Changed lines", changed.ToString(CultureInfo.InvariantCulture));
+
+                void AddGroup(string title, List<BOQLineItem> ls, bool linked)
+                {
+                    if (ls.Count == 0) return;
+                    b.AddSection(title);
+                    foreach (var li in ls.Take(50))
+                    {
+                        string txt = $"{(string.IsNullOrEmpty(li.BOQLineRef) ? "" : li.BOQLineRef + "  ")}"
+                                   + $"{AuditTrunc(li.ItemName, 38)} — {li.Quantity:N2} {li.Unit} @ UGX {li.RateUGX:N0}";
+                        if (linked && li.RevitElementId > 0) b.Finding(txt, li.RevitElementId);
+                        else b.Text(txt);
+                    }
+                    if (ls.Count > 50) b.Text($"… and {ls.Count - 50} more.");
+                }
+                AddGroup($"QTY MOVED ({qtyLines.Count})", qtyLines, true);
+                AddGroup($"NEW ({newLines.Count})", newLines, true);
+                AddGroup($"RATE REVISED ({rateLines.Count})", rateLines, true);
+                AddGroup($"REMOVED ({removed.Count})", removed, false);
+
+                if (changed == 0)
+                    b.AddSection("RESULT").Text("Nothing changed since the last snapshot.");
+
+                // Re-price action — qty-moved + new, non-override only.
+                var repriceIds = qtyLines.Concat(newLines)
+                    .Where(li => !string.Equals(li.RateSource, "Override", StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(li => (li.ConstituentElementIds != null && li.ConstituentElementIds.Count > 0)
+                        ? li.ConstituentElementIds
+                        : (li.RevitElementId > 0 ? new List<long> { li.RevitElementId } : new List<long>()))
+                    .Where(id => id > 0).Distinct().ToList();
+                if (repriceIds.Count > 0)
+                {
+                    b.Action($"Re-price {repriceIds.Count} changed element(s)",
+                        "Re-run the rate chain (incl. live feeds) on qty-moved + new lines; overrides protected; re-totals after.",
+                        _ =>
+                        {
+                            try
+                            {
+                                StingCommandHandler.SetExtraParam("RepriceElementIds", string.Join(",", repriceIds));
+                                DispatchInline("Re-price changed lines", "Cost_RepriceDrift");
+                            }
+                            catch (Exception ex) { StingLog.Error("BOQ Drift reprice dispatch", ex); }
+                        });
+                }
+
+                ShowInlineResult(b);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowDriftCheck", ex); }
         }
 
         // ── P2.2 — reusable inline editable form host ───────────────────────

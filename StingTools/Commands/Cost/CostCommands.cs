@@ -551,4 +551,62 @@ namespace StingTools.Commands.Cost
             }
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Cost_RepriceDrift — Phase 2C. Re-runs the rate-provider chain (incl.
+    //  the 2B live feeds) for the drifted element ids the panel passes via
+    //  the RepriceElementIds ExtraParam, pinning the fresh rate via the
+    //  model-override sidecar. Manual Override rows are left untouched.
+    //  Runs on the Revit API thread (the provider chain reads element params).
+    // ──────────────────────────────────────────────────────────────────
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CostRepriceDriftCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                string csv = UI.StingCommandHandler.GetExtraParam("RepriceElementIds") ?? "";
+                var ids = csv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => long.TryParse(s.Trim(), out long v) ? v : -1)
+                    .Where(v => v > 0)
+                    .ToList();
+
+                if (ids.Count == 0)
+                {
+                    StingResultPanel.Create("Re-price changed lines")
+                        .SetSubtitle("No changed lines to re-price.")
+                        .Show();
+                    return Result.Succeeded;
+                }
+
+                var outcome = BOQCostManager.RepriceElements(doc, ids);
+
+                var rp = StingResultPanel.Create("Re-price changed lines")
+                    .SetSubtitle($"Re-ran the rate chain (incl. live feeds) on {outcome.Considered} changed line(s).");
+                rp.AddSection("RESULT")
+                  .Metric("Re-priced", outcome.Repriced.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Unchanged", outcome.Unchanged.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Override (protected)", outcome.SkippedOverride.ToString(CultureInfo.InvariantCulture))
+                  .Metric("No rate found", outcome.NoRate.ToString(CultureInfo.InvariantCulture));
+                if (outcome.Rows.Count > 0)
+                    rp.AddSection("RATE MOVES")
+                      .Table(new[] { "Category", "Old UGX", "New UGX", "Source" }, outcome.Rows.Take(200).ToList());
+                else
+                    rp.AddSection("RATE MOVES").Text("No rate moved — the changed lines re-priced to the same value.");
+                rp.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Cost_RepriceDrift", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

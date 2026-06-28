@@ -3537,6 +3537,7 @@ namespace StingTools.UI
                     case "Cost_RunWorkflow":            RunCommand<Commands.Cost.CostRunWorkflowCommand>(app); break;
                     case "Cost_ToggleStaleMarker":      RunCommand<Commands.Cost.CostToggleStaleMarkerCommand>(app); break;
                     case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
+                    case "Cost_RepriceDrift":           RunCommand<Commands.Cost.CostRepriceDriftCommand>(app); break;
                     case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
                     case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
 
