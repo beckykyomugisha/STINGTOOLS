@@ -34,6 +34,21 @@ namespace StingTools.BOQ
             if (string.IsNullOrWhiteSpace(materialName))
                 return new CarbonFactorResult { Factor = 0, PerUnit = CarbonFactorUnit.Unknown, Source = "" };
 
+            // Tier 0 (G5) — verified EPD override from _BIM_COORD/boq_epd_map.json.
+            // Highest priority; a mapped material uses its verified A1–A3 figure
+            // and is flagged "Verified-EPD". ICE / library remain the fallback.
+            try
+            {
+                if (BoqEpdStore.TryGet(doc, materialName, out var epd) && epd != null && epd.A1A3 > 0)
+                {
+                    var unit = string.Equals(epd.Unit, "kg", StringComparison.OrdinalIgnoreCase)
+                        ? CarbonFactorUnit.KgCo2ePerKg : CarbonFactorUnit.KgCo2ePerM3;
+                    string src = string.IsNullOrWhiteSpace(epd.Source) ? "epd" : $"epd:{epd.Source}";
+                    return new CarbonFactorResult { Factor = epd.A1A3, PerUnit = unit, Source = src };
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Epd", $"CarbonFactorResolver epd: {ex.Message}"); }
+
             // Tier 1 — Material parameter (per m³).
             // P-2 — MaterialNameCache lookup is O(1); previously we ran a
             // fresh FilteredElementCollector per BOQ row.

@@ -137,6 +137,11 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Phase 2D — incremental BOQ take-off dirty marker. Records which
+                // cost elements changed so the Cost Manager can re-take-off only
+                // those. Registered disabled; the BOQ panel enables it on open.
+                StingTools.BOQ.StingCostDirtyMarker.Register(application);
+
                 // Wave 3 — flag LPS elements (ATs / DCs / earth / bonding /
                 // SPDs) as stale when their geometry changes so the LPS
                 // panel + compliance check pick up modifications without
@@ -431,6 +436,11 @@ namespace StingTools.Core
                 // serving stale rows.
                 try { StingTools.BOQ.BOQCostManager.InvalidateLinkCache(); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing BOQCostManager.InvalidateLinkCache: {ex.Message}"); }
+                // Phase 2D — drop the per-document incremental host take-off cache
+                // + dirty set so a reopen rebuilds fully (the dirty set can't be
+                // trusted across a close).
+                try { StingTools.BOQ.BOQCostManager.ClearHostIncremental(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing BOQCostManager.ClearHostIncremental: {ex.Message}"); }
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, drawing-type, tag-scheme, and BOQ link caches");
             }
             catch (Exception ex)
@@ -947,6 +957,19 @@ namespace StingTools.Core
                 catch (Exception tEx)
                 {
                     StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
+                }
+
+                // BOQ 5D Phase 1 (slice a) — unify the two legacy schedule stores
+                // (Cost Manager boq_schedule.json + BCC schedule_4d.json) into the
+                // single canonical <project>/_BIM_COORD/schedule.json. Idempotent:
+                // writes only when schedule.json is absent AND a legacy store exists.
+                try
+                {
+                    Core.Schedule.ScheduleStore.EnsureMigrated(e.Document);
+                }
+                catch (Exception schEx)
+                {
+                    StingLog.Warn($"DocumentOpened schedule migration: {schEx.Message}");
                 }
 
                 // Pack 0 — project-scoped offline config override. File is at
@@ -1542,6 +1565,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { StingTools.BOQ.StingCostDirtyMarker.Unregister(); } catch { }
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();

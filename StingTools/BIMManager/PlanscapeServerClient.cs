@@ -1211,6 +1211,28 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
+    /// <summary>
+    /// Phase 2B — fetch a single live unit-rate for a category/PROD from the
+    /// server BOQ rate endpoint. Returns the raw JSON node (or null on no
+    /// match / offline / no endpoint) so the PlanscapeRateProvider can map it
+    /// to a RateLookup. Never throws — degrades to null.
+    /// </summary>
+    public async Task<JToken?> GetBoqRateAsync(Guid projectId, string category, string unit, string prod)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            string path = $"/api/projects/{projectId}/boq/rates" +
+                          $"?category={Uri.EscapeDataString(category ?? "")}" +
+                          $"&unit={Uri.EscapeDataString(unit ?? "")}" +
+                          $"&prod={Uri.EscapeDataString(prod ?? "")}";
+            var resp = await GetAsync(path);
+            if (!resp.ok || string.IsNullOrEmpty(resp.body)) return null;
+            return JToken.Parse(resp.body);
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     // ── P6 Live Link (feature gap 6) ──────────────────────────────────────────
 
     /// <summary>Saves P6 connection settings via POST /api/projects/{id}/p6/configure.</summary>

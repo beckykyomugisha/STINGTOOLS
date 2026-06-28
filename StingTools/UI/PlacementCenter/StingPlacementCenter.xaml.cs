@@ -228,6 +228,11 @@ namespace StingTools.UI.PlacementCenter
 
             // PC-14 coverage grid
             txtCoverageRadius.LostFocus  += (_,__) => CommitField(() => VM.Selected.Model.CoverageRadiusMm = ParseDouble(txtCoverageRadius.Text, VM.Selected.Model.CoverageRadiusMm));
+            // A6 (door/window clearance) — 0 = off
+            if (txtDoorClearance != null)
+                txtDoorClearance.LostFocus   += (_,__) => CommitField(() => VM.Selected.Model.DoorClearanceMm   = ParseDouble(txtDoorClearance.Text,   VM.Selected.Model.DoorClearanceMm));
+            if (txtWindowClearance != null)
+                txtWindowClearance.LostFocus += (_,__) => CommitField(() => VM.Selected.Model.WindowClearanceMm = ParseDouble(txtWindowClearance.Text, VM.Selected.Model.WindowClearanceMm));
             chkGuaranteeCoverage.Checked += (_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = true);
             chkGuaranteeCoverage.Unchecked+=(_,__) => CommitField(() => VM.Selected.Model.GuaranteeCoverage = false);
 
@@ -478,6 +483,33 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 195 — #2 pack scope. Honour the SourcePack dropdown at run time:
+            // when the user selects a specific pack (not "All"), only that pack's
+            // rules run — so a residential run can be scoped to MK-Electrical /
+            // Lighting-Pendants without editing JSON. "All" runs every pack (now
+            // safe: the engine's same-category crowding guard stops overlapping
+            // packs stacking fixtures). The pick is the existing grid dropdown.
+            var packSel = VM?.SelectedSourcePack;
+            if (!string.IsNullOrEmpty(packSel) && !packSel.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                int beforePack = rules.Count;
+                rules = rules.Where(r =>
+                {
+                    var p = string.IsNullOrEmpty(r.SourcePack) ? "Baseline" : r.SourcePack;
+                    return p.Equals(packSel, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+                StingLog.Info($"PlacementCenter: pack scope '{packSel}' kept {rules.Count}/{beforePack} rules for the run.");
+                if (rules.Count == 0)
+                {
+                    Report("Run", StingResultPanel.Create("Placement — pack scope")
+                        .SetSubtitle($"Pack '{packSel}' has no rules.")
+                        .AddSection("Nothing to place")
+                        .Alert($"The selected pack '{packSel}' contains no rules. Pick a different pack or 'All' in the Rules-tab dropdown."));
+                    Toast($"Pack '{packSel}' has no rules — see Report panel.");
+                    return;
+                }
+            }
+
             // Phase 139.8 — apply the explicit category checklist if any
             // box is ticked. Empty checklist = "every category in the rule
             // pack is allowed" (legacy behaviour).
@@ -582,16 +614,20 @@ namespace StingTools.UI.PlacementCenter
 
                 if (blockers.Count > 0)
                 {
-                    RaiseRevitToFront();
-                    var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
+                    // Render the blockers INLINE in the Report panel (not a pop-up).
+                    var rb = StingResultPanel.Create("Placement — prerequisites missing")
+                        .SetSubtitle($"{blockers.Count} prerequisite(s) failed — run aborted.")
+                        .AddSection("Blockers");
+                    foreach (var bl in blockers) rb.Alert(bl);
+                    rb.AddSection("Why")
+                      .Text("The run is hard-failed when these are present so we don't produce silently-wrong placements.");
+                    if (helpfulHints.Count > 0)
                     {
-                        MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
-                        MainContent = string.Join("\n\n", blockers)
-                            + "\n\nThe run is hard-failed when these are present so we don't produce silently-wrong placements. "
-                            + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
-                        CommonButtons = TaskDialogCommonButtons.Close,
-                    };
-                    dlg.Show();
+                        rb.AddSection("Also noted");
+                        foreach (var h in helpfulHints) rb.Text(h);
+                    }
+                    Report("Run", rb);
+                    Toast($"{blockers.Count} prerequisite(s) failed — see Report panel.");
                     StingLog.Warn($"PlacementCenter: prerequisites preflight failed — {blockers.Count} blocker(s). Run aborted.");
                     foreach (var b in blockers) StingLog.Warn("  " + b);
                     return;
@@ -631,11 +667,15 @@ namespace StingTools.UI.PlacementCenter
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
             if (roomIds.Count == 0)
             {
-                TaskDialog.Show("STING — Placement Centre",
-                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.\n\n" +
-                    "• Try scope = Project, or open a plan view that shows the rooms/spaces.\n" +
-                    "• If this is an MEP model, place MEP Spaces (Analyze → Space) — the engine now places into Spaces as well as Rooms.\n" +
-                    "• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement.");
+                // Render the guard INLINE in the Report panel (not a pop-up window).
+                Report("Run", StingResultPanel.Create("Placement — no rooms in scope")
+                    .SetSubtitle($"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.")
+                    .AddSection("Nothing to place")
+                    .Alert($"Scope '{VM.RunOpts.Scope}' resolved zero rooms or MEP spaces.")
+                    .Text("• Try scope = Project, or open a plan view that shows the rooms/spaces.")
+                    .Text("• MEP model: place MEP Spaces (Analyze → Space) — the engine places into Spaces as well as Rooms.")
+                    .Text("• Rooms that live only in a LINKED architecture model are not read yet — place Spaces in this model to drive placement."));
+                Toast($"Scope '{VM.RunOpts.Scope}' has no rooms/spaces — see Report panel.");
                 return;
             }
 
@@ -820,8 +860,41 @@ namespace StingTools.UI.PlacementCenter
                     try { prog?.Increment(); return prog?.IsCancelled ?? false; }
                     catch { return false; }
                 };
+
+                // Item 1 — EnsureSeeds pre-pass. Runs BEFORE the engine opens its
+                // transaction so seed families build/load cleanly (no nested
+                // transaction). Skipped for dry-run previews (nothing is
+                // committed). For each ticked category with no loaded family,
+                // the mapped STING seed is built+loaded so the run places a
+                // swap-ready default instead of silently skipping. Failures are
+                // non-fatal — the run proceeds and the rule surfaces the normal
+                // "no symbol" skip.
+                List<string> seedMsgs = null;
+                if (!req.DryRun)
+                {
+                    try { prog?.SetStatus("Pre-flight — ensuring seed families…"); } catch { }
+                    try
+                    {
+                        var seedRes = StingTools.Core.Placement.SeedEnsurer.EnsureSeedsForRules(req.Doc, req.Rules);
+                        if (seedRes != null && (seedRes.SeedsBuiltOrLoaded > 0 || seedRes.Messages.Count > 0))
+                        {
+                            seedMsgs = new List<string>();
+                            seedMsgs.Add($"EnsureSeeds: {seedRes.SeedsBuiltOrLoaded} seed family(ies) built/loaded; " +
+                                         $"{seedRes.CategoriesAlreadyServed} category(ies) already had a family; " +
+                                         $"{seedRes.CategoriesSeedless} seedless.");
+                            seedMsgs.AddRange(seedRes.Messages);
+                        }
+                    }
+                    catch (Exception sx) { StingLog.Warn($"PlacementCenter EnsureSeeds pre-pass: {sx.Message}"); }
+                }
+
                 result = FixturePlacementEngine.PlaceFixturesInScope(
                     req.Doc, roomIds, req.Rules, req.DryRun, onProgress);
+
+                // Fold the seed-build report into the run warnings so the run
+                // report lists what was built/loaded.
+                if (result != null && seedMsgs != null && seedMsgs.Count > 0)
+                    result.Warnings.InsertRange(0, seedMsgs);
             }
             catch (Exception ex) { err = ex; StingLog.Error("PlacementCenter.ExecuteRun", ex); }
 
@@ -897,6 +970,35 @@ namespace StingTools.UI.PlacementCenter
                     foreach (var kv in result.CountsByRule.OrderByDescending(k => k.Value).Take(20))
                         panel.Metric(kv.Key, kv.Value.ToString());
                 }
+
+                // A11 + A14 — per-rule placement diagnostics. Surfaces anchor
+                // fallbacks (devices landed at the room centre), under-fill
+                // (cap > candidates), and no-symbol skips so every algorithm
+                // gap self-reports in the run report instead of silently
+                // mis-placing.
+                try
+                {
+                    var diags = (result?.Diagnostics?.Values ?? Enumerable.Empty<StingTools.Core.Placement.RuleDiagnostic>())
+                        .Where(d => d != null && (d.AnchorMissRooms > 0 || d.UnderFilledRooms > 0 || d.SkippedNoSymbol > 0))
+                        .OrderByDescending(d => d.AnchorMissRooms + d.UnderFilledRooms + d.SkippedNoSymbol)
+                        .ToList();
+                    if (diags.Count > 0)
+                    {
+                        panel.AddSection("PER-RULE DIAGNOSTICS (anchor / under-fill / no-symbol)");
+                        foreach (var d in diags.Take(20))
+                        {
+                            var bits = new List<string>();
+                            if (d.AnchorMissRooms > 0)
+                                bits.Add($"anchor→centre in {d.AnchorMissRooms} room(s) ({d.FirstAnchorMiss})");
+                            if (d.UnderFilledRooms > 0)
+                                bits.Add($"under-filled {d.UnderFilledRooms} room(s), short {d.UnderFillShortfall} ({d.FirstUnderFill})");
+                            if (d.SkippedNoSymbol > 0)
+                                bits.Add($"no family symbol — {d.SkippedNoSymbol} skipped");
+                            panel.Metric(d.MergeKey, string.Join(" · ", bits));
+                        }
+                    }
+                }
+                catch (Exception dEx) { StingLog.Warn($"PlacementCenter diagnostics section: {dEx.Message}"); }
 
                 if (placed == 0)
                 {
@@ -1910,6 +2012,8 @@ namespace StingTools.UI.PlacementCenter
                 if (txtMaxSpacing            != null) txtMaxSpacing.Text            = s.MaxSpacingMm.ToString("0.##",           CultureInfo.InvariantCulture);
                 if (txtWallClearance         != null) txtWallClearance.Text         = s.WallClearanceMm.ToString("0.##",        CultureInfo.InvariantCulture);
                 if (txtObstructionClearance  != null) txtObstructionClearance.Text  = s.ObstructionClearanceMm.ToString("0.##", CultureInfo.InvariantCulture);
+                if (txtDoorClearance         != null) txtDoorClearance.Text         = s.DoorClearanceMm.ToString("0.##",        CultureInfo.InvariantCulture);
+                if (txtWindowClearance       != null) txtWindowClearance.Text       = s.WindowClearanceMm.ToString("0.##",      CultureInfo.InvariantCulture);
                 if (chkGuaranteeCoverage     != null) chkGuaranteeCoverage.IsChecked = s.GuaranteeCoverage;
 
                 if (cmbRoutingMode           != null) cmbRoutingMode.SelectedItem   = string.IsNullOrEmpty(s.RoutingMode) ? "NONE" : s.RoutingMode;

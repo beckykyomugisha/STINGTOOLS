@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Lighting Fixtures (BS EN 12464-1, CIBSE LG7)",
+  "standard": "STING SEED FAMILY \u2014 Lighting Fixtures (BS EN 12464-1, CIBSE LG7)",
   "_notes": [
     "Tier-1 seed family for the Lighting Fixtures category.",
     "Carries the full STING parameter scheme + ELC_PHOTO_* photometric",
     "params + LTG_* lighting params + ASS_TAG_* tag containers.",
-    "Author runs BuildSeedFamiliesCommand → SymbolLibraryCreator emits",
+    "Author runs BuildSeedFamiliesCommand \u2192 SymbolLibraryCreator emits",
     "STING_SEED_LightingFixture.rfa with the geometry stub. Manual",
     "polish per the layman's guide adds visual symbols + 3D mass.",
     "Swap to manufacturer family via SwapToManufacturerCommand once",
@@ -18,7 +18,7 @@
   "symbols": [
     {
       "id": "STING_SEED_LightingFixture",
-      "name": "STING Seed — Lighting Fixture",
+      "name": "STING Seed \u2014 Lighting Fixture",
       "category": "Lighting Fixtures",
       "familyType": "SeedFamily",
       "discipline": "Electrical",
@@ -149,19 +149,65 @@
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
-          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": 0.5, "y2": -0.5 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          }
         ]
       },
       "solid3D": {
         "type": "Box",
         "widthMm": 600,
         "depthMm": 600,
-        "heightMm": 100
+        "heightMm": 100,
+        "components": [
+          {
+            "type": "Box",
+            "widthMm": 600,
+            "depthMm": 600,
+            "heightMm": 14,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Box",
+            "widthMm": 560,
+            "depthMm": 560,
+            "heightMm": 80,
+            "offsetZMm": 14
+          }
+        ]
       },
       "swapCandidates": [
         {
@@ -370,6 +416,170 @@
             "LTG_IP_RATING_TXT": "IP20",
             "LTG_DIMMABLE_BOOL": "0"
           }
+        },
+        {
+          "name": "G_FIXTURES_ESCAPE_CORRIDOR_STAIR",
+          "params": {}
+        },
+        {
+          "name": "_LIGHTING_FIXTURES_EXIT_ENTRANCE",
+          "params": {}
+        },
+        {
+          "name": "TING_FIXTURES_OFFICE_WORKSTATION",
+          "params": {}
+        },
+        {
+          "name": "NG_FIXTURES_CORRIDOR_CIRCULATION",
+          "params": {}
+        },
+        {
+          "name": "EM",
+          "params": {}
+        },
+        {
+          "name": "EXIT",
+          "params": {}
+        },
+        {
+          "name": "ELEC_LIGHT_CLASSROOM",
+          "params": {}
+        },
+        {
+          "name": "MIRROR_LIGHT",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_RESIDENTIAL_GENERAL",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_RESIDENTIAL_KITCHEN",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_RESIDENTIAL_BATHROOM",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_OFFICE_LED",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_CLASSROOM",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_CORRIDOR_EMERGENCY",
+          "params": {}
+        },
+        {
+          "name": "HIGHBAY",
+          "params": {}
+        },
+        {
+          "name": "NDANT_LIVINGROOM_PENDANT_CLUSTER",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_STAIR_LANDING",
+          "params": {}
+        },
+        {
+          "name": "PENDANT_CORRIDOR_TILE",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_EMLIT_ANTI_PANIC_OPEN",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_EMLIT_HIGH_RISK_TASK",
+          "params": {}
+        },
+        {
+          "name": "ASELINE_EMLIT_CARPARK_ANTI_PANIC",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_OFFICE_LED_PANEL",
+          "params": {}
+        },
+        {
+          "name": "LINEAR",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_CLASSROOM_DIFFUSE",
+          "params": {}
+        },
+        {
+          "name": "ASELINE_LIGHT_CORRIDOR_DOWNLIGHT",
+          "params": {}
+        },
+        {
+          "name": "WALLWASH",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_TOILET_AMBIENT",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_KITCHEN_WORKTOP",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_KITCHEN_AMBIENT",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_STORAGE_MINIMAL",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_PARKING_COVERED",
+          "params": {}
+        },
+        {
+          "name": "FEATURE",
+          "params": {}
+        },
+        {
+          "name": "TRACK",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_WARD_BEDHEAD",
+          "params": {}
+        },
+        {
+          "name": "SURGICAL",
+          "params": {}
+        },
+        {
+          "name": "FLOOD",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_EXTERNAL_BOLLARD",
+          "params": {}
+        },
+        {
+          "name": "UPLIGHTER",
+          "params": {}
+        },
+        {
+          "name": "RECESSED",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_LIGHT_RETAIL_PERIMETER",
+          "params": {}
+        },
+        {
+          "name": "DAYLIGHT",
+          "params": {}
         }
       ]
     }

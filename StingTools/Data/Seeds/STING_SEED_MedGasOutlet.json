@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Medical Gas Terminal Units (HTM 02-01, BS 5682, EN ISO 7396-1)",
+  "standard": "STING SEED FAMILY \u2014 Medical Gas Terminal Units (HTM 02-01, BS 5682, EN ISO 7396-1)",
   "_notes": [
     "13 type variants: HTM 02-01 terminal units (O2, N2O, Med Air,",
     "Surg Air, Vacuum, CO2, N2, Heliox), 5-gas AVSU, area alarm panel,",
@@ -8,13 +8,13 @@
     "",
     "MGS_* parameters track HTM 02-01 metadata: gas type, operational",
     "pressure, BS 5682 socket reference, certification.",
-    "Connectors authored for worst-case 5-service union — SwapToManufacturer",
+    "Connectors authored for worst-case 5-service union \u2014 SwapToManufacturer",
     "replaces with real Beaconmedaes / Pattons / GCE / Wandsworth product."
   ],
   "symbols": [
     {
       "id": "STING_SEED_MedGasOutlet",
-      "name": "STING Seed — Medical Gas Outlet",
+      "name": "STING Seed \u2014 Medical Gas Outlet",
       "category": "Specialty Equipment",
       "familyType": "SeedFamily",
       "discipline": "Plumbing",
@@ -24,55 +24,221 @@
       "hosting": "FaceBased",
       "symbolSize": 5.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "STING_SEED_MedGasOutlet" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true, "default": "MG" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true, "default": "TU" },
-        { "name": "MGS_TU_TYPE_TXT",           "type": "Text", "shared": true, "isInstance": true, "default": "TERMINAL_UNIT" },
-        { "name": "MGS_GASES_TXT",             "type": "Text", "shared": true, "isInstance": true, "default": "O2,MEDAIR,VAC" },
-        { "name": "MGS_SOCKET_STD_TXT",        "type": "Text", "shared": true, "isInstance": false, "default": "BS_5682" },
-        { "name": "MGS_OPERATING_KPA",         "type": "Text", "shared": true, "isInstance": false, "default": "414" },
-        { "name": "MGS_CERT_TXT",              "type": "Text", "shared": true, "isInstance": false, "default": "HTM 02-01 / EN ISO 7396-1" },
-        { "name": "MGS_HOSPITAL_AREA_TXT",     "type": "Text", "shared": true, "isInstance": true, "default": "WARD" },
-        { "name": "MGS_AVSU_ZONE_TXT",         "type": "Text", "shared": true, "isInstance": true, "default": "" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_MedGasOutlet"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "MG"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "TU"
+        },
+        {
+          "name": "MGS_TU_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "TERMINAL_UNIT"
+        },
+        {
+          "name": "MGS_GASES_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "O2,MEDAIR,VAC"
+        },
+        {
+          "name": "MGS_SOCKET_STD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS_5682"
+        },
+        {
+          "name": "MGS_OPERATING_KPA",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "414"
+        },
+        {
+          "name": "MGS_CERT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "HTM 02-01 / EN ISO 7396-1"
+        },
+        {
+          "name": "MGS_HOSPITAL_AREA_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WARD"
+        },
+        {
+          "name": "MGS_AVSU_ZONE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.3, "x2": 0.5, "y2": -0.3 },
-          { "x1": 0.5, "y1": -0.3, "x2": 0.5, "y2": 0.3 },
-          { "x1": 0.5, "y1": 0.3, "x2": -0.5, "y2": 0.3 },
-          { "x1": -0.5, "y1": 0.3, "x2": -0.5, "y2": -0.3 }
+          {
+            "x1": -0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": -0.3
+          }
         ],
         "arcs": [
-          { "cx": -0.3, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
-          { "cx": -0.1, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
-          { "cx":  0.1, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 },
-          { "cx":  0.3, "cy": 0.0, "r": 0.08, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": -0.3,
+            "cy": 0.0,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": -0.1,
+            "cy": 0.0,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.1,
+            "cy": 0.0,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.3,
+            "cy": 0.0,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 80, "heightMm": 200 },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 80,
+        "heightMm": 200,
+        "components": [
+          {
+            "type": "Box",
+            "widthMm": 100,
+            "depthMm": 100,
+            "heightMm": 6,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Box",
+            "widthMm": 88,
+            "depthMm": 88,
+            "heightMm": 60,
+            "offsetZMm": -60
+          }
+        ]
+      },
       "connectors": [
         {
-          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
-          "sizeMm": 8, "direction": "In",
-          "offsetX": -0.3, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+          "domain": "Piping",
+          "systemType": "OtherPipe",
+          "shape": "Round",
+          "sizeMm": 8,
+          "direction": "In",
+          "offsetX": -0.3,
+          "offsetY": 0.0,
+          "offsetZ": -0.5,
+          "facing": "-Z"
         },
         {
-          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
-          "sizeMm": 8, "direction": "In",
-          "offsetX": -0.1, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+          "domain": "Piping",
+          "systemType": "OtherPipe",
+          "shape": "Round",
+          "sizeMm": 8,
+          "direction": "In",
+          "offsetX": -0.1,
+          "offsetY": 0.0,
+          "offsetZ": -0.5,
+          "facing": "-Z"
         },
         {
-          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
-          "sizeMm": 8, "direction": "In",
-          "offsetX":  0.1, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+          "domain": "Piping",
+          "systemType": "OtherPipe",
+          "shape": "Round",
+          "sizeMm": 8,
+          "direction": "In",
+          "offsetX": 0.1,
+          "offsetY": 0.0,
+          "offsetZ": -0.5,
+          "facing": "-Z"
         },
         {
-          "domain": "Piping", "systemType": "OtherPipe", "shape": "Round",
-          "sizeMm": 12, "direction": "Out",
-          "offsetX":  0.3, "offsetY": 0.0, "offsetZ": -0.5, "facing": "-Z"
+          "domain": "Piping",
+          "systemType": "OtherPipe",
+          "shape": "Round",
+          "sizeMm": 12,
+          "direction": "Out",
+          "offsetX": 0.3,
+          "offsetY": 0.0,
+          "offsetZ": -0.5,
+          "facing": "-Z"
         }
       ],
       "swapCandidates": [

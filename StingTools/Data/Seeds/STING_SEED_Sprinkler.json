@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Sprinklers (BS EN 12845, BS 9251, LPC Rules)",
+  "standard": "STING SEED FAMILY \u2014 Sprinklers (BS EN 12845, BS 9251, LPC Rules)",
   "_notes": [
     "10 type variants: pendant (standard / residential / extended-coverage /",
     "fast-response), upright, sidewall, concealed, high-temp 93C,",
@@ -9,7 +9,7 @@
   "symbols": [
     {
       "id": "STING_SEED_Sprinkler",
-      "name": "STING Seed — Sprinkler",
+      "name": "STING Seed \u2014 Sprinkler",
       "category": "Sprinklers",
       "familyType": "SeedFamily",
       "discipline": "FireProtection",
@@ -118,20 +118,60 @@
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ],
         "lines": [
-          { "x1": -0.5, "y1": 0.0, "x2": -0.4, "y2": 0.0 },
-          { "x1": 0.4, "y1": 0.0, "x2": 0.5, "y2": 0.0 },
-          { "x1": 0.0, "y1": -0.5, "x2": 0.0, "y2": -0.4 },
-          { "x1": 0.0, "y1": 0.4, "x2": 0.0, "y2": 0.5 }
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": -0.4,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.5,
+            "x2": 0.0,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.0,
+            "y1": 0.4,
+            "x2": 0.0,
+            "y2": 0.5
+          }
         ]
       },
       "solid3D": {
         "type": "Box",
         "widthMm": 50,
         "depthMm": 50,
-        "heightMm": 80
+        "heightMm": 80,
+        "components": [
+          {
+            "type": "Cylinder",
+            "diameterMm": 25,
+            "heightMm": 55,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Cylinder",
+            "diameterMm": 42,
+            "heightMm": 4,
+            "offsetZMm": -6
+          }
+        ]
       },
       "swapCandidates": [
         {
@@ -273,6 +313,38 @@
             "FLS_SPR_RESPONSE_TXT": "STANDARD",
             "FLS_SPR_HAZARD_TXT": "HH"
           }
+        },
+        {
+          "name": "BASELINE_SPRINKLERS",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_SPRINKLERS_SERVER_COMMS",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_SPRINKLERS_LIGHT_HAZARD",
+          "params": {}
+        },
+        {
+          "name": "INE_SPRINKLERS_ORDINARY_HAZARD_1",
+          "params": {}
+        },
+        {
+          "name": "INE_SPRINKLERS_ORDINARY_HAZARD_2",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_SPRINKLERS_EXTRA_HAZARD",
+          "params": {}
+        },
+        {
+          "name": "INRACK",
+          "params": {}
+        },
+        {
+          "name": "RESIDENTIAL",
+          "params": {}
         }
       ]
     }

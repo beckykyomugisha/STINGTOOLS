@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Air Terminals (CIBSE Guide B, BS EN 13779)",
+  "standard": "STING SEED FAMILY \u2014 Air Terminals (CIBSE Guide B, BS EN 13779)",
   "_notes": [
     "14 type variants covering supply and extract diffusers (square,",
     "round, slot, swirl, displacement), grilles (supply, extract, linear",
@@ -9,7 +9,7 @@
   "symbols": [
     {
       "id": "STING_SEED_AirTerminal",
-      "name": "STING Seed — Air Terminal",
+      "name": "STING Seed \u2014 Air Terminal",
       "category": "Air Terminals",
       "familyType": "SeedFamily",
       "discipline": "Mechanical",
@@ -111,21 +111,76 @@
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2": 0.5, "y2": -0.5 },
-          { "x1": 0.5, "y1": -0.5, "x2": 0.5, "y2": 0.5 },
-          { "x1": 0.5, "y1": 0.5, "x2": -0.5, "y2": 0.5 },
-          { "x1": -0.5, "y1": 0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.25, "y1": 0.0, "x2": 0.25, "y2": 0.0 },
-          { "x1": 0.0, "y1": -0.25, "x2": 0.0, "y2": 0.25 },
-          { "x1": -0.18, "y1": -0.18, "x2": 0.18, "y2": 0.18 },
-          { "x1": -0.18, "y1": 0.18, "x2": 0.18, "y2": -0.18 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.0,
+            "x2": 0.25,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.25,
+            "x2": 0.0,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.18,
+            "x2": 0.18,
+            "y2": 0.18
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.18,
+            "x2": 0.18,
+            "y2": -0.18
+          }
         ]
       },
       "solid3D": {
         "type": "Box",
         "widthMm": 595,
         "depthMm": 595,
-        "heightMm": 60
+        "heightMm": 60,
+        "components": [
+          {
+            "type": "Box",
+            "widthMm": 595,
+            "depthMm": 595,
+            "heightMm": 30,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Cylinder",
+            "diameterMm": 250,
+            "heightMm": 200,
+            "offsetZMm": 30
+          }
+        ]
       },
       "swapCandidates": [
         {
@@ -283,6 +338,90 @@
             "HVC_TERM_FLOW_LS": "50",
             "HVC_TERM_THROW_M": "1"
           }
+        },
+        {
+          "name": "BASELINE_AIR_TERMINALS",
+          "params": {}
+        },
+        {
+          "name": "INE_AIR_TERMINALS_OFFICE_MEETING",
+          "params": {}
+        },
+        {
+          "name": "AIR_TERMINALS_TOILET_WC_BATHROOM",
+          "params": {}
+        },
+        {
+          "name": "MECH_AIR_EXTRACT_GRILLE_WC",
+          "params": {}
+        },
+        {
+          "name": "MECH_AIR_KITCHEN_EXTRACT",
+          "params": {}
+        },
+        {
+          "name": "WALL_EXTRACT_GRILLE",
+          "params": {}
+        },
+        {
+          "name": "TERMINAL_SUPPLY_DIFFUSER_DENSITY",
+          "params": {}
+        },
+        {
+          "name": "_AIR_TERMINAL_SUPPLY_OFFICE_HIGH",
+          "params": {}
+        },
+        {
+          "name": "ELINE_AIR_TERMINAL_SUPPLY_RETAIL",
+          "params": {}
+        },
+        {
+          "name": "E_AIR_TERMINAL_SUPPLY_RESTAURANT",
+          "params": {}
+        },
+        {
+          "name": "NE_AIR_TERMINAL_SUPPLY_CLASSROOM",
+          "params": {}
+        },
+        {
+          "name": "IR_TERMINAL_SUPPLY_HOSPITAL_WARD",
+          "params": {}
+        },
+        {
+          "name": "LINE_AIR_TERMINAL_SUPPLY_THEATRE",
+          "params": {}
+        },
+        {
+          "name": "INE_AIR_TERMINAL_SUPPLY_CORRIDOR",
+          "params": {}
+        },
+        {
+          "name": "_AIR_TERMINAL_RETURN_GRILLE_WALL",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_AIR_TERMINAL_EXHAUST_WC",
+          "params": {}
+        },
+        {
+          "name": "TERMINAL_EXHAUST_KITCHEN_EXTRACT",
+          "params": {}
+        },
+        {
+          "name": "IR_TERMINAL_TRANSFER_GRILLE_DOOR",
+          "params": {}
+        },
+        {
+          "name": "CASSETTE",
+          "params": {}
+        },
+        {
+          "name": "FCU",
+          "params": {}
+        },
+        {
+          "name": "VAV",
+          "params": {}
         }
       ]
     }

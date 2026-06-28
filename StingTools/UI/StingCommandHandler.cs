@@ -3512,8 +3512,12 @@ namespace StingTools.UI
                     case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;
+                    case "BOQ_RateGapReport":       RunCommand<BOQ.BOQRateGapReportCommand>(app); break;
+                    case "BOQ_SignOff":             RunCommand<BOQ.BOQSignOffCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+                    case "BOQ_LabourRollup":        RunCommand<BOQ.BOQLabourRollupCommand>(app); break;
+                    case "BOQ_CarbonGapReport":     RunCommand<BOQ.BOQCarbonGapReportCommand>(app); break;
                     case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
                     case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
                     case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;
@@ -3533,6 +3537,7 @@ namespace StingTools.UI
                     case "Cost_RunWorkflow":            RunCommand<Commands.Cost.CostRunWorkflowCommand>(app); break;
                     case "Cost_ToggleStaleMarker":      RunCommand<Commands.Cost.CostToggleStaleMarkerCommand>(app); break;
                     case "Cost_ReloadRules":            RunCommand<Commands.Cost.CostReloadRulesCommand>(app); break;
+                    case "Cost_RepriceDrift":           RunCommand<Commands.Cost.CostRepriceDriftCommand>(app); break;
                     case "Cost_MigrateCurrencyParams":  RunCommand<Commands.Cost.CostMigrateCurrencyParamsCommand>(app); break;
                     case "Cost_MigrateESEntities":      RunCommand<Commands.Cost.CostMigrateESEntitiesCommand>(app); break;
 
@@ -4024,12 +4029,19 @@ namespace StingTools.UI
                     try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
                     catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
 
-                    // Slice 1.5 — tear down the BOQ Cost Manager inline-routing
-                    // hooks so a later ribbon/other-panel command's pickers + result
-                    // panels don't render into the (possibly closed) Actions pane.
-                    StingTools.Select.StingListPicker.InlineHost = null;
-                    StingTools.Select.StingListPicker.InlineHostDoc = null;   // P0.1
-                    StingTools.Select.StingListPicker.InlineTitleSink = null;
+                    // P0.1 — release the BOQ dispatch busy-guard so the Actions
+                    // surface accepts the next click and the buttons un-grey. This
+                    // is the universal reset point (fires on every command, not just
+                    // those that registered a PendingActionResolve). Clear the flag
+                    // even when the panel hook is gone, so a closed panel never
+                    // strands the static flag.
+                    try { var g = BOQCostManagerPanel.DispatchGuardReset; BOQCostManagerPanel.CommandRunning = false; g?.Invoke(); }
+                    catch (Exception exG) { StingLog.Warn($"BOQ DispatchGuardReset: {exG.Message}"); }
+
+                    // P0.2 — tear down the BOQ Cost Manager inline result sink so a
+                    // later ribbon/other-panel command's result panels don't render
+                    // into the (possibly closed) Actions pane. Picker routing is gone
+                    // (input pickers are modal now — no nested pump to clear).
                     StingResultPanel.InlineSink = null;
 
                     // FIX-UI03: Notify panel that command completed so Tag Studio

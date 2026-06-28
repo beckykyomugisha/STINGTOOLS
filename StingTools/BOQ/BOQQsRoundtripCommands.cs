@@ -75,20 +75,32 @@ namespace StingTools.BOQ
                 if (ctx?.Doc == null) return Result.Failed;
                 var doc = ctx.Doc;
 
-                // Priced or unpriced?
-                var td = new TaskDialog("QS Bill export")
+                // Priced or unpriced? P0.3 — inline-form gate: when the BOQ panel
+                // supplied the QsExportPriced ExtraParam (1=priced / 0=unpriced) the
+                // priced/unpriced TaskDialog is skipped (no popup). Falls back to the
+                // TaskDialog for ribbon / other callers that didn't pre-set it.
+                bool priced;
+                string fPriced = UI.StingCommandHandler.GetExtraParam("QsExportPriced");
+                if (fPriced == "1" || fPriced == "0")
                 {
-                    MainInstruction = "Export the Bill of Quantities for the QS",
-                    MainContent = "Choose whether to include current rates (priced) or leave Rate/Amount "
-                        + "blank for the QS to price (unpriced). Either way, re-import via 'Import QS Bill'."
-                };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Priced — include current rates");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Unpriced — blank for the QS to price");
-                td.CommonButtons = TaskDialogCommonButtons.Cancel;
-                var choice = td.Show();
-                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
-                    return Result.Cancelled;
-                bool priced = choice == TaskDialogResult.CommandLink1;
+                    priced = fPriced == "1";
+                }
+                else
+                {
+                    var td = new TaskDialog("QS Bill export")
+                    {
+                        MainInstruction = "Export the Bill of Quantities for the QS",
+                        MainContent = "Choose whether to include current rates (priced) or leave Rate/Amount "
+                            + "blank for the QS to price (unpriced). Either way, re-import via 'Import QS Bill'."
+                    };
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Priced — include current rates");
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Unpriced — blank for the QS to price");
+                    td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    var choice = td.Show();
+                    if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
+                        return Result.Cancelled;
+                    priced = choice == TaskDialogResult.CommandLink1;
+                }
 
                 // Always a work-section (trade-order) bill regardless of the panel grouping.
                 var boq = BOQCostManager.BuildBOQDocument(doc, null, BoqGroupingMode.WorkSection);

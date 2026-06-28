@@ -47,20 +47,38 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Pick building type.
-                var btItems = registry.BuildingTypes
-                    .Select(b => new StingListPicker.ListItem { Label = b })
-                    .ToList();
-                var pickedBt = StingListPicker.Show(
-                    "STING — Cost plan: building type",
-                    "Pick the building type whose benchmarks should drive this plan.",
-                    btItems, allowMultiSelect: false);
-                if (pickedBt == null || pickedBt.Count == 0) return Result.Cancelled;
-                string buildingType = pickedBt[0].Label;
+                // P0.3 — inline-form gate. When the BOQ panel supplied the
+                // CostPlanBuildingType + CostPlanGifa ExtraParams, skip the building-
+                // type picker + GIFA TaskDialog (no popup). Falls back to the modal
+                // picker chain for ribbon / other callers.
+                string buildingType;
+                double gifa;
+                string fBt = UI.StingCommandHandler.GetExtraParam("CostPlanBuildingType");
+                string fGifa = UI.StingCommandHandler.GetExtraParam("CostPlanGifa");
+                string btMatch = string.IsNullOrEmpty(fBt) ? null
+                    : registry.BuildingTypes.FirstOrDefault(b => string.Equals(b, fBt, StringComparison.OrdinalIgnoreCase));
+                if (btMatch != null
+                    && double.TryParse(fGifa, NumberStyles.Any, CultureInfo.InvariantCulture, out gifa) && gifa > 0)
+                {
+                    buildingType = btMatch;
+                }
+                else
+                {
+                    // Pick building type.
+                    var btItems = registry.BuildingTypes
+                        .Select(b => new StingListPicker.ListItem { Label = b })
+                        .ToList();
+                    var pickedBt = StingListPicker.Show(
+                        "STING — Cost plan: building type",
+                        "Pick the building type whose benchmarks should drive this plan.",
+                        btItems, allowMultiSelect: false);
+                    if (pickedBt == null || pickedBt.Count == 0) return Result.Cancelled;
+                    buildingType = pickedBt[0].Label;
 
-                // Prompt for GIFA.
-                double gifa = PromptForGifa(doc);
-                if (gifa <= 0) return Result.Cancelled;
+                    // Prompt for GIFA.
+                    gifa = PromptForGifa(doc);
+                    if (gifa <= 0) return Result.Cancelled;
+                }
 
                 var plan = CostPlanEngine.Create(doc, buildingType, gifa, label: "Concept");
                 string path = CostPlanEngine.Save(doc, plan);
@@ -161,18 +179,30 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                var items = paths.Select(p => new StingListPicker.ListItem
+                // P0.3 — inline-form gate: when the panel supplied CostPlanPath, skip
+                // the picker (no popup). Falls back to the modal picker otherwise.
+                string chosen;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CostPlanPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    Label = Path.GetFileNameWithoutExtension(p),
-                    Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
-                    Tag = p
-                }).ToList();
-                var picked = StingListPicker.Show("STING — Cost plan: compare",
-                    "Pick the cost plan to compare against the live BOQ.",
-                    items, allowMultiSelect: false);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    chosen = fPath;
+                }
+                else
+                {
+                    var items = paths.Select(p => new StingListPicker.ListItem
+                    {
+                        Label = Path.GetFileNameWithoutExtension(p),
+                        Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
+                        Tag = p
+                    }).ToList();
+                    var picked = StingListPicker.Show("STING — Cost plan: compare",
+                        "Pick the cost plan to compare against the live BOQ.",
+                        items, allowMultiSelect: false);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    chosen = picked[0].Tag as string;
+                }
 
-                var plan = CostPlanEngine.Load(picked[0].Tag as string);
+                var plan = CostPlanEngine.Load(chosen);
                 if (plan == null)
                 {
                     message = "Failed to load cost plan.";
@@ -247,17 +277,29 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                var items = paths.Select(p => new StingListPicker.ListItem
+                // P0.3 — inline-form gate: when the panel supplied CostPlanPath, skip
+                // the picker (no popup). Falls back to the modal picker otherwise.
+                string chosen;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CostPlanPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    Label = Path.GetFileNameWithoutExtension(p),
-                    Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
-                    Tag = p
-                }).ToList();
-                var picked = StingListPicker.Show("STING — Cost plan: export",
-                    "Pick the cost plan to export.", items, allowMultiSelect: false);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    chosen = fPath;
+                }
+                else
+                {
+                    var items = paths.Select(p => new StingListPicker.ListItem
+                    {
+                        Label = Path.GetFileNameWithoutExtension(p),
+                        Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
+                        Tag = p
+                    }).ToList();
+                    var picked = StingListPicker.Show("STING — Cost plan: export",
+                        "Pick the cost plan to export.", items, allowMultiSelect: false);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    chosen = picked[0].Tag as string;
+                }
 
-                var plan = CostPlanEngine.Load(picked[0].Tag as string);
+                var plan = CostPlanEngine.Load(chosen);
                 if (plan == null) { message = "Failed to load plan."; return Result.Failed; }
 
                 string outDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "cost_plans");

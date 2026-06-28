@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "_note": "Phase 2A — corporate NRM2 rules-based measurement layer. Turns modelled geometry into a measured quantity (net of openings/voids, plus a visible wastage step). Project overrides go in <project>/_BIM_COORD/nrm2_measurement_rules.json (merged by id; project rules win and are evaluated first). Matching is first-match-wins on category contains-match. wastePercent: -1 means 'inherit the project default / takeoff-rule waste' (no per-category override) — set a value >= 0 to pin a category's wastage. Opening/void de-minimis are in m2 (NRM2 measures areas net of openings above the de-minimis).",
+  "defaults": {
+    "openingDeMinimisM2": 0.5,
+    "voidDeMinimisM2": 1.0,
+    "wastePercent": -1
+  },
+  "rules": [
+    {
+      "id": "nrm2-wall-area",
+      "matchCategory": "Wall",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": true,
+      "deductVoids": false,
+      "openingDeMinimisM2": 0.5,
+      "wastePercent": -1,
+      "note": "Wall area measured net of door/window/wall openings > 0.50 m2 (NRM2 Tables — masonry/finishes deduct voids over the de-minimis)."
+    },
+    {
+      "id": "nrm2-curtain-wall-area",
+      "matchCategory": "Curtain",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "openingDeMinimisM2": 0.5,
+      "wastePercent": -1,
+      "note": "Curtain walling measured gross over the system extent (panels/mullions are part of the system — no opening deduction)."
+    },
+    {
+      "id": "nrm2-floor-area",
+      "matchCategory": "Floor",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": false,
+      "deductVoids": true,
+      "voidDeMinimisM2": 1.0,
+      "wastePercent": -1,
+      "note": "Floor area measured net of voids/openings > 1.00 m2 (stair/shaft/services penetrations)."
+    },
+    {
+      "id": "nrm2-slab-area",
+      "matchCategory": "Slab",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": false,
+      "deductVoids": true,
+      "voidDeMinimisM2": 1.0,
+      "wastePercent": -1,
+      "note": "Slab area measured net of voids > 1.00 m2."
+    },
+    {
+      "id": "nrm2-roof-area",
+      "matchCategory": "Roof",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": false,
+      "deductVoids": true,
+      "voidDeMinimisM2": 1.0,
+      "wastePercent": -1,
+      "note": "Roof area measured net of rooflights/penetrations > 1.00 m2."
+    },
+    {
+      "id": "nrm2-ceiling-area",
+      "matchCategory": "Ceiling",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "measure": "area",
+      "deductOpenings": false,
+      "deductVoids": true,
+      "voidDeMinimisM2": 1.0,
+      "wastePercent": -1,
+      "note": "Ceiling area measured net of voids > 1.00 m2."
+    },
+    {
+      "id": "nrm2-pipe-length",
+      "matchCategory": "Pipe",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "length",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Pipework measured along the centre-line (NRM2 — no fittings deduction; deemed in the rate)."
+    },
+    {
+      "id": "nrm2-duct-length",
+      "matchCategory": "Duct",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "length",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Ductwork measured along the centre-line."
+    },
+    {
+      "id": "nrm2-conduit-length",
+      "matchCategory": "Conduit",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "length",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Conduit measured along the centre-line."
+    },
+    {
+      "id": "nrm2-cabletray-length",
+      "matchCategory": "Cable Tray",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "length",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Cable tray measured along the centre-line."
+    },
+    {
+      "id": "nrm2-framing-length",
+      "matchCategory": "Framing",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "length",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Structural framing/beams measured along the member centre-line."
+    },
+    {
+      "id": "nrm2-railing-girth",
+      "matchCategory": "Railing",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m",
+      "measure": "girth",
+      "deductOpenings": false,
+      "deductVoids": false,
+      "wastePercent": -1,
+      "note": "Railings/skirtings/trims measured on the running girth (centre-line length)."
+    }
+  ]
+}

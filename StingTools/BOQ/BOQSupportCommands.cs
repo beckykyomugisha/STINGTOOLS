@@ -53,6 +53,320 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQRateGapReportCommand (G1) — read-only report of every modelled item
+    //  that still needs a price: no rate, low confidence, or a Default rate.
+    //  Renders inline (StingResultPanel auto-routes to the BOQ Actions pane)
+    //  with priced %, value-at-risk, per-NRM2-section gap counts, the biggest
+    //  unpriced items, and a CSV worklist to hand to the QS (Open-file button).
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQRateGapReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                int floor = (int)Math.Round(TagConfig.GetConfigDouble("COST_RATE_CONFIDENCE_FLOOR", 70.0));
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+
+                // Only modelled items — manual / PS rows are priced by the author.
+                var modelled = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model).ToList();
+                int total = modelled.Count;
+
+                var noRate    = modelled.Where(i => i.RateUGX <= 0).ToList();
+                var lowConf   = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence < floor).ToList();
+                var defaulted = modelled.Where(i => i.RateUGX > 0 && i.RateConfidence >= floor
+                                    && string.Equals(i.RateSource, "Default", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                // A row is "flagged" if it hits any reason (dedup by Id for the value-at-risk sum).
+                var flagged = new Dictionary<string, (BOQLineItem item, string reason)>();
+                void Flag(BOQLineItem i, string r) { if (i != null && !flagged.ContainsKey(i.Id)) flagged[i.Id] = (i, r); }
+                foreach (var i in noRate) Flag(i, "No rate");
+                foreach (var i in lowConf) Flag(i, $"Low confidence (<{floor})");
+                foreach (var i in defaulted) Flag(i, "Defaulted rate");
+
+                double valueAtRisk = flagged.Values.Sum(f => f.item.TotalUGX);
+                int pricedCount = total - noRate.Count;
+                double pricedPct = total > 0 ? 100.0 * pricedCount / total : 100.0;
+
+                // CSV worklist for the QS.
+                string csvPath = null;
+                try
+                {
+                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        Directory.CreateDirectory(dir);
+                        csvPath = Path.Combine(dir, $"boq_rate_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Ref,Section,Description,Quantity,Unit,CurrentRateUGX,Confidence,RateSource,Reason");
+                        foreach (var (item, reason) in flagged.Values
+                            .OrderByDescending(f => f.item.Quantity))
+                        {
+                            sb.AppendLine(string.Join(",",
+                                Csv(item.BOQLineRef), Csv(item.NRM2Section), Csv(item.ItemName ?? item.TypeName),
+                                item.Quantity.ToString("0.###", CultureInfo.InvariantCulture), Csv(item.Unit),
+                                item.RateUGX.ToString("0", CultureInfo.InvariantCulture),
+                                item.RateConfidence.ToString(CultureInfo.InvariantCulture),
+                                Csv(item.RateSource), Csv(reason)));
+                        }
+                        File.WriteAllText(csvPath, sb.ToString());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ rate-gap CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — Rate-gap report");
+                panel.SetSubtitle($"{pricedPct:0.#}% priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price");
+                panel.AddSection("SUMMARY")
+                    .Metric("Modelled items", total.ToString())
+                    .Metric("Priced", $"{pricedCount} ({pricedPct:0.#}%)")
+                    .Metric("No rate", noRate.Count.ToString())
+                    .Metric("Low confidence", $"{lowConf.Count} (< {floor})")
+                    .Metric("Defaulted rate", defaulted.Count.ToString())
+                    .Metric("Value at risk", $"UGX {valueAtRisk:N0}",
+                        "Σ amount of flagged rows — what the total rests on until these are priced");
+
+                // Per-NRM2-section gap counts.
+                var bySection = flagged.Values
+                    .GroupBy(f => string.IsNullOrEmpty(f.item.NRM2Section) ? "(unsectioned)" : f.item.NRM2Section)
+                    .OrderByDescending(g => g.Sum(f => f.item.TotalUGX))
+                    .ToList();
+                if (bySection.Count > 0)
+                {
+                    panel.AddSection("GAPS BY SECTION");
+                    foreach (var g in bySection.Take(20))
+                        panel.Metric($"§{g.Key}", g.Count().ToString(),
+                            $"UGX {g.Sum(f => f.item.TotalUGX):N0} at risk");
+                }
+
+                if (noRate.Count > 0)
+                {
+                    panel.AddSection("BIGGEST UNPRICED ITEMS (by quantity)");
+                    foreach (var i in noRate.OrderByDescending(x => x.Quantity).Take(15))
+                        panel.Metric($"{i.ItemName ?? i.TypeName}",
+                            $"{i.Quantity:0.##} {i.Unit}", $"§{i.NRM2Section} · no rate");
+                }
+
+                if (flagged.Count == 0)
+                    panel.AddSection("CLEAN").Text("Every modelled item is priced above the confidence floor. Ready for QS review.");
+                else
+                    panel.AddSection("NEXT")
+                        .Text("Open the CSV worklist below and hand it to the QS, or run Export QS Bill to price in Excel.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQRateGapReportCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string Csv(string s)
+        {
+            s = s ?? "";
+            return (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQCarbonGapReportCommand (G5) — read-only report of materials whose
+    //  embodied-carbon factor is missing or only database-grade (not an EPD).
+    //  Mirrors the rate-gap report: EPD-verified %, by-material gap table, the
+    //  biggest carbon contributors that are not yet EPD-backed, and a CSV
+    //  worklist (Open-file button) to drive EPD sourcing.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQCarbonGapReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                // Carbon-bearing modelled rows with a resolvable material.
+                var rows = boq.AllItems.Where(i => i != null && i.Source == BOQRowSource.Model
+                    && !string.IsNullOrEmpty(i.CarbonMaterial)).ToList();
+                int total = rows.Count;
+
+                bool IsMissing(BOQLineItem i) => i.EmbodiedCarbonKg <= 0
+                    || string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase);
+                bool IsVerified(BOQLineItem i) => string.Equals(i.CarbonQuality, "Verified-EPD", StringComparison.OrdinalIgnoreCase);
+
+                // Aggregate by material → worst quality + carbon mass.
+                var byMaterial = rows
+                    .GroupBy(i => i.CarbonMaterial, StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        bool anyMissing = g.Any(IsMissing);
+                        bool allVerified = g.All(IsVerified);
+                        string quality = anyMissing ? "Missing" : allVerified ? "Verified-EPD" : "Database";
+                        return new
+                        {
+                            Material = g.Key,
+                            Rows = g.Count(),
+                            CarbonKg = g.Sum(i => i.EmbodiedCarbonKg),
+                            Quality = quality
+                        };
+                    })
+                    .ToList();
+
+                var gaps = byMaterial.Where(m => m.Quality != "Verified-EPD")
+                    .OrderByDescending(m => m.CarbonKg).ToList();
+                int verifiedRows = rows.Count(IsVerified);
+                int missingRows = rows.Count(IsMissing);
+                double epdPct = total > 0 ? 100.0 * verifiedRows / total : 100.0;
+                double totalCarbon = rows.Sum(i => i.EmbodiedCarbonKg);
+                double gapCarbon = rows.Where(i => !IsVerified(i)).Sum(i => i.EmbodiedCarbonKg);
+
+                // CSV worklist.
+                string csvPath = null;
+                try
+                {
+                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        Directory.CreateDirectory(dir);
+                        csvPath = Path.Combine(dir, $"boq_carbon_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Material,Rows,CarbonKg,Quality,Suggestion");
+                        foreach (var m in gaps)
+                            sb.AppendLine(string.Join(",",
+                                CsvF(m.Material), m.Rows.ToString(CultureInfo.InvariantCulture),
+                                m.CarbonKg.ToString("0", CultureInfo.InvariantCulture), CsvF(m.Quality),
+                                CsvF(m.Quality == "Missing" ? "No factor — add an EPD or library factor"
+                                     : "Database factor — source a verified EPD")));
+                        File.WriteAllText(csvPath, sb.ToString());
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ carbon-gap CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — Carbon-gap report");
+                panel.SetSubtitle($"{epdPct:0.#}% EPD-verified · {gaps.Count} material(s) need a better factor");
+                panel.AddSection("SUMMARY")
+                    .Metric("Carbon-bearing rows", total.ToString())
+                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPct:0.#}%)")
+                    .Metric("Missing-factor rows", missingRows.ToString())
+                    .Metric("Total embodied carbon", $"{totalCarbon / 1000.0:N1} tCO₂e")
+                    .Metric("Carbon not EPD-backed", $"{gapCarbon / 1000.0:N1} tCO₂e",
+                        "Σ embodied carbon resting on database / missing factors");
+
+                if (gaps.Count > 0)
+                {
+                    var rowsTbl = gaps.Take(30).Select(m => new[]
+                    {
+                        m.Material, m.Rows.ToString(),
+                        $"{m.CarbonKg / 1000.0:N2} t", m.Quality
+                    }).ToList();
+                    panel.AddSection("MATERIALS NEEDING A BETTER FACTOR")
+                        .Table(new[] { "Material", "Rows", "Carbon", "Quality" }, rowsTbl);
+                }
+                else
+                {
+                    panel.AddSection("CLEAN").Text(
+                        "Every carbon-bearing material is EPD-verified. Whole-life carbon is on its strongest footing.");
+                }
+
+                panel.AddSection("NEXT").Text(
+                    "Map weak/missing materials to verified EPDs in _BIM_COORD/boq_epd_map.json "
+                    + "(material → a1a3 + unit + source). ICE/library factors remain the fallback.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQCarbonGapReportCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string CsvF(string s)
+        {
+            s = s ?? "";
+            return (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQSignOffCommand (G9) — record a QS sign-off against the current
+    //  snapshot. Reads SignOffBy / SignOffRole / SignOffScope ExtraParams
+    //  (set by the panel's inline form). Clears the DRAFT mark on exports of
+    //  the signed snapshot. Read-only model (writes only the _BIM_COORD JSON).
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQSignOffCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+
+                string by = (StingCommandHandler.GetExtraParam("SignOffBy") ?? "").Trim();
+                string role = (StingCommandHandler.GetExtraParam("SignOffRole") ?? "Quantity Surveyor").Trim();
+                string scope = (StingCommandHandler.GetExtraParam("SignOffScope") ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(by))
+                {
+                    StingResultPanel.Create("QS Sign-off")
+                        .AddSection("NEEDS A NAME")
+                        .Text("Enter the QS name in the form, then Run, to record the sign-off.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                var rec = new BoqSignOff
+                {
+                    SignedBy = by,
+                    Role = string.IsNullOrWhiteSpace(role) ? "Quantity Surveyor" : role,
+                    Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    Scope = string.IsNullOrWhiteSpace(scope) ? (boq.DocumentTitle ?? "BOQ") : scope,
+                    SnapshotRef = boq.SnapshotLabel ?? "Live"
+                };
+                BoqSignOffStore.Save(doc, rec);
+
+                StingResultPanel.Create("QS Sign-off recorded")
+                    .SetSubtitle($"Snapshot '{rec.SnapshotRef}' certified")
+                    .AddSection("SIGN-OFF")
+                    .Metric("Signed by", rec.SignedBy)
+                    .Metric("Role", rec.Role)
+                    .Metric("Date", rec.Date)
+                    .Metric("Scope", rec.Scope)
+                    .Metric("Snapshot", rec.SnapshotRef)
+                    .AddSection("EFFECT")
+                    .Text("Exports of this snapshot now print as CERTIFIED. Other snapshots (and a changed live model) stay marked DRAFT until signed.")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQSignOffCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQSetBudgetCommand — writes the budget passed via ExtraParam back
     //  onto ProjectInformation AND into project_config.json so the panel
     //  and the Revit DB stay in sync across sessions.
@@ -492,6 +806,93 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Error("BOQReconcileProvisionals", ex); return Result.Failed; }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQLabourRollupCommand (G4) — labour-content rollup. Read-only.
+    //  Sums the labour/plant/material rate split (where present) by NRM2
+    //  section, and rolls up labour HOURS by trade via LabourHoursEngine
+    //  (read-only). Renders inline via StingResultPanel — no popup, no writes.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQLabourRollupCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                string ccy = boq.Currency ?? "UGX";
+
+                // (1) Rate split L/P/M content (rows that carry a split).
+                var split = boq.AllItems.Where(i => i.HasRateSplit).ToList();
+                double lab = split.Sum(i => i.LabourTotalUGX);
+                double pla = split.Sum(i => i.PlantTotalUGX);
+                double mat = split.Sum(i => i.MaterialTotalUGX);
+
+                var builder = UI.StingResultPanel.Create("Labour content rollup")
+                    .SetSubtitle($"{boq.ProjectName} · {DateTime.Now:dd MMM yyyy}")
+                    .AddSection("RATE SPLIT — LABOUR / PLANT / MATERIAL")
+                    .Metric("Rows with split rate", $"{split.Count} / {boq.AllItems.Count}")
+                    .Metric("Labour content", $"{ccy} {lab:N0}")
+                    .Metric("Plant content", $"{ccy} {pla:N0}")
+                    .Metric("Material content", $"{ccy} {mat:N0}");
+
+                if (split.Count > 0)
+                {
+                    var bySection = split
+                        .GroupBy(i => string.IsNullOrEmpty(i.NRM2Section) ? "(unsectioned)" : i.NRM2Section)
+                        .OrderBy(g => g.Key)
+                        .Select(g => new[]
+                        {
+                            g.Key,
+                            $"{ccy} {g.Sum(i => i.LabourTotalUGX):N0}",
+                            $"{ccy} {g.Sum(i => i.PlantTotalUGX):N0}",
+                            $"{ccy} {g.Sum(i => i.MaterialTotalUGX):N0}",
+                        }).ToList();
+                    builder.AddSection("BY NRM2 SECTION")
+                        .Table(new[] { "§", "Labour", "Plant", "Material" }, bySection);
+                }
+                else
+                {
+                    builder.AddSection("BY NRM2 SECTION").Text(
+                        "No rows carry a labour/plant/material split yet. Add labour/plant/material "
+                        + "columns to the project rate card (_BIM_COORD/rate_card.json) to populate them.");
+                }
+
+                // (2) Labour HOURS by trade (crew) — read-only LabourHoursEngine rollup.
+                var elems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WhereElementIsViewIndependent()
+                    .ToElements();
+                var roll = StingTools.V6.LabourHoursEngine.Rollup(elems);
+                builder.AddSection("LABOUR HOURS BY TRADE (crew)")
+                    .Metric("Elements matched", roll.ElementsTouched.ToString())
+                    .Metric("Total labour hours", $"{roll.TotalHours:N1} h")
+                    .Metric("Total labour cost", $"GBP {roll.TotalCostGbp:N0}");
+                if (roll.ByCrew.Count > 0)
+                {
+                    var crewRows = roll.ByCrew.OrderByDescending(kv => kv.Value.hours)
+                        .Select(kv => new[] { kv.Key, kv.Value.count.ToString(), $"{kv.Value.hours:N1} h" })
+                        .ToList();
+                    builder.Table(new[] { "Crew / trade", "Elements", "Hours" }, crewRows);
+                }
+                else
+                {
+                    builder.Text("No elements matched the labour-rates CSV "
+                        + "(Data/Labour/STING_LABOUR_RATES.csv).");
+                }
+
+                builder.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("BOQLabourRollup", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     //  BOQWriteItemParamsCommand — Phase 108b. Writes inline-edited rate,
     //  NRM2 paragraph, and note back onto a modeled element's shared params.

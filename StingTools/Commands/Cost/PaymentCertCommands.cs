@@ -55,8 +55,15 @@ namespace StingTools.Commands.Cost
                 // ASS_PMT_PCT_COMPLETE_NR weighted by ContractValue.
                 AggregatePercentComplete(doc, sov);
 
-                // Pick contract form.
-                ContractForm form = PickContractForm();
+                // Pick contract form. P0.3 — inline-form gate: when the BOQ panel
+                // supplied the CertContractForm ExtraParam, skip the picker (no popup).
+                // Falls back to the modal picker for ribbon / other callers.
+                ContractForm form;
+                string fForm = UI.StingCommandHandler.GetExtraParam("CertContractForm");
+                if (!string.IsNullOrEmpty(fForm) && Enum.TryParse(fForm, out ContractForm parsedForm))
+                    form = parsedForm;
+                else
+                    form = PickContractForm();
 
                 var cert = PaymentCertEngine.CreateDraft(doc, contractRef, form, sov);
                 cert.Currency = boq.Currency ?? "UGX";   // B.1 — project currency, not a hardcoded literal
@@ -188,28 +195,44 @@ namespace StingTools.Commands.Cost
                         .Show();
                     return Result.Cancelled;
                 }
-                var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null).ToList();
-                var draftItems = certs
-                    .Where(c => c.Status == PaymentCertStatus.Draft || c.Status == PaymentCertStatus.Issued)
-                    .Select(c => new StingListPicker.ListItem
-                    {
-                        Label = $"Cert #{c.CertNumber}  ({c.Status})",
-                        Detail = $"{c.ContractRef} — {c.Currency} {c.TotalPayable:N0} — {c.ValuationDate:yyyy-MM-dd}",
-                        Tag = c
-                    }).ToList();
-                if (draftItems.Count == 0)
+                // P0.3 — inline-form gate: when the BOQ panel supplied CertPath,
+                // advance that cert without a popup. Falls back to the modal picker
+                // for ribbon / other callers.
+                string certPath;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CertPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    StingResultPanel.Create("Approve Cert")
-                        .AddSection("NOTHING TO APPROVE")
-                        .Text("No certs are in a state that can be approved.")
-                        .Show();
-                    return Result.Cancelled;
+                    certPath = fPath;
                 }
-                var picked = StingListPicker.Show("STING — Approve payment cert",
-                    "Pick the certificate to advance.", draftItems, allowMultiSelect: false);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-                var cert = picked[0].Tag as PaymentCertificate;
-                if (cert == null) return Result.Cancelled;
+                else
+                {
+                    var certs = paths.Select(PaymentCertEngine.Load).Where(c => c != null).ToList();
+                    var draftItems = certs
+                        .Where(c => c.Status == PaymentCertStatus.Draft || c.Status == PaymentCertStatus.Issued)
+                        .Select(c => new StingListPicker.ListItem
+                        {
+                            Label = $"Cert #{c.CertNumber}  ({c.Status})",
+                            Detail = $"{c.ContractRef} — {c.Currency} {c.TotalPayable:N0} — {c.ValuationDate:yyyy-MM-dd}",
+                            Tag = c
+                        }).ToList();
+                    if (draftItems.Count == 0)
+                    {
+                        StingResultPanel.Create("Approve Cert")
+                            .AddSection("NOTHING TO APPROVE")
+                            .Text("No certs are in a state that can be approved.")
+                            .Show();
+                        return Result.Cancelled;
+                    }
+                    var picked = StingListPicker.Show("STING — Approve payment cert",
+                        "Pick the certificate to advance.", draftItems, allowMultiSelect: false);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    var pc = picked[0].Tag as PaymentCertificate;
+                    if (pc == null) return Result.Cancelled;
+                    certPath = FindPathForCert(doc, pc);
+                }
+
+                var cert = PaymentCertEngine.Load(certPath);
+                if (cert == null) { message = "Failed to load certificate."; return Result.Failed; }
 
                 // Advance state machine — Draft → Issued → Agreed.
                 cert.Status = cert.Status == PaymentCertStatus.Draft
@@ -228,8 +251,7 @@ namespace StingTools.Commands.Cost
                 }
 
                 // Re-save in place by deleting the old file and re-writing.
-                string oldPath = picked[0].Tag is PaymentCertificate c ? FindPathForCert(doc, c) : null;
-                if (!string.IsNullOrEmpty(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
+                if (!string.IsNullOrEmpty(certPath) && File.Exists(certPath)) File.Delete(certPath);
                 string newPath = PaymentCertEngine.Save(doc, cert);
 
                 StingResultPanel.Create("Cert advanced")

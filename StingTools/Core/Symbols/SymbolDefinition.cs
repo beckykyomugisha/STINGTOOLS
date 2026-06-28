@@ -426,6 +426,18 @@ namespace StingTools.Core.Symbols
         [JsonProperty("diameterMm")] public double DiameterMm { get; set; }
         [JsonProperty("profile", NullValueHandling = NullValueHandling.Ignore)]
         public List<Point2D> Profile { get; set; }
+
+        // Tier 2 — composite geometry. Each component is its own box/cylinder
+        // extrusion at an XYZ offset (mm), so a seed reads as the real object
+        // class: socket = faceplate + back box; downlight = bezel ring + recess;
+        // diffuser = frame + neck; pendant = canopy + drop + shade. Built with
+        // NewExtrusion only (no sweep/revolve needed). When Components is empty
+        // the single-solid fields above are used (legacy behaviour).
+        [JsonProperty("offsetXMm")] public double OffsetXMm { get; set; }
+        [JsonProperty("offsetYMm")] public double OffsetYMm { get; set; }
+        [JsonProperty("offsetZMm")] public double OffsetZMm { get; set; }
+        [JsonProperty("components", NullValueHandling = NullValueHandling.Ignore)]
+        public List<Solid3DDefinition> Components { get; set; }
     }
 
     // ──────────────────────────────────────────────────────────────────

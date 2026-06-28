@@ -65,7 +65,9 @@ namespace StingTools.BOQ
         Zone,                   // by ASS_ZONE_TXT zone
         LevelThenWorkSection,   // by level, then NRM2 § within each level
         Location,              // by room / spatial location code
-        SourceModel            // by host vs each linked model
+        SourceModel,           // by host vs each linked model
+        Wbs,                   // Phase 2E — by user-defined Work Breakdown Structure code
+        Cbs                    // Phase 2E — by user-defined Cost Breakdown Structure code
     }
 
     public enum BOQChangeType
@@ -95,8 +97,25 @@ namespace StingTools.BOQ
         public string ItemName;
         public string FamilyName;
         public string TypeName;
-        public double Quantity;
+        public double Quantity;             // NET measured quantity — the value used for cost
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
+
+        // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
+        // The gross→net derivation so a QS can see exactly how a modelled
+        // geometry became a measured quantity. GrossQuantity is the raw Revit
+        // geometry (pre-deduction, pre-wastage); DeductionQuantity is the
+        // opening/void area removed per the active standard's measurement rules
+        // (NRM2 / CESMM4); WastageQuantity is the cutting/offcut/lap allowance
+        // added as a distinct, visible step (never folded silently into the
+        // rate). Quantity = GrossQuantity − DeductionQuantity + WastageQuantity.
+        // MeasurementNote is the human-readable one-liner (e.g.
+        // "Gross 43.0 m² − openings 5.2 m² + wastage 5% = 39.8 m²").
+        // GrossQuantity == 0 on a model row means "not measured separately"
+        // (manual/PS rows, or pre-2A snapshots) — readers fall back to Quantity.
+        public double GrossQuantity;
+        public double DeductionQuantity;
+        public double WastageQuantity;
+        public string MeasurementNote;
         public double RateUGX;
         public double RateUSD;
         public double EmbodiedCarbonKg;     // kgCO2e
@@ -138,10 +157,39 @@ namespace StingTools.BOQ
         public string Level;
         public string Location;             // room name or spatial code
         public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
+
+        // ── Phase 2E — user-defined WBS / CBS. Assigned by the WBS map
+        // (boq_wbs_map.json) from element attributes, with a fallback to the
+        // linked 4D ScheduleTask's WBS so the programme and the bill share one
+        // work-breakdown structure. Empty when no rule matches. Drives the
+        // Wbs / Cbs grouping modes + the ERP export columns.
+        public string WbsCode;
+        public string CbsCode;
         public DateTime LastCosted = DateTime.UtcNow;
         public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
+
+        // ── G4 — optional labour / plant / material rate split (per-unit, same
+        // currency/unit as RateUGX). Null when the rate source carries no split,
+        // so the rate stays a single number (no regression). Totals derive by
+        // ×Quantity.
+        public double? LabourUGX;
+        public double? PlantUGX;
+        public double? MaterialUGX;
+        public bool HasRateSplit => LabourUGX.HasValue || PlantUGX.HasValue || MaterialUGX.HasValue;
+        public double LabourTotalUGX => (LabourUGX ?? 0) * Quantity;
+        public double PlantTotalUGX => (PlantUGX ?? 0) * Quantity;
+        public double MaterialTotalUGX => (MaterialUGX ?? 0) * Quantity;
+
+        // ── G5 — carbon factor provenance + data-quality. CarbonSource is the
+        // resolver source ("epd:…" / "material-param" / "material-lookup-csv" /
+        // "carbon-factors-csv" / "none"); CarbonQuality is the band the QS reads
+        // (Verified-EPD / Database / Missing); CarbonMaterial is the primary
+        // material (drives the carbon-gap report).
+        public string CarbonSource;
+        public string CarbonQuality;
+        public string CarbonMaterial;
 
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
@@ -173,6 +221,10 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
+                GrossQuantity = this.GrossQuantity,
+                DeductionQuantity = this.DeductionQuantity,
+                WastageQuantity = this.WastageQuantity,
+                MeasurementNote = this.MeasurementNote,
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
@@ -188,10 +240,18 @@ namespace StingTools.BOQ
                 Level = this.Level,
                 Location = this.Location,
                 Zone = this.Zone,
+                WbsCode = this.WbsCode,
+                CbsCode = this.CbsCode,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
                 SortOrder = this.SortOrder,
+                LabourUGX = this.LabourUGX,
+                PlantUGX = this.PlantUGX,
+                MaterialUGX = this.MaterialUGX,
+                CarbonSource = this.CarbonSource,
+                CarbonQuality = this.CarbonQuality,
+                CarbonMaterial = this.CarbonMaterial,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),
@@ -249,14 +309,36 @@ namespace StingTools.BOQ
         /// </summary>
         public string MeasurementStandardId = "nrm2";
 
+        // ── G3 — optional built-up preliminaries schedule ───────────────────
+        // When PrelimsItemised is true the grand total uses the itemised prelim
+        // total (PrelimsItemisedUGX) instead of the flat PrelimPct. Loaded by
+        // BuildBOQDocument from BoqPrelimsStore; flat % stays the default so
+        // nothing regresses (Enabled defaults false → these fields stay inert).
+        public bool PrelimsItemised = false;
+        public List<BoqPrelimLine> PrelimLines = new List<BoqPrelimLine>();
+
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();
         public double ModeledTotalUGX => AllItems.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvTotalUGX => AllItems.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double SubtotalUGX => AllItems.Sum(i => i.TotalUGX);
+
+        /// <summary>Σ of the itemised prelim lines resolved against the works subtotal.</summary>
+        public double PrelimsItemisedUGX => PrelimLines?.Sum(l => l.AmountFor(SubtotalUGX)) ?? 0;
+
+        /// <summary>
+        /// The preliminaries contribution to the grand total — the itemised
+        /// schedule total when active, else the flat PrelimPct of the works
+        /// subtotal. Left unrounded in the flat case so GrandTotalUGX matches the
+        /// historic single-round formula exactly (zero delivered-number change).
+        /// </summary>
+        public double PrelimContributionUGX =>
+            PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
+
         public double GrandTotalUGX =>
-            Math.Round(SubtotalUGX * (1 + PrelimPct / 100.0 + ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
+            Math.Round(SubtotalUGX + PrelimContributionUGX
+                       + SubtotalUGX * (ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
         public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);

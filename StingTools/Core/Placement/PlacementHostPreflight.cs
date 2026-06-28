@@ -189,7 +189,7 @@ namespace StingTools.Core.Placement
             try
             {
                 if (prefersWall)
-                    host = NearestOf<Wall>(doc, position, 6.0); // ~1.83m
+                    host = NearestWall(doc, position, 6.0); // Tier 1b — curve-distance, not bbox-centre
                 else if (prefersCeiling)
                     host = NearestOf<Ceiling>(doc, position, 12.0); // ~3.66m
                 else
@@ -360,7 +360,7 @@ namespace StingTools.Core.Placement
 
                 if (wallAnchor)
                 {
-                    var wall = NearestOf<Wall>(doc, position, 6.0);
+                    var wall = NearestWall(doc, position, 6.0); // Tier 1b — curve-distance find
                     if (wall != null)
                     {
                         IList<Reference> faceRefs = null;
@@ -448,6 +448,43 @@ namespace StingTools.Core.Placement
                 r.Reason = $"TryFaceBasedPlace: {ex.Message}";
                 return r;
             }
+        }
+
+        // Tier 1b — wall-specific nearest. NearestOf&lt;Wall&gt; measured distance to
+        // the wall's BOUNDING-BOX CENTRE, which for a long wall is metres from the
+        // placement point — so the wall was missed (&gt; radius), face-based hosting
+        // fell back to level-based plonk, and the fixture stayed un-hosted +
+        // diagonal. Measuring distance to the wall's LOCATION CURVE (perpendicular
+        // to the wall line) finds the wall reliably regardless of its length, so
+        // the fixture hosts to the wall face and Revit auto-orients it.
+        private static Wall NearestWall(Document doc, XYZ point, double maxDistFt)
+        {
+            Wall best = null;
+            double bestSq = maxDistFt * maxDistFt;
+            try
+            {
+                var outline = new Outline(
+                    new XYZ(point.X - maxDistFt, point.Y - maxDistFt, point.Z - maxDistFt),
+                    new XYZ(point.X + maxDistFt, point.Y + maxDistFt, point.Z + maxDistFt));
+                var col = new FilteredElementCollector(doc).OfClass(typeof(Wall))
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new BoundingBoxIntersectsFilter(outline));
+                foreach (var el in col)
+                {
+                    if (el is not Wall w) continue;
+                    if (!(w.Location is LocationCurve lc) || lc.Curve == null) continue;
+                    XYZ flat;
+                    try { flat = new XYZ(point.X, point.Y, lc.Curve.GetEndPoint(0).Z); }
+                    catch { flat = point; }
+                    var pr = lc.Curve.Project(flat);
+                    if (pr == null) continue;
+                    double dx = pr.XYZPoint.X - point.X, dy = pr.XYZPoint.Y - point.Y;
+                    double sq = dx * dx + dy * dy;
+                    if (sq < bestSq) { bestSq = sq; best = w; }
+                }
+            }
+            catch { }
+            return best;
         }
 
         private static T NearestOf<T>(Document doc, XYZ point, double maxDistFt) where T : Element

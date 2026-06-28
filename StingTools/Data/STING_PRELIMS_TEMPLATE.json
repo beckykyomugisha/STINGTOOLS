@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "lines": [
+    { "name": "Site establishment & set-up", "category": "Site establishment", "basis": "value", "value": 0, "note": "Site offices, hoarding, signage, set-up and clear-away" },
+    { "name": "Site management & supervision staff", "category": "Management & staff", "basis": "value", "value": 0, "note": "Project manager, site agent, engineers, planner, QS" },
+    { "name": "Welfare facilities", "category": "Welfare", "basis": "value", "value": 0, "note": "Canteen, toilets, drying rooms, first aid" },
+    { "name": "Temporary services", "category": "Site establishment", "basis": "value", "value": 0, "note": "Temporary power, water, lighting and telecoms" },
+    { "name": "Common access & scaffolding", "category": "Access", "basis": "value", "value": 0, "note": "Common scaffolding, hoists, access towers" },
+    { "name": "Mechanical plant", "category": "Plant", "basis": "value", "value": 0, "note": "Cranes, forklifts, pumps, small plant" },
+    { "name": "Insurances & bonds", "category": "Insurances", "basis": "percent", "value": 1.0, "note": "Contractor's all-risk, public liability, performance bond" },
+    { "name": "Health, safety & environmental", "category": "HS&E", "basis": "value", "value": 0, "note": "PPE, safety officer, environmental controls, permits" },
+    { "name": "Temporary protection & security", "category": "Security", "basis": "value", "value": 0, "note": "Security, weather protection, temporary doors and screens" },
+    { "name": "Cleaning & clearing away", "category": "Completion", "basis": "value", "value": 0, "note": "Progressive and final cleaning, waste removal" }
+  ]
+}
