@@ -142,7 +142,21 @@
         "type": "Box",
         "widthMm": 600,
         "depthMm": 600,
-        "heightMm": 1500
+        "heightMm": 1500,
+        "components": [
+          {
+            "type": "Cylinder",
+            "diameterMm": 450,
+            "heightMm": 900,
+            "offsetZMm": 80
+          },
+          {
+            "type": "Cylinder",
+            "diameterMm": 500,
+            "heightMm": 80,
+            "offsetZMm": 0
+          }
+        ]
       },
       "connectors": [
         {

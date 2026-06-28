@@ -624,13 +624,29 @@ namespace StingTools.Core.Placement
             double coverageContribution = ScoreCoverageContribution(anchor, rule, alreadyPlaced);
             double manufacturerScore    = ScoreManufacturerResolution(rule);
 
-            c.Score = c.AnchorScore       * AnchorWeight
-                    + c.SideScore         * SideWeight
-                    + c.SpacingScore      * SpacingWeight
-                    + c.CollisionScore    * CollisionWeight
-                    + c.SymmetryScore     * SymmetryWeight
-                    + coverageContribution * CoverageWeight
-                    + manufacturerScore   * ManufacturerWeight;
+            // A9 — per-RuleKind weight profile. Point rules favour anchor fit
+            // (where it must sit); Density/Coverage favour spacing + coverage
+            // (even spread, no clusters); Linear favours symmetry (regular runs).
+            // Point keeps the original defaults, so the common case is unchanged.
+            double wAnchor = AnchorWeight, wSide = SideWeight, wSpacing = SpacingWeight,
+                   wColl = CollisionWeight, wSym = SymmetryWeight, wCov = CoverageWeight, wMan = ManufacturerWeight;
+            switch (rule?.RuleKind)
+            {
+                case PlacementRuleKind.Density:
+                    wAnchor = 0.18; wSide = 0.10; wSpacing = 0.34; wColl = 0.10; wSym = 0.06; wCov = 0.19; wMan = 0.03;
+                    break;
+                case PlacementRuleKind.Linear:
+                    wAnchor = 0.22; wSide = 0.16; wSpacing = 0.24; wColl = 0.10; wSym = 0.22; wCov = 0.03; wMan = 0.03;
+                    break;
+            }
+
+            c.Score = c.AnchorScore       * wAnchor
+                    + c.SideScore         * wSide
+                    + c.SpacingScore      * wSpacing
+                    + c.CollisionScore    * wColl
+                    + c.SymmetryScore     * wSym
+                    + coverageContribution * wCov
+                    + manufacturerScore   * wMan;
 
             // §5.1 — apply family-level placement hints as a final score
             // modifier. Only the level hint biases the composite score
