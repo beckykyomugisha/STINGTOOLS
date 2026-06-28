@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Fire Alarm Devices (BS 5839-1, BS EN 54)",
+  "standard": "STING SEED FAMILY \u2014 Fire Alarm Devices (BS 5839-1, BS EN 54)",
   "_notes": [
     "14 type variants covering detectors (optical, ionisation, heat,",
     "multi-sensor, CO, combined, duct, gas), call points, sounder/beacon",
@@ -9,7 +9,7 @@
   "symbols": [
     {
       "id": "STING_SEED_FireAlarmDevice",
-      "name": "STING Seed — Fire Alarm Device",
+      "name": "STING Seed \u2014 Fire Alarm Device",
       "category": "Fire Alarm Devices",
       "familyType": "SeedFamily",
       "discipline": "FireProtection",
@@ -121,15 +121,39 @@
           }
         ],
         "lines": [
-          { "x1": -0.35, "y1": -0.35, "x2": 0.35, "y2": 0.35 },
-          { "x1": -0.35, "y1": 0.35, "x2": 0.35, "y2": -0.35 }
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": 0.35,
+            "y2": -0.35
+          }
         ]
       },
       "solid3D": {
         "type": "Box",
         "widthMm": 110,
         "depthMm": 110,
-        "heightMm": 50
+        "heightMm": 50,
+        "components": [
+          {
+            "type": "Cylinder",
+            "diameterMm": 100,
+            "heightMm": 18,
+            "offsetZMm": 0
+          },
+          {
+            "type": "Cylinder",
+            "diameterMm": 70,
+            "heightMm": 28,
+            "offsetZMm": 18
+          }
+        ]
       },
       "swapCandidates": [
         {
@@ -285,6 +309,50 @@
             "ASS_PRODCT_COD_TXT": "OTM",
             "FLS_DEV_CERT_TXT": "BS EN 54-17"
           }
+        },
+        {
+          "name": "BASELINE_FIRE_ALARM_DEVICES",
+          "params": {}
+        },
+        {
+          "name": "ARM_DEVICES_KITCHEN_BOILER_PLANT",
+          "params": {}
+        },
+        {
+          "name": "MCP",
+          "params": {}
+        },
+        {
+          "name": "NE_FIRE_ALARM_SMOKE_FLAT_CEILING",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_FIRE_ALARM_HEAT_KITCHEN",
+          "params": {}
+        },
+        {
+          "name": "E_FIRE_ALARM_HEAT_SLOPED_CEILING",
+          "params": {}
+        },
+        {
+          "name": "BEAM",
+          "params": {}
+        },
+        {
+          "name": "ASPIRATING",
+          "params": {}
+        },
+        {
+          "name": "VI",
+          "params": {}
+        },
+        {
+          "name": "BASELINE_FIRE_ALARM_SOUNDER",
+          "params": {}
+        },
+        {
+          "name": "MULTI",
+          "params": {}
         }
       ]
     }

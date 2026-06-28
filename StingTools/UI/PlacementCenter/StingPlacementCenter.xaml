@@ -666,6 +666,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="160"/>
@@ -683,8 +684,14 @@
                                 <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Obstr. clearance (mm)"/>
                                 <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtObstructionClearance" Margin="0,2"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Guarantee coverage"/>
-                                <CheckBox  Grid.Row="2" Grid.Column="1" x:Name="chkGuaranteeCoverage_v2" Margin="0,4"/>
+                                <!-- A6 (door/window clearance) — 0 = off -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Door clearance (mm)"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtDoorClearance"   Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Window clearance (mm)"/>
+                                <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtWindowClearance" Margin="0,2"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Guarantee coverage"/>
+                                <CheckBox  Grid.Row="3" Grid.Column="1" x:Name="chkGuaranteeCoverage_v2" Margin="0,4"/>
                             </Grid>
                         </StackPanel>
                     </GroupBox>

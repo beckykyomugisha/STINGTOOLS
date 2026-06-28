@@ -5,6 +5,7 @@
     {
       "RuleId": "mk-socket-living-13a",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)living|lounge|sitting|dining|hall|reception",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -29,9 +30,10 @@
     {
       "RuleId": "mk-socket-kitchen-worktop",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen|utility",
       "AnchorType": "WALL_FACE_OFFSET",
-      "MountingHeightMm": 975,
+      "MountingHeightMm": 1150,
       "ManufacturerCode": "MK",
       "CatalogueRef": "SP7782ALM",
       "BoxDepthMm": 25,
@@ -66,11 +68,13 @@
       "PlasterOffsetMode": "None",
       "Priority": 60,
       "StandardRef": "BS 7671 kitchen supplement",
-      "Notes": "Island socket above worktop."
+      "Notes": "Island socket above worktop.",
+      "VariantHint": "MK_SOCKET_KITCHEN_ISLAND"
     },
     {
       "RuleId": "mk-socket-bedroom-twin",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)bedroom|bed *room",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -96,6 +100,7 @@
     {
       "RuleId": "mk-shaver-bathroom",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)shaver",
       "RoomFilter": "(?i)bathroom|wet *room|en *suite|shower",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1200,
@@ -122,6 +127,7 @@
     {
       "RuleId": "mk-socket-utility-ip2x",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)garage|utility|store",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -145,6 +151,7 @@
     {
       "RuleId": "mk-socket-external-ip66",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)external|outside|patio|terrace",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 500,
@@ -187,7 +194,8 @@
       "Priority": 70,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "1-gang light switch latch-side."
+      "Notes": "1-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-2g-light",
@@ -211,7 +219,8 @@
         "BS7671"
       ],
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "2-gang light switch latch-side."
+      "Notes": "2-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-3g-light",
@@ -235,7 +244,8 @@
         "BS7671"
       ],
       "StandardRef": "BS 7671 Reg 553.1",
-      "Notes": "3-gang light switch latch-side."
+      "Notes": "3-gang light switch latch-side.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-switch-1g-dimmer",
@@ -248,7 +258,7 @@
       "BoxDepthMm": 35,
       "GangCount": 1,
       "MountType": "Flush",
-      "VariantHint": "DIMMER",
+      "VariantHint": "Dimmer Switch,DIMMER",
       "IpRatingMin": "IP2X",
       "InsertionOrigin": "FixingCentreMidpoint",
       "PlasterOffsetMode": "Auto",
@@ -283,11 +293,13 @@
       "Priority": 60,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "45A DP cooker switch."
+      "Notes": "45A DP cooker switch.",
+      "VariantHint": "One Way Switch,COOKER"
     },
     {
       "RuleId": "mk-socket-accessible",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)accessible|wheelchair|wc accessible|bedroom accessible",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 750,
@@ -312,6 +324,7 @@
     {
       "RuleId": "mk-switch-accessible",
       "CategoryFilter": "Lighting Devices",
+      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)accessible|wheelchair",
       "AnchorType": "DOOR_LATCH_SIDE",
       "MountingHeightMm": 1000,
@@ -331,11 +344,13 @@
       "Priority": 80,
       "MaxPerRoom": 1,
       "StandardRef": "BS 8300:2018 Table 3",
-      "Notes": "Accessible switch 1000mm FFL."
+      "Notes": "Accessible switch 1000mm FFL.",
+      "VariantHint": "One Way Switch"
     },
     {
       "RuleId": "mk-cluster-ws-triple-power",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -359,6 +374,7 @@
     {
       "RuleId": "mk-cluster-ws-triple-power-b",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -382,6 +398,7 @@
     {
       "RuleId": "mk-cluster-ws-triple-data",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)workstation|office|study",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 450,
@@ -405,6 +422,7 @@
     {
       "RuleId": "mk-cluster-av-quad-hdmi",
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -428,6 +446,7 @@
     {
       "RuleId": "mk-cluster-av-quad-usbc",
       "CategoryFilter": "Communication Devices",
+      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -451,6 +470,7 @@
     {
       "RuleId": "mk-cluster-av-quad-13a",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -474,6 +494,7 @@
     {
       "RuleId": "mk-cluster-av-quad-rj45",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)conference|board|huddle|presentation",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1100,
@@ -593,7 +614,8 @@
       "Priority": 50,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 / BS 5733",
-      "Notes": "20A junction box on ring final mid-span."
+      "Notes": "20A junction box on ring final mid-span.",
+      "VariantHint": "MK_JB_RING_FINAL"
     },
     {
       "RuleId": "mk-jb-lighting-circuit",
@@ -616,11 +638,13 @@
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "5A 3-terminal lighting JB at ceiling void."
+      "Notes": "5A 3-terminal lighting JB at ceiling void.",
+      "VariantHint": "MK_JB_LIGHTING_CIRCUIT"
     },
     {
       "RuleId": "mk-socket-office-density",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RuleKind": "Density",
       "RoomFilter": "(?i)open *plan|open *office|workstation",
       "AnchorType": "PERIMETER_OFFSET",
@@ -662,11 +686,13 @@
       "BuildingType": "Office",
       "Priority": 60,
       "StandardRef": "BCO 2019",
-      "Notes": "Floor box density 1 per 9m\u00b2."
+      "Notes": "Floor box density 1 per 9m\u00b2.",
+      "VariantHint": "MK_SOCKET_FLOORBOX_DENSITY"
     },
     {
       "RuleId": "mk-socket-plant-metalclad",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)plant|boiler|switch *room|comms|riser",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 450,
@@ -690,6 +716,7 @@
     {
       "RuleId": "mk-socket-plant-ip66",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)external|plant *yard|substation|generator",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 500,
@@ -713,6 +740,7 @@
     {
       "RuleId": "mk-bedhead-socket",
       "CategoryFilter": "Electrical Fixtures",
+      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)ward|bed *bay|treatment",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1000,
@@ -740,6 +768,7 @@
     {
       "RuleId": "mk-bedhead-data",
       "CategoryFilter": "Data Devices",
+      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)ward|bed *bay|treatment",
       "AnchorType": "WALL_FACE_OFFSET",
       "MountingHeightMm": 1000,
@@ -857,7 +886,8 @@
       "Priority": 70,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "45A cooker connection unit at 150mm AFF (below worktop)."
+      "Notes": "45A cooker connection unit at 150mm AFF (below worktop).",
+      "VariantHint": "COOKER_CONNECTION"
     }
   ]
 }

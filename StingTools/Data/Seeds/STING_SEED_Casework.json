@@ -4,154 +4,170 @@
   "_notes": [
     "Seed for the Casework category. Standard STING_SEED_* / ASS_* parameters + per-product type variants.",
     "Draft schematic seed - swap to a manufacturer family via Symbols_SwapToManufacturer when product data is available."
-],
+  ],
   "symbols": [
-{
-    "id":  "STING_SEED_Casework",
-    "name":  "STING Seed - Casework",
-    "category":  "Casework",
-    "familyType":  "SeedFamily",
-    "discipline":  "Architecture",
-    "subcategory":  "STING_SEED",
-    "isSeed":  true,
-    "protectExisting":  true,
-    "hosting":  "Standalone",
-    "symbolSize":  4,
-    "parameters":  [
-                       {
-                           "name":  "STING_SEED_FAMILY_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "STING_SEED_Casework"
-                       },
-                       {
-                           "name":  "STING_DESIGN_REF_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  ""
-                       },
-                       {
-                           "name":  "STING_SWAP_HISTORY_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  ""
-                       },
-                       {
-                           "name":  "ASS_TAG_1",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true
-                       },
-                       {
-                           "name":  "ASS_DISCIPLINE_COD_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "A"
-                       },
-                       {
-                           "name":  "ASS_PRODCT_COD_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "BASE"
-                       }
-                   ],
-    "geometry":  {
-                     "lines":  [
-                                   {
-                                       "x1":  -0.5,
-                                       "y1":  -0.5,
-                                       "x2":  0.5,
-                                       "y2":  -0.5
-                                   },
-                                   {
-                                       "x1":  0.5,
-                                       "y1":  -0.5,
-                                       "x2":  0.5,
-                                       "y2":  0.5
-                                   },
-                                   {
-                                       "x1":  0.5,
-                                       "y1":  0.5,
-                                       "x2":  -0.5,
-                                       "y2":  0.5
-                                   },
-                                   {
-                                       "x1":  -0.5,
-                                       "y1":  0.5,
-                                       "x2":  -0.5,
-                                       "y2":  -0.5
-                                   }
-                               ],
-                     "arcs":  [
-                                  {
-                                      "cx":  0,
-                                      "cy":  0,
-                                      "r":  0.18,
-                                      "startDeg":  0,
-                                      "endDeg":  360
-                                  },
-                                  {
-                                      "cx":  0,
-                                      "cy":  0,
-                                      "r":  0.3,
-                                      "startDeg":  0,
-                                      "endDeg":  180
-                                  }
-                              ]
-                 },
-    "solid3D":  {
-                    "type":  "Box",
-                    "widthMm":  600,
-                    "depthMm":  600,
-                    "heightMm":  900
-                },
-    "swapCandidates":  [
-                           {
-                               "label":  "Manufacturer family (primary)",
-                               "familyPath":  "",
-                               "variantPattern":  "*",
-                               "priority":  1,
-                               "autoLoad":  false
-                           },
-                           {
-                               "label":  "Manufacturer family (fallback)",
-                               "familyPath":  "",
-                               "variantPattern":  "*",
-                               "priority":  2,
-                               "autoLoad":  false
-                           }
-                       ],
-    "typeVariants":  [
-                         {
-                             "name":  "BaseUnit",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "BASE"
-                                        }
-                         },
-                         {
-                             "name":  "WallUnit",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WALL"
-                                        }
-                         },
-                         {
-                             "name":  "TallUnit",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "TALL"
-                                        }
-                         },
-                         {
-                             "name":  "Worktop",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WTOP"
-                                        }
-                         }
-                     ]
-}
+    {
+      "id": "STING_SEED_Casework",
+      "name": "STING Seed - Casework",
+      "category": "Casework",
+      "familyType": "SeedFamily",
+      "discipline": "Architecture",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "Standalone",
+      "symbolSize": 4,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_Casework"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "A"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "BASE"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 600,
+        "depthMm": 600,
+        "heightMm": 900
+      },
+      "swapCandidates": [
+        {
+          "label": "Manufacturer family (primary)",
+          "familyPath": "",
+          "variantPattern": "*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Manufacturer family (fallback)",
+          "familyPath": "",
+          "variantPattern": "*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "name": "BaseUnit",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "BASE"
+          }
+        },
+        {
+          "name": "WallUnit",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WALL"
+          }
+        },
+        {
+          "name": "TallUnit",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "TALL"
+          }
+        },
+        {
+          "name": "Worktop",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WTOP"
+          }
+        },
+        {
+          "name": "ARCH_CASEWORK_KITCHEN_BASE",
+          "params": {}
+        },
+        {
+          "name": "ARCH_CASEWORK_LAB_BENCH",
+          "params": {}
+        },
+        {
+          "name": "ARCH_CASEWORK_CLASSROOM_STORAGE",
+          "params": {}
+        },
+        {
+          "name": "ED_CASEWORK_CLOAK",
+          "params": {}
+        }
+      ]
+    }
   ]
 }

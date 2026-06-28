@@ -4,154 +4,286 @@
   "_notes": [
     "Seed for the Windows category. Standard STING_SEED_* / ASS_* parameters + per-product type variants.",
     "Draft schematic seed - swap to a manufacturer family via Symbols_SwapToManufacturer when product data is available."
-],
+  ],
   "symbols": [
-{
-    "id":  "STING_SEED_Window",
-    "name":  "STING Seed - Windows",
-    "category":  "Windows",
-    "familyType":  "SeedFamily",
-    "discipline":  "Architecture",
-    "subcategory":  "STING_SEED",
-    "isSeed":  true,
-    "protectExisting":  true,
-    "hosting":  "FaceBased",
-    "symbolSize":  4,
-    "parameters":  [
-                       {
-                           "name":  "STING_SEED_FAMILY_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "STING_SEED_Window"
-                       },
-                       {
-                           "name":  "STING_DESIGN_REF_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  ""
-                       },
-                       {
-                           "name":  "STING_SWAP_HISTORY_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  ""
-                       },
-                       {
-                           "name":  "ASS_TAG_1",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true
-                       },
-                       {
-                           "name":  "ASS_DISCIPLINE_COD_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "A"
-                       },
-                       {
-                           "name":  "ASS_PRODCT_COD_TXT",
-                           "type":  "Text",
-                           "shared":  true,
-                           "isInstance":  true,
-                           "default":  "WN-F"
-                       }
-                   ],
-    "geometry":  {
-                     "lines":  [
-                                   {
-                                       "x1":  -0.5,
-                                       "y1":  -0.5,
-                                       "x2":  0.5,
-                                       "y2":  -0.5
-                                   },
-                                   {
-                                       "x1":  0.5,
-                                       "y1":  -0.5,
-                                       "x2":  0.5,
-                                       "y2":  0.5
-                                   },
-                                   {
-                                       "x1":  0.5,
-                                       "y1":  0.5,
-                                       "x2":  -0.5,
-                                       "y2":  0.5
-                                   },
-                                   {
-                                       "x1":  -0.5,
-                                       "y1":  0.5,
-                                       "x2":  -0.5,
-                                       "y2":  -0.5
-                                   }
-                               ],
-                     "arcs":  [
-                                  {
-                                      "cx":  0,
-                                      "cy":  0,
-                                      "r":  0.18,
-                                      "startDeg":  0,
-                                      "endDeg":  360
-                                  },
-                                  {
-                                      "cx":  0,
-                                      "cy":  0,
-                                      "r":  0.3,
-                                      "startDeg":  0,
-                                      "endDeg":  180
-                                  }
-                              ]
-                 },
-    "solid3D":  {
-                    "type":  "Box",
-                    "widthMm":  1200,
-                    "depthMm":  100,
-                    "heightMm":  1200
-                },
-    "swapCandidates":  [
-                           {
-                               "label":  "Manufacturer family (primary)",
-                               "familyPath":  "",
-                               "variantPattern":  "*",
-                               "priority":  1,
-                               "autoLoad":  false
-                           },
-                           {
-                               "label":  "Manufacturer family (fallback)",
-                               "familyPath":  "",
-                               "variantPattern":  "*",
-                               "priority":  2,
-                               "autoLoad":  false
-                           }
-                       ],
-    "typeVariants":  [
-                         {
-                             "name":  "Fixed",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WN-F"
-                                        }
-                         },
-                         {
-                             "name":  "Casement",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WN-C"
-                                        }
-                         },
-                         {
-                             "name":  "Sliding",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WN-SL"
-                                        }
-                         },
-                         {
-                             "name":  "Louvre",
-                             "params":  {
-                                            "ASS_PRODCT_COD_TXT":  "WN-L"
-                                        }
-                         }
-                     ]
-}
+    {
+      "id": "STING_SEED_Window",
+      "name": "STING Seed - Windows",
+      "category": "Windows",
+      "familyType": "SeedFamily",
+      "discipline": "Architecture",
+      "subcategory": "STING_SEED",
+      "isSeed": true,
+      "protectExisting": true,
+      "hosting": "FaceBased",
+      "symbolSize": 4,
+      "parameters": [
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_Window"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "A"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "WN-F"
+        }
+      ],
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 100,
+        "heightMm": 1200
+      },
+      "swapCandidates": [
+        {
+          "label": "Manufacturer family (primary)",
+          "familyPath": "",
+          "variantPattern": "*",
+          "priority": 1,
+          "autoLoad": false
+        },
+        {
+          "label": "Manufacturer family (fallback)",
+          "familyPath": "",
+          "variantPattern": "*",
+          "priority": 2,
+          "autoLoad": false
+        }
+      ],
+      "typeVariants": [
+        {
+          "name": "Fixed",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WN-F"
+          }
+        },
+        {
+          "name": "Casement",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WN-C"
+          }
+        },
+        {
+          "name": "Sliding",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WN-SL"
+          }
+        },
+        {
+          "name": "Louvre",
+          "params": {
+            "ASS_PRODCT_COD_TXT": "WN-L"
+          }
+        },
+        {
+          "name": "ARCH_WINDOW_RESIDENTIAL_CILL",
+          "params": {}
+        },
+        {
+          "name": "ARCH_WINDOW_OFFICE_CILL",
+          "params": {}
+        },
+        {
+          "name": "ARCH_WINDOW_ATRIUM",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_BEDROOM",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_LIVING",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_BATHROOM",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_KITCHEN",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_LANDING_STAIR",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_GROUNDFLOOR_SEC",
+          "params": {}
+        },
+        {
+          "name": "WIN_OFFICE_OPEN_PLAN",
+          "params": {}
+        },
+        {
+          "name": "WIN_OFFICE_MEETING",
+          "params": {}
+        },
+        {
+          "name": "WIN_OFFICE_CELLULAR",
+          "params": {}
+        },
+        {
+          "name": "WIN_RETAIL_SHOPFRONT",
+          "params": {}
+        },
+        {
+          "name": "WIN_RETAIL_DISPLAY",
+          "params": {}
+        },
+        {
+          "name": "WIN_EDUCATION_CLASSROOM",
+          "params": {}
+        },
+        {
+          "name": "WIN_EDUCATION_CORRIDOR",
+          "params": {}
+        },
+        {
+          "name": "WIN_EDUCATION_SPORTS_HALL",
+          "params": {}
+        },
+        {
+          "name": "ANTI-LIGATURE",
+          "params": {}
+        },
+        {
+          "name": "WIN_HOSPITAL_CORRIDOR",
+          "params": {}
+        },
+        {
+          "name": "WIN_HOSPITAL_ISOLATION",
+          "params": {}
+        },
+        {
+          "name": "WIN_HOSPITALITY_HOTEL_BEDROOM",
+          "params": {}
+        },
+        {
+          "name": "WIN_HOSPITALITY_RESTAURANT",
+          "params": {}
+        },
+        {
+          "name": "WIN_INDUSTRIAL_FACTORY",
+          "params": {}
+        },
+        {
+          "name": "WIN_INDUSTRIAL_WAREHOUSE",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_ACCESSIBLE_WC",
+          "params": {}
+        },
+        {
+          "name": "WIN_CARPARK_PERIMETER",
+          "params": {}
+        },
+        {
+          "name": "WIN_RESIDENTIAL_CONSERVATORY",
+          "params": {}
+        },
+        {
+          "name": "WIN_SCHOOL_NURSERY_RECEPTION_YR",
+          "params": {}
+        },
+        {
+          "name": "E60",
+          "params": {}
+        },
+        {
+          "name": "WIN_ACOUSTIC_STUDIO",
+          "params": {}
+        },
+        {
+          "name": "WIN_MUSEUM_GALLERY",
+          "params": {}
+        },
+        {
+          "name": "WIN_BASEMENT_LIGHTWELL",
+          "params": {}
+        },
+        {
+          "name": "WIN_ROOF_SKYLIGHT",
+          "params": {}
+        }
+      ]
+    }
   ]
 }

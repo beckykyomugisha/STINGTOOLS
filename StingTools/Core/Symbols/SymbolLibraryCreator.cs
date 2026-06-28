@@ -1759,44 +1759,62 @@ namespace StingTools.Core.Symbols
             var s3 = def.Solid3D;
             if (s3 == null) return;
 
+            // Tier 2 — composite geometry. When the spec lists Components, build
+            // one extrusion per component at its XYZ offset so the family reads as
+            // the real object (socket = faceplate + back box; downlight = bezel +
+            // recess; diffuser = frame + neck). Otherwise build the single solid.
+            if (s3.Components != null && s3.Components.Count > 0)
+            {
+                foreach (var comp in s3.Components)
+                    if (comp != null) BuildOneSolid(fdoc, comp, result, def.Id);
+                return;
+            }
+            BuildOneSolid(fdoc, s3, result, def.Id);
+        }
+
+        /// <summary>Build a single box/cylinder extrusion at the component's XYZ
+        /// offset (mm). Used for both the legacy single-solid path and each
+        /// Tier-2 composite component.</summary>
+        private static void BuildOneSolid(Document fdoc, Solid3DDefinition s3, SymbolCreationResult result, string defId)
+        {
             try
             {
                 double w = s3.WidthMm  > 0 ? s3.WidthMm  : (s3.DiameterMm > 0 ? s3.DiameterMm : 200);
                 double d = s3.DepthMm  > 0 ? s3.DepthMm  : (s3.DiameterMm > 0 ? s3.DiameterMm : 200);
                 double h = s3.HeightMm > 0 ? s3.HeightMm : 100;
+                double ox = MmToFt(s3.OffsetXMm), oy = MmToFt(s3.OffsetYMm), oz = MmToFt(s3.OffsetZMm);
 
                 CurveArray profile = new CurveArray();
                 if (string.Equals(s3.Type, "Cylinder", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(s3.Type, "Revolution", StringComparison.OrdinalIgnoreCase))
                 {
                     double r = MmToFt((s3.DiameterMm > 0 ? s3.DiameterMm : Math.Max(w, d)) * 0.5);
-                    profile.Append(Arc.Create(XYZ.Zero, r, 0, Math.PI, XYZ.BasisX, XYZ.BasisY));
-                    profile.Append(Arc.Create(XYZ.Zero, r, Math.PI, 2 * Math.PI, XYZ.BasisX, XYZ.BasisY));
+                    var c = new XYZ(ox, oy, oz);
+                    profile.Append(Arc.Create(c, r, 0, Math.PI, XYZ.BasisX, XYZ.BasisY));
+                    profile.Append(Arc.Create(c, r, Math.PI, 2 * Math.PI, XYZ.BasisX, XYZ.BasisY));
                 }
                 else
                 {
                     double hw = MmToFt(w * 0.5);
                     double hd = MmToFt(d * 0.5);
-                    profile.Append(Line.CreateBound(new XYZ(-hw, -hd, 0), new XYZ( hw, -hd, 0)));
-                    profile.Append(Line.CreateBound(new XYZ( hw, -hd, 0), new XYZ( hw,  hd, 0)));
-                    profile.Append(Line.CreateBound(new XYZ( hw,  hd, 0), new XYZ(-hw,  hd, 0)));
-                    profile.Append(Line.CreateBound(new XYZ(-hw,  hd, 0), new XYZ(-hw, -hd, 0)));
+                    profile.Append(Line.CreateBound(new XYZ(-hw + ox, -hd + oy, oz), new XYZ( hw + ox, -hd + oy, oz)));
+                    profile.Append(Line.CreateBound(new XYZ( hw + ox, -hd + oy, oz), new XYZ( hw + ox,  hd + oy, oz)));
+                    profile.Append(Line.CreateBound(new XYZ( hw + ox,  hd + oy, oz), new XYZ(-hw + ox,  hd + oy, oz)));
+                    profile.Append(Line.CreateBound(new XYZ(-hw + ox,  hd + oy, oz), new XYZ(-hw + ox, -hd + oy, oz)));
                 }
 
                 CurveArrArray prof = new CurveArrArray();
                 prof.Append(profile);
 
-                Plane plane = Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero);
+                Plane plane = Plane.CreateByNormalAndOrigin(XYZ.BasisZ, new XYZ(0, 0, oz));
                 SketchPlane sp = SketchPlane.Create(fdoc, plane);
 
-                // Fix 1c — NewExtrusion correct signature for Revit 2025:
-                //   NewExtrusion(isSolid, curveArrArr, sketchPlane, height)
-                // height must be in Revit internal feet (divide mm by 304.8).
+                // NewExtrusion(isSolid, curveArrArr, sketchPlane, heightFt) — Revit 2025.
                 fdoc.FamilyCreate.NewExtrusion(/* isSolid */ true, prof, sp, MmToFt(h));
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"{def.Id}: 3D solid skipped — {ex.Message}");
+                result.Warnings.Add($"{defId}: 3D component skipped — {ex.Message}");
             }
         }
 

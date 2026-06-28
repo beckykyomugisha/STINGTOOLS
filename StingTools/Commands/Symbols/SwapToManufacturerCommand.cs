@@ -155,6 +155,24 @@ namespace StingTools.Commands.Symbols
             if (choice == TaskDialogResult.Cancel) { preview.Show(); return Result.Cancelled; }
             bool revalidate = choice == TaskDialogResult.CommandLink2;
 
+            // Item 2 — swap parameter-bridge (default on). Make each destination
+            // family STING-aware BEFORE the swap so values carry across even when
+            // the manufacturer family was authored without STING shared params.
+            // Runs outside the swap TransactionGroup (EditFamily + reload). After
+            // the reload, re-resolve winner type ids in case Revit re-issued them.
+            var bridgeGuids = SwapParameterBridge.StingGuidSet();
+            var aliasMap    = SwapParameterBridge.LoadAliasMap(doc);
+            int familiesStamped = 0;
+            if (SwapParameterBridge.Enabled)
+            {
+                try
+                {
+                    familiesStamped = SwapParameterBridge.EnsureStampFamilies(doc, plans, bridgeGuids);
+                    if (familiesStamped > 0) ReResolveWinners(doc, plans);
+                }
+                catch (Exception ex) { StingLog.Warn($"Swap bridge ensure-stamp: {ex.Message}"); }
+            }
+
             // 4) Apply.
             int swapped = 0, skipped = 0, errors = 0;
             int rejoined = 0;
@@ -185,7 +203,27 @@ namespace StingTools.Commands.Symbols
                                 if (el == null) { skipped++; continue; }
                                 string srcFamily = SafeFamilyName(el);
                                 ParameterHelpers.SetString(el, "STING_DESIGN_REF_TXT", p.SeedId, overwrite: false);
+
+                                // Item 2 — snapshot STING + aliased native values
+                                // before the type change so they can be restored
+                                // onto the (now STING-aware) destination instance.
+                                SwapParameterBridge.Snapshot snap = null;
+                                if (SwapParameterBridge.Enabled)
+                                {
+                                    try { snap = SwapParameterBridge.Capture(el, bridgeGuids, aliasMap); }
+                                    catch (Exception cex) { StingLog.Warn($"Swap bridge capture {id}: {cex.Message}"); }
+                                }
+
                                 el.ChangeTypeId(winner.ResolvedTypeId);
+
+                                // Item 2 — restore: STING values always, aliased
+                                // native values only where the STING target is empty.
+                                if (snap != null)
+                                {
+                                    try { SwapParameterBridge.Restore(el, snap); }
+                                    catch (Exception rex) { StingLog.Warn($"Swap bridge restore {id}: {rex.Message}"); }
+                                }
+
                                 AppendSwapHistory(el, ts, operatorName, srcFamily,
                                     $"{winner.ResolvedFamilyName} : {winner.ResolvedTypeName}");
 
@@ -263,7 +301,7 @@ namespace StingTools.Commands.Symbols
             }
 
             try { ActionAuditLog.Record("Family_Swap",
-                $"swapped={swapped} skipped={skipped} errors={errors} rejoined={rejoined}"); }
+                $"swapped={swapped} skipped={skipped} errors={errors} rejoined={rejoined} bridgeStamped={familiesStamped}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -284,7 +322,7 @@ namespace StingTools.Commands.Symbols
                 catch (Exception ex2) { StingLog.Warn($"Post-swap revalidation: {ex2.Message}"); }
             }
 
-            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate, symbolsAuthored);
+            ShowResult(plans, swapped, skipped, errors, rejoined, revalidationFindings, revalidate, symbolsAuthored, familiesStamped);
             return Result.Succeeded;
         }
 
@@ -508,6 +546,34 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>
+        /// Item 2 — after the bridge's ensure-stamp reloaded destination
+        /// families, re-resolve each plan winner's type id by (family name,
+        /// type name) in case Revit re-issued the FamilySymbol ElementId on
+        /// reload. No-op when the original id still resolves.
+        /// </summary>
+        private static void ReResolveWinners(Document doc, IList<SwapPlan> plans)
+        {
+            if (doc == null || plans == null) return;
+            List<FamilySymbol> all = null;
+            foreach (var p in plans)
+            {
+                var w = p?.Candidates?.FirstOrDefault();
+                if (w == null) continue;
+                bool stillValid = false;
+                try { stillValid = w.ResolvedTypeId != null && w.ResolvedTypeId != ElementId.InvalidElementId
+                                   && doc.GetElement(w.ResolvedTypeId) is FamilySymbol; }
+                catch { }
+                if (stillValid) continue;
+                if (all == null)
+                    all = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().ToList();
+                var hit = all.FirstOrDefault(fs =>
+                    string.Equals(fs.FamilyName, w.ResolvedFamilyName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(fs.Name, w.ResolvedTypeName, StringComparison.OrdinalIgnoreCase));
+                if (hit != null) w.ResolvedTypeId = hit.Id;
+            }
+        }
+
+        /// <summary>
         /// Wave H3 — post-swap revalidation. Runs the full STING
         /// validator chain (electrical BS 7671 + healthcare-gated +
         /// generic) and counts findings whose ElementId matches the
@@ -727,13 +793,15 @@ namespace StingTools.Commands.Symbols
                     {
                         try
                         {
-                            // Family.LoadFamily(Document) or doc.EditFamily path — use reflection-safe approach
-                            Family reloadedFam = null;
-                            bool loaded = doc.LoadFamily(famDoc.PathName, new StingFamilyReloadOptions(), out reloadedFam);
-                            if (loaded || reloadedFam != null)
+                            // Instance overload reloads the in-memory family doc into the
+                            // project. The path-based overload fails for an EditFamily doc
+                            // of an already-loaded family (empty PathName), so the authored
+                            // symbols would never reach the project.
+                            Family reloadedFam = famDoc.LoadFamily(doc, new StingFamilyReloadOptions());
+                            if (reloadedFam != null)
                                 authored++;
                             else
-                                StingLog.Warn($"AutoAuthor: LoadFamily returned false for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
+                                StingLog.Warn($"AutoAuthor: LoadFamily returned null for '{fam.Name}' — symbols authored in famDoc but not reloaded into project.");
                         }
                         catch (Exception loadEx)
                         {
@@ -777,10 +845,11 @@ namespace StingTools.Commands.Symbols
         }
 
         private static void ShowResult(List<SwapPlan> plans, int swapped, int skipped, int errors,
-            int rejoined, int revalidationFindings, bool revalidated, int symbolsAuthored)
+            int rejoined, int revalidationFindings, bool revalidated, int symbolsAuthored, int familiesStamped = 0)
         {
             var panel = StingResultPanel.Create("Swap to Manufacturer — Result");
             string subtitle = $"{swapped} swapped · {skipped} skipped · {errors} errors · {rejoined} connectors rejoined";
+            if (familiesStamped > 0) subtitle += $" · {familiesStamped} families STING-stamped";
             if (symbolsAuthored > 0) subtitle += $" · {symbolsAuthored} families authored";
             if (revalidated) subtitle += $" · {revalidationFindings} re-validate findings";
             panel.SetSubtitle(subtitle);
@@ -790,6 +859,8 @@ namespace StingTools.Commands.Symbols
                 .MetricError("Errors", errors.ToString())
                 .Metric("Connectors rejoined", rejoined.ToString(),
                     "auto re-stitched after swap (within 600 mm, same domain)")
+                .Metric("Families STING-stamped", familiesStamped.ToString(),
+                    "destination families that had STING shared params injected so swap values carry (Item 2 parameter bridge)")
                 .Metric("Symbol families authored", symbolsAuthored.ToString(),
                     "manufacturer families that had STING multi-standard symbol curves injected automatically");
             if (revalidated)

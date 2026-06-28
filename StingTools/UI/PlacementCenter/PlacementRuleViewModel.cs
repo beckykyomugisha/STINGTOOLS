@@ -268,13 +268,10 @@ namespace StingTools.UI.PlacementCenter
 
         public string IpRatingMin
         {
-            get => _rule.IpRatingMin.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            set
-            {
-                int.TryParse(value ?? "0", System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture, out var n);
-                if (_rule.IpRatingMin != n) { _rule.IpRatingMin = n; MarkDirty(); }
-            }
+            // IP ingress-protection CODE (e.g. "IP44", "IP2X") — a string, not an
+            // integer ("IP2X" isn't numeric). Stored verbatim on the rule.
+            get => _rule.IpRatingMin ?? "";
+            set { if (_rule.IpRatingMin != value) { _rule.IpRatingMin = value ?? ""; MarkDirty(); } }
         }
         public string WetZoneExclusion  { get => _rule.WetZoneExclusion;  set { if (_rule.WetZoneExclusion  != value) { _rule.WetZoneExclusion  = value ?? "NONE"; MarkDirty(); } } }
         public bool   AccessibilityCheck { get => _rule.AccessibilityCheck; set { if (_rule.AccessibilityCheck != value) { _rule.AccessibilityCheck = value; MarkDirty(); } } }
@@ -284,6 +281,8 @@ namespace StingTools.UI.PlacementCenter
         public double MaxSpacingMm            { get => _rule.MaxSpacingMm;           set { if (Math.Abs(_rule.MaxSpacingMm           - value) > 1e-6) { _rule.MaxSpacingMm           = value; MarkDirty(); } } }
         public double WallClearanceMm         { get => _rule.WallClearanceMm;        set { if (Math.Abs(_rule.WallClearanceMm        - value) > 1e-6) { _rule.WallClearanceMm        = value; MarkDirty(); } } }
         public double ObstructionClearanceMm  { get => _rule.ObstructionClearanceMm; set { if (Math.Abs(_rule.ObstructionClearanceMm - value) > 1e-6) { _rule.ObstructionClearanceMm = value; MarkDirty(); } } }
+        public double DoorClearanceMm         { get => _rule.DoorClearanceMm;        set { if (Math.Abs(_rule.DoorClearanceMm        - value) > 1e-6) { _rule.DoorClearanceMm        = value; MarkDirty(); } } }
+        public double WindowClearanceMm       { get => _rule.WindowClearanceMm;      set { if (Math.Abs(_rule.WindowClearanceMm      - value) > 1e-6) { _rule.WindowClearanceMm      = value; MarkDirty(); } } }
         public bool   GuaranteeCoverage       { get => _rule.GuaranteeCoverage;      set { if (_rule.GuaranteeCoverage != value) { _rule.GuaranteeCoverage = value; MarkDirty(); } } }
 
         public string RoutingMode             { get => _rule.RoutingMode;            set { if (_rule.RoutingMode != value) { _rule.RoutingMode = value ?? "NONE"; MarkDirty(); OnPropertyChanged(nameof(IsRoutingRule)); } } }
