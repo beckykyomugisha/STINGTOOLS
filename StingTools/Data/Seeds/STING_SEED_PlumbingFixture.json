@@ -22,7 +22,7 @@
       "subcategory": "STING_SEED",
       "isSeed": true,
       "protectExisting": true,
-      "hosting": "FaceBased",
+      "hosting": "Standalone",
       "symbolSize": 6.0,
       "parameters": [
         {
