@@ -248,6 +248,70 @@ namespace StingTools.BOQ
             lock (st.Lock) { st.ForceFull = false; st.Dirty.Clear(); }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2E — WBS / CBS assignment. Map rule wins; else inherit the
+        //  WBS of the 4D ScheduleTask the element belongs to (one breakdown
+        //  structure shared by the 4D programme and the 5D bill).
+        // ══════════════════════════════════════════════════════════════════
+        private static void ApplyWbsCbs(Document doc, List<BOQLineItem> items)
+        {
+            if (items == null || items.Count == 0) return;
+            try
+            {
+                var rules = BoqWbsMapStore.Load(doc)?.Rules ?? new List<BoqWbsRule>();
+                var taskWbs = BuildElementTaskWbsIndex(doc);
+
+                foreach (var item in items)
+                {
+                    string wbs = "", cbs = "";
+                    foreach (var r in rules)
+                    {
+                        if (r.Matches(item)) { wbs = r.Wbs ?? ""; cbs = r.Cbs ?? ""; break; }
+                    }
+
+                    // Fallback — inherit WBS from the linked ScheduleTask.
+                    if (string.IsNullOrEmpty(wbs) && taskWbs.Count > 0)
+                    {
+                        foreach (long id in EnumerateItemElementIds(item))
+                        {
+                            if (taskWbs.TryGetValue(id, out string tw) && !string.IsNullOrEmpty(tw)) { wbs = tw; break; }
+                        }
+                    }
+
+                    item.WbsCode = wbs;
+                    item.CbsCode = cbs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyWbsCbs: {ex.Message}"); }
+        }
+
+        /// <summary>elementId → ScheduleTask.Wbs from the unified 4D schedule store.</summary>
+        private static Dictionary<long, string> BuildElementTaskWbsIndex(Document doc)
+        {
+            var map = new Dictionary<long, string>();
+            try
+            {
+                var model = StingTools.Core.Schedule.ScheduleStore.Load(doc);
+                if (model?.Tasks == null) return map;
+                foreach (var t in model.Tasks)
+                {
+                    if (string.IsNullOrEmpty(t?.Wbs) || t.ElementIds == null) continue;
+                    foreach (long id in t.ElementIds) if (id > 0 && !map.ContainsKey(id)) map[id] = t.Wbs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildElementTaskWbsIndex: {ex.Message}"); }
+            return map;
+        }
+
+        private static IEnumerable<long> EnumerateItemElementIds(BOQLineItem item)
+        {
+            if (item == null) yield break;
+            if (item.ConstituentElementIds != null && item.ConstituentElementIds.Count > 0)
+                foreach (long id in item.ConstituentElementIds) yield return id;
+            else if (item.RevitElementId > 0)
+                yield return item.RevitElementId;
+        }
+
         private static string LinkSelectionPath(Document doc)
         {
             string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
@@ -481,6 +545,13 @@ namespace StingTools.BOQ
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
             }
+
+            // ── STEP 6d (Phase 2E): assign user-defined WBS / CBS ────────
+            // From the WBS map (boq_wbs_map.json), falling back to the linked 4D
+            // ScheduleTask's WBS. Runs before grouping so the Wbs / Cbs grouping
+            // modes can file the bill by the client's breakdown structure. Applied
+            // on every build so a map edit takes effect without a cache rebuild.
+            ApplyWbsCbs(doc, items);
 
             // ── STEP 7: Group into sections ──────────────────────────────
             boq.Sections = GroupIntoSections(items, grouping);
@@ -2800,6 +2871,12 @@ namespace StingTools.BOQ
                     case BoqGroupingMode.LevelThenWorkSection: return i.Level ?? "";
                     case BoqGroupingMode.Zone:                 return i.Zone ?? "";
                     case BoqGroupingMode.Location:             return i.Location ?? "";
+                    // Phase 2E — WBS/CBS are assigned in a post-aggregate pass from
+                    // (category/discipline/nrm2/level/zone), so keep level+zone in the
+                    // aggregation key here so a By-WBS bill never merges rows that the
+                    // map would file under different WBS codes.
+                    case BoqGroupingMode.Wbs:
+                    case BoqGroupingMode.Cbs:                  return (i.Level ?? "") + "~" + (i.Zone ?? "");
                     default:                                   return "";
                 }
             }
@@ -2935,6 +3012,10 @@ namespace StingTools.BOQ
                     return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
                 case BoqGroupingMode.SourceModel:
                     return GroupBySpatial(items, i => Blank(i.SourceModel, "Host model"));
+                case BoqGroupingMode.Wbs:
+                    return GroupBySpatial(items, i => Blank(i.WbsCode, "(no WBS)"));
+                case BoqGroupingMode.Cbs:
+                    return GroupBySpatial(items, i => Blank(i.CbsCode, "(no CBS)"));
                 case BoqGroupingMode.LevelThenWorkSection:
                     return GroupByLevelThenSection(items);
                 case BoqGroupingMode.WorkSection:

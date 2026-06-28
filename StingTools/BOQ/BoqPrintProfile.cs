@@ -55,7 +55,9 @@ namespace StingTools.BOQ
               // G5 — carbon data-quality column (off by default).
               "CO2 Quality",
               // Phase 2A — NRM2 measurement audit columns (off by default).
-              "Gross", "Deduct", "Waste", "Net" };
+              "Gross", "Deduct", "Waste", "Net",
+              // Phase 2E — user-defined WBS / CBS columns (off by default).
+              "WBS", "CBS" };
 
         private static readonly ConcurrentDictionary<string, BoqPrintProfileRegistry> _cache
             = new ConcurrentDictionary<string, BoqPrintProfileRegistry>(StringComparer.OrdinalIgnoreCase);

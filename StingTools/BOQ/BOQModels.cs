@@ -65,7 +65,9 @@ namespace StingTools.BOQ
         Zone,                   // by ASS_ZONE_TXT zone
         LevelThenWorkSection,   // by level, then NRM2 § within each level
         Location,              // by room / spatial location code
-        SourceModel            // by host vs each linked model
+        SourceModel,           // by host vs each linked model
+        Wbs,                   // Phase 2E — by user-defined Work Breakdown Structure code
+        Cbs                    // Phase 2E — by user-defined Cost Breakdown Structure code
     }
 
     public enum BOQChangeType
@@ -155,6 +157,14 @@ namespace StingTools.BOQ
         public string Level;
         public string Location;             // room name or spatial code
         public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
+
+        // ── Phase 2E — user-defined WBS / CBS. Assigned by the WBS map
+        // (boq_wbs_map.json) from element attributes, with a fallback to the
+        // linked 4D ScheduleTask's WBS so the programme and the bill share one
+        // work-breakdown structure. Empty when no rule matches. Drives the
+        // Wbs / Cbs grouping modes + the ERP export columns.
+        public string WbsCode;
+        public string CbsCode;
         public DateTime LastCosted = DateTime.UtcNow;
         public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
@@ -230,6 +240,8 @@ namespace StingTools.BOQ
                 Level = this.Level,
                 Location = this.Location,
                 Zone = this.Zone,
+                WbsCode = this.WbsCode,
+                CbsCode = this.CbsCode,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,

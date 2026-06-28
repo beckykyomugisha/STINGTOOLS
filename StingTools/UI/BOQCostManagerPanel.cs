@@ -90,7 +90,9 @@ namespace StingTools.UI
             // when a rate source provides a split). Persisted ui-state overrides this.
             new HashSet<string>(new[] { "Labour", "Plant", "Material", "CO2 Quality",
                 // Phase 2A — NRM2 measurement audit columns (off by default).
-                "Gross", "Deduct", "Waste", "Net" }, StringComparer.OrdinalIgnoreCase);
+                "Gross", "Deduct", "Waste", "Net",
+                // Phase 2E — WBS / CBS columns (off by default).
+                "WBS", "CBS" }, StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
         // P1.3 — per-project UI state persistence. Grouping mode, display currency,
@@ -892,6 +894,8 @@ namespace StingTools.UI
                 ("Zone",                BoqGroupingMode.Zone),
                 ("Location",            BoqGroupingMode.Location),
                 ("Source model",        BoqGroupingMode.SourceModel),
+                ("WBS",                 BoqGroupingMode.Wbs),
+                ("CBS",                 BoqGroupingMode.Cbs),
             })
                 groupCombo.Items.Add(new ComboBoxItem { Content = opt.Item1, Tag = opt.Item2 });
             // P1.3 — preselect the persisted grouping (before the handler attaches, so
@@ -1110,6 +1114,14 @@ namespace StingTools.UI
                 {
                     ("★ Drift check", "BOQ_DriftCheck",
                      "Compare the live bill against the last saved snapshot — what changed (qty moved / new / removed / rate revised), element-linked. Then re-price the changed lines via the rate chain (incl. live feeds). Overrides protected.", true),
+                }));
+
+            sp.Children.Add(BuildActionGroup("WBS / CBS + ERP (Phase 2E)",
+                "File the bill by a client breakdown structure and export it import-ready for an ERP.",
+                new[]
+                {
+                    ("WBS / CBS map", "BOQ_WbsMap",
+                     "Edit rules that assign WBS / CBS codes from element attributes (category / discipline / NRM2 § / level / zone). Saved to the project; lines with no rule inherit the linked 4D task's WBS. Group the bill by WBS / CBS via the Group dropdown.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
@@ -1409,6 +1421,8 @@ namespace StingTools.UI
                 if (tag == "BOQ_FetchLiveRates") { ShowFetchLiveRates(label); return; }
                 // Phase 2C — drift check (live bill vs last snapshot) + re-price.
                 if (tag == "BOQ_DriftCheck") { ShowDriftCheck(label); return; }
+                // Phase 2E — WBS/CBS map editor.
+                if (tag == "BOQ_WbsMap") { ShowWbsMapForm(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
                 // Reclassify legacy = a per-VO reason/liability grid — its own editor.
@@ -2060,6 +2074,136 @@ namespace StingTools.UI
                 ShowInlineResult(b);
             }
             catch (Exception ex) { StingLog.Error("BOQ ShowDriftCheck", ex); }
+        }
+
+        // ── Phase 2E — WBS/CBS map editor (inline) ──────────────────────────
+
+        private void ShowWbsMapForm(string label)
+        {
+            if (_actionReportHost == null || Doc == null) return;
+            try
+            {
+                if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                if (_actionReportTitle != null) _actionReportTitle.Text = label;
+
+                var map = StingTools.BOQ.BoqWbsMapStore.Load(Doc);
+                var working = map.Rules ?? new List<StingTools.BOQ.BoqWbsRule>();
+
+                var editors = new List<(StingTools.BOQ.BoqWbsRule rule, TextBox cat, TextBox disc,
+                    TextBox nrm2, TextBox lvl, TextBox zone, TextBox wbs, TextBox cbs)>();
+
+                void Commit()
+                {
+                    foreach (var ed in editors)
+                    {
+                        ed.rule.MatchCategory = Norm(ed.cat.Text);
+                        ed.rule.MatchDiscipline = Norm(ed.disc.Text);
+                        ed.rule.MatchNrm2Section = Norm(ed.nrm2.Text);
+                        ed.rule.MatchLevel = Norm(ed.lvl.Text);
+                        ed.rule.MatchZone = Norm(ed.zone.Text);
+                        ed.rule.Wbs = ed.wbs.Text?.Trim() ?? "";
+                        ed.rule.Cbs = ed.cbs.Text?.Trim() ?? "";
+                    }
+                }
+
+                Action render = null;
+                render = () =>
+                {
+                    editors.Clear();
+                    var sp = new StackPanel { Margin = new Thickness(14) };
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "WBS / CBS map", FontSize = 13, FontWeight = FontWeights.Bold,
+                        Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6)
+                    });
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "First matching rule wins. Match fields are contains / case-insensitive; "
+                             + "‘*’ or blank matches anything. Lines with no rule inherit the linked 4D "
+                             + "task’s WBS. Group the bill by WBS / CBS via the Group dropdown.",
+                        FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+
+                    var grid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                    foreach (var w in new[] { 1.1, 0.7, 0.7, 0.8, 0.7, 0.9, 0.9, 0.32 })
+                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w, GridUnitType.Star) });
+
+                    void H(string t, int c)
+                    {
+                        var x = new TextBlock { Text = t, FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = NavyBrush, Margin = new Thickness(0, 0, 4, 6) };
+                        Grid.SetRow(x, 0); Grid.SetColumn(x, c); grid.Children.Add(x);
+                    }
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    H("Category", 0); H("Disc", 1); H("NRM2", 2); H("Level", 3); H("Zone", 4); H("WBS", 5); H("CBS", 6); H("", 7);
+
+                    int r = 1;
+                    foreach (var rule in working)
+                    {
+                        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        TextBox T(string val, int col)
+                        {
+                            var tb = new TextBox { Text = val ?? "", Height = 24, FontSize = 11, Margin = new Thickness(0, 2, 4, 2) };
+                            Grid.SetRow(tb, r); Grid.SetColumn(tb, col); grid.Children.Add(tb);
+                            return tb;
+                        }
+                        var cat = T(rule.MatchCategory, 0);
+                        var disc = T(rule.MatchDiscipline, 1);
+                        var nrm2 = T(rule.MatchNrm2Section, 2);
+                        var lvl = T(rule.MatchLevel, 3);
+                        var zone = T(rule.MatchZone, 4);
+                        var wbs = T(rule.Wbs, 5);
+                        var cbs = T(rule.Cbs, 6);
+                        var del = new Button { Content = "×", Width = 22, Height = 22, FontSize = 12, Cursor = Cursors.Hand };
+                        var capRule = rule;
+                        del.Click += (s, e) => { Commit(); working.Remove(capRule); render(); };
+                        Grid.SetRow(del, r); Grid.SetColumn(del, 7); grid.Children.Add(del);
+
+                        editors.Add((rule, cat, disc, nrm2, lvl, zone, wbs, cbs));
+                        r++;
+                    }
+                    sp.Children.Add(grid);
+
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    var addBtn = new Button { Content = "+ Add rule", FontSize = 12, Height = 28, MinWidth = 90,
+                        Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+                    addBtn.Click += (s, e) => { Commit(); working.Add(new StingTools.BOQ.BoqWbsRule()); render(); };
+                    var saveBtn = new Button { Content = "Save map + Refresh", FontSize = 12, FontWeight = FontWeights.Bold,
+                        Height = 28, MinWidth = 150, Background = GreenBrush, Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    saveBtn.Click += (s, e) =>
+                    {
+                        try
+                        {
+                            Commit();
+                            map.Rules = working;
+                            StingTools.BOQ.BoqWbsMapStore.Save(Doc, map);
+                            RefreshAsync();   // re-apply WBS/CBS to the bill
+                            render();
+                        }
+                        catch (Exception ex) { StingLog.Error("BOQ WbsMap save", ex); }
+                    };
+                    btnRow.Children.Add(addBtn);
+                    btnRow.Children.Add(saveBtn);
+                    sp.Children.Add(btnRow);
+
+                    _actionReportHost.Child = new ScrollViewer
+                    {
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                        Content = sp
+                    };
+                };
+                render();
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowWbsMapForm", ex); }
+        }
+
+        private static string Norm(string s)
+        {
+            s = (s ?? "").Trim();
+            return string.IsNullOrEmpty(s) ? "*" : s;
         }
 
         // ── P2.2 — reusable inline editable form host ───────────────────────
@@ -4015,6 +4159,17 @@ namespace StingTools.UI
             {
                 Header = "Net", Binding = new Binding(nameof(BOQItemViewModel.NetDisplay)),
                 Width = new DataGridLength(70), IsReadOnly = true
+            });
+            // Phase 2E — WBS / CBS columns (off by default; toggle via Columns).
+            AddIfVisible("WBS", new DataGridTextColumn
+            {
+                Header = "WBS", Binding = new Binding(nameof(BOQItemViewModel.WbsDisplay)),
+                Width = new DataGridLength(90), IsReadOnly = true
+            });
+            AddIfVisible("CBS", new DataGridTextColumn
+            {
+                Header = "CBS", Binding = new Binding(nameof(BOQItemViewModel.CbsDisplay)),
+                Width = new DataGridLength(90), IsReadOnly = true
             });
 
             // NRM2 detail panel — shown under every row by default so the BOQ
@@ -6438,6 +6593,9 @@ namespace StingTools.UI
             ? _item.WastageQuantity.ToString("N3", CultureInfo.InvariantCulture) : "—";
         public string NetDisplay => _item.Quantity.ToString("N3", CultureInfo.InvariantCulture);
         public string MeasurementNoteDisplay => _item.MeasurementNote ?? "";
+        // Phase 2E — WBS / CBS.
+        public string WbsDisplay => string.IsNullOrEmpty(_item.WbsCode) ? "—" : _item.WbsCode;
+        public string CbsDisplay => string.IsNullOrEmpty(_item.CbsCode) ? "—" : _item.CbsCode;
         public Visibility MeasurementNoteVisibility
             => string.IsNullOrEmpty(_item.MeasurementNote) ? Visibility.Collapsed : Visibility.Visible;
 
