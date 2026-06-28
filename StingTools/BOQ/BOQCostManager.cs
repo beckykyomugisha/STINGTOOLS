@@ -249,6 +249,9 @@ namespace StingTools.BOQ
             boq.MeasurementStandardId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
             if (string.IsNullOrWhiteSpace(boq.MeasurementStandardId)) boq.MeasurementStandardId = "nrm2";
             var measStd = MeasurementStandardRegistry.Get(boq.MeasurementStandardId);
+            // Phase 2A — drop the per-document void index so this take-off re-reads
+            // current floor/roof/ceiling openings (and link openings).
+            MeasurementDeductionEngine.ResetCaches();
 
             // G3 — itemised preliminaries schedule (flat % stays the default).
             var prelims = BoqPrelimsStore.Load(doc);
