@@ -16,7 +16,7 @@
       "subcategory": "STING_SEED",
       "isSeed": true,
       "protectExisting": true,
-      "hosting": "CeilingBased",
+      "hosting": "Standalone",
       "symbolSize": 6.0,
       "parameters": [
         {
