@@ -214,6 +214,9 @@ namespace StingTools.UI
                          _varianceValue, _coverageValue, _grandTotalValue, _healthValue,
                          _carbonValue, _matchHint, _snapshotDiff, _paragraphCoverage;
         private ProgressBar _budgetBar;
+        // Phase 2C — passive drift banner on the dashboard strip.
+        private Border _driftBanner;
+        private TextBlock _driftBannerText;
         private System.Windows.Controls.ComboBox _snapshotPicker;
         private System.Windows.Controls.TextBox _searchBox;
         private StackPanel _sectionsPanel;
@@ -685,6 +688,34 @@ namespace StingTools.UI
                 Text = "", FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0)
             };
             sp.Children.Add(_paragraphCoverage);
+
+            // Phase 2C — passive drift banner. Collapsed until the live bill
+            // drifts from the last saved snapshot; clicking it runs Drift check.
+            _driftBannerText = new TextBlock
+            {
+                Text = "", FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(140, 90, 0)), TextWrapping = TextWrapping.Wrap
+            };
+            _driftBanner = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(255, 248, 225)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(230, 190, 120)),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(8, 5, 8, 5), Margin = new Thickness(0, 6, 0, 0),
+                Cursor = Cursors.Hand, Visibility = Visibility.Collapsed,
+                Child = _driftBannerText, ToolTip = "Click to run Drift check"
+            };
+            _driftBanner.MouseLeftButtonUp += (s, e) =>
+            {
+                try
+                {
+                    if (_mainTabs != null && _actionsTab != null) _mainTabs.SelectedItem = _actionsTab;
+                    ShowDriftCheck("Drift check");
+                }
+                catch (Exception ex) { StingLog.Error("BOQ drift banner click", ex); }
+            };
+            sp.Children.Add(_driftBanner);
+
             border.Child = sp;
             return border;
         }
@@ -3594,6 +3625,81 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"BOQ carbon-quality strip: {ex.Message}"); }
             _paragraphCoverage.Text = _defaultCoverageText;
             _paragraphCoverage.Foreground = Brushes.Gray;
+
+            UpdateDriftBanner();
+        }
+
+        /// <summary>
+        /// Phase 2C — passive drift indicator. Cheap checksum compare of the live
+        /// bill against the last snapshot; only loads + classifies the snapshot
+        /// when the checksum actually differs. Persists to boq_drift.json so the
+        /// banner survives reopen until a new snapshot resets it. All file/CPU —
+        /// safe on the WPF thread (no Revit API).
+        /// </summary>
+        private void UpdateDriftBanner()
+        {
+            if (_driftBanner == null || _boq == null) return;
+            try
+            {
+                var snaps = BOQCostManager.ListSnapshots(Doc);
+                if (snaps.Count == 0) { _driftBanner.Visibility = Visibility.Collapsed; return; }
+
+                var last = snaps[0];
+                string liveCk = StingTools.BOQ.Sync.BoqSnapshotHasher.ComputeChecksum(_boq);
+                BOQDocument snap = null;
+                string snapCk = last.Checksum;
+                if (string.IsNullOrEmpty(snapCk))
+                {
+                    snap = BOQCostManager.LoadSnapshot(last.Path);
+                    snapCk = snap != null ? StingTools.BOQ.Sync.BoqSnapshotHasher.ComputeChecksum(snap) : "";
+                }
+
+                bool drifted = !string.IsNullOrEmpty(snapCk) && !string.Equals(liveCk, snapCk, StringComparison.Ordinal);
+
+                int changed = 0;
+                double netDelta = 0;
+                if (drifted)
+                {
+                    if (snap == null) snap = BOQCostManager.LoadSnapshot(last.Path);
+                    if (snap != null)
+                    {
+                        var snapIndex = new HashSet<string>(snap.AllItems.Select(BOQCostManager.LineKey), StringComparer.OrdinalIgnoreCase);
+                        var liveIndex = new HashSet<string>(_boq.AllItems.Select(BOQCostManager.LineKey), StringComparer.OrdinalIgnoreCase);
+                        var snapByKey = new Dictionary<string, BOQLineItem>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var s in snap.AllItems) snapByKey[BOQCostManager.LineKey(s)] = s;
+
+                        foreach (var li in _boq.AllItems.Where(i => i.Source == BOQRowSource.Model))
+                        {
+                            string k = BOQCostManager.LineKey(li);
+                            if (!snapByKey.TryGetValue(k, out var s)) { changed++; continue; }
+                            bool qtyCh = s.Quantity > 0 && Math.Abs(li.Quantity - s.Quantity) / s.Quantity > 0.001;
+                            bool rateCh = s.RateUGX > 0 && Math.Abs(li.RateUGX - s.RateUGX) / s.RateUGX > 0.01;
+                            if (qtyCh || rateCh) changed++;
+                        }
+                        changed += snap.AllItems.Count(i => i.Source == BOQRowSource.Model && !liveIndex.Contains(BOQCostManager.LineKey(i)));
+                        netDelta = _boq.GrandTotalUGX - snap.GrandTotalUGX;
+                    }
+                }
+
+                // Persist for the banner-on-reopen.
+                BoqDriftStore.Save(Doc, new BoqDriftStatus
+                {
+                    Drifted = drifted, ChangedLines = changed, NetDeltaUgx = netDelta,
+                    SnapshotLabel = last.Label ?? "", SnapshotChecksum = snapCk, LiveChecksum = liveCk
+                });
+
+                if (drifted)
+                {
+                    string deltaTxt = Math.Abs(netDelta) >= 1 ? $" · net {(netDelta >= 0 ? "+" : "")}UGX {netDelta:N0}" : "";
+                    _driftBannerText.Text = $"⚠ Bill drifted from snapshot ‘{last.Label}’ — {changed} line(s) changed{deltaTxt}. Click to run Drift check.";
+                    _driftBanner.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    _driftBanner.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ UpdateDriftBanner: {ex.Message}"); }
         }
 
         private void RebuildSectionsView()
