@@ -88,7 +88,9 @@ namespace StingTools.UI
         private readonly HashSet<string> _hiddenColumns =
             // G4 — the L/P/M rate-split columns are off by default (only relevant
             // when a rate source provides a split). Persisted ui-state overrides this.
-            new HashSet<string>(new[] { "Labour", "Plant", "Material", "CO2 Quality" }, StringComparer.OrdinalIgnoreCase);
+            new HashSet<string>(new[] { "Labour", "Plant", "Material", "CO2 Quality",
+                // Phase 2A — NRM2 measurement audit columns (off by default).
+                "Gross", "Deduct", "Waste", "Net" }, StringComparer.OrdinalIgnoreCase);
         private string _activeProfileId = "";
 
         // P1.3 — per-project UI state persistence. Grouping mode, display currency,
@@ -954,6 +956,8 @@ namespace StingTools.UI
                 case "Carbon":     return "CO₂";
                 case "Source":     return "Source";
                 case "Confidence": return "Confidence";
+                case "Deduct":     return "Deduct (NRM2)";
+                case "Net":        return "Net (measured)";
                 default:           return key;
             }
         }
@@ -1119,6 +1123,8 @@ namespace StingTools.UI
                      "Pick the active standard — NRM2 / CESMM4 / POMI / ICMS3 / MMHW", false),
                     ("Standard Preview", "Cost_StandardInspect",
                      "Diagnostic preview — how each standard classifies common categories", false),
+                    ("Measurement audit", "BOQ_MeasurementAudit",
+                     "Per-line gross → net derivation: gross geometry, openings/voids deducted (NRM2/CESMM4 rules), wastage step, net measured quantity. Read-only.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("IFC + ICMS3 (P8)",
@@ -1329,6 +1335,8 @@ namespace StingTools.UI
                 // before the generic form/dispatch path.
                 if (tag == "ReconcileProvisionals") { ShowProvisionalReconcileForm(label); return; }
                 if (tag == "BOQ_Prelims") { ShowPrelimsForm(label); return; }
+                // Phase 2A — panel-local read-only report over the current bill.
+                if (tag == "BOQ_MeasurementAudit") { ShowMeasurementAudit(label); return; }
                 // Star rate is a dynamic multi-line build-up — its own inline editor.
                 if (tag == "Variation_BuildStarRate") { ShowStarRateForm(label); return; }
                 // Reclassify legacy = a per-VO reason/liability grid — its own editor.
@@ -1386,6 +1394,86 @@ namespace StingTools.UI
                 DispatchAction(tag);
             }
             catch (Exception ex) { StingLog.Error("BOQ DispatchInline", ex); }
+        }
+
+        // ── Phase 2A — Measurement audit (panel-local read-only report) ─────
+
+        /// <summary>
+        /// Render the gross → net measured derivation for every model line in the
+        /// current bill into the Actions report pane (no popup). Lists each line's
+        /// gross geometry, the openings/voids deducted under the active standard,
+        /// the wastage step, and the net measured quantity used for cost.
+        /// </summary>
+        private void ShowMeasurementAudit(string label)
+        {
+            try
+            {
+                var b = StingResultPanel.Create("Measurement audit");
+
+                if (_boq == null || _boq.AllItems == null || _boq.AllItems.Count == 0)
+                {
+                    b.SetSubtitle("No bill built yet — press Refresh first, then re-open Measurement audit.");
+                    ShowInlineResult(b);
+                    return;
+                }
+
+                var std = StingTools.BOQ.MeasurementStandard.MeasurementStandardRegistry
+                    .Get(_boq.MeasurementStandardId);
+
+                var measured = _boq.AllItems
+                    .Where(i => i.Source == BOQRowSource.Model && i.GrossQuantity > 0)
+                    .OrderByDescending(i => i.DeductionQuantity)
+                    .ThenByDescending(i => i.WastageQuantity)
+                    .ToList();
+
+                int withDeductions = measured.Count(i => i.DeductionQuantity > 0.0005);
+                int withWaste = measured.Count(i => i.WastageQuantity > 0.0005);
+
+                b.SetSubtitle($"Active standard: {std.DisplayName} ({std.Id}) — gross → net measured derivation.");
+                b.AddSection("SUMMARY")
+                 .Metric("Measured model lines", measured.Count.ToString(CultureInfo.InvariantCulture))
+                 .Metric("Lines net of openings/voids", withDeductions.ToString(CultureInfo.InvariantCulture),
+                         "deductions applied")
+                 .Metric("Lines with a wastage allowance", withWaste.ToString(CultureInfo.InvariantCulture));
+
+                var rows = new List<string[]>();
+                foreach (var i in measured
+                             .Where(x => x.DeductionQuantity > 0.0005 || x.WastageQuantity > 0.0005)
+                             .Take(200))
+                {
+                    rows.Add(new[]
+                    {
+                        i.BOQLineRef ?? "",
+                        AuditTrunc(i.ItemName, 34),
+                        i.Unit ?? "",
+                        i.GrossQuantity.ToString("N2", CultureInfo.InvariantCulture),
+                        i.DeductionQuantity > 0.0005 ? i.DeductionQuantity.ToString("N2", CultureInfo.InvariantCulture) : "",
+                        i.WastageQuantity > 0.0005 ? i.WastageQuantity.ToString("N2", CultureInfo.InvariantCulture) : "",
+                        i.Quantity.ToString("N2", CultureInfo.InvariantCulture)
+                    });
+                }
+
+                if (rows.Count > 0)
+                {
+                    b.AddSection($"GROSS → NET  ({rows.Count} line(s) with a deduction or wastage)")
+                     .Table(new[] { "Ref", "Item", "Unit", "Gross", "Deduct", "Waste", "Net" }, rows);
+                }
+                else
+                {
+                    b.AddSection("GROSS → NET")
+                     .Text("No openings/voids or wastage applied on this bill — every measured line is gross = net. " +
+                           "Walls net of openings appear here once a wall hosts a door/window over the de-minimis.");
+                }
+
+                ShowInlineResult(b);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ ShowMeasurementAudit", ex); }
+        }
+
+        private static string AuditTrunc(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= max ? s : s.Substring(0, max - 1) + "…";
         }
 
         // ── P2.2 — reusable inline editable form host ───────────────────────
@@ -3230,6 +3318,29 @@ namespace StingTools.UI
                 Header = "CO₂ quality", Binding = new Binding(nameof(BOQItemViewModel.CarbonQualityDisplay)),
                 Width = new DataGridLength(95), IsReadOnly = true
             });
+            // Phase 2A — NRM2 measurement audit columns (off by default; toggle
+            // via Columns). Gross geometry → openings/voids deducted → wastage →
+            // Net (== Qty). "—" on rows with no separate measurement (manual/PS).
+            AddIfVisible("Gross", new DataGridTextColumn
+            {
+                Header = "Gross", Binding = new Binding(nameof(BOQItemViewModel.GrossDisplay)),
+                Width = new DataGridLength(70), IsReadOnly = true
+            });
+            AddIfVisible("Deduct", new DataGridTextColumn
+            {
+                Header = "Deduct", Binding = new Binding(nameof(BOQItemViewModel.DeductDisplay)),
+                Width = new DataGridLength(70), IsReadOnly = true
+            });
+            AddIfVisible("Waste", new DataGridTextColumn
+            {
+                Header = "Waste", Binding = new Binding(nameof(BOQItemViewModel.WasteDisplay)),
+                Width = new DataGridLength(70), IsReadOnly = true
+            });
+            AddIfVisible("Net", new DataGridTextColumn
+            {
+                Header = "Net", Binding = new Binding(nameof(BOQItemViewModel.NetDisplay)),
+                Width = new DataGridLength(70), IsReadOnly = true
+            });
 
             // NRM2 detail panel — shown under every row by default so the BOQ
             // description (the whole point of a BOQ) is always visible. The
@@ -3458,6 +3569,20 @@ namespace StingTools.UI
             overlayGrid.AppendChild(hint);
 
             detailSp.AppendChild(overlayGrid);
+
+            // Phase 2A — measurement derivation (gross → net), shown only when the
+            // row carries a measurement note (model rows). Read-only audit line.
+            var measNote = new FrameworkElementFactory(typeof(TextBlock));
+            measNote.SetBinding(TextBlock.TextProperty,
+                new Binding(nameof(BOQItemViewModel.MeasurementNoteDisplay)));
+            measNote.SetValue(TextBlock.FontSizeProperty, 9.5);
+            measNote.SetValue(TextBlock.ForegroundProperty,
+                new SolidColorBrush(Color.FromRgb(110, 130, 160)));
+            measNote.SetValue(TextBlock.MarginProperty, new Thickness(0, 5, 0, 0));
+            measNote.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            measNote.SetBinding(TextBlock.VisibilityProperty,
+                new Binding(nameof(BOQItemViewModel.MeasurementNoteVisibility)));
+            detailSp.AppendChild(measNote);
 
             // Footnote
             var editNote = new FrameworkElementFactory(typeof(TextBlock));
@@ -5627,6 +5752,19 @@ namespace StingTools.UI
         // G5 — carbon data-quality band (Verified-EPD / Database / Missing).
         public string CarbonQualityDisplay => string.IsNullOrEmpty(_item.CarbonQuality)
             ? "—" : _item.CarbonQuality;
+
+        // Phase 2A — NRM2 measurement audit columns. "—" on rows with no
+        // separate measurement (manual / PS / pre-2A snapshots where Gross == 0).
+        public string GrossDisplay => _item.GrossQuantity > 0
+            ? _item.GrossQuantity.ToString("N3", CultureInfo.InvariantCulture) : "—";
+        public string DeductDisplay => _item.DeductionQuantity > 0.0005
+            ? _item.DeductionQuantity.ToString("N3", CultureInfo.InvariantCulture) : "—";
+        public string WasteDisplay => _item.WastageQuantity > 0.0005
+            ? _item.WastageQuantity.ToString("N3", CultureInfo.InvariantCulture) : "—";
+        public string NetDisplay => _item.Quantity.ToString("N3", CultureInfo.InvariantCulture);
+        public string MeasurementNoteDisplay => _item.MeasurementNote ?? "";
+        public Visibility MeasurementNoteVisibility
+            => string.IsNullOrEmpty(_item.MeasurementNote) ? Visibility.Collapsed : Visibility.Visible;
 
         // ── Binding brushes ─────────────────────────────────────────────────
         // Row background: manual = cream, PS = lavender, model = transparent

@@ -53,7 +53,9 @@ namespace StingTools.BOQ
               // G4 — labour / plant / material rate-split columns (off by default).
               "Labour", "Plant", "Material",
               // G5 — carbon data-quality column (off by default).
-              "CO2 Quality" };
+              "CO2 Quality",
+              // Phase 2A — NRM2 measurement audit columns (off by default).
+              "Gross", "Deduct", "Waste", "Net" };
 
         private static readonly ConcurrentDictionary<string, BoqPrintProfileRegistry> _cache
             = new ConcurrentDictionary<string, BoqPrintProfileRegistry>(StringComparer.OrdinalIgnoreCase);
