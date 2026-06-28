@@ -418,6 +418,30 @@ namespace StingTools.Core.Symbols
                     tx.SetFailureHandlingOptions(failOpts);
 
                     tx.Start();
+
+                    // Force the seed's DECLARED Revit category. Templates are too
+                    // coarse to land every seed correctly (any "Lighting" category
+                    // → Lighting Fixture template, so a switch seed ended up in
+                    // Lighting Fixtures; equipment in Electrical Fixtures; etc.).
+                    // Setting FamilyCategory from def.Category fixes the whole class
+                    // at once. Falls back to the template category if Revit won't
+                    // allow the change for this template.
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(def.Category) && fdoc.OwnerFamily != null)
+                        {
+                            var bic = StingTools.Core.Placement.FixturePlacementEngine
+                                .ResolveBuiltInCategoryByName(fdoc, def.Category);
+                            if (bic != BuiltInCategory.INVALID)
+                            {
+                                var fcat = Category.GetCategory(fdoc, bic);
+                                if (fcat != null && fdoc.OwnerFamily.FamilyCategory?.Id != fcat.Id)
+                                    fdoc.OwnerFamily.FamilyCategory = fcat;
+                            }
+                        }
+                    }
+                    catch (Exception ccx) { result.Warnings.Add($"{def.Id}: could not set category '{def.Category}' — {ccx.Message}"); }
+
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
