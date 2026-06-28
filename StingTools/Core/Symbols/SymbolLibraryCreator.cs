@@ -2371,7 +2371,13 @@ namespace StingTools.Core.Symbols
                 if (cat.IndexOf("Electrical Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
                     return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft" };
                 if (cat.IndexOf("Electrical Equipment", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Electrical Fixture.rft",  // closest available
+                    // Use the real Electrical Equipment template so the seed lands
+                    // in the Electrical Equipment category — NOT the Fixture
+                    // template (that put STING_SEED_ElectricalEquipment / busbar
+                    // into Electrical Fixtures, polluting that pool so fixture
+                    // rules resolved to BUSBAR_TRUNKING). Generic Model is the
+                    // safe fallback (still not Electrical Fixtures).
+                    return new[] { "Metric Electrical Equipment.rft", "Electrical Equipment.rft",
                                    "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Fire Alarm", StringComparison.OrdinalIgnoreCase) >= 0)
                     return new[] { "Metric Fire Alarm Device.rft" };
