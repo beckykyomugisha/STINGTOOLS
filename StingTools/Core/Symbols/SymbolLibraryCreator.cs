@@ -2366,10 +2366,17 @@ namespace StingTools.Core.Symbols
                 // Seed family — pick the most discipline/category-
                 // appropriate freestanding template. The Hosting check
                 // above already covered face / wall / ceiling.
+                // Every branch ends with a Generic Model fallback so a missing
+                // category-specific template (e.g. Metric Air Terminal.rft /
+                // Metric Sprinkler.rft aren't installed in every Revit) doesn't
+                // fail the build — it falls back to the always-present Generic
+                // Model template (a freestanding, level-based, placeable family).
                 if (cat.IndexOf("Lighting Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Lighting Fixture.rft", "Lighting Fixture.rft" };
+                    return new[] { "Metric Lighting Fixture.rft", "Lighting Fixture.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Electrical Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft" };
+                    return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Electrical Equipment", StringComparison.OrdinalIgnoreCase) >= 0)
                     // Use the real Electrical Equipment template so the seed lands
                     // in the Electrical Equipment category — NOT the Fixture
@@ -2380,15 +2387,15 @@ namespace StingTools.Core.Symbols
                     return new[] { "Metric Electrical Equipment.rft", "Electrical Equipment.rft",
                                    "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Fire Alarm", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Fire Alarm Device.rft" };
+                    return new[] { "Metric Fire Alarm Device.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Sprinkler", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Sprinkler.rft" };
+                    return new[] { "Metric Sprinkler.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Plumbing Fixture.rft" };
+                    return new[] { "Metric Plumbing Fixture.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Air Terminal", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Air Terminal.rft" };
+                    return new[] { "Metric Air Terminal.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Mechanical", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Mechanical Equipment.rft" };
+                    return new[] { "Metric Mechanical Equipment.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Communication", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0)
                     return new[] { "Metric Data Device.rft", "Metric Communication Device.rft",
