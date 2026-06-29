@@ -233,6 +233,72 @@ Apply the same audit to the rest of the module's user-facing strings.
 
 ---
 
+## Workstream H — Second-pass gaps (automation reach, cross-gate consistency, carbon integration)
+
+Found in a second deep cross-check after Workstreams A–G. Same ground rules apply
+— recommend the most flexible, data-driven solution for each; no hardcoding.
+
+### H1. Make the module reachable from the workflow + automation layer
+**Gap:** `WorkflowEngine.ResolveCommand` has **no `Sustain_*` cases** and there is **no
+`WORKFLOW_Sustainability*.json` preset**, while every peer module (HVAC, Plumbing,
+BOQ, Healthcare, Cost) ships both. Sustainability can't be chained, can't appear in
+the morning-health-check chain, and isn't reachable from NLP.
+**Fix:** register the sustainability command tags in `WorkflowEngine.ResolveCommand`
+(SetBaseline / AutoFill / Dashboard / EdgeExport / LccBenefit / EpdRegister / Scorecard);
+ship `Data/WORKFLOW_SustainabilityAssessment.json` (auto-fill → set baseline →
+dashboard → EDGE export → LCC) discoverable by `WorkflowEngine.AppendUserPresets`;
+add the handful of NLP patterns ("run edge", "sustainability dashboard", "carbon
+estimate") to `NLPCommandProcessor`. Confirm the tags also dispatch from the main
+`StingCommandHandler` fall-through, not only the sustainability panel.
+
+### H2. Unify occupancy across the energy and water estimators
+**Gap:** energy derives per-zone `OccupantCount` from load-profile area density when the
+model carries none; water uses `setup.TotalOccupancy`. On a model with no typed total,
+**energy runs on density-derived people while water runs on 0** — two gates, two
+populations, one building. (`SustainabilityEngine.cs` ~L463 vs `GatherZones`.)
+**Fix:** compute one project occupancy = Σ(per-zone occupants) after the load-profile
+pass, feed it to both estimators, and let `setup.TotalOccupancy` override only when
+the user has explicitly set it. Surface which source won. Add a test that energy and
+water see the same occupancy on a zero-setup model.
+
+### H3. Guarantee `SUS_*` baseline params actually bind (so `SetBaseline` persists)
+**Gap:** the 6 `SUS_*` params are in `PARAMETER_REGISTRY.json` (group 35,
+`binding: project`) but have **no rows in `CATEGORY_BINDINGS.csv`**. If the bind
+pipeline keys off the CSV, `SetBaseline`'s `LookupParameter` returns null and the
+stamp silently no-ops — the dashboard works in-session but nothing persists to the
+model / schedules / IFC.
+**Fix:** verify the bind path; if the CSV is authoritative, add the `SUS_*` →
+ProjectInformation bindings there (and mirror in any coverage matrix). Make
+`SetBaseline` log a clear warning when a target param isn't bound rather than failing
+silently. Add a smoke check that the 6 params resolve after `LoadSharedParams`.
+
+### H4. Integrate carbon with the existing carbon subsystems (whole-life roll-up)
+**Gap:** operational carbon (energy × grid factor) and embodied carbon (materials) are
+computed but siloed from `BIMManager/CarbonTrackingCommands`, `V6/CarbonStageTracker`
+(RIBA-stage), the AVF `VisualiseCarbonHeatmapCommand`, and
+`DesignOptions/OptionCostCarbonCalculator`.
+**Fix:** surface a single **whole-life carbon** figure (embodied A1–A3 + operational
+over a study period from setup) and feed/align it with `CarbonStageTracker` so the
+RIBA-stage carbon view and the EDGE dashboard agree. Where the AVF carbon heatmap
+already exists, let the sustainability materials carbon drive it (per-element embodied
+carbon overlay) — reuse, don't reimplement. Keep the two material tracks separate
+(carbon vs MJ); whole-life is carbon only.
+
+### H5. Align the EDGE KPI snapshot with the gate metric
+**Gap:** the EDGE water gate now reads `WaterSavingsInclAltPct` (fixture + alternative
+water), but `EdgeKpiSnapshot` likely still records the fixture-only `WaterSavingsPct`,
+so the persisted trend disagrees with the on-screen pass/fail.
+**Fix:** record the same inclusive metric the gate uses; add a test pinning snapshot
+water % to the gate's value.
+
+### H6. SI/IP-convert the EDGE export
+**Gap:** Workstream B2 made the panel unit-aware, but the EDGE export still emits SI
+regardless of `Setup.Units`.
+**Fix:** run export intensities/values through `SustainUnitConverter` and label units
+in the sheet header, matching the panel. Add a test on the IP export path.
+
+---
+
 ## Acceptance criteria
 
 1. Energy uses the load-profile library + real envelope + per-façade solar from the
