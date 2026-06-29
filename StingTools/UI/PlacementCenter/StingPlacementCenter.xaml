@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:StingTools.UI.PlacementCenter"
-        Title="STING — Placement Centre"
+        Title="STING - Placement Centre"
         Width="1280" Height="780"
         MinWidth="1024" MinHeight="640"
         WindowStartupLocation="CenterOwner"
@@ -10,7 +10,7 @@
         Background="{DynamicResource PrimaryBg}"
         Foreground="{DynamicResource PrimaryFg}">
 
-    <!-- PC-25 — Run / Preview / Validate moved off Ctrl+R/P/V (Revit-default
+    <!-- PC-25 - Run / Preview / Validate moved off Ctrl+R/P/V (Revit-default
          conflicts: Ctrl+P print, Ctrl+V paste, Ctrl+R repeat) onto Alt+R/P/V.
          Save / New rule / UndoLast retain their conventional bindings. -->
     <Window.InputBindings>
@@ -67,7 +67,7 @@
             <RowDefinition Height="Auto"/>  <!-- status bar -->
         </Grid.RowDefinitions>
 
-        <!-- DrawingType context strip — shows stamped DT, pack, discipline for active view -->
+        <!-- DrawingType context strip - shows stamped DT, pack, discipline for active view -->
         <Border Grid.Row="0" x:Name="bdrDtContext"
                 BorderBrush="#CFD8DC" BorderThickness="0,0,0,1"
                 Background="#F0F4F8" Padding="10,5">
@@ -86,16 +86,16 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Drawing Type:" FontSize="10" Foreground="#607D8B"
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <TextBlock Grid.Column="1" x:Name="txtDtContextId" Text="—" FontSize="10"
+                <TextBlock Grid.Column="1" x:Name="txtDtContextId" Text="-" FontSize="10"
                            FontWeight="SemiBold" Foreground="#1565C0" VerticalAlignment="Center"
                            Margin="0,0,14,0" ToolTip="Stamped DrawingType on the active view"/>
                 <TextBlock Grid.Column="2" Text="Pack:" FontSize="10" Foreground="#607D8B"
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <TextBlock Grid.Column="3" x:Name="txtDtContextPack" Text="—" FontSize="10"
+                <TextBlock Grid.Column="3" x:Name="txtDtContextPack" Text="-" FontSize="10"
                            Foreground="#455A64" VerticalAlignment="Center" Margin="0,0,14,0"/>
                 <TextBlock Grid.Column="4" Text="Disc:" FontSize="10" Foreground="#607D8B"
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <TextBlock Grid.Column="5" x:Name="txtDtContextDisc" Text="—" FontSize="10"
+                <TextBlock Grid.Column="5" x:Name="txtDtContextDisc" Text="-" FontSize="10"
                            Foreground="#455A64" VerticalAlignment="Center" Margin="0,0,14,0"/>
                 <Rectangle Grid.Column="6" Width="1" Height="12" Fill="#CFD8DC" Margin="0,0,14,0"
                            VerticalAlignment="Center"/>
@@ -114,7 +114,7 @@
         <!-- Toolbar -->
         <Border Grid.Row="1" Background="{DynamicResource HeaderBg}" Padding="8,6">
             <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" Text="STING — Placement Centre"
+                <TextBlock DockPanel.Dock="Left" Text="STING - Placement Centre"
                            FontSize="14" FontWeight="Bold"
                            Foreground="{DynamicResource HeaderFg}"
                            VerticalAlignment="Center" Margin="0,0,16,0"/>
@@ -159,7 +159,7 @@
 
         <TabControl Grid.Column="0" x:Name="tabCentre">
 
-        <!-- ═══════════════════════════ TAB 1 — RULES ═══════════════════════════ -->
+        <!-- ═══════════════════════════ TAB 1 - RULES ═══════════════════════════ -->
         <TabItem Header="Rules">
         <Grid>
             <Grid.ColumnDefinitions>
@@ -244,7 +244,7 @@
                             <DataGridTextColumn Header="Room"     Binding="{Binding RoomFilter}"         Width="90"/>
                             <DataGridTextColumn Header="Anchor"   Binding="{Binding AnchorType}"         Width="100"/>
                             <DataGridTextColumn Header="Pri"      Binding="{Binding Priority}"           Width="40"/>
-                            <!-- Phase 139 I1 — new columns -->
+                            <!-- Phase 139 I1 - new columns -->
                             <DataGridTextColumn Header="Pack"     Binding="{Binding SourcePack}"         Width="80"/>
                             <DataGridTextColumn Header="Cov %"    Binding="{Binding LastCoverageDisplay}" Width="60"/>
                             <DataGridTextColumn Header="Placed/Tgt" Binding="{Binding PlacedTargetDisplay}" Width="70"/>
@@ -298,7 +298,7 @@
                             <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Side"/>
                             <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbSide"     Margin="0,2"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Priority (0–100)"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Priority (0-100)"/>
                             <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtPriority" Margin="0,2"/>
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Family Type Regex"/>
@@ -468,7 +468,7 @@
                                        ToolTip="When checked, the engine adds fixtures until ≥99% of the floor area is covered, even if Max per Room would cap earlier."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Foreground="#666" FontStyle="Italic"
-                                       Text="→ Max Spacing is in Geometry above"/>
+                                       Text="-> Max Spacing is in Geometry above"/>
                         </Grid>
                     </GroupBox>
 
@@ -516,7 +516,7 @@
                                        ToolTip="When checked, TwoPhaseBoxPlacer runs first-fix box before second-fix fixture placement."/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Construction phase"/>
                             <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbConstructionPhase" Margin="0,2"
-                                       ToolTip="FIRST_FIX / SECOND_FIX / FINISHED — which construction phase this rule targets."/>
+                                       ToolTip="FIRST_FIX / SECOND_FIX / FINISHED - which construction phase this rule targets."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Cluster member"/>
                             <CheckBox  Grid.Row="1" Grid.Column="1" x:Name="chkClusterMember" Margin="0,4"
@@ -545,7 +545,7 @@
                                        ToolTip="Stable id used by DependsOn / CoPlaceWith / ConflictsWith. Defaults to MergeKey when empty."/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Depends on"/>
                             <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtDependsOn" Margin="0,2"
-                                       ToolTip="RuleId of predecessor — this rule fires only after that rule placed ≥1 instance."/>
+                                       ToolTip="RuleId of predecessor - this rule fires only after that rule placed ≥1 instance."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Relative to"/>
                             <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbRelativeTo" Margin="0,2"/>
@@ -599,7 +599,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Clearance (mm)"/>
                             <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtClr"      Margin="0,2"
-                                       ToolTip="Omnidirectional clearance — written to STING_CLEARANCE_MM."/>
+                                       ToolTip="Omnidirectional clearance - written to STING_CLEARANCE_MM."/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Front / Back (mm)"/>
                             <DockPanel Grid.Row="0" Grid.Column="3" Margin="0,2">
                                 <TextBox x:Name="txtClrFront" Width="60" Margin="0,0,4,0"/>
@@ -655,7 +655,7 @@
                             </DataGrid>
                         </StackPanel>
                     </GroupBox>
-                    <!-- Phase 139 I2 — new rule detail cards -->
+                    <!-- Phase 139 I2 - new rule detail cards -->
                     <GroupBox Header="Coverage &amp; Spacing (Standards)" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <TextBlock Foreground="#666" FontStyle="Italic" FontWeight="Normal" Margin="0,0,0,4"
@@ -684,7 +684,7 @@
                                 <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Obstr. clearance (mm)"/>
                                 <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtObstructionClearance" Margin="0,2"/>
 
-                                <!-- A6 (door/window clearance) — 0 = off -->
+                                <!-- A6 (door/window clearance) - 0 = off -->
                                 <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Door clearance (mm)"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtDoorClearance"   Margin="0,2"/>
                                 <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Window clearance (mm)"/>
@@ -809,14 +809,14 @@
 
                     </StackPanel> <!-- /pnlRuleDetail -->
 
-                    <!-- Phase 139 I3 — Building Profile header -->
+                    <!-- Phase 139 I3 - Building Profile header -->
                     <GroupBox Header="Building Profile" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <Border BorderBrush="#E2A04A" BorderThickness="1" Padding="6"
                                     Background="#FFF7E6" Margin="0,0,0,8"
                                     Visibility="{Binding VM.Profile.BuildingType, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EmptyStringToVisibility}, FallbackValue=Visible}">
                                 <TextBlock Foreground="#A33" FontSize="11" TextWrapping="Wrap"
-                                           Text="No building profile loaded — every rule is active. Set a Building Type below to gate by sector."/>
+                                           Text="No building profile loaded - every rule is active. Set a Building Type below to gate by sector."/>
                             </Border>
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -857,7 +857,7 @@
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement" Margin="0,3"
-                                      ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
+                                      ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp - useful for one-off non-tracked placements."/>
                             <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category" Margin="0,3"
                                       ToolTip="When ON and a STING_PLACEMENT_RULES.learned.json sits next to the .rvt, learned overrides win over the shipped baseline. The 'Learn from model' tool writes that file."/>
                             <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
@@ -885,7 +885,7 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- PC-23 — Validator picker. -->
+                            <!-- PC-23 - Validator picker. -->
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
@@ -904,7 +904,7 @@
                                 </WrapPanel>
                             </Grid>
 
-                            <!-- Phase 139.8 — explicit category checklist for what to auto-place.
+                            <!-- Phase 139.8 - explicit category checklist for what to auto-place.
                                  When ALL boxes are off, every category in the active rule pack is allowed.
                                  When ANY box is ticked, only those categories are placed. -->
                             <Grid Margin="0,8,0,0">
@@ -927,17 +927,17 @@
                                     <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target — conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
+                                              ToolTip="Routing output, not a point-placement target - conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
                                     <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target — pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
+                                              ToolTip="Routing output, not a point-placement target - pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
                                     <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target — cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
+                                              ToolTip="Routing output, not a point-placement target - cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
                                     <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"
-                                              ToolTip="No baseline rules ship for this category — only places when a project / specialty rule pack covers it."/>
+                                              ToolTip="No baseline rules ship for this category - only places when a project / specialty rule pack covers it."/>
                                     <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
                                     <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"
-                                              ToolTip="Requires the healthcare rule pack — no baseline rules or anchor support ship for this category."/>
+                                              ToolTip="Requires the healthcare rule pack - no baseline rules or anchor support ship for this category."/>
                                     <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
                                     <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
                                 </WrapPanel>
@@ -950,7 +950,7 @@
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                            Foreground="#666" FontStyle="Italic" FontWeight="Normal"
-                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first. Double-click a row to select in Revit."/>
+                                           Text="StingProvenanceSchema - last 30 hourly buckets, newest first. Double-click a row to select in Revit."/>
                                 <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
                                         Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"
                                         ToolTip="Re-scan provenance and refresh the table (F5)."/>
@@ -975,7 +975,7 @@
                                     <DataGridTextColumn Header="Rule"       Binding="{Binding RuleId}"            Width="*"/>
                                     <DataGridTextColumn Header="Operator"   Binding="{Binding Operator}"          Width="100"/>
                                     <DataGridTextColumn Header="Count"      Binding="{Binding Count}"             Width="60"/>
-                                    <!-- Phase 139 I4 — extra history columns -->
+                                    <!-- Phase 139 I4 - extra history columns -->
                                     <DataGridTextColumn Header="Cov %"      Binding="{Binding CoverageDisplay}"   Width="60"/>
                                     <DataGridTextColumn Header="Skipped"    Binding="{Binding SkippedDisplay}"    Width="60"/>
                                     <DataGridTextColumn Header="Warnings"   Binding="{Binding WarningDisplay}"    Width="70"/>
@@ -997,7 +997,7 @@
         </Grid>
         </TabItem>
 
-        <!-- ════════════════════════ TAB 2 — RUN &amp; ROUTING ════════════════════════ -->
+        <!-- ════════════════════════ TAB 2 - RUN &amp; ROUTING ════════════════════════ -->
         <TabItem Header="Run &amp; Routing">
         <Grid>
             <Grid.ColumnDefinitions>
@@ -1038,7 +1038,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource LabelStyle}" Text="Score threshold" VerticalAlignment="Center"
-                                       ToolTip="Candidates scoring below this value are rejected (0.00–1.00). Default 0.35."/>
+                                       ToolTip="Candidates scoring below this value are rejected (0.00-1.00). Default 0.35."/>
                             <TextBox Grid.Column="1" x:Name="txtScoreThreshold" Margin="0,2" Text="0.35"
                                      LostFocus="OnScoreThreshold_Changed"
                                      ToolTip="PlacementScorer.ScoreThreshold. Lower = more permissive; 0.20 keeps borderline coverage candidates."/>
@@ -1109,7 +1109,7 @@
                         </WrapPanel>
                     </GroupBox>
 
-                    <!-- Inline result — hidden until a run action completes -->
+                    <!-- Inline result - hidden until a run action completes -->
                     <GroupBox x:Name="grpRunResult" Header="Last Action Result"
                               Style="{StaticResource GroupBoxStyle}"
                               Visibility="Collapsed">
@@ -1122,7 +1122,7 @@
                                         ToolTip="Select all placed elements in the active view." Margin="4,0,0,0"/>
                                 <TextBlock x:Name="txtRunResultHeadline"
                                            FontWeight="SemiBold" FontSize="13"
-                                           VerticalAlignment="Center" TextWrapping="Wrap" Text="—"/>
+                                           VerticalAlignment="Center" TextWrapping="Wrap" Text="-"/>
                             </DockPanel>
                             <!-- Metric badge strip -->
                             <ItemsControl x:Name="lstRunMetrics" Margin="0,0,0,8">
@@ -1157,14 +1157,14 @@
         </Grid>
         </TabItem>
 
-        <!-- ═══════════════════════════════ TAB 3 — TOOLS ════════════════════════════ -->
+        <!-- ═══════════════════════════════ TAB 3 - TOOLS ════════════════════════════ -->
         <TabItem Header="Tools">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
             <StackPanel>
 
                 <TextBlock Margin="0,4,0,10" TextWrapping="Wrap"
                            Foreground="#888" FontStyle="Italic" FontSize="11"
-                           Text="Commands previously only accessible via the dock-panel Fixtures / Routing sub-tabs — now surfaced here for convenience."/>
+                           Text="Commands previously only accessible via the dock-panel Fixtures / Routing sub-tabs - now surfaced here for convenience."/>
 
                 <GroupBox Header="Rule File Management" Style="{StaticResource GroupBoxStyle}">
                     <WrapPanel>
@@ -1225,12 +1225,92 @@
         </ScrollViewer>
         </TabItem>
 
+        <TabItem Header="Library">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+            <StackPanel>
+
+                <TextBlock Margin="0,4,0,10" TextWrapping="Wrap"
+                           Foreground="#888" FontStyle="Italic" FontSize="11"
+                           Text="The fixture-lifecycle hub. Each button dispatches an existing STING command - seed build/maintenance, family swap/augment, symbol creation, and the DWG-MEP importer - grouped by lifecycle stage. The full dock-panel catalogue stays the exhaustive surface; this is the curated subset."/>
+
+                <GroupBox Header="1. Seeds - build &amp; maintain the STING symbol library" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="120" Height="30" Margin="4,3"
+                                Click="OnRebuildSeeds_Click"
+                                Content="Rebuild Seeds"
+                                ToolTip="Regenerate the STING seed families from JSON (latest geometry + variants) and reload them into the project, overwriting cached/older seeds. Run after a STING update. Renders in the Report panel."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnLibInspect_Click"
+                                Content="Inspect Library"
+                                ToolTip="List the loaded STING symbol families + their type variants. Read-only."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnLibCoverage_Click"
+                                Content="Coverage Audit"
+                                ToolTip="Audit which placement categories have a resolvable symbol vs. gaps. Read-only - renders inline in the Report panel."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnLibHealOrphans_Click"
+                                Content="Heal Orphans"
+                                ToolTip="Re-link orphaned symbol instances back to their seed family. Model-modifying - shows its own confirmation."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnLibFixDrift_Click"
+                                Content="Fix Drift"
+                                ToolTip="Detect &amp; repair symbols whose geometry/parameters drifted from the JSON spec. Model-modifying - shows its own confirmation."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="2. Families - swap seeds to real products &amp; augment" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="170" Height="30" Margin="4,3"
+                                Click="OnLibSwap_Click"
+                                Content="Swap to Manufacturer"
+                                ToolTip="Swap placed STING seed instances to real manufacturer families via the swap registry - parameters preserved (non-destructive). Shows its own preview/confirmation."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="150" Height="30" Margin="4,3"
+                                Click="OnLibAugment_Click"
+                                Content="Augment Families"
+                                ToolTip="Add STING shared parameters/formulas to the project's loaded families in batch. Model-modifying - shows its own confirmation."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="2. Create Symbols - build discipline symbol packs" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="130" Height="30" Margin="4,3"
+                                Click="OnLibCreateLighting_Click"
+                                Content="Lighting Symbols"
+                                ToolTip="Build the STING lighting symbol pack (recessed/surface/pendant/emergency/external). Model-modifying."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="160" Height="30" Margin="4,3"
+                                Click="OnLibCreateFP_Click"
+                                Content="Fire Protection Symbols"
+                                ToolTip="Build the STING fire-protection symbol pack. Model-modifying."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnLibCreateSLD_Click"
+                                Content="SLD Symbols"
+                                ToolTip="Build the STING single-line-diagram symbol pack. Model-modifying."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="3. Import - turn a DWG into placed, swappable STING fixtures" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="160" Height="30" Margin="4,3"
+                                Click="OnLibDwgWizard_Click"
+                                Content="From DWG (MEP)…"
+                                ToolTip="Launch the DWG-MEP import wizard (duct/pipe/conduit + MEP blocks)."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="240" Height="30" Margin="4,3"
+                                Click="OnLibDwgToSeeds_Click"
+                                Content="Place STING fixtures from DWG symbols"
+                                ToolTip="The DWG->seed bridge: import a DWG, map its MEP fixture blocks (point + layer + block name) to STING categories, build the mapped seeds, and place hosted, parameterised STING instances at the symbol locations - swap-ready. Renders counts inline. Model-modifying."/>
+                    </WrapPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+        </TabItem>
+
         </TabControl>
 
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch" Background="#CFD8DC" ShowsPreview="True"/>
 
-        <!-- Shared inline Report panel — every reporting button renders its
+        <!-- Shared inline Report panel - every reporting button renders its
              result here instead of opening an external window. -->
         <Border Grid.Column="2" x:Name="bdrReport" Background="{DynamicResource SecondaryBg}"
                 BorderBrush="#CFD8DC" BorderThickness="1,0,0,0">
@@ -1258,7 +1338,7 @@
                 <Border x:Name="reportHost" Padding="8">
                     <TextBlock x:Name="txtReportEmpty" Foreground="#90A4AE" FontSize="11"
                                TextWrapping="Wrap" VerticalAlignment="Top"
-                               Text="Run a placement, validate, audit, diagnose, learn, or import/export — results appear here instead of a pop-up window."/>
+                               Text="Run a placement, validate, audit, diagnose, learn, or import/export - results appear here instead of a pop-up window."/>
                 </Border>
             </DockPanel>
         </Border>

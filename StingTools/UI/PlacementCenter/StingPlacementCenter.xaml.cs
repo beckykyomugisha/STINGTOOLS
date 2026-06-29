@@ -2616,6 +2616,100 @@ namespace StingTools.UI.PlacementCenter
             });
         }
 
+        // ── Library tab (fixture-lifecycle hub) ──────────────────────────────
+        // Every handler DISPATCHES an existing STING command — no logic is
+        // duplicated here. Read-only commands with an engine report method render
+        // inline; interactive/model-modifying commands own their TaskDialog/wizard
+        // and run on the API thread via RunExternalCommand<T>.
+
+        /// <summary>Generic dispatcher: instantiate an existing IExternalCommand and run
+        /// its Execute on the Revit API thread (via the Centre's action event), mirroring
+        /// StingCommandHandler.RunCommand&lt;T&gt;. The command owns its own UI; this reports a
+        /// one-line outcome inline. No command body is copied.</summary>
+        private void RunExternalCommand<T>(string title) where T : Autodesk.Revit.UI.IExternalCommand, new()
+        {
+            RunInlineAction(title, app =>
+            {
+                // Commands accept a null ExternalCommandData and fall back to
+                // StingCommandHandler.CurrentApp — set it so the live API-thread app is used.
+                try { StingTools.UI.StingCommandHandler.SetCurrentApp(app); } catch { }
+                string message = "";
+                var elSet = new Autodesk.Revit.DB.ElementSet();
+                Autodesk.Revit.UI.Result result;
+                try { result = new T().Execute(null, ref message, elSet); }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                { result = Autodesk.Revit.UI.Result.Cancelled; }
+
+                var panel = StingResultPanel.Create($"STING — {title}")
+                    .AddSection("RESULT")
+                    .Metric("Command", typeof(T).Name)
+                    .Metric("Outcome", result.ToString());
+                if (!string.IsNullOrWhiteSpace(message)) panel.Text(message);
+                panel.Text(result == Autodesk.Revit.UI.Result.Succeeded
+                    ? "Command ran. Any preview/confirmation it showed is its own dialog; full results render in the command's own panel."
+                    : result == Autodesk.Revit.UI.Result.Cancelled ? "Cancelled."
+                    : "Command reported failure — check the STING log.");
+                return panel;
+            });
+        }
+
+        private void OnLibInspect_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.InspectSymbolLibraryCommand>("Inspect Library");
+
+        private void OnLibCoverage_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            // Read-only: call the engine's report generator directly so it renders inline
+            // in the shared Report panel (no TaskDialog detour).
+            RunInlineAction("Coverage Audit", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                string report = StingTools.Core.Symbols.SymbolCoverageAuditor.GenerateCoverageReport(doc);
+                return StingResultPanel.Create("STING — Symbol Coverage Audit")
+                    .SetSubtitle("Which placement categories have a resolvable symbol vs. gaps (read-only).")
+                    .AddSection("COVERAGE")
+                    .Text(string.IsNullOrWhiteSpace(report) ? "No coverage data." : report);
+            });
+        }
+
+        private void OnLibHealOrphans_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.HealSymbolOrphansCommand>("Heal Orphans");
+
+        private void OnLibFixDrift_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.FixSymbolDriftCommand>("Fix Drift");
+
+        private void OnLibSwap_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.SwapToManufacturerCommand>("Swap to Manufacturer");
+
+        private void OnLibAugment_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.AugmentProjectFamiliesCommand>("Augment Families");
+
+        private void OnLibCreateLighting_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.CreateLightingSymbolsCommand>("Create Lighting Symbols");
+
+        private void OnLibCreateFP_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.CreateFPSymbolsCommand>("Create Fire Protection Symbols");
+
+        private void OnLibCreateSLD_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Commands.Symbols.CreateSLDSymbolsCommand>("Create SLD Symbols");
+
+        private void OnLibDwgWizard_Click(object sender, RoutedEventArgs e)
+            => RunExternalCommand<StingTools.Model.MepCadWizardCommand>("DWG-MEP Import Wizard");
+
+        /// <summary>The DWG→seed→swap bridge: maps DWG MEP fixture symbols to STING seed
+        /// instances at the symbol locations (swap-ready). Calls the same engine the
+        /// Placement_DwgToSeedFixtures command does; reports counts inline.</summary>
+        private void OnLibDwgToSeeds_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("DWG → STING fixtures", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var res = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: false);
+                return StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(res);
+            });
+        }
+
         private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null) { Toast("No document open."); return; }

@@ -200,6 +200,7 @@ namespace StingTools.UI
 
                     // ── v4 MVP: fixture placement (Phase 2) ──
                     case "Placement_PlaceFixtures": RunCommand<Commands.Placement.PlaceFixturesCommand>(app); break;
+                    case "Placement_DwgToSeedFixtures": RunCommand<Commands.Placement.DwgToSeedFixturesCommand>(app); break;
                     case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
                     // Phase 177 — toilet-room specific placement + BS 6465 provision check.

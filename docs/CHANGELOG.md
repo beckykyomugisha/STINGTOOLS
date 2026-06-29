@@ -3,6 +3,55 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Placement Centre — Library tab + DWG-MEP → seed → swap bridge)
+
+Branch `claude/placement-library-dwg` off `main` (PR #379 foundation). Build clean
+`-c Release` (0 errors) in an isolated worktree; DLL + `data\` deployed to
+`C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in Revit before merge**
+(sandbox can't run Revit). No command logic forked; everything dispatches the
+existing engines/commands.
+
+**Phase 1 — "Library" tab in the Placement Centre.** New `Library` tab in
+`StingPlacementCenter.xaml` (alongside Rules / Run & Routing / Tools), grouped by
+lifecycle stage: **Seeds** (Rebuild Seeds, Inspect Library, Coverage Audit, Heal
+Orphans, Fix Drift), **Families** (Swap to Manufacturer, Augment Families), **Create
+Symbols** (Lighting / Fire Protection / SLD), **Import** (From DWG (MEP)… wizard,
+Place STING fixtures from DWG symbols). Each button DISPATCHES an existing command —
+no logic duplicated. A new generic `RunExternalCommand<T>()` helper (mirrors
+`StingCommandHandler.RunCommand<T>`) runs interactive/model-modifying commands on the
+API thread via the Centre's existing `_actionEvent`; read-only Coverage Audit renders
+inline via `SymbolCoverageAuditor.GenerateCoverageReport(doc)` in the shared Report
+panel. Corrected the spec's command-tag guesses against the real classes
+(`SymbolMaintenanceCommands`/`SymbolStandardCommands`, `Symbols_Coverage`/`_FixDrift`/
+`_AugmentAll`).
+
+**Phase 2 — DWG-MEP → seed → swap bridge.** `Core/Placement/DwgFixtureBridge.cs`
+turns DWG MEP fixture **blocks** into placed, swap-ready STING seed instances by
+REUSING the foundation: capture blocks via `CADToModelEngine.PreviewImport`
+(`DetectedBlock`: point + layer + blockName + coarse category) → map block/layer →
+STING category + variant + host anchor via new data-driven
+`Data/Placement/DWG_SYMBOL_MAP.json` + `DwgSymbolMapRegistry` (corporate + `_BIM_COORD`
+override) → `CategoryToSeedRegistry.Resolve` → `SeedEnsurer.EnsureSeedsForCategories`
+(outside any transaction) → resolve the seed `FamilySymbol` (by `STING_SEED_FAMILY_TXT`
+marker, type by variant name) → `PlacementHostPreflight.Place` at the block point
+(host-first, in a `STING Place DWG Fixtures` transaction) → `StingProvenanceSchema.Stamp`
+with the source DWG block/layer for audit. Output is STING seeds, so **Library → Swap
+to Manufacturer** swaps them to real product geometry. Surfaced as the Library button
+and a thin `DwgToSeedFixturesCommand` (`Placement_DwgToSeedFixtures` tag) — both call
+the one engine. No duplication of the DWG geometry engine or the placement host.
+
+**Files added:** `Core/Placement/DwgFixtureBridge.cs`, `Core/Placement/DwgSymbolMapRegistry.cs`,
+`Commands/Placement/DwgToSeedFixturesCommand.cs`, `Data/Placement/DWG_SYMBOL_MAP.json`.
+**Files edited:** `UI/PlacementCenter/StingPlacementCenter.xaml(.cs)` (Library tab +
+handlers + `RunExternalCommand<T>`), `UI/StingCommandHandler.cs` (one tag case).
+
+**Caveats:** model-modifying paths (placement, swap, heal, drift, seed build) untested
+in the sandbox — verify in Revit. The DWG bridge places at the captured block point and
+hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapped
+anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
+unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
+ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+
 #### Completed (BOQ 5D Phase 2B–2E — live rates · drift · incremental · WBS/ERP)
 
 Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phases
