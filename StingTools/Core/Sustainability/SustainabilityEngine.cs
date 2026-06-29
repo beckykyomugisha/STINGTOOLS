@@ -94,6 +94,11 @@ namespace StingTools.Core.Sustainability
                 return bad;
             }
 
+            // WS J1 — cascade the Country into a clone (climate site/zone + grid/diesel)
+            // BEFORE the cache key, so a Country change re-keys the run (WS J3) and the
+            // result reflects the country. User-typed values are preserved by the cascade.
+            setup = CascadeCountry(doc, setup);
+
             string key = (doc.PathName ?? "<no-doc>") + "|" + setup.ContentHash();
             if (forceRefresh) Invalidate(doc);
             else if (_runCache.TryGetValue(key, out var hit)
@@ -145,18 +150,29 @@ namespace StingTools.Core.Sustainability
                     $"({res.Baseline?.Summary}). Set Climate site id and/or Climate zone in Setup for a " +
                     "defensible baseline; hot / tropical sites differ materially from the temperate default.");
 
-            // ── WS I3 — grid carbon factor from the project country (not a hardcoded
-            //    0.45). The user's explicit supply override wins; else the per-country
-            //    seed/override; else the labelled default. Feeds the supply layer. ──
+            // ── WS I3 / J1 — grid carbon factor from the project country (not a
+            //    hardcoded 0.45). Priority: explicit user supply override → the country
+            //    seed (cascade) → the legacy per-ISO2 grid registry → labelled default.
+            //    Feeds the supply layer. ──
             var gridReg = SustainabilityRegistries.GridCarbon(doc);
-            bool userGridSet = setup.Supply != null && setup.Supply.GridCarbonKgco2eKwh > 0
-                               && Math.Abs(setup.Supply.GridCarbonKgco2eKwh - gridReg.Default) > 1e-9;
-            if (userGridSet)
+            var countryRow = SustainabilityRegistries.Countries(doc).Resolve(setup.Country);
+            if (setup.Supply != null && setup.Supply.GridCarbonExplicit)
+            {
                 res.GridCarbon = new GridCarbonResolution
                 {
                     Country = setup.Country, Factor = setup.Supply.GridCarbonKgco2eKwh,
                     Source = "user override", IsDefault = false
                 };
+            }
+            else if (countryRow != null && !countryRow.IsDefault && countryRow.GridKgCo2ePerKwh > 0)
+            {
+                res.GridCarbon = new GridCarbonResolution
+                {
+                    Country = countryRow.Iso3, Factor = countryRow.GridKgCo2ePerKwh,
+                    Source = $"country: {countryRow.Label} (seed — {countryRow.Source})", IsDefault = false
+                };
+                if (setup.Supply != null) setup.Supply.GridCarbonKgco2eKwh = res.GridCarbon.Factor;
+            }
             else
             {
                 res.GridCarbon = gridReg.Resolve(setup.Country);
@@ -246,6 +262,24 @@ namespace StingTools.Core.Sustainability
                 }
 
             return res;
+        }
+
+        // ── WS J1 — country cascade ────────────────────────────────────────
+
+        /// <summary>Clone the setup and fill its climate site / zone / grid / diesel
+        /// from the country seed (without clobbering user-typed values), so picking a
+        /// Country drives the run. The clone keeps the caller's setup object untouched.</summary>
+        private static SustainProjectSetup CascadeCountry(Document doc, SustainProjectSetup setup)
+        {
+            try
+            {
+                var row = SustainabilityRegistries.Countries(doc).Resolve(setup.Country);
+                if (row == null || row.IsDefault) return setup;
+                var clone = SustainProjectSetup.Parse(setup.ToJson());   // deep copy via JSON
+                CountryCascade.Apply(clone, row);
+                return clone;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain CascadeCountry: {ex.Message}"); return setup; }
         }
 
         // ── WS I1 — building-use + readiness resolution (Revit-facing) ─────
@@ -338,14 +372,30 @@ namespace StingTools.Core.Sustainability
             // WS A1 — synthesise the monthly profile from the single design-day
             // registry, using the site's latitude (hemisphere + GHI seasonality).
             // WS I7 — carry the site's real annual rainfall into the synthesis so
-            // RainwaterHarvestingCalc yields a real number (Bangui ≈ 1,500 mm/yr),
-            // not 0; falls back to a flagged 1,000 mm when the site has none.
+            // RainwaterHarvestingCalc yields a real number; falls back to flagged 1,000 mm.
+            // WS J1 — when there's no design-day site (only a Country picked), use the
+            // country capital's latitude so the synthesised climate matches the country.
             double rainFallback = (ds != null && ds.RainfallMmYr > 0) ? ds.RainfallMmYr : 1000;
+            double lat = (ds != null && System.Math.Abs(ds.Lat) > 1e-6) ? ds.Lat : 0;
+            string label = ds?.Label ?? siteId ?? "Fallback";
+            if (System.Math.Abs(lat) < 1e-6)
+            {
+                try
+                {
+                    var row = SustainabilityRegistries.Countries(doc).Resolve(setup.Country);
+                    if (row != null && !row.IsDefault && System.Math.Abs(row.Lat) > 1e-6)
+                    {
+                        lat = row.Lat;
+                        if (string.IsNullOrWhiteSpace(ds?.Label)) label = row.DefaultCity;
+                    }
+                }
+                catch { }
+            }
             return monthlyReg.ResolveOrSynthesise(
-                siteId ?? ds?.Id ?? "fallback",
-                ds?.Label ?? siteId ?? "Fallback",
+                siteId ?? ds?.Id ?? label,
+                label,
                 ds?.Cooling996DbC ?? 30, ds?.Heating996DbC ?? 0,
-                latDeg: ds?.Lat ?? 0,
+                latDeg: lat,
                 annualRainfallMmFallback: rainFallback,
                 climateZone: setup.ClimateZone);
         }

@@ -164,6 +164,26 @@ namespace StingTools.Commands.Sustainability
             // on it. (Location is still gated separately on climate site/zone.)
             if (!string.IsNullOrWhiteSpace(setup.DominantBuildingUse)) setup.UseExplicit = true;
 
+            // WS J1 — preserve any persisted explicit grid/diesel override, then cascade
+            // the Country into the blank location + carbon fields so picking a country
+            // auto-populates climate site / zone / grid / diesel that persist with setup.
+            try
+            {
+                var persisted = SustainCmdHelper.LoadSetup(doc);
+                if (setup.Supply != null && persisted?.Supply != null)
+                {
+                    if (persisted.Supply.GridCarbonExplicit)
+                    { setup.Supply.GridCarbonExplicit = true; setup.Supply.GridCarbonKgco2eKwh = persisted.Supply.GridCarbonKgco2eKwh; }
+                    if (persisted.Supply.DieselCarbonExplicit)
+                    { setup.Supply.DieselCarbonExplicit = true; setup.Supply.DieselCarbonKgco2eKwh = persisted.Supply.DieselCarbonKgco2eKwh; }
+                }
+                var row = SustainabilityRegistries.Countries(doc).Resolve(setup.Country);
+                var applied = CountryCascade.Apply(setup, row);
+                if (applied.Count > 0)
+                    StingLog.Info($"Sustain country cascade ({setup.Country}): filled {string.Join(", ", applied)}.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain country cascade: {ex.Message}"); }
+
             string dir = SustainabilityRegistries.ProjectDir(doc);
             if (string.IsNullOrEmpty(dir))
             {
@@ -523,6 +543,10 @@ namespace StingTools.Commands.Sustainability
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             var setup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
 
+            // WS J1 — saving the Supply card is an EXPLICIT grid/diesel override, so the
+            // country cascade won't overwrite the user's chosen factors on later runs.
+            if (setup.Supply != null) { setup.Supply.GridCarbonExplicit = true; setup.Supply.DieselCarbonExplicit = true; }
+
             string dir = SustainabilityRegistries.ProjectDir(doc);
             if (string.IsNullOrEmpty(dir))
             {
@@ -531,7 +555,7 @@ namespace StingTools.Commands.Sustainability
             }
             setup.Save(dir);
             TaskDialog.Show("STING Sustainability",
-                $"Supply saved.\nMode: {setup.Supply.Mode}\nPV: {setup.Supply.PvKwp:0} kWp (PR {setup.Supply.PvPerformanceRatio:0.00})\n" +
+                $"Supply saved (grid/diesel locked as explicit override).\nMode: {setup.Supply.Mode}\nPV: {setup.Supply.PvKwp:0} kWp (PR {setup.Supply.PvPerformanceRatio:0.00})\n" +
                 $"Grid factor: {setup.Supply.GridCarbonKgco2eKwh:0.00} · Diesel factor: {setup.Supply.DieselCarbonKgco2eKwh:0.00} · " +
                 $"Diesel fraction: {setup.Supply.DieselFraction:0.00}");
             StingLog.Info($"Sustain_SupplyConfig: mode {setup.Supply.Mode}, PV {setup.Supply.PvKwp} kWp.");

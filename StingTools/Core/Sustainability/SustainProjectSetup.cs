@@ -31,6 +31,10 @@ namespace StingTools.Core.Sustainability
         public double? PvYieldKwhPerKwpYr { get; set; } = null;
         public double GridCarbonKgco2eKwh { get; set; } = 0.45;
         public double DieselCarbonKgco2eKwh { get; set; } = 0.8;
+        /// <summary>WS J1 — true when the user explicitly set the grid/diesel factor
+        /// (Supply tab), so the country cascade won't overwrite it.</summary>
+        public bool GridCarbonExplicit { get; set; } = false;
+        public bool DieselCarbonExplicit { get; set; } = false;
         public double DieselFraction { get; set; } = 0.0;
         public double GreywaterReuseFraction { get; set; } = 0.0;
 
@@ -239,7 +243,9 @@ namespace StingTools.Core.Sustainability
                   .Append(Supply.PvPerformanceRatio.ToString("R")).Append('/')
                   .Append((Supply.PvYieldKwhPerKwpYr ?? 0).ToString("R")).Append('/')
                   .Append(Supply.GridCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.GridCarbonExplicit).Append('/')
                   .Append(Supply.DieselCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.DieselCarbonExplicit).Append('/')
                   .Append(Supply.DieselFraction.ToString("R")).Append('/')
                   .Append(Supply.GreywaterReuseFraction.ToString("R")).Append('/')
                   .Append(Supply.HeatingSeasonalEfficiency.ToString("R")).Append('/')
