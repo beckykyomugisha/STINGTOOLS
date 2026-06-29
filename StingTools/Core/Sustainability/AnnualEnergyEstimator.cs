@@ -210,14 +210,19 @@ namespace StingTools.Core.Sustainability
             tauH = Math.Min(1000.0, Math.Max(1.0, tauH));
             double aParam = 1.0 + tauH / 15.0;
 
-            // Annual operating hours from the occupancy schedule — mean daily "on"
-            // fraction x 8760. WS C1: this ONE basis drives both the baseline EUI
-            // conversion (meanHours) AND the design lighting/equipment electricity, so
-            // the savings % compares like-for-like operating assumptions.
+            // WS L1/L2 — operating calendar. Annual operating hours = mean daily "on"
+            // fraction × 24 × operatingDaysPerYear (NOT × 8760), so a 250-day office
+            // isn't billed a 365-day year. operatingDaysPerYear folds the weekend/
+            // closure factor into the annualisation, the SAME basis the water estimator
+            // uses, so energy and water assume one operating year. This ONE basis drives
+            // the baseline EUI conversion (meanHours), the design lighting/equipment
+            // electricity, AND (via opFrac) the internal-gain-driven conditioning + DHW.
             double occMeanFrac   = ScheduleMean(z.OccupancySchedule);
             double lightMeanFrac = ScheduleMean(z.LightingSchedule);
             double equipMeanFrac = ScheduleMean(z.EquipmentSchedule);
-            double operatingHours = Math.Max(1, occMeanFrac * 8760.0);
+            int    opDays  = Math.Min(366, Math.Max(1, z.OperatingDaysPerYear > 0 ? z.OperatingDaysPerYear : 365));
+            double opFrac  = opDays / 365.0;   // weekend/closure annualisation factor
+            double operatingHours = Math.Min(8760.0, Math.Max(1, occMeanFrac * 24.0 * opDays));
             annualHoursAccum += operatingHours * z.FloorAreaM2;
 
             double tSetCool = z.CoolingSetpointC;
@@ -277,6 +282,13 @@ namespace StingTools.Core.Sustainability
                 }
             }
 
+            // WS L1/L2 — the building is actively conditioned only on operating days
+            // (the internal-gain + occupancy basis); scale the monthly conditioning by
+            // the operating-calendar fraction so a 250-day use isn't billed 365 days of
+            // HVAC. γ (gain/loss ratio) is unchanged, so only the magnitude scales.
+            coolingThermalKwh *= opFrac;
+            heatingThermalKwh *= opFrac;
+
             // Cooling electricity via seasonal COP/SEER.
             e.CoolingKwh = coolingThermalKwh / Math.Max(1.5, cop);
 
@@ -296,12 +308,13 @@ namespace StingTools.Core.Sustainability
             e.EquipmentKwh = z.EquipmentWPerM2 * z.FloorAreaM2 * operatingHours / 1000.0;
 
             // DHW estimate from occupancy: people x (L/person.day) x 30 K dT x
-            // 1.16 Wh/(L.K) -> Wh/day; /1000 -> kWh/day; x 365 -> kWh/yr.
-            // L/person.day is building-use dependent (office ~5, residential ~45) —
-            // see LoadZone.DhwLPerPersonDay; a flat 50 inflated office DHW ~10x.
+            // 1.16 Wh/(L.K) -> Wh/day; /1000 -> kWh/day; x operatingDaysPerYear -> kWh/yr.
+            // WS L1 — annualise on the SAME operating calendar as the water estimator
+            // (was a flat ×365). L/person.day is building-use dependent (office ~5,
+            // residential ~45) — see LoadZone.DhwLPerPersonDay.
             double dhwLpd = z.DhwLPerPersonDay > 0 ? z.DhwLPerPersonDay : 5.0;
             double dhwKwhPerDay = z.OccupantCount * dhwLpd * 30.0 * 1.16 / 1000.0;
-            e.DhwKwh = dhwKwhPerDay * 365.0;
+            e.DhwKwh = dhwKwhPerDay * opDays;
 
             return e;
         }

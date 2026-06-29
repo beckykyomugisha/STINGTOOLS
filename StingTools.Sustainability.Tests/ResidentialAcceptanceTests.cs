@@ -25,6 +25,10 @@ namespace StingTools.Sustainability.Tests
             var z = new LoadZone { Id = "house", Name = "house", FloorAreaM2 = areaM2, HeightM = 3 };
             profile.ApplyTo(z);
             z.OccupantCount = profile.OccupantCountFor(areaM2);   // density-derived
+            // WS L1 — compare residential vs office on the SAME operating calendar so
+            // the comparison isolates profile INTENSITY (density/LPD/EPD), not the fact
+            // that an office runs ~250 days vs a dwelling's 365.
+            z.OperatingDaysPerYear = 365;
             // A representative envelope so conduction/solar are included.
             z.Envelope.Add(new EnvelopeSegment { Kind = SegmentKind.ExteriorWall, AreaM2 = 120, UvalueWm2K = 0.3, OrientationDeg = 180 });
             z.Envelope.Add(new EnvelopeSegment { Kind = SegmentKind.Window, AreaM2 = 25, UvalueWm2K = 1.6, SHGC = 0.5, OrientationDeg = 180 });

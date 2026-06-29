@@ -80,6 +80,7 @@ namespace StingTools.Core.Hvac.Loads
             z.CoolingSetpointC  = CoolingSetpointC;
             z.HeatingSetpointC  = HeatingSetpointC;
             z.InfiltrationAch   = InfiltrationAch;
+            if (OperatingDaysPerYear > 0) z.OperatingDaysPerYear = OperatingDaysPerYear;   // WS L1
             if (OccupancySchedule?.Length == 24) z.OccupancySchedule = OccupancySchedule;
             if (LightingSchedule?.Length  == 24) z.LightingSchedule  = LightingSchedule;
             if (EquipmentSchedule?.Length == 24) z.EquipmentSchedule = EquipmentSchedule;
