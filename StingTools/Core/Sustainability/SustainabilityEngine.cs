@@ -155,6 +155,11 @@ namespace StingTools.Core.Sustainability
             // retail differ), instead of every zone using the bare office defaults.
             LoadProfileLibrary profiles = null;
             try { profiles = LoadProfileRegistry.Get(doc); } catch (Exception ex) { StingLog.Warn($"Sustain load profiles: {ex.Message}"); }
+            // WS A2 — project-tunable construction U-values/SHGC drive the shared
+            // envelope detector so the annual energy estimate has real conduction +
+            // per-façade solar (not just internal gains).
+            ConstructionProfile construction = null;
+            try { construction = ConstructionProfileRegistry.Active(doc); } catch (Exception ex) { StingLog.Warn($"Sustain construction profile: {ex.Message}"); }
 
             try
             {
@@ -170,7 +175,7 @@ namespace StingTools.Core.Sustainability
                     double dhw = DhwForUse(setup.DominantBuildingUse);
                     foreach (var s in spaces)
                     {
-                        var z = ZoneFromSpace(s);
+                        var z = ZoneFromSpace(s, construction);
                         if (z == null) continue;
                         ApplyProfile(z, profile, dhw);
                         zones.Add(z);
@@ -200,7 +205,7 @@ namespace StingTools.Core.Sustainability
                         double dhw = DhwForUse(setup.DominantBuildingUse);
                         foreach (var r in rooms)
                         {
-                            var z = ZoneFromRoom(r);
+                            var z = ZoneFromRoom(r, construction);
                             if (z == null) continue;
                             ApplyProfile(z, profile, dhw);
                             zones.Add(z);
@@ -274,7 +279,7 @@ namespace StingTools.Core.Sustainability
             }
         }
 
-        private static LoadZone ZoneFromSpace(Space s)
+        private static LoadZone ZoneFromSpace(Space s, ConstructionProfile construction)
         {
             try
             {
@@ -293,11 +298,12 @@ namespace StingTools.Core.Sustainability
                 int occ = TryReadIntByName(s, "Number of People");
                 if (occ > 0) z.OccupantCount = occ;
 
-                // Envelope from bounding perimeter walls/windows is expensive to
-                // derive robustly here; the annual estimator handles a missing
-                // envelope gracefully (flags it). When the model carries MEP
-                // Spaces with HVC_* data, the HVAC BlockLoad path adds full
-                // envelope — sustainability reuses whatever is present.
+                // WS A2 — derive real envelope (net wall + glazing + orientation +
+                // roof) via the shared detector so conduction + per-façade solar are
+                // counted. Falls back to a generic ratio when geometry doesn't yield;
+                // the estimator still flags any zone with no envelope.
+                if (construction != null)
+                    EnvelopeDetector.AddPerimeterEnvelope(s, z, construction);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"Sustain ZoneFromSpace {s.Id}: {ex.Message}"); return null; }
@@ -305,7 +311,7 @@ namespace StingTools.Core.Sustainability
 
         /// <summary>Build a LoadZone from a Room (WS D2) — real per-room area + height;
         /// occupancy from "Number of People" when present, else the profile density.</summary>
-        private static LoadZone ZoneFromRoom(Room r)
+        private static LoadZone ZoneFromRoom(Room r, ConstructionProfile construction)
         {
             try
             {
@@ -322,6 +328,9 @@ namespace StingTools.Core.Sustainability
                 };
                 int occ = TryReadIntByName(r, "Number of People");
                 if (occ > 0) z.OccupantCount = occ;
+                // WS A2 — same shared envelope detector for the Room-based path.
+                if (construction != null)
+                    EnvelopeDetector.AddPerimeterEnvelope(r, z, construction);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"Sustain ZoneFromRoom {r.Id}: {ex.Message}"); return null; }
