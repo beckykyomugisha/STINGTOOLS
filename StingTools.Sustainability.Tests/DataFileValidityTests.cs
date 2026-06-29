@@ -129,5 +129,17 @@ namespace StingTools.Sustainability.Tests
                 if ((string)s["id"] == "bangui") { found = true; break; }
             Assert.True(found, "bangui must be present in STING_CLIMATE_DATA.json");
         }
+
+        [Fact]
+        public void ClimateData_BanguiCarriesRainfall()
+        {
+            // WS I7 — Bangui must carry a real annual rainfall (≈1,500 mm/yr) so RWH
+            // yields a real number, not 0.
+            string path = RepoDataPath("STING_CLIMATE_DATA.json");
+            var sites = (JArray)JObject.Parse(File.ReadAllText(path))["sites"];
+            var bangui = sites.FirstOrDefault(s => (string)s["id"] == "bangui");
+            Assert.NotNull(bangui);
+            Assert.True((double?)bangui["rainfallMmYr"] > 1000, "bangui rainfall should be ~1500 mm/yr");
+        }
     }
 }

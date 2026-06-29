@@ -323,18 +323,30 @@ namespace StingTools.Core.Sustainability
             string siteId = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
                 ? setup.ClimateSiteId
                 : ClimateRegistry.ActiveSite(doc)?.Id;
+            var ds = ClimateRegistry.ActiveSite(doc);
             var hit = monthlyReg.Get(siteId);
-            if (hit != null) return hit;
+            if (hit != null)
+            {
+                // WS I7 — a real monthly row with no rainfall still gets the design-day
+                // site's annual rainfall so RWH isn't silently 0 on a rainy site.
+                if (hit.AnnualRainfallMm <= 0 && ds != null && ds.RainfallMmYr > 0)
+                    for (int m = 0; m < 12; m++) hit.RainfallMm[m] = ds.RainfallMmYr / 12.0;
+                return hit;
+            }
 
             // Synthesise from the design-day site (logged warning inside).
-            var ds = ClimateRegistry.ActiveSite(doc);
             // WS A1 — synthesise the monthly profile from the single design-day
             // registry, using the site's latitude (hemisphere + GHI seasonality).
+            // WS I7 — carry the site's real annual rainfall into the synthesis so
+            // RainwaterHarvestingCalc yields a real number (Bangui ≈ 1,500 mm/yr),
+            // not 0; falls back to a flagged 1,000 mm when the site has none.
+            double rainFallback = (ds != null && ds.RainfallMmYr > 0) ? ds.RainfallMmYr : 1000;
             return monthlyReg.ResolveOrSynthesise(
                 siteId ?? ds?.Id ?? "fallback",
                 ds?.Label ?? siteId ?? "Fallback",
                 ds?.Cooling996DbC ?? 30, ds?.Heating996DbC ?? 0,
                 latDeg: ds?.Lat ?? 0,
+                annualRainfallMmFallback: rainFallback,
                 climateZone: setup.ClimateZone);
         }
 
