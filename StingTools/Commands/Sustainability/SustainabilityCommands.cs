@@ -297,6 +297,17 @@ namespace StingTools.Commands.Sustainability
             b.AddSection("Materials (dual metric)")
              .Metric("Embodied carbon", $"{res.Materials?.CarbonIntensityKgM2:F1} kgCO2e/m²", "A1-A3 GWP (EN 15978)")
              .Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
+            // WS I5 — coverage + sanity, surfaced here (not only the Materials tab).
+            if (res.Materials != null)
+            {
+                b.Metric("Coverage", res.Materials.CoverageSummary, "carbon-stamped vs measured; under-counts the rest");
+                if (res.Materials.DominantHotspotImplausible)
+                    b.MetricWarn("Carbon sanity", $"{res.Materials.DominantHotspotMaterial} {res.Materials.DominantHotspotSharePct:0}%",
+                        "one line dominates — likely a quantity/factor error");
+                if (res.Materials.IntensityImplausible)
+                    b.MetricWarn("Carbon sanity", $"{res.Materials.CarbonIntensityKgM2:0} kgCO2e/m²",
+                        "implausibly high — review quantities/factors");
+            }
             if (res.Materials?.Hotspots?.Count > 0)
                 b.Table(new[] { "Carbon hotspot", "kgCO2e", "%" },
                     res.Materials.Hotspots.Select(h =>

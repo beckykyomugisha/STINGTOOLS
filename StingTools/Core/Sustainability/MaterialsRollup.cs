@@ -109,6 +109,23 @@ namespace StingTools.Core.Sustainability
 
         public List<string> Warnings { get; } = new List<string>();
 
+        /// <summary>WS I5 — the single largest carbon contributor + its share. A very
+        /// high share points to a quantity/factor error.</summary>
+        public string DominantHotspotMaterial { get; set; } = "";
+        public double DominantHotspotSharePct { get; set; }
+        /// <summary>WS I5 — true when one hotspot dominates (&gt; the sane share) — a
+        /// likely quantity/factor error worth surfacing prominently.</summary>
+        public bool   DominantHotspotImplausible { get; set; }
+        /// <summary>WS I5 — true when the carbon intensity exceeds a sane ceiling for a
+        /// whole building (≈10× a normal office) — implausible total.</summary>
+        public bool   IntensityImplausible { get; set; }
+
+        /// <summary>WS I5 — one-line coverage figure surfaced on the dashboard + export,
+        /// not only the Materials tab. e.g. "15/31 carbon-stamped, 0 EPD".</summary>
+        public string CoverageSummary =>
+            $"{CarbonStampedLines}/{TotalLines} carbon-stamped, {LinesFromEpd} EPD" +
+            (IndicativeCarbonLines > 0 ? $", {IndicativeCarbonLines} indicative" : "");
+
         /// <summary>True only when a REAL carbon intensity was computed (floor area
         /// non-zero AND at least one line carried a real EPD/library/WLCA factor).
         /// Indicative-only carbon does NOT count as Computed — it's shown flagged
@@ -118,6 +135,13 @@ namespace StingTools.Core.Sustainability
 
     public static class MaterialsRollup
     {
+        /// <summary>WS I5 — a single material contributing more than this share of the
+        /// carbon total is flagged as a likely quantity/factor error.</summary>
+        public const double DominantHotspotCeilingPct = 60.0;
+        /// <summary>WS I5 — whole-building A1–A3 carbon intensity above this (kgCO₂e/m²)
+        /// is implausible (a normal building is a few hundred; ≈10× ⇒ error).</summary>
+        public const double IntensityCeilingKgM2 = 2000.0;
+
         /// <summary>
         /// Roll up resolved material lines into the dual metric.
         /// <paramref name="carbonBaselineKgM2"/> / <paramref name="energyBaselineMjM2"/>
@@ -169,6 +193,27 @@ namespace StingTools.Core.Sustainability
             {
                 h.SharePct = h.CarbonKg / tot * 100.0;
                 res.Hotspots.Add(h);
+            }
+
+            // WS I5 — sanity checks: one material dominating the total, or an
+            // implausibly high intensity, usually means a quantity/factor error.
+            if (grouped.Count > 0 && res.TotalCarbonKg > 0)
+            {
+                res.DominantHotspotMaterial = grouped[0].Material;
+                res.DominantHotspotSharePct = grouped[0].CarbonKg / tot * 100.0;
+                if (res.DominantHotspotSharePct > DominantHotspotCeilingPct)
+                {
+                    res.DominantHotspotImplausible = true;
+                    res.Warnings.Add($"Carbon sanity: '{res.DominantHotspotMaterial}' is " +
+                                     $"{res.DominantHotspotSharePct:0}% of the total — likely a quantity/factor error " +
+                                     "(check the material volume + carbon factor for that line).");
+                }
+            }
+            if (res.FloorAreaM2 > 0 && res.CarbonIntensityKgM2 > IntensityCeilingKgM2)
+            {
+                res.IntensityImplausible = true;
+                res.Warnings.Add($"Carbon sanity: {res.CarbonIntensityKgM2:0} kgCO₂e/m² is implausibly high " +
+                                 $"(> {IntensityCeilingKgM2:0}; a typical building is a few hundred) — review quantities/factors.");
             }
 
             // Savings %: kgCO2e (LEED) + MJ (EDGE indicative). Both vs intensities,

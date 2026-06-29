@@ -153,7 +153,16 @@ namespace StingTools.Commands.Sustainability
             ws.Cell(r, 1).Value = "BUILDING TOTAL";
             ws.Cell(r, 2).Value = SustainUnitConverter.CarbonIntensity(res.Materials?.CarbonIntensityKgM2 ?? 0, u);
             ws.Cell(r, 3).Value = SustainUnitConverter.EnergyIntensityMj(res.Materials?.EnergyIntensityMjM2 ?? 0, u);
-            r += 2;
+            r++;
+            // WS I5 — coverage + sanity, on the export (not only the dashboard).
+            ws.Cell(r, 1).Value = "Coverage"; ws.Cell(r, 2).Value = res.Materials?.CoverageSummary ?? "—"; r++;
+            if (res.Materials?.DominantHotspotImplausible == true)
+            { ws.Cell(r, 1).Value = "⚠ Carbon sanity";
+              ws.Cell(r, 2).Value = $"'{res.Materials.DominantHotspotMaterial}' is {res.Materials.DominantHotspotSharePct:0}% of the total — likely a quantity/factor error"; r++; }
+            if (res.Materials?.IntensityImplausible == true)
+            { ws.Cell(r, 1).Value = "⚠ Carbon sanity";
+              ws.Cell(r, 2).Value = $"{res.Materials.CarbonIntensityKgM2:0} kgCO2e/m² is implausibly high — review quantities/factors"; r++; }
+            r++;
             ws.Cell(r, 1).Value = $"Carbon hotspots (A1-A3 GWP, {SustainUnitConverter.MassCarbonUnit(u)})"; ws.Cell(r, 1).Style.Font.Bold = true; r++;
             if (res.Materials?.Hotspots != null)
                 foreach (var h in res.Materials.Hotspots)
