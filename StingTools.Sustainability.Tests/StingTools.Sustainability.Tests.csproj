@@ -67,6 +67,8 @@
     <Compile Include="..\StingTools\Core\Sustainability\FixtureFlowReader.cs" Link="Engines\FixtureFlowReader.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainMeasureCapex.cs" Link="Engines\SustainMeasureCapex.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\BuildingUseCatalog.cs" Link="Engines\BuildingUseCatalog.cs" />
+    <!-- WS K4 — building-use coverage guard (pure). -->
+    <Compile Include="..\StingTools\Core\Sustainability\BuildingUseCoverage.cs" Link="Engines\BuildingUseCoverage.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainSavings.cs" Link="Engines\SustainSavings.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\AshraeClimateZone.cs" Link="Engines\AshraeClimateZone.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\MonthlyClimateSynthesizer.cs" Link="Engines\MonthlyClimateSynthesizer.cs" />

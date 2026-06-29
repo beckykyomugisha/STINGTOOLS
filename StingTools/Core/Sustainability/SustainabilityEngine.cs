@@ -703,6 +703,9 @@ namespace StingTools.Core.Sustainability
             var profile = profileReg.Get(setup.DominantBuildingUse);
 
             var baselineFlows = FixtureFlows.FromBaseline(baseline);
+            // WS K4 — surface a water-profile fallback as a visible NOTE (never silent).
+            string useForWater = setup.DominantBuildingUse;
+            bool waterFallback = !string.IsNullOrWhiteSpace(useForWater) && !profileReg.Has(useForWater);
             // WS A4 / D3 — read real low-flow fixture flows from OST_PlumbingFixtures.
             // Only fall back to the 25%-below-baseline indicative default when the model
             // carries no fixture flow data (the IsIndicativeDefault flag stays honest).
@@ -728,6 +731,8 @@ namespace StingTools.Core.Sustainability
             var w = AnnualWaterEstimator.Estimate(designFlows, baselineFlows, profile, occupancy,
                 rwhYieldLPerYr: rwhYieldL, greywaterReuseFraction: setup.Supply?.GreywaterReuseFraction ?? 0);
             w.IsIndicativeDefault = indicative;
+            if (waterFallback)
+                w.Warnings.Add($"ℹ {useForWater} water profile resolved by fallback ({useForWater} → office) — indicative");
             if (indicative)
                 w.Warnings.Add("Water % is an indicative default of 25% below baseline (i.e. a 25% saving) — " +
                                "no low-flow fixture data was read from the model (name the fixture types with " +

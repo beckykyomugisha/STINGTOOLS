@@ -40,6 +40,12 @@ namespace StingTools.Core.Sustainability
 
         public IReadOnlyList<WaterUsageProfile> All => _profiles;
 
+        /// <summary>WS K4 — true when an EXACT water profile exists for the use (no
+        /// office fallback). The coverage guard uses this to surface gaps.</summary>
+        public bool Has(string buildingUse)
+            => !string.IsNullOrWhiteSpace(buildingUse)
+               && _profiles.Any(p => string.Equals(p.BuildingUse, buildingUse, StringComparison.OrdinalIgnoreCase));
+
         public WaterUsageProfile Get(string buildingUse)
         {
             if (string.IsNullOrWhiteSpace(buildingUse)) buildingUse = "office";
