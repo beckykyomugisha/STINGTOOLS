@@ -74,6 +74,12 @@ namespace StingTools.Core.Sustainability
         public string CarbonSource  { get; set; } = "none";
         public string EnergySource  { get; set; } = "none";
         public bool   FromEpd       { get; set; }
+        /// <summary>True when the carbon came from a GENERIC per-material-class
+        /// indicative factor (no EPD / library / WLCA-split match). The figure is
+        /// a rough order-of-magnitude estimate — it populates the hotspots + an
+        /// indicative kgCO₂e/m² display but MUST NOT be treated as a real WBLCA
+        /// (the rollup keeps it out of CarbonStampedLines / Computed).</summary>
+        public bool   IndicativeOnly { get; set; }
     }
 
     public static class SustainMaterialCarbon
@@ -83,6 +89,45 @@ namespace StingTools.Core.Sustainability
         /// only when no real embodied-energy factor (EPD PERT+PENRT / ICE MJ) is
         /// available. Matches the legacy GatherMaterialLines fallback.</summary>
         public const double IndicativeMjPerKgCo2e = 12.0;
+
+        /// <summary>Generic per-material-class A1-A3 carbon factors, kgCO₂e per kg
+        /// (rounded ICE v3 / RICS order-of-magnitude values). Used ONLY when no
+        /// real factor (EPD / library per-m³ / per-kg / WLCA split) resolves AND
+        /// the material isn't bio-based — so a model whose materials aren't in the
+        /// carbon DB still produces an INDICATIVE figure instead of 0. Keyword
+        /// match against the material name; longest/most-specific keyword wins.</summary>
+        private static readonly (string Key, double KgCo2ePerKg)[] IndicativeClassFactors =
+        {
+            ("reinforced concrete", 0.16), ("concrete", 0.13), ("screed", 0.13),
+            ("mortar", 0.20), ("cement", 0.83), ("blockwork", 0.10), ("block", 0.10),
+            ("brick", 0.24), ("stone", 0.08), ("aggregate", 0.01), ("gravel", 0.01),
+            ("stainless steel", 6.15), ("steel", 1.55), ("rebar", 1.40), ("metal", 1.55),
+            ("aluminium", 8.50), ("aluminum", 8.50), ("copper", 2.80), ("zinc", 3.90),
+            ("glass", 1.35), ("glazing", 1.35),
+            ("plasterboard", 0.39), ("gypsum", 0.39), ("plaster", 0.13),
+            ("insulation", 1.50), ("mineral wool", 1.20),
+            ("ceramic", 0.78), ("tile", 0.78), ("porcelain", 0.78),
+            ("pvc", 3.10), ("plastic", 3.10), ("polymer", 3.10), ("membrane", 2.50),
+            ("asphalt", 0.07), ("bitumen", 0.45),
+            ("plywood", 0.45), ("mdf", 0.30), ("chipboard", 0.30),
+            ("paint", 2.10), ("render", 0.20),
+        };
+
+        /// <summary>Default indicative factor when no keyword matches — a broad
+        /// mid-range construction-material value. Clearly flagged as indicative.</summary>
+        public const double IndicativeDefaultKgCo2ePerKg = 0.50;
+
+        /// <summary>Resolve a generic indicative carbon factor (kgCO₂e/kg) for a
+        /// material name. Longest matching keyword wins; falls back to the broad
+        /// default. Public for unit tests.</summary>
+        public static double IndicativeClassFactorPerKg(string material)
+        {
+            string lc = (material ?? "").ToLowerInvariant();
+            double best = 0; int bestLen = -1;
+            foreach (var (key, f) in IndicativeClassFactors)
+                if (lc.Contains(key) && key.Length > bestLen) { best = f; bestLen = key.Length; }
+            return bestLen >= 0 ? best : IndicativeDefaultKgCo2ePerKg;
+        }
 
         /// <summary>Mass-based carbon datasets (ICE / Ecoinvent) — when none of these
         /// appear in the project's FactorSources.EmbodiedCarbon order, the per-kg
@@ -156,12 +201,29 @@ namespace StingTools.Core.Sustainability
                 if (o.Basis == MaterialFactorBasis.None) o.Basis = MaterialFactorBasis.PerKgViaDensity;
                 if (o.CarbonSource == "none") o.CarbonSource = "biogenic-constants";
             }
-            else
+            else if (netCarbon != 0)
             {
                 o.NetCarbonKg = netCarbon;
                 o.FossilCarbonKg = netCarbon;
                 o.BiogenicCarbonKg = 0;
             }
+            else if (o.MassKg > 0 && input.NetFactorPerM3 <= 0 && input.NetFactorPerKg <= 0)
+            {
+                // No factor resolved AT ALL (material absent from the EPD / library /
+                // mass DB — not merely disabled by FactorSources) but we know the
+                // mass — apply a GENERIC class factor so the line carries an
+                // INDICATIVE figure instead of 0. Flagged indicative so the rollup
+                // keeps it out of the real WBLCA. A per-kg factor that exists but is
+                // disabled by FactorSources is a deliberate exclusion → stays 0.
+                double f = IndicativeClassFactorPerKg(input.Material);
+                o.FossilCarbonKg   = o.MassKg * f;
+                o.NetCarbonKg      = o.FossilCarbonKg;
+                o.BiogenicCarbonKg = 0;
+                o.Basis = MaterialFactorBasis.PerKgViaDensity;
+                o.CarbonSource = "indicative-class";
+                o.IndicativeOnly = true;
+            }
+            // else: no factor + no mass (unknown density) → genuinely 0; stays 0.
 
             // ── 4. Embodied energy (MJ) — real factor first, ratio last ──
             bool allowMassEnergy = OrderPermits(order.EmbodiedEnergy, MassEnergyDbKeys);

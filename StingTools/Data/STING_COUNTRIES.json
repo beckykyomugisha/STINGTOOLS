@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "STING country seed (WS J) — drives the SETUP Country dropdown and the country",
+    "cascade: on Country change the engine auto-populates climate site (default city),",
+    "climate zone (capital's ASHRAE 169 zone), and grid + diesel carbon factors.",
+    "",
+    "SEED / INDICATIVE values: grid factors from IEA / Ember 2023 ranges; climate zone",
+    "is the capital's (refine per project — altitude shifts the latitude-only zone, e.g.",
+    "Kampala/Addis/Joburg sit higher/milder than their latitude alone implies); diesel",
+    "genset ~0.80 kgCO2e/kWh electrical (seed). REFINE PER PROJECT.",
+    "",
+    "OVERRIDE: add/replace rows in <project>/_BIM_COORD/sustainability/countries.json —",
+    "a row with the same iso3 replaces the seed; new iso3 codes extend it. The latitude",
+    "classifier (AshraeClimateZone) still applies for any city the user types that isn't",
+    "listed. '*' is the flagged global default."
+  ],
+  "default": { "gridKgCo2ePerKwh": 0.45, "dieselKgCo2ePerKwh": 0.80, "source": "global average placeholder — set the project country" },
+  "countries": [
+    { "iso3": "CAF", "label": "Central African Republic", "defaultCity": "Bangui",        "lat": 4.4,   "lon": 18.6,  "climateZone": "1A", "gridKgCo2ePerKwh": 0.07, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro (Boali) + diesel" },
+    { "iso3": "UGA", "label": "Uganda",                    "defaultCity": "Kampala",       "lat": 0.3,   "lon": 32.6,  "climateZone": "2A", "gridKgCo2ePerKwh": 0.05, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro-dominant (alt 1190 m mild)" },
+    { "iso3": "KEN", "label": "Kenya",                     "defaultCity": "Nairobi",       "lat": -1.3,  "lon": 36.8,  "climateZone": "3A", "gridKgCo2ePerKwh": 0.10, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — geothermal + hydro (alt 1795 m)" },
+    { "iso3": "TZA", "label": "Tanzania",                  "defaultCity": "Dar es Salaam", "lat": -6.8,  "lon": 39.3,  "climateZone": "1A", "gridKgCo2ePerKwh": 0.33, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro + gas" },
+    { "iso3": "RWA", "label": "Rwanda",                    "defaultCity": "Kigali",        "lat": -1.9,  "lon": 30.1,  "climateZone": "2A", "gridKgCo2ePerKwh": 0.30, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro + methane + solar (alt 1567 m)" },
+    { "iso3": "ETH", "label": "Ethiopia",                  "defaultCity": "Addis Ababa",   "lat": 9.0,   "lon": 38.7,  "climateZone": "3A", "gridKgCo2ePerKwh": 0.03, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — almost all hydro (alt 2355 m)" },
+    { "iso3": "COD", "label": "DR Congo",                  "defaultCity": "Kinshasa",      "lat": -4.3,  "lon": 15.3,  "climateZone": "1A", "gridKgCo2ePerKwh": 0.03, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro (Inga)" },
+    { "iso3": "NGA", "label": "Nigeria",                   "defaultCity": "Lagos",         "lat": 6.5,   "lon": 3.4,   "climateZone": "1A", "gridKgCo2ePerKwh": 0.42, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — gas + diesel" },
+    { "iso3": "GHA", "label": "Ghana",                     "defaultCity": "Accra",         "lat": 5.6,   "lon": -0.2,  "climateZone": "1A", "gridKgCo2ePerKwh": 0.35, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro + gas" },
+    { "iso3": "ZAF", "label": "South Africa",              "defaultCity": "Johannesburg",  "lat": -26.2, "lon": 28.0,  "climateZone": "3B", "gridKgCo2ePerKwh": 0.92, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — coal-heavy (alt 1753 m)" },
+    { "iso3": "EGY", "label": "Egypt",                     "defaultCity": "Cairo",         "lat": 30.0,  "lon": 31.2,  "climateZone": "2B", "gridKgCo2ePerKwh": 0.45, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — gas (hot-dry)" },
+    { "iso3": "MAR", "label": "Morocco",                   "defaultCity": "Casablanca",    "lat": 33.6,  "lon": -7.6,  "climateZone": "3C", "gridKgCo2ePerKwh": 0.61, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — coal + renewables" },
+    { "iso3": "GBR", "label": "United Kingdom",            "defaultCity": "London",        "lat": 51.5,  "lon": -0.1,  "climateZone": "4A", "gridKgCo2ePerKwh": 0.21, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — gas + wind + nuclear" },
+    { "iso3": "FRA", "label": "France",                    "defaultCity": "Paris",         "lat": 48.9,  "lon": 2.4,   "climateZone": "4A", "gridKgCo2ePerKwh": 0.06, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — nuclear" },
+    { "iso3": "DEU", "label": "Germany",                   "defaultCity": "Berlin",        "lat": 52.5,  "lon": 13.4,  "climateZone": "4A", "gridKgCo2ePerKwh": 0.38, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — mixed" },
+    { "iso3": "USA", "label": "United States",             "defaultCity": "New York",      "lat": 40.7,  "lon": -74.0, "climateZone": "4A", "gridKgCo2ePerKwh": 0.37, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — mixed (use city for the real zone)" },
+    { "iso3": "IND", "label": "India",                     "defaultCity": "New Delhi",     "lat": 28.6,  "lon": 77.2,  "climateZone": "2A", "gridKgCo2ePerKwh": 0.71, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — coal-heavy" },
+    { "iso3": "CHN", "label": "China",                     "defaultCity": "Beijing",       "lat": 39.9,  "lon": 116.4, "climateZone": "4A", "gridKgCo2ePerKwh": 0.58, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — coal + renewables" },
+    { "iso3": "ARE", "label": "United Arab Emirates",      "defaultCity": "Dubai",         "lat": 25.2,  "lon": 55.3,  "climateZone": "1B", "gridKgCo2ePerKwh": 0.40, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — gas (hot-dry)" },
+    { "iso3": "AUS", "label": "Australia",                 "defaultCity": "Sydney",        "lat": -33.9, "lon": 151.2, "climateZone": "3A", "gridKgCo2ePerKwh": 0.66, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — coal + renewables" },
+    { "iso3": "BRA", "label": "Brazil",                    "defaultCity": "São Paulo",     "lat": -23.5, "lon": -46.6, "climateZone": "3A", "gridKgCo2ePerKwh": 0.10, "dieselKgCo2ePerKwh": 0.80, "source": "Ember 2023 — hydro-dominant" }
+  ]
+}

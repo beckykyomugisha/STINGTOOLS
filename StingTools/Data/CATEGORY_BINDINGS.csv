@@ -16834,3 +16834,10 @@ HVC_DCT_INSULATION_THK_MM_DISP_TXT,Duct Fittings,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ducts,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Flex Ducts,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Generic Models,Type,True
+# Phase 195 | SUS_SUSTAINABILITY (group 35) -> Project Information (WS H3: SetBaseline persistence)
+SUS_ENERGY_KWH_M2_NR,Project Information,Instance,True
+SUS_WATER_L_PD_NR,Project Information,Instance,True
+SUS_MAT_CARBON_KGM2_NR,Project Information,Instance,True
+SUS_MAT_ENERGY_MJ_M2_NR,Project Information,Instance,True
+SUS_EDGE_LEVEL_TXT,Project Information,Instance,True
+SUS_EPD_REF_TXT,Project Information,Instance,True

@@ -101,18 +101,31 @@ namespace StingTools.Core.Visualization
         public IEnumerable<(ElementId id, double value)> Collect(Document doc)
         {
             if (doc == null) yield break;
-            var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            // WS H4 — drive the heat-map from the sustainability materials carbon
+            // (per-element, via the shared CarbonFactorResolver chain) so it agrees
+            // with the dashboard. A pre-stamped STING_CO2_KG still wins when present;
+            // otherwise compute the embodied carbon over the WBLCA categories.
+            var filter = new ElementMulticategoryFilter(
+                StingTools.Core.Sustainability.SustainElementCarbon.WblcaCategories);
+            var col = new FilteredElementCollector(doc).WherePasses(filter).WhereElementIsNotElementType();
             foreach (var el in col)
             {
-                var p = el.LookupParameter("STING_CO2_KG");
-                if (p == null || !p.HasValue) continue;
                 double v = 0;
-                try
+                var p = el.LookupParameter("STING_CO2_KG");
+                if (p != null && p.HasValue)
                 {
-                    v = p.StorageType == StorageType.Double ? p.AsDouble() :
-                        p.StorageType == StorageType.Integer ? p.AsInteger() : 0;
+                    try
+                    {
+                        v = p.StorageType == StorageType.Double ? p.AsDouble() :
+                            p.StorageType == StorageType.Integer ? p.AsInteger() : 0;
+                    }
+                    catch { v = 0; }
                 }
-                catch { continue; }
+                if (v <= 0)
+                {
+                    try { v = StingTools.Core.Sustainability.SustainElementCarbon.EmbodiedKg(doc, el); }
+                    catch { v = 0; }
+                }
                 if (v > 0) yield return (el.Id, v);
             }
         }

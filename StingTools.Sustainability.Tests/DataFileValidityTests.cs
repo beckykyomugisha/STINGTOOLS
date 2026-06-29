@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
@@ -30,6 +31,10 @@ namespace StingTools.Sustainability.Tests
         [InlineData("STING_WATER_USAGE_PROFILES.json")]
         [InlineData("STING_GREEN_MEASURES.json")]
         [InlineData("STING_CLIMATE_MONTHLY.json")]
+        [InlineData("STING_ICE_EMBODIED_ENERGY.json")]
+        [InlineData("STING_COUNTRIES.json")]
+        [InlineData("STING_LOAD_PROFILES.json")]
+        [InlineData("WORKFLOW_SustainabilityAssessment.json")]
         public void DataFile_ParsesAsValidJson(string fileName)
         {
             string path = RepoDataPath(fileName);
@@ -52,6 +57,87 @@ namespace StingTools.Sustainability.Tests
         }
 
         [Fact]
+        public void SustainabilityWorkflow_ChainsTheSustainTags()
+        {
+            // WS H1 — the preset is auto-discovered by WorkflowEngine.AppendUserPresets;
+            // every step command must be a Sustain_* tag registered in ResolveCommand.
+            // WS I15 — the key is "commandTag" (matching WorkflowStep's JsonProperty),
+            // not "command", so the steps actually resolve at runtime.
+            string path = RepoDataPath("WORKFLOW_SustainabilityAssessment.json");
+            Assert.NotNull(path);
+            var root = JObject.Parse(File.ReadAllText(path));
+            var steps = (JArray)root["steps"];
+            Assert.NotNull(steps);
+            Assert.True(steps.Count >= 5, "expected at least 5 steps (auto-fill → baseline → dashboard → export → LCC)");
+            foreach (var s in steps)
+            {
+                string cmd = (string)s["commandTag"];
+                Assert.False(string.IsNullOrWhiteSpace(cmd), "each step must use the 'commandTag' key");
+                Assert.StartsWith("Sustain_", cmd);
+            }
+            // The core chain is present.
+            var cmds = steps.Select(s => (string)s["commandTag"]).ToList();
+            Assert.Contains("Sustain_AutoFill", cmds);
+            Assert.Contains("Sustain_SetBaseline", cmds);
+            Assert.Contains("Sustain_Dashboard", cmds);
+            Assert.Contains("Sustain_EdgeExport", cmds);
+            Assert.Contains("Sustain_LccBenefit", cmds);
+        }
+
+        [Fact]
+        public void SustainabilityWorkflow_GatesResultStepsOnLocation()
+        {
+            // WS I15 — the baseline/dashboard/export/LCC steps are gated on a resolved
+            // location so a mis-set project can't emit confident-wrong numbers.
+            string path = RepoDataPath("WORKFLOW_SustainabilityAssessment.json");
+            var steps = (JArray)JObject.Parse(File.ReadAllText(path))["steps"];
+            foreach (var tag in new[] { "Sustain_SetBaseline", "Sustain_Dashboard", "Sustain_EdgeExport", "Sustain_LccBenefit" })
+            {
+                var step = steps.FirstOrDefault(s => (string)s["commandTag"] == tag);
+                Assert.NotNull(step);
+                Assert.Equal("sustain_location_set", (string)step["condition"]);
+            }
+        }
+
+        [Fact]
+        public void CategoryBindings_BindSusParamsToProjectInformation()
+        {
+            // WS H3 — the 6 SUS_* params must have ProjectInformation binding rows so
+            // SetBaseline's stamp persists (no silent no-op).
+            string path = RepoDataPath("CATEGORY_BINDINGS.csv");
+            Assert.NotNull(path);
+            var lines = File.ReadAllLines(path);
+            string[] required =
+            {
+                "SUS_ENERGY_KWH_M2_NR", "SUS_WATER_L_PD_NR", "SUS_MAT_CARBON_KGM2_NR",
+                "SUS_MAT_ENERGY_MJ_M2_NR", "SUS_EDGE_LEVEL_TXT", "SUS_EPD_REF_TXT"
+            };
+            foreach (var p in required)
+                Assert.True(lines.Any(l => l.StartsWith(p + ",") && l.Contains("Project Information")),
+                    $"{p} must bind to Project Information in CATEGORY_BINDINGS.csv");
+        }
+
+        [Fact]
+        public void CoverageMatrix_MarksSusParamsOnProjectInformation()
+        {
+            // WS H3 — mirror the binding in the coverage matrix (Project Information = 1).
+            string path = RepoDataPath("BINDING_COVERAGE_MATRIX.csv");
+            Assert.NotNull(path);
+            var lines = File.ReadAllLines(path);
+            int hi = System.Array.FindIndex(lines, l => l.StartsWith("Parameter_Name,"));
+            Assert.True(hi >= 0);
+            var header = lines[hi].Split(',');
+            int pi = System.Array.IndexOf(header, "Project Information");
+            Assert.True(pi > 0);
+            foreach (var p in new[] { "SUS_ENERGY_KWH_M2_NR", "SUS_MAT_CARBON_KGM2_NR" })
+            {
+                var row = lines.FirstOrDefault(l => l.StartsWith(p + ","));
+                Assert.NotNull(row);
+                Assert.Equal("1", row.Split(',')[pi]);
+            }
+        }
+
+        [Fact]
         public void ClimateData_HasBanguiSite()
         {
             string path = RepoDataPath("STING_CLIMATE_DATA.json");
@@ -61,6 +147,18 @@ namespace StingTools.Sustainability.Tests
             foreach (var s in sites)
                 if ((string)s["id"] == "bangui") { found = true; break; }
             Assert.True(found, "bangui must be present in STING_CLIMATE_DATA.json");
+        }
+
+        [Fact]
+        public void ClimateData_BanguiCarriesRainfall()
+        {
+            // WS I7 — Bangui must carry a real annual rainfall (≈1,500 mm/yr) so RWH
+            // yields a real number, not 0.
+            string path = RepoDataPath("STING_CLIMATE_DATA.json");
+            var sites = (JArray)JObject.Parse(File.ReadAllText(path))["sites"];
+            var bangui = sites.FirstOrDefault(s => (string)s["id"] == "bangui");
+            Assert.NotNull(bangui);
+            Assert.True((double?)bangui["rainfallMmYr"] > 1000, "bangui rainfall should be ~1500 mm/yr");
         }
     }
 }

@@ -47,10 +47,14 @@ namespace StingTools.Commands.Sustainability
             var setup = SustainProjectSetup.Load(dir, out bool found);
             if (!found)
             {
-                // Seed area/occupancy from the model when no setup exists yet
-                // (Spaces preferred, Rooms fallback for architectural models).
+                // Seed area from the model when no setup exists yet (Spaces preferred,
+                // Rooms fallback). WS M2 — occupancy is left BLANK (0, non-explicit) so
+                // the engine derives it from the resolved load-profile density (a 170 m²
+                // residential building → ~5, not the office-density 17). Only a
+                // user-typed total sets OccupancyExplicit and wins over the model.
                 double area = TotalFloorAreaM2(doc);
-                setup = SustainProjectSetup.CreateDefault(area, EstimateOccupancy(doc, area));
+                setup = SustainProjectSetup.CreateDefault(area, 0);
+                setup.OccupancyExplicit = false;
                 // Climate site stamped by the HVAC DocumentOpened auto-stamp.
                 try
                 {
@@ -101,8 +105,11 @@ namespace StingTools.Commands.Sustainability
         }
 
         /// <summary>Occupancy from Space "Number of People"; falls back to an area
-        /// density estimate (1 person / 10 m²) when no occupancy data is modelled.</summary>
-        public static int EstimateOccupancy(Document doc, double floorAreaM2)
+        /// density estimate when no occupancy is modelled. WS M1 — the fallback uses the
+        /// RESOLVED building-use load-profile density (residential 35 m²/p → ~5, office
+        /// 10 → 17), not a hardcoded office 10. <paramref name="buildingUse"/> drives the
+        /// density via the load-profile registry; null/blank ⇒ the profile default.</summary>
+        public static int EstimateOccupancy(Document doc, double floorAreaM2, string buildingUse = null)
         {
             try
             {
@@ -116,8 +123,15 @@ namespace StingTools.Commands.Sustainability
                 if (sumPeople > 0) return sumPeople;
             }
             catch { }
-            // Documented density estimate (≈10 m²/person, ASHRAE 62.1 office) — an
-            // estimate the user can override, not a silent constant.
+            // WS M1 — per-use occupancy from the resolved load profile, via the SAME
+            // pure OccupantCountFor the engine uses on synthetic zones (residential 35
+            // m²/p → ~5, office 10 → 17), so the estimate and the model agree.
+            try
+            {
+                var profile = StingTools.Core.Hvac.Loads.LoadProfileRegistry.Get(doc)?.ResolveForUse(buildingUse)?.Profile;
+                if (profile != null) return profile.OccupantCountFor(floorAreaM2);
+            }
+            catch { }
             return floorAreaM2 > 0 ? (int)Math.Round(floorAreaM2 / 10.0) : 0;
         }
 
@@ -159,6 +173,32 @@ namespace StingTools.Commands.Sustainability
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             SustainProjectSetup setup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
 
+            // WS N1 — UseExplicit is now set by ReadSetupForm: true ONLY when the user
+            // picked a real building use, false at the "(auto-detect)" default. The combo
+            // holding the seeded "office" must NOT masquerade as a user choice (the
+            // default-masquerades-as-explicit bug). When non-explicit, the engine's
+            // model-resolved use drives occupancy/energy/water/baseline uniformly.
+
+            // WS J1 — preserve any persisted explicit grid/diesel override, then cascade
+            // the Country into the blank location + carbon fields so picking a country
+            // auto-populates climate site / zone / grid / diesel that persist with setup.
+            try
+            {
+                var persisted = SustainCmdHelper.LoadSetup(doc);
+                if (setup.Supply != null && persisted?.Supply != null)
+                {
+                    if (persisted.Supply.GridCarbonExplicit)
+                    { setup.Supply.GridCarbonExplicit = true; setup.Supply.GridCarbonKgco2eKwh = persisted.Supply.GridCarbonKgco2eKwh; }
+                    if (persisted.Supply.DieselCarbonExplicit)
+                    { setup.Supply.DieselCarbonExplicit = true; setup.Supply.DieselCarbonKgco2eKwh = persisted.Supply.DieselCarbonKgco2eKwh; }
+                }
+                var row = SustainabilityRegistries.Countries(doc).Resolve(setup.Country);
+                var applied = CountryCascade.Apply(setup, row);
+                if (applied.Count > 0)
+                    StingLog.Info($"Sustain country cascade ({setup.Country}): filled {string.Join(", ", applied)}.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain country cascade: {ex.Message}"); }
+
             string dir = SustainabilityRegistries.ProjectDir(doc);
             if (string.IsNullOrEmpty(dir))
             {
@@ -175,6 +215,8 @@ namespace StingTools.Commands.Sustainability
                     SustainabilityRegistries.Baselines(doc).All.Select(b => b.Key?.BuildingUse),
                     SustainabilityRegistries.WaterProfiles(doc).All.Select(p => p.BuildingUse));
                 panel?.PopulateBuildingUses(uses);
+                // WS J2 — data-driven Country dropdown from the country seed.
+                panel?.PopulateCountries(SustainabilityRegistries.Countries(doc).DropdownLabels());
             }
             catch (Exception ex) { StingLog.Warn($"Sustain building-use list: {ex.Message}"); }
             panel?.LoadSetupForm(setup);
@@ -198,7 +240,9 @@ namespace StingTools.Commands.Sustainability
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
             var setup = SustainCmdHelper.EffectiveSetup(doc);
-            var res = SustainabilityEngine.Run(doc, setup);
+            // The dashboard is the explicit run — force a fresh model read; the export
+            // / LCC / publish commands then reuse this cached pass (WS E1).
+            var res = SustainabilityEngine.Run(doc, setup, forceRefresh: true);
             SustainCmdHelper.PushToPanel(res);
 
             // Persist an EdgeKpiSnapshot for trend / burn-down.
@@ -209,7 +253,9 @@ namespace StingTools.Commands.Sustainability
                 EnergyEuiKwhM2Yr   = Round(res.Energy?.DesignEuiKwhM2Yr),
                 EnergySavingsPct    = Round(res.Energy?.EnergySavingsPct),
                 WaterLPersonDay     = Round(res.Water?.DesignLPersonDay),
-                WaterSavingsPct     = Round(res.Water?.WaterSavingsPct),
+                // WS H5 — record the SAME inclusive water % the EDGE gate uses (fixture
+                // + alternative water), so the trend agrees with the on-screen pass/fail.
+                WaterSavingsPct     = Round(EdgeKpiSnapshot.GateWaterPct(res.Water)),
                 MaterialCarbonKgM2  = Round(res.Materials?.CarbonIntensityKgM2),
                 MaterialEnergyMjM2  = Round(res.Materials?.EnergyIntensityMjM2),
                 MaterialEnergySavingsPct = Round(res.Materials?.EmbodiedEnergySavingsPct),
@@ -217,6 +263,8 @@ namespace StingTools.Commands.Sustainability
                 EdgeLevel            = edge?.AchievedLevel ?? "None",
                 EdgePassed           = edge?.Passed ?? false,
                 OperationalCarbonKgYr = Round(res.Energy?.OperationalCarbonKgYr),
+                WholeLifeCarbonKgM2  = Round(res.WholeLife?.WholeLifeKgM2),
+                StudyPeriodYears     = res.WholeLife?.StudyPeriodYears ?? setup.StudyPeriodYears,
                 Occupancy            = setup.TotalOccupancy,
                 FloorAreaM2          = Round(res.Energy?.FloorAreaM2),
                 SupplyMode           = setup.Supply?.Mode ?? "grid_tied",
@@ -225,6 +273,11 @@ namespace StingTools.Commands.Sustainability
                 ClimateZone          = setup.ClimateZone
             };
             EdgeKpiSnapshot.Append(dir, snap);
+
+            // WS I13 — the result is now fresh; arm the stale marker so later
+            // envelope/fixture edits flag the dashboard as out of date.
+            try { StingTools.Core.Sustainability.SustainStaleUpdater.MarkFresh(); }
+            catch (Exception ex) { StingLog.Warn($"Sustain MarkFresh: {ex.Message}"); }
 
             // Render a result panel mirroring KutKpiDashboard (in addition to the pane).
             RenderResultPanel(res, setup);
@@ -239,12 +292,66 @@ namespace StingTools.Commands.Sustainability
             var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
             var b = new StingResultPanel.Builder()
                 .SetTitle("STING Sustainability — EDGE / LEED Dashboard")
-                .SetSubtitle($"Indicative estimate · {setup.DominantBuildingUse} · zone {setup.ClimateZone} · " +
-                             $"{setup.TotalFloorAreaM2:0} m² · occ {setup.TotalOccupancy}")
-                .SetOverallPct(res.Energy?.EnergySavingsPct ?? 0);
+                .SetSubtitle(SustainHeader.Subtitle(
+                    res.ResolvedUse?.Found == true ? res.ResolvedUse.Use : setup.DominantBuildingUse,
+                    res.ResolvedUse?.Found ?? false,
+                    setup.ClimateZone, setup.TotalFloorAreaM2, setup.TotalOccupancy))
+                // WS J3 — don't headline a savings % the energy gate didn't compute
+                // (floor area 0 / occupancy 0 → degenerate, not a result).
+                .SetOverallPct(res.Energy?.Computed == true ? res.Energy.EnergySavingsPct : 0);
+
+            // WS I1 — a location/use-unset model is a generic proxy, not the user's
+            // project: banner it prominently and (when blocked) don't claim a level.
+            if (res.Readiness != null && !string.IsNullOrEmpty(res.Readiness.Banner))
+                b.AddSection(res.Readiness.Ready ? "⚠ Indicative" : "⛔ Generic proxy — not your project")
+                 .Info(res.Readiness.Banner);
+
+            // WS J3 — energy headline: show the EUI + savings only when computed; else
+            // the not-computed state + reason (floor area / occupancy 0).
+            if (res.Energy?.Computed == true)
+            {
+                b.AddSection("Energy");
+                // WS O2 — when the occupancy is flagged implausible (a model-data artifact),
+                // the EUI stays shown but carries the same "indicative — verify input"
+                // framing the materials headline uses, so an inflated EUI reads as suspect.
+                bool occFlagged = res.OccupancyFlag?.Flagged == true;
+                if (occFlagged)
+                    b.MetricWarn("Design EUI",
+                        $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr — indicative, verify occupancy",
+                        $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}; {res.OccupancyFlag.Message}");
+                else
+                    b.Metric("Design EUI", $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}");
+                b.Metric("Energy savings — indicative", $"{res.Energy.EnergySavingsPct:F1}%");
+                // WS K5 — the resolved load profile + EDGE building-category mapping.
+                if (res.Profile != null)
+                    b.Metric("Load profile", res.Profile.ProfileId,
+                             $"EDGE: {res.Profile.EdgeBuildingType} · DHW {res.Profile.DhwLPerPersonDay:0} L/p·d · {res.Profile.Source}");
+                // WS L6 — when the baseline's building-use axis fell back, the savings %
+                // is against a proxy-use baseline; call that out explicitly (no silent
+                // climate-zone/use fallback for the savings number).
+                if (res.Baseline != null &&
+                    res.Baseline.FallbackAxes.Any(a => a.IndexOf("building use", StringComparison.OrdinalIgnoreCase) >= 0))
+                    b.MetricWarn("Energy savings basis", "indicative — baseline use proxy",
+                        $"no '{setup.DominantBuildingUse}' baseline; savings computed vs {res.Baseline.MatchedKey}");
+            }
+            else
+                b.AddSection("Energy").MetricWarn("Energy", "not computed",
+                    res.Energy != null && res.Energy.Occupancy <= 0 ? "occupancy is 0 — set occupancy/GFA in Setup"
+                    : res.Energy != null && res.Energy.FloorAreaM2 <= 0 ? "floor area is 0 — set GFA in Setup"
+                    : "add Spaces/GFA + occupancy, then re-run");
 
             b.AddSection("Baseline resolution (proxy log)")
              .Info(res.Baseline?.Summary ?? "no baseline resolved");
+            // WS I2 — show the resolved key + an honest exact-vs-proxy flag so a
+            // wildcard/defaulted resolution is never read as an exact match.
+            if (res.Baseline != null && res.Baseline.Found)
+            {
+                if (res.Baseline.ExactMatch)
+                    b.Metric("Baseline match", res.Baseline.MatchedKey, "exact match");
+                else
+                    b.MetricWarn("Baseline match", res.Baseline.MatchedKey,
+                        "default proxy (not exact): " + string.Join("; ", res.Baseline.FallbackAxes));
+            }
 
             if (edge != null)
             {
@@ -267,9 +374,34 @@ namespace StingTools.Commands.Sustainability
                  .Metric("Aggregation", sc.Aggregation)
                  .Metric("Points", sc.TotalPoints.ToString(), $"band {sc.Band}");
 
-            b.AddSection("Materials (dual metric)")
-             .Metric("Embodied carbon", $"{res.Materials?.CarbonIntensityKgM2:F1} kgCO2e/m²", "A1-A3 GWP (EN 15978)")
-             .Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
+            b.AddSection("Materials (dual metric)");
+            // WS L8 — the embodied-carbon headline reads "indicative — review quantities"
+            // whenever a sanity flag fires (single-material dominance / implausible
+            // intensity / indicative-only factors) OR carbon-stamped coverage < ~80%.
+            // The number is NOT hidden — it's shown with the coverage beside it so a
+            // partial/outlier figure isn't mistaken for a complete WBLCA.
+            if (res.Materials != null)
+            {
+                if (res.Materials.CarbonHeadlineFlagged)
+                    b.MetricWarn("Embodied carbon",
+                        $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m² — indicative, review quantities",
+                        $"A1-A3 GWP; {res.Materials.CoverageSummary} ({res.Materials.CarbonStampedCoverageFraction * 100:0}% stamped)");
+                else
+                    b.Metric("Embodied carbon", $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m²",
+                        $"A1-A3 GWP (EN 15978); {res.Materials.CoverageSummary}");
+            }
+            b.Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
+            // WS I5 — coverage + sanity, surfaced here (not only the Materials tab).
+            if (res.Materials != null)
+            {
+                b.Metric("Coverage", res.Materials.CoverageSummary, "carbon-stamped vs measured; under-counts the rest");
+                if (res.Materials.DominantHotspotImplausible)
+                    b.MetricWarn("Carbon sanity", $"{res.Materials.DominantHotspotMaterial} {res.Materials.DominantHotspotSharePct:0}%",
+                        "one line dominates — likely a quantity/factor error");
+                if (res.Materials.IntensityImplausible)
+                    b.MetricWarn("Carbon sanity", $"{res.Materials.CarbonIntensityKgM2:0} kgCO2e/m²",
+                        "implausibly high — review quantities/factors");
+            }
             if (res.Materials?.Hotspots?.Count > 0)
                 b.Table(new[] { "Carbon hotspot", "kgCO2e", "%" },
                     res.Materials.Hotspots.Select(h =>
@@ -279,6 +411,25 @@ namespace StingTools.Commands.Sustainability
              .Metric("On-site PV", $"{res.Energy?.PvGenerationKwh:F0} kWh/yr")
              .Metric("Net import", $"{res.Energy?.NetImportKwh:F0} kWh/yr")
              .Metric("Operational carbon", $"{res.Energy?.OperationalCarbonKgYr:F0} kgCO2e/yr", $"supply mode {setup.Supply?.Mode}");
+            // WS I3 — show the grid factor + its source; flag a default factor.
+            if (res.GridCarbon != null)
+            {
+                string note = res.GridCarbon.Source;
+                if (res.GridCarbon.IsDefault)
+                    b.MetricWarn("Grid factor", $"{res.GridCarbon.Factor:0.00} kgCO2e/kWh", "default factor — set project country");
+                else
+                    b.Metric("Grid factor", $"{res.GridCarbon.Factor:0.00} kgCO2e/kWh", note);
+            }
+
+            // WS H4 — one whole-life carbon figure (embodied A1-A3 + operational over
+            // the study period); carbon only. Study period matches the RIBA-stage view.
+            if (res.WholeLife != null)
+                b.AddSection($"Whole-life carbon ({res.WholeLife.StudyPeriodYears}-year study)")
+                 .Metric("Embodied A1-A3", $"{res.WholeLife.EmbodiedKgM2:F0} kgCO2e/m²", "net, incl. biogenic credit")
+                 .Metric("Operational", $"{res.WholeLife.OperationalKgM2Yr:F1} kgCO2e/m²·yr",
+                         $"× {res.WholeLife.StudyPeriodYears} yr")
+                 .Metric("Whole-life total", $"{res.WholeLife.WholeLifeKgM2:F0} kgCO2e/m²",
+                         "aligns with the RIBA-stage carbon view");
 
             if (res.Warnings.Count > 0)
                 b.AddSection("Notes").Info(string.Join("\n", res.Warnings.Distinct().Take(8)));
@@ -301,20 +452,27 @@ namespace StingTools.Commands.Sustainability
             var res = SustainabilityEngine.Run(doc, setup);
 
             // Stamp the resolved baseline intensities + achieved level onto ProjectInfo.
+            // WS H3 — collect any target param that isn't bound so we warn clearly
+            // instead of silently no-op'ing (the dashboard would work in-session but
+            // nothing would persist to the model / schedules / IFC).
+            var unbound = new List<string>();
             try
             {
                 using (var t = new Transaction(doc, "STING Sustainability — Set Baseline"))
                 {
                     t.Start();
                     var pi = doc.ProjectInformation;
-                    StampDouble(pi, ParamRegistry.SUS_ENERGY_KWH_M2, res.Energy?.DesignEuiKwhM2Yr ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_WATER_L_PD, res.Water?.DesignLPersonDay ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_MAT_CARBON_KGM2, res.Materials?.CarbonIntensityKgM2 ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_MAT_ENERGY_MJ_M2, res.Materials?.EnergyIntensityMjM2 ?? 0);
+                    if (!StampDouble(pi, ParamRegistry.SUS_ENERGY_KWH_M2, res.Energy?.DesignEuiKwhM2Yr ?? 0)) unbound.Add(ParamRegistry.SUS_ENERGY_KWH_M2);
+                    if (!StampDouble(pi, ParamRegistry.SUS_WATER_L_PD, res.Water?.DesignLPersonDay ?? 0)) unbound.Add(ParamRegistry.SUS_WATER_L_PD);
+                    if (!StampDouble(pi, ParamRegistry.SUS_MAT_CARBON_KGM2, res.Materials?.CarbonIntensityKgM2 ?? 0)) unbound.Add(ParamRegistry.SUS_MAT_CARBON_KGM2);
+                    if (!StampDouble(pi, ParamRegistry.SUS_MAT_ENERGY_MJ_M2, res.Materials?.EnergyIntensityMjM2 ?? 0)) unbound.Add(ParamRegistry.SUS_MAT_ENERGY_MJ_M2);
                     var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
-                    StampText(pi, ParamRegistry.SUS_EDGE_LEVEL, edge?.AchievedLevel ?? "None");
+                    if (!StampText(pi, ParamRegistry.SUS_EDGE_LEVEL, edge?.AchievedLevel ?? "None")) unbound.Add(ParamRegistry.SUS_EDGE_LEVEL);
                     t.Commit();
                 }
+                if (unbound.Count > 0)
+                    StingLog.Warn($"Sustain SetBaseline: {unbound.Count} SUS_* param(s) not bound — baseline did NOT persist: " +
+                                  string.Join(", ", unbound) + ". Run 'Load Shared Parameters' first.");
             }
             catch (Exception ex) { StingLog.Warn($"Sustain SetBaseline stamp: {ex.Message}"); }
 
@@ -331,28 +489,44 @@ namespace StingTools.Commands.Sustainability
              .Metric("Design EUI", $"{res.Energy?.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy?.BaselineEuiKwhM2Yr:F1}")
              .Metric("Design water", $"{res.Water?.DesignLPersonDay:F1} L/person·day", $"baseline {res.Water?.BaselineLPersonDay:F1}")
              .Metric("Provenance", res.Baseline?.Provenance ?? "—", "never 'certified'");
+            if (unbound.Count > 0)
+                b.AddSection("⚠ Not persisted")
+                 .Info($"{unbound.Count} sustainability parameter(s) are not bound, so the baseline was " +
+                       "NOT written to the model: " + string.Join(", ", unbound) +
+                       ". Run 'Load Shared Parameters' (it now binds the SUS_* group to Project Information), then re-run.");
             b.Show();
 
             StingLog.Info($"Sustain_SetBaseline: {res.Baseline?.Summary}");
             return Result.Succeeded;
         }
 
-        private static void StampDouble(Element el, string name, double v)
+        /// <summary>Stamp a numeric value; returns false when the param isn't bound
+        /// (LookupParameter null) so the caller can warn that the baseline didn't
+        /// persist. Read-only counts as "present" (true) — it exists, just not writable.</summary>
+        private static bool StampDouble(Element el, string name, double v)
         {
             try
             {
                 var p = el?.LookupParameter(name);
-                if (p == null || p.IsReadOnly) return;
+                if (p == null) return false;          // not bound — caller warns
+                if (p.IsReadOnly) return true;
                 if (p.StorageType == StorageType.Double) p.Set(v);
                 else if (p.StorageType == StorageType.String) p.Set(v.ToString("F2"));
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"StampDouble {name}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"StampDouble {name}: {ex.Message}"); return false; }
         }
 
-        private static void StampText(Element el, string name, string v)
+        private static bool StampText(Element el, string name, string v)
         {
-            try { var p = el?.LookupParameter(name); if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(v ?? ""); }
-            catch (Exception ex) { StingLog.Warn($"StampText {name}: {ex.Message}"); }
+            try
+            {
+                var p = el?.LookupParameter(name);
+                if (p == null) return false;          // not bound — caller warns
+                if (!p.IsReadOnly && p.StorageType == StorageType.String) p.Set(v ?? "");
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"StampText {name}: {ex.Message}"); return false; }
         }
     }
 
@@ -367,9 +541,20 @@ namespace StingTools.Commands.Sustainability
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
             double area = SustainCmdHelper.TotalFloorAreaM2(doc);
-            int occ = SustainCmdHelper.EstimateOccupancy(doc, area);
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
+            // WS M1/N3 — estimate occupancy at the RESOLVED building-use density, honouring
+            // the precedence rule user-explicit > model-derived. When the use isn't an
+            // explicit user pick, resolve it from the model (same as the dashboard run),
+            // NOT the setup combo's "office" default.
+            var formSetup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
+            string use = formSetup.UseExplicit
+                ? formSetup.DominantBuildingUse
+                : (SustainabilityEngine.ResolveModelUse(doc, formSetup)?.Use ?? formSetup.DominantBuildingUse);
+            int occ = SustainCmdHelper.EstimateOccupancy(doc, area, use);
             panel?.ApplyAutoFill(area, occ);
+            // WS J2 — make sure the Country dropdown is data-driven from the seed.
+            try { panel?.PopulateCountries(SustainabilityRegistries.Countries(doc).DropdownLabels()); }
+            catch (Exception ex) { StingLog.Warn($"Sustain populate countries: {ex.Message}"); }
 
             string src = SustainCmdHelper.TotalSpaceAreaM2(doc) > 1e-6 ? "MEP Spaces" : "Rooms";
             if (area <= 0)
@@ -379,6 +564,44 @@ namespace StingTools.Commands.Sustainability
                 TaskDialog.Show("STING Sustainability",
                     $"Auto-filled from model ({src}):\nFloor area: {area:0} m²\nOccupancy (estimate): {occ}\n\n" +
                     "Review the values on the SETUP tab, then Save setup + Run dashboard.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ── Sustain_ReadinessCheck — model-health dimension (WS I11) ──────────────
+    // Surfaces "location / use / occupancy / fixtures incomplete" so a mis-set
+    // project is caught (morning health check + status bar) before someone opens
+    // the dashboard and reads generic-proxy numbers as real.
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SustainReadinessCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var doc = SustainCmdHelper.Doc(cmd);
+            if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
+
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
+            var res = SustainabilityEngine.Run(doc, setup);   // cached; reuses the I1 readiness gate
+            var rd = res.Readiness ?? SustainReadiness.Evaluate(false, false, false, false);
+            string line = SustainReadiness.StatusLine(rd);
+
+            try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.UpdateStatus(line); }
+            catch (Exception ex) { StingLog.Warn($"Sustain readiness status: {ex.Message}"); }
+
+            var b = new StingResultPanel.Builder()
+                .SetTitle("STING Sustainability — Readiness")
+                .SetSubtitle(line);
+            b.AddSection("Readiness")
+             .PassFail("Location set (climate site/zone)", rd.LocationSet)
+             .PassFail("Building use resolved", rd.UseSet)
+             .PassFail("Occupancy set", rd.OccupancySet)
+             .PassFail("Plumbing fixtures modelled", rd.FixturesModelled);
+            if (!string.IsNullOrEmpty(rd.Banner))
+                b.AddSection(rd.Ready ? "Note" : "⛔ Blocked").Info(rd.Banner);
+            b.Show();
+
+            StingLog.Info($"Sustain_ReadinessCheck: {line}");
             return Result.Succeeded;
         }
     }
@@ -398,6 +621,10 @@ namespace StingTools.Commands.Sustainability
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             var setup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
 
+            // WS J1 — saving the Supply card is an EXPLICIT grid/diesel override, so the
+            // country cascade won't overwrite the user's chosen factors on later runs.
+            if (setup.Supply != null) { setup.Supply.GridCarbonExplicit = true; setup.Supply.DieselCarbonExplicit = true; }
+
             string dir = SustainabilityRegistries.ProjectDir(doc);
             if (string.IsNullOrEmpty(dir))
             {
@@ -406,7 +633,7 @@ namespace StingTools.Commands.Sustainability
             }
             setup.Save(dir);
             TaskDialog.Show("STING Sustainability",
-                $"Supply saved.\nMode: {setup.Supply.Mode}\nPV: {setup.Supply.PvKwp:0} kWp (PR {setup.Supply.PvPerformanceRatio:0.00})\n" +
+                $"Supply saved (grid/diesel locked as explicit override).\nMode: {setup.Supply.Mode}\nPV: {setup.Supply.PvKwp:0} kWp (PR {setup.Supply.PvPerformanceRatio:0.00})\n" +
                 $"Grid factor: {setup.Supply.GridCarbonKgco2eKwh:0.00} · Diesel factor: {setup.Supply.DieselCarbonKgco2eKwh:0.00} · " +
                 $"Diesel fraction: {setup.Supply.DieselFraction:0.00}");
             StingLog.Info($"Sustain_SupplyConfig: mode {setup.Supply.Mode}, PV {setup.Supply.PvKwp} kWp.");

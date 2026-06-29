@@ -19,6 +19,14 @@ namespace StingTools.Core.Sustainability
         public string Key         { get; set; } = "";
         public string Unit        { get; set; } = "";
         public double DefaultRate { get; set; }
+
+        /// <summary>How the measure's quantity is sized — an EXPLICIT basis that
+        /// disambiguates the overloaded <see cref="Unit"/> "nr" (a per-fixture count
+        /// vs a single whole-building system). Recognised values:
+        /// perKwp · perKwCooling · perM2Glazing · perM2Floor · perFixture ·
+        /// perM3FloorProxy · system (qty 1) · lump (qty 1). Empty ⇒ the legacy
+        /// unit + keyword inference is used (back-compat for overrides that omit it).</summary>
+        public string QuantityBasis { get; set; } = "";
     }
 
     public class SavingsModel
@@ -94,10 +102,11 @@ namespace StingTools.Core.Sustainability
             if (m["costHandle"] is JObject c)
                 measure.Cost = new CostHandle
                 {
-                    Type        = (string)c["type"] ?? "boqRateKey",
-                    Key         = (string)c["key"] ?? "",
-                    Unit        = (string)c["unit"] ?? "",
-                    DefaultRate = (double?)c["defaultRate"] ?? 0
+                    Type          = (string)c["type"] ?? "boqRateKey",
+                    Key           = (string)c["key"] ?? "",
+                    Unit          = (string)c["unit"] ?? "",
+                    DefaultRate   = (double?)c["defaultRate"] ?? 0,
+                    QuantityBasis = (string)c["quantityBasis"] ?? ""
                 };
             if (m["savingsModel"] is JObject s)
                 measure.Savings = new SavingsModel

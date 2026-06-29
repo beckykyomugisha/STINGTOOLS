@@ -34,6 +34,18 @@ namespace StingTools.Tags
         // Intent patterns: regex pattern → (commandTag, intent, description)
         internal static readonly List<(string Pattern, string CommandTag, string Intent, string Description)> IntentPatterns = new()
         {
+            // Phase 195 — Sustainability (EDGE/LEED) reach (WS H1).
+            (@"\b(run\s+edge|edge\s+(run|assessment|export)|export\s+edge)\b",
+                "Sustain_EdgeExport", "Sustainability", "Export the EDGE submission workbook"),
+            (@"\b(sustainability\s+(dashboard|assessment|check)|run\s+sustainability|green\s+dashboard|edge.{0,5}leed)\b",
+                "Sustain_Dashboard", "Sustainability", "Run the sustainability (EDGE/LEED) dashboard"),
+            (@"\b(carbon\s+estimate|embodied\s+carbon|estimate\s+carbon|whole.?life\s+carbon|wlca)\b",
+                "Sustain_Dashboard", "Sustainability", "Estimate embodied + operational carbon (sustainability dashboard)"),
+            (@"\b(set\s+(green|sustainability|edge)\s+baseline|sustainability\s+baseline)\b",
+                "Sustain_SetBaseline", "Sustainability", "Resolve + stamp the climate-zone sustainability baseline"),
+            (@"\b(life.?cycle\s+cost|lcc\s+benefit|sustainability\s+payback)\b",
+                "Sustain_LccBenefit", "Sustainability", "Life-cycle cost benefit of the sustainability measures"),
+
             // Phase 165 — Issue #9. Mode-switch + tier-depth + System B intents.
             (@"\b(switch\s+to\s+handover|enable\s+(fm|handover)|handover\s+mode)\b",
                 "SetPatternMode_Handover", "SetPatternMode", "Switch active T4-T10 payload to handover pack"),

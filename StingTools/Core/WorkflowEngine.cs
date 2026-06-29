@@ -2019,6 +2019,24 @@ namespace StingTools.Core
                 case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
                 case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
 
+                // Phase 195 — Sustainability (EDGE/LEED): make the module chainable +
+                // reachable from workflow presets + NLP (WS H1). Same tags the panel uses.
+                case "Sustain_AutoFill":       return new Commands.Sustainability.SustainAutoFillCommand();
+                case "Sustain_ReadinessCheck": return new Commands.Sustainability.SustainReadinessCheckCommand();
+                case "Sustain_GenerateDeliverable": return new Commands.Sustainability.SustainGenerateDeliverableCommand();
+                case "Sustain_CompareOptions": return new Commands.Sustainability.SustainCompareOptionsCommand();
+                case "Sustain_TargetSeeker":   return new Commands.Sustainability.SustainTargetSeekerCommand();
+                case "Sustain_ProjectSetup":   return new Commands.Sustainability.SustainProjectSetupCommand();
+                case "Sustain_SupplyConfig":   return new Commands.Sustainability.SustainSupplyConfigCommand();
+                case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();
+                case "Sustain_Dashboard":      return new Commands.Sustainability.SustainDashboardCommand();
+                case "Sustain_EdgeExport":     return new Commands.Sustainability.SustainEdgeExportCommand();
+                case "Sustain_LccBenefit":     return new Commands.Sustainability.SustainLccBenefitCommand();
+                case "Sustain_EpdAssign":      return new Commands.Sustainability.SustainEpdAssignCommand();
+                case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias
+                case "Sustain_LeedScorecard":  return new Commands.Sustainability.SustainLeedScorecardCommand();
+                case "Sustain_Scorecard":      return new Commands.Sustainability.SustainLeedScorecardCommand(); // friendly alias
+
                 default: return null;
             }
         }
@@ -2204,6 +2222,26 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.Warn($"no_sld_view_exists: {ex.Message}"); }
                         return false;
+                    // WS I15 — sustainability workflow gates.
+                    case "sustain_location_set":
+                    {
+                        // A defensible run needs a location: a saved climate site/zone,
+                        // or a resolvable design-day site.
+                        try
+                        {
+                            string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+                            if (!string.IsNullOrWhiteSpace(setup.ClimateSiteId) || !string.IsNullOrWhiteSpace(setup.ClimateZone))
+                                return true;
+                            return !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id);
+                        }
+                        catch { return false; }
+                    }
+                    case "sustain_fixtures_modelled":
+                        return new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                            .WhereElementIsNotElementType().GetElementCount() > 0;
+
                     default:
                         // WF-001 FIX: Unknown conditions now return false (fail-safe).
                         // Previously returned true, silently executing gated steps on typos.

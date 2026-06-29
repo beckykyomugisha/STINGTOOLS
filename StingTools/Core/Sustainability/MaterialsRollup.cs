@@ -49,6 +49,10 @@ namespace StingTools.Core.Sustainability
         /// <summary>Provenance of the carbon factor (material-param / lookup-csv / epd).</summary>
         public string CarbonSource { get; set; } = "";
         public string EnergySource { get; set; } = "";
+        /// <summary>True when the carbon came from a generic indicative class factor
+        /// (no EPD / library / WLCA match) — counted toward the indicative display
+        /// but NOT the real WBLCA. WS gap fix #3.</summary>
+        public bool   IndicativeOnly { get; set; }
     }
 
     public class MaterialHotspot
@@ -87,8 +91,17 @@ namespace StingTools.Core.Sustainability
 
         public int LinesFromEpd { get; set; }
         public int TotalLines   { get; set; }
-        /// <summary>How many measured lines resolved a non-zero carbon factor.</summary>
+        /// <summary>How many measured lines resolved a REAL (EPD / library / WLCA)
+        /// non-zero carbon factor. Drives WblcaCompleted + Computed — indicative
+        /// class-factor lines are excluded.</summary>
         public int CarbonStampedLines { get; set; }
+        /// <summary>How many lines carry carbon from a GENERIC indicative class
+        /// factor only (no real DB/EPD match). WS gap fix #3.</summary>
+        public int IndicativeCarbonLines { get; set; }
+        /// <summary>True when the carbon total is made up wholly of indicative
+        /// class-factor lines (no real factor resolved) — the kgCO₂e/m² is an
+        /// order-of-magnitude estimate, not a WBLCA.</summary>
+        public bool CarbonIsIndicative => CarbonStampedLines == 0 && IndicativeCarbonLines > 0;
 
         /// <summary>True when a real embodied-ENERGY baseline (MJ/m²) was available
         /// for the EDGE materials %; false ⇒ that % is delegated to the EDGE app.</summary>
@@ -96,14 +109,50 @@ namespace StingTools.Core.Sustainability
 
         public List<string> Warnings { get; } = new List<string>();
 
-        /// <summary>True only when a real carbon intensity was computed (floor area
-        /// and total carbon both non-zero). False ⇒ 0.0 kgCO₂e/m² is a "not computed"
-        /// state (un-stamped materials or missing GFA), not a genuine result.</summary>
-        public bool Computed => FloorAreaM2 > 0 && TotalCarbonKg > 0;
+        /// <summary>WS I5 — the single largest carbon contributor + its share. A very
+        /// high share points to a quantity/factor error.</summary>
+        public string DominantHotspotMaterial { get; set; } = "";
+        public double DominantHotspotSharePct { get; set; }
+        /// <summary>WS I5 — true when one hotspot dominates (&gt; the sane share) — a
+        /// likely quantity/factor error worth surfacing prominently.</summary>
+        public bool   DominantHotspotImplausible { get; set; }
+        /// <summary>WS I5 — true when the carbon intensity exceeds a sane ceiling for a
+        /// whole building (≈10× a normal office) — implausible total.</summary>
+        public bool   IntensityImplausible { get; set; }
+
+        /// <summary>WS I5 — one-line coverage figure surfaced on the dashboard + export,
+        /// not only the Materials tab. e.g. "15/31 carbon-stamped, 0 EPD".</summary>
+        public string CoverageSummary =>
+            $"{CarbonStampedLines}/{TotalLines} carbon-stamped, {LinesFromEpd} EPD" +
+            (IndicativeCarbonLines > 0 ? $", {IndicativeCarbonLines} indicative" : "");
+
+        /// <summary>True only when a REAL carbon intensity was computed (floor area
+        /// non-zero AND at least one line carried a real EPD/library/WLCA factor).
+        /// Indicative-only carbon does NOT count as Computed — it's shown flagged
+        /// as indicative, never claimed as a WBLCA or used to award a gate.</summary>
+        public bool Computed => FloorAreaM2 > 0 && TotalCarbonKg > 0 && CarbonStampedLines > 0;
+
+        /// <summary>WS L8 — fraction of measured lines that carry a real carbon factor.</summary>
+        public double CarbonStampedCoverageFraction => TotalLines > 0 ? (double)CarbonStampedLines / TotalLines : 0;
+
+        /// <summary>WS L8 — the embodied-carbon headline must read "indicative — review
+        /// quantities" when a sanity flag fires (single-material dominance / implausible
+        /// per-m² / indicative-only factors) OR stamped coverage is below ~80%. The
+        /// number is still shown (with coverage), never hidden.</summary>
+        public bool CarbonHeadlineFlagged =>
+            DominantHotspotImplausible || IntensityImplausible || CarbonIsIndicative
+            || CarbonStampedCoverageFraction < 0.80;
     }
 
     public static class MaterialsRollup
     {
+        /// <summary>WS I5 — a single material contributing more than this share of the
+        /// carbon total is flagged as a likely quantity/factor error.</summary>
+        public const double DominantHotspotCeilingPct = 60.0;
+        /// <summary>WS I5 — whole-building A1–A3 carbon intensity above this (kgCO₂e/m²)
+        /// is implausible (a normal building is a few hundred; ≈10× ⇒ error).</summary>
+        public const double IntensityCeilingKgM2 = 2000.0;
+
         /// <summary>
         /// Roll up resolved material lines into the dual metric.
         /// <paramref name="carbonBaselineKgM2"/> / <paramref name="energyBaselineMjM2"/>
@@ -131,7 +180,9 @@ namespace StingTools.Core.Sustainability
                 if (l.FromEpd) res.LinesFromEpd++;
                 // A non-zero carbon factor was applied (fossil ≥ 0 even when the net
                 // is dragged ≤ 0 by a biogenic credit, so key off fossil OR net).
-                if (l.CarbonKg != 0 || l.FossilCarbonKg != 0) res.CarbonStampedLines++;
+                bool hasCarbon = l.CarbonKg != 0 || l.FossilCarbonKg != 0;
+                if (hasCarbon && l.IndicativeOnly) res.IndicativeCarbonLines++;
+                else if (hasCarbon)               res.CarbonStampedLines++;
             }
 
             res.WblcaCompleted = list.Count > 0 && res.CarbonStampedLines > 0;
@@ -155,6 +206,27 @@ namespace StingTools.Core.Sustainability
                 res.Hotspots.Add(h);
             }
 
+            // WS I5 — sanity checks: one material dominating the total, or an
+            // implausibly high intensity, usually means a quantity/factor error.
+            if (grouped.Count > 0 && res.TotalCarbonKg > 0)
+            {
+                res.DominantHotspotMaterial = grouped[0].Material;
+                res.DominantHotspotSharePct = grouped[0].CarbonKg / tot * 100.0;
+                if (res.DominantHotspotSharePct > DominantHotspotCeilingPct)
+                {
+                    res.DominantHotspotImplausible = true;
+                    res.Warnings.Add($"Carbon sanity: '{res.DominantHotspotMaterial}' is " +
+                                     $"{res.DominantHotspotSharePct:0}% of the total — likely a quantity/factor error " +
+                                     "(check the material volume + carbon factor for that line).");
+                }
+            }
+            if (res.FloorAreaM2 > 0 && res.CarbonIntensityKgM2 > IntensityCeilingKgM2)
+            {
+                res.IntensityImplausible = true;
+                res.Warnings.Add($"Carbon sanity: {res.CarbonIntensityKgM2:0} kgCO₂e/m² is implausibly high " +
+                                 $"(> {IntensityCeilingKgM2:0}; a typical building is a few hundred) — review quantities/factors.");
+            }
+
             // Savings %: kgCO2e (LEED) + MJ (EDGE indicative). Both vs intensities,
             // guarded against NaN/∞/zero baseline (WS F).
             res.GwpReductionPct = SustainSavings.Pct(carbonBaselineKgM2, res.CarbonIntensityKgM2);
@@ -168,9 +240,17 @@ namespace StingTools.Core.Sustainability
 
             if (res.FloorAreaM2 <= 0)
                 res.Warnings.Add("Materials NOT computed — no floor area (GFA). Enter floor area in Setup, then re-run.");
-            if (res.CarbonStampedLines <= 0)
+            if (res.CarbonStampedLines <= 0 && res.IndicativeCarbonLines > 0)
+                res.Warnings.Add($"Embodied carbon is INDICATIVE — {res.IndicativeCarbonLines} of {res.TotalLines} " +
+                                 "line(s) used generic per-material-class factors (no EPD / library match). The " +
+                                 "kgCO₂e/m² is order-of-magnitude only; stamp EPDs (SUS_EPD_REF_TXT) or library " +
+                                 "factors for a real WBLCA.");
+            else if (res.CarbonStampedLines <= 0)
                 res.Warnings.Add($"Materials NOT computed — {res.TotalLines} material(s) measured, 0 carbon-stamped. " +
                                  "Stamp STING_EMB_CARBON_NR / SUS_EPD_REF_TXT (run a carbon pass) and re-run.");
+            else if (res.IndicativeCarbonLines > 0)
+                res.Warnings.Add($"{res.IndicativeCarbonLines} of {res.TotalLines} material line(s) used indicative " +
+                                 "class factors (no EPD/library match); the total mixes real + indicative carbon.");
 
             return res;
         }

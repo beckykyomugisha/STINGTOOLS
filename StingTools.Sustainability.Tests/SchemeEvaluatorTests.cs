@@ -21,9 +21,9 @@ namespace StingTools.Sustainability.Tests
         {
             var energy = new EnergyEstimateResult
             {
-                EnergySavingsPct = energyPct, FloorAreaM2 = 1000, ZoneCount = 1, BaselineEuiKwhM2Yr = 200
+                EnergySavingsPct = energyPct, FloorAreaM2 = 1000, ZoneCount = 1, Occupancy = 50, BaselineEuiKwhM2Yr = 200
             };
-            energy.Design.CoolingKwh = 50000;   // TotalKwh > 0 ⇒ Computed
+            energy.Design.CoolingKwh = 50000;   // TotalKwh > 0 + occupancy > 0 ⇒ Computed (WS J3)
             var water = new WaterEstimateResult
             {
                 WaterSavingsPct = waterPct, WaterSavingsInclAltPct = waterPct,
@@ -127,7 +127,11 @@ namespace StingTools.Sustainability.Tests
                     WblcaCompleted = true,
                     GwpReductionPct = 22,
                     FloorAreaM2 = 1000,
-                    TotalCarbonKg = 1000
+                    TotalCarbonKg = 1000,
+                    // A genuinely-computed WBLCA carries at least one real (non-
+                    // indicative) carbon-stamped line; Computed now requires it so
+                    // indicative-only carbon can't score the GWP gate.
+                    CarbonStampedLines = 1
                 }
             };
             var res = SchemeEvaluator.Evaluate(leed, "Certified", providers, ctx);
@@ -213,7 +217,7 @@ namespace StingTools.Sustainability.Tests
             var edge = reg.Get("EDGE");
             var providers = MetricProviderRegistry.CreateStandard();
 
-            var energy = new EnergyEstimateResult { EnergySavingsPct = 45, FloorAreaM2 = 1000, ZoneCount = 1, BaselineEuiKwhM2Yr = 200 };
+            var energy = new EnergyEstimateResult { EnergySavingsPct = 45, FloorAreaM2 = 1000, ZoneCount = 1, Occupancy = 50, BaselineEuiKwhM2Yr = 200 };
             energy.Design.CoolingKwh = 50000;
             var ctx = new SchemeContext
             {

@@ -65,7 +65,7 @@ namespace StingTools.Core.Sustainability
         public List<string> Warnings { get; } = new List<string>();
 
         /// <summary>True when the design fixture flows are the hardcoded
-        /// 25%-over-baseline placeholder (no real fixture data read off the model).
+        /// "25% below baseline" (25% saving) placeholder — no real fixture data read off the model.
         /// Set by the orchestration engine. When true the savings % is the same on
         /// every project and must be shown as "indicative default", not a pass.</summary>
         public bool IsIndicativeDefault { get; set; }
@@ -102,6 +102,19 @@ namespace StingTools.Core.Sustainability
                 double minPerDay = kt.HasMinPerPersonDay ? kt.MinPerPersonDay : 0;
                 total += flows.KitchenTapLpm * minPerDay;
             }
+            return total;
+        }
+
+        /// <summary>Non-potable litres/person·day (WC + urinal flushing) — the demand
+        /// rainwater harvesting / greywater typically serves. Used by the orchestration
+        /// engine to size the RWH yield cap against a realistic non-potable demand
+        /// rather than total demand. WS A4.</summary>
+        public static double NonPotableLPersonDay(FixtureFlows flows, WaterUsageProfile profile)
+        {
+            if (flows == null || profile == null) return 0;
+            double total = 0;
+            if (profile.Fixtures.TryGetValue("wc", out var wc))     total += flows.WcLpf * wc.Uses;
+            if (profile.Fixtures.TryGetValue("urinal", out var ur)) total += flows.UrinalLpf * ur.Uses;
             return total;
         }
 
