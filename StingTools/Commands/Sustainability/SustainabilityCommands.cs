@@ -159,6 +159,11 @@ namespace StingTools.Commands.Sustainability
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             SustainProjectSetup setup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
 
+            // WS I1 — saving from SETUP is an explicit use choice: the building use is
+            // no longer the seeded "office" default, so the readiness gate stops blocking
+            // on it. (Location is still gated separately on climate site/zone.)
+            if (!string.IsNullOrWhiteSpace(setup.DominantBuildingUse)) setup.UseExplicit = true;
+
             string dir = SustainabilityRegistries.ProjectDir(doc);
             if (string.IsNullOrEmpty(dir))
             {
@@ -248,6 +253,12 @@ namespace StingTools.Commands.Sustainability
                 .SetSubtitle($"Indicative estimate · {setup.DominantBuildingUse} · zone {setup.ClimateZone} · " +
                              $"{setup.TotalFloorAreaM2:0} m² · occ {setup.TotalOccupancy}")
                 .SetOverallPct(res.Energy?.EnergySavingsPct ?? 0);
+
+            // WS I1 — a location/use-unset model is a generic proxy, not the user's
+            // project: banner it prominently and (when blocked) don't claim a level.
+            if (res.Readiness != null && !string.IsNullOrEmpty(res.Readiness.Banner))
+                b.AddSection(res.Readiness.Ready ? "⚠ Indicative" : "⛔ Generic proxy — not your project")
+                 .Info(res.Readiness.Banner);
 
             b.AddSection("Baseline resolution (proxy log)")
              .Info(res.Baseline?.Summary ?? "no baseline resolved");

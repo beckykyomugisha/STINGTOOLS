@@ -34,6 +34,11 @@ namespace StingTools.Core.Sustainability
         /// <summary>WS H4 — whole-life carbon roll-up (embodied A1–A3 + operational
         /// over the study period). Carbon only.</summary>
         public WholeLifeCarbonResult WholeLife { get; set; }
+        /// <summary>WS I1 — location/use readiness gate. When not Ready the dashboard
+        /// banners and refuses to claim an EDGE level.</summary>
+        public SustainReadinessResult Readiness { get; set; }
+        /// <summary>WS I1 — how the building use was resolved (setup / model / unset).</summary>
+        public BuildingUseResolution ResolvedUse { get; set; }
         public List<SchemeResult>    Schemes { get; } = new List<SchemeResult>();
         public ClimateMonthlySite    Climate { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -105,9 +110,23 @@ namespace StingTools.Core.Sustainability
             // ── Climate (monthly; fall back to design-day if no monthly row) ──
             res.Climate = ResolveClimate(doc, setup);
 
+            // ── WS I1 — resolve the building use from the model; NEVER default to
+            //    office. When the user picked one it wins; else derive from project
+            //    info / room program; else unset (the readiness gate then blocks). ──
+            res.ResolvedUse = ResolveUse(doc, setup);
+            if (res.ResolvedUse.Found && res.ResolvedUse.Source == "model"
+                && setup.Zones != null && setup.Zones.Count > 0 && !setup.UseExplicit)
+            {
+                var dom = setup.Zones.OrderByDescending(z => z.FloorAreaM2).First();
+                dom.BuildingUse = res.ResolvedUse.Use;   // drive profiles + water off the derived use
+            }
+
             // ── Baseline (climate-zone proxy + provenance) ──
+            // When the use is unset, resolve against "*" (global) rather than the
+            // seeded "office", so a blocked run never proxies as an office baseline.
             var baselineReg = SustainabilityRegistries.Baselines(doc);
-            res.Baseline = baselineReg.Resolve(setup.Country, ResolveZone(setup, res.Climate, doc, res.Warnings), setup.DominantBuildingUse);
+            string baseUse = res.ResolvedUse.Found ? setup.DominantBuildingUse : "*";
+            res.Baseline = baselineReg.Resolve(setup.Country, ResolveZone(setup, res.Climate, doc, res.Warnings), baseUse);
             var baseline = res.Baseline.Baseline;
             if (!res.Baseline.Found)
                 res.Warnings.Add(res.Baseline.Summary);
@@ -181,7 +200,96 @@ namespace StingTools.Core.Sustainability
                 res.Schemes.Add(SchemeEvaluator.Evaluate(scheme, level, providers, ctx));
             }
 
+            // ── WS I1 — readiness gate. Location (site/zone) + a resolved use are the
+            //    hard axes; occupancy + fixtures are softer. When not ready, banner +
+            //    BLOCK: no EDGE level is claimed and gates render "not your project". ──
+            bool locationSet = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
+                            || !string.IsNullOrWhiteSpace(setup.ClimateZone)
+                            || HasActiveClimateSite(doc);
+            res.Readiness = SustainReadiness.Evaluate(
+                locationSet, res.ResolvedUse.Found, occ.Occupancy > 0, HasPlumbingFixtures(doc));
+            if (!string.IsNullOrEmpty(res.Readiness.Banner))
+                res.Warnings.Insert(0, res.Readiness.Banner);
+            if (!res.Readiness.Ready)
+                foreach (var sc in res.Schemes)
+                {
+                    sc.Passed = false;
+                    sc.AchievedLevel = "None — location/use not set";
+                    foreach (var g in sc.Gates)
+                    {
+                        g.Passed = false; g.Computed = false; g.NotEvaluated = true;
+                        if (string.IsNullOrEmpty(g.Note)) g.Note = "location/use not set — generic proxy, not your project";
+                    }
+                }
+
             return res;
+        }
+
+        // ── WS I1 — building-use + readiness resolution (Revit-facing) ─────
+
+        /// <summary>Resolve the building use: an explicit user choice wins; else derive
+        /// from ProjectInformation hints + the room program via BuildingUseResolver;
+        /// else unset (caller blocks — never default to office).</summary>
+        private static BuildingUseResolution ResolveUse(Document doc, SustainProjectSetup setup)
+        {
+            try
+            {
+                // 1) Explicit user choice — accept a canonical catalogue use directly.
+                if (setup.UseExplicit && !string.IsNullOrWhiteSpace(setup.DominantBuildingUse))
+                {
+                    string u = setup.DominantBuildingUse.Trim().ToLowerInvariant();
+                    if (BuildingUseCatalog.CommonUses.Contains(u))
+                        return new BuildingUseResolution { Use = u, Source = "setup", Found = true };
+                    var mapped = BuildingUseResolver.MapText(u);
+                    if (mapped != null) return new BuildingUseResolution { Use = mapped, Source = "setup", Found = true };
+                }
+
+                // 2) Model signals — ProjectInformation hints, then the room program.
+                var signals = new List<(string, string)>();
+                try
+                {
+                    var pi = doc.ProjectInformation;
+                    foreach (var pn in new[] { "PRJ_BUILDING_USE_TXT", "Building Type", "Building Name", "Project Name", "Project Status" })
+                    {
+                        string v = pi?.LookupParameter(pn)?.AsString();
+                        if (!string.IsNullOrWhiteSpace(v)) signals.Add(("model", v));
+                    }
+                }
+                catch { }
+                try
+                {
+                    var rooms = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
+                        .Cast<Room>().Where(r => r != null && r.Area > 1e-6).Take(400).ToList();
+                    foreach (var r in rooms)
+                    {
+                        if (!string.IsNullOrWhiteSpace(r.Name)) signals.Add(("model", r.Name));
+                        string dept = r.LookupParameter("Department")?.AsString();
+                        if (!string.IsNullOrWhiteSpace(dept)) signals.Add(("model", dept));
+                    }
+                }
+                catch { }
+
+                return BuildingUseResolver.Resolve(signals, BuildingUseCatalog.CommonUses);
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ResolveUse: {ex.Message}"); return new BuildingUseResolution(); }
+        }
+
+        private static bool HasActiveClimateSite(Document doc)
+        {
+            try { return !string.IsNullOrWhiteSpace(ClimateRegistry.ActiveSite(doc)?.Id); }
+            catch { return false; }
+        }
+
+        private static bool HasPlumbingFixtures(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType().Any();
+            }
+            catch { return false; }
         }
 
         // ── Climate resolution ────────────────────────────────────────────

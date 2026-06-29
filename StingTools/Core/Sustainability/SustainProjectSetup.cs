@@ -124,6 +124,12 @@ namespace StingTools.Core.Sustainability
         public EdgeOfficialFigures EdgeOfficial { get; set; } = new EdgeOfficialFigures();
         public SustainUnits Units { get; set; } = SustainUnits.SI;
 
+        /// <summary>WS I1 — true when the building use was explicitly chosen by the user
+        /// or resolved from the model. False on a fresh CreateDefault, so the readiness
+        /// gate treats the seeded "office" as UNSET and blocks rather than presenting
+        /// office numbers as the user's project.</summary>
+        public bool UseExplicit { get; set; } = false;
+
         /// <summary>WS H4 — whole-life carbon study period (years). Default 60 matches
         /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.</summary>
         public int StudyPeriodYears { get; set; } = 60;
@@ -213,7 +219,8 @@ namespace StingTools.Core.Sustainability
               .Append("|site=").Append(ClimateSiteId)
               .Append("|zone=").Append(ClimateZone)
               .Append("|units=").Append(Units)
-              .Append("|study=").Append(StudyPeriodYears).Append('|');
+              .Append("|study=").Append(StudyPeriodYears)
+              .Append("|useExplicit=").Append(UseExplicit).Append('|');
             if (Zones != null)
                 foreach (var z in Zones)
                     sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')
