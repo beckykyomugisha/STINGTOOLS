@@ -46,6 +46,18 @@ namespace StingTools.UI.Sustainability
             // Seed the SETUP form with defaults so dropdowns are populated.
             try { LoadSetupForm(SustainProjectSetup.CreateDefault()); }
             catch (Exception ex) { StingLog.Warn($"Sus ctor LoadSetupForm: {ex.Message}"); }
+
+            // WS J2 fix — populate the Country dropdown at construction (doc-agnostic,
+            // from the corporate seed) so the 22-country list shows before any command
+            // runs. Commands later re-populate with the project override; the current
+            // selection is preserved by PopulateCountries.
+            try
+            {
+                string countriesPath = StingToolsApp.FindDataFile(SustainabilityRegistries.CountriesFile);
+                PopulateCountries(CountryRegistry.LoadFromFiles(countriesPath, null).DropdownLabels());
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus ctor PopulateCountries: {ex.Message}"); }
+
             UpdateStatus("Ready");
         }
 
