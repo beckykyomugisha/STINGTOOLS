@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Fire Damper (BS EN 1366-2, BS EN 15650, NFPA 90A)",
+  "standard": "STING SEED FAMILY \u2014 Fire Damper (BS EN 1366-2, BS EN 15650, NFPA 90A)",
   "_notes": [
     "12 type variants: rectangular fusible-link (FR60/FR90/FR120),",
     "rectangular motorised (FR60/FR120), round motorised (FR60/FR90/FR120),",
@@ -13,64 +13,269 @@
   "symbols": [
     {
       "id": "STING_SEED_FireDamper",
-      "name": "STING Seed — Fire Damper",
+      "name": "STING Seed \u2014 Fire Damper",
       "category": "Specialty Equipment",
       "familyType": "SeedFamily",
       "discipline": "Mechanical",
       "subcategory": "STING_SEED",
       "isSeed": true,
       "protectExisting": true,
-      "hosting": "FaceBased",
+      "hosting": "Standalone",
       "symbolSize": 6.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_FireDamper" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "M" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "FD" },
-        { "name": "PEN_FIRE_RATING_TXT",       "type": "Text", "shared": true, "isInstance": false, "default": "FR60" },
-        { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "0" },
-        { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_HOST_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_CERTIFICATION_TXT",     "type": "Text", "shared": true, "isInstance": false, "default": "BS EN 15650 / EN 1366-2" },
-        { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
-        { "name": "PEN_INSTALLER_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_INSPECTOR_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_INSPECTION_DATE",       "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_PFV_UUID_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "FD_ACTUATION_TXT",          "type": "Text", "shared": true, "isInstance": false, "default": "FUSIBLE_LINK_72C" },
-        { "name": "FD_TRIGGER_TEMP_C",         "type": "Text", "shared": true, "isInstance": false, "default": "72" },
-        { "name": "FD_BSEN15650_CLASS_TXT",    "type": "Text", "shared": true, "isInstance": false, "default": "EI60S" },
-        { "name": "FD_RESET_AFTER_TEST_TXT",   "type": "Text", "shared": true, "isInstance": true,  "default": "" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_FireDamper"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "M"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "FD"
+        },
+        {
+          "name": "PEN_FIRE_RATING_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "FR60"
+        },
+        {
+          "name": "PEN_OD_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "PEN_HOST_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_HOST_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_MEMBER_ID_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_CERTIFICATION_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS EN 15650 / EN 1366-2"
+        },
+        {
+          "name": "PEN_INSTALL_STATUS_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DRAFT"
+        },
+        {
+          "name": "PEN_INSTALLER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSTALL_DATE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSPECTOR_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSPECTION_DATE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_CONTROL_NUMBER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_PFV_UUID_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "FD_ACTUATION_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "FUSIBLE_LINK_72C"
+        },
+        {
+          "name": "FD_TRIGGER_TEMP_C",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "72"
+        },
+        {
+          "name": "FD_BSEN15650_CLASS_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "EI60S"
+        },
+        {
+          "name": "FD_RESET_AFTER_TEST_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        }
       ],
       "geometry": {
         "lines": [
-          { "x1": -0.5, "y1": -0.5, "x2":  0.5, "y2": -0.5 },
-          { "x1":  0.5, "y1": -0.5, "x2":  0.5, "y2":  0.5 },
-          { "x1":  0.5, "y1":  0.5, "x2": -0.5, "y2":  0.5 },
-          { "x1": -0.5, "y1":  0.5, "x2": -0.5, "y2": -0.5 },
-          { "x1": -0.5, "y1":  0.0, "x2":  0.5, "y2":  0.0 },
-          { "x1":  0.0, "y1": -0.5, "x2":  0.0, "y2":  0.5 },
-          { "x1": -0.4, "y1": -0.4, "x2":  0.4, "y2":  0.4 },
-          { "x1": -0.4, "y1":  0.4, "x2":  0.4, "y2": -0.4 }
+          {
+            "x1": -0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.5,
+            "x2": 0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.5,
+            "x2": -0.5,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.0,
+            "x2": 0.5,
+            "y2": 0.0
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.5,
+            "x2": 0.0,
+            "y2": 0.5
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": 0.4,
+            "y2": -0.4
+          }
         ],
         "section": {
           "view": "Front",
           "lines": [
-            { "x1": -1.0, "y1":  0.0, "x2":  1.0, "y2":  0.0 },
-            { "x1": -0.5, "y1":  0.0, "x2": -0.5, "y2":  0.5 },
-            { "x1":  0.5, "y1":  0.0, "x2":  0.5, "y2":  0.5 },
-            { "x1": -0.5, "y1":  0.5, "x2":  0.5, "y2":  0.5 }
+            {
+              "x1": -1.0,
+              "y1": 0.0,
+              "x2": 1.0,
+              "y2": 0.0
+            },
+            {
+              "x1": -0.5,
+              "y1": 0.0,
+              "x2": -0.5,
+              "y2": 0.5
+            },
+            {
+              "x1": 0.5,
+              "y1": 0.0,
+              "x2": 0.5,
+              "y2": 0.5
+            },
+            {
+              "x1": -0.5,
+              "y1": 0.5,
+              "x2": 0.5,
+              "y2": 0.5
+            }
           ]
         }
       },
-      "solid3D": { "type": "Box", "widthMm": 400, "depthMm": 200, "heightMm": 400 },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 400,
+        "depthMm": 200,
+        "heightMm": 400
+      },
       "formulaBindings": [
-        { "target": "Mark", "expression": "PEN_CONTROL_NUMBER_TXT" }
+        {
+          "target": "Mark",
+          "expression": "PEN_CONTROL_NUMBER_TXT"
+        }
       ],
       "swapCandidates": [
         {
@@ -104,7 +309,7 @@
       ],
       "typeVariants": [
         {
-          "_group": "--- RECTANGULAR — FUSIBLE LINK (passive) ---"
+          "_group": "--- RECTANGULAR \u2014 FUSIBLE LINK (passive) ---"
         },
         {
           "name": "FD_FR60_RECT_FUSIBLE",
@@ -137,7 +342,7 @@
           }
         },
         {
-          "_group": "--- RECTANGULAR — MOTORISED (active, fail-safe close) ---"
+          "_group": "--- RECTANGULAR \u2014 MOTORISED (active, fail-safe close) ---"
         },
         {
           "name": "FD_FR60_RECT_MOTORISED",
@@ -160,7 +365,7 @@
           }
         },
         {
-          "_group": "--- ROUND DUCT — MOTORISED ---"
+          "_group": "--- ROUND DUCT \u2014 MOTORISED ---"
         },
         {
           "name": "FD_FR30_ROUND_MOTORISED",

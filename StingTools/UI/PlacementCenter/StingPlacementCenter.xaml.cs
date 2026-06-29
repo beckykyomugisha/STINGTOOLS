@@ -87,6 +87,13 @@ namespace StingTools.UI.PlacementCenter
             {
                 _runHandler = new PlacementRunHandler(this);
                 _runEvent   = ExternalEvent.Create(_runHandler);
+                // Same rule for the generic inline-action event (Rebuild Seeds,
+                // Wall Chase, Import Overrides, …): ExternalEvent.Create must run
+                // in this API context, NOT lazily from a button click — doing it
+                // there throws "Attempting to create an ExternalEvent outside of a
+                // standard API execution".
+                _actionHandler = new PlacementActionHandler(this);
+                _actionEvent   = ExternalEvent.Create(_actionHandler);
             }
             catch (Exception evEx)
             {
@@ -1578,8 +1585,15 @@ namespace StingTools.UI.PlacementCenter
             if (work == null) return;
             try
             {
-                if (_actionHandler == null) _actionHandler = new PlacementActionHandler(this);
-                if (_actionEvent == null)   _actionEvent   = ExternalEvent.Create(_actionHandler);
+                // _actionEvent is created in the ctor (the only valid API context).
+                // Creating it here — off the API thread on a button click — throws
+                // "Attempting to create an ExternalEvent outside of a standard API
+                // execution", so if it's null, fail clearly instead.
+                if (_actionEvent == null)
+                {
+                    Toast($"{title} unavailable — close and reopen the Placement Centre.");
+                    return;
+                }
                 _pendingActionTitle = title;
                 _pendingAction = work;
                 Toast($"{title}…");
@@ -2574,6 +2588,32 @@ namespace StingTools.UI.PlacementCenter
                 StingLog.Error("PlacementCenter.OnDiagnose", ex);
                 TaskDialog.Show("STING — Placement Centre", $"Diagnose failed: {ex.Message}");
             }
+        }
+
+        private void OnRebuildSeeds_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            RunInlineAction("Rebuild Seeds", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                // Force-regenerate the mapped seed families from JSON (latest
+                // geometry + variants) and reload them into the project so placed
+                // instances pick up the new definitions. Runs outside any
+                // transaction (CreateAllFromFile opens its own).
+                var res = StingTools.Core.Placement.SeedEnsurer.RebuildAllForRules(doc, rules);
+                var panel = StingResultPanel.Create("STING — Rebuild Seeds")
+                    .SetSubtitle("Regenerated seed families from JSON and reloaded them into the project.")
+                    .AddSection("RESULT")
+                    .Metric("Seeds rebuilt / reloaded", res.SeedsBuiltOrLoaded.ToString())
+                    .Metric("Seedless categories", res.CategoriesSeedless.ToString());
+                foreach (var m in res.Messages.Take(40)) panel.Text(m);
+                if (res.SeedsBuiltOrLoaded == 0)
+                    panel.Text("No seeds rebuilt — check that the rule categories map to a seed and the seed specs (Data/Seeds/*.json) ship with the build.");
+                else
+                    panel.Text("Done. Run Placement to use the refreshed seeds.");
+                return panel;
+            });
         }
 
         private void OnAuditSetup_Click(object sender, RoutedEventArgs e)

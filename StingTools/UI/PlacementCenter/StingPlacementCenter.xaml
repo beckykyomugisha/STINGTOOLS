@@ -1188,6 +1188,10 @@
                                 Click="OnDiagnose_Click"
                                 Content="Diagnose"
                                 ToolTip="Engine trace: anchor resolution stats, room filter match report, placement decision log. Renders in the Report panel."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="120" Height="30" Margin="4,3"
+                                Click="OnRebuildSeeds_Click"
+                                Content="Rebuild Seeds"
+                                ToolTip="Regenerate the STING seed families from JSON (latest geometry + variants) and reload them into the project, overwriting any cached/older seeds so placement uses the current definitions. Run this after a STING update. Renders in the Report panel."/>
                     </WrapPanel>
                 </GroupBox>
 

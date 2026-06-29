@@ -1095,13 +1095,17 @@ namespace StingTools.Core.Placement
             // disable the crowding guard and let overlapping pack rules stack
             // (the audit's #1 finding). When a rule sets no MinSpacing, fall back
             // to an anchor-appropriate crowding FLOOR so cross-rule stacking is
-            // still prevented: ceiling/grid fixtures (lights, diffusers,
-            // sprinklers) 1000 mm; wall/point devices (switches, sockets) 250 mm.
+            // still prevented. Ceiling/grid fixtures (lights, diffusers,
+            // sprinklers) use 1000 mm — overlapping lux grids must collapse. Wall/
+            // point devices use a 150 mm PHYSICAL-OVERLAP floor only: two ~86 mm
+            // faceplates can't sit closer than that, but legitimately-distinct
+            // adjacent devices (e.g. a nurse-call socket next to a power socket
+            // ~200 mm apart) survive — a 250 mm floor wrongly rejected those.
             // An explicit MinSpacingMm always wins.
             bool ceilGrid = anchor == "CEILING_CENTRE" || anchor == "LIGHTING_GRID"
                          || anchor == "LUX_GRID" || anchor.StartsWith("CEILING_TILE");
             double crowdMm = effRule.MinSpacingMm > 0 ? effRule.MinSpacingMm
-                                                      : (ceilGrid ? 1000.0 : 250.0);
+                                                      : (ceilGrid ? 1000.0 : 150.0);
             double catMergeFt = crowdMm * MmToFt;
             double catMergeSq = catMergeFt * catMergeFt;
 

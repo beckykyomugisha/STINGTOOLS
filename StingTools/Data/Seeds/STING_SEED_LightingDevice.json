@@ -15,7 +15,7 @@
       "subcategory": "STING_SEED",
       "isSeed": true,
       "protectExisting": true,
-      "hosting": "FaceBased",
+      "hosting": "Standalone",
       "symbolSize": 4,
       "parameters": [
         {
@@ -262,10 +262,6 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "SW"
           }
-        },
-        {
-          "name": "DIMMER",
-          "params": {}
         },
         {
           "name": "KEY",

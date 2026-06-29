@@ -19,7 +19,7 @@
       "discipline": "Electrical",
       "subcategory": "STING_SEED",
       "isSeed": true,
-      "hosting": "FaceBased",
+      "hosting": "Standalone",
       "symbolSize": 4.0,
       "protectExisting": true,
       "parameters": [

@@ -226,10 +226,15 @@ namespace StingTools.Core.Symbols
                     string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
                     if (!string.IsNullOrEmpty(built))
                     {
-                        // Per-standard variant-build loop dropped by the merge. The
-                        // `kv` iteration over def.StandardOverrides used to live here
-                        // and produced a BuildVariant call per standard. Skipped
-                        // until the StandardOverrides surface is restored.
+                        // Count the build AND load the freshly-built family into the
+                        // project. A merge had emptied this branch (leaving only a
+                        // comment about a dropped per-standard loop), so every seed
+                        // built its .rfa on disk but Created stayed 0 and nothing was
+                        // loaded — placement never saw the seed. Restored here.
+                        result.Created++;
+                        result.CreatedRfaPaths.Add(built);
+                        if (loadIntoProject && !TryLoadFamily(hostDoc, built, result))
+                            result.Warnings.Add($"{def.Id}: built '{Path.GetFileName(built)}' but failed to load it into the project.");
                     }
                     else
                     {
@@ -413,6 +418,31 @@ namespace StingTools.Core.Symbols
                     tx.SetFailureHandlingOptions(failOpts);
 
                     tx.Start();
+
+                    // Force the seed's DECLARED Revit category. Re-applied now that
+                    // seeds are LEVEL-BASED (Standalone): the earlier attempt broke
+                    // FACE-BASED families (0 placed), but level-based families
+                    // re-categorise cleanly. This puts categories with no dedicated
+                    // template in the right place — e.g. a switch seed → Lighting
+                    // Devices (it otherwise lands in Generic Models, so the rule
+                    // sees "no Family Type loaded"). try/catch: if Revit refuses the
+                    // change for a template, keep the template category and warn.
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(def.Category) && fdoc.OwnerFamily != null)
+                        {
+                            var bic = StingTools.Core.Placement.FixturePlacementEngine
+                                .ResolveBuiltInCategoryByName(fdoc, def.Category);
+                            if (bic != BuiltInCategory.INVALID)
+                            {
+                                var fcat = Category.GetCategory(fdoc, bic);
+                                if (fcat != null && fdoc.OwnerFamily.FamilyCategory?.Id != fcat.Id)
+                                    fdoc.OwnerFamily.FamilyCategory = fcat;
+                            }
+                        }
+                    }
+                    catch (Exception ccx) { result.Warnings.Add($"{def.Id}: could not set category '{def.Category}' — {ccx.Message}"); }
+
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
@@ -424,8 +454,13 @@ namespace StingTools.Core.Symbols
                         AddConnectors(fdoc, def, result);
                     }
                     if (def.Solid3D != null
+                        && !string.IsNullOrWhiteSpace(def.FamilyType)
                         && !string.Equals(def.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase))
                     {
+                        // Only model-family templates support SketchPlane/NewExtrusion.
+                        // A null/blank FamilyType resolves to an annotation template,
+                        // where AddSolid3D would throw (caught + warned, geometry
+                        // silently dropped) — skip cleanly instead.
                         AddSolid3D(fdoc, def, result);
                     }
 
@@ -2356,23 +2391,36 @@ namespace StingTools.Core.Symbols
                 // Seed family — pick the most discipline/category-
                 // appropriate freestanding template. The Hosting check
                 // above already covered face / wall / ceiling.
+                // Every branch ends with a Generic Model fallback so a missing
+                // category-specific template (e.g. Metric Air Terminal.rft /
+                // Metric Sprinkler.rft aren't installed in every Revit) doesn't
+                // fail the build — it falls back to the always-present Generic
+                // Model template (a freestanding, level-based, placeable family).
                 if (cat.IndexOf("Lighting Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Lighting Fixture.rft", "Lighting Fixture.rft" };
+                    return new[] { "Metric Lighting Fixture.rft", "Lighting Fixture.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Electrical Fixtures", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft" };
+                    return new[] { "Metric Electrical Fixture.rft", "Electrical Fixture.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Electrical Equipment", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Electrical Fixture.rft",  // closest available
+                    // Use the real Electrical Equipment template so the seed lands
+                    // in the Electrical Equipment category — NOT the Fixture
+                    // template (that put STING_SEED_ElectricalEquipment / busbar
+                    // into Electrical Fixtures, polluting that pool so fixture
+                    // rules resolved to BUSBAR_TRUNKING). Generic Model is the
+                    // safe fallback (still not Electrical Fixtures).
+                    return new[] { "Metric Electrical Equipment.rft", "Electrical Equipment.rft",
                                    "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Fire Alarm", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Fire Alarm Device.rft" };
+                    return new[] { "Metric Fire Alarm Device.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Sprinkler", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Sprinkler.rft" };
+                    return new[] { "Metric Sprinkler.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Plumbing Fixture.rft" };
+                    return new[] { "Metric Plumbing Fixture.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Air Terminal", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Air Terminal.rft" };
+                    return new[] { "Metric Air Terminal.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Mechanical", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new[] { "Metric Mechanical Equipment.rft" };
+                    return new[] { "Metric Mechanical Equipment.rft", "Metric Generic Model.rft", "Generic Model.rft" };
                 if (cat.IndexOf("Communication", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Data", StringComparison.OrdinalIgnoreCase) >= 0)
                     return new[] { "Metric Data Device.rft", "Metric Communication Device.rft",
