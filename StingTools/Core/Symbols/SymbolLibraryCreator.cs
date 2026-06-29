@@ -418,6 +418,31 @@ namespace StingTools.Core.Symbols
                     tx.SetFailureHandlingOptions(failOpts);
 
                     tx.Start();
+
+                    // Force the seed's DECLARED Revit category. Re-applied now that
+                    // seeds are LEVEL-BASED (Standalone): the earlier attempt broke
+                    // FACE-BASED families (0 placed), but level-based families
+                    // re-categorise cleanly. This puts categories with no dedicated
+                    // template in the right place — e.g. a switch seed → Lighting
+                    // Devices (it otherwise lands in Generic Models, so the rule
+                    // sees "no Family Type loaded"). try/catch: if Revit refuses the
+                    // change for a template, keep the template category and warn.
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(def.Category) && fdoc.OwnerFamily != null)
+                        {
+                            var bic = StingTools.Core.Placement.FixturePlacementEngine
+                                .ResolveBuiltInCategoryByName(fdoc, def.Category);
+                            if (bic != BuiltInCategory.INVALID)
+                            {
+                                var fcat = Category.GetCategory(fdoc, bic);
+                                if (fcat != null && fdoc.OwnerFamily.FamilyCategory?.Id != fcat.Id)
+                                    fdoc.OwnerFamily.FamilyCategory = fcat;
+                            }
+                        }
+                    }
+                    catch (Exception ccx) { result.Warnings.Add($"{def.Id}: could not set category '{def.Category}' — {ccx.Message}"); }
+
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
