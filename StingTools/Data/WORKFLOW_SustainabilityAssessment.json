@@ -1,42 +1,46 @@
 {
-  "version": "1.0",
-  "id": "SustainabilityAssessment",
   "name": "Sustainability Assessment (EDGE/LEED)",
-  "description": "End-to-end EDGE/LEED indicative assessment: read the model context, resolve the climate-zone baseline, run the energy + water + materials dashboard, then produce the EDGE export and the life-cycle cost benefit. Re-runnable; the dashboard forces a fresh model read and the export/LCC reuse it.",
+  "description": "End-to-end EDGE/LEED indicative assessment: read the model context, gate on a resolved location, resolve the climate-zone baseline, run the dashboard, then EDGE export + life-cycle cost. Gated so a mis-set project can't emit confident-wrong numbers.",
+  "rollback_on_failure": false,
   "steps": [
     {
-      "id": "auto-fill",
-      "name": "Read project context from the model",
-      "command": "Sustain_AutoFill",
-      "_notes": "Populates the sustainability setup (building use, floor area, occupancy, climate site) from ProjectInformation + Spaces/Rooms so the assessment runs off real model context, not blank defaults."
+      "commandTag": "Sustain_AutoFill",
+      "label": "1. Read project context from the model (area / occupancy / climate site)",
+      "optional": true
     },
     {
-      "id": "set-baseline",
-      "name": "Resolve + stamp the climate-zone baseline",
-      "command": "Sustain_SetBaseline",
-      "_notes": "Resolves the EDGE/LEED base case by climate zone (never country) + building use and stamps the SUS_* baseline intensities + achieved level onto ProjectInformation."
+      "commandTag": "Sustain_ReadinessCheck",
+      "label": "2. Readiness gate — location / use / occupancy / fixtures",
+      "optional": true
     },
     {
-      "id": "dashboard",
-      "name": "Run the sustainability dashboard",
-      "command": "Sustain_Dashboard",
-      "_notes": "Runs the four estimators (energy / water / materials / schemes), records an EDGE KPI snapshot, and pushes results to the panel. Forces a fresh model read; later steps reuse this pass."
+      "commandTag": "Sustain_SetBaseline",
+      "label": "3. Resolve + stamp the climate-zone baseline (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
     },
     {
-      "id": "edge-export",
-      "name": "Export the EDGE workbook",
-      "command": "Sustain_EdgeExport",
-      "_notes": "Writes the EDGE submission workbook (energy / water / materials savings vs baseline) in the project's units."
+      "commandTag": "Sustain_Dashboard",
+      "label": "4. Run the sustainability dashboard (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
     },
     {
-      "id": "lcc",
-      "name": "Life-cycle cost benefit",
-      "command": "Sustain_LccBenefit",
-      "_notes": "Feeds the per-measure capex + lifetime saving into the BOQ Cost Manager / DD Cost Estimate so sustainability targets land in the budget."
+      "commandTag": "Sustain_EdgeExport",
+      "label": "5. Export the EDGE workbook (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
+    },
+    {
+      "commandTag": "Sustain_LccBenefit",
+      "label": "6. Life-cycle cost benefit → BOQ Cost Manager (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
     }
   ],
   "_postNotes": [
-    "Indicative figures only — EDGE owns the certified number. Enter the EDGE app's official % on the dashboard to drive the determined level.",
-    "Set the climate site id and/or climate zone in Setup before running for a defensible baseline; hot/tropical sites differ materially from the temperate default."
+    "Steps 3-6 are gated on sustain_location_set, so on a model with no location the one-click run reads context + readiness but does NOT emit confident-wrong baseline/EDGE/LCC numbers.",
+    "Materials is delegated to the EDGE app (the dashboard tracks indicative MJ + selections); the EDGE app owns the certified materials %.",
+    "Indicative figures only — enter the EDGE app's official % on the dashboard to drive the determined level."
   ]
 }

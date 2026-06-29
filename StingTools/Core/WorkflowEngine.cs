@@ -2222,6 +2222,26 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.Warn($"no_sld_view_exists: {ex.Message}"); }
                         return false;
+                    // WS I15 — sustainability workflow gates.
+                    case "sustain_location_set":
+                    {
+                        // A defensible run needs a location: a saved climate site/zone,
+                        // or a resolvable design-day site.
+                        try
+                        {
+                            string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+                            if (!string.IsNullOrWhiteSpace(setup.ClimateSiteId) || !string.IsNullOrWhiteSpace(setup.ClimateZone))
+                                return true;
+                            return !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id);
+                        }
+                        catch { return false; }
+                    }
+                    case "sustain_fixtures_modelled":
+                        return new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                            .WhereElementIsNotElementType().GetElementCount() > 0;
+
                     default:
                         // WF-001 FIX: Unknown conditions now return false (fail-safe).
                         // Previously returned true, silently executing gated steps on typos.

@@ -59,6 +59,8 @@ namespace StingTools.Sustainability.Tests
         {
             // WS H1 — the preset is auto-discovered by WorkflowEngine.AppendUserPresets;
             // every step command must be a Sustain_* tag registered in ResolveCommand.
+            // WS I15 — the key is "commandTag" (matching WorkflowStep's JsonProperty),
+            // not "command", so the steps actually resolve at runtime.
             string path = RepoDataPath("WORKFLOW_SustainabilityAssessment.json");
             Assert.NotNull(path);
             var root = JObject.Parse(File.ReadAllText(path));
@@ -67,17 +69,32 @@ namespace StingTools.Sustainability.Tests
             Assert.True(steps.Count >= 5, "expected at least 5 steps (auto-fill → baseline → dashboard → export → LCC)");
             foreach (var s in steps)
             {
-                string cmd = (string)s["command"];
-                Assert.False(string.IsNullOrWhiteSpace(cmd));
+                string cmd = (string)s["commandTag"];
+                Assert.False(string.IsNullOrWhiteSpace(cmd), "each step must use the 'commandTag' key");
                 Assert.StartsWith("Sustain_", cmd);
             }
             // The core chain is present.
-            var cmds = steps.Select(s => (string)s["command"]).ToList();
+            var cmds = steps.Select(s => (string)s["commandTag"]).ToList();
             Assert.Contains("Sustain_AutoFill", cmds);
             Assert.Contains("Sustain_SetBaseline", cmds);
             Assert.Contains("Sustain_Dashboard", cmds);
             Assert.Contains("Sustain_EdgeExport", cmds);
             Assert.Contains("Sustain_LccBenefit", cmds);
+        }
+
+        [Fact]
+        public void SustainabilityWorkflow_GatesResultStepsOnLocation()
+        {
+            // WS I15 — the baseline/dashboard/export/LCC steps are gated on a resolved
+            // location so a mis-set project can't emit confident-wrong numbers.
+            string path = RepoDataPath("WORKFLOW_SustainabilityAssessment.json");
+            var steps = (JArray)JObject.Parse(File.ReadAllText(path))["steps"];
+            foreach (var tag in new[] { "Sustain_SetBaseline", "Sustain_Dashboard", "Sustain_EdgeExport", "Sustain_LccBenefit" })
+            {
+                var step = steps.FirstOrDefault(s => (string)s["commandTag"] == tag);
+                Assert.NotNull(step);
+                Assert.Equal("sustain_location_set", (string)step["condition"]);
+            }
         }
 
         [Fact]
