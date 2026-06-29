@@ -49,6 +49,10 @@ namespace StingTools.Core.Placement
                 = new Dictionary<string, DwgSymbolMapping>(StringComparer.OrdinalIgnoreCase);
             public HashSet<string> SkipCategories
                 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // D1 — the authoritative allowlist of categories this FIXTURE bridge may place.
+            // A resolution to any category NOT in here returns null (not a fixture).
+            public HashSet<string> FixtureCategories
+                = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         private static readonly Dictionary<string, MapData> _cache
@@ -71,15 +75,14 @@ namespace StingTools.Core.Placement
             public string Anchor { get; set; } = "WALL_MIDPOINT";
         }
 
-        /// <summary>Resolve a LAYER (no block name) to its STING mapping, using the same
-        /// chain as Resolve with the layer's coarse category inferred from its name.
-        /// Returns null when the layer maps to nothing / a run-structure category.</summary>
+        /// <summary>Resolve a LAYER (no block name) to its STING FIXTURE mapping. D1 — this
+        /// does NOT use the structural CADToModelEngine.LayerMapper (whose loose substrings
+        /// map door->Doors, "light"->Electrical so "Lightning protection" matches, etc.).
+        /// It matches ONLY the explicit DWG-symbol-map LAYER rules (fixture-only, precise) +
+        /// the fixture allowlist gate. Unmatched layers return null and the user maps them
+        /// explicitly in the Map-DWG-Layers UI. Returns null for non-fixture layers.</summary>
         public static DwgSymbolMapping ResolveLayer(Autodesk.Revit.DB.Document doc, string layerName)
-        {
-            string inferred = null;
-            try { inferred = StingTools.Model.LayerMapper.InferCategory(layerName); } catch { }
-            return Resolve(doc, "", layerName, inferred);
-        }
+            => Resolve(doc, "", layerName, inferredCategory: null);   // null => no structural fallback
 
         /// <summary>The project-override file path (&lt;project&gt;/_BIM_COORD/dwg_symbol_map.json),
         /// or null when the document is unsaved.</summary>
@@ -160,8 +163,16 @@ namespace StingTools.Core.Placement
             return written;
         }
 
-        /// <summary>Resolve a captured block to its STING placement mapping. Returns null
-        /// when the block is a run/structure category (skip) or nothing maps.</summary>
+        /// <summary>The MEP/fixture categories this bridge is allowed to place (corporate
+        /// allowlist unioned with the project override). A resolution to any category NOT in
+        /// here is treated as "not a fixture" and returns null. Empty ⇒ no gate (legacy).</summary>
+        public static HashSet<string> GetFixtureCategories(Autodesk.Revit.DB.Document doc)
+            => new HashSet<string>(GetMap(doc).FixtureCategories, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Resolve a captured block/layer to its STING FIXTURE placement mapping.
+        /// Returns null when the block is a run/structure category (skip), nothing maps, or
+        /// the resolved category is not in the fixture allowlist (D1 — a fixture bridge must
+        /// not place doors/windows/furniture/structural/annotation).</summary>
         public static DwgSymbolMapping Resolve(Autodesk.Revit.DB.Document doc,
             string blockName, string layerName, string inferredCategory)
         {
@@ -180,7 +191,7 @@ namespace StingTools.Core.Placement
                 if (string.IsNullOrEmpty(r.Pattern)) continue;
                 string hay = r.ByLayer ? ln : bn;
                 if (hay.IndexOf(r.Pattern, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new DwgSymbolMapping
+                    return GateFixture(data, new DwgSymbolMapping
                     {
                         Category    = r.Category,
                         // variant: rule's hint, else the raw block name (STING seeds name
@@ -188,20 +199,30 @@ namespace StingTools.Core.Placement
                         // 'SOCKET_2G' type directly); the seed default is the final fallback.
                         VariantHint = string.IsNullOrWhiteSpace(r.VariantHint) ? bn : r.VariantHint,
                         Anchor      = string.IsNullOrWhiteSpace(r.Anchor) ? "WALL_MIDPOINT" : r.Anchor
-                    };
+                    });
             }
 
             // 2) coarse-category fallback (keyed by CADToModelEngine InferredCategory).
             if (!string.IsNullOrWhiteSpace(inferredCategory)
                 && data.CategoryFallback.TryGetValue(inferredCategory, out var fb))
-                return new DwgSymbolMapping
+                return GateFixture(data, new DwgSymbolMapping
                 {
                     Category    = fb.Category,
                     VariantHint = string.IsNullOrWhiteSpace(fb.VariantHint) ? bn : fb.VariantHint,
                     Anchor      = string.IsNullOrWhiteSpace(fb.Anchor) ? "WALL_MIDPOINT" : fb.Anchor
-                };
+                });
 
             return null; // unmapped — skipped (and reported by the bridge)
+        }
+
+        /// <summary>D1 gate — only a resolved category in the fixture allowlist counts as a
+        /// fixture mapping. Returns null otherwise (e.g. a Doors/Furniture resolution from the
+        /// structural inferer). When the allowlist is empty (legacy/no data), don't gate.</summary>
+        private static DwgSymbolMapping GateFixture(MapData data, DwgSymbolMapping m)
+        {
+            if (m == null || string.IsNullOrWhiteSpace(m.Category)) return null;
+            if (data.FixtureCategories.Count == 0) return m;
+            return data.FixtureCategories.Contains(m.Category) ? m : null;
         }
 
         private static MapData GetMap(Autodesk.Revit.DB.Document doc)
@@ -288,6 +309,14 @@ namespace StingTools.Core.Placement
                 {
                     string v = (string)s;
                     if (!string.IsNullOrWhiteSpace(v)) data.SkipCategories.Add(v);
+                }
+
+            // D1 — fixture allowlist (union: corporate + project override can extend it).
+            if (root["fixtureCategories"] is JArray fix)
+                foreach (var s in fix)
+                {
+                    string v = (string)s;
+                    if (!string.IsNullOrWhiteSpace(v)) data.FixtureCategories.Add(v);
                 }
         }
     }

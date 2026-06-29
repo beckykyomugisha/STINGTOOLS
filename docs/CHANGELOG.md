@@ -3,6 +3,54 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (DWG fixture bridge — scope, counters, report noise fix)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors); DLL +
+`data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in
+Revit before merge.** Fixes a live run on an exploded ARCHICAD DWG that treated
+Doors/Windows/Furniture/Structural/"Lightning protection" as fixtures and flooded
+the report with duplicate "seed not loaded" lines.
+
+**D1 — fixture-category allowlist (root cause).** Added an authoritative
+`fixtureCategories` allowlist (20 MEP/fixture categories, all seed-resolvable) to
+`DWG_SYMBOL_MAP.json`; `DwgSymbolMapRegistry` now gates EVERY resolution through it
+(`GateFixture`) — any rule/fallback/inference resolving to a non-fixture category
+returns null. Removed Doors/Windows/Furniture from `categoryFallback`; widened
+`skipCategories`. `ResolveLayer` no longer uses the structural
+`CADToModelEngine.LayerMapper` (whose loose `"light"→Electrical` matched "**Light**ning
+protection", `door→Doors`, etc.) — it matches only the explicit, fixture-only DWG-map
+LAYER rules + the allowlist; the `"light"` layer rule is now `"lighting"` (≠ lightning)
+plus precise socket/data/smoke/sanitary/diffuser rules. Unmapped layers default to
+"(skip)" and are mapped manually in the UI. The Map-DWG-Layers dropdown now offers
+only allowlisted, seedable categories. The allowlist is data-driven (union-extended
+by the `_BIM_COORD` override).
+
+**D2 — counter integrity.** The 0-vs-23 mismatch came from detection totals being
+tracked independently of place-loop skips (and, post-D1, the doors no longer enter at
+all). Added `TotalCaptured` (items entering the place loop) + `DedupedAgainstBlock`,
+and a `CheckPlaceInvariant` that logs a `StingLog.Warn` if
+`Placed + SkippedNoSymbol + SkippedNotHosted != TotalCaptured` (and a pre-pass
+invariant for detected = captured + skips + deduped). Every detected item is now
+reflected in exactly one total.
+
+**D3 — seedless-category pre-check.** Before the place loop, seed availability is
+probed ONCE per category; a category whose seed didn't build/load is dropped as a
+single aggregated skip ("Doors: 23 x seed not built — run Rebuild Seeds"), not retried
++ logged per instance.
+
+**D4 — report de-duplication.** The 18 per-layer "mapped, empty" messages collapse to
+one rolled-up line (with the layer names); not-hosted skips roll up by
+`(category: reason)`. SUMMARY metrics + CAPTURE-MODE block unchanged.
+
+**Files:** edited `Data/Placement/DWG_SYMBOL_MAP.json`,
+`Core/Placement/DwgSymbolMapRegistry.cs`, `Core/Placement/DwgFixtureBridge.cs`,
+`Commands/Placement/DwgToSeedFixturesCommand.cs`,
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`.
+
+**Caveat:** model-modifying — untested in the sandbox; verify in Revit. A rare edge
+remains: a real block (not exploded) sitting on a "lightning" layer can still map via
+the coarse Electrical block-fallback; the reported exploded/layer case is fully fixed.
+
 #### Completed (Placement Centre — DWG layer mapping + exploded-geometry capture)
 
 Branch `claude/placement-library-dwg` (extends the DWG→seed bridge). Build clean

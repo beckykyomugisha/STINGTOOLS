@@ -31,12 +31,14 @@ namespace StingTools.Core.Placement
     {
         public int TotalBlocks { get; set; }         // block inserts detected (DetectedBlock path)
         public int TotalLayerPoints { get; set; }    // points captured from mapped layers (point/cluster)
+        public int TotalCaptured { get; set; }       // items that entered the place loop (post pre-pass)
         public int Placed { get; set; }
-        public int SkippedNoMapping { get; set; }    // capture didn't map to a STING category
+        public int SkippedNoMapping { get; set; }    // capture didn't map to a fixture category
         public int SkippedSeedless { get; set; }     // category has no seed (runs/structure)
-        public int SkippedNoSymbol { get; set; }     // seed family/variant not resolvable
+        public int SkippedNoSymbol { get; set; }     // seed family/variant not built/loaded
         public int SkippedNotHosted { get; set; }    // PlacementHostPreflight returned Skipped
         public int SkippedExplodedNoPoint { get; set; } // layer mapped but nothing capturable
+        public int DedupedAgainstBlock { get; set; } // layer point coincided with a block insert
         public bool DryRun { get; set; }
         public bool IncludedLineClusters { get; set; }  // the experimental cluster pass ran
         public Dictionary<string, int> PlacedByCategory { get; } =
@@ -177,7 +179,7 @@ namespace StingTools.Core.Placement
                     bool dupOfBlock = blockPts.Any(bp =>
                         string.Equals(bp.LayerName, layer, StringComparison.OrdinalIgnoreCase)
                         && bp.Point != null && bp.Point.DistanceTo(fp.Point) * bp.Point.DistanceTo(fp.Point) <= dedup2);
-                    if (dupOfBlock) continue;
+                    if (dupOfBlock) { res.DedupedAgainstBlock++; continue; }
 
                     var map = DwgSymbolMapRegistry.Resolve(doc, fp.BlockName, layer, fp.InferredCategory);
                     if (map == null || string.IsNullOrWhiteSpace(map.Category)) { res.SkippedNoMapping++; continue; }
@@ -191,13 +193,16 @@ namespace StingTools.Core.Placement
                     });
                 }
 
-                // Honest accounting: a mapped layer that produced nothing capturable.
-                foreach (var kv in layerHitCounts.Where(k => k.Value == 0))
+                // Honest accounting (D4): roll up the mapped-but-empty layers into ONE message.
+                var emptyLayers = layerHitCounts.Where(k => k.Value == 0).Select(k => k.Key).ToList();
+                res.SkippedExplodedNoPoint += emptyLayers.Count;
+                if (emptyLayers.Count > 0)
                 {
-                    res.SkippedExplodedNoPoint++;
-                    res.Messages.Add($"Layer '{kv.Key}' is mapped but has no blocks/points to place from " +
-                                     (includeLineClusters ? "(no Points and no clusterable lines)."
-                                                          : "(exploded — enable experimental line-cluster capture, or add DWG Points)."));
+                    string how = includeLineClusters
+                        ? "no Points and no clusterable lines"
+                        : "exploded - enable experimental line-cluster capture, or add DWG Points";
+                    res.Messages.Add($"{emptyLayers.Count} mapped layer(s) had nothing capturable ({how}): " +
+                                     string.Join(", ", emptyLayers.Take(12)) + (emptyLayers.Count > 12 ? ", ..." : ""));
                 }
             }
 
@@ -205,11 +210,21 @@ namespace StingTools.Core.Placement
             foreach (var grp in captured.GroupBy(c => c.Mode))
                 res.CapturedByMode[grp.Key] = grp.Count();
 
+            // ── D2 — accounting invariant A: every DETECTED item is either captured (enters
+            //    the place loop) or accounted for as no-mapping / seedless / deduped. ──
+            res.TotalCaptured = captured.Count;
+            int detected = res.TotalBlocks + res.TotalLayerPoints;
+            int prePass = captured.Count + res.SkippedNoMapping + res.SkippedSeedless + res.DedupedAgainstBlock;
+            if (detected != prePass)
+                StingLog.Warn($"DwgFixtureBridge accounting drift (pre-pass): detected {detected} " +
+                              $"(blocks {res.TotalBlocks} + layerPts {res.TotalLayerPoints}) != " +
+                              $"captured {captured.Count} + noMap {res.SkippedNoMapping} + seedless {res.SkippedSeedless} + deduped {res.DedupedAgainstBlock} = {prePass}.");
+
             if (captured.Count == 0)
             {
                 res.Messages.Add($"Nothing placeable: {res.TotalBlocks} block(s) + {res.TotalLayerPoints} layer point(s) " +
                                  $"({res.SkippedNoMapping} unmapped, {res.SkippedSeedless} seedless, {res.SkippedExplodedNoPoint} mapped-but-empty). " +
-                                 "Use Library -> Map DWG layers to assign categories, or extend the DWG symbol map.");
+                                 "Use Library -> Map DWG layers to assign fixture categories, or extend the DWG symbol map.");
                 return res;
             }
 
@@ -227,25 +242,48 @@ namespace StingTools.Core.Placement
                 return res;
             }
 
+            // ── D3 — seed availability pre-check, ONCE per category (read-only). A category
+            //    whose seed didn't build/load is dropped as a single aggregated skip, not
+            //    retried + logged per instance. ──
+            var placeable = new List<Captured>();
+            foreach (var grp in captured.GroupBy(c => c.Category, StringComparer.OrdinalIgnoreCase))
+            {
+                var sample = grp.First();
+                var probe = ResolveSeedSymbol(doc, grp.Key, sample.SeedId, "", out _);
+                if (probe != null) { placeable.AddRange(grp); continue; }
+                int n = grp.Count();
+                res.SkippedNoSymbol += n;
+                res.Messages.Add($"{grp.Key}: {n} x seed '{sample.SeedId}' not built/loaded - run Library -> Rebuild Seeds, then retry.");
+            }
+
+            if (placeable.Count == 0)
+            {
+                res.Messages.Add("No placeable fixtures after the seed check - see the seed messages above.");
+                return res;
+            }
+
             if (dryRun)
             {
-                foreach (var grp in captured.GroupBy(c => c.Category, StringComparer.OrdinalIgnoreCase))
+                foreach (var grp in placeable.GroupBy(c => c.Category, StringComparer.OrdinalIgnoreCase))
                     res.PlacedByCategory[grp.Key] = grp.Count();
-                res.Messages.Add($"DRY RUN — {captured.Count} fixture(s) would be placed across {categories.Count} categor(ies). No model changes made.");
+                res.Messages.Add($"DRY RUN - {placeable.Count} fixture(s) would be placed across {res.PlacedByCategory.Count} categor(ies). No model changes made.");
+                CheckPlaceInvariant(res, dryRun: true);
                 return res;
             }
 
             // ── 4) Place + stamp inside one transaction. ──
             var roomCache = CollectRooms(doc);
+            var notHostedByReason = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // D4 rollup
             using (var t = new Transaction(doc, "STING Place DWG Fixtures"))
             {
                 t.Start();
-                foreach (var c in captured)
+                foreach (var c in placeable)
                 {
                     try
                     {
-                        var symbol = ResolveSeedSymbol(doc, c.Category, c.SeedId, c.Variant, out string symNote);
-                        if (symbol == null) { res.SkippedNoSymbol++; if (!string.IsNullOrEmpty(symNote)) res.Messages.Add(symNote); continue; }
+                        var symbol = ResolveSeedSymbol(doc, c.Category, c.SeedId, c.Variant, out _);
+                        // Pre-checked above; if the specific type still won't resolve, count (no spam).
+                        if (symbol == null) { res.SkippedNoSymbol++; continue; }
                         if (!symbol.IsActive) { symbol.Activate(); doc.Regenerate(); }
 
                         var room = FindRoom(roomCache, c.Point);
@@ -272,8 +310,9 @@ namespace StingTools.Core.Placement
                         else
                         {
                             res.SkippedNotHosted++;
-                            if (!string.IsNullOrEmpty(placed?.Reason))
-                                res.Messages.Add($"{c.BlockName} ({c.Category}): {placed.Reason}");
+                            string reason = string.IsNullOrEmpty(placed?.Reason) ? "no host found" : placed.Reason;
+                            string key = $"{c.Category}: {reason}";
+                            notHostedByReason[key] = (notHostedByReason.TryGetValue(key, out var nh) ? nh : 0) + 1;
                         }
                     }
                     catch (Exception ex)
@@ -285,9 +324,28 @@ namespace StingTools.Core.Placement
                 t.Commit();
             }
 
-            res.Messages.Add($"Placed {res.Placed} STING seed fixture(s) from {res.TotalBlocks} block(s). " +
-                             "They are swap-ready — run Library → Swap to Manufacturer for real product geometry.");
+            // D4 — roll up not-hosted skips by (category: reason), one line each.
+            foreach (var kv in notHostedByReason)
+                res.Messages.Add($"{kv.Value} x not hosted - {kv.Key}.");
+
+            res.Messages.Add($"Placed {res.Placed} STING seed fixture(s) from {res.TotalCaptured} captured " +
+                             $"({res.TotalBlocks} block insert(s) + {res.TotalLayerPoints} layer point(s)). " +
+                             "Swap-ready - run Library -> Swap to Manufacturer for real product geometry.");
+            CheckPlaceInvariant(res, dryRun: false);
             return res;
+        }
+
+        /// <summary>D2 — whole-run invariant: every CAPTURED item (those that entered the
+        /// place loop) ends up either placed or accounted for as a no-seed or not-hosted
+        /// skip. For a dry run only the seed pre-check has run (no placement / not-hosted),
+        /// so the dry-run "would place" count + no-seed skips must equal the captured total.</summary>
+        private static void CheckPlaceInvariant(DwgFixtureBridgeResult res, bool dryRun)
+        {
+            int placedOrWouldPlace = dryRun ? res.PlacedByCategory.Values.Sum() : res.Placed;
+            int accounted = placedOrWouldPlace + res.SkippedNoSymbol + res.SkippedNotHosted;
+            if (accounted != res.TotalCaptured)
+                StingLog.Warn($"DwgFixtureBridge accounting drift (captured): captured {res.TotalCaptured} != " +
+                              $"{(dryRun ? "wouldPlace" : "placed")} {placedOrWouldPlace} + noSymbol {res.SkippedNoSymbol} + notHosted {res.SkippedNotHosted} = {accounted}.");
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────

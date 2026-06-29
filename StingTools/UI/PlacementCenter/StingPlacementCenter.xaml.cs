@@ -2731,12 +2731,17 @@ namespace StingTools.UI.PlacementCenter
                     return StingResultPanel.Create("STING — Map DWG Layers")
                         .AddSection("RESULT").Text("The import has no layered geometry to map.");
 
-                // Category list = the SEED-mappable categories (skip null-seed entries like
-                // Conduits/Pipes/Stairs that can't place a family instance).
-                var categories = StingTools.Core.Placement.CategoryToSeedRegistry.GetMap(doc)
-                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
-                    .Select(kv => kv.Key)
+                // Category list = the FIXTURE allowlist (D1) ∩ seed-mappable categories — the
+                // set the bridge can actually place. A fixture bridge never offers doors/
+                // windows/furniture/structural. (Projects extend the allowlist via override.)
+                var seedable = StingTools.Core.Placement.CategoryToSeedRegistry.GetMap(doc);
+                var fixtures = StingTools.Core.Placement.DwgSymbolMapRegistry.GetFixtureCategories(doc);
+                var categories = fixtures
+                    .Where(c => seedable.TryGetValue(c, out var sid) && !string.IsNullOrWhiteSpace(sid))
                     .OrderBy(k => k, System.StringComparer.OrdinalIgnoreCase).ToList();
+                if (categories.Count == 0)   // legacy/no allowlist — fall back to all seedable
+                    categories = seedable.Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+                        .Select(kv => kv.Key).OrderBy(k => k, System.StringComparer.OrdinalIgnoreCase).ToList();
 
                 // Pre-fill each row from the existing resolution chain (override or LayerMapper).
                 var seedRows = layerCounts

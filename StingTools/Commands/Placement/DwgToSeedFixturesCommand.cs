@@ -60,12 +60,15 @@ namespace StingTools.Commands.Placement
                 .Metric("Block inserts detected", res.TotalBlocks.ToString())
                 .Metric("Layer points captured",  res.TotalLayerPoints.ToString(),
                         res.IncludedLineClusters ? "incl. experimental line-clusters" : "DWG Points on mapped layers (safe)")
+                .Metric("Captured (place-loop input)", res.TotalCaptured.ToString(),
+                        "block + layer captures that mapped to a fixture seed")
                 .Metric(res.DryRun ? "Would place" : "Placed", res.Placed.ToString())
-                .Metric("Skipped — unmapped",     res.SkippedNoMapping.ToString())
-                .Metric("Skipped — seedless cat", res.SkippedSeedless.ToString())
-                .Metric("Skipped — no seed type", res.SkippedNoSymbol.ToString())
+                .Metric("Skipped — not a fixture / unmapped", res.SkippedNoMapping.ToString())
+                .Metric("Skipped — seedless category", res.SkippedSeedless.ToString())
+                .Metric("Skipped — seed not built",   res.SkippedNoSymbol.ToString())
                 .Metric("Skipped — not hosted",   res.SkippedNotHosted.ToString())
-                .Metric("Skipped — mapped, empty layer", res.SkippedExplodedNoPoint.ToString());
+                .Metric("Skipped — mapped, empty layer", res.SkippedExplodedNoPoint.ToString())
+                .Metric("De-duped vs block insert", res.DedupedAgainstBlock.ToString());
 
             if (res.IncludedLineClusters)
                 panel.MetricWarn("Capture mode", "EXPERIMENTAL line-cluster ON",

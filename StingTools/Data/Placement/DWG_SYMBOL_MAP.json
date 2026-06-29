@@ -7,7 +7,7 @@
     "anchor seeds PlacementHostPreflight's host search (wall vs ceiling) for the synthetic rule; the block's own point is always the placement location. WALL_MIDPOINT/WALL_FACE_OFFSET -> nearest wall; CEILING_CENTRE -> nearest ceiling; ROOM_CENTRE -> level-based.",
     "categoryFallback handles blocks with no rule match, keyed by the coarse CADToModelEngine InferredCategory.",
     "skipCategories are runs/structure, not fixtures (handled by the duct/pipe/conduit modeller, not this bridge).",
-    "Project override: <project>/_BIM_COORD/dwg_symbol_map.json (same shape) is layered over this corporate baseline. Seed/indicative — extend per project."
+    "Project override: <project>/_BIM_COORD/dwg_symbol_map.json (same shape) is layered over this corporate baseline. Seed/indicative - extend per project."
   ],
   "rules": [
     { "match": "blockName", "pattern": "SOCKET",     "category": "Electrical Fixtures",    "anchor": "WALL_MIDPOINT" },
@@ -46,18 +46,45 @@
     { "match": "blockName", "pattern": "SHOWER",      "category": "Plumbing Fixtures",      "variantHint": "SHOWER", "anchor": "WALL_FACE_OFFSET" },
     { "match": "blockName", "pattern": "JB",          "category": "Electrical Equipment",   "anchor": "WALL_MIDPOINT" },
     { "match": "blockName", "pattern": "JUNCTION",    "category": "Electrical Equipment",   "anchor": "WALL_MIDPOINT" },
-    { "match": "layer",     "pattern": "light",       "category": "Lighting Fixtures",      "anchor": "CEILING_CENTRE" },
+    { "match": "layer",     "pattern": "lighting",    "category": "Lighting Fixtures",      "anchor": "CEILING_CENTRE" },
+    { "match": "layer",     "pattern": "luminaire",   "category": "Lighting Fixtures",      "anchor": "CEILING_CENTRE" },
+    { "match": "layer",     "pattern": "socket",      "category": "Electrical Fixtures",    "anchor": "WALL_MIDPOINT" },
+    { "match": "layer",     "pattern": "small power", "category": "Electrical Fixtures",    "anchor": "WALL_MIDPOINT" },
+    { "match": "layer",     "pattern": "data outlet", "category": "Data Devices",           "anchor": "WALL_MIDPOINT" },
     { "match": "layer",     "pattern": "sprinkler",   "category": "Sprinklers",             "variantHint": "PENDANT", "anchor": "CEILING_CENTRE" },
-    { "match": "layer",     "pattern": "alarm",       "category": "Fire Alarm Devices",     "anchor": "CEILING_CENTRE" }
+    { "match": "layer",     "pattern": "smoke",       "category": "Fire Alarm Devices",     "variantHint": "SMOKE_OPTICAL", "anchor": "CEILING_CENTRE" },
+    { "match": "layer",     "pattern": "fire alarm",  "category": "Fire Alarm Devices",     "anchor": "CEILING_CENTRE" },
+    { "match": "layer",     "pattern": "sanitary",    "category": "Plumbing Fixtures",      "anchor": "WALL_FACE_OFFSET" },
+    { "match": "layer",     "pattern": "diffuser",    "category": "Air Terminals",          "variantHint": "SUPPLY_DIFFUSER_SQ", "anchor": "CEILING_CENTRE" }
   ],
   "categoryFallback": {
     "Electrical":      { "category": "Electrical Fixtures",  "anchor": "WALL_MIDPOINT" },
     "Plumbing":        { "category": "Plumbing Fixtures",    "anchor": "WALL_FACE_OFFSET" },
     "Fire Protection": { "category": "Sprinklers",           "variantHint": "PENDANT", "anchor": "CEILING_CENTRE" },
-    "Equipment":       { "category": "Mechanical Equipment", "anchor": "WALL_MIDPOINT" },
-    "Furniture":       { "category": "Furniture",            "anchor": "ROOM_CENTRE" },
-    "Doors":           { "category": "Doors",                "anchor": "WALL_MIDPOINT" },
-    "Windows":         { "category": "Windows",              "anchor": "WALL_MIDPOINT" }
+    "Equipment":       { "category": "Mechanical Equipment", "anchor": "WALL_MIDPOINT" }
   },
-  "skipCategories": [ "Ducts", "Pipes", "Conduits", "Columns", "Walls" ]
+  "_fixtureCategoriesNote": "AUTHORITATIVE ALLOWLIST: the bridge ONLY places these (MEP/fixture) categories. Any rule/fallback/auto-inference that resolves to a category NOT in this list returns null (not a fixture) - so Doors/Windows/Furniture/Structural/annotation layers are never auto-mapped or placed. Every entry must resolve to a seed via STING_CATEGORY_TO_SEED_MAP.json. Projects extend (union) this via the _BIM_COORD/dwg_symbol_map.json override.",
+  "fixtureCategories": [
+    "Lighting Fixtures",
+    "Lighting Devices",
+    "Electrical Fixtures",
+    "Electrical Equipment",
+    "Junction Boxes",
+    "Communication Devices",
+    "Data Devices",
+    "Telephone Devices",
+    "Security Devices",
+    "Nurse Call Devices",
+    "Fire Alarm Devices",
+    "Fire Protection",
+    "Sprinklers",
+    "Air Terminals",
+    "Mechanical Equipment",
+    "Mechanical Control Devices",
+    "Duct Accessories",
+    "Plumbing Fixtures",
+    "Plumbing Equipment",
+    "Specialty Equipment"
+  ],
+  "skipCategories": [ "Ducts", "Pipes", "Conduits", "Columns", "Walls", "Doors", "Windows", "Furniture", "Casework", "Stairs", "Generic Models", "Parking" ]
 }
