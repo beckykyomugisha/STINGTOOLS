@@ -306,6 +306,15 @@ namespace StingTools.Commands.Sustainability
              .Metric("On-site PV", $"{res.Energy?.PvGenerationKwh:F0} kWh/yr")
              .Metric("Net import", $"{res.Energy?.NetImportKwh:F0} kWh/yr")
              .Metric("Operational carbon", $"{res.Energy?.OperationalCarbonKgYr:F0} kgCO2e/yr", $"supply mode {setup.Supply?.Mode}");
+            // WS I3 — show the grid factor + its source; flag a default factor.
+            if (res.GridCarbon != null)
+            {
+                string note = res.GridCarbon.Source;
+                if (res.GridCarbon.IsDefault)
+                    b.MetricWarn("Grid factor", $"{res.GridCarbon.Factor:0.00} kgCO2e/kWh", "default factor — set project country");
+                else
+                    b.Metric("Grid factor", $"{res.GridCarbon.Factor:0.00} kgCO2e/kWh", note);
+            }
 
             // WS H4 — one whole-life carbon figure (embodied A1-A3 + operational over
             // the study period); carbon only. Study period matches the RIBA-stage view.

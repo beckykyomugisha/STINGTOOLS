@@ -39,6 +39,8 @@ namespace StingTools.Core.Sustainability
         public SustainReadinessResult Readiness { get; set; }
         /// <summary>WS I1 — how the building use was resolved (setup / model / unset).</summary>
         public BuildingUseResolution ResolvedUse { get; set; }
+        /// <summary>WS I3 — the grid carbon factor used + whether it's a labelled default.</summary>
+        public GridCarbonResolution GridCarbon { get; set; }
         public List<SchemeResult>    Schemes { get; } = new List<SchemeResult>();
         public ClimateMonthlySite    Climate { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -142,6 +144,27 @@ namespace StingTools.Core.Sustainability
                     $"No climate site or zone set — the baseline location is a best-guess " +
                     $"({res.Baseline?.Summary}). Set Climate site id and/or Climate zone in Setup for a " +
                     "defensible baseline; hot / tropical sites differ materially from the temperate default.");
+
+            // ── WS I3 — grid carbon factor from the project country (not a hardcoded
+            //    0.45). The user's explicit supply override wins; else the per-country
+            //    seed/override; else the labelled default. Feeds the supply layer. ──
+            var gridReg = SustainabilityRegistries.GridCarbon(doc);
+            bool userGridSet = setup.Supply != null && setup.Supply.GridCarbonKgco2eKwh > 0
+                               && Math.Abs(setup.Supply.GridCarbonKgco2eKwh - gridReg.Default) > 1e-9;
+            if (userGridSet)
+                res.GridCarbon = new GridCarbonResolution
+                {
+                    Country = setup.Country, Factor = setup.Supply.GridCarbonKgco2eKwh,
+                    Source = "user override", IsDefault = false
+                };
+            else
+            {
+                res.GridCarbon = gridReg.Resolve(setup.Country);
+                if (setup.Supply != null) setup.Supply.GridCarbonKgco2eKwh = res.GridCarbon.Factor;
+            }
+            if (res.GridCarbon.IsDefault)
+                res.Warnings.Add($"Grid carbon factor is a default ({res.GridCarbon.Factor:0.00} kgCO₂e/kWh) — " +
+                                 "set the project country (or override grid_carbon_factors.json) for a real grid factor.");
 
             // ── Energy (annual; reuse LoadZone inventory) ──
             var zones = GatherZones(doc, setup, res.Warnings);

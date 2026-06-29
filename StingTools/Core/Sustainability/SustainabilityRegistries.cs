@@ -23,6 +23,7 @@ namespace StingTools.Core.Sustainability
         public const string MeasuresFile  = "STING_GREEN_MEASURES.json";
         public const string MonthlyFile   = "STING_CLIMATE_MONTHLY.json";
         public const string IceEnergyFile = "STING_ICE_EMBODIED_ENERGY.json";
+        public const string GridCarbonFile = "STING_GRID_CARBON_FACTORS.json";
 
         private static readonly ConcurrentDictionary<string, GreenSchemeRegistry> _schemes
             = new ConcurrentDictionary<string, GreenSchemeRegistry>(StringComparer.OrdinalIgnoreCase);
@@ -36,6 +37,8 @@ namespace StingTools.Core.Sustainability
             = new ConcurrentDictionary<string, ClimateMonthlyRegistry>(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, IceEmbodiedEnergyRegistry> _iceEnergy
             = new ConcurrentDictionary<string, IceEmbodiedEnergyRegistry>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, GridCarbonRegistry> _gridCarbon
+            = new ConcurrentDictionary<string, GridCarbonRegistry>(StringComparer.OrdinalIgnoreCase);
 
         public static GreenSchemeRegistry Schemes(Document doc)
             => _schemes.GetOrAdd(Key(doc), _ =>
@@ -63,10 +66,15 @@ namespace StingTools.Core.Sustainability
             => _iceEnergy.GetOrAdd(Key(doc), _ =>
                 IceEmbodiedEnergyRegistry.LoadFromFiles(Corp(IceEnergyFile), Proj(doc, "ice_embodied_energy.json")));
 
+        /// <summary>Per-country grid carbon-factor registry — WS I3/I9.</summary>
+        public static GridCarbonRegistry GridCarbon(Document doc)
+            => _gridCarbon.GetOrAdd(Key(doc), _ =>
+                GridCarbonRegistry.LoadFromFiles(Corp(GridCarbonFile), Proj(doc, "grid_carbon_factors.json")));
+
         public static void Reload()
         {
             _schemes.Clear(); _baselines.Clear(); _water.Clear(); _measures.Clear(); _monthly.Clear();
-            _iceEnergy.Clear();
+            _iceEnergy.Clear(); _gridCarbon.Clear();
         }
 
         public static void Reload(Document doc)
@@ -78,6 +86,7 @@ namespace StingTools.Core.Sustainability
             _measures.TryRemove(k, out _);
             _monthly.TryRemove(k, out _);
             _iceEnergy.TryRemove(k, out _);
+            _gridCarbon.TryRemove(k, out _);
         }
 
         // ── Path helpers ─────────────────────────────────────────────────
