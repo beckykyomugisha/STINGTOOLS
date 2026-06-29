@@ -211,7 +211,9 @@ namespace StingTools.Commands.Sustainability
                 EnergyEuiKwhM2Yr   = Round(res.Energy?.DesignEuiKwhM2Yr),
                 EnergySavingsPct    = Round(res.Energy?.EnergySavingsPct),
                 WaterLPersonDay     = Round(res.Water?.DesignLPersonDay),
-                WaterSavingsPct     = Round(res.Water?.WaterSavingsPct),
+                // WS H5 — record the SAME inclusive water % the EDGE gate uses (fixture
+                // + alternative water), so the trend agrees with the on-screen pass/fail.
+                WaterSavingsPct     = Round(EdgeKpiSnapshot.GateWaterPct(res.Water)),
                 MaterialCarbonKgM2  = Round(res.Materials?.CarbonIntensityKgM2),
                 MaterialEnergyMjM2  = Round(res.Materials?.EnergyIntensityMjM2),
                 MaterialEnergySavingsPct = Round(res.Materials?.EmbodiedEnergySavingsPct),

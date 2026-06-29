@@ -41,6 +41,13 @@ namespace StingTools.Core.Sustainability
         public string Country     { get; set; } = "";
         public string ClimateZone { get; set; } = "";
 
+        /// <summary>WS H5 — the water % the snapshot must record: the SAME inclusive
+        /// metric (fixture efficiency + alternative water) the EDGE water gate uses
+        /// (AnnualWaterMetricProvider), so the persisted trend agrees with the
+        /// on-screen pass/fail. Falls back to the fixture-only % when no result.</summary>
+        public static double GateWaterPct(WaterEstimateResult w)
+            => w == null ? 0 : w.WaterSavingsInclAltPct;
+
         // ── Persistence ──────────────────────────────────────────────────
 
         public static string Dir(string projectDir)
