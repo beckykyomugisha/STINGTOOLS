@@ -114,8 +114,16 @@ namespace StingTools.BOQ
                 var rule = ruleRegistry.Match(catName, disc, prod);
                 if (rule == null) return false;
 
-                double qty = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
-                if (rule.WastePercent > 0) qty *= 1.0 + rule.WastePercent / 100.0;
+                // WP2 — measure via the SAME path the bill uses (MeasureQuantity:
+                // NRM2/CESMM opening/void deductions + the project default waste),
+                // so the stamped CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX equals
+                // the element's BOQ row instead of the raw rule quantity + only
+                // rule.WastePercent (which skipped deductions and the default waste).
+                string stdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+                if (string.IsNullOrWhiteSpace(stdId)) stdId = "nrm2";
+                var measStd = MeasurementStandard.MeasurementStandardRegistry.Get(stdId);
+                double qty = BOQCostManager.MeasureQuantity(el, rule.Unit ?? "each", catName, measStd,
+                    out _, out _, out _, out _);
                 if (qty <= 0.0001) return false;
 
                 // Resolve rate via the per-batch cache → registry. Cache

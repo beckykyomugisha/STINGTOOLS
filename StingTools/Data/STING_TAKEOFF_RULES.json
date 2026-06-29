@@ -80,35 +80,35 @@
       "matchDiscipline": "*",
       "matchProdCode": "*",
       "unit": "m3",
-      "quantitySource": "HOST_VOLUME_COMPUTED",
+      "quantitySource": "SolidVolume",
       "unitConversion": "ft3_to_m3",
       "wastePercent": 0,
       "nrm2Section": "4",
-      "description": "Foundation — concrete to specified mix"
+      "description": "Foundation — concrete to specified mix (WP2: true solid volume, not the often-empty HOST_VOLUME_COMPUTED)"
     },
     {
       "id": "column",
       "matchCategory": "Column",
       "matchDiscipline": "*",
       "matchProdCode": "*",
-      "unit": "each",
-      "quantitySource": "literal:1.0",
-      "unitConversion": "none",
+      "unit": "m3",
+      "quantitySource": "SolidVolume",
+      "unitConversion": "ft3_to_m3",
       "wastePercent": 0,
       "nrm2Section": "15",
-      "description": "Structural column"
+      "description": "Structural column — RC by volume (WP2: priced per m3 in cost_rates_5d.csv; reads true solid geometry, not literal 1.0)"
     },
     {
       "id": "framing",
       "matchCategory": "Framing",
       "matchDiscipline": "*",
       "matchProdCode": "*",
-      "unit": "each",
-      "quantitySource": "literal:1.0",
-      "unitConversion": "none",
+      "unit": "m",
+      "quantitySource": "LocationCurve",
+      "unitConversion": "ft_to_m",
       "wastePercent": 0,
       "nrm2Section": "15",
-      "description": "Structural framing member"
+      "description": "Structural framing member — per linear metre (WP2: priced per m in cost_rates_5d.csv; reads member length, not literal 1.0)"
     },
     {
       "id": "truss",

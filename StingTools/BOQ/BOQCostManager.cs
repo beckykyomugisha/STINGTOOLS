@@ -909,7 +909,7 @@ namespace StingTools.BOQ
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
                         if (areaP != null && areaP.HasValue)
                             return WasteFactor.Apply(areaP.AsDouble() * 0.092903, unit, wastePct); // ft² → m²
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "m³":
                     case "m3":
                     case "cum":
@@ -917,7 +917,7 @@ namespace StingTools.BOQ
                         if (volP != null && volP.HasValue)
                             // waste + (opt-in) concrete over-order buffer, once.
                             return MeasuredAddition.GrossUp(volP.AsDouble() * 0.0283168, unit, wastePct, concreteBuffer); // ft³ → m³
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "m":
                         if (el.Location is LocationCurve lc)
                             return WasteFactor.Apply(lc.Curve.Length * 0.3048, unit, wastePct); // ft → m
@@ -925,7 +925,7 @@ namespace StingTools.BOQ
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         if (lenP != null && lenP.HasValue)
                             return WasteFactor.Apply(lenP.AsDouble() * 0.3048, unit, wastePct);
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "kg":
                     case "tonne":
                     case "tonnes":
@@ -933,12 +933,27 @@ namespace StingTools.BOQ
                         if (massP != null && massP.HasValue)
                             // waste + (opt-in) rebar lap allowance, once.
                             return MeasuredAddition.GrossUp(massP.AsDouble(), unit, wastePct, rebarLap);
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     default:
-                        return 1.0;
+                        return MeasuredFallback(unit);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
+            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return MeasuredFallback(unit); }
+        }
+
+        /// <summary>
+        /// WP2 — the "could not measure" fallback. MEASURED units (m/m²/m³/kg)
+        /// return 0 (a visible sentinel the uncosted-at-risk rollup catches and
+        /// the build down-grades to low confidence) instead of a fake 1.0; count
+        /// units ('each'/'item'/'nr') legitimately stay 1.
+        /// </summary>
+        private static double MeasuredFallback(string unit)
+        {
+            switch ((unit ?? "").Trim().ToLowerInvariant())
+            {
+                case "each": case "item": case "nr": case "no": case "": return 1.0;
+                default: return 0.0;
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -1025,23 +1040,27 @@ namespace StingTools.BOQ
                 {
                     case "m²": case "m2": case "sqm":
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
-                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : 1.0;
+                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : MeasuredFallback(unit);
                     case "m³": case "m3": case "cum":
                         Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
-                        return (volP != null && volP.HasValue) ? volP.AsDouble() * 0.0283168 : 1.0;
+                        if (volP != null && volP.HasValue && volP.AsDouble() > 0) return volP.AsDouble() * 0.0283168;
+                        // WP2 — host volume is often empty on framing/columns; fall
+                        // back to true solid geometry (m³) before the sentinel.
+                        double geomM3 = ReadGeometryVolumeM3(el);
+                        return geomM3 > 0 ? geomM3 : MeasuredFallback(unit);
                     case "m":
                         if (el.Location is LocationCurve lc) return lc.Curve.Length * 0.3048;
                         Parameter lenP = el.LookupParameter("Length")
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : 1.0;
+                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : MeasuredFallback(unit);
                     case "kg": case "tonne": case "tonnes":
                         Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
-                        return (massP != null && massP.HasValue) ? massP.AsDouble() : 1.0;
+                        return (massP != null && massP.HasValue) ? massP.AsDouble() : MeasuredFallback(unit);
                     default:
-                        return 1.0;
+                        return MeasuredFallback(unit);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return 1.0; }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return MeasuredFallback(unit); }
         }
 
         /// <summary>
