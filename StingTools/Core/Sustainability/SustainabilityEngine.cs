@@ -18,6 +18,7 @@ using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Hvac.Loads;
 using StingTools.Core.Climate;
+using StingTools.Core.Plumbing;   // RainwaterHarvestingCalc (WS A4)
 
 namespace StingTools.Core.Sustainability
 {
@@ -65,7 +66,7 @@ namespace StingTools.Core.Sustainability
             res.Warnings.AddRange(res.Energy.Warnings);
 
             // ── Water (occupancy parameter; RWH + greywater) ──
-            res.Water = EstimateWater(doc, setup, baseline);
+            res.Water = EstimateWater(doc, setup, baseline, res.Climate);
             res.Warnings.AddRange(res.Water.Warnings);
 
             // ── Materials (dual metric; full BOQ carbon path) ──
@@ -351,15 +352,17 @@ namespace StingTools.Core.Sustainability
 
         // ── Water ──────────────────────────────────────────────────────────
 
-        private static WaterEstimateResult EstimateWater(Document doc, SustainProjectSetup setup, GreenBaseline baseline)
+        private static WaterEstimateResult EstimateWater(Document doc, SustainProjectSetup setup,
+                                                         GreenBaseline baseline, ClimateMonthlySite climate)
         {
             var profileReg = SustainabilityRegistries.WaterProfiles(doc);
             var profile = profileReg.Get(setup.DominantBuildingUse);
 
             var baselineFlows = FixtureFlows.FromBaseline(baseline);
-            // Design flows: read model low-flow fixtures if available; else assume a
-            // 25% improvement over the baseline (indicative until fixtures carry flows).
-            var modelFlows = ReadDesignFixtureFlows(doc);
+            // WS A4 / D3 — read real low-flow fixture flows from OST_PlumbingFixtures.
+            // Only fall back to the 25%-over-baseline indicative default when the model
+            // carries no fixture flow data (the IsIndicativeDefault flag stays honest).
+            var modelFlows = ReadDesignFixtureFlows(doc, baselineFlows);
             bool indicative = modelFlows == null;
             var designFlows = modelFlows ?? new FixtureFlows
             {
@@ -371,25 +374,173 @@ namespace StingTools.Core.Sustainability
             };
 
             int occupancy = setup.TotalOccupancy;
-            // RWH yield is a project hook (RainwaterHarvestingCalc) — 0 here until a
-            // project supplies roof area + rainfall; greywater reuse is a setup fraction.
+
+            // WS A4 — real RWH yield via RainwaterHarvestingCalc (BS 8515): roof area
+            // (PLM_STORM_ROOF_M2 or summed OST_Roofs) + rainfall from the single
+            // climate source, sized against the non-potable (WC+urinal) demand RWH
+            // serves. EDGE credits this toward the water gate (WaterSavingsInclAltPct).
+            double rwhYieldL = ComputeRwhYieldL(doc, climate, designFlows, profile, occupancy, out var rwhWarn);
+
             var w = AnnualWaterEstimator.Estimate(designFlows, baselineFlows, profile, occupancy,
-                rwhYieldLPerYr: 0, greywaterReuseFraction: setup.Supply?.GreywaterReuseFraction ?? 0);
+                rwhYieldLPerYr: rwhYieldL, greywaterReuseFraction: setup.Supply?.GreywaterReuseFraction ?? 0);
             w.IsIndicativeDefault = indicative;
             if (indicative)
                 w.Warnings.Add("Water % is an indicative 25%-over-baseline default — no low-flow " +
-                               "fixture data read from the model (stamp PLM_* flows for a real figure).");
+                               "fixture data read from the model (stamp fixture flush/flow values for a real figure).");
+            if (!string.IsNullOrEmpty(rwhWarn)) w.Warnings.Add(rwhWarn);
             return w;
         }
 
-        /// <summary>Read low-flow fixture flows from the model (best-effort).
-        /// Returns null when no flow data is found (caller falls back).</summary>
-        private static FixtureFlows ReadDesignFixtureFlows(Document doc)
+        /// <summary>Candidate parameter names carrying a per-fixture flush volume
+        /// (litres) — best-effort, override-friendly (a project can stamp any of
+        /// these). No project-defining value is hardcoded; these are integration
+        /// hooks, like NativeParamMapper's Revit-name list.</summary>
+        private static readonly string[] FlushParamNames =
+            { "SUS_FIXTURE_FLUSH_L", "PLM_WC_FLUSH_L", "WC_FLUSH_VOLUME_L", "Flush Volume" };
+
+        /// <summary>Candidate parameter names carrying a per-fixture flow rate (L/min).</summary>
+        private static readonly string[] FlowLpmParamNames =
+            { "SUS_FIXTURE_FLOW_LPM", "PLM_FIXTURE_FLOW_LPM", "Flow Rate" };
+
+        /// <summary>Read design fixture flows from OST_PlumbingFixtures (WS A4 / D3).
+        /// Flush volume (WC/urinal) is read from a stamped flush parameter; flow rate
+        /// (taps/showers) from a stamped flow parameter, else derived from the largest
+        /// supply MEP connector flow. Returns null when no real datum is found so the
+        /// caller keeps the honest indicative default.</summary>
+        private static FixtureFlows ReadDesignFixtureFlows(Document doc, FixtureFlows fallback)
         {
-            // Fixtures rarely carry consistent flow params across libraries; this is
-            // a hook for projects that stamp PLM_* flow data. Until then, return null
-            // so the engine uses the 25%-over-baseline indicative default.
-            return null;
+            try
+            {
+                var agg = new WaterFixtureAggregator();
+                var fixtures = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                foreach (var fx in fixtures)
+                {
+                    string name = $"{ParameterHelpers.GetFamilyName(fx)} {ParameterHelpers.GetFamilySymbolName(fx)} {fx.Name}";
+                    var kind = WaterFixtureAggregator.Classify(name);
+                    if (kind == WaterFixtureAggregator.FixtureKind.Unknown) continue;
+
+                    double flushL = ReadFirstDouble(fx, FlushParamNames);
+                    double flowLpm = ReadFirstDouble(fx, FlowLpmParamNames);
+                    // Taps/showers: if no explicit flow param, derive from the largest
+                    // supply connector flow (L/s → L/min) — the most universally present
+                    // real flow datum on a plumbing fixture.
+                    if (flowLpm <= 0 &&
+                        (kind == WaterFixtureAggregator.FixtureKind.Basin
+                         || kind == WaterFixtureAggregator.FixtureKind.Shower
+                         || kind == WaterFixtureAggregator.FixtureKind.Kitchen))
+                        flowLpm = ConnectorFlowLpm(fx);
+
+                    agg.AddByName(name, flushL, flowLpm);
+                }
+
+                return agg.BuildOrNull(fallback);
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ReadDesignFixtureFlows: {ex.Message}"); return null; }
+        }
+
+        private static double ReadFirstDouble(Element el, string[] names)
+        {
+            foreach (var n in names)
+            {
+                try
+                {
+                    var p = el.LookupParameter(n);
+                    if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                    {
+                        double v = p.AsDouble();
+                        if (v > 0) return v;
+                    }
+                }
+                catch { }
+            }
+            return 0;
+        }
+
+        /// <summary>Largest supply MEP-connector flow on a fixture, L/min (0 when none).</summary>
+        private static double ConnectorFlowLpm(Element el)
+        {
+            try
+            {
+                var fi = el as FamilyInstance;
+                var cm = fi?.MEPModel?.ConnectorManager;
+                if (cm == null) return 0;
+                double maxLs = 0;
+                foreach (Connector c in cm.Connectors)
+                {
+                    try
+                    {
+                        if (c.Domain != Domain.DomainPiping) continue;
+                        double ls = UnitUtils.ConvertFromInternalUnits(c.Flow, UnitTypeId.LitersPerSecond);
+                        if (ls > maxLs) maxLs = ls;
+                    }
+                    catch { }
+                }
+                return maxLs * 60.0;   // L/s → L/min
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Annual RWH yield (litres) via RainwaterHarvestingCalc (BS 8515),
+        /// sized against the non-potable (WC+urinal) demand. Roof area from
+        /// PLM_STORM_ROOF_M2 on ProjectInformation, else summed OST_Roofs. Rainfall
+        /// from the climate registry (monthly when available). WS A4.</summary>
+        private static double ComputeRwhYieldL(Document doc, ClimateMonthlySite climate,
+            FixtureFlows designFlows, WaterUsageProfile profile, int occupancy, out string warning)
+        {
+            warning = null;
+            try
+            {
+                if (climate == null || occupancy <= 0) return 0;
+                double roofM2 = ResolveRoofAreaM2(doc);
+                if (roofM2 <= 0) return 0;
+
+                double annualRainMm = climate.AnnualRainfallMm;
+                double[] monthlyMm = (climate.RainfallMm != null && climate.RainfallMm.Length == 12 && climate.AnnualRainfallMm > 0)
+                    ? climate.RainfallMm : null;
+                if (annualRainMm <= 0) { warning = "RWH not computed — no rainfall data for the resolved climate site."; return 0; }
+
+                double nonPotableLpd = AnnualWaterEstimator.NonPotableLPersonDay(designFlows, profile);
+                double dailyDemandM3 = nonPotableLpd * occupancy / 1000.0;
+                if (dailyDemandM3 <= 0) return 0;
+
+                // runoff + filter efficiency default inside the calc (BS 8515) when ≤ 0.
+                var rwh = RainwaterHarvestingCalc.Calculate(
+                    roofAreaM2: roofM2, annualRainfallMm: annualRainMm,
+                    runoffCoefficient: 0, filterEfficiency: 0,
+                    dailyDemandM3: dailyDemandM3, monthlyRainfallMm: monthlyMm);
+                return rwh.AnnualYieldM3 * 1000.0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ComputeRwhYieldL: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>Roof catchment area, m² — PLM_STORM_ROOF_M2 on ProjectInformation
+        /// first (lets a project set it directly), else the summed OST_Roofs area.</summary>
+        private static double ResolveRoofAreaM2(Document doc)
+        {
+            try
+            {
+                double stamped = ReadFirstDouble(doc.ProjectInformation, new[] { "PLM_STORM_ROOF_M2" });
+                if (stamped > 0) return stamped;
+            }
+            catch { }
+            try
+            {
+                double sumFt2 = 0;
+                var roofs = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Roofs)
+                    .WhereElementIsNotElementType();
+                foreach (var r in roofs)
+                {
+                    var p = r.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                    if (p != null && p.HasValue) sumFt2 += p.AsDouble();
+                }
+                return sumFt2 > 0 ? UnitUtils.ConvertFromInternalUnits(sumFt2, UnitTypeId.SquareMeters) : 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain ResolveRoofAreaM2: {ex.Message}"); return 0; }
         }
 
         // ── Materials — share the BOQ carbon path (WS A3) ──────────────────

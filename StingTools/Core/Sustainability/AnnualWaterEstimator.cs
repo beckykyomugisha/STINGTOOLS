@@ -105,6 +105,19 @@ namespace StingTools.Core.Sustainability
             return total;
         }
 
+        /// <summary>Non-potable litres/person·day (WC + urinal flushing) — the demand
+        /// rainwater harvesting / greywater typically serves. Used by the orchestration
+        /// engine to size the RWH yield cap against a realistic non-potable demand
+        /// rather than total demand. WS A4.</summary>
+        public static double NonPotableLPersonDay(FixtureFlows flows, WaterUsageProfile profile)
+        {
+            if (flows == null || profile == null) return 0;
+            double total = 0;
+            if (profile.Fixtures.TryGetValue("wc", out var wc))     total += flows.WcLpf * wc.Uses;
+            if (profile.Fixtures.TryGetValue("urinal", out var ur)) total += flows.UrinalLpf * ur.Uses;
+            return total;
+        }
+
         /// <summary>
         /// Full water estimate. designFlows = model low-flow fixtures;
         /// baseline = resolved baseline fixture flows; occupancy is a parameter.
