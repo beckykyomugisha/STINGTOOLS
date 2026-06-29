@@ -2023,6 +2023,8 @@ namespace StingTools.Core
                 // reachable from workflow presets + NLP (WS H1). Same tags the panel uses.
                 case "Sustain_AutoFill":       return new Commands.Sustainability.SustainAutoFillCommand();
                 case "Sustain_ReadinessCheck": return new Commands.Sustainability.SustainReadinessCheckCommand();
+                case "Sustain_GenerateDeliverable": return new Commands.Sustainability.SustainGenerateDeliverableCommand();
+                case "Sustain_CompareOptions": return new Commands.Sustainability.SustainCompareOptionsCommand();
                 case "Sustain_ProjectSetup":   return new Commands.Sustainability.SustainProjectSetupCommand();
                 case "Sustain_SupplyConfig":   return new Commands.Sustainability.SustainSupplyConfigCommand();
                 case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();
