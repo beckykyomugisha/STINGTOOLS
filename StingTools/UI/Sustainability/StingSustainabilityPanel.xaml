@@ -151,7 +151,7 @@
                                        ToolTip="Gross floor area. Required for energy + materials intensity when the model has no MEP Spaces."/>
                             <TextBlock Grid.Row="5" Grid.Column="0" Text="Occupancy (total)" Style="{StaticResource SusLabel}"/>
                             <TextBox   Grid.Row="5" Grid.Column="1" x:Name="txtOccupancy" Margin="0,2" FontSize="10"
-                                       ToolTip="Total occupants. Drives water annual demand. Use 'From model' to estimate from spaces/rooms."/>
+                                       ToolTip="Total occupants — drives energy + water. Leave BLANK to derive from the model / load-profile density. Type a value to OVERRIDE a wrong modelled headcount (e.g. a Revit-default 17 on a small dwelling that inflates the EUI)."/>
                             <TextBlock Grid.Row="6" Grid.Column="0" Text="" Style="{StaticResource SusLabel}"/>
                             <Button    Grid.Row="6" Grid.Column="1" Content="⤓ From model (area + occupancy)" HorizontalAlignment="Left"
                                        Style="{StaticResource SusActionBtn}" Tag="Sustain_AutoFill" Click="Cmd_Click" Margin="0,2"/>

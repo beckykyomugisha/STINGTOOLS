@@ -34,6 +34,8 @@
     <Compile Include="..\StingTools\Core\Sustainability\WaterFixtureAggregator.cs" Link="Engines\WaterFixtureAggregator.cs" />
     <!-- WS H2 — project occupancy resolver (pure). -->
     <Compile Include="..\StingTools\Core\Sustainability\SustainOccupancy.cs" Link="Engines\SustainOccupancy.cs" />
+    <!-- WS O1 — occupancy plausibility sanity flag (pure). -->
+    <Compile Include="..\StingTools\Core\Sustainability\OccupancyPlausibility.cs" Link="Engines\OccupancyPlausibility.cs" />
     <!-- WS H4 — whole-life carbon roll-up (pure). -->
     <Compile Include="..\StingTools\Core\Sustainability\WholeLifeCarbon.cs" Link="Engines\WholeLifeCarbon.cs" />
     <!-- WS I1 — building-use resolver + readiness gate (pure). -->

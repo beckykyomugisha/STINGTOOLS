@@ -310,9 +310,18 @@ namespace StingTools.Commands.Sustainability
             // the not-computed state + reason (floor area / occupancy 0).
             if (res.Energy?.Computed == true)
             {
-                b.AddSection("Energy")
-                 .Metric("Design EUI", $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}")
-                 .Metric("Energy savings — indicative", $"{res.Energy.EnergySavingsPct:F1}%");
+                b.AddSection("Energy");
+                // WS O2 — when the occupancy is flagged implausible (a model-data artifact),
+                // the EUI stays shown but carries the same "indicative — verify input"
+                // framing the materials headline uses, so an inflated EUI reads as suspect.
+                bool occFlagged = res.OccupancyFlag?.Flagged == true;
+                if (occFlagged)
+                    b.MetricWarn("Design EUI",
+                        $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr — indicative, verify occupancy",
+                        $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}; {res.OccupancyFlag.Message}");
+                else
+                    b.Metric("Design EUI", $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}");
+                b.Metric("Energy savings — indicative", $"{res.Energy.EnergySavingsPct:F1}%");
                 // WS K5 — the resolved load profile + EDGE building-category mapping.
                 if (res.Profile != null)
                     b.Metric("Load profile", res.Profile.ProfileId,

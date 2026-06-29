@@ -47,6 +47,9 @@ namespace StingTools.Core.Sustainability
         /// (id + EDGE building type + provenance + DHW + operating days), so the run
         /// maps cleanly onto the EDGE app's building category.</summary>
         public ResolvedProfileInfo   Profile { get; set; }
+        /// <summary>WS O1 — occupancy plausibility sanity flag (model headcount vs the
+        /// resolved profile density). Flag only; never overrides the number.</summary>
+        public OccupancyPlausibilityResult OccupancyFlag { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public int ZonesGathered { get; set; }
         public int MaterialLines { get; set; }
@@ -60,6 +63,7 @@ namespace StingTools.Core.Sustainability
         public string EdgeBuildingType  { get; set; } = "";
         public string Source            { get; set; } = "";
         public double DhwLPerPersonDay  { get; set; }
+        public double OccupantDensityM2PerPerson { get; set; }   // WS O1
         public int    OperatingDaysPerYear { get; set; }
         public bool   IsFallback        { get; set; }
         public string RequestedUse      { get; set; } = "";
@@ -210,6 +214,7 @@ namespace StingTools.Core.Sustainability
                     {
                         ProfileId = pr.Profile.Id, EdgeBuildingType = pr.Profile.EdgeBuildingType,
                         Source = pr.Profile.Source, DhwLPerPersonDay = pr.Profile.DhwLPerPersonDay,
+                        OccupantDensityM2PerPerson = pr.Profile.OccupantDensityM2PerPerson,
                         OperatingDaysPerYear = pr.Profile.OperatingDaysPerYear,
                         IsFallback = pr.IsFallback, RequestedUse = pr.RequestedUse
                     };
@@ -239,6 +244,19 @@ namespace StingTools.Core.Sustainability
             if (occ.Occupancy > 0)
                 res.Warnings.Add($"Occupancy {occ.Occupancy} (source: {occ.Source}) — used for both the energy and " +
                                  "water estimates so the two gates share one population.");
+
+            // ── WS O1 — occupancy plausibility sanity flag. A modelled headcount that's
+            //    implausibly dense for the resolved use (e.g. a 170 m² dwelling with 17
+            //    people ≈ office density) is a model-data artifact: flag it (amber NOTE),
+            //    never change it, so an inflated EUI reads as suspect, not confident. ──
+            res.OccupancyFlag = OccupancyPlausibility.Evaluate(
+                floorAreaM2: res.Energy?.FloorAreaM2 ?? setup.TotalFloorAreaM2,
+                occupancy: occ.Occupancy, source: occ.Source,
+                use: res.Profile?.ProfileId ?? setup.DominantBuildingUse,
+                expectedDensityM2PerPerson: res.Profile?.OccupantDensityM2PerPerson ?? 0,
+                denseFactor: setup.OccupancyDenseFactor);
+            if (res.OccupancyFlag.Flagged)
+                res.Warnings.Insert(0, res.OccupancyFlag.Message);
 
             // ── Materials (dual metric; full BOQ carbon path) ──
             var lines = GatherMaterialLines(doc, setup, forceRefresh);

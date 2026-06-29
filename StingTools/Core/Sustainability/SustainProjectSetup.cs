@@ -150,6 +150,12 @@ namespace StingTools.Core.Sustainability
         /// undiscounted.</summary>
         public double DiscountRatePct { get; set; } = 3.5;
 
+        /// <summary>WS O1 — the modelled occupancy is flagged "unusually dense" when its
+        /// actual density (floor area / people) falls below this fraction of the resolved
+        /// profile's expected density. Seed 0.5 (overridable per project); a flag never
+        /// changes the number. 0 disables the dense check.</summary>
+        public double OccupancyDenseFactor { get; set; } = 0.5;
+
         public string UpdatedUtc { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
         // ── Derived helpers (used by the building-level rollup; spec §2.5 rule 4) ──
@@ -238,7 +244,8 @@ namespace StingTools.Core.Sustainability
               .Append("|study=").Append(StudyPeriodYears)
               .Append("|discount=").Append(DiscountRatePct.ToString("R"))
               .Append("|useExplicit=").Append(UseExplicit)
-              .Append("|occExplicit=").Append(OccupancyExplicit).Append('|');
+              .Append("|occExplicit=").Append(OccupancyExplicit)
+              .Append("|occDenseF=").Append(OccupancyDenseFactor.ToString("R")).Append('|');
             if (Zones != null)
                 foreach (var z in Zones)
                     sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')
