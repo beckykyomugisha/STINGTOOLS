@@ -2,35 +2,28 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
-## BOQ & Cost Manager — remaining from the Master Impl brief
+## BOQ & Cost Manager — remaining from the Master Impl + Measurement/QS briefs
 
-Branch `claude/boq-master-impl` landed WP0 (one costing/carbon API), WP1 (single
-canonical Contract Sum + VAT), WP3 core (Uganda/EDGE carbon factor table + default
-basis), WP5 (de-jargon) and several WP6 items. Still open:
+Branches `claude/boq-master-impl` (WP0/WP1/WP3-core/WP5/most WP6) and
+`claude/boq-measurement-qs` (WP-FIX, WP2 items 1-4/6/7, WP4a) landed. Still open:
 
-- **WP2 — measurement parity (tag = bill = IFC = snapshot).** Route `CostStamp`
-  through the same `MeasureQuantity` path as the export; explicit m³ takeoff rules
-  for Columns/Foundations (read solid geometry, not the often-empty host volume
-  param); replace the `1.0` "couldn't measure" placeholder with `0`/sentinel +
-  lowered confidence + a visible "could not measure" rollup; document-level
-  uncosted-value-at-risk rollup + a hard export gate below
-  `MinRateConfidenceForExport`; attribute shaft/host-less openings to the floors
-  they pierce; **per-material split** (compound walls/floors currently dump the
-  whole quantity on `GetMaterialIds().First()`); `ElementDesignOptionFilter` so
-  alternates aren't double-counted; prefer `ASS_DISCIPLINE_COD_TXT` + feed
-  `ASS_SYSTEM_TYPE_TXT` into NRM2/takeoff matching; replace remaining magic unit
-  literals with `UnitUtils.ConvertFromInternalUnits`.
-- **WP3 — remainder.** Drive carbon off the WP2 per-material priced takeoff (stop
-  re-deriving volume from assumed thicknesses); apply waste to carbon; adopt the
-  RICS fossil-headline / biogenic-separate convention consistently across the row,
-  the panel card, the pivot and the IFC GWP; populate the fossil/biogenic split;
-  repoint/relabel the dead legacy `CARBON_FACTORS.csv` loader; EN 15978
-  A1-A3/A4/A5/B/C/D module params; RAG the panel by kgCO₂e/m² intensity vs a
-  benchmark, not absolute thresholds.
-- **WP4 — QS lifecycle tools (net-new).** Tender comparison & adjudication;
-  final-account reconciliation (wire `BOQPricingMode.AsBuilt`); retention release
-  (the dormant `RetentionLedger` release half); variation approve/reject/incorporate
-  commands; fluctuations engine; materials-on-site valuation + statutory
+- **WP2 — remainder.** The full per-material COST-row split (multiple bill rows per
+  material — the carbon split + deterministic dominant material are done, but cost
+  still bills the whole element on its measured quantity); shaft/host-less opening
+  deductions attributed to the floors they pierce; feeding `ASS_SYSTEM_TYPE_TXT`
+  into NRM2/takeoff matching (the discipline preference is done); replacing the
+  remaining magic unit literals with `UnitUtils.ConvertFromInternalUnits`.
+- **WP3 — remainder.** Adopt the RICS fossil-headline / biogenic-separate
+  convention consistently across the row, the panel card, the pivot and the IFC GWP;
+  populate the fossil/biogenic split; repoint/relabel the dead legacy
+  `CARBON_FACTORS.csv` loader; EN 15978 A1-A3/A4/A5/B/C/D module params; RAG the
+  panel by kgCO₂e/m² intensity vs a benchmark, not absolute thresholds. (Carbon is
+  now driven off the per-material volumes with waste applied.)
+- **WP4 — QS lifecycle remainder.** Tender adjudication, final-account reconciliation
+  and variation approve/reject/incorporate are DONE (`claude/boq-measurement-qs`).
+  Still net-new: retention release (the dormant `RetentionLedger` release half); a
+  full fluctuations engine (index/NEDO formula method — currently a single
+  `COST_FLUCTUATIONS_UGX` total); materials-on-site valuation + statutory
   payment/pay-less notice dates; PC-sum mechanism distinct from provisional sums;
   time-phased EVM baseline (cost-loaded BCWS S-curve) + a unified monthly CVR;
   loss & expense / contra-charges registers.

@@ -3557,6 +3557,12 @@ namespace StingTools.UI
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
                     case "Variation_ReclassifyLegacy":  RunCommand<Commands.Cost.VariationReclassifyLegacyCommand>(app); break;
+                    // WP4a — variation approval workflow + final-account reconciliation.
+                    case "Variation_Approve":           RunCommand<Commands.Cost.VariationApproveCommand>(app); break;
+                    case "Variation_Reject":            RunCommand<Commands.Cost.VariationRejectCommand>(app); break;
+                    case "Variation_Incorporate":       RunCommand<Commands.Cost.VariationIncorporateCommand>(app); break;
+                    case "FinalAccount_Reconcile":      RunCommand<Commands.Cost.FinalAccountReconcileCommand>(app); break;
+                    case "Tender_Adjudicate":           RunCommand<Commands.Cost.TenderAdjudicateCommand>(app); break;
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;

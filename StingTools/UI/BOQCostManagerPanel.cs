@@ -1076,6 +1076,10 @@ namespace StingTools.UI
                     ("Add Manual / PS / Daywork", "BOQAddManualRow",
                      "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
                      "Survives a model rebuild.", false),
+                    ("Adjudicate Tenders", "Tender_Adjudicate",
+                     "Import N priced QS-Bill returns (one .xlsx per bidder), build a per-line × bidder comparison " +
+                     "matrix, flag arithmetic errors / unpriced rows / rate outliers / front-loading, rank by corrected " +
+                     "total and recommend the most advantageous. Award stamps the winner's rates as the contract baseline.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Automation",
@@ -1166,6 +1170,12 @@ namespace StingTools.UI
                      "Export all variations to CSV (number / status / value / signers)", false),
                     ("Reclassify Legacy",    "Variation_ReclassifyLegacy",
                      "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker", false),
+                    ("Approve",              "Variation_Approve",
+                     "Advance a Draft/Submitted/Reviewed variation to Approved (records you + date). Agreed variations flow into the Final Account.", false),
+                    ("Reject",               "Variation_Reject",
+                     "Mark a Draft/Submitted/Reviewed variation Rejected — it then drops out of the agreed totals.", false),
+                    ("Incorporate",          "Variation_Incorporate",
+                     "Advance an Approved variation to Incorporated (folded into the contract).", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Earned Value Management",
@@ -1186,6 +1196,8 @@ namespace StingTools.UI
                 {
                     ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
+                    ("Final Account", "FinalAccount_Reconcile",
+                     "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures; persists to _BIM_COORD/final_account.json.", false),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
                      "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
                     ("Preliminaries schedule", "BOQ_Prelims",

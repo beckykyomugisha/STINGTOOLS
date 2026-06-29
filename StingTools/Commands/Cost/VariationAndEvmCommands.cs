@@ -507,6 +507,113 @@ namespace StingTools.Commands.Cost
         }
     }
 
+    // ── Variation approval workflow (WP4a dependency) ─────────────────
+    //  Advance the existing VariationStatus state machine in-plugin, so a QS can
+    //  reach an AGREED variation (which the Anticipated Final Cost and the
+    //  Final-Account reconciliation both read) without hand-editing JSON.
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationApproveCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Approved);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationRejectCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Rejected);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationIncorporateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Incorporated);
+    }
+
+    internal static class VariationStatusAdvance
+    {
+        public static Result Run(ExternalCommandData commandData, ref string message, VariationStatus target)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var loaded = VariationEngine.ListVariations(doc)
+                    .Select(p => VariationEngine.Load(p)).Where(v => v != null).ToList();
+                var selectable = loaded.Where(v => CanTransition(v.Status, target))
+                    .OrderBy(v => v.ContractRef).ThenBy(v => v.Number).ToList();
+
+                if (selectable.Count == 0)
+                {
+                    StingResultPanel.Create($"Variation — {target}")
+                        .AddSection("NOTHING TO DO")
+                        .Text(loaded.Count == 0
+                            ? "No variations recorded."
+                            : $"No variation is in a state that can move to {target}.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                var labels = selectable
+                    .Select(v => $"{v.Number} · {v.ContractRef} · {v.Currency} {v.TotalValue:N0} · {v.Status}")
+                    .ToList();
+                string pick = StingListPicker.Show($"STING — {target} variation",
+                    $"Pick a variation to move to {target}", labels);
+                if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+                int idx = labels.IndexOf(pick);
+                if (idx < 0) return Result.Cancelled;
+                var vo = selectable[idx];
+
+                vo.Status = target;
+                if (target == VariationStatus.Approved || target == VariationStatus.Incorporated)
+                {
+                    vo.ApprovedBy = Environment.UserName;
+                    vo.ApprovalDate = DateTime.UtcNow;
+                }
+                VariationEngine.Save(doc, vo);
+
+                StingResultPanel.Create($"Variation {target}")
+                    .AddSection("UPDATED")
+                    .Metric("Variation", vo.Number)
+                    .Metric("New status", target.ToString())
+                    .Metric("Value", $"{vo.Currency} {vo.TotalValue:N0}")
+                    .Text("Agreed variations flow into the Anticipated Final Cost and the Final-Account reconciliation.")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Variation status → {target}", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static bool CanTransition(VariationStatus from, VariationStatus to)
+        {
+            switch (to)
+            {
+                case VariationStatus.Approved:
+                case VariationStatus.Rejected:
+                    return from == VariationStatus.Draft
+                        || from == VariationStatus.Submitted
+                        || from == VariationStatus.Reviewed;
+                case VariationStatus.Incorporated:
+                    return from == VariationStatus.Approved;
+                default:
+                    return false;
+            }
+        }
+    }
+
     // ── EVM ──────────────────────────────────────────────────────────
 
     [Transaction(TransactionMode.ReadOnly)]

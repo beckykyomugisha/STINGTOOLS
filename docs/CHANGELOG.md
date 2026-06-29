@@ -35,6 +35,30 @@ the real Revit 2025 API (and the server project where touched), 0 errors.
    category on the measure its rate's unit calls for (each→count, m³→volume,
    m→length, m²/default→area) instead of always rate × area.
 
+**WP4a — Two highest-value QS lifecycle tools + variation approval.**
+*Tender Comparison & Adjudication* (`Tender_Adjudicate`): imports N priced QS-Bill
+returns (each carrying the stable `_key` column from Export QS Bill), joins them
+onto the live bill, builds a per-line × bidder comparison matrix, runs
+arithmetic-error / unpriced-measured / rate-outlier (vs cross-bidder median,
+`COST_TENDER_OUTLIER_PCT` default 25) / basic front-loading checks, ranks bidders
+by corrected total and recommends the most advantageous. Exports an XLSX (matrix +
+adjudication summary + qualifications register), persists to
+`_BIM_COORD/tender_adjudication.json`, and on award stamps the winner's rates as
+protected model overrides with `RateSource = "tender:<bidder>"` so the awarded
+prices become the contract baseline.
+*Final-Account Reconciliation* (`FinalAccount_Reconcile`): the signed waterfall —
+Contract Sum (the WP1 canonical VAT-inclusive GrandTotal, frozen at award from
+`COST_CONTRACT_SUM_UGX` / a saved statement / the award snapshot) ± provisional &
+PC-sum actuals (`BoqProvisional` trail) ± agreed variations (`VariationEngine`,
+Approved + Incorporated) ± fluctuations (`COST_FLUCTUATIONS_UGX`) = Final Account,
+plus the as-built remeasure (live canonical total) and its variance. Reuses
+`BoqSignOff` for the draft→certified stamp, exports an XLSX (waterfall + variations
++ provisional annexures), and persists to `_BIM_COORD/final_account.json`.
+*Variation approval* (`Variation_Approve` / `_Reject` / `_Incorporate`): advance the
+existing `VariationStatus` state machine in-plugin (recording approver + date) so a
+QS reaches an agreed final account without hand-editing JSON. All three tools are
+wired into the command handler, the workflow resolver and the Actions tab.
+
 **WP2 — Measurement parity (tag = bill = IFC = snapshot) + per-material split.**
 1. *CostStamp parity.* `CostStamp.WriteIfEnabled` now measures via
    `BOQCostManager.MeasureQuantity` (the same NRM2/CESMM opening/void deductions +

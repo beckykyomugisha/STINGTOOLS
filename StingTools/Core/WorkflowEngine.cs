@@ -1623,6 +1623,12 @@ namespace StingTools.Core
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
                 // Phase 184p — reclassify legacy default-Other variations
                 case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
+                // WP4a — variation approval workflow + final-account + tender adjudication
+                case "Variation_Approve":          return new Commands.Cost.VariationApproveCommand();
+                case "Variation_Reject":           return new Commands.Cost.VariationRejectCommand();
+                case "Variation_Incorporate":      return new Commands.Cost.VariationIncorporateCommand();
+                case "FinalAccount_Reconcile":     return new Commands.Cost.FinalAccountReconcileCommand();
+                case "Tender_Adjudicate":          return new Commands.Cost.TenderAdjudicateCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
