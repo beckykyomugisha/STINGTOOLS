@@ -75,6 +75,30 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
+                // WP2 — uncosted-at-risk export gate. A professional/tender bill
+                // must not silently ship zero-value lines or below-confidence
+                // rates folded into the Contract Sum. Hard-warn with the exposure;
+                // the QS can override knowingly.
+                double minConf = BOQCostManager.MinRateConfidenceForExport();
+                var risk = BOQCostManager.ComputeUncostedRollup(boq, minConf);
+                if (risk.BlocksExport)
+                {
+                    var gate = new TaskDialog("Professional BOQ — pricing gate")
+                    {
+                        MainInstruction = "This bill has unpriced or low-confidence rows.",
+                        MainContent =
+                            $"• {risk.ZeroRateCount} measured row(s) have NO rate — ≈ UGX {risk.ValueAtRiskUGX:N0} at risk (proxy median rates).\n" +
+                            $"• {risk.LowConfidenceCount} row(s) priced below the confidence floor ({minConf:F0}).\n" +
+                            (risk.CouldNotMeasureCount > 0 ? $"• {risk.CouldNotMeasureCount} row(s) could not be measured (quantity 0).\n" : "") +
+                            "\nExporting now ships these into the Contract Sum. Price them first (QS round-trip / rate library), or proceed knowingly.",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                        AllowCancellation = true
+                    };
+                    if (gate.Show() != TaskDialogResult.Yes)
+                        return Result.Cancelled;
+                }
+
                 // Phase 108h / 108j — tender config acquisition.
                 // When invoked from the inline-panel flow on BOQCostManagerPanel
                 // the caller has already persisted config values to

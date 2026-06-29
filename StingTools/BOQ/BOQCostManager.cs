@@ -693,7 +693,7 @@ namespace StingTools.BOQ
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
 
-            string disc = DisciplineForCategory(catName);
+            string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
@@ -765,7 +765,7 @@ namespace StingTools.BOQ
             var req = new RateRequest
             {
                 CategoryName = catName ?? "",
-                Discipline = DisciplineForCategory(catName),
+                Discipline = ResolveDiscipline(el, catName),
                 ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
                 MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
@@ -854,7 +854,7 @@ namespace StingTools.BOQ
                 if (doc != null)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    string disc = DisciplineForCategory(catName);
+                    string disc = ResolveDiscipline(el, catName);
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
@@ -1024,7 +1024,7 @@ namespace StingTools.BOQ
                 if (doc != null)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    string disc = DisciplineForCategory(catName);
+                    string disc = ResolveDiscipline(el, catName);
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
@@ -1075,7 +1075,7 @@ namespace StingTools.BOQ
             try
             {
                 Document doc = el?.Document;
-                string disc = DisciplineForCategory(catName);
+                string disc = ResolveDiscipline(el, catName);
 
                 // 1. Measurement-rule per-category wastage wins when pinned (>= 0).
                 if (doc != null && std != null)
@@ -2531,6 +2531,74 @@ namespace StingTools.BOQ
         //  card in both the BOQ panel and the BIM Coordination Center.
         // ══════════════════════════════════════════════════════════════════
 
+        // WP2 — categories that legitimately carry no measured cost.
+        private static readonly HashSet<string> _freeCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Rooms", "Spaces", "Areas", "Zones", "HVAC Zones" };
+
+        private static bool IsFreeCategoryForCost(string cat)
+            => !string.IsNullOrEmpty(cat) && _freeCategoryNames.Contains(cat.Trim());
+
+        private static bool IsMeasuredUnit(string unit)
+        {
+            switch ((unit ?? "").Trim().ToLowerInvariant())
+            {
+                case "each": case "item": case "nr": case "no": case "": return false;
+                default: return true;
+            }
+        }
+
+        /// <summary>
+        /// WP2 — the document-level uncosted / at-risk rollup. The export confidence
+        /// floor comes from COST_MIN_RATE_CONFIDENCE_EXPORT (default 60).
+        /// </summary>
+        internal static BoqUncostedRollup ComputeUncostedRollup(BOQDocument boq, double minConfidence)
+        {
+            var r = new BoqUncostedRollup();
+            if (boq == null) return r;
+            var model = boq.AllItems.Where(i => i.Source == BOQRowSource.Model).ToList();
+            if (model.Count == 0) return r;
+
+            // Proxy unit rates (median of priced rows) for the value-at-risk figure.
+            var byUnit = model.Where(i => i.RateUGX > 0 && !string.IsNullOrEmpty(i.Unit))
+                .GroupBy(i => i.Unit.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => Median(g.Select(i => i.RateUGX)));
+            double overallMedian = Median(model.Where(i => i.RateUGX > 0).Select(i => i.RateUGX));
+
+            foreach (var i in model)
+            {
+                if (IsFreeCategoryForCost(i.Category)) continue;
+                bool measured = IsMeasuredUnit(i.Unit);
+                if (measured && i.Quantity <= 0.0001) r.CouldNotMeasureCount++;
+
+                bool zeroRate = i.RateUGX <= 0 ||
+                    string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);
+                if (zeroRate)
+                {
+                    r.ZeroRateCount++;
+                    double q = Math.Max(i.Quantity, 0);
+                    r.QtyAtRisk += q;
+                    double proxy = byUnit.TryGetValue((i.Unit ?? "").Trim().ToLowerInvariant(), out var m) ? m : overallMedian;
+                    r.ValueAtRiskUGX += q * proxy;
+                }
+                else if (i.RateConfidence < minConfidence)
+                {
+                    r.LowConfidenceCount++;
+                }
+            }
+            return r;
+        }
+
+        private static double Median(IEnumerable<double> values)
+        {
+            var list = values?.Where(v => v > 0).OrderBy(v => v).ToList();
+            if (list == null || list.Count == 0) return 0;
+            int mid = list.Count / 2;
+            return list.Count % 2 == 1 ? list[mid] : (list[mid - 1] + list[mid]) / 2.0;
+        }
+
+        internal static double MinRateConfidenceForExport()
+            => TagConfig.GetConfigDouble("COST_MIN_RATE_CONFIDENCE_EXPORT", 60.0);
+
         internal static BOQHealthScore ComputeBOQHealth(BOQDocument boq)
         {
             var score = new BOQHealthScore();
@@ -2576,6 +2644,24 @@ namespace StingTools.BOQ
                 score.ParagraphCoverageScore + score.RateConfidenceScore +
                 score.TokenCompletenessScore + score.LineRefScore +
                 score.BudgetScore + score.PSDescriptionScore + score.CarbonScore, 0);
+
+            // WP2 — uncosted / could-not-measure rows are a correctness problem,
+            // not a cosmetic one: penalise (capped) so a bill with invisible
+            // zero-value lines can't read "Excellent", and surface the exposure.
+            var uncosted = ComputeUncostedRollup(boq, MinRateConfidenceForExport());
+            if (uncosted.ZeroRateCount > 0)
+            {
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(15, uncosted.ZeroRateCount));
+                score.Issues.Add($"{uncosted.ZeroRateCount} measured row(s) have NO rate — ≈ UGX {uncosted.ValueAtRiskUGX:N0} at risk (proxy median rates).");
+                score.Recommendations.Add("Price the unrated rows (QS round-trip or rate library) before tender/professional export.");
+            }
+            if (uncosted.CouldNotMeasureCount > 0)
+            {
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(8, uncosted.CouldNotMeasureCount));
+                score.Issues.Add($"{uncosted.CouldNotMeasureCount} measured row(s) could not be measured (quantity 0) — check geometry / takeoff rule unit.");
+            }
+            if (uncosted.LowConfidenceCount > 0)
+                score.Recommendations.Add($"{uncosted.LowConfidenceCount} row(s) priced below the export confidence floor ({MinRateConfidenceForExport():F0}).");
 
             score.Grade = score.OverallScore >= 85 ? "Excellent"
                 : score.OverallScore >= 70 ? "Good"
@@ -3288,6 +3374,23 @@ namespace StingTools.BOQ
             if (string.IsNullOrEmpty(catName)) return "X";
             if (TagConfig.DiscMap != null && TagConfig.DiscMap.TryGetValue(catName, out string disc)) return disc;
             return "X";
+        }
+
+        /// <summary>
+        /// WP2 — prefer the element's own ISO-19650 discipline token
+        /// (ASS_DISCIPLINE_COD_TXT) over the category default, so a service
+        /// modelled on a dual-use or mis-mapped category classifies + matches
+        /// take-off rules by its real discipline. Falls back to the category map.
+        /// </summary>
+        private static string ResolveDiscipline(Element el, string catName)
+        {
+            try
+            {
+                string d = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (!string.IsNullOrWhiteSpace(d)) return d.Trim();
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ResolveDisc", $"ResolveDiscipline: {ex.Message}"); }
+            return DisciplineForCategory(catName);
         }
 
         private static string MakeSafeFileName(string s)

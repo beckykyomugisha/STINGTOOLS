@@ -81,6 +81,28 @@ namespace StingTools.BOQ
         SourcePromoted
     }
 
+    // ── BoqUncostedRollup ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// WP2 — document-level "value at risk" rollup. Unmatched-rate model rows
+    /// otherwise fold into the grand total as invisible zero-value lines; this
+    /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
+    /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
+    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
+    /// are excluded.
+    /// </summary>
+    public struct BoqUncostedRollup
+    {
+        public int ZeroRateCount;        // measured/count model rows with no rate found
+        public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
+        public int LowConfidenceCount;   // priced rows below the export confidence floor
+        public double QtyAtRisk;         // Σ quantity of the zero-rate rows
+        public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
+        /// <summary>True when a tender/professional export should be gated.</summary>
+        public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0;
+        public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
+    }
+
     // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
 
     /// <summary>WP1 — the single canonical markup waterfall for a BOQ. Every
