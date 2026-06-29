@@ -152,6 +152,92 @@ namespace StingTools.Commands.Sustainability
         }
     }
 
+    // ── Sustain_TargetSeeker — least-cost measure set to hit the EDGE level (WS I14) ─
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SustainTargetSeekerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var doc = SustainCmdHelper.Doc(cmd);
+            if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
+
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
+            var res = SustainabilityEngine.Run(doc, setup);
+            var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
+            if (edge == null) { TaskDialog.Show("STING Sustainability", "No EDGE scheme selected in Setup."); return Result.Cancelled; }
+
+            // Per-gate targets from the selected EDGE level + the design's current %.
+            var targets = new List<GateTarget>();
+            foreach (var g in edge.Gates)
+            {
+                string gate = GateOf(g.Metric);
+                if (gate == null || g.Threshold <= 0) continue;
+                double current = gate == "energy" ? (res.Energy?.EnergySavingsPct ?? 0)
+                              : gate == "water" ? (res.Water?.WaterSavingsInclAltPct ?? 0)
+                              : (res.Materials?.EmbodiedEnergySavingsPct ?? 0);
+                targets.Add(new GateTarget { Gate = gate, TargetPct = g.Threshold, CurrentPct = current });
+            }
+
+            // Candidate measures from the registry, sized for capex.
+            var ctx = new MeasureQuantityContext
+            {
+                PvKwp = setup.Supply?.PvKwp ?? 0,
+                FloorAreaM2 = setup.TotalFloorAreaM2 > 0 ? setup.TotalFloorAreaM2 : (res.Energy?.FloorAreaM2 ?? 0),
+                Occupancy = setup.TotalOccupancy,
+                GlazingAreaM2 = 0, FixtureCount = 0, CoolingKw = 0
+            };
+            var candidates = new List<OptimizerMeasure>();
+            foreach (var m in SustainabilityRegistries.Measures(doc).All)
+            {
+                double gain = (m.Savings?.Kind ?? "").ToLowerInvariant().Contains("pct") ? m.Savings.Value : 0;
+                if (gain <= 0) continue;
+                candidates.Add(new OptimizerMeasure
+                {
+                    Id = m.Id, Name = m.Name, Gate = m.Gate, GainPct = gain,
+                    Capex = SustainMeasureCapex.Compute(m, ctx).Capex
+                });
+            }
+
+            var opt = SustainMeasureOptimizer.Reach(candidates, targets);
+
+            var b = new StingResultPanel.Builder()
+                .SetTitle("STING Sustainability — Measure Target-Seeker")
+                .SetSubtitle($"Least-cost route to EDGE {edge.TargetLevel} · {(opt.AllGatesMet ? "all gates reachable" : "gaps remain")}");
+            if (opt.Selected.Count > 0)
+                b.AddSection("Recommended measures")
+                 .Table(new[] { "Measure", "Gate", "%-gain", "Capex" },
+                    opt.Selected.Select(s => new[] { s.Name, s.Gate, $"{s.GainPct:0.#}%", $"{s.Capex:N0}" }).ToList());
+            var gates = b.AddSection("Per-gate result");
+            foreach (var t in targets)
+            {
+                double ach = opt.AchievedByGate.TryGetValue(t.Gate, out var a) ? a : t.CurrentPct;
+                double gap = opt.ResidualGapByGate.TryGetValue(t.Gate, out var r) ? r : 0;
+                bool met = opt.GateMet.TryGetValue(t.Gate, out var mt) && mt;
+                string v = $"{ach:0.#}% / target {t.TargetPct:0.#}%" + (gap > 0 ? $" — gap {gap:0.#}%" : "");
+                if (met) gates.MetricHighlight(t.Gate, v, "reachable"); else gates.MetricWarn(t.Gate, v, "measures fall short");
+            }
+            b.AddSection("Totals").Metric("Total measure capex", $"{opt.TotalCapex:N0}");
+            if (candidates.Count == 0)
+                b.AddSection("Note").Info("No %-gain measures in the registry — add measures with a *Pct savings model to STING_GREEN_MEASURES.json.");
+            b.Show();
+
+            StingLog.Info($"Sustain_TargetSeeker: {opt.Selected.Count} measures, capex {opt.TotalCapex:0}, allGatesMet={opt.AllGatesMet}.");
+            return Result.Succeeded;
+        }
+
+        private static string GateOf(string metric)
+        {
+            switch ((metric ?? "").Trim().ToLowerInvariant())
+            {
+                case "energy_savings_pct":          return "energy";
+                case "water_savings_pct":           return "water";
+                case "embodied_energy_savings_pct": return "materials";
+                default:                            return null;
+            }
+        }
+    }
+
     // ── Sustain_CompareOptions ───────────────────────────────────────────────
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
