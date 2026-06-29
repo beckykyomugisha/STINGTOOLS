@@ -22,87 +22,8 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Hvac.Loads
 {
-    public class LoadProfile
-    {
-        public string Id    { get; set; } = "";
-        public string Label { get; set; } = "";
-
-        public double OccupantDensityM2PerPerson { get; set; } = 10.0;
-        public double OccupantSensibleW          { get; set; } = 75;
-        public double OccupantLatentW            { get; set; } = 55;
-        public double LightingWPerM2             { get; set; } = 7.6;
-        public double EquipmentWPerM2            { get; set; } = 8.0;
-        public double OaLpsPerPerson             { get; set; } = 10.0;
-        public double OaLpsPerM2                 { get; set; } = 0.3;
-        public double CoolingSetpointC           { get; set; } = 24;
-        public double HeatingSetpointC           { get; set; } = 21;
-        public double InfiltrationAch            { get; set; } = 0.3;
-
-        // ── WS K1/K5 — full design-parameter set + provenance ──────────────
-        /// <summary>Domestic hot water, litres/person·day (CIBSE Guide G). WS K2 — DHW
-        /// now lives on the profile (was a C# switch).</summary>
-        public double DhwLPerPersonDay  { get; set; } = 5.0;
-        public int    OperatingDaysPerYear { get; set; } = 250;
-        /// <summary>The standard each number came from (provenance).</summary>
-        public string Source            { get; set; } = "";
-        /// <summary>EDGE-app building category this profile maps onto.</summary>
-        public string EdgeBuildingType  { get; set; } = "";
-        /// <summary>WS K2 — building-use ids that resolve to this profile
-        /// (residential/dwelling/house → Residential). Case/space/hyphen-insensitive.</summary>
-        public List<string> Aliases     { get; set; } = new List<string>();
-
-        public double[] OccupancySchedule { get; set; } = LoadZone.DefaultOfficeOccupancy();
-        public double[] LightingSchedule  { get; set; } = LoadZone.DefaultOfficeLighting();
-        public double[] EquipmentSchedule { get; set; } = LoadZone.DefaultOfficeEquipment();
-
-        /// <summary>Apply this profile's values onto a LoadZone.</summary>
-        public void ApplyTo(LoadZone z)
-        {
-            z.OccupantSensibleW = OccupantSensibleW;
-            z.OccupantLatentW   = OccupantLatentW;
-            z.LightingWPerM2    = LightingWPerM2;
-            z.EquipmentWPerM2   = EquipmentWPerM2;
-            z.OaLpsPerPerson    = OaLpsPerPerson;
-            z.OaLpsPerM2        = OaLpsPerM2;
-            z.CoolingSetpointC  = CoolingSetpointC;
-            z.HeatingSetpointC  = HeatingSetpointC;
-            z.InfiltrationAch   = InfiltrationAch;
-            if (OccupancySchedule?.Length == 24) z.OccupancySchedule = OccupancySchedule;
-            if (LightingSchedule?.Length  == 24) z.LightingSchedule  = LightingSchedule;
-            if (EquipmentSchedule?.Length == 24) z.EquipmentSchedule = EquipmentSchedule;
-        }
-
-        /// <summary>Derived occupant count from area + density (people per
-        /// space). Clamped at 1 so a small unloaded room still gets a calc.</summary>
-        public int OccupantCountFor(double areaM2)
-        {
-            if (OccupantDensityM2PerPerson <= 0) return 1;
-            return Math.Max(1, (int)Math.Round(areaM2 / OccupantDensityM2PerPerson));
-        }
-    }
-
-    public class LoadProfileLibrary
-    {
-        public Dictionary<string, LoadProfile> ById { get; }
-            = new Dictionary<string, LoadProfile>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Resolve a profile by id with case-insensitive fuzzy fallback.</summary>
-        public LoadProfile Get(string id)
-        {
-            if (string.IsNullOrWhiteSpace(id))
-                return ById.TryGetValue("Office", out var def) ? def : new LoadProfile { Id = "Office" };
-            if (ById.TryGetValue(id, out var hit)) return hit;
-            // Loose match — handles things like "Meeting Room" vs "MeetingRoom"
-            string norm = id.Replace(" ", "").Replace("-", "").Replace("_", "");
-            foreach (var kv in ById)
-            {
-                string k = kv.Key.Replace(" ", "").Replace("-", "").Replace("_", "");
-                if (string.Equals(k, norm, StringComparison.OrdinalIgnoreCase))
-                    return kv.Value;
-            }
-            return ById.TryGetValue("Office", out var fallback) ? fallback : new LoadProfile { Id = "Office" };
-        }
-    }
+    // LoadProfile + LoadProfileLibrary moved to LoadProfileModels.cs (pure, unit-tested
+    // resolution). This file keeps the Document-facing loader only. WS K2.
 
     public static class LoadProfileRegistry
     {

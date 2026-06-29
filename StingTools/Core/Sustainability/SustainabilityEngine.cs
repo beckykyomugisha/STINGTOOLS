@@ -448,6 +448,7 @@ namespace StingTools.Core.Sustainability
             // retail differ), instead of every zone using the bare office defaults.
             LoadProfileLibrary profiles = null;
             try { profiles = LoadProfileRegistry.Get(doc); } catch (Exception ex) { StingLog.Warn($"Sustain load profiles: {ex.Message}"); }
+            var noted = new HashSet<string>();   // WS K2/K4 — de-dup fallback notes per run
             // WS A2 — project-tunable construction U-values/SHGC drive the shared
             // envelope detector so the annual energy estimate has real conduction +
             // per-façade solar (not just internal gains).
@@ -464,13 +465,12 @@ namespace StingTools.Core.Sustainability
                     .ToList();
                 if (spaces.Count > 0)
                 {
-                    var profile = profiles?.Get(ProfileIdForUse(setup.DominantBuildingUse));
-                    double dhw = DhwForUse(setup.DominantBuildingUse);
+                    var pr = ResolveProfile(profiles, setup.DominantBuildingUse, warnings, noted);
                     foreach (var s in spaces)
                     {
                         var z = ZoneFromSpace(s, construction);
                         if (z == null) continue;
-                        ApplyProfile(z, profile, dhw);
+                        ApplyProfile(z, pr);
                         zones.Add(z);
                         try { levelOf[z] = s.LevelId; } catch { }
                     }
@@ -495,13 +495,12 @@ namespace StingTools.Core.Sustainability
                         .ToList();
                     if (rooms.Count > 0)
                     {
-                        var profile = profiles?.Get(ProfileIdForUse(setup.DominantBuildingUse));
-                        double dhw = DhwForUse(setup.DominantBuildingUse);
+                        var pr = ResolveProfile(profiles, setup.DominantBuildingUse, warnings, noted);
                         foreach (var r in rooms)
                         {
                             var z = ZoneFromRoom(r, construction);
                             if (z == null) continue;
-                            ApplyProfile(z, profile, dhw);
+                            ApplyProfile(z, pr);
                             zones.Add(z);
                             try { levelOf[z] = r.LevelId; } catch { }
                         }
@@ -522,7 +521,7 @@ namespace StingTools.Core.Sustainability
                         Id = zs.ZoneId, Name = zs.ZoneId, SpaceTypeId = zs.BuildingUse,
                         FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy
                     };
-                    ApplyProfile(z, profiles?.Get(ProfileIdForUse(zs.BuildingUse)), DhwForUse(zs.BuildingUse));
+                    ApplyProfile(z, ResolveProfile(profiles, zs.BuildingUse, warnings, noted));
                     zones.Add(z);
                     // No level for a synthetic setup zone ⇒ left out of levelOf ⇒
                     // treated as top level (includes a roof segment when synthesised).
@@ -586,49 +585,42 @@ namespace StingTools.Core.Sustainability
             return inp;
         }
 
-        /// <summary>Map a sustainability building-use to a load-profile id. Uses with
-        /// no dedicated profile fall through to the registry's fuzzy match / Office
-        /// default (documented — add residential/hotel profiles to STING_LOAD_PROFILES
-        /// .json to differentiate them further).</summary>
-        private static string ProfileIdForUse(string use)
+        /// <summary>DHW litres/person·day used ONLY when no profile resolves (the
+        /// per-use values now live in the load profiles — WS K2).</summary>
+        private const double DhwFallback = 5.0;
+
+        /// <summary>WS K2 — data-driven use→profile resolution (id → alias → loose →
+        /// nearest sibling → Office). A fallback is surfaced as a NOTE (never a silent
+        /// office swap) and de-duped per run.</summary>
+        private static ProfileResolution ResolveProfile(LoadProfileLibrary profiles, string use,
+            List<string> warnings, HashSet<string> noted)
         {
-            switch ((use ?? "office").Trim().ToLowerInvariant())
+            var r = profiles?.ResolveForUse(use)
+                    ?? new ProfileResolution { Profile = new LoadProfile { Id = "Office" }, IsFallback = true, RequestedUse = use };
+            if (r.IsFallback && warnings != null && (noted == null || noted.Add("profile|" + (use ?? ""))))
             {
-                case "healthcare":  return "PatientRoom";
-                case "office":      return "Office";
-                case "retail":      return "Retail";
-                case "hotel":       return "Office";       // no hotel profile yet
-                case "residential": return "Office";       // no residential profile yet
-                default:            return use;            // registry fuzzy-matches / defaults
+                string note = $"ℹ {(string.IsNullOrWhiteSpace(use) ? "(unset)" : use)} load profile resolved by fallback " +
+                              $"({r.FromTo}) — indicative";
+                warnings.Add(note);
+                StingLog.Info("Sustain " + note);
             }
+            return r;
         }
 
-        /// <summary>Apply a load profile (LPD/EPD/OA/setpoints/schedules) to a zone,
-        /// derive occupancy from area density when the model carries none, and stamp
-        /// the building-use DHW. Null profile leaves the LoadZone office defaults.</summary>
-        private static void ApplyProfile(LoadZone z, LoadProfile profile, double dhwLpd)
+        /// <summary>Apply a resolved load profile (LPD/EPD/OA/setpoints/schedules + DHW)
+        /// to a zone, deriving occupancy from the profile density when the model carries
+        /// none. DHW comes from the profile (WS K2), not a C# switch.</summary>
+        private static void ApplyProfile(LoadZone z, ProfileResolution r)
         {
+            var profile = r?.Profile;
             if (profile != null)
             {
                 profile.ApplyTo(z);
                 if (z.OccupantCount <= 0 && z.FloorAreaM2 > 0)
                     z.OccupantCount = profile.OccupantCountFor(z.FloorAreaM2);
+                z.DhwLPerPersonDay = profile.DhwLPerPersonDay;   // per-use DHW from the profile data
             }
-            z.DhwLPerPersonDay = dhwLpd;
-        }
-
-        /// <summary>DHW litres/person·day by building use (CIBSE Guide G). Office is
-        /// handwash-only (~5); residential/hotel/healthcare are far higher.</summary>
-        private static double DhwForUse(string use)
-        {
-            switch ((use ?? "office").Trim().ToLowerInvariant())
-            {
-                case "residential": return 45;
-                case "hotel":       return 100;
-                case "healthcare":  return 60;
-                case "retail":      return 3;
-                default:            return 5;   // office / unknown
-            }
+            else z.DhwLPerPersonDay = DhwFallback;
         }
 
         private static LoadZone ZoneFromSpace(Space s, ConstructionProfile construction)

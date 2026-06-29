@@ -80,6 +80,8 @@
     <!-- AnnualEnergyEstimator references LoadZone/EnvelopeSegment from the HVAC
          loads namespace; these POCOs are also Revit-free. -->
     <Compile Include="..\StingTools\Core\Hvac\Loads\LoadInputs.cs" Link="Engines\LoadInputs.cs" />
+    <!-- WS K1/K2 — load-profile POCOs + data-driven use→profile resolution (pure). -->
+    <Compile Include="..\StingTools\Core\Hvac\Loads\LoadProfileModels.cs" Link="Engines\LoadProfileModels.cs" />
   </ItemGroup>
 
   <ItemGroup>
