@@ -30,6 +30,10 @@ namespace StingTools.Core.Sustainability
         public bool   EdgePassed { get; set; }
 
         public double OperationalCarbonKgYr { get; set; }
+        /// <summary>WS H4 — whole-life carbon intensity (embodied A1–A3 + operational
+        /// over the study period), kgCO₂e/m².</summary>
+        public double WholeLifeCarbonKgM2 { get; set; }
+        public int    StudyPeriodYears { get; set; }
         public int    Occupancy   { get; set; }
         public double FloorAreaM2 { get; set; }
         public string SupplyMode  { get; set; } = "grid_tied";

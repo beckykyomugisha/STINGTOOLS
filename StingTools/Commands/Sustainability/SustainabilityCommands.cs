@@ -219,6 +219,8 @@ namespace StingTools.Commands.Sustainability
                 EdgeLevel            = edge?.AchievedLevel ?? "None",
                 EdgePassed           = edge?.Passed ?? false,
                 OperationalCarbonKgYr = Round(res.Energy?.OperationalCarbonKgYr),
+                WholeLifeCarbonKgM2  = Round(res.WholeLife?.WholeLifeKgM2),
+                StudyPeriodYears     = res.WholeLife?.StudyPeriodYears ?? setup.StudyPeriodYears,
                 Occupancy            = setup.TotalOccupancy,
                 FloorAreaM2          = Round(res.Energy?.FloorAreaM2),
                 SupplyMode           = setup.Supply?.Mode ?? "grid_tied",
@@ -281,6 +283,16 @@ namespace StingTools.Commands.Sustainability
              .Metric("On-site PV", $"{res.Energy?.PvGenerationKwh:F0} kWh/yr")
              .Metric("Net import", $"{res.Energy?.NetImportKwh:F0} kWh/yr")
              .Metric("Operational carbon", $"{res.Energy?.OperationalCarbonKgYr:F0} kgCO2e/yr", $"supply mode {setup.Supply?.Mode}");
+
+            // WS H4 — one whole-life carbon figure (embodied A1-A3 + operational over
+            // the study period); carbon only. Study period matches the RIBA-stage view.
+            if (res.WholeLife != null)
+                b.AddSection($"Whole-life carbon ({res.WholeLife.StudyPeriodYears}-year study)")
+                 .Metric("Embodied A1-A3", $"{res.WholeLife.EmbodiedKgM2:F0} kgCO2e/m²", "net, incl. biogenic credit")
+                 .Metric("Operational", $"{res.WholeLife.OperationalKgM2Yr:F1} kgCO2e/m²·yr",
+                         $"× {res.WholeLife.StudyPeriodYears} yr")
+                 .Metric("Whole-life total", $"{res.WholeLife.WholeLifeKgM2:F0} kgCO2e/m²",
+                         "aligns with the RIBA-stage carbon view");
 
             if (res.Warnings.Count > 0)
                 b.AddSection("Notes").Info(string.Join("\n", res.Warnings.Distinct().Take(8)));

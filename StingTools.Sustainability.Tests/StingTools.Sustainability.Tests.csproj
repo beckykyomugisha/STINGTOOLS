@@ -34,6 +34,8 @@
     <Compile Include="..\StingTools\Core\Sustainability\WaterFixtureAggregator.cs" Link="Engines\WaterFixtureAggregator.cs" />
     <!-- WS H2 — project occupancy resolver (pure). -->
     <Compile Include="..\StingTools\Core\Sustainability\SustainOccupancy.cs" Link="Engines\SustainOccupancy.cs" />
+    <!-- WS H4 — whole-life carbon roll-up (pure). -->
+    <Compile Include="..\StingTools\Core\Sustainability\WholeLifeCarbon.cs" Link="Engines\WholeLifeCarbon.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\AnnualEnergyEstimator.cs" Link="Engines\AnnualEnergyEstimator.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SupplyAndGenerationLayer.cs" Link="Engines\SupplyAndGenerationLayer.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\AnnualWaterEstimator.cs" Link="Engines\AnnualWaterEstimator.cs" />

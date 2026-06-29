@@ -124,6 +124,10 @@ namespace StingTools.Core.Sustainability
         public EdgeOfficialFigures EdgeOfficial { get; set; } = new EdgeOfficialFigures();
         public SustainUnits Units { get; set; } = SustainUnits.SI;
 
+        /// <summary>WS H4 — whole-life carbon study period (years). Default 60 matches
+        /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.</summary>
+        public int StudyPeriodYears { get; set; } = 60;
+
         public string UpdatedUtc { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
         // ── Derived helpers (used by the building-level rollup; spec §2.5 rule 4) ──
@@ -208,7 +212,8 @@ namespace StingTools.Core.Sustainability
             sb.Append("|country=").Append(Country)
               .Append("|site=").Append(ClimateSiteId)
               .Append("|zone=").Append(ClimateZone)
-              .Append("|units=").Append(Units).Append('|');
+              .Append("|units=").Append(Units)
+              .Append("|study=").Append(StudyPeriodYears).Append('|');
             if (Zones != null)
                 foreach (var z in Zones)
                     sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')

@@ -31,6 +31,9 @@ namespace StingTools.Core.Sustainability
         public EnergyEstimateResult Energy { get; set; }
         public WaterEstimateResult  Water { get; set; }
         public MaterialsRollupResult Materials { get; set; }
+        /// <summary>WS H4 — whole-life carbon roll-up (embodied A1–A3 + operational
+        /// over the study period). Carbon only.</summary>
+        public WholeLifeCarbonResult WholeLife { get; set; }
         public List<SchemeResult>    Schemes { get; } = new List<SchemeResult>();
         public ClimateMonthlySite    Climate { get; set; }
         public List<string> Warnings { get; } = new List<string>();
@@ -151,6 +154,15 @@ namespace StingTools.Core.Sustainability
                 carbonBaselineKgM2: 0,   // LEED supplies this later; EDGE delegates
                 energyBaselineMjM2: baseline?.EmbodiedEnergyBaselineMjM2);
             res.Warnings.AddRange(res.Materials.Warnings);
+
+            // ── Whole-life carbon (WS H4) — embodied A1–A3 (net, incl. biogenic) +
+            //    operational over the study period. Carbon only; aligns with
+            //    CarbonStageTracker's 60-year basis (study period is data-driven). ──
+            res.WholeLife = WholeLifeCarbon.Compute(
+                embodiedA1A3Kg: res.Materials?.TotalCarbonKg ?? 0,
+                operationalKgPerYr: res.Energy?.OperationalCarbonKgYr ?? 0,
+                studyPeriodYears: setup.StudyPeriodYears,
+                floorAreaM2: area);
 
             // ── Scheme evaluation (certifications-as-data) ──
             var ctx = new SchemeContext
@@ -878,31 +890,9 @@ namespace StingTools.Core.Sustainability
             return lines;
         }
 
-        /// <summary>Resolve a material density (kg/m³) for the per-kg carbon path,
-        /// mirroring BOQCostManager.EstimateDensityKgPerM3 so the cost-mass and
-        /// carbon-mass paths use one density. Corporate library wins; a small
-        /// keyword fallback covers common construction materials.</summary>
-        private static double DensityFor(string material)
-        {
-            try
-            {
-                double libVal = StingTools.UI.MaterialLookupCsv.GetDensity(material);
-                if (libVal > 0) return libVal;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("Sustain.Density", $"density lookup: {ex.Message}"); }
-
-            string lc = (material ?? "").ToLowerInvariant();
-            if (lc.Contains("reinforced") && lc.Contains("concrete")) return 2450;
-            if (lc.Contains("concrete")) return 2400;
-            if (lc.Contains("steel")) return 7850;
-            if (lc.Contains("hardwood")) return 700;
-            if (lc.Contains("timber") || lc.Contains("wood") || lc.Contains("softwood")) return 480;
-            if (lc.Contains("alumin")) return 2700;
-            if (lc.Contains("glass")) return 2500;
-            if (lc.Contains("brick")) return 1920;
-            if (lc.Contains("insulation")) return 40;
-            return 0;   // unknown ⇒ per-kg path skipped (documented)
-        }
+        /// <summary>Resolve a material density (kg/m³) — single source shared with the
+        /// per-element heat-map (WS H4) via SustainElementCarbon.DensityFor.</summary>
+        private static double DensityFor(string material) => SustainElementCarbon.DensityFor(material);
 
         private static double ReadMaterialDouble(Material mat, string paramName)
         {
