@@ -57,12 +57,28 @@ namespace StingTools.Commands.Placement
                 ? "Dry run — no model changes. Maps DWG MEP symbols to swap-ready STING seeds."
                 : "Placed swap-ready STING seed instances at the DWG MEP symbol locations.");
             panel.AddSection("SUMMARY")
-                .Metric("Blocks detected",        res.TotalBlocks.ToString())
+                .Metric("Block inserts detected", res.TotalBlocks.ToString())
+                .Metric("Layer points captured",  res.TotalLayerPoints.ToString(),
+                        res.IncludedLineClusters ? "incl. experimental line-clusters" : "DWG Points on mapped layers (safe)")
                 .Metric(res.DryRun ? "Would place" : "Placed", res.Placed.ToString())
                 .Metric("Skipped — unmapped",     res.SkippedNoMapping.ToString())
                 .Metric("Skipped — seedless cat", res.SkippedSeedless.ToString())
                 .Metric("Skipped — no seed type", res.SkippedNoSymbol.ToString())
-                .Metric("Skipped — not hosted",   res.SkippedNotHosted.ToString());
+                .Metric("Skipped — not hosted",   res.SkippedNotHosted.ToString())
+                .Metric("Skipped — mapped, empty layer", res.SkippedExplodedNoPoint.ToString());
+
+            if (res.IncludedLineClusters)
+                panel.MetricWarn("Capture mode", "EXPERIMENTAL line-cluster ON",
+                    "Loose lines/arcs on mapped layers were clustered into points — a heuristic; verify counts before committing.");
+
+            if (res.CapturedByMode.Count > 0)
+            {
+                panel.AddSection("CAPTURE MODE");
+                foreach (var kv in res.CapturedByMode)
+                    panel.Metric(kv.Key, kv.Value.ToString(),
+                        kv.Key == "cluster" ? "experimental — heuristic centroid" :
+                        kv.Key == "point" ? "DWG Point entity (safe)" : "block insert (safe)");
+            }
 
             if (res.PlacedByCategory.Count > 0)
             {

@@ -122,9 +122,9 @@
                         Content="Close" Click="OnClose_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Reload Defaults" Click="OnReloadDefaults_Click"
                         ToolTip="Discard all rules in memory and reload the shipped baseline."/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import…"          Click="OnImportRules_Click"
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import..."          Click="OnImportRules_Click"
                         ToolTip="Merge rules from another JSON file (default: append, prompt to overwrite per merge key)."/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export…"          Click="OnExportRules_Click"
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export..."          Click="OnExportRules_Click"
                         ToolTip="Export the current rule set to a portable JSON file you can share or version-control."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export Excel"     Click="OnExportExcel_Click"
                         ToolTip="Export every rule to an .xlsx workbook (one sheet per discipline pack)."/>
@@ -189,7 +189,7 @@
                         <ToggleButton x:Name="chipInvalid" DockPanel.Dock="Left" Margin="0,0,4,0"
                                       Padding="6,2" Content="✗ Invalid"
                                       Checked="OnFilterChanged" Unchecked="OnFilterChanged"
-                                      ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, …)."/>
+                                      ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, ...)."/>
                         <ComboBox x:Name="cmbSourcePack" DockPanel.Dock="Left" Margin="6,0,0,0"
                                   Width="130" SelectionChanged="OnSourcePack_SelectionChanged"
                                   ToolTip="Filter by discipline pack."/>
@@ -1292,12 +1292,20 @@
                     <WrapPanel>
                         <Button Style="{StaticResource ToolBtn}" Width="160" Height="30" Margin="4,3"
                                 Click="OnLibDwgWizard_Click"
-                                Content="From DWG (MEP)…"
+                                Content="From DWG (MEP)..."
                                 ToolTip="Launch the DWG-MEP import wizard (duct/pipe/conduit + MEP blocks)."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="150" Height="30" Margin="4,3"
+                                Click="OnLibMapLayers_Click"
+                                Content="Map DWG layers..."
+                                ToolTip="Map the DWG's actual layers (name + entity count) to STING categories/variants. Saves to this project's _BIM_COORD override; the next Place run honours it. No JSON hand-editing."/>
                         <Button Style="{StaticResource ToolBtn}" Width="240" Height="30" Margin="4,3"
                                 Click="OnLibDwgToSeeds_Click"
                                 Content="Place STING fixtures from DWG symbols"
-                                ToolTip="The DWG->seed bridge: import a DWG, map its MEP fixture blocks (point + layer + block name) to STING categories, build the mapped seeds, and place hosted, parameterised STING instances at the symbol locations - swap-ready. Renders counts inline. Model-modifying."/>
+                                ToolTip="The DWG->seed bridge: map MEP fixture blocks AND DWG points on mapped layers to STING categories, build the mapped seeds, and place hosted, parameterised STING instances at the symbol locations - swap-ready. Renders counts inline. Model-modifying."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="270" Height="30" Margin="4,3"
+                                Click="OnLibDwgExploded_Click"
+                                Content="Place from exploded layers (experimental)..."
+                                ToolTip="EXPERIMENTAL: for exploded DWGs with no blocks/points, cluster loose lines on mapped layers into one point per symbol. Always runs a dry-run preview first and asks before committing - a heuristic that can over/under-count. Model-modifying."/>
                     </WrapPanel>
                 </GroupBox>
 
@@ -1333,7 +1341,7 @@
                                Margin="0,0,6,0" FontSize="11" Foreground="#607D8B"/>
                     <ComboBox x:Name="cmbRecentReports" FontSize="11"
                               SelectionChanged="OnRecentReport_Changed"
-                              ToolTip="Re-open a recent report (Run / Validation / Diagnose / Audit / …)"/>
+                              ToolTip="Re-open a recent report (Run / Validation / Diagnose / Audit / ...)"/>
                 </DockPanel>
                 <Border x:Name="reportHost" Padding="8">
                     <TextBlock x:Name="txtReportEmpty" Foreground="#90A4AE" FontSize="11"

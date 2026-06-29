@@ -3,6 +3,61 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Placement Centre — DWG layer mapping + exploded-geometry capture)
+
+Branch `claude/placement-library-dwg` (extends the DWG→seed bridge). Build clean
+`-c Release` (0 errors) in the isolated worktree; DLL + `data\` deployed to
+`C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in Revit before merge.**
+Reuses the existing engines; no logic forked.
+
+**Why.** A live run reported *"0 blocks"* — the bridge only placed from block
+inserts (`DetectedBlock`), so an **exploded** DWG (loose lines/text/points, no
+block references) had nothing to place, and layer→category mapping had no UI (you
+hand-edited JSON).
+
+**Tier 1 — Map DWG Layers UI.** New Library → Import button **"Map DWG layers…"**
+opens `DwgLayerMapDialog` (programmatic WPF, modelled on `MepCadWizard`): a grid of
+the import's **real** layers from `CADExtractionResult.LayerCounts` (layer + entity
+count, sorted by count), each row pre-filled from the existing resolution chain
+(`DwgSymbolMapRegistry.ResolveLayer` → override/`LayerMapper`), with a STING-category
+dropdown (the seed-mappable categories from `CategoryToSeedRegistry`), optional
+variant hint, and host anchor. **Save** writes `ByLayer` rules to the EXISTING
+`<project>/_BIM_COORD/dwg_symbol_map.json` override via new
+`DwgSymbolMapRegistry.SaveLayerRulesToProjectOverride` (merge-preserving block rules,
+idempotent) and `Reload`s — the corporate baseline is untouched. No JSON hand-editing.
+
+**Tier 2 safe — Point/insert capture on mapped layers.** New read-only
+`CADToModelEngine.CaptureFixturePoints(import, fixtureLayers, includeLineClusters)`
+emits one point per DWG `Point` entity on a mapped fixture layer (block inserts keep
+the proven `DetectedBlock` path). `DwgFixtureBridge` now computes the mapped fixture
+layers from `LayerCounts`, captures these points, dedups them against block insertions,
+and feeds them through the SAME pipeline (`DwgSymbolMapRegistry` → `CategoryToSeedRegistry`
+→ `SeedEnsurer` → `PlacementHostPreflight.Place` → provenance stamp). So the default
+**"Place STING fixtures from DWG symbols"** run now also handles exploded-with-Points
+DWGs. New `SkippedExplodedNoPoint` bucket + `CapturedByMode`/`TotalLayerPoints` counters
+report every mapped-but-empty layer inline — nothing dropped silently.
+
+**Tier 2 experimental — line-cluster capture.** When set, `CaptureFixturePoints`
+clusters loose lines/arcs on mapped layers into one centroid per symbol (greedy
+spatial clustering, `CaptureMode="cluster"`). Surfaced as a SEPARATE Library button
+**"Place from exploded layers (experimental)…"** that ALWAYS runs a dry-run first and
+shows a command-link `TaskDialog` (counts + heuristic warning) requiring an explicit
+"Place N now" before committing. Labelled experimental in the UI and report; the
+provenance stamp records the capture mode (`block`/`point`/`cluster`) so every
+placement is auditable.
+
+**Files added:** `UI/DwgLayerMapDialog.cs`. **Edited:** `Model/CADToModelEngine.cs`
+(`DwgFixturePoint` POCO + `CaptureFixturePoints` + cluster/collector helpers),
+`Core/Placement/DwgSymbolMapRegistry.cs` (`ResolveLayer`, `ProjectOverridePath`,
+`SaveLayerRulesToProjectOverride`, `LayerRuleInput`), `Core/Placement/DwgFixtureBridge.cs`
+(layer-point capture + new counters + capture-mode provenance + cluster overload),
+`Commands/Placement/DwgToSeedFixturesCommand.cs` (report new counters/modes),
+`UI/PlacementCenter/StingPlacementCenter.xaml(.cs)` (two Import buttons + handlers).
+
+**Caveats:** model-modifying — untested in the sandbox; verify in Revit. The
+line-cluster path is a heuristic (over/under-counts on messy DWGs) — kept opt-in +
+dry-run-gated by design. Safe path (block/point) is predictable.
+
 #### Completed (Placement Centre — Library tab + DWG-MEP → seed → swap bridge)
 
 Branch `claude/placement-library-dwg` off `main` (PR #379 foundation). Build clean

@@ -2710,6 +2710,116 @@ namespace StingTools.UI.PlacementCenter
             });
         }
 
+        /// <summary>Tier 1 — open the Map DWG Layers grid over the import's real layers,
+        /// pre-filled from the auto-detector, and save ByLayer rules to the project
+        /// override. The dialog shows on the API thread (like the MEP wizard); the next
+        /// Place run honours the mappings. No JSON hand-editing.</summary>
+        private void OnLibMapLayers_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Map DWG layers", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var import = StingTools.Model.CADToModelEngine.FindImportInstances(doc)?.FirstOrDefault();
+                if (import == null)
+                    return StingResultPanel.Create("STING — Map DWG Layers")
+                        .AddSection("RESULT").Text("No DWG/DXF import found. Link or import a DWG first.");
+
+                var extraction = new StingTools.Model.CADToModelEngine(doc).PreviewImport(import);
+                var layerCounts = extraction?.LayerCounts ?? new System.Collections.Generic.Dictionary<string, int>();
+                if (layerCounts.Count == 0)
+                    return StingResultPanel.Create("STING — Map DWG Layers")
+                        .AddSection("RESULT").Text("The import has no layered geometry to map.");
+
+                // Category list = the SEED-mappable categories (skip null-seed entries like
+                // Conduits/Pipes/Stairs that can't place a family instance).
+                var categories = StingTools.Core.Placement.CategoryToSeedRegistry.GetMap(doc)
+                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+                    .Select(kv => kv.Key)
+                    .OrderBy(k => k, System.StringComparer.OrdinalIgnoreCase).ToList();
+
+                // Pre-fill each row from the existing resolution chain (override or LayerMapper).
+                var seedRows = layerCounts
+                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && kv.Key != "(unnamed)")
+                    .Select(kv =>
+                    {
+                        var m = StingTools.Core.Placement.DwgSymbolMapRegistry.ResolveLayer(doc, kv.Key);
+                        return (kv.Key, kv.Value, m?.Category ?? "", m?.VariantHint ?? "",
+                                string.IsNullOrWhiteSpace(m?.Anchor) ? "WALL_MIDPOINT" : m.Anchor);
+                    });
+
+                var dlg = new StingTools.UI.DwgLayerMapDialog(categories, seedRows);
+                try { var owner = System.Windows.Window.GetWindow(this); if (owner != null) dlg.Owner = owner; } catch { }
+
+                bool ok = dlg.ShowDialog() == true && dlg.Confirmed;
+                if (!ok)
+                    return StingResultPanel.Create("STING — Map DWG Layers").AddSection("RESULT").Text("Cancelled — no changes saved.");
+
+                var inputs = dlg.Rows.Select(r => new StingTools.Core.Placement.DwgSymbolMapRegistry.LayerRuleInput
+                {
+                    Layer = r.Layer,
+                    Category = r.IsMapped ? r.Category : "",   // "(skip)" → blank = unmap
+                    VariantHint = r.Variant,
+                    Anchor = r.Anchor
+                }).ToList();
+
+                int written;
+                try { written = StingTools.Core.Placement.DwgSymbolMapRegistry.SaveLayerRulesToProjectOverride(doc, inputs); }
+                catch (System.Exception ex)
+                {
+                    return StingResultPanel.Create("STING — Map DWG Layers").AddSection("ERROR").Text(ex.Message);
+                }
+
+                int mapped = inputs.Count(i => !string.IsNullOrWhiteSpace(i.Category));
+                var panel = StingResultPanel.Create("STING — Map DWG Layers")
+                    .SetSubtitle("Saved layer mappings to the project override (_BIM_COORD/dwg_symbol_map.json).")
+                    .AddSection("RESULT")
+                    .Metric("Layers mapped", mapped.ToString())
+                    .Metric("Rules written", written.ToString());
+                foreach (var i in inputs.Where(x => !string.IsNullOrWhiteSpace(x.Category)).Take(40))
+                    panel.Text($"{i.Layer} -> {i.Category}{(string.IsNullOrWhiteSpace(i.VariantHint) ? "" : " / " + i.VariantHint)} ({i.Anchor})");
+                panel.AddSection("NEXT").Text("Run 'Place STING fixtures from DWG symbols' — points on these layers now place too.");
+                return panel;
+            });
+        }
+
+        /// <summary>Tier 2 experimental — exploded DWGs (no blocks/points): cluster loose
+        /// lines on mapped layers into one point per symbol. ALWAYS dry-runs first and asks
+        /// before committing (the cluster heuristic can over/under-count).</summary>
+        private void OnLibDwgExploded_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Exploded DWG fixtures (experimental)", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                // Mandatory dry-run preview with the experimental cluster pass ON.
+                var dry = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: true, includeLineClusters: true);
+
+                var td = new TaskDialog("STING — Exploded DWG capture (experimental)")
+                {
+                    MainInstruction = $"Dry run: {dry.Placed} fixture(s) would be placed.",
+                    MainContent = "Experimental line-cluster capture clusters loose lines/arcs on mapped layers " +
+                                  "into one point per symbol. This is a HEURISTIC and can over/under-count on " +
+                                  "messy DWGs. Review the counts, then choose whether to commit.",
+                    ExpandedContent = string.Join("\n", dry.Messages.Take(20)),
+                    CommonButtons = TaskDialogCommonButtons.None
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Place {dry.Placed} fixture(s) now");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — preview only (no changes)");
+                td.DefaultButton = TaskDialogResult.CommandLink2;
+
+                var choice = td.Show();
+                if (choice == TaskDialogResult.CommandLink1 && dry.Placed > 0)
+                {
+                    var real = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: false, includeLineClusters: true);
+                    return StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(real);
+                }
+                var panel = StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(dry);
+                panel.AddSection("NOTE").Text("Preview only — nothing was committed.");
+                return panel;
+            });
+        }
+
         private void OnAuditSetup_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null) { Toast("No document open."); return; }

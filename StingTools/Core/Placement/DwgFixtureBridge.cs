@@ -29,14 +29,19 @@ namespace StingTools.Core.Placement
     /// <summary>Outcome of a DWG fixture bridge run.</summary>
     public sealed class DwgFixtureBridgeResult
     {
-        public int TotalBlocks { get; set; }
+        public int TotalBlocks { get; set; }         // block inserts detected (DetectedBlock path)
+        public int TotalLayerPoints { get; set; }    // points captured from mapped layers (point/cluster)
         public int Placed { get; set; }
-        public int SkippedNoMapping { get; set; }   // block didn't map to a STING category
+        public int SkippedNoMapping { get; set; }    // capture didn't map to a STING category
         public int SkippedSeedless { get; set; }     // category has no seed (runs/structure)
         public int SkippedNoSymbol { get; set; }     // seed family/variant not resolvable
         public int SkippedNotHosted { get; set; }    // PlacementHostPreflight returned Skipped
+        public int SkippedExplodedNoPoint { get; set; } // layer mapped but nothing capturable
         public bool DryRun { get; set; }
+        public bool IncludedLineClusters { get; set; }  // the experimental cluster pass ran
         public Dictionary<string, int> PlacedByCategory { get; } =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> CapturedByMode { get; } =   // block / point / cluster
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public List<string> Messages { get; } = new List<string>();
         public List<ElementId> PlacedIds { get; } = new List<ElementId>();
@@ -46,7 +51,8 @@ namespace StingTools.Core.Placement
     {
         private const string EngineName = "DwgFixtureBridge";
 
-        // A captured fixture block resolved to its STING target (read-only pre-pass).
+        // A captured fixture (block insert, DWG point, or line cluster) resolved to its
+        // STING target (read-only pre-pass).
         private sealed class Captured
         {
             public XYZ Point;
@@ -56,13 +62,19 @@ namespace StingTools.Core.Placement
             public string SeedId = "";
             public string Variant = "";
             public string Anchor = "WALL_MIDPOINT";
+            public string Mode = "block";   // "block" | "point" | "cluster"
         }
 
         /// <summary>Pick the (first / only, else selected) DWG import and run the bridge.
         /// Returns a result even when nothing is found (with a message).</summary>
         public static DwgFixtureBridgeResult PlaceFromFirstImport(Document doc, bool dryRun)
+            => PlaceFromFirstImport(doc, dryRun, includeLineClusters: false);
+
+        /// <summary>Pick the (first) DWG import and run the bridge. <paramref name="includeLineClusters"/>
+        /// turns on the EXPERIMENTAL line-cluster capture for exploded layers (dry-run gated by callers).</summary>
+        public static DwgFixtureBridgeResult PlaceFromFirstImport(Document doc, bool dryRun, bool includeLineClusters)
         {
-            var res = new DwgFixtureBridgeResult { DryRun = dryRun };
+            var res = new DwgFixtureBridgeResult { DryRun = dryRun, IncludedLineClusters = includeLineClusters };
             if (doc == null) { res.Messages.Add("No document."); return res; }
             ImportInstance import = null;
             try
@@ -76,22 +88,28 @@ namespace StingTools.Core.Placement
                 res.Messages.Add("No DWG/DXF import found in the project. Link or import a DWG first, then re-run.");
                 return res;
             }
-            return PlaceFromImport(doc, import, dryRun);
+            return PlaceFromImport(doc, import, dryRun, includeLineClusters);
         }
 
-        /// <summary>Capture fixture blocks from <paramref name="import"/>, map each to a
-        /// STING seed, ensure the seeds are built, then place + stamp them at the block
-        /// points. Caller must NOT have an open transaction (seed build opens its own).</summary>
         public static DwgFixtureBridgeResult PlaceFromImport(Document doc, ImportInstance import, bool dryRun)
+            => PlaceFromImport(doc, import, dryRun, includeLineClusters: false);
+
+        /// <summary>Capture fixtures from <paramref name="import"/> (block inserts, plus
+        /// points on mapped fixture layers when the DWG is exploded; plus EXPERIMENTAL
+        /// line-clusters when <paramref name="includeLineClusters"/> is set), map each to a
+        /// STING seed, ensure the seeds are built, then place + stamp them. Caller must NOT
+        /// have an open transaction (seed build opens its own).</summary>
+        public static DwgFixtureBridgeResult PlaceFromImport(Document doc, ImportInstance import, bool dryRun, bool includeLineClusters)
         {
-            var res = new DwgFixtureBridgeResult { DryRun = dryRun };
+            var res = new DwgFixtureBridgeResult { DryRun = dryRun, IncludedLineClusters = includeLineClusters };
             if (doc == null || import == null) { res.Messages.Add("No document / import."); return res; }
 
             // ── 1) Capture blocks (read-only) — REUSE the DWG geometry engine. ──
+            CADExtractionResult extraction;
             List<DetectedBlock> blocks;
             try
             {
-                var extraction = new CADToModelEngine(doc).PreviewImport(import);
+                extraction = new CADToModelEngine(doc).PreviewImport(import);
                 blocks = extraction?.Blocks ?? new List<DetectedBlock>();
             }
             catch (Exception ex)
@@ -101,14 +119,11 @@ namespace StingTools.Core.Placement
                 return res;
             }
             res.TotalBlocks = blocks.Count;
-            if (blocks.Count == 0)
-            {
-                res.Messages.Add("No MEP/fixture blocks detected in the import (only runs/lines, or an empty DWG).");
-                return res;
-            }
 
-            // ── 2) Resolve each block → category → seed (read-only pre-pass). ──
+            // ── 2) Resolve captures → category → seed (read-only pre-pass). ──
             var captured = new List<Captured>();
+
+            // 2a) Block inserts (the proven path — captured regardless of layer).
             foreach (var b in blocks)
             {
                 if (b?.InsertionPoint == null) continue;
@@ -119,14 +134,82 @@ namespace StingTools.Core.Placement
                 captured.Add(new Captured
                 {
                     Point = b.InsertionPoint, BlockName = b.BlockName ?? "", LayerName = b.LayerName ?? "",
-                    Category = map.Category, SeedId = seedId, Variant = map.VariantHint ?? "", Anchor = map.Anchor
+                    Category = map.Category, SeedId = seedId, Variant = map.VariantHint ?? "", Anchor = map.Anchor,
+                    Mode = "block"
                 });
             }
+
+            // 2b) Layer capture for EXPLODED geometry — points on mapped fixture layers,
+            //     plus (experimental, opt-in) line-cluster centroids. Fixes the "0 blocks"
+            //     case. Only layers that resolve to a STING category are considered.
+            var fixtureLayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var layer in (extraction?.LayerCounts?.Keys ?? Enumerable.Empty<string>()))
+                {
+                    if (string.IsNullOrWhiteSpace(layer) || layer == "(unnamed)") continue;
+                    var lm = DwgSymbolMapRegistry.ResolveLayer(doc, layer);
+                    if (lm != null && !string.IsNullOrWhiteSpace(lm.Category)) fixtureLayers.Add(layer);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.fixtureLayers: {ex.Message}"); }
+
+            var layerHitCounts = fixtureLayers.ToDictionary(l => l, _ => 0, StringComparer.OrdinalIgnoreCase);
+            if (fixtureLayers.Count > 0)
+            {
+                List<DwgFixturePoint> layerPts = new List<DwgFixturePoint>();
+                try { layerPts = new CADToModelEngine(doc).CaptureFixturePoints(import, fixtureLayers, includeLineClusters); }
+                catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.CaptureFixturePoints: {ex.Message}"); }
+                res.TotalLayerPoints = layerPts.Count;
+
+                // Dedup against block insertions on the same layer (a fixture that is BOTH a
+                // block and a point/cluster is the same symbol — the block wins).
+                double dedupFt = UnitUtils.ConvertToInternalUnits(300.0, UnitTypeId.Millimeters);
+                double dedup2 = dedupFt * dedupFt;
+                var blockPts = captured.Where(c => c.Mode == "block")
+                    .Select(c => (c.LayerName, c.Point)).ToList();
+
+                foreach (var fp in layerPts)
+                {
+                    if (fp?.Point == null) continue;
+                    string layer = fp.LayerName ?? "";
+                    if (layerHitCounts.ContainsKey(layer)) layerHitCounts[layer]++;
+                    bool dupOfBlock = blockPts.Any(bp =>
+                        string.Equals(bp.LayerName, layer, StringComparison.OrdinalIgnoreCase)
+                        && bp.Point != null && bp.Point.DistanceTo(fp.Point) * bp.Point.DistanceTo(fp.Point) <= dedup2);
+                    if (dupOfBlock) continue;
+
+                    var map = DwgSymbolMapRegistry.Resolve(doc, fp.BlockName, layer, fp.InferredCategory);
+                    if (map == null || string.IsNullOrWhiteSpace(map.Category)) { res.SkippedNoMapping++; continue; }
+                    string seedId = CategoryToSeedRegistry.Resolve(doc, map.Category);
+                    if (string.IsNullOrWhiteSpace(seedId)) { res.SkippedSeedless++; continue; }
+                    captured.Add(new Captured
+                    {
+                        Point = fp.Point, BlockName = fp.BlockName ?? "", LayerName = layer,
+                        Category = map.Category, SeedId = seedId, Variant = map.VariantHint ?? "",
+                        Anchor = map.Anchor, Mode = string.IsNullOrWhiteSpace(fp.CaptureMode) ? "point" : fp.CaptureMode
+                    });
+                }
+
+                // Honest accounting: a mapped layer that produced nothing capturable.
+                foreach (var kv in layerHitCounts.Where(k => k.Value == 0))
+                {
+                    res.SkippedExplodedNoPoint++;
+                    res.Messages.Add($"Layer '{kv.Key}' is mapped but has no blocks/points to place from " +
+                                     (includeLineClusters ? "(no Points and no clusterable lines)."
+                                                          : "(exploded — enable experimental line-cluster capture, or add DWG Points)."));
+                }
+            }
+
+            // Capture-mode histogram for the report.
+            foreach (var grp in captured.GroupBy(c => c.Mode))
+                res.CapturedByMode[grp.Key] = grp.Count();
+
             if (captured.Count == 0)
             {
-                res.Messages.Add($"None of the {blocks.Count} block(s) mapped to a seeded STING category " +
-                                 $"({res.SkippedNoMapping} unmapped, {res.SkippedSeedless} seedless). " +
-                                 "Extend Data/Placement/DWG_SYMBOL_MAP.json (or the project override).");
+                res.Messages.Add($"Nothing placeable: {res.TotalBlocks} block(s) + {res.TotalLayerPoints} layer point(s) " +
+                                 $"({res.SkippedNoMapping} unmapped, {res.SkippedSeedless} seedless, {res.SkippedExplodedNoPoint} mapped-but-empty). " +
+                                 "Use Library -> Map DWG layers to assign categories, or extend the DWG symbol map.");
                 return res;
             }
 
@@ -181,9 +264,9 @@ namespace StingTools.Core.Placement
                             res.PlacedIds.Add(placed.Placed.Id);
                             res.PlacedByCategory[c.Category] =
                                 (res.PlacedByCategory.TryGetValue(c.Category, out var n) ? n : 0) + 1;
-                            // Provenance + the source DWG block/layer (audit) — caller owns the tx.
+                            // Provenance + the source DWG block/layer + capture mode (audit) — caller owns the tx.
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
-                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}"); }
+                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}"); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
                         }
                         else

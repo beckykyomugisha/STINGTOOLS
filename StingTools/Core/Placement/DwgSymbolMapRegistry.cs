@@ -61,6 +61,105 @@ namespace StingTools.Core.Placement
         public static void Reload(Autodesk.Revit.DB.Document doc)
         { lock (_lock) { _cache.Remove(DocKey(doc)); } }
 
+        /// <summary>A user-assigned layer → STING mapping, for writing the project override
+        /// from the Map-DWG-Layers UI. A blank/null Category clears (unmaps) the layer.</summary>
+        public sealed class LayerRuleInput
+        {
+            public string Layer { get; set; } = "";
+            public string Category { get; set; } = "";
+            public string VariantHint { get; set; } = "";
+            public string Anchor { get; set; } = "WALL_MIDPOINT";
+        }
+
+        /// <summary>Resolve a LAYER (no block name) to its STING mapping, using the same
+        /// chain as Resolve with the layer's coarse category inferred from its name.
+        /// Returns null when the layer maps to nothing / a run-structure category.</summary>
+        public static DwgSymbolMapping ResolveLayer(Autodesk.Revit.DB.Document doc, string layerName)
+        {
+            string inferred = null;
+            try { inferred = StingTools.Model.LayerMapper.InferCategory(layerName); } catch { }
+            return Resolve(doc, "", layerName, inferred);
+        }
+
+        /// <summary>The project-override file path (&lt;project&gt;/_BIM_COORD/dwg_symbol_map.json),
+        /// or null when the document is unsaved.</summary>
+        public static string ProjectOverridePath(Autodesk.Revit.DB.Document doc)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(doc?.PathName)) return null;
+                string dir = Path.GetDirectoryName(doc.PathName);
+                return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, "_BIM_COORD", "dwg_symbol_map.json");
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Merge user layer assignments into the EXISTING project override
+        /// (&lt;project&gt;/_BIM_COORD/dwg_symbol_map.json) as ByLayer rules, preserving any
+        /// block rules / fallbacks already there, then Reload so the next run honours them.
+        /// Idempotent — re-saving a layer replaces its rule. Returns the count written.
+        /// Never touches the corporate baseline.</summary>
+        public static int SaveLayerRulesToProjectOverride(Autodesk.Revit.DB.Document doc, IEnumerable<LayerRuleInput> rules)
+        {
+            string path = ProjectOverridePath(doc);
+            if (string.IsNullOrEmpty(path)) throw new InvalidOperationException("Save the project to disk first — the override lives under _BIM_COORD.");
+            var inputs = (rules ?? Enumerable.Empty<LayerRuleInput>())
+                .Where(r => r != null && !string.IsNullOrWhiteSpace(r.Layer)).ToList();
+
+            JObject root = null;
+            try { if (File.Exists(path)) root = JObject.Parse(File.ReadAllText(path)); }
+            catch (Exception ex) { StingLog.Warn($"DwgSymbolMapRegistry.SaveLayer read: {ex.Message}"); }
+            if (root == null)
+                root = new JObject
+                {
+                    ["version"] = "v1",
+                    ["description"] = "Project DWG layer->STING map override (Map DWG Layers UI). Layered over the corporate Data/Placement/DWG_SYMBOL_MAP.json by DwgSymbolMapRegistry."
+                };
+
+            var arr = root["rules"] as JArray ?? new JArray();
+            // Drop any existing layer rules for the layers being (re)assigned — idempotent.
+            var touched = new HashSet<string>(inputs.Select(i => i.Layer), StringComparer.OrdinalIgnoreCase);
+            var kept = new JArray();
+            foreach (var r in arr.OfType<JObject>())
+            {
+                bool isLayer = string.Equals((string)r["match"], "layer", StringComparison.OrdinalIgnoreCase);
+                string pat = (string)r["pattern"] ?? "";
+                if (isLayer && touched.Contains(pat)) continue; // replaced below
+                kept.Add(r);
+            }
+            // Append the new assignments (blank category = leave unmapped, i.e. just removed above).
+            int written = 0;
+            foreach (var i in inputs)
+            {
+                if (string.IsNullOrWhiteSpace(i.Category)) continue;
+                var rule = new JObject
+                {
+                    ["match"] = "layer",
+                    ["pattern"] = i.Layer,
+                    ["category"] = i.Category
+                };
+                if (!string.IsNullOrWhiteSpace(i.VariantHint)) rule["variantHint"] = i.VariantHint;
+                rule["anchor"] = string.IsNullOrWhiteSpace(i.Anchor) ? "WALL_MIDPOINT" : i.Anchor;
+                kept.Add(rule);
+                written++;
+            }
+            root["rules"] = kept;
+
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(path, root.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DwgSymbolMapRegistry.SaveLayer write", ex);
+                throw;
+            }
+            Reload(doc);
+            return written;
+        }
+
         /// <summary>Resolve a captured block to its STING placement mapping. Returns null
         /// when the block is a run/structure category (skip) or nothing maps.</summary>
         public static DwgSymbolMapping Resolve(Autodesk.Revit.DB.Document doc,
