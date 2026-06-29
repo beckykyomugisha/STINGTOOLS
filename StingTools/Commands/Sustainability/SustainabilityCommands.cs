@@ -250,8 +250,10 @@ namespace StingTools.Commands.Sustainability
             var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
             var b = new StingResultPanel.Builder()
                 .SetTitle("STING Sustainability — EDGE / LEED Dashboard")
-                .SetSubtitle($"Indicative estimate · {setup.DominantBuildingUse} · zone {setup.ClimateZone} · " +
-                             $"{setup.TotalFloorAreaM2:0} m² · occ {setup.TotalOccupancy}")
+                .SetSubtitle(SustainHeader.Subtitle(
+                    res.ResolvedUse?.Found == true ? res.ResolvedUse.Use : setup.DominantBuildingUse,
+                    res.ResolvedUse?.Found ?? false,
+                    setup.ClimateZone, setup.TotalFloorAreaM2, setup.TotalOccupancy))
                 .SetOverallPct(res.Energy?.EnergySavingsPct ?? 0);
 
             // WS I1 — a location/use-unset model is a generic proxy, not the user's
