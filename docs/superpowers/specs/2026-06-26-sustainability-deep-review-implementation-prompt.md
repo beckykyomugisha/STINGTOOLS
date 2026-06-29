@@ -398,6 +398,79 @@ so the one-click run can't emit confident-wrong numbers on a mis-set project.
 
 ---
 
+## Workstream J — Location actually drives the result (USA-vs-Uganda bug)
+
+Found in the live Revit smoke test: picking a **Country** changes nothing — energy,
+baseline and grid-carbon are identical for USA and Uganda because the engine keys off
+the **Climate site (city) → latitude → zone** and the **climate zone → baseline**, and
+the Country field populates **none** of them. Both fall to the temperate **4A** default
+(`STING_GREEN_BASELINES.json` only has zones `*`, `0A`, `4A`; all `country:"*"`). Same
+ground rules: data-driven, project-override, zero hardcoding; pure engines Revit-free +
+tested. Items I1/I9 (gate + latitude classifier) exist — J makes them actually fire.
+
+### J1. Country selection must cascade into the run
+On Country change in SETUP, auto-populate **Climate site (default city), Climate zone
+(via `AshraeClimateZone.ClassifyByLatitude` on the city's lat), Grid carbon factor and
+Diesel factor** from the country seed (below), persist them with the setup, and feed
+them into the dashboard run. Today Country is inert — only the manually-typed Climate
+site drives climate and only the manually-typed zone drives the baseline. User-typed
+values must still override the auto-populated ones (don't clobber an explicit entry).
+Add a test that USA and Uganda resolve different zones + grid factors from Country alone.
+
+### J2. Country + climate data is a researched seed (data-driven dropdown)
+The dropdown must be **data-driven** from the seed file (never a hardcoded enum), with
+**friendly labels** (`CAF — Central African Republic`, not bare `CAF`). Extend
+`STING_GRID_CARBON_FACTORS.json` (or a sibling `STING_COUNTRIES.json`) so each entry
+carries: `iso3`, `label`, `defaultCity`, `lat`, `lon`, `climateZone` (ASHRAE 169),
+`gridKgCo2ePerKwh`, `dieselKgCo2ePerKwh`, `source`. Project override at
+`<project>/_BIM_COORD/`. Seed at least these (indicative — grid factors from IEA / Ember
+2023 ranges; climate zone is the capital's, refine per-project; altitude noted where it
+shifts the latitude-only zone):
+
+| ISO3 | Country | Default city | Lat | Climate zone | Grid kgCO₂e/kWh | Notes |
+|---|---|---|---|---|---|---|
+| CAF | Central African Republic | Bangui | 4.4 | 1A (hot-humid) | 0.07 | hydro (Boali) + diesel |
+| UGA | Uganda | Kampala | 0.3 | 2A (alt 1190 m mild) | 0.05 | hydro-dominant |
+| KEN | Kenya | Nairobi | -1.3 | 3A (alt 1795 m) | 0.10 | geothermal + hydro |
+| TZA | Tanzania | Dar es Salaam | -6.8 | 0A/1A | 0.33 | hydro + gas |
+| RWA | Rwanda | Kigali | -1.9 | 2A (alt 1567 m) | 0.30 | hydro + methane + solar |
+| ETH | Ethiopia | Addis Ababa | 9.0 | 3A (alt 2355 m) | 0.03 | almost all hydro |
+| COD | DR Congo | Kinshasa | -4.3 | 1A | 0.03 | hydro (Inga) |
+| NGA | Nigeria | Lagos | 6.5 | 0A/1A | 0.42 | gas + diesel |
+| GHA | Ghana | Accra | 5.6 | 1A | 0.35 | hydro + gas |
+| ZAF | South Africa | Johannesburg | -26.2 | 3B/4B (alt 1753 m) | 0.92 | coal-heavy |
+| EGY | Egypt | Cairo | 30.0 | 2B (hot-dry) | 0.45 | gas |
+| MAR | Morocco | Casablanca | 33.6 | 3C | 0.61 | coal + renewables |
+| GBR | United Kingdom | London | 51.5 | 4A (temperate) | 0.21 | gas + wind + nuclear |
+| FRA | France | Paris | 48.9 | 4A | 0.06 | nuclear |
+| DEU | Germany | Berlin | 52.5 | 4A | 0.38 | mixed |
+| USA | United States | New York | 40.7 | 4A | 0.37 | mixed (use city for real zone) |
+| IND | India | New Delhi | 28.6 | 2A/3A | 0.71 | coal-heavy |
+| CHN | China | Beijing | 39.9 | 4A | 0.58 | coal + renewables |
+| ARE | UAE | Dubai | 25.2 | 0B/1B (hot-dry) | 0.40 | gas |
+| AUS | Australia | Sydney | -33.9 | 3A | 0.66 | coal + renewables |
+| BRA | Brazil | São Paulo | -23.5 | 3A | 0.10 | hydro-dominant |
+| `*` | (global default) | — | — | — | 0.45 | fallback, flagged as default |
+
+These are **seed/indicative** values; mark them as such, keep the project-override path,
+and the latitude classifier still applies for any city the user types that isn't listed.
+
+### J3. The I1 gate must actually block degenerate input
+A run with **Floor area 0 / Occupancy 0** still showed a full energy result
+(28,209 kWh, −46.4 %) instead of the readiness banner. The dashboard must refuse to
+display a computed EUI / energy savings when floor area or occupancy is 0 — show the
+banner + not-computed state. Verify the E1 run cache is **re-keyed** when Country /
+climate site / zone change, so a stale result isn't shown after a setup edit.
+
+### J4. Nearest-zone baseline fallback, not hardcoded 4A
+`GreenBaselineRegistry` falls back to climate-zone **4A** when no country/zone baseline
+matches (the "fell back to climate-zone 4A office" log). With J2's zones resolving
+correctly, add the tropical baseline rows (0A/0B/1A/1B/2A office + the project's other
+uses) so hot-climate projects resolve a tropical base case; when still unmatched, fall
+back to the **nearest available zone by latitude/zone-number**, never a hardcoded 4A.
+
+---
+
 ## Acceptance criteria
 
 1. Energy uses the load-profile library + real envelope + per-façade solar from the
