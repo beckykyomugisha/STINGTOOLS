@@ -303,20 +303,27 @@ namespace StingTools.Commands.Sustainability
             var res = SustainabilityEngine.Run(doc, setup);
 
             // Stamp the resolved baseline intensities + achieved level onto ProjectInfo.
+            // WS H3 — collect any target param that isn't bound so we warn clearly
+            // instead of silently no-op'ing (the dashboard would work in-session but
+            // nothing would persist to the model / schedules / IFC).
+            var unbound = new List<string>();
             try
             {
                 using (var t = new Transaction(doc, "STING Sustainability — Set Baseline"))
                 {
                     t.Start();
                     var pi = doc.ProjectInformation;
-                    StampDouble(pi, ParamRegistry.SUS_ENERGY_KWH_M2, res.Energy?.DesignEuiKwhM2Yr ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_WATER_L_PD, res.Water?.DesignLPersonDay ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_MAT_CARBON_KGM2, res.Materials?.CarbonIntensityKgM2 ?? 0);
-                    StampDouble(pi, ParamRegistry.SUS_MAT_ENERGY_MJ_M2, res.Materials?.EnergyIntensityMjM2 ?? 0);
+                    if (!StampDouble(pi, ParamRegistry.SUS_ENERGY_KWH_M2, res.Energy?.DesignEuiKwhM2Yr ?? 0)) unbound.Add(ParamRegistry.SUS_ENERGY_KWH_M2);
+                    if (!StampDouble(pi, ParamRegistry.SUS_WATER_L_PD, res.Water?.DesignLPersonDay ?? 0)) unbound.Add(ParamRegistry.SUS_WATER_L_PD);
+                    if (!StampDouble(pi, ParamRegistry.SUS_MAT_CARBON_KGM2, res.Materials?.CarbonIntensityKgM2 ?? 0)) unbound.Add(ParamRegistry.SUS_MAT_CARBON_KGM2);
+                    if (!StampDouble(pi, ParamRegistry.SUS_MAT_ENERGY_MJ_M2, res.Materials?.EnergyIntensityMjM2 ?? 0)) unbound.Add(ParamRegistry.SUS_MAT_ENERGY_MJ_M2);
                     var edge = res.Schemes.FirstOrDefault(s => s.SchemeId == "EDGE");
-                    StampText(pi, ParamRegistry.SUS_EDGE_LEVEL, edge?.AchievedLevel ?? "None");
+                    if (!StampText(pi, ParamRegistry.SUS_EDGE_LEVEL, edge?.AchievedLevel ?? "None")) unbound.Add(ParamRegistry.SUS_EDGE_LEVEL);
                     t.Commit();
                 }
+                if (unbound.Count > 0)
+                    StingLog.Warn($"Sustain SetBaseline: {unbound.Count} SUS_* param(s) not bound — baseline did NOT persist: " +
+                                  string.Join(", ", unbound) + ". Run 'Load Shared Parameters' first.");
             }
             catch (Exception ex) { StingLog.Warn($"Sustain SetBaseline stamp: {ex.Message}"); }
 
@@ -333,28 +340,44 @@ namespace StingTools.Commands.Sustainability
              .Metric("Design EUI", $"{res.Energy?.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy?.BaselineEuiKwhM2Yr:F1}")
              .Metric("Design water", $"{res.Water?.DesignLPersonDay:F1} L/person·day", $"baseline {res.Water?.BaselineLPersonDay:F1}")
              .Metric("Provenance", res.Baseline?.Provenance ?? "—", "never 'certified'");
+            if (unbound.Count > 0)
+                b.AddSection("⚠ Not persisted")
+                 .Info($"{unbound.Count} sustainability parameter(s) are not bound, so the baseline was " +
+                       "NOT written to the model: " + string.Join(", ", unbound) +
+                       ". Run 'Load Shared Parameters' (it now binds the SUS_* group to Project Information), then re-run.");
             b.Show();
 
             StingLog.Info($"Sustain_SetBaseline: {res.Baseline?.Summary}");
             return Result.Succeeded;
         }
 
-        private static void StampDouble(Element el, string name, double v)
+        /// <summary>Stamp a numeric value; returns false when the param isn't bound
+        /// (LookupParameter null) so the caller can warn that the baseline didn't
+        /// persist. Read-only counts as "present" (true) — it exists, just not writable.</summary>
+        private static bool StampDouble(Element el, string name, double v)
         {
             try
             {
                 var p = el?.LookupParameter(name);
-                if (p == null || p.IsReadOnly) return;
+                if (p == null) return false;          // not bound — caller warns
+                if (p.IsReadOnly) return true;
                 if (p.StorageType == StorageType.Double) p.Set(v);
                 else if (p.StorageType == StorageType.String) p.Set(v.ToString("F2"));
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"StampDouble {name}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"StampDouble {name}: {ex.Message}"); return false; }
         }
 
-        private static void StampText(Element el, string name, string v)
+        private static bool StampText(Element el, string name, string v)
         {
-            try { var p = el?.LookupParameter(name); if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(v ?? ""); }
-            catch (Exception ex) { StingLog.Warn($"StampText {name}: {ex.Message}"); }
+            try
+            {
+                var p = el?.LookupParameter(name);
+                if (p == null) return false;          // not bound — caller warns
+                if (!p.IsReadOnly && p.StorageType == StorageType.String) p.Set(v ?? "");
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"StampText {name}: {ex.Message}"); return false; }
         }
     }
 

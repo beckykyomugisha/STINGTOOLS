@@ -713,6 +713,18 @@ namespace StingTools.Tags
                         foreach (Category c in existing) prjSet.Insert(c);
                     }
                     overrides["PRJ_INFORMATION"] = prjSet;
+
+                    // WS H3 — Sustainability (group 35 SUS_SUSTAINABILITY) is project-
+                    // scoped: SetBaseline stamps the resolved EUI / water / carbon / MJ
+                    // intensities + EDGE level onto ProjectInformation, and the dashboard
+                    // reads them back. Without this override the SUS_* params bind to the
+                    // universal set (not ProjectInformation) and SetBaseline's
+                    // LookupParameter returns null — the stamp silently no-ops. Bind the
+                    // group to ProjectInformation so it persists to the model / schedules
+                    // / IFC (matches CATEGORY_BINDINGS.csv).
+                    var susSet = new CategorySet();
+                    susSet.Insert(prjCat);
+                    overrides["SUS_SUSTAINABILITY"] = susSet;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides PRJ_INFORMATION: {ex.Message}"); }

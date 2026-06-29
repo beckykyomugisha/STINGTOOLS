@@ -81,6 +81,44 @@ namespace StingTools.Sustainability.Tests
         }
 
         [Fact]
+        public void CategoryBindings_BindSusParamsToProjectInformation()
+        {
+            // WS H3 — the 6 SUS_* params must have ProjectInformation binding rows so
+            // SetBaseline's stamp persists (no silent no-op).
+            string path = RepoDataPath("CATEGORY_BINDINGS.csv");
+            Assert.NotNull(path);
+            var lines = File.ReadAllLines(path);
+            string[] required =
+            {
+                "SUS_ENERGY_KWH_M2_NR", "SUS_WATER_L_PD_NR", "SUS_MAT_CARBON_KGM2_NR",
+                "SUS_MAT_ENERGY_MJ_M2_NR", "SUS_EDGE_LEVEL_TXT", "SUS_EPD_REF_TXT"
+            };
+            foreach (var p in required)
+                Assert.True(lines.Any(l => l.StartsWith(p + ",") && l.Contains("Project Information")),
+                    $"{p} must bind to Project Information in CATEGORY_BINDINGS.csv");
+        }
+
+        [Fact]
+        public void CoverageMatrix_MarksSusParamsOnProjectInformation()
+        {
+            // WS H3 — mirror the binding in the coverage matrix (Project Information = 1).
+            string path = RepoDataPath("BINDING_COVERAGE_MATRIX.csv");
+            Assert.NotNull(path);
+            var lines = File.ReadAllLines(path);
+            int hi = System.Array.FindIndex(lines, l => l.StartsWith("Parameter_Name,"));
+            Assert.True(hi >= 0);
+            var header = lines[hi].Split(',');
+            int pi = System.Array.IndexOf(header, "Project Information");
+            Assert.True(pi > 0);
+            foreach (var p in new[] { "SUS_ENERGY_KWH_M2_NR", "SUS_MAT_CARBON_KGM2_NR" })
+            {
+                var row = lines.FirstOrDefault(l => l.StartsWith(p + ","));
+                Assert.NotNull(row);
+                Assert.Equal("1", row.Split(',')[pi]);
+            }
+        }
+
+        [Fact]
         public void ClimateData_HasBanguiSite()
         {
             string path = RepoDataPath("STING_CLIMATE_DATA.json");
