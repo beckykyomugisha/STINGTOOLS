@@ -119,10 +119,8 @@
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Country" Style="{StaticResource SusLabel}"/>
                             <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbCountry" IsEditable="True" Margin="0,2" FontSize="10"
-                                       ToolTip="ISO country (or * = any). Editable — type a code the baseline catalogue knows.">
+                                       ToolTip="Country (data-driven from STING_COUNTRIES.json). Picking one auto-populates climate site, zone, and grid/diesel factors. Editable — type an ISO3 code or * = any.">
                                 <ComboBoxItem Content="*"/>
-                                <ComboBoxItem Content="CAF"/><ComboBoxItem Content="UGA"/><ComboBoxItem Content="KEN"/>
-                                <ComboBoxItem Content="GBR"/><ComboBoxItem Content="USA"/>
                             </ComboBox>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Climate site id" Style="{StaticResource SusLabel}"/>
                             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtClimateSite" Margin="0,2" FontSize="10"

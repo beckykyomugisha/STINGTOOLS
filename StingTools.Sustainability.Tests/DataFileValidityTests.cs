@@ -32,6 +32,7 @@ namespace StingTools.Sustainability.Tests
         [InlineData("STING_GREEN_MEASURES.json")]
         [InlineData("STING_CLIMATE_MONTHLY.json")]
         [InlineData("STING_ICE_EMBODIED_ENERGY.json")]
+        [InlineData("STING_COUNTRIES.json")]
         [InlineData("WORKFLOW_SustainabilityAssessment.json")]
         public void DataFile_ParsesAsValidJson(string fileName)
         {

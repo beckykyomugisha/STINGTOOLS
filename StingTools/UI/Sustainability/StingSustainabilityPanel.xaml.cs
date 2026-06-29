@@ -156,7 +156,10 @@ namespace StingTools.UI.Sustainability
                 s.TargetLevels = new Dictionary<string, string> { { "EDGE", TagOf(cmbEdgeLevel, "Advanced") } };
                 s.Units = string.Equals(TagOf(cmbUnits, "SI"), "IP", StringComparison.OrdinalIgnoreCase)
                     ? SustainUnits.IP : SustainUnits.SI;
+                // WS J2 — the dropdown shows "ISO3 — Country"; persist the ISO3 only.
                 string country = cmbCountry.Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(country) && country.Contains("—"))
+                    country = country.Split('—')[0].Trim();
                 s.Country       = string.IsNullOrWhiteSpace(country) ? "*" : country;
                 s.ClimateSiteId = txtClimateSite.Text?.Trim();
                 s.ClimateZone   = cmbClimateZone.Text?.Trim();
@@ -360,6 +363,26 @@ namespace StingTools.UI.Sustainability
                 if (cmbBuildingUse.SelectedItem == null) cmbBuildingUse.SelectedIndex = 0;
             }
             catch (Exception ex) { StingLog.Warn($"Sus PopulateBuildingUses: {ex.Message}"); }
+        }
+
+        /// <summary>WS J2 — populate the Country dropdown from the country seed
+        /// (friendly "ISO3 — Label"), preserving the current selection. Data-driven:
+        /// no hardcoded enum.</summary>
+        public void PopulateCountries(IEnumerable<string> labels)
+        {
+            try
+            {
+                if (labels == null) return;
+                string current = cmbCountry.Text;
+                cmbCountry.Items.Clear();
+                foreach (var l in labels)
+                    if (!string.IsNullOrWhiteSpace(l))
+                        cmbCountry.Items.Add(new ComboBoxItem { Content = l });
+                if (cmbCountry.Items.Count == 0)
+                    cmbCountry.Items.Add(new ComboBoxItem { Content = "*" });
+                if (!string.IsNullOrWhiteSpace(current)) cmbCountry.Text = current;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus PopulateCountries: {ex.Message}"); }
         }
 
         // ── WS B3 — mixed-use zones grid handlers ─────────────────────────

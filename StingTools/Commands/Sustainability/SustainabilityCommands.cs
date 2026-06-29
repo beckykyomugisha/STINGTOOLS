@@ -200,6 +200,8 @@ namespace StingTools.Commands.Sustainability
                     SustainabilityRegistries.Baselines(doc).All.Select(b => b.Key?.BuildingUse),
                     SustainabilityRegistries.WaterProfiles(doc).All.Select(p => p.BuildingUse));
                 panel?.PopulateBuildingUses(uses);
+                // WS J2 — data-driven Country dropdown from the country seed.
+                panel?.PopulateCountries(SustainabilityRegistries.Countries(doc).DropdownLabels());
             }
             catch (Exception ex) { StingLog.Warn($"Sustain building-use list: {ex.Message}"); }
             panel?.LoadSetupForm(setup);
@@ -477,6 +479,9 @@ namespace StingTools.Commands.Sustainability
             int occ = SustainCmdHelper.EstimateOccupancy(doc, area);
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             panel?.ApplyAutoFill(area, occ);
+            // WS J2 — make sure the Country dropdown is data-driven from the seed.
+            try { panel?.PopulateCountries(SustainabilityRegistries.Countries(doc).DropdownLabels()); }
+            catch (Exception ex) { StingLog.Warn($"Sustain populate countries: {ex.Message}"); }
 
             string src = SustainCmdHelper.TotalSpaceAreaM2(doc) > 1e-6 ? "MEP Spaces" : "Rooms";
             if (area <= 0)
