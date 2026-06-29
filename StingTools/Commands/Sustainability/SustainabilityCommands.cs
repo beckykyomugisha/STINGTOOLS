@@ -302,6 +302,13 @@ namespace StingTools.Commands.Sustainability
                 if (res.Profile != null)
                     b.Metric("Load profile", res.Profile.ProfileId,
                              $"EDGE: {res.Profile.EdgeBuildingType} · DHW {res.Profile.DhwLPerPersonDay:0} L/p·d · {res.Profile.Source}");
+                // WS L6 — when the baseline's building-use axis fell back, the savings %
+                // is against a proxy-use baseline; call that out explicitly (no silent
+                // climate-zone/use fallback for the savings number).
+                if (res.Baseline != null &&
+                    res.Baseline.FallbackAxes.Any(a => a.IndexOf("building use", StringComparison.OrdinalIgnoreCase) >= 0))
+                    b.MetricWarn("Energy savings basis", "indicative — baseline use proxy",
+                        $"no '{setup.DominantBuildingUse}' baseline; savings computed vs {res.Baseline.MatchedKey}");
             }
             else
                 b.AddSection("Energy").MetricWarn("Energy", "not computed",

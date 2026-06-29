@@ -473,6 +473,906 @@
         "embodiedEnergyBaseline_mj_m2": null,
         "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
       }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "0A",
+        "buildingUse": "hotel"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (hotel 0A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 95
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 22
+          },
+          "lighting": {
+            "lpd_w_m2": 8
+          },
+          "equipment": {
+            "epd_w_m2": 6
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "1A",
+        "buildingUse": "hotel"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (hotel 1A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 82
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 8
+          },
+          "equipment": {
+            "epd_w_m2": 6
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.9
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "2A",
+        "buildingUse": "hotel"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (hotel 2A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 65
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 8
+          },
+          "equipment": {
+            "epd_w_m2": 6
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "4A",
+        "buildingUse": "hotel"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (hotel 4A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 25
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 14
+          },
+          "lighting": {
+            "lpd_w_m2": 8
+          },
+          "equipment": {
+            "epd_w_m2": 6
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.2
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "0A",
+        "buildingUse": "retail"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (retail 0A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 105
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 24
+          },
+          "lighting": {
+            "lpd_w_m2": 14
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 3
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "1A",
+        "buildingUse": "retail"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (retail 1A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 90
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 22
+          },
+          "lighting": {
+            "lpd_w_m2": 14
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 3
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.9
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "2A",
+        "buildingUse": "retail"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (retail 2A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 72
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 14
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 3
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "4A",
+        "buildingUse": "retail"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (retail 4A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 28
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 15
+          },
+          "lighting": {
+            "lpd_w_m2": 14
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 3
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.2
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "0A",
+        "buildingUse": "education"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (education 0A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 86
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 12
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "1A",
+        "buildingUse": "education"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (education 1A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 74
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 12
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.9
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "2A",
+        "buildingUse": "education"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (education 2A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 58
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 12
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "4A",
+        "buildingUse": "education"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (education 4A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 22
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 13
+          },
+          "lighting": {
+            "lpd_w_m2": 12
+          },
+          "equipment": {
+            "epd_w_m2": 5
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.2
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "0A",
+        "buildingUse": "healthcare"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (healthcare 0A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 114
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 26
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "1A",
+        "buildingUse": "healthcare"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (healthcare 1A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 98
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 24
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.9
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "2A",
+        "buildingUse": "healthcare"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (healthcare 2A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 78
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 22
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "4A",
+        "buildingUse": "healthcare"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (healthcare 4A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 30
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 17
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 60
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.2
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "0A",
+        "buildingUse": "restaurant"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (restaurant 0A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 124
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 29
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 25
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 15
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "1A",
+        "buildingUse": "restaurant"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (restaurant 1A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 107
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 26
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 25
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 15
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 2.9
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "2A",
+        "buildingUse": "restaurant"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (restaurant 2A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 84
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 23
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 25
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 15
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "*",
+        "climateZone": "4A",
+        "buildingUse": "restaurant"
+      },
+      "source": "ASHRAE 90.1-2022 + EDGE defaults (restaurant 4A) - seed/indicative",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 32
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 9
+          },
+          "equipment": {
+            "epd_w_m2": 25
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 15
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.2
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
     }
   ]
 }
