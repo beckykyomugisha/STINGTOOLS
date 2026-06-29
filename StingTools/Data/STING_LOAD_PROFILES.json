@@ -96,7 +96,7 @@
       ],
       "dhwLPerPersonDay": 5,
       "operatingDaysPerYear": 250,
-      "source": "ASHRAE 90.1-2019 T9.6.1 + 62.1-2019 + CIBSE Guide A 2015 (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1 T9.6.1 (LPD table) + 62.1-2019 + CIBSE Guide A 2015 (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Offices",
       "aliases": [
         "office",
@@ -197,7 +197,7 @@
       ],
       "dhwLPerPersonDay": 3,
       "operatingDaysPerYear": 250,
-      "source": "ASHRAE 62.1-2019 conference (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 conference (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Offices",
       "aliases": [
         "meeting room",
@@ -298,7 +298,7 @@
       ],
       "dhwLPerPersonDay": 4,
       "operatingDaysPerYear": 200,
-      "source": "ASHRAE 90.1-2019 + 62.1-2019 classroom (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 + 62.1-2019 classroom (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Education",
       "aliases": [
         "education",
@@ -400,7 +400,7 @@
       ],
       "dhwLPerPersonDay": 60,
       "operatingDaysPerYear": 365,
-      "source": "ASHRAE 170 + CIBSE Guide G healthcare (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 170 + CIBSE Guide G healthcare (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Hospitals",
       "aliases": [
         "healthcare",
@@ -503,7 +503,7 @@
       ],
       "dhwLPerPersonDay": 30,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 170 operating room (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 170 operating room (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Hospitals",
       "aliases": [
         "operating theatre",
@@ -605,7 +605,7 @@
       ],
       "dhwLPerPersonDay": 3,
       "operatingDaysPerYear": 360,
-      "source": "ASHRAE 90.1-2019 + 62.1-2019 retail (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 + 62.1-2019 retail (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Retail",
       "aliases": [
         "retail",
@@ -708,7 +708,7 @@
       ],
       "dhwLPerPersonDay": 15,
       "operatingDaysPerYear": 360,
-      "source": "ASHRAE 62.1-2019 dining + CIBSE Guide G (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 dining + CIBSE Guide G (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Retail",
       "aliases": [
         "restaurant",
@@ -810,7 +810,7 @@
       ],
       "dhwLPerPersonDay": 20,
       "operatingDaysPerYear": 360,
-      "source": "ASHRAE 62.1-2019 commercial kitchen (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 commercial kitchen (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Retail",
       "aliases": [
         "kitchen",
@@ -910,7 +910,7 @@
       ],
       "dhwLPerPersonDay": 10,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 90.1-2019 + 62.1-2019 laboratory (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 + 62.1-2019 laboratory (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Offices",
       "aliases": [
         "lab",
@@ -1010,7 +1010,7 @@
       ],
       "dhwLPerPersonDay": 1,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 90.1-2019 warehouse (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 warehouse (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Light Industry",
       "aliases": [
         "warehouse",
@@ -1111,7 +1111,7 @@
       ],
       "dhwLPerPersonDay": 0,
       "operatingDaysPerYear": 365,
-      "source": "CIBSE Guide A plant room (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "CIBSE Guide A plant room (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Light Industry",
       "aliases": [
         "plantroom",
@@ -1212,7 +1212,7 @@
       ],
       "dhwLPerPersonDay": 0,
       "operatingDaysPerYear": 365,
-      "source": "CIBSE Guide A circulation (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "CIBSE Guide A circulation (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Offices",
       "aliases": [
         "corridor",
@@ -1235,7 +1235,7 @@
       "infiltrationAch": 0.5,
       "dhwLPerPersonDay": 45,
       "operatingDaysPerYear": 365,
-      "source": "CIBSE Guide A/G + ASHRAE 90.1 midrise apt (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "CIBSE Guide A/G + ASHRAE 90.1 midrise apt (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Homes",
       "aliases": [
         "residential",
@@ -1340,7 +1340,7 @@
       "infiltrationAch": 0.4,
       "dhwLPerPersonDay": 120,
       "operatingDaysPerYear": 365,
-      "source": "ASHRAE 90.1-2019 hotel + CIBSE Guide G (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 hotel + CIBSE Guide G (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Hospitality",
       "aliases": [
         "hotel",
@@ -1444,7 +1444,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 10,
       "operatingDaysPerYear": 365,
-      "source": "ASHRAE 62.1-2019 lobby (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 lobby (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Hospitality",
       "aliases": [
         "hotel public",
@@ -1546,7 +1546,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 12,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 170 outpatient (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 170 outpatient (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Hospitals",
       "aliases": [
         "clinic",
@@ -1648,7 +1648,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 4,
       "operatingDaysPerYear": 220,
-      "source": "ASHRAE 62.1-2019 lecture hall (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 lecture hall (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Education",
       "aliases": [
         "lecture hall",
@@ -1749,7 +1749,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 3,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 62.1-2019 library (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 library (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Education",
       "aliases": [
         "library",
@@ -1850,7 +1850,7 @@
       "infiltrationAch": 0.6,
       "dhwLPerPersonDay": 5,
       "operatingDaysPerYear": 300,
-      "source": "ASHRAE 90.1-2019 light industrial (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 90.1-2019 light industrial (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Light Industry",
       "aliases": [
         "industrial",
@@ -1953,7 +1953,7 @@
       "infiltrationAch": 0.2,
       "dhwLPerPersonDay": 0,
       "operatingDaysPerYear": 365,
-      "source": "ASHRAE TC9.9 data centre (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE TC9.9 data centre (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Light Industry",
       "aliases": [
         "data centre",
@@ -2056,7 +2056,7 @@
       "infiltrationAch": 0.4,
       "dhwLPerPersonDay": 30,
       "operatingDaysPerYear": 360,
-      "source": "ASHRAE 62.1-2019 health club + Handbook Ch.18 (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 health club + Handbook Ch.18 (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Retail",
       "aliases": [
         "gym",
@@ -2158,7 +2158,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 2,
       "operatingDaysPerYear": 150,
-      "source": "ASHRAE 62.1-2019 worship/assembly (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 worship/assembly (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Offices",
       "aliases": [
         "worship",
@@ -2262,7 +2262,7 @@
       "infiltrationAch": 0.3,
       "dhwLPerPersonDay": 2,
       "operatingDaysPerYear": 320,
-      "source": "ASHRAE 62.1-2019 theatre (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 theatre (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Retail",
       "aliases": [
         "cinema",
@@ -2365,7 +2365,7 @@
       "infiltrationAch": 0.6,
       "dhwLPerPersonDay": 0,
       "operatingDaysPerYear": 365,
-      "source": "ASHRAE 62.1-2019 parking (unconditioned; continuous vent) (seed/indicative) \u00b7 OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied)",
+      "source": "ASHRAE 62.1-2019 parking (unconditioned; continuous vent) (seed/indicative) - OA: CIBSE all-in per-person (per-area 0 for occupied; area-based for unoccupied) - LPD/EPD: ASHRAE 90.1 seed densities (2013-2019 vintage range), kept deliberately (conservative for an efficiency tool; not systematically lowered to 2019 LED minima)",
       "edgeBuildingType": "Light Industry",
       "aliases": [
         "parking",
