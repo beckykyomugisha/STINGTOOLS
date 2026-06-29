@@ -62,6 +62,17 @@ namespace StingTools.Core.Sustainability
             return r;
         }
 
+        /// <summary>WS I11 — compact status-bar / health-check line for the readiness
+        /// result. "Sustainability: ready" when complete; otherwise lists what's
+        /// missing so a mis-set project is caught before the dashboard is opened.</summary>
+        public static string StatusLine(SustainReadinessResult r)
+        {
+            if (r == null) return "Sustainability: unknown";
+            if (r.Complete) return "Sustainability: ready";
+            if (!r.Ready)   return "Sustainability: blocked — set " + string.Join(" + ", BlockMissing(r));
+            return "Sustainability: indicative — add " + string.Join(" + ", r.Missing);
+        }
+
         private static List<string> BlockMissing(SustainReadinessResult r)
         {
             var m = new List<string>();

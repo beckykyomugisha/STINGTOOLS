@@ -2022,6 +2022,7 @@ namespace StingTools.Core
                 // Phase 195 — Sustainability (EDGE/LEED): make the module chainable +
                 // reachable from workflow presets + NLP (WS H1). Same tags the panel uses.
                 case "Sustain_AutoFill":       return new Commands.Sustainability.SustainAutoFillCommand();
+                case "Sustain_ReadinessCheck": return new Commands.Sustainability.SustainReadinessCheckCommand();
                 case "Sustain_ProjectSetup":   return new Commands.Sustainability.SustainProjectSetupCommand();
                 case "Sustain_SupplyConfig":   return new Commands.Sustainability.SustainSupplyConfigCommand();
                 case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();

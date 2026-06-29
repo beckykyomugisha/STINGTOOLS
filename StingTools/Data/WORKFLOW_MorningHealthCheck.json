@@ -59,6 +59,11 @@
       "commandTag": "CompletenessDashboard",
       "label": "10. Tag completeness per-discipline dashboard",
       "optional": false
+    },
+    {
+      "commandTag": "Sustain_ReadinessCheck",
+      "label": "11. Sustainability readiness — location / use / occupancy / fixtures",
+      "optional": true
     }
   ]
 }

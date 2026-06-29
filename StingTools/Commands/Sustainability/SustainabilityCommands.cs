@@ -465,6 +465,44 @@ namespace StingTools.Commands.Sustainability
         }
     }
 
+    // ── Sustain_ReadinessCheck — model-health dimension (WS I11) ──────────────
+    // Surfaces "location / use / occupancy / fixtures incomplete" so a mis-set
+    // project is caught (morning health check + status bar) before someone opens
+    // the dashboard and reads generic-proxy numbers as real.
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SustainReadinessCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var doc = SustainCmdHelper.Doc(cmd);
+            if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
+
+            var setup = SustainCmdHelper.EffectiveSetup(doc);
+            var res = SustainabilityEngine.Run(doc, setup);   // cached; reuses the I1 readiness gate
+            var rd = res.Readiness ?? SustainReadiness.Evaluate(false, false, false, false);
+            string line = SustainReadiness.StatusLine(rd);
+
+            try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.UpdateStatus(line); }
+            catch (Exception ex) { StingLog.Warn($"Sustain readiness status: {ex.Message}"); }
+
+            var b = new StingResultPanel.Builder()
+                .SetTitle("STING Sustainability — Readiness")
+                .SetSubtitle(line);
+            b.AddSection("Readiness")
+             .PassFail("Location set (climate site/zone)", rd.LocationSet)
+             .PassFail("Building use resolved", rd.UseSet)
+             .PassFail("Occupancy set", rd.OccupancySet)
+             .PassFail("Plumbing fixtures modelled", rd.FixturesModelled);
+            if (!string.IsNullOrEmpty(rd.Banner))
+                b.AddSection(rd.Ready ? "Note" : "⛔ Blocked").Info(rd.Banner);
+            b.Show();
+
+            StingLog.Info($"Sustain_ReadinessCheck: {line}");
+            return Result.Succeeded;
+        }
+    }
+
     // ── Sustain_SupplyConfig — edit PV / grid / diesel supply layer ──────────
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
