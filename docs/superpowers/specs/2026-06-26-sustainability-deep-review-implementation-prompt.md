@@ -471,6 +471,139 @@ back to the **nearest available zone by latitude/zone-number**, never a hardcode
 
 ---
 
+## Workstream K — Comprehensive, flexible building-use data fabric
+
+**Why.** The live Bangui run exposed that a *residential* building is energy-modelled
+as an *office*: `SustainabilityEngine.ProfileIdForUse` hard-codes
+`case "residential": return "Office"` (and `hotel → Office`), and the load library
+(`STING_LOAD_PROFILES.json`) only ships **Office / PatientRoom / Retail**. So a 170 m²
+house resolved 17 occupants (office density 10 m²/p), office LPD/EPD and a 9–5 schedule →
+EUI ≈ 203 kWh/m²·yr (a dwelling should be ~60–120). The building use *is* derived
+correctly; the data fabric behind it is incomplete and partly hard-coded.
+
+**The fabric is fragmented.** A building use is the single pivot of the whole estimate,
+but its parameters live in four disconnected places plus a C# switch, with mismatched
+coverage:
+
+| Surface | Today | Gap |
+|---|---|---|
+| `BuildingUseCatalog` (the list) | 10 uses: office, residential, hotel, healthcare, education, retail, restaurant, industrial, lab, warehouse | the vocabulary |
+| `STING_LOAD_PROFILES.json` (energy) | **3**: Office, PatientRoom, Retail | 7 of 10 uses fall back to Office |
+| `SustainabilityEngine.DhwForUse` (C# switch) | **4** cases + default 5 | education/lab/restaurant/warehouse silently get office DHW |
+| `STING_WATER_USAGE_PROFILES.json` | **5**: office, healthcare, hotel, residential, retail | 5 uses have no water profile |
+| `STING_GREEN_BASELINES.json` (`buildingUse`) | **2**: office, residential (+ `*`) | 8 uses have no baseline |
+
+Adding a use today means editing four files **and** a code switch, and a missing entry
+fails *silently* to office. K makes the fabric **complete, data-driven, one-vocabulary,
+and gap-surfacing** — zero hard-coded per-use values.
+
+### K1 — Comprehensive load-profile library (`STING_LOAD_PROFILES.json`)
+
+Expand from 12 → ~22 profiles so every `BuildingUseCatalog` use (and the common EDGE
+building types) has a real, researched profile. Each profile keeps the **full** existing
+field set (occupantDensityM2PerPerson, lightingWPerM2, equipmentWPerM2, sensible/latent
+W per person, oaLpsPerPerson, oaLpsPerM2, cooling/heating setpoint, infiltrationAch, the
+three 24-h schedules) **plus four new fields** (see K5): `dhwLPerPersonDay`,
+`operatingDaysPerYear`, `source`, `edgeBuildingType`. Researched seed values — ASHRAE
+90.1-2019 Table 9.6.1 (LPD), 62.1-2019 Table 6.2.2.1 (ventilation), Handbook Fundamentals
+Ch.18 (gains), CIBSE Guide A 2015, CIBSE Guide G (DHW), EDGE building-type taxonomy:
+
+| profile id | dens m²/p | LPD W/m² | EPD W/m² | sens/lat W/p | OA L/s·p | OA L/s·m² | cool/heat °C | infil ACH | DHW L/p·d | op days | schedule archetype | EDGE type |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Office | 10 | 9 | 12 | 75/55 | 10 | 0.3 | 24/21 | 0.3 | 5 | 250 | weekday 9–6 | Offices |
+| Residential | 35 | 4 | 4 | 70/45 | 7.5 | 0.3 | 25/21 | 0.5 | 45 | 365 | evening/night | Homes |
+| HotelGuestroom | 25 | 6 | 5 | 70/45 | 7.5 | 0.3 | 24/21 | 0.4 | 120 | 365 | night-weighted | Hospitality |
+| HotelPublic | 15 | 10 | 5 | 73/58 | 7.5 | 0.6 | 24/21 | 0.3 | 10 | 365 | day+evening | Hospitality |
+| Retail | 15 | 12 | 5 | 73/58 | 7.5 | 0.6 | 24/21 | 0.3 | 3 | 360 | extended day | Retail |
+| Restaurant | 2.0 | 9 | 25 | 80/80 | 7.5 | 0.9 | 24/21 | 0.4 | 15 | 360 | midday+evening | Retail |
+| Kitchen | 8 | 11 | 50 | 95/110 | 10 | 0.9 | 24/18 | 0.5 | 20 | 360 | midday+evening | Retail |
+| PatientRoom (healthcare) | 12 | 8 | 12 | 73/58 | 12.5 | 0.3 | 24/22 | 0.3 | 60 | 365 | 24/7 | Hospitals |
+| ClinicOutpatient | 8 | 9 | 8 | 73/58 | 10 | 0.3 | 24/22 | 0.3 | 12 | 300 | weekday day | Hospitals |
+| OperatingRoom | 6 | 12 | 20 | 73/58 | 25 | 0.6 | 21/21 | 0.2 | 30 | 300 | weekday day | Hospitals |
+| Classroom (education) | 3 | 9 | 8 | 70/45 | 5 | 0.6 | 24/21 | 0.3 | 4 | 200 | weekday term | Education |
+| LectureHall | 1.5 | 9 | 8 | 70/45 | 5 | 0.3 | 24/21 | 0.3 | 4 | 220 | weekday day | Education |
+| Library | 12 | 10 | 5 | 73/58 | 5 | 0.6 | 24/21 | 0.3 | 3 | 300 | day | Education |
+| Lab | 15 | 13 | 30 | 73/58 | 10 | 1.0 | 22/21 | 0.5 | 10 | 300 | weekday day | Offices |
+| Warehouse | 100 | 4 | 2 | 73/58 | 0 | 0.3 | 26/16 | 0.4 | 1 | 300 | weekday day | Light Industry |
+| IndustrialLightMfg | 35 | 11 | 30 | 80/80 | 5 | 0.6 | 26/18 | 0.6 | 5 | 300 | weekday shift | Light Industry |
+| DataCentre | 200 | 5 | 800 | 73/58 | 0 | 0 | 24/18 | 0.2 | 0 | 365 | 24/7 | Light Industry |
+| GymFitness | 7 | 9 | 5 | 130/160 | 10 | 0.3 | 24/18 | 0.4 | 30 | 360 | day+evening | Retail |
+| WorshipAssembly | 1.5 | 9 | 3 | 73/58 | 5 | 0.3 | 24/18 | 0.3 | 2 | 150 | intermittent | Offices |
+| CinemaTheatre | 1.0 | 10 | 5 | 73/58 | 5 | 0.3 | 24/18 | 0.3 | 2 | 320 | evening | Retail |
+| Parking | 0 (no occ) | 2 | 1 | 0/0 | 0 | 0.9 | none/none | 0.6 | 0 | 365 | continuous vent | Light Industry |
+| Corridor | 50 | 5 | 1 | 73/58 | 0 | 0.3 | 24/21 | 0.3 | 0 | 365 | follow host | Offices |
+
+Numbers are **seed/indicative** (mark them so) and project-overridable at
+`<project>/_BIM_COORD/load_profiles.json`. Author the three 24-h schedule arrays per
+profile in the archetype shape (copy the existing 12 profiles' format; residential =
+morning + evening/night peak, hotel = night-weighted, retail = extended day, healthcare =
+flat 24/7, etc. — ASHRAE 90.1 Appendix G / NREL DOE reference-building schedules).
+
+### K2 — Data-driven use → profile + DHW resolution (kill the hard-codes)
+
+- **`ProfileIdForUse` becomes data-driven.** Resolve the load-profile id from the use id
+  via (a) direct id match, (b) an `aliases[]` / `useIds[]` array on each profile (so
+  `residential`/`dwelling`/`apartment`/`house` all map to `Residential`), (c) loose match
+  (case/space/hyphen-insensitive, as the registry already does). When still unresolved,
+  fall back to the **nearest sibling** (e.g. `clinic → PatientRoom`, `motel → HotelGuestroom`)
+  and **log the fallback** — never a silent `→ Office`. Delete the
+  `case "residential": return "Office"` / `hotel → Office` lines.
+- **DHW moves out of the C# switch into the profile data.** `dhwLPerPersonDay` is a
+  per-use property → it belongs in `STING_LOAD_PROFILES.json` (CIBSE Guide G values in the
+  table above), read through the registry with the project override. Delete
+  `SustainabilityEngine.DhwForUse`; resolve DHW from the resolved profile. Keep the old
+  switch values as a `*Fallback` constant only.
+- **Occupancy density now follows the resolved profile** (K1 fixes the "17 occupants on a
+  house" bug — Residential density 35 m²/p → ~5 occupants).
+
+### K3 — One canonical building-use vocabulary across all four surfaces
+
+`BuildingUseCatalog`, the load profiles, `STING_WATER_USAGE_PROFILES.json`, and
+`STING_GREEN_BASELINES.json` must share **one** canonical use-id set (+ aliases).
+
+- Extend `BuildingUseCatalog` to cover the full list (add hotel-public, clinic, kitchen,
+  library, gym, worship, cinema, data-centre, parking, etc. as needed) — data-driven,
+  friendly-labelled, project-overridable (mirror the J2 country-dropdown pattern).
+- Add **water-usage profiles** and **baseline rows** for the new uses (or a documented,
+  logged fallback — e.g. office-like water for dry uses), so no use is silently office.
+- Support **subtypes / mixed-use**: the per-zone building use (Workstream B3) already
+  exists — make sure every zone independently resolves its own load + water + DHW +
+  baseline. Allow a `parent`/`subtypeOf` field so an "office:trading-floor" subtype can
+  overlay just the fields it changes.
+- Every per-use file gets a `<project>/_BIM_COORD/` override and provenance.
+
+### K4 — Coverage guard (surface the gap, don't default silently)
+
+Add a small `BuildingUseCoverage` checker (pure, unit-tested) that, for each use in the
+catalog, reports whether a load profile, water profile, DHW value, and baseline (exact or
+nearest) exist. Wire it two ways:
+
+- A **unit test** that fails if any `BuildingUseCatalog` use lacks a load profile + DHW +
+  water profile (baseline may legitimately use nearest-zone fallback — that's logged).
+- A **dashboard note**: when the active run resolves a use via fallback (profile, water,
+  DHW, or baseline), surface "ℹ {use} {surface} resolved by fallback ({from} → {to}) —
+  indicative" in the NOTES panel, the same honest-proxy style as I2/J. A gap must read as
+  a *visible fallback*, never a silent office substitution.
+
+### K5 — "Comprehensive info, not just profiles" (the full design-parameter set)
+
+Each load profile carries the complete set a real load calc needs, with provenance:
+occupant density · LPD · EPD · sensible+latent per person · OA per-person **and** per-m² ·
+cooling+heating setpoints · infiltration ACH · 24-h occupancy/lighting/equipment schedules
+· **dhwLPerPersonDay** · **operatingDaysPerYear** · **source** (the standard each number
+came from) · **edgeBuildingType** (so the STING estimate maps cleanly onto the EDGE app's
+building category). Values are seed/indicative and project-overridable. This makes the
+building use a single, complete, defensible design context — not a thin label that silently
+borrows office numbers.
+
+**Ground rules** (unchanged): pure-POCO engines Revit-free + unit-tested; baselines proxy
+on climate zone, never country; EDGE owns the certified number (keep Computed/Delegated
+guards); any new pure file under `Core/Sustainability/` (or `Core/Hvac/Loads/`) added to
+`StingTools.Sustainability.Tests.csproj` as `<Compile Include … Link=…>`. Numbers are
+documented as indicative; nothing project-defining is hard-coded.
+
+---
+
 ## Acceptance criteria
 
 1. Energy uses the load-profile library + real envelope + per-façade solar from the
