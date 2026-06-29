@@ -43,9 +43,26 @@ namespace StingTools.Core.Sustainability
         public GridCarbonResolution GridCarbon { get; set; }
         public List<SchemeResult>    Schemes { get; } = new List<SchemeResult>();
         public ClimateMonthlySite    Climate { get; set; }
+        /// <summary>WS K5 — the resolved dominant load profile's full design context
+        /// (id + EDGE building type + provenance + DHW + operating days), so the run
+        /// maps cleanly onto the EDGE app's building category.</summary>
+        public ResolvedProfileInfo   Profile { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public int ZonesGathered { get; set; }
         public int MaterialLines { get; set; }
+    }
+
+    /// <summary>WS K5 — the resolved load profile's design context for the dashboard
+    /// + EDGE mapping. Populated from the dominant building use.</summary>
+    public class ResolvedProfileInfo
+    {
+        public string ProfileId         { get; set; } = "";
+        public string EdgeBuildingType  { get; set; } = "";
+        public string Source            { get; set; } = "";
+        public double DhwLPerPersonDay  { get; set; }
+        public int    OperatingDaysPerYear { get; set; }
+        public bool   IsFallback        { get; set; }
+        public string RequestedUse      { get; set; } = "";
     }
 
     public static class SustainabilityEngine
@@ -181,6 +198,23 @@ namespace StingTools.Core.Sustainability
             if (res.GridCarbon.IsDefault)
                 res.Warnings.Add($"Grid carbon factor is a default ({res.GridCarbon.Factor:0.00} kgCO₂e/kWh) — " +
                                  "set the project country (or override grid_carbon_factors.json) for a real grid factor.");
+
+            // ── WS K5 — resolve the dominant load profile's full design context for
+            //    the dashboard + EDGE-app building-category mapping. ──
+            try
+            {
+                var lib = LoadProfileRegistry.Get(doc);
+                var pr = lib?.ResolveForUse(setup.DominantBuildingUse);
+                if (pr?.Profile != null)
+                    res.Profile = new ResolvedProfileInfo
+                    {
+                        ProfileId = pr.Profile.Id, EdgeBuildingType = pr.Profile.EdgeBuildingType,
+                        Source = pr.Profile.Source, DhwLPerPersonDay = pr.Profile.DhwLPerPersonDay,
+                        OperatingDaysPerYear = pr.Profile.OperatingDaysPerYear,
+                        IsFallback = pr.IsFallback, RequestedUse = pr.RequestedUse
+                    };
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain resolve profile info: {ex.Message}"); }
 
             // ── Energy (annual; reuse LoadZone inventory) ──
             var zones = GatherZones(doc, setup, res.Warnings);

@@ -294,9 +294,15 @@ namespace StingTools.Commands.Sustainability
             // WS J3 — energy headline: show the EUI + savings only when computed; else
             // the not-computed state + reason (floor area / occupancy 0).
             if (res.Energy?.Computed == true)
+            {
                 b.AddSection("Energy")
                  .Metric("Design EUI", $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}")
                  .Metric("Energy savings — indicative", $"{res.Energy.EnergySavingsPct:F1}%");
+                // WS K5 — the resolved load profile + EDGE building-category mapping.
+                if (res.Profile != null)
+                    b.Metric("Load profile", res.Profile.ProfileId,
+                             $"EDGE: {res.Profile.EdgeBuildingType} · DHW {res.Profile.DhwLPerPersonDay:0} L/p·d · {res.Profile.Source}");
+            }
             else
                 b.AddSection("Energy").MetricWarn("Energy", "not computed",
                     res.Energy != null && res.Energy.Occupancy <= 0 ? "occupancy is 0 — set occupancy/GFA in Setup"
