@@ -209,6 +209,12 @@ namespace StingTools.Commands.Sustainability
             double totalCapex = 0, totalLifetimeSaving = 0;
             int proxySized = 0;
 
+            // WS I6 — a measure's saving is only credible when the gate it draws from
+            // was actually computed (and the run isn't blocked).
+            bool ready = res.Readiness?.Ready ?? true;
+            bool eC = res.Energy?.Computed ?? false, wC = res.Water?.Computed ?? false, mC = res.Materials?.Computed ?? false;
+            int measuresOnNotComputedGate = 0;
+
             foreach (var m in measures.All)
             {
                 var sizing = SustainMeasureCapex.Compute(m, ctx);
@@ -220,17 +226,22 @@ namespace StingTools.Commands.Sustainability
                 totalLifetimeSaving += lifetimeSaving;
                 if (!sizing.UsedModelQuantity) proxySized++;
 
+                bool gateComputed = SustainLccHealth.GateComputed(m.Gate, ready, eC, wC, mC);
+                if (!gateComputed) measuresOnNotComputedGate++;
+                string netCell = gateComputed ? $"{netBenefit:0}" : $"{netBenefit:0} (indicative — gate not computed)";
+                string netDisp = gateComputed ? $"{netBenefit:N0}" : $"{netBenefit:N0} (indicative — gate not computed)";
+
                 rows.Add(new[]
                 {
                     m.Name, m.Gate, sizing.BasisLabel,
                     $"{capex:0}", $"{annualSaving:0}/yr",
-                    $"{lifetimeSaving:0}", $"{netBenefit:0}"
+                    $"{lifetimeSaving:0}", netCell
                 });
                 displayRows.Add(new[]
                 {
                     m.Name, m.Gate, sizing.BasisLabel,
                     $"{capex:N0}", $"{annualSaving:N0}/yr",
-                    $"{lifetimeSaving:N0}", $"{netBenefit:N0}"
+                    $"{lifetimeSaving:N0}", netDisp
                 });
 
                 boqRows.Add(BuildBoqRow(m, sizing, lifetimeSaving));
@@ -266,6 +277,10 @@ namespace StingTools.Commands.Sustainability
              .Metric("Rows in BOQ Cost Manager", $"{boqWritten}");
             if (proxySized > 0)
                 totals.Metric("Proxy-sized measures", $"{proxySized} (no model quantity — sized by proxy)");
+            // WS I6 — health caveat on the headline when its inputs are proxies.
+            var health = SustainLccHealth.Evaluate(ready, measuresOnNotComputedGate, proxySized, noSavings);
+            if (health.HasCaveat)
+                b.AddSection("⚠ LCC health").Info(health.Caveat);
             if (noSavings)
                 b.AddSection("⚠ Operational savings not computed")
                  .Info("Every measure shows 0 operational saving, so 'Net benefit' is just minus the capex " +
