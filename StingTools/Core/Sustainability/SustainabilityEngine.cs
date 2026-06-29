@@ -369,6 +369,16 @@ namespace StingTools.Core.Sustainability
                                   "Set the zone in Setup to override.");
                     return zone;
                 }
+                // WS I9 — global fallback: ANY site with a latitude resolves a real
+                // climate zone (latitude-band heuristic) instead of a temperate default.
+                if (ds != null && System.Math.Abs(ds.Lat) > 1e-6)
+                {
+                    string zone = AshraeClimateZone.ClassifyByLatitude(ds.Lat);
+                    warnings?.Add($"Climate zone not set — auto-derived '{zone}' from {ds.Label} latitude " +
+                                  $"({ds.Lat:0.0}°); coarse latitude estimate, moisture assumed humid (A). " +
+                                  "Set the zone (or add degree-days) in Setup to override.");
+                    return zone;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Sustain ResolveZone derive: {ex.Message}"); }
             return "*";
