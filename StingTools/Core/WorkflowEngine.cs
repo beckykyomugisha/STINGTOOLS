@@ -1586,7 +1586,12 @@ namespace StingTools.Core
 
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
-                case "BOQExport": return new Temp.BOQExportCommand();
+                // WP0 — "BOQExport" now resolves to the canonical BOQ engine export
+                // (NRM2 grouping + labour + carbon, one costing/carbon API), not the
+                // legacy Temp pipeline export. The legacy one stays reachable under
+                // "BOQExportLegacy" for any workflow that still depends on it.
+                case "BOQExport": return new BOQ.BOQExportCommand();
+                case "BOQExportLegacy": return new Temp.BOQExportCommand();
 
                 // Phase 108j — BOQ × BCC workflow integration
                 case "BOQRefresh":             return new BOQ.BOQRefreshCommand();

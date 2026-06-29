@@ -1174,9 +1174,9 @@ namespace StingTools.BOQ
                 matName = GetPrimaryMaterialName(el);
                 if (!string.IsNullOrEmpty(matName) && doc != null)
                 {
-                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .FirstOrDefault(m => string.Equals(m.Name, matName, StringComparison.OrdinalIgnoreCase));
+                    // WP6 — O(1) per-document name→Material cache instead of a
+                    // fresh FilteredElementCollector(Material) for every BOQ row.
+                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, matName);
                     matClass = mat?.MaterialClass;
                 }
             }
@@ -1191,15 +1191,12 @@ namespace StingTools.BOQ
                     string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
                     if (!string.IsNullOrEmpty(resolved))
                     {
-                        // Prepend material qualifier when we have one and the
-                        // template doesn't already mention it.
+                        // Prepend the material class as a qualifier when the
+                        // template doesn't already mention it. WP6 — was a tangled
+                        // triple-negation (`!IndexOf(...).Equals(-1) is false`) that
+                        // evaluated to "not found", so the class was NEVER prepended.
                         if (!string.IsNullOrEmpty(matClass) &&
-                            !resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase).Equals(-1) is false)
-                        {
-                            // resolved already mentions the class — leave as-is
-                        }
-                        else if (!string.IsNullOrEmpty(matClass) &&
-                                 resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
+                            resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
                         {
                             resolved = $"{matClass}: {resolved}";
                         }
@@ -1221,6 +1218,19 @@ namespace StingTools.BOQ
 
         private static double ComputeElementCarbon(Element el, double quantity, string unit)
             => ComputeElementCarbon(el, quantity, unit, out _, out _, out _);
+
+        /// <summary>
+        /// WP0 — the ONE per-element embodied-carbon (A1–A3) entry point shared
+        /// across the plugin. Routes through <see cref="CarbonFactorResolver"/>
+        /// (EPD → material param → lookup CSV → legacy) with correct per-m³ /
+        /// per-kg unit handling, so the BOQ build, the design-option roll-up
+        /// (<c>OptionCostCarbonCalculator</c>) and the EN 15978 stage tracker
+        /// (<c>CarbonStageTracker</c>) all compute the SAME number from the SAME
+        /// source instead of three divergent dictionaries. <paramref name="volM3"/>
+        /// is the element volume in m³; pass ≤0 to skip (returns 0).
+        /// </summary>
+        internal static double ComputeElementCarbonKg(Element el, double volM3)
+            => (el == null || volM3 <= 0) ? 0 : ComputeElementCarbon(el, volM3, "m³");
 
         // G5 — detailed overload: also reports the carbon factor SOURCE, the
         // data-quality band (Verified-EPD / Database / Missing) and the primary
@@ -2101,7 +2111,8 @@ namespace StingTools.BOQ
                 foreach (long id in elementIds.Distinct())
                 {
                     Element el;
-                    try { el = doc.GetElement(new ElementId(id)); } catch { continue; }
+                    try { el = doc.GetElement(new ElementId(id)); }
+                    catch (Exception ex) { StingLog.WarnRateLimited("Reprice.GetEl", $"GetElement({id}): {ex.Message}"); continue; }
                     if (el == null) continue;
                     outcome.Considered++;
 

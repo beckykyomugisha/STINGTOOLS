@@ -78,6 +78,11 @@ namespace StingTools.V6
                         double a1a3 = ReadDouble(el, "CBN_EMBODIED_KG_CO2E");
                         if (a1a3 <= 0) a1a3 = EstimateA1A3(el);
                         WriteDouble(el, ParamRegistry.CBN_A1_A3_KG_CO2E, a1a3);
+                        // WP0 — also stamp the ONE canonical embodied-carbon store
+                        // (CST_EMBODIED_CARBON_KG, the same param CostStamp/BOQ
+                        // writes) so the EN 15978 tracker and the BOQ never report
+                        // the embodied figure under two different parameter names.
+                        WriteDouble(el, "CST_EMBODIED_CARBON_KG", a1a3);
                         res.TotalA1A3 += a1a3;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                         if (!string.IsNullOrEmpty(disc))
@@ -137,9 +142,21 @@ namespace StingTools.V6
 
         private static double EstimateA1A3(Element el)
         {
-            double volCuFt = ReadDouble(el, "MAT_VOLUME_CUFT");
-            // Placeholder: 350 kgCO2e/m3 (concrete proxy).
-            return volCuFt * 0.0283168 * 350.0;
+            // WP0 — delegate to the ONE canonical per-element carbon resolver
+            // (BOQCostManager → CarbonFactorResolver: EPD → material param →
+            // lookup CSV → legacy) instead of the flat 350 kgCO₂e/m³ concrete
+            // proxy that diverged from the BOQ figure for every other material.
+            double volM3 = ReadDouble(el, "MAT_VOLUME_CUFT") * 0.0283168;
+            if (volM3 <= 0)
+            {
+                try
+                {
+                    var p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                    if (p != null && p.HasValue) volM3 = p.AsDouble() * 0.0283168;
+                }
+                catch (Exception ex) { StingLog.Warn($"CarbonStageTracker.EstimateA1A3 vol: {ex.Message}"); }
+            }
+            return StingTools.BOQ.BOQCostManager.ComputeElementCarbonKg(el, volM3);
         }
 
         private static double ReadDouble(Element el, string paramName)

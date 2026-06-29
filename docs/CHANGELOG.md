@@ -12,6 +12,36 @@ and committed separately. Data-driven JSON with a project override under
 `_BIM_COORD/`; one canonical per-element costing/carbon API; honest
 low-confidence flagging over silent guesses.
 
+**WP0 — One per-element costing/carbon API.** Extracted the canonical
+per-element embodied-carbon entry point `BOQCostManager.ComputeElementCarbonKg`
+(routes through `CarbonFactorResolver`: EPD → material param → lookup CSV →
+legacy, with correct per-m³/per-kg unit handling). The two forks now delegate to
+it: `Core/DesignOptions/OptionCostCarbonCalculator` dropped its own carbon
+dictionary AND its USD-column rate loader (it read `cost_rates_5d.csv` column 3
+= USD where the BOQ engine reads column 4 = UGX — a silent ~3700× divergence) and
+now uses `BOQCostManager.LoadCsvRates()` (UGX) + the canonical carbon resolver;
+`V6/CarbonStageTracker.EstimateA1A3` dropped its flat 350 kgCO₂e/m³ concrete proxy
+and delegates to the resolver, additionally stamping the one canonical embodied
+store `CST_EMBODIED_CARBON_KG` alongside its EN 15978 `CBN_A1_A3_KG_CO2E` module
+param so the two engines never report embodied carbon under divergent names.
+`WorkflowEngine.ResolveCommand("BOQExport")` now returns the canonical
+`BOQ.BOQExportCommand` (NRM2 + labour + carbon) instead of the legacy
+`Temp.BOQExportCommand`; the legacy export stays reachable as `"BOQExportLegacy"`.
+
+**WP6 (partial) — Performance & robustness.** `ResolveNrm2Paragraph` and
+`BOQByMaterialView.ResolveMaterialClass` now resolve materials through the O(1)
+per-document `MaterialNameCache` instead of a fresh `FilteredElementCollector(Material)`
+per row. Fixed the tangled triple-negation in `ResolveNrm2Paragraph`
+(`!resolved.IndexOf(matClass).Equals(-1) is false`, which evaluated to "not found"
+so the material class was NEVER prepended) → plain `IndexOf(...) >= 0`. Replaced
+the silent `catch { continue; }` in `RepriceElements` and `CostDirtyMarker.Execute`
+with rate-limited `StingLog.Warn`. `BOQBccBridge`'s `[ThreadStatic]` BOQ cache
+(keyed on `PathName` only) now folds in a `StingCostDirtyMarker.ChangeEpoch`
+model-edit epoch, so an in-place geometry/type/material edit busts the cache
+instead of feeding stale rates into 4D/5D cash-flow. (Remaining WP6 items — FX
+snapshot-per-build, mandatory rate-source currency, summary-level USD derivation,
+BCIS off the sync path — tracked in ROADMAP.)
+
 **WP5 — Remove developer jargon from the user-facing UI.** Renamed the 26
 phase-coded strings on the Actions tab (`UI/BOQCostManagerPanel.cs`) and the
 10 paragraph-automation checkbox labels (`UI/BOQTenderDialog.cs`) to plain

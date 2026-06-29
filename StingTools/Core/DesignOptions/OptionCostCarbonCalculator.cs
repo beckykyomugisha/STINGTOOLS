@@ -35,74 +35,17 @@ namespace StingTools.Core.DesignOptions
 
     public static class OptionCostCarbonCalculator
     {
-        // ── Rate / factor caches ─────────────────────────────────────────
-        private static Dictionary<string, double> _costRates;
-        private static Dictionary<string, double> _carbonFactors;
+        // ── Rate cache ────────────────────────────────────────────────────
+        // WP0 — single source of truth. Cost rates come from the SAME loader the
+        // BOQ engine uses (UGX column 4 of cost_rates_5d.csv) — the previous fork
+        // read the USD column (3), diverging ~3700×. Embodied carbon is no longer
+        // a parallel category dictionary here: every element routes through the
+        // ONE canonical BOQCostManager.ComputeElementCarbonKg → CarbonFactorResolver.
+        private static Dictionary<string, (double rate, string unit)> _costRates;
 
-        /// <summary>Load cost_rates_5d.csv (Category column → Rate column).
-        /// Cached after first call.</summary>
-        public static Dictionary<string, double> LoadCostRates()
-        {
-            if (_costRates != null) return _costRates;
-            _costRates = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                string path = StingTools.Core.StingToolsApp.FindDataFile("cost_rates_5d.csv");
-                if (path == null || !File.Exists(path)) return _costRates;
-                bool first = true;
-                foreach (var line in File.ReadAllLines(path))
-                {
-                    if (first) { first = false; continue; }
-                    var cells = line.Split(',');
-                    if (cells.Length < 5) continue;
-                    string cat = cells[0]?.Trim();
-                    if (!double.TryParse(cells[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double rate)) continue;
-                    if (!string.IsNullOrEmpty(cat)) _costRates[cat] = rate;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"LoadCostRates: {ex.Message}"); }
-            return _costRates;
-        }
-
-        /// <summary>Default embodied-carbon factors by Revit category.
-        /// BOQ-accuracy audit F1 (BLOCK fix): these factors are kgCO₂e
-        /// per CUBIC METRE of element volume (ICE v3.0 cradle-to-gate ×
-        /// typical material density), NOT per kg. The previous code
-        /// multiplied these by volume × a hardcoded 2300 kg/m³ density,
-        /// which inflated every option's embodied carbon by ~2000×
-        /// (575 000 kgCO₂e/m³ for a wall vs the real ~250). They are now
-        /// applied directly to volume in m³ — see BuildRow.</summary>
-        public static Dictionary<string, double> LoadCarbonFactors()
-        {
-            if (_carbonFactors != null) return _carbonFactors;
-            // kgCO₂e per m³ (volumetric). Concrete-block wall ≈ density 2000 ×
-            // 0.12 kg/kg ≈ 250; RC floor ≈ 2400 × 0.12 ≈ 290; steel/RC framing
-            // is mass-dominated so a representative 700/m³ (≈ 2300 kg/m³ × 0.30
-            // blended RC+rebar) is kept. ICE v3.0 cradle-to-gate basis.
-            _carbonFactors = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Walls"]                = 250,   // concrete-block average, kgCO₂e/m³
-                ["Floors"]               = 290,   // RC C25/30 ≈ 0.12 × 2400
-                ["Roofs"]                = 220,
-                ["Structural Columns"]   = 700,   // RC + rebar blended, kgCO₂e/m³
-                ["Structural Framing"]   = 700,
-                ["Structural Foundation"] = 320,
-                ["Doors"]                = 80,
-                ["Windows"]              = 90,
-                ["Curtain Wall Panels"]  = 110,
-                ["Mechanical Equipment"] = 350,
-                ["Electrical Equipment"] = 300,
-                ["Plumbing Fixtures"]    = 150,
-                ["Lighting Fixtures"]    = 60,
-                ["Ducts"]                = 180,
-                ["Pipes"]                = 140,
-                ["Conduits"]             = 110,
-                ["Cable Trays"]          = 130,
-                ["Furniture"]            = 70,
-                ["Generic Models"]       = 150,
-            };
-            return _carbonFactors;
-        }
+        /// <summary>WP0 — delegate to the canonical BOQ rate loader (UGX).</summary>
+        public static Dictionary<string, (double rate, string unit)> LoadCostRates()
+            => _costRates ??= StingTools.BOQ.BOQCostManager.LoadCsvRates();
 
         // ── Public roll-up ───────────────────────────────────────────────
         public static List<OptionRollupRow> Build(Document doc)
@@ -111,17 +54,16 @@ namespace StingTools.Core.DesignOptions
             if (doc == null) return rows;
 
             var costs = LoadCostRates();
-            var carb = LoadCarbonFactors();
             var sets = DesignOptionRegistry.Snapshot(doc);
 
             // Main-model baseline first
             rows.Add(BuildRow(doc, null, DesignOptionParams.MAIN_MODEL_LABEL,
-                              "Main Model", isPrimary: true, costs, carb));
+                              "Main Model", isPrimary: true, costs));
 
             foreach (var s in sets)
             foreach (var o in s.Options)
             {
-                rows.Add(BuildRow(doc, o.OptionId, s.Name, o.Name, o.IsPrimary, costs, carb));
+                rows.Add(BuildRow(doc, o.OptionId, s.Name, o.Name, o.IsPrimary, costs));
             }
             return rows;
         }
@@ -129,7 +71,7 @@ namespace StingTools.Core.DesignOptions
         private static OptionRollupRow BuildRow(
             Document doc, ElementId optionId, string setName, string optionName,
             bool isPrimary,
-            Dictionary<string, double> costs, Dictionary<string, double> carb)
+            Dictionary<string, (double rate, string unit)> costs)
         {
             var row = new OptionRollupRow
             {
@@ -168,7 +110,7 @@ namespace StingTools.Core.DesignOptions
                     if (area > 0) row.TotalAreaM2 += area * 0.092903; // ft² → m²
                     if (vol  > 0) row.TotalVolumeM3 += vol * 0.0283168; // ft³ → m³
 
-                    double rate = costs != null && costs.TryGetValue(cat, out double r) ? r : 0.0;
+                    double rate = costs != null && costs.TryGetValue(cat, out var rc) ? rc.rate : 0.0;
                     double cost = rate * Math.Max(area * 0.092903, 0);
                     if (cost <= 0 && rate > 0) cost = rate;     // per-unit fallback
                     row.TotalCost += cost;
@@ -178,13 +120,12 @@ namespace StingTools.Core.DesignOptions
                         row.CostByCategory[cat] = accC + cost;
                     }
 
-                    // BOQ-accuracy audit F1 (BLOCK): factors are kgCO₂e per m³,
-                    // so multiply by volume in m³ directly. The previous extra
-                    // "× 2300" density term double-counted mass and inflated
-                    // carbon by ~2000×.
-                    double cf = carb != null && carb.TryGetValue(cat, out double f) ? f : 0.0;
-                    double kg = cf * Math.Max(vol * 0.0283168, 0); // kgCO₂e/m³ × m³
-                    if (kg <= 0 && cf > 0) kg = cf;
+                    // WP0 — embodied carbon via the ONE canonical resolver
+                    // (BOQ engine), keyed on the element's primary material with
+                    // EPD/library/legacy fallback + correct per-m³/per-kg units —
+                    // not a parallel per-category dictionary.
+                    double volM3 = vol > 0 ? vol * 0.0283168 : 0;
+                    double kg = StingTools.BOQ.BOQCostManager.ComputeElementCarbonKg(el, volM3);
                     row.TotalCarbonKg += kg;
                     if (kg > 0)
                     {
