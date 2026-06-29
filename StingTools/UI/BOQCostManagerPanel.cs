@@ -1053,13 +1053,13 @@ namespace StingTools.UI
             });
             sp.Children.Add(new TextBlock
             {
-                Text = "Every cost workflow (P0 → P8) in one place. " +
+                Text = "Every cost workflow in one place. " +
                        "Hover for a tooltip describing each action.",
                 FontSize = 11, Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 0, 0, 14)
             });
 
-            sp.Children.Add(BuildActionGroup("QS ROUND-TRIP (P3)",
+            sp.Children.Add(BuildActionGroup("QS Round-Trip (Excel)",
                 "Hand the bill to a Quantity Surveyor in Excel and bring priced rates back. " +
                 "Rows carry a stable hidden key so rates land on the right rows after a rebuild.",
                 new[]
@@ -1078,7 +1078,7 @@ namespace StingTools.UI
                      "Survives a model rebuild.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("AUTOMATION (P2)",
+            sp.Children.Add(BuildActionGroup("Automation",
                 "Run workflows, validate the model and toggle the stale-cost detector.",
                 new[]
                 {
@@ -1098,7 +1098,7 @@ namespace StingTools.UI
                      "Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / lock)", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("RATE FEEDS (Phase 2B)",
+            sp.Children.Add(BuildActionGroup("Live Rate Feeds",
                 "Configure live rate feeds (BCIS / Planscape) and pull candidate rates onto the bill.",
                 new[]
                 {
@@ -1108,7 +1108,7 @@ namespace StingTools.UI
                      "Pull candidate rates for the current bill from every configured feed, side-by-side with the current rate + confidence. Accept the best live rate per line or in bulk. Manual overrides are protected.", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("DRIFT (Phase 2C)",
+            sp.Children.Add(BuildActionGroup("Change Detection",
                 "Detect when the bill has moved from the last saved snapshot and re-price what changed.",
                 new[]
                 {
@@ -1116,7 +1116,7 @@ namespace StingTools.UI
                      "Compare the live bill against the last saved snapshot — what changed (qty moved / new / removed / rate revised), element-linked. Then re-price the changed lines via the rate chain (incl. live feeds). Overrides protected.", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("WBS / CBS + ERP (Phase 2E)",
+            sp.Children.Add(BuildActionGroup("Cost Breakdown & ERP Export",
                 "File the bill by a client breakdown structure and export it import-ready for an ERP.",
                 new[]
                 {
@@ -1126,7 +1126,7 @@ namespace StingTools.UI
                      "Write a flat, import-ready CSV (WBS · CBS · cost code · qty · rate · total · level · location · source · IfcGuid) — the union most ERP / accounting importers accept — plus an optional Primavera P6 activity-cost XML. Opens inline.", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
+            sp.Children.Add(BuildActionGroup("Cost Plan (NRM1)",
                 "Elemental cost planning for RIBA 1-3 — £/m² GIFA benchmarks per building type.",
                 new[]
                 {
@@ -1138,7 +1138,7 @@ namespace StingTools.UI
                      "Export the active cost plan to xlsx (full NRM1 breakdown + totals)", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("PAYMENT CERTS (P5.1)",
+            sp.Children.Add(BuildActionGroup("Payment Certificates",
                 "Monthly interim certificates per JCT 2024 / NEC4 / FIDIC 2017.",
                 new[]
                 {
@@ -1154,7 +1154,7 @@ namespace StingTools.UI
                      "Export CSV register of every cert (gross / retention / payable / signers / cumulative)", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("VARIATIONS + STAR RATES (P5.2)",
+            sp.Children.Add(BuildActionGroup("Variations & Star Rates",
                 "Change-order tracking with auto-mint from snapshot diffs and first-principles star rates.",
                 new[]
                 {
@@ -1165,10 +1165,10 @@ namespace StingTools.UI
                     ("VO Register",          "Variation_ExportRegister",
                      "Export all variations to CSV (number / status / value / signers)", false),
                     ("Reclassify Legacy",    "Variation_ReclassifyLegacy",
-                     "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker (Phase 184p)", false),
+                     "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("EARNED VALUE MGMT (P5.3)",
+            sp.Children.Add(BuildActionGroup("Earned Value Management",
                 "PMI EVM metrics — BCWS / BCWP / ACWP, CPI, SPI, EAC, ETC, VAC, TCPI.",
                 new[]
                 {
@@ -1180,7 +1180,7 @@ namespace StingTools.UI
                      "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("COST REPORT (P4.4)",
+            sp.Children.Add(BuildActionGroup("Cost Report",
                 "Anticipated final cost — where the project is heading vs budget.",
                 new[]
                 {
@@ -1196,7 +1196,7 @@ namespace StingTools.UI
                      "List materials whose embodied-carbon factor is missing or only database-grade (not an EPD), the carbon at stake, and a CSV worklist to drive EPD sourcing. Read-only.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
+            sp.Children.Add(BuildActionGroup("Measurement Standard",
                 "Switch the active standard. Affects how rows are classified and described.",
                 new[]
                 {
@@ -1208,7 +1208,7 @@ namespace StingTools.UI
                      "Per-line gross → net derivation: gross geometry, openings/voids deducted (NRM2/CESMM4 rules), wastage step, net measured quantity. Read-only.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("IFC + ICMS3 (P8)",
+            sp.Children.Add(BuildActionGroup("IFC & ICMS3 Export",
                 "External tool round-trip and cost-plus-carbon ledger.",
                 new[]
                 {
@@ -1218,7 +1218,7 @@ namespace StingTools.UI
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("QS SIGN-OFF (G9)",
+            sp.Children.Add(BuildActionGroup("QS Sign-Off",
                 "Record a Quantity Surveyor's verification. Until signed, every export is marked DRAFT.",
                 new[]
                 {
@@ -5856,7 +5856,7 @@ namespace StingTools.UI
                     .FirstOrDefault();
                 if (cert == null)
                 {
-                    FlashHint(null, "No issued payment certificate found — issue a cert first (PAYMENT CERTS P5.1).");
+                    FlashHint(null, "No issued payment certificate found — issue a cert first (Payment Certificates).");
                     return;
                 }
                 double pct = Math.Round(cert.OverallPercentComplete, 1);

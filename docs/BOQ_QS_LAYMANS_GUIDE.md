@@ -127,7 +127,7 @@ and **Set Budget**.
 
 ## 5. Your step-by-step playbook for a huge project
 
-The **Actions** tab is organised as phases **P0 → P8**. Here's the human order to
+The **Actions** tab is organised into labelled groups. Here's the human order to
 work through them. Do them top to bottom the first time.
 
 ### Step 1 — Make the model costable (before you touch the panel)
@@ -153,7 +153,7 @@ fix the model, then Refresh again.
 ### Step 4 — Get prices in (three ways, pick what suits)
 1. **Automatic** — the tool already applies rates from its rate library where it
    can (that's why some rows already have a Rate + confidence). Nothing to do.
-2. **QS Round-trip (P3)** — the professional way: **Export QS Bill** → hand the
+2. **QS Round-Trip (Excel)** — the professional way: **Export QS Bill** → hand the
    Excel to a real QS (or a rate book) → they fill the **Rate** column → **Import
    QS Bill**. Each row carries a hidden stable key, so prices land back on the
    right rows even after you re-Refresh. **This is how you price a big job without
@@ -161,14 +161,14 @@ fix the model, then Refresh again.
 3. **By hand** — click a **Rate** cell in the BOQ tab and type the price. Good for a
    handful of items.
 
-### Step 5 — Add what the model can't show (P3)
+### Step 5 — Add what the model can't show (QS Round-Trip)
 **Add Manual / PS / Daywork** for:
 - **Provisional sums** — "allow UGX 80M for the lift installation (design pending)".
 - **Dayworks** — time-and-material allowances.
 - **Manual rows** — anything real that isn't modelled (e.g. site clearance).
 These show up under **Provisional / Manual** in the gauges.
 
-### Step 6 — Add the markups and a target (P4 / Tender)
+### Step 6 — Add the markups and a target (Cost Plan / Tender)
 - **Set Budget** — type your project budget so **Variance** is meaningful.
 - **Tender BOQ** (footer) / the tender settings — add **prelims %, contingency %,
   overhead/profit %, VAT**. The **Grand Total** at the bottom is the real,
@@ -181,20 +181,20 @@ measured against it with **Compare**. *Always snapshot before a milestone.*
 ### Step 8 — Produce the deliverable
 - **Export** (footer) → a multi-sheet **Excel BOQ** (bill + materials + provisional
   sums + carbon).
-- **Cost Plan — NRM1 (P4)** → **New Cost Plan** for early-stage elemental planning
+- **Cost Plan (NRM1)** → **New Cost Plan** for early-stage elemental planning
   (£/m² benchmarks by building type), **Compare vs BOQ**, **Export Cost Plan**.
 - **QTO IFC** (footer) → an IFC4 file with quantities for an external estimator
   (CostX / iTWO).
 
 ### Then — run the job (ongoing, monthly)
-- **Payment Certs (P5.1)** — **Set % Complete** → **Issue Cert** → **Approve Cert**.
+- **Payment Certificates** — **Set % Complete** → **Issue Cert** → **Approve Cert**.
   The monthly "pay the contractor this much" cycle.
-- **Variations + Star Rates (P5.2)** — when the design changes: **Variation from
+- **Variations & Star Rates** — when the design changes: **Variation from
   Diff** auto-detects the change between two snapshots and mints a VO; **Star Rate
   Build-Up** prices a brand-new item from first principles.
-- **EVM (P5.3)** — **Calculate EVM** → are you ahead/behind on cost and time
+- **Earned Value Management** — **Calculate EVM** → are you ahead/behind on cost and time
   (CPI/SPI)? **Import Actuals** to feed real spend.
-- **Cost Report (P4.4)** — **Anticipated Final Cost**: where is this project
+- **Cost Report** — **Anticipated Final Cost**: where is this project
   heading vs budget? **Reconcile Provisionals**: replace PS guesses with real
   costs as they firm up.
 
@@ -204,7 +204,7 @@ measured against it with **Compare**. *Always snapshot before a milestone.*
 
 ---
 
-## 6. Measurement standards (P6) — NRM2 vs the rest
+## 6. Measurement standards — NRM2 vs the rest
 
 **Set Standard** lets you switch the "filing system": **NRM2** (UK new-rules, the
 default), **SMM7** (older UK), or **CIOS/others**. **Standard Preview** shows how a

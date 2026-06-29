@@ -3,6 +3,30 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Master Impl — branch `claude/boq-master-impl`)
+
+A consolidated hardening + feature pass on the BOQ & Cost Manager, per
+`docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` (WP0–WP6). Each work-package
+compile-verified `dotnet build … -p:RevitApiPath="…Revit 2025"` (0 errors)
+and committed separately. Data-driven JSON with a project override under
+`_BIM_COORD/`; one canonical per-element costing/carbon API; honest
+low-confidence flagging over silent guesses.
+
+**WP5 — Remove developer jargon from the user-facing UI.** Renamed the 26
+phase-coded strings on the Actions tab (`UI/BOQCostManagerPanel.cs`) and the
+10 paragraph-automation checkbox labels (`UI/BOQTenderDialog.cs`) to plain
+business language — `QS ROUND-TRIP (P3)` → `QS Round-Trip (Excel)`,
+`AUTOMATION (P2)` → `Automation`, `RATE FEEDS (Phase 2B)` → `Live Rate Feeds`,
+`DRIFT (Phase 2C)` → `Change Detection`, `WBS / CBS + ERP (Phase 2E)` →
+`Cost Breakdown & ERP Export`, `PAYMENT CERTS (P5.1)` → `Payment Certificates`,
+`VARIATIONS + STAR RATES (P5.2)` → `Variations & Star Rates`,
+`EARNED VALUE MGMT (P5.3)` → `Earned Value Management`, etc. — plus the
+"Every cost workflow (P0 → P8)" header, the "(Phase 184p)" tooltip, and the
+"(PAYMENT CERTS P5.1)" flash-hint. The JSON storage keys (`P1_PERFORMANCE` …
+`P10_SIDECARS`, `BOQ_TENDER_*`) are **unchanged** so saved tender configs keep
+deserialising. `docs/BOQ_QS_LAYMANS_GUIDE.md` synced to the new labels. The
+remaining `P2.1`-style occurrences are code comments and are left in place.
+
 #### Completed (BOQ 5D Phase 2B–2E — live rates · drift · incremental · WBS/ERP)
 
 Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phases
