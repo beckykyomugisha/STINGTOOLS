@@ -181,11 +181,24 @@ namespace StingTools.Core.Sustainability
 
             foreach (var rule in _resolutionOrder)
             {
-                BaselineKey want = BuildWantKey(rule, country, climateZone, buildingUse);
-                var hit = _baselines.FirstOrDefault(x => Matches(x.Key, want));
+                GreenBaseline hit;
+                string wantKeyLabel;
+                if (rule == "nearestZone+buildingUse")
+                {
+                    // WS J4 — nearest available zone BY NUMBER for this use, never a
+                    // hardcoded 4A. Only when a real numeric zone was requested.
+                    hit = NearestZone(climateZone, buildingUse);
+                    wantKeyLabel = $"nearestZone+buildingUse -> [~{climateZone}/{buildingUse}]";
+                }
+                else
+                {
+                    BaselineKey want = BuildWantKey(rule, country, climateZone, buildingUse);
+                    hit = _baselines.FirstOrDefault(x => Matches(x.Key, want));
+                    wantKeyLabel = $"{rule} -> [{want.Country}/{want.ClimateZone}/{want.BuildingUse}]";
+                }
                 var hop = new ResolutionHop
                 {
-                    Key     = $"{rule} -> [{want.Country}/{want.ClimateZone}/{want.BuildingUse}]",
+                    Key     = wantKeyLabel,
                     Matched  = hit != null,
                     Detail   = hit != null ? hit.Source : "no row"
                 };
@@ -223,6 +236,32 @@ namespace StingTools.Core.Sustainability
             res.Summary = $"No baseline catalogue row for {country}/{climateZone}/{buildingUse} — " +
                           "add one to the project override before a meaningful % can be reported.";
             return res;
+        }
+
+        /// <summary>WS J4 — leading zone NUMBER from a zone string ("0A"→0, "4A"→4,
+        /// "7"→7); -1 when there's no numeric prefix (e.g. "*").</summary>
+        public static int ZoneNumber(string zone)
+        {
+            if (string.IsNullOrWhiteSpace(zone)) return -1;
+            int i = 0; while (i < zone.Length && char.IsDigit(zone[i])) i++;
+            return i > 0 && int.TryParse(zone.Substring(0, i), out var n) ? n : -1;
+        }
+
+        /// <summary>WS J4 — the baseline for this use whose zone NUMBER is closest to the
+        /// requested zone (ties → lowest zone number). Country-wildcard rows only; null
+        /// when the requested zone isn't numeric or no numeric-zone row exists for the
+        /// use. This replaces the old hardcoded fall-through to 4A.</summary>
+        private GreenBaseline NearestZone(string climateZone, string buildingUse)
+        {
+            int reqNum = ZoneNumber(climateZone);
+            if (reqNum < 0) return null;
+            return _baselines
+                .Where(b => string.Equals(b.Key.BuildingUse, buildingUse, StringComparison.OrdinalIgnoreCase)
+                         && string.Equals(b.Key.Country, "*", StringComparison.OrdinalIgnoreCase)
+                         && ZoneNumber(b.Key.ClimateZone) >= 0)
+                .OrderBy(b => Math.Abs(ZoneNumber(b.Key.ClimateZone) - reqNum))
+                .ThenBy(b => ZoneNumber(b.Key.ClimateZone))
+                .FirstOrDefault();
         }
 
         /// <summary>WS I2 — record an axis as a fallback/default proxy when it was
@@ -266,6 +305,9 @@ namespace StingTools.Core.Sustainability
             {
                 case "climateZone+buildingUse":
                     fellBack = $"no {country} baseline -> fell back to climate-zone {zone} {use}"; break;
+                case "nearestZone+buildingUse":
+                    // WS J4 — nearest available zone by number, not a hardcoded 4A.
+                    fellBack = $"no {zone} {use} baseline -> fell back to NEAREST zone {hit.Key.ClimateZone} {use}"; break;
                 case "buildingUse":
                     fellBack = $"no {country}/{zone} baseline -> fell back to {use} (any zone)"; break;
                 default:
