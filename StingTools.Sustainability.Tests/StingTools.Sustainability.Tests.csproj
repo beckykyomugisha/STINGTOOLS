@@ -111,6 +111,9 @@
     <None Include="..\StingTools\Data\STING_COUNTRIES.json" Link="Data\STING_COUNTRIES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\StingTools\Data\STING_LOAD_PROFILES.json" Link="Data\STING_LOAD_PROFILES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

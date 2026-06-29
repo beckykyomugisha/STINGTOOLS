@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Sustainability
 {
@@ -20,9 +21,38 @@ namespace StingTools.Core.Sustainability
         /// (education / warehouse / lab / restaurant / industrial).</summary>
         public static readonly string[] CommonUses =
         {
-            "office", "residential", "healthcare", "retail", "hotel",
-            "education", "warehouse", "lab", "restaurant", "industrial"
+            "office", "residential", "healthcare", "clinic", "hotel", "hotel-public",
+            "retail", "restaurant", "kitchen", "education", "lecture-hall", "library",
+            "warehouse", "lab", "industrial", "datacentre", "gym", "worship",
+            "cinema", "parking"
         };
+
+        /// <summary>WS K3 — friendly labels for the SETUP dropdown (mirror the J2
+        /// country pattern). Falls back to Title Case of the id when unmapped.</summary>
+        private static readonly Dictionary<string, string> _labels =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["office"] = "Office", ["residential"] = "Residential (dwelling)",
+            ["healthcare"] = "Healthcare (inpatient)", ["clinic"] = "Clinic (outpatient)",
+            ["hotel"] = "Hotel (guestroom)", ["hotel-public"] = "Hotel (public/lobby)",
+            ["retail"] = "Retail", ["restaurant"] = "Restaurant", ["kitchen"] = "Commercial kitchen",
+            ["education"] = "Education (classroom)", ["lecture-hall"] = "Lecture hall",
+            ["library"] = "Library", ["warehouse"] = "Warehouse", ["lab"] = "Laboratory",
+            ["industrial"] = "Light industrial", ["datacentre"] = "Data centre",
+            ["gym"] = "Gym / fitness", ["worship"] = "Place of worship", ["cinema"] = "Cinema / theatre",
+            ["parking"] = "Parking"
+        };
+
+        /// <summary>"office" → "Office", "hotel-public" → "Hotel (public/lobby)".</summary>
+        public static string FriendlyLabel(string useId)
+        {
+            string k = (useId ?? "").Trim();
+            if (k.Length == 0) return "";
+            if (_labels.TryGetValue(k, out var lbl)) return lbl;
+            // Title-case the id (hyphen/underscore → space).
+            var words = k.Replace("-", " ").Replace("_", " ").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + w.Substring(1)));
+        }
 
         /// <summary>Union of the curated seed list with the registry key sets, in a
         /// stable order (seed first, registry-only extras appended), distinct +

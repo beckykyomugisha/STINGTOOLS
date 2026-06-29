@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.Hvac.Loads
 {
@@ -39,9 +40,33 @@ namespace StingTools.Core.Hvac.Loads
         /// (residential/dwelling/house → Residential). Case/space/hyphen-insensitive.</summary>
         public List<string> Aliases     { get; set; } = new List<string>();
 
+        /// <summary>WS K3 — parent profile id this is a subtype of. A subtype overlays
+        /// only the fields it declares; the rest inherit from the parent
+        /// (e.g. office:trading-floor subtypeOf Office).</summary>
+        public string SubtypeOf { get; set; } = "";
+
         public double[] OccupancySchedule { get; set; } = LoadZone.DefaultOfficeOccupancy();
         public double[] LightingSchedule  { get; set; } = LoadZone.DefaultOfficeLighting();
         public double[] EquipmentSchedule { get; set; } = LoadZone.DefaultOfficeEquipment();
+
+        /// <summary>WS K3 — deep copy (used as the base for a subtype overlay).</summary>
+        public LoadProfile Clone() => new LoadProfile
+        {
+            Id = Id, Label = Label,
+            OccupantDensityM2PerPerson = OccupantDensityM2PerPerson,
+            OccupantSensibleW = OccupantSensibleW, OccupantLatentW = OccupantLatentW,
+            LightingWPerM2 = LightingWPerM2, EquipmentWPerM2 = EquipmentWPerM2,
+            OaLpsPerPerson = OaLpsPerPerson, OaLpsPerM2 = OaLpsPerM2,
+            CoolingSetpointC = CoolingSetpointC, HeatingSetpointC = HeatingSetpointC,
+            InfiltrationAch = InfiltrationAch,
+            DhwLPerPersonDay = DhwLPerPersonDay, OperatingDaysPerYear = OperatingDaysPerYear,
+            Source = Source, EdgeBuildingType = EdgeBuildingType,
+            Aliases = new List<string>(Aliases ?? new List<string>()),
+            SubtypeOf = SubtypeOf,
+            OccupancySchedule = (double[])OccupancySchedule?.Clone(),
+            LightingSchedule  = (double[])LightingSchedule?.Clone(),
+            EquipmentSchedule = (double[])EquipmentSchedule?.Clone()
+        };
 
         /// <summary>Apply this profile's values onto a LoadZone.</summary>
         public void ApplyTo(LoadZone z)
@@ -91,6 +116,81 @@ namespace StingTools.Core.Hvac.Loads
 
         private static string Norm(string s)
             => (s ?? "").Replace(" ", "").Replace("-", "").Replace("_", "").ToLowerInvariant();
+
+        // ── WS K3 — pure JSON parse (corporate + project override), so the registry
+        //    stays Document-only and the parse + subtype overlay are unit-tested. ──
+        public static LoadProfileLibrary FromJson(string corporateJson, string projectJson = null)
+        {
+            var lib = new LoadProfileLibrary();
+            if (!string.IsNullOrWhiteSpace(corporateJson)) lib.ApplyJson(corporateJson);
+            if (!string.IsNullOrWhiteSpace(projectJson))   lib.ApplyJson(projectJson);
+            if (!lib.ById.ContainsKey("Office"))
+                lib.ById["Office"] = new LoadProfile { Id = "Office", Label = "Office (default)" };
+            return lib;
+        }
+
+        public void ApplyJson(string json)
+        {
+            JObject root;
+            try { root = JObject.Parse(json); } catch { return; }
+            var profiles = root["profiles"] as JArray;
+            if (profiles == null) return;
+            foreach (var p in profiles.OfType<JObject>())
+            {
+                string id = (string)p["id"];
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                // WS K3 — a subtype overlays its parent: start from a clone of the parent
+                // (existing entry or declared subtypeOf), then apply only declared fields.
+                string parentId = (string)p["subtypeOf"];
+                LoadProfile profile;
+                if (!string.IsNullOrWhiteSpace(parentId) && ById.TryGetValue(parentId, out var parent))
+                    profile = parent.Clone();
+                else if (ById.TryGetValue(id, out var existing))
+                    profile = existing.Clone();   // project override overlays the corporate row
+                else
+                    profile = new LoadProfile();
+
+                profile.Id = id;
+                profile.SubtypeOf = parentId ?? profile.SubtypeOf;
+                if (p["label"] != null) profile.Label = (string)p["label"];
+                Set(p, "occupantDensityM2PerPerson", v => profile.OccupantDensityM2PerPerson = v);
+                Set(p, "occupantSensibleW",          v => profile.OccupantSensibleW = v);
+                Set(p, "occupantLatentW",            v => profile.OccupantLatentW = v);
+                Set(p, "lightingWPerM2",             v => profile.LightingWPerM2 = v);
+                Set(p, "equipmentWPerM2",            v => profile.EquipmentWPerM2 = v);
+                Set(p, "oaLpsPerPerson",             v => profile.OaLpsPerPerson = v);
+                Set(p, "oaLpsPerM2",                 v => profile.OaLpsPerM2 = v);
+                Set(p, "coolingSetpointC",           v => profile.CoolingSetpointC = v);
+                Set(p, "heatingSetpointC",           v => profile.HeatingSetpointC = v);
+                Set(p, "infiltrationAch",            v => profile.InfiltrationAch = v);
+                Set(p, "dhwLPerPersonDay",           v => profile.DhwLPerPersonDay = v);
+                if (p["operatingDaysPerYear"] != null) profile.OperatingDaysPerYear = (int)p["operatingDaysPerYear"];
+                if (p["source"] != null)           profile.Source = (string)p["source"];
+                if (p["edgeBuildingType"] != null) profile.EdgeBuildingType = (string)p["edgeBuildingType"];
+                if (p["aliases"] is JArray al)
+                    profile.Aliases = al.Select(t => (string)t).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+                profile.OccupancySchedule = ReadSchedule(p["occupancySchedule"], profile.OccupancySchedule);
+                profile.LightingSchedule  = ReadSchedule(p["lightingSchedule"],  profile.LightingSchedule);
+                profile.EquipmentSchedule = ReadSchedule(p["equipmentSchedule"], profile.EquipmentSchedule);
+
+                ById[id] = profile;
+            }
+        }
+
+        private static void Set(JObject p, string key, Action<double> set)
+        {
+            if (p[key] != null) { try { set((double)p[key]); } catch { } }
+        }
+
+        private static double[] ReadSchedule(JToken token, double[] fallback)
+        {
+            if (token is JArray arr && arr.Count == 24)
+            {
+                try { return arr.Select(v => (double)v).ToArray(); } catch { }
+            }
+            return fallback;
+        }
 
         /// <summary>Resolve a profile by id with case-insensitive fuzzy fallback (legacy
         /// callers).</summary>
