@@ -132,8 +132,16 @@ namespace StingTools.Core.Sustainability
             res.Warnings.AddRange(res.Energy.Warnings);
 
             // ── Water (occupancy parameter; RWH + greywater) ──
-            res.Water = EstimateWater(doc, setup, baseline, res.Climate);
+            // WS H2 — one project occupancy fed to BOTH estimators. Energy already
+            // used Σ per-zone occupants (model / load-profile density); water now uses
+            // the same population unless the user typed an explicit setup total.
+            int zoneOccupants = zones.Sum(z => z.OccupantCount);
+            var occ = SustainOccupancy.Resolve(setup.TotalOccupancy, zoneOccupants);
+            res.Water = EstimateWater(doc, setup, baseline, res.Climate, occ.Occupancy);
             res.Warnings.AddRange(res.Water.Warnings);
+            if (occ.Occupancy > 0)
+                res.Warnings.Add($"Occupancy {occ.Occupancy} (source: {occ.Source}) — used for both the energy and " +
+                                 "water estimates so the two gates share one population.");
 
             // ── Materials (dual metric; full BOQ carbon path) ──
             var lines = GatherMaterialLines(doc, setup, forceRefresh);
@@ -481,7 +489,8 @@ namespace StingTools.Core.Sustainability
         // ── Water ──────────────────────────────────────────────────────────
 
         private static WaterEstimateResult EstimateWater(Document doc, SustainProjectSetup setup,
-                                                         GreenBaseline baseline, ClimateMonthlySite climate)
+                                                         GreenBaseline baseline, ClimateMonthlySite climate,
+                                                         int occupancy)
         {
             var profileReg = SustainabilityRegistries.WaterProfiles(doc);
             var profile = profileReg.Get(setup.DominantBuildingUse);
@@ -501,7 +510,7 @@ namespace StingTools.Core.Sustainability
                 KitchenTapLpm = baselineFlows.KitchenTapLpm * 0.75
             };
 
-            int occupancy = setup.TotalOccupancy;
+            // WS H2 — occupancy is the unified project population resolved by the caller.
 
             // WS A4 — real RWH yield via RainwaterHarvestingCalc (BS 8515): roof area
             // (PLM_STORM_ROOF_M2 or summed OST_Roofs) + rainfall from the single
