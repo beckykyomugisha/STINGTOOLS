@@ -31,6 +31,12 @@ namespace StingTools.UI.Sustainability
         private static StingSustainabilityPanel _instance;
         public static StingSustainabilityPanel Instance => _instance;
 
+        /// <summary>WS N1 — the building-use combo's non-explicit default. While the combo
+        /// shows this (optionally annotated "(auto-detect: residential)"), the use is
+        /// model-derived, not a user choice. Mirrors M2's blank-occupancy = non-explicit.</summary>
+        private const string AutoUseSentinel = "(auto-detect)";
+        private static bool IsAutoUse(string s) => string.IsNullOrWhiteSpace(s) || s.StartsWith("(auto", StringComparison.OrdinalIgnoreCase);
+
         public StingSustainabilityPanel()
         {
             InitializeComponent();
@@ -46,6 +52,18 @@ namespace StingTools.UI.Sustainability
             // Seed the SETUP form with defaults so dropdowns are populated.
             try { LoadSetupForm(SustainProjectSetup.CreateDefault()); }
             catch (Exception ex) { StingLog.Warn($"Sus ctor LoadSetupForm: {ex.Message}"); }
+
+            // WS J2 fix — populate the Country dropdown at construction (doc-agnostic,
+            // from the corporate seed) so the 22-country list shows before any command
+            // runs. Commands later re-populate with the project override; the current
+            // selection is preserved by PopulateCountries.
+            try
+            {
+                string countriesPath = StingToolsApp.FindDataFile(SustainabilityRegistries.CountriesFile);
+                PopulateCountries(CountryRegistry.LoadFromFiles(countriesPath, null).DropdownLabels());
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus ctor PopulateCountries: {ex.Message}"); }
+
             UpdateStatus("Ready");
         }
 
@@ -63,6 +81,7 @@ namespace StingTools.UI.Sustainability
                 case "Sustain_LccBenefit":   return "Life-cycle cost";
                 case "Sustain_EpdAssign":    return "EPD register";
                 case "Sustain_LeedScorecard":return "LEED scorecard";
+                case "Sustain_PublishToServer": return "Publishing to server";
                 default:                     return "Working";
             }
         }
@@ -104,7 +123,9 @@ namespace StingTools.UI.Sustainability
                 cmbCountry.Text     = string.IsNullOrWhiteSpace(s.Country) ? "*" : s.Country;
                 txtClimateSite.Text = s.ClimateSiteId ?? "";
                 cmbClimateZone.Text = s.ClimateZone ?? "";
-                SetComboByContent(cmbBuildingUse, s.DominantBuildingUse);
+                // WS N1 — the combo shows the user's pick only when explicit; otherwise it
+                // sits on "(auto-detect)" so the model-resolved use drives the run.
+                SetComboByContent(cmbBuildingUse, s.UseExplicit ? s.DominantBuildingUse : AutoUseSentinel);
                 txtOccupancy.Text   = s.TotalOccupancy > 0 ? s.TotalOccupancy.ToString() : "";
 
                 var z0 = s.Zones?.FirstOrDefault();
@@ -155,15 +176,27 @@ namespace StingTools.UI.Sustainability
                 s.TargetLevels = new Dictionary<string, string> { { "EDGE", TagOf(cmbEdgeLevel, "Advanced") } };
                 s.Units = string.Equals(TagOf(cmbUnits, "SI"), "IP", StringComparison.OrdinalIgnoreCase)
                     ? SustainUnits.IP : SustainUnits.SI;
+                // WS J2 — the dropdown shows "ISO3 — Country"; persist the ISO3 only.
                 string country = cmbCountry.Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(country) && country.Contains("—"))
+                    country = country.Split('—')[0].Trim();
                 s.Country       = string.IsNullOrWhiteSpace(country) ? "*" : country;
                 s.ClimateSiteId = txtClimateSite.Text?.Trim();
                 s.ClimateZone   = cmbClimateZone.Text?.Trim();
 
-                string use = ContentOf(cmbBuildingUse, "office");
+                // WS N1 — building use is EXPLICIT only when the user picked a real use;
+                // the "(auto-detect)" default is non-explicit so the model-resolved use
+                // drives occupancy/energy/water/baseline (no default-masquerades-as-pick).
+                string comboUse = ContentOf(cmbBuildingUse, AutoUseSentinel);
+                s.UseExplicit = !IsAutoUse(comboUse);
+                string use = s.UseExplicit ? comboUse : "office";   // placeholder; engine overrides when !explicit
                 int occ = ParseInt(txtOccupancy.Text, 0);
                 double cop = ParseDouble(txtCop.Text, 0);
                 double area = ParseDouble(txtFloorArea.Text, 0);
+                // WS M2 — only a non-blank occupancy box is a user-typed (explicit) total
+                // that overrides the model; a blank box leaves the engine to derive
+                // occupancy from the resolved load-profile density.
+                s.OccupancyExplicit = !string.IsNullOrWhiteSpace(txtOccupancy.Text) && occ > 0;
                 s.Zones = new List<ZoneSetup>
                 {
                     new ZoneSetup { ZoneId = "whole-building", BuildingUse = use,
@@ -234,6 +267,21 @@ namespace StingTools.UI.Sustainability
                         : "EDGE level: —";
 
                     txtProxyLog.Text = res.Baseline?.Summary ?? "(no baseline)";
+
+                    // WS N2 — when the use is NOT explicit, show the model-resolved use on
+                    // the SETUP combo ("(auto-detect: residential)") so the user sees what
+                    // actually drives the run. The selection stays on the sentinel (still
+                    // non-explicit), so it doesn't masquerade as a user pick.
+                    try
+                    {
+                        if (res.Setup?.UseExplicit != true && res.ResolvedUse?.Found == true
+                            && cmbBuildingUse.Items.Count > 0 && cmbBuildingUse.Items[0] is ComboBoxItem auto)
+                        {
+                            auto.Content = $"(auto-detect: {res.ResolvedUse.Use})";
+                            cmbBuildingUse.SelectedIndex = 0;
+                        }
+                    }
+                    catch { }
 
                     // Surface the engine notes so 0s / not-computed gates are explained.
                     var notes = (res.Warnings ?? new List<string>()).Distinct().Take(8).ToList();
@@ -331,10 +379,13 @@ namespace StingTools.UI.Sustainability
                 Dispatcher.Invoke(() =>
                 {
                     if (floorAreaM2 > 0) txtFloorArea.Text = floorAreaM2.ToString("0", CultureInfo.InvariantCulture);
-                    if (occupancy > 0)   txtOccupancy.Text = occupancy.ToString();
+                    // WS M2 — do NOT write the occupancy estimate into the box: that would
+                    // make it an explicit user total that overrides (and freezes) the
+                    // model-derived, per-use occupancy. Leave it blank so the engine
+                    // derives it from the load-profile density and re-derives on use change.
                     if (!string.IsNullOrWhiteSpace(climateZone) && string.IsNullOrWhiteSpace(cmbClimateZone.Text))
                         cmbClimateZone.Text = climateZone;
-                    UpdateStatus($"Auto-filled from model: {floorAreaM2:0} m² · {occupancy} occ");
+                    UpdateStatus($"Auto-filled from model: {floorAreaM2:0} m² · occupancy ~{occupancy} (model-derived)");
                 });
             }
             catch (Exception ex) { StingLog.Warn($"Sus ApplyAutoFill: {ex.Message}"); }
@@ -348,17 +399,40 @@ namespace StingTools.UI.Sustainability
             try
             {
                 if (uses == null) return;
-                string current = ContentOf(cmbBuildingUse, "office");
+                bool wasAuto = IsAutoUse(ContentOf(cmbBuildingUse, AutoUseSentinel));
+                string current = ContentOf(cmbBuildingUse, AutoUseSentinel);
                 cmbBuildingUse.Items.Clear();
+                // WS N1 — the "(auto-detect)" sentinel is always the first option (the
+                // non-explicit default), followed by the data-driven catalogue.
+                cmbBuildingUse.Items.Add(new ComboBoxItem { Content = AutoUseSentinel });
                 foreach (var u in uses)
                     if (!string.IsNullOrWhiteSpace(u))
                         cmbBuildingUse.Items.Add(new ComboBoxItem { Content = u });
-                if (cmbBuildingUse.Items.Count == 0)
-                    cmbBuildingUse.Items.Add(new ComboBoxItem { Content = "office" });
-                SetComboByContent(cmbBuildingUse, current);
+                if (wasAuto) cmbBuildingUse.SelectedIndex = 0;            // stay on auto-detect
+                else SetComboByContent(cmbBuildingUse, current);
                 if (cmbBuildingUse.SelectedItem == null) cmbBuildingUse.SelectedIndex = 0;
             }
             catch (Exception ex) { StingLog.Warn($"Sus PopulateBuildingUses: {ex.Message}"); }
+        }
+
+        /// <summary>WS J2 — populate the Country dropdown from the country seed
+        /// (friendly "ISO3 — Label"), preserving the current selection. Data-driven:
+        /// no hardcoded enum.</summary>
+        public void PopulateCountries(IEnumerable<string> labels)
+        {
+            try
+            {
+                if (labels == null) return;
+                string current = cmbCountry.Text;
+                cmbCountry.Items.Clear();
+                foreach (var l in labels)
+                    if (!string.IsNullOrWhiteSpace(l))
+                        cmbCountry.Items.Add(new ComboBoxItem { Content = l });
+                if (cmbCountry.Items.Count == 0)
+                    cmbCountry.Items.Add(new ComboBoxItem { Content = "*" });
+                if (!string.IsNullOrWhiteSpace(current)) cmbCountry.Text = current;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sus PopulateCountries: {ex.Message}"); }
         }
 
         // ── WS B3 — mixed-use zones grid handlers ─────────────────────────

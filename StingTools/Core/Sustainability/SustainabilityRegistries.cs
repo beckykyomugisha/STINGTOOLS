@@ -22,6 +22,9 @@ namespace StingTools.Core.Sustainability
         public const string WaterFile     = "STING_WATER_USAGE_PROFILES.json";
         public const string MeasuresFile  = "STING_GREEN_MEASURES.json";
         public const string MonthlyFile   = "STING_CLIMATE_MONTHLY.json";
+        public const string IceEnergyFile = "STING_ICE_EMBODIED_ENERGY.json";
+        public const string GridCarbonFile = "STING_GRID_CARBON_FACTORS.json";
+        public const string CountriesFile  = "STING_COUNTRIES.json";
 
         private static readonly ConcurrentDictionary<string, GreenSchemeRegistry> _schemes
             = new ConcurrentDictionary<string, GreenSchemeRegistry>(StringComparer.OrdinalIgnoreCase);
@@ -33,6 +36,12 @@ namespace StingTools.Core.Sustainability
             = new ConcurrentDictionary<string, GreenMeasureRegistry>(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, ClimateMonthlyRegistry> _monthly
             = new ConcurrentDictionary<string, ClimateMonthlyRegistry>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, IceEmbodiedEnergyRegistry> _iceEnergy
+            = new ConcurrentDictionary<string, IceEmbodiedEnergyRegistry>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, GridCarbonRegistry> _gridCarbon
+            = new ConcurrentDictionary<string, GridCarbonRegistry>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, CountryRegistry> _countries
+            = new ConcurrentDictionary<string, CountryRegistry>(StringComparer.OrdinalIgnoreCase);
 
         public static GreenSchemeRegistry Schemes(Document doc)
             => _schemes.GetOrAdd(Key(doc), _ =>
@@ -54,9 +63,26 @@ namespace StingTools.Core.Sustainability
             => _monthly.GetOrAdd(Key(doc), _ =>
                 ClimateMonthlyRegistry.LoadFromFiles(Corp(MonthlyFile), Proj(doc, "climate_monthly.json")));
 
+        /// <summary>Embodied-energy (MJ/kg) seed registry — WS C3. Corporate ICE v3
+        /// seed + per-project override under _BIM_COORD/sustainability/.</summary>
+        public static IceEmbodiedEnergyRegistry IceEnergy(Document doc)
+            => _iceEnergy.GetOrAdd(Key(doc), _ =>
+                IceEmbodiedEnergyRegistry.LoadFromFiles(Corp(IceEnergyFile), Proj(doc, "ice_embodied_energy.json")));
+
+        /// <summary>Per-country grid carbon-factor registry — WS I3/I9.</summary>
+        public static GridCarbonRegistry GridCarbon(Document doc)
+            => _gridCarbon.GetOrAdd(Key(doc), _ =>
+                GridCarbonRegistry.LoadFromFiles(Corp(GridCarbonFile), Proj(doc, "grid_carbon_factors.json")));
+
+        /// <summary>Country seed registry (cascade + dropdown) — WS J1/J2.</summary>
+        public static CountryRegistry Countries(Document doc)
+            => _countries.GetOrAdd(Key(doc), _ =>
+                CountryRegistry.LoadFromFiles(Corp(CountriesFile), Proj(doc, "countries.json")));
+
         public static void Reload()
         {
             _schemes.Clear(); _baselines.Clear(); _water.Clear(); _measures.Clear(); _monthly.Clear();
+            _iceEnergy.Clear(); _gridCarbon.Clear(); _countries.Clear();
         }
 
         public static void Reload(Document doc)
@@ -67,6 +93,9 @@ namespace StingTools.Core.Sustainability
             _water.TryRemove(k, out _);
             _measures.TryRemove(k, out _);
             _monthly.TryRemove(k, out _);
+            _iceEnergy.TryRemove(k, out _);
+            _gridCarbon.TryRemove(k, out _);
+            _countries.TryRemove(k, out _);
         }
 
         // ── Path helpers ─────────────────────────────────────────────────

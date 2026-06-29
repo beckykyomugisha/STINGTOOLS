@@ -56,6 +56,14 @@ namespace StingTools.Core.Hvac.Loads
         /// office inflates DHW ~10×, which dominates a low-area EUI.</summary>
         public double DhwLPerPersonDay { get; set; } = 5.0;
 
+        /// <summary>WS L1/L2 — operating calendar: days/year the building is in use.
+        /// Folds the weekend/closure factor into the annualisation so a 250-day office
+        /// isn't billed 365 days of use-driven energy (lighting/equipment/DHW + the
+        /// internal-gain-driven conditioning). The SAME basis the water estimator uses
+        /// (profile.OperatingDaysPerYear), so energy and water assume one operating
+        /// year. Default 365 = continuous (back-compat for zones built without a profile).</summary>
+        public int OperatingDaysPerYear { get; set; } = 365;
+
         // Ventilation per ASHRAE 62.1 / CIBSE Guide B2: per-person +
         // per-area minimum outdoor air.
         public double OaLpsPerPerson { get; set; } = 10.0; // CIBSE office default

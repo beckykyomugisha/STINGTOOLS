@@ -111,6 +111,14 @@ namespace StingTools.Core.Sustainability
         public string MatchedKey    { get; set; } = "";
         public List<ResolutionHop> Path { get; } = new List<ResolutionHop>();
 
+        /// <summary>WS I2 — true ONLY when all three axes (country + climate zone +
+        /// building use) were real (non-wildcard) AND matched exactly. A match on a
+        /// "*" axis is a fallback/default proxy, never an exact match.</summary>
+        public bool ExactMatch { get; set; }
+        /// <summary>WS I2 — the axes that fell back to a wildcard/default proxy
+        /// (e.g. "country (default proxy)", "climate zone 4A (default, not derived)").</summary>
+        public List<string> FallbackAxes { get; } = new List<string>();
+
         /// <summary>Human-readable one-line summary of the resolution path, e.g.
         /// "no CAF baseline -> fell back to climate-zone 0A office, source ASHRAE 90.1 — indicative".</summary>
         public string Summary { get; set; } = "";

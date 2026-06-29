@@ -1,0 +1,46 @@
+{
+  "name": "Sustainability Assessment (EDGE/LEED)",
+  "description": "End-to-end EDGE/LEED indicative assessment: read the model context, gate on a resolved location, resolve the climate-zone baseline, run the dashboard, then EDGE export + life-cycle cost. Gated so a mis-set project can't emit confident-wrong numbers.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "Sustain_AutoFill",
+      "label": "1. Read project context from the model (area / occupancy / climate site)",
+      "optional": true
+    },
+    {
+      "commandTag": "Sustain_ReadinessCheck",
+      "label": "2. Readiness gate — location / use / occupancy / fixtures",
+      "optional": true
+    },
+    {
+      "commandTag": "Sustain_SetBaseline",
+      "label": "3. Resolve + stamp the climate-zone baseline (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
+    },
+    {
+      "commandTag": "Sustain_Dashboard",
+      "label": "4. Run the sustainability dashboard (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
+    },
+    {
+      "commandTag": "Sustain_EdgeExport",
+      "label": "5. Export the EDGE workbook (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
+    },
+    {
+      "commandTag": "Sustain_LccBenefit",
+      "label": "6. Life-cycle cost benefit → BOQ Cost Manager (needs a location)",
+      "optional": true,
+      "condition": "sustain_location_set"
+    }
+  ],
+  "_postNotes": [
+    "Steps 3-6 are gated on sustain_location_set, so on a model with no location the one-click run reads context + readiness but does NOT emit confident-wrong baseline/EDGE/LCC numbers.",
+    "Materials is delegated to the EDGE app (the dashboard tracks indicative MJ + selections); the EDGE app owns the certified materials %.",
+    "Indicative figures only — enter the EDGE app's official % on the dashboard to drive the determined level."
+  ]
+}

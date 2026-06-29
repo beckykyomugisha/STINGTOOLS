@@ -42,12 +42,13 @@ namespace StingTools.Commands.Sustainability
             // SCAFFOLD: the full implementation will pick a material/type and a Type III
             // EPD reference, then stamp SUS_EPD_REF_TXT so MaterialsRollup prefers the
             // product-specific factor. The param + read path already ship in Phase 1.
-            TaskDialog.Show("STING Sustainability — EPD Assign (Phase 2)",
-                "Phase-2 scaffold. SUS_EPD_REF_TXT is bound now; the full EPD register + " +
-                "material picker land when LEED is confirmed contractual.\n\n" +
-                "To start early: set SUS_EPD_REF_TXT on a material via the Properties palette — " +
-                "MaterialsRollup already prefers product-specific EPD lines.");
-            StingLog.Info("Sustain_EpdAssign: Phase-2 scaffold invoked.");
+            TaskDialog.Show("STING Sustainability — EPD register",
+                "You can start recording product-specific EPDs now: set the material's " +
+                "EPD reference on a material in the Properties palette, and the materials " +
+                "roll-up will prefer that product-specific factor over the generic library " +
+                "value.\n\nThe full EPD register with a material picker becomes available " +
+                "once LEED is confirmed for the project.");
+            StingLog.Info("Sustain_EpdAssign: EPD register opened.");
             return Result.Succeeded;
         }
     }
@@ -65,10 +66,10 @@ namespace StingTools.Commands.Sustainability
             var setup = SustainCmdHelper.LoadSetup(doc);
             if (!SustainPhase2Flag.LeedEnabled(setup))
             {
-                TaskDialog.Show("STING Sustainability — LEED Scorecard (Phase 2)",
+                TaskDialog.Show("STING Sustainability — LEED scorecard",
                     "LEED is not selected in project setup. Add 'LEED' to the schemes in the " +
-                    "SETUP tab to enable the LEED v5 scorecard (WBLCA prerequisite report + " +
-                    "MR credit step-function scoring + bands).");
+                    "SETUP tab to enable the LEED v5 scorecard (whole-building life-cycle " +
+                    "assessment prerequisite report + materials credit scoring + bands).");
                 return Result.Cancelled;
             }
 
@@ -79,8 +80,8 @@ namespace StingTools.Commands.Sustainability
             var leed = res.Schemes.FirstOrDefault(s => s.SchemeId == "LEED");
 
             var b = new StingResultPanel.Builder()
-                .SetTitle("STING Sustainability — LEED v5 Scorecard (preview)")
-                .SetSubtitle("Phase-2 scaffold — WBLCA prerequisite + Reduce-EC credit preview");
+                .SetTitle("STING Sustainability — LEED v5 scorecard (preview)")
+                .SetSubtitle("Whole-building life-cycle assessment prerequisite + Reduce-EC credit preview");
             if (leed != null)
             {
                 b.AddSection("LEED v5 gates")
@@ -88,14 +89,14 @@ namespace StingTools.Commands.Sustainability
                 foreach (var g in leed.Gates)
                     b.PassFail(g.Label, g.Passed, $"{g.IndicativeValue:F1} ({g.Points} pts)");
             }
-            b.AddSection("Embodied carbon (WBLCA A1-A3)")
-             .Metric("kgCO2e/m²", $"{res.Materials?.CarbonIntensityKgM2:F1}", "indicative — full WBLCA report is Phase 2");
+            b.AddSection("Embodied carbon (whole-building LCA, A1–A3)")
+             .Metric("kgCO2e/m²", $"{res.Materials?.CarbonIntensityKgM2:F1}", "indicative — full life-cycle report to follow");
             if (res.Materials?.Hotspots?.Count > 0)
                 b.Table(new[] { "Hotspot", "kgCO2e", "%" },
                     res.Materials.Hotspots.Select(h => new[] { h.Material, $"{h.CarbonKg:F0}", $"{h.SharePct:F0}%" }).ToList());
             b.Show();
 
-            StingLog.Info("Sustain_LeedScorecard: Phase-2 preview rendered.");
+            StingLog.Info("Sustain_LeedScorecard: preview rendered.");
             return Result.Succeeded;
         }
     }

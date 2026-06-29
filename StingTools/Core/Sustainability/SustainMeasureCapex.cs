@@ -60,7 +60,17 @@ namespace StingTools.Core.Sustainability
 
             double rate = measure.Cost.DefaultRate;
             string unit = (measure.Cost.Unit ?? "").Trim().ToLowerInvariant();
+            string basis = (measure.Cost.QuantityBasis ?? "").Trim().ToLowerInvariant();
             string name = (measure.Name ?? "") + " " + (measure.Description ?? "");
+
+            // 1) An EXPLICIT per-measure basis wins over the unit + keyword inference.
+            //    This is what disambiguates the overloaded "nr" unit — "perFixture"
+            //    (multiply by fixture count) vs "system" (one whole-building unit, qty 1).
+            //    Without it, a whole-building system whose description mentions a
+            //    fixture word (e.g. grey-water reuse → "…WC flushing…") was wrongly
+            //    multiplied by the fixture count. Empty basis ⇒ fall through to the
+            //    legacy switch below (back-compat for overrides that omit it).
+            if (ApplyExplicitBasis(basis, ctx, r)) { r.Capex = Math.Round(rate * r.Quantity, 2); return r; }
 
             switch (unit)
             {
@@ -114,6 +124,65 @@ namespace StingTools.Core.Sustainability
 
             r.Capex = Math.Round(rate * r.Quantity, 2);
             return r;
+        }
+
+        /// <summary>Apply an explicit <c>quantityBasis</c> to the result. Returns true
+        /// when the basis was recognised and handled (caller skips the unit inference);
+        /// false for an empty / unknown basis (caller falls back to unit + keywords).</summary>
+        private static bool ApplyExplicitBasis(string basis, MeasureQuantityContext ctx, MeasureCapexResult r)
+        {
+            switch (basis)
+            {
+                case "perkwp":
+                    r.Quantity = ctx.PvKwp;
+                    r.UsedModelQuantity = ctx.PvKwp > 0;
+                    r.BasisLabel = ctx.PvKwp > 0 ? "PV kWp (model)" : "PV kWp (unset — 0)";
+                    return true;
+
+                case "perkwcooling":
+                    if (ctx.CoolingKw > 0) { r.Quantity = ctx.CoolingKw; r.UsedModelQuantity = true; r.BasisLabel = "cooling kW (model)"; }
+                    else { r.Quantity = ctx.FloorAreaM2 * 0.08; r.BasisLabel = "cooling kW (≈80 W/m² proxy)"; }
+                    return true;
+
+                case "perm2glazing":
+                    if (ctx.GlazingAreaM2 > 0) { r.Quantity = ctx.GlazingAreaM2; r.UsedModelQuantity = true; r.BasisLabel = "glazing m² (model)"; }
+                    else { r.Quantity = ctx.FloorAreaM2; r.BasisLabel = "floor m² (glazing absent — fallback)"; }
+                    return true;
+
+                case "perm2floor":
+                    r.Quantity = ctx.FloorAreaM2;
+                    r.UsedModelQuantity = ctx.FloorAreaM2 > 0;
+                    r.BasisLabel = "floor m² (model)";
+                    return true;
+
+                case "perfixture":
+                    if (ctx.FixtureCount > 0) { r.Quantity = ctx.FixtureCount; r.UsedModelQuantity = true; r.BasisLabel = "fixtures (model)"; }
+                    else if (ctx.Occupancy > 0) { r.Quantity = Math.Max(1, ctx.Occupancy / 4.0); r.BasisLabel = "≈1 fixture / 4 ppl (proxy)"; }
+                    else { r.Quantity = 1; r.BasisLabel = "nominal (1)"; }
+                    return true;
+
+                case "perm3floorproxy":
+                    r.Quantity = Math.Max(1, ctx.FloorAreaM2 / 100.0);
+                    r.BasisLabel = "m³ (≈floor/100 proxy)";
+                    return true;
+
+                case "system":
+                case "lumpsum":
+                    // A single whole-building system — qty is a definite 1, not a
+                    // model measurement and NOT a proxy estimate, so it's marked used.
+                    r.Quantity = 1;
+                    r.UsedModelQuantity = true;
+                    r.BasisLabel = "system (1)";
+                    return true;
+
+                case "lump":
+                    r.Quantity = 1;
+                    r.BasisLabel = "lump sum (1)";
+                    return true;
+
+                default:
+                    return false;   // empty or unknown ⇒ infer from unit + keywords
+            }
         }
 
         private static bool Mentions(string text, string[] keywords)

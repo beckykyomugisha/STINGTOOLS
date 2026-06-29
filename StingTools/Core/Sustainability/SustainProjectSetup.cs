@@ -13,6 +13,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Sustainability
@@ -29,6 +31,10 @@ namespace StingTools.Core.Sustainability
         public double? PvYieldKwhPerKwpYr { get; set; } = null;
         public double GridCarbonKgco2eKwh { get; set; } = 0.45;
         public double DieselCarbonKgco2eKwh { get; set; } = 0.8;
+        /// <summary>WS J1 — true when the user explicitly set the grid/diesel factor
+        /// (Supply tab), so the country cascade won't overwrite it.</summary>
+        public bool GridCarbonExplicit { get; set; } = false;
+        public bool DieselCarbonExplicit { get; set; } = false;
         public double DieselFraction { get; set; } = 0.0;
         public double GreywaterReuseFraction { get; set; } = 0.0;
 
@@ -122,6 +128,34 @@ namespace StingTools.Core.Sustainability
         public EdgeOfficialFigures EdgeOfficial { get; set; } = new EdgeOfficialFigures();
         public SustainUnits Units { get; set; } = SustainUnits.SI;
 
+        /// <summary>WS I1 — true when the building use was explicitly chosen by the user
+        /// or resolved from the model. False on a fresh CreateDefault, so the readiness
+        /// gate treats the seeded "office" as UNSET and blocks rather than presenting
+        /// office numbers as the user's project.</summary>
+        public bool UseExplicit { get; set; } = false;
+
+        /// <summary>WS M2 — true only when the user actually typed a project occupancy
+        /// total. False on a fresh CreateDefault / auto-seed, so the engine uses the
+        /// model-derived (load-profile-density) occupancy instead of an estimate that
+        /// would otherwise masquerade as the user's authoritative figure.</summary>
+        public bool OccupancyExplicit { get; set; } = false;
+
+        /// <summary>WS H4 — whole-life carbon study period (years). Default 60 matches
+        /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.
+        /// WS I10 — the LCC analysis uses this SAME period (no separate hardcoded 25 yr).</summary>
+        public int StudyPeriodYears { get; set; } = 60;
+
+        /// <summary>WS I10 — LCC discount rate (%/yr) for the NPV of operational savings.
+        /// 3.5% is a common public-sector real discount rate (UK Green Book); set 0 for
+        /// undiscounted.</summary>
+        public double DiscountRatePct { get; set; } = 3.5;
+
+        /// <summary>WS O1 — the modelled occupancy is flagged "unusually dense" when its
+        /// actual density (floor area / people) falls below this fraction of the resolved
+        /// profile's expected density. Seed 0.5 (overridable per project); a flag never
+        /// changes the number. 0 disables the dense check.</summary>
+        public double OccupancyDenseFactor { get; set; } = 0.5;
+
         public string UpdatedUtc { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
         // ── Derived helpers (used by the building-level rollup; spec §2.5 rule 4) ──
@@ -189,6 +223,70 @@ namespace StingTools.Core.Sustainability
         }
 
         public string ToJson() => JsonConvert.SerializeObject(this, Formatting.Indented);
+
+        /// <summary>WS E1 — a deterministic content hash over the RESULT-AFFECTING
+        /// fields only (UpdatedUtc is excluded, so re-saving an unchanged setup keeps
+        /// the same key). Used to cache the whole run per (document, setup-hash) so
+        /// the dashboard → export → LCC → publish chain doesn't re-walk the model for
+        /// an identical setup. Pure + deterministic across processes (SHA-256 of a
+        /// canonical string, not the process-randomised string.GetHashCode).</summary>
+        public string ContentHash()
+        {
+            var sb = new StringBuilder();
+            sb.Append("schemes=").Append(string.Join(",", Schemes ?? new List<string>())).Append('|');
+            if (TargetLevels != null)
+                foreach (var kv in TargetLevels.OrderBy(k => k.Key, StringComparer.Ordinal))
+                    sb.Append(kv.Key).Append('=').Append(kv.Value).Append(';');
+            sb.Append("|country=").Append(Country)
+              .Append("|site=").Append(ClimateSiteId)
+              .Append("|zone=").Append(ClimateZone)
+              .Append("|units=").Append(Units)
+              .Append("|study=").Append(StudyPeriodYears)
+              .Append("|discount=").Append(DiscountRatePct.ToString("R"))
+              .Append("|useExplicit=").Append(UseExplicit)
+              .Append("|occExplicit=").Append(OccupancyExplicit)
+              .Append("|occDenseF=").Append(OccupancyDenseFactor.ToString("R")).Append('|');
+            if (Zones != null)
+                foreach (var z in Zones)
+                    sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')
+                      .Append(z.FloorAreaM2.ToString("R")).Append('/')
+                      .Append(z.Occupancy).Append('/').Append(z.CoolingCop.ToString("R")).Append(';');
+            sb.Append('|');
+            if (Supply != null)
+                sb.Append(Supply.Mode).Append('/').Append(Supply.PvKwp.ToString("R")).Append('/')
+                  .Append(Supply.PvPerformanceRatio.ToString("R")).Append('/')
+                  .Append((Supply.PvYieldKwhPerKwpYr ?? 0).ToString("R")).Append('/')
+                  .Append(Supply.GridCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.GridCarbonExplicit).Append('/')
+                  .Append(Supply.DieselCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.DieselCarbonExplicit).Append('/')
+                  .Append(Supply.DieselFraction.ToString("R")).Append('/')
+                  .Append(Supply.GreywaterReuseFraction.ToString("R")).Append('/')
+                  .Append(Supply.HeatingSeasonalEfficiency.ToString("R")).Append('/')
+                  .Append(Supply.HeatingIsElectric).Append('/')
+                  .Append(Supply.HeatingFuelCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.FanEnergyFraction.ToString("R")).Append('/')
+                  .Append(Supply.EnergyTariffPerKwh.ToString("R")).Append('/')
+                  .Append(Supply.WaterTariffPerM3.ToString("R"));
+            sb.Append('|');
+            if (FactorSources != null)
+                sb.Append(string.Join(",", FactorSources.EmbodiedCarbon ?? new List<string>())).Append('/')
+                  .Append(string.Join(",", FactorSources.EmbodiedEnergy ?? new List<string>())).Append('/')
+                  .Append(FactorSources.Region);
+            sb.Append('|');
+            if (EdgeOfficial != null)
+                sb.Append(EdgeOfficial.EnergySavingsPct).Append('/')
+                  .Append(EdgeOfficial.WaterSavingsPct).Append('/')
+                  .Append(EdgeOfficial.MaterialsSavingsPct);
+
+            using (var sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
+                var hex = new StringBuilder(hash.Length * 2);
+                foreach (var b in hash) hex.Append(b.ToString("x2"));
+                return hex.ToString();
+            }
+        }
 
         /// <summary>Load from a project directory (returns default + Found=false if absent).</summary>
         public static SustainProjectSetup Load(string projectDir, out bool found)

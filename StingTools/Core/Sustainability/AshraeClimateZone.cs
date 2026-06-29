@@ -37,5 +37,33 @@ namespace StingTools.Core.Sustainability
             string m = string.IsNullOrEmpty(moisture) ? "A" : moisture;
             return n.ToString() + m;
         }
+
+        /// <summary>WS I9 — coarse ASHRAE thermal-zone number from latitude alone, for
+        /// ANY site lacking degree-days (the global-resolution fallback). A documented
+        /// latitude-band heuristic (Köppen-style): the equator is extremely hot (0),
+        /// the poles severe-cold (8). Less precise than the degree-day classifier —
+        /// the caller flags it as latitude-derived.</summary>
+        public static int NumberFromLatitude(double latDeg)
+        {
+            double a = System.Math.Abs(latDeg);
+            if (a <= 10) return 0;
+            if (a <= 20) return 1;
+            if (a <= 27) return 2;
+            if (a <= 35) return 3;
+            if (a <= 42) return 4;
+            if (a <= 49) return 5;
+            if (a <= 55) return 6;
+            if (a <= 63) return 7;
+            return 8;
+        }
+
+        /// <summary>WS I9 — zone string from latitude (assumed moisture sub-type).</summary>
+        public static string ClassifyByLatitude(double latDeg, string moisture = "A")
+        {
+            int n = NumberFromLatitude(latDeg);
+            if (n >= 7) return n.ToString();
+            string m = string.IsNullOrEmpty(moisture) ? "A" : moisture;
+            return n.ToString() + m;
+        }
     }
 }

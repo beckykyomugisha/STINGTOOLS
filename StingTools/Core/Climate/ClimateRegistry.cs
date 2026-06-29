@@ -71,6 +71,10 @@ namespace StingTools.Core.Climate
             return Heating996DbC;
         }
         /// <summary>Annual heating degree-days, 18 °C base.</summary>
+        /// <summary>Mean annual rainfall, mm/yr (WS I7) — feeds RainwaterHarvestingCalc
+        /// so RWH yields a real number on rainy sites. 0 when unknown (the sustainability
+        /// engine then uses a flagged default).</summary>
+        public double RainfallMmYr  { get; set; }
         public double Hdd18         { get; set; }
         /// <summary>Annual cooling degree-days, 10 °C base.</summary>
         public double Cdd10         { get; set; }
@@ -275,6 +279,7 @@ namespace StingTools.Core.Climate
                     Heating99DbC    = (double?)s["heating99DbC"]  ?? 0,
                     Hdd18           = (double?)s["hdd18"] ?? 0,
                     Cdd10           = (double?)s["cdd10"] ?? 0,
+                    RainfallMmYr    = (double?)s["rainfallMmYr"] ?? 0,
                     Source          = (string)s["source"] ?? "",
                     UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
                     ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false,

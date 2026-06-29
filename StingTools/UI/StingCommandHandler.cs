@@ -3979,6 +3979,14 @@ namespace StingTools.UI
                         // catches the inline-tab action buttons + future Healthcare_*
                         // tags so none silently no-op.
                         if (tag.StartsWith("Healthcare_")) { ResolveHealthcareAction(app, tag); break; }
+                        // ── WorkflowEngine fall-through (WS H1) ──
+                        // Any tag registered in WorkflowEngine.ResolveCommand (e.g. the
+                        // Sustain_* tags) dispatches here, so the module is reachable
+                        // from the main handler / workflow / NLP, not only its own panel.
+                        {
+                            var resolved = Core.WorkflowEngine.GetCommandInstance(tag);
+                            if (resolved != null) { RunResolvedCommand(resolved, tag); break; }
+                        }
                         // ── Unknown tag ──
                         _lastTagUnhandled = true;
                         StingLog.Warn($"Unrecognised command tag: {tag}");
@@ -4331,6 +4339,28 @@ namespace StingTools.UI
                 StingLog.Error($"RunCommand<{typeof(T).Name}> failed", ex);
                 TaskDialog.Show("STING Tools",
                     $"{typeof(T).Name} failed:\n{ex.Message}");
+            }
+        }
+
+        /// <summary>Run an already-resolved IExternalCommand instance (used by the
+        /// WorkflowEngine fall-through so any tag registered in
+        /// WorkflowEngine.ResolveCommand — e.g. the Sustain_* tags — dispatches from
+        /// the main handler, not only its own panel). WS H1.</summary>
+        private static void RunResolvedCommand(IExternalCommand cmd, string tag)
+        {
+            try
+            {
+                StingLog.Info($"RunResolvedCommand '{tag}' ({cmd.GetType().Name}): start");
+                string message = "";
+                var elSet = new ElementSet();
+                cmd.Execute(null, ref message, elSet);
+                StingLog.Info($"RunResolvedCommand '{tag}': done");
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { /* user cancelled */ }
+            catch (Exception ex)
+            {
+                StingLog.Error($"RunResolvedCommand '{tag}' failed", ex);
+                TaskDialog.Show("STING Tools", $"Command failed:\n{ex.Message}");
             }
         }
 

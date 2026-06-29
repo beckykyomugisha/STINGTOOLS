@@ -162,6 +162,11 @@ namespace StingTools.Core
                 // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
                 StingTools.Core.Plumbing.RealTimePipeSizer.Register(application);
 
+                // WS I13: register the sustainability stale marker (IUpdater) — starts
+                // disabled; the dashboard enables it after the first run so later
+                // envelope/fixture edits flag the result as out of date.
+                StingTools.Core.Sustainability.SustainStaleUpdater.Register(application);
+
                 // Subscribe DocumentChanged → drain LiveClashUpdater.DirtyQueue
                 // by raising LiveClashHandler.Event. Without this, edits queue
                 // forever and the live + scheduled clash paths never run after
@@ -387,6 +392,10 @@ namespace StingTools.Core
                 // (schemes / baselines / water / measures / monthly climate).
                 try { Core.Sustainability.SustainabilityRegistries.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Sustainability cache invalidate: {cEx.Message}"); }
+                // WS E1: drop the cached sustainability run + material take-off so a
+                // re-open re-walks the model.
+                try { Core.Sustainability.SustainabilityEngine.Invalidate(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Sustainability run cache invalidate: {cEx.Message}"); }
                 // MEP-from-DWG: drop the per-document fixture-map cache so a re-open
                 // re-reads the corporate baseline + project _BIM_COORD override.
                 try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }
@@ -611,6 +620,39 @@ namespace StingTools.Core
         }
 
         /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
+        /// <summary>WS I13 — cheap sustainability-readiness pre-warn on document open.
+        /// Loads the saved setup + a couple of collectors (no full engine run) and logs
+        /// / surfaces a warning when location or use is unset.</summary>
+        private static void PreWarnSustainabilityReadiness(Autodesk.Revit.DB.Document doc)
+        {
+            if (doc == null) return;
+            string dir = null;
+            try { dir = System.IO.Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
+            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+
+            bool locationSet = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
+                            || !string.IsNullOrWhiteSpace(setup.ClimateZone);
+            try { locationSet = locationSet || !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id); }
+            catch { }
+            bool fixtures = false;
+            try
+            {
+                fixtures = new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                    .OfCategory(Autodesk.Revit.DB.BuiltInCategory.OST_PlumbingFixtures)
+                    .WhereElementIsNotElementType().Any();
+            }
+            catch { }
+
+            var rd = Core.Sustainability.SustainReadiness.Evaluate(
+                locationSet, setup.UseExplicit, setup.TotalOccupancy > 0, fixtures);
+            string line = Core.Sustainability.SustainReadiness.StatusLine(rd);
+            if (!rd.Ready)
+            {
+                StingLog.Info($"Sustainability readiness on open: {line}");
+                try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.UpdateStatus(line); } catch { }
+            }
+        }
+
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
         {
@@ -620,6 +662,12 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // WS I13 — pre-warn on open when the sustainability inputs are unset,
+                // so a mis-set project is flagged before the dashboard is opened.
+                // Cheap: setup load + a few collectors, no full engine run.
+                try { PreWarnSustainabilityReadiness(e.Document); }
+                catch (Exception sx) { StingLog.Warn($"Sustain readiness pre-warn: {sx.Message}"); }
 
                 // Force-show every STING dock panel on first document open per
                 // Revit session. RegisterDockablePane + VisibleByDefault is meant
@@ -1567,6 +1615,7 @@ namespace StingTools.Core
             StingCostStaleMarker.Unregister();
             try { StingTools.BOQ.StingCostDirtyMarker.Unregister(); } catch { }
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
+            try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }

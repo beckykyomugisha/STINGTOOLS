@@ -30,12 +30,23 @@ namespace StingTools.Core.Sustainability
         public bool   EdgePassed { get; set; }
 
         public double OperationalCarbonKgYr { get; set; }
+        /// <summary>WS H4 — whole-life carbon intensity (embodied A1–A3 + operational
+        /// over the study period), kgCO₂e/m².</summary>
+        public double WholeLifeCarbonKgM2 { get; set; }
+        public int    StudyPeriodYears { get; set; }
         public int    Occupancy   { get; set; }
         public double FloorAreaM2 { get; set; }
         public string SupplyMode  { get; set; } = "grid_tied";
         public string ProxyPath   { get; set; } = "";
         public string Country     { get; set; } = "";
         public string ClimateZone { get; set; } = "";
+
+        /// <summary>WS H5 — the water % the snapshot must record: the SAME inclusive
+        /// metric (fixture efficiency + alternative water) the EDGE water gate uses
+        /// (AnnualWaterMetricProvider), so the persisted trend agrees with the
+        /// on-screen pass/fail. Falls back to the fixture-only % when no result.</summary>
+        public static double GateWaterPct(WaterEstimateResult w)
+            => w == null ? 0 : w.WaterSavingsInclAltPct;
 
         // ── Persistence ──────────────────────────────────────────────────
 
