@@ -237,6 +237,11 @@ namespace StingTools.Commands.Sustainability
             };
             EdgeKpiSnapshot.Append(dir, snap);
 
+            // WS I13 — the result is now fresh; arm the stale marker so later
+            // envelope/fixture edits flag the dashboard as out of date.
+            try { StingTools.Core.Sustainability.SustainStaleUpdater.MarkFresh(); }
+            catch (Exception ex) { StingLog.Warn($"Sustain MarkFresh: {ex.Message}"); }
+
             // Render a result panel mirroring KutKpiDashboard (in addition to the pane).
             RenderResultPanel(res, setup);
             StingLog.Info($"Sustain_Dashboard: energy {snap.EnergySavingsPct:F1}%, water {snap.WaterSavingsPct:F1}%, EDGE {snap.EdgeLevel}.");
