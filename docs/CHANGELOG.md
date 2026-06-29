@@ -68,9 +68,15 @@ the silent `catch { continue; }` in `RepriceElements` and `CostDirtyMarker.Execu
 with rate-limited `StingLog.Warn`. `BOQBccBridge`'s `[ThreadStatic]` BOQ cache
 (keyed on `PathName` only) now folds in a `StingCostDirtyMarker.ChangeEpoch`
 model-edit epoch, so an in-place geometry/type/material edit busts the cache
-instead of feeding stale rates into 4D/5D cash-flow. (Remaining WP6 items — FX
-snapshot-per-build, mandatory rate-source currency, summary-level USD derivation,
-BCIS off the sync path — tracked in ROADMAP.)
+instead of feeding stale rates into 4D/5D cash-flow. `RateProviderRegistry.Resolve`
+now skips `RequiresNetwork` providers (BCIS/Planscape) on the synchronous
+per-element/transaction build path — they block on `.GetAwaiter().GetResult()`
+internally and are pre-warmed off-thread via the Fetch-live-rates action instead
+(they stay visible in the `ResolveAll` diagnostic). The section-card USD summary
+is derived from the UGX summary ÷ the one project FX rate instead of summing
+pre-rounded per-line `TotalUSD` (which drifts by cents × line-count). (Remaining
+WP6 items — FX snapshot-per-build and mandatory rate-source currency validation —
+tracked in ROADMAP.)
 
 **WP5 — Remove developer jargon from the user-facing UI.** Renamed the 26
 phase-coded strings on the Actions tab (`UI/BOQCostManagerPanel.cs`) and the

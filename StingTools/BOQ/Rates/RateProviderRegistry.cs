@@ -186,6 +186,13 @@ namespace StingTools.BOQ.Rates
             if (req == null) return ZeroLookup("");
             foreach (var provider in _providers)
             {
+                // WP6 — never block the synchronous per-element / transaction
+                // build on a network call. Network providers (BCIS / Planscape)
+                // do a blocking .GetAwaiter().GetResult() internally; they are
+                // pre-warmed OFF the UI thread via GetLiveFeedProviders + the
+                // Fetch-live-rates action (results land as model overrides) and
+                // remain visible in the ResolveAll diagnostic. Skip them here.
+                if (provider.RequiresNetwork) continue;
                 try
                 {
                     var lookup = provider.Resolve(req);

@@ -4028,8 +4028,12 @@ namespace StingTools.UI
             string secKey = SectionKey(sec);
             bool isExpanded = _openSections.Contains(secKey);
             double totalShownUgx = vms.Sum(v => v.Underlying.TotalUGX);
+            // WP6 — derive the USD summary from the UGX summary ÷ the one project
+            // FX rate, not by summing pre-rounded per-line TotalUSD (which drifts
+            // by cents × line-count in a dual-currency tender).
+            double fxUgxPerUsd = (_boq != null && _boq.ExchangeRateUgxPerUsd > 0) ? _boq.ExchangeRateUgxPerUsd : 0;
             string displayTotal = _displayCurrency == "USD"
-                ? $"$ {vms.Sum(v => v.Underlying.TotalUSD):N2}"
+                ? $"$ {(fxUgxPerUsd > 0 ? totalShownUgx / fxUgxPerUsd : 0):N2}"
                 : $"UGX {totalShownUgx:N0}";
 
             var headerGrid = new Grid { Background = SectionHeaderBrush(sec.Discipline) };
