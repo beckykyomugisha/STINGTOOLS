@@ -41,9 +41,12 @@ namespace StingTools.Commands.Sustainability
                 {
                     // WS H6 — the whole workbook honours the project's SI/IP units choice.
                     var units = setup.Units;
+                    // WS I4 — a blocked/proxy run (location/use unset) is never computed,
+                    // so no gate cell prints a bare number a user could paste into EDGE.
+                    bool ready = res.Readiness?.Ready ?? true;
                     BuildProjectSheet(wb, setup, res, units);
-                    BuildEnergySheet(wb, res, units);
-                    BuildWaterSheet(wb, setup, res, units);
+                    BuildEnergySheet(wb, res, units, ready);
+                    BuildWaterSheet(wb, setup, res, units, ready);
                     BuildMaterialsSheet(wb, doc, res, units);
 
                     path = OutputLocationHelper.GetOutputPath(doc,
@@ -86,7 +89,7 @@ namespace StingTools.Commands.Sustainability
             ws.Columns().AdjustToContents();
         }
 
-        private static void BuildEnergySheet(XLWorkbook wb, SustainabilityRunResult res, SustainUnits u)
+        private static void BuildEnergySheet(XLWorkbook wb, SustainabilityRunResult res, SustainUnits u, bool ready)
         {
             var ws = wb.Worksheets.Add("Energy");
             string absU = SustainUnitConverter.EnergyAbsUnit(u);
@@ -110,13 +113,17 @@ namespace StingTools.Commands.Sustainability
             r++;
             Row($"Design EUI ({euiU}) — indicative", SustainUnitConverter.Eui(res.Energy?.DesignEuiKwhM2Yr ?? 0, u));
             Row($"Baseline EUI ({euiU})", SustainUnitConverter.Eui(res.Energy?.BaselineEuiKwhM2Yr ?? 0, u));
-            Row("Energy savings % — indicative", res.Energy?.EnergySavingsPct ?? 0);   // % is unit-independent
+            // WS I4 — only print the savings % when the gate was computed (and the run
+            // isn't blocked); else "not computed — indicative default", matching the dashboard.
+            bool eComputed = ready && (res.Energy?.Computed ?? false);
+            ws.Cell(r, 1).Value = "Energy savings % — indicative";
+            ws.Cell(r, 2).Value = SustainExportFormat.GateValue(eComputed, res.Energy?.EnergySavingsPct ?? 0, "0.0", "%"); r++;
             Row($"PV generation ({absU})", A(res.Energy?.PvGenerationKwh ?? 0));
             Row($"Net import ({absU})", A(res.Energy?.NetImportKwh ?? 0));
             ws.Columns().AdjustToContents();
         }
 
-        private static void BuildWaterSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res, SustainUnits u)
+        private static void BuildWaterSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res, SustainUnits u, bool ready)
         {
             var ws = wb.Worksheets.Add("Water");
             string ppU = SustainUnitConverter.WaterPerPersonDayUnit(u);
@@ -125,7 +132,10 @@ namespace StingTools.Commands.Sustainability
             void Row(string k, string v) { ws.Cell(r, 1).Value = k; ws.Cell(r, 2).Value = v; r++; }
             Row($"Design {ppU} — indicative", SustainUnitConverter.WaterPerPersonDay(res.Water?.DesignLPersonDay ?? 0, u).ToString("0.0"));
             Row($"Baseline {ppU}", SustainUnitConverter.WaterPerPersonDay(res.Water?.BaselineLPersonDay ?? 0, u).ToString("0.0"));
-            Row("Water savings % — indicative", (res.Water?.WaterSavingsInclAltPct ?? 0).ToString("0.0"));   // % is unit-independent; inclusive (gate)
+            // WS I4 — the water gate is the inclusive %; print it only when computed
+            // (real fixtures) and not blocked — else "not computed", matching the dashboard.
+            bool wComputed = ready && (res.Water?.Computed ?? false);
+            Row("Water savings % — indicative", SustainExportFormat.GateValue(wComputed, res.Water?.WaterSavingsInclAltPct ?? 0, "0.0", "%"));
             Row($"Annual demand ({volU})", SustainUnitConverter.WaterVolume(res.Water?.AnnualDemandL ?? 0, u).ToString("0"));
             Row($"RWH yield ({volU}/yr)", SustainUnitConverter.WaterVolume(res.Water?.RwhYieldL ?? 0, u).ToString("0"));
             Row($"Net demand ({volU})", SustainUnitConverter.WaterVolume(res.Water?.NetDemandL ?? 0, u).ToString("0"));
