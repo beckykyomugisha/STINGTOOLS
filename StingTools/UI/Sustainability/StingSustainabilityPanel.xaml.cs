@@ -31,6 +31,12 @@ namespace StingTools.UI.Sustainability
         private static StingSustainabilityPanel _instance;
         public static StingSustainabilityPanel Instance => _instance;
 
+        /// <summary>WS N1 — the building-use combo's non-explicit default. While the combo
+        /// shows this (optionally annotated "(auto-detect: residential)"), the use is
+        /// model-derived, not a user choice. Mirrors M2's blank-occupancy = non-explicit.</summary>
+        private const string AutoUseSentinel = "(auto-detect)";
+        private static bool IsAutoUse(string s) => string.IsNullOrWhiteSpace(s) || s.StartsWith("(auto", StringComparison.OrdinalIgnoreCase);
+
         public StingSustainabilityPanel()
         {
             InitializeComponent();
@@ -117,7 +123,9 @@ namespace StingTools.UI.Sustainability
                 cmbCountry.Text     = string.IsNullOrWhiteSpace(s.Country) ? "*" : s.Country;
                 txtClimateSite.Text = s.ClimateSiteId ?? "";
                 cmbClimateZone.Text = s.ClimateZone ?? "";
-                SetComboByContent(cmbBuildingUse, s.DominantBuildingUse);
+                // WS N1 — the combo shows the user's pick only when explicit; otherwise it
+                // sits on "(auto-detect)" so the model-resolved use drives the run.
+                SetComboByContent(cmbBuildingUse, s.UseExplicit ? s.DominantBuildingUse : AutoUseSentinel);
                 txtOccupancy.Text   = s.TotalOccupancy > 0 ? s.TotalOccupancy.ToString() : "";
 
                 var z0 = s.Zones?.FirstOrDefault();
@@ -176,7 +184,12 @@ namespace StingTools.UI.Sustainability
                 s.ClimateSiteId = txtClimateSite.Text?.Trim();
                 s.ClimateZone   = cmbClimateZone.Text?.Trim();
 
-                string use = ContentOf(cmbBuildingUse, "office");
+                // WS N1 — building use is EXPLICIT only when the user picked a real use;
+                // the "(auto-detect)" default is non-explicit so the model-resolved use
+                // drives occupancy/energy/water/baseline (no default-masquerades-as-pick).
+                string comboUse = ContentOf(cmbBuildingUse, AutoUseSentinel);
+                s.UseExplicit = !IsAutoUse(comboUse);
+                string use = s.UseExplicit ? comboUse : "office";   // placeholder; engine overrides when !explicit
                 int occ = ParseInt(txtOccupancy.Text, 0);
                 double cop = ParseDouble(txtCop.Text, 0);
                 double area = ParseDouble(txtFloorArea.Text, 0);
@@ -254,6 +267,21 @@ namespace StingTools.UI.Sustainability
                         : "EDGE level: —";
 
                     txtProxyLog.Text = res.Baseline?.Summary ?? "(no baseline)";
+
+                    // WS N2 — when the use is NOT explicit, show the model-resolved use on
+                    // the SETUP combo ("(auto-detect: residential)") so the user sees what
+                    // actually drives the run. The selection stays on the sentinel (still
+                    // non-explicit), so it doesn't masquerade as a user pick.
+                    try
+                    {
+                        if (res.Setup?.UseExplicit != true && res.ResolvedUse?.Found == true
+                            && cmbBuildingUse.Items.Count > 0 && cmbBuildingUse.Items[0] is ComboBoxItem auto)
+                        {
+                            auto.Content = $"(auto-detect: {res.ResolvedUse.Use})";
+                            cmbBuildingUse.SelectedIndex = 0;
+                        }
+                    }
+                    catch { }
 
                     // Surface the engine notes so 0s / not-computed gates are explained.
                     var notes = (res.Warnings ?? new List<string>()).Distinct().Take(8).ToList();
@@ -371,14 +399,17 @@ namespace StingTools.UI.Sustainability
             try
             {
                 if (uses == null) return;
-                string current = ContentOf(cmbBuildingUse, "office");
+                bool wasAuto = IsAutoUse(ContentOf(cmbBuildingUse, AutoUseSentinel));
+                string current = ContentOf(cmbBuildingUse, AutoUseSentinel);
                 cmbBuildingUse.Items.Clear();
+                // WS N1 — the "(auto-detect)" sentinel is always the first option (the
+                // non-explicit default), followed by the data-driven catalogue.
+                cmbBuildingUse.Items.Add(new ComboBoxItem { Content = AutoUseSentinel });
                 foreach (var u in uses)
                     if (!string.IsNullOrWhiteSpace(u))
                         cmbBuildingUse.Items.Add(new ComboBoxItem { Content = u });
-                if (cmbBuildingUse.Items.Count == 0)
-                    cmbBuildingUse.Items.Add(new ComboBoxItem { Content = "office" });
-                SetComboByContent(cmbBuildingUse, current);
+                if (wasAuto) cmbBuildingUse.SelectedIndex = 0;            // stay on auto-detect
+                else SetComboByContent(cmbBuildingUse, current);
                 if (cmbBuildingUse.SelectedItem == null) cmbBuildingUse.SelectedIndex = 0;
             }
             catch (Exception ex) { StingLog.Warn($"Sus PopulateBuildingUses: {ex.Message}"); }

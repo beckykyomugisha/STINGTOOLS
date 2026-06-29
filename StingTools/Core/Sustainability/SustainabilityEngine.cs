@@ -323,6 +323,12 @@ namespace StingTools.Core.Sustainability
         /// <summary>Resolve the building use: an explicit user choice wins; else derive
         /// from ProjectInformation hints + the room program via BuildingUseResolver;
         /// else unset (caller blocks — never default to office).</summary>
+        /// <summary>WS N3 — public wrapper so commands (e.g. AutoFill) resolve the same
+        /// building use the dashboard run does, honouring the precedence rule
+        /// user-explicit &gt; model-derived &gt; unset.</summary>
+        public static BuildingUseResolution ResolveModelUse(Document doc, SustainProjectSetup setup)
+            => ResolveUse(doc, setup);
+
         private static BuildingUseResolution ResolveUse(Document doc, SustainProjectSetup setup)
         {
             try

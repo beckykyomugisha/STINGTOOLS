@@ -137,8 +137,10 @@
                                 <ComboBoxItem Content="8"/>
                             </ComboBox>
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Building use (dominant)" Style="{StaticResource SusLabel}"/>
-                            <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbBuildingUse" Margin="0,2" FontSize="10">
-                                <ComboBoxItem Content="office" IsSelected="True"/>
+                            <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbBuildingUse" Margin="0,2" FontSize="10"
+                                       ToolTip="(auto-detect) = derive the use from the model; pick a use to override.">
+                                <ComboBoxItem Content="(auto-detect)" IsSelected="True"/>
+                                <ComboBoxItem Content="office"/>
                                 <ComboBoxItem Content="residential"/>
                                 <ComboBoxItem Content="healthcare"/>
                                 <ComboBoxItem Content="retail"/>

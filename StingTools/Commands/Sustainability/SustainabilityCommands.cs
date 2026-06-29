@@ -173,10 +173,11 @@ namespace StingTools.Commands.Sustainability
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
             SustainProjectSetup setup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
 
-            // WS I1 — saving from SETUP is an explicit use choice: the building use is
-            // no longer the seeded "office" default, so the readiness gate stops blocking
-            // on it. (Location is still gated separately on climate site/zone.)
-            if (!string.IsNullOrWhiteSpace(setup.DominantBuildingUse)) setup.UseExplicit = true;
+            // WS N1 — UseExplicit is now set by ReadSetupForm: true ONLY when the user
+            // picked a real building use, false at the "(auto-detect)" default. The combo
+            // holding the seeded "office" must NOT masquerade as a user choice (the
+            // default-masquerades-as-explicit bug). When non-explicit, the engine's
+            // model-resolved use drives occupancy/energy/water/baseline uniformly.
 
             // WS J1 — preserve any persisted explicit grid/diesel override, then cascade
             // the Country into the blank location + carbon fields so picking a country
@@ -532,9 +533,14 @@ namespace StingTools.Commands.Sustainability
 
             double area = SustainCmdHelper.TotalFloorAreaM2(doc);
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
-            // WS M1 — estimate occupancy at the RESOLVED building use's density (the
-            // panel's current use, else the saved setup), not a flat office 10.
-            string use = (panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc))?.DominantBuildingUse;
+            // WS M1/N3 — estimate occupancy at the RESOLVED building-use density, honouring
+            // the precedence rule user-explicit > model-derived. When the use isn't an
+            // explicit user pick, resolve it from the model (same as the dashboard run),
+            // NOT the setup combo's "office" default.
+            var formSetup = panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc);
+            string use = formSetup.UseExplicit
+                ? formSetup.DominantBuildingUse
+                : (SustainabilityEngine.ResolveModelUse(doc, formSetup)?.Use ?? formSetup.DominantBuildingUse);
             int occ = SustainCmdHelper.EstimateOccupancy(doc, area, use);
             panel?.ApplyAutoFill(area, occ);
             // WS J2 — make sure the Country dropdown is data-driven from the seed.
