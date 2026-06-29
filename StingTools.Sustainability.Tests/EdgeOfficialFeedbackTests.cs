@@ -20,7 +20,8 @@ namespace StingTools.Sustainability.Tests
         {
             var energy = new EnergyEstimateResult
             {
-                EnergySavingsPct = energyPct, FloorAreaM2 = floor, ZoneCount = zoneCount, BaselineEuiKwhM2Yr = 200
+                EnergySavingsPct = energyPct, FloorAreaM2 = floor, ZoneCount = zoneCount,
+                Occupancy = zoneCount > 0 ? 50 : 0, BaselineEuiKwhM2Yr = 200
             };
             energy.Design.CoolingKwh = zoneCount > 0 ? 50000 : 0;
             var water = new WaterEstimateResult

@@ -281,13 +281,27 @@ namespace StingTools.Commands.Sustainability
                     res.ResolvedUse?.Found == true ? res.ResolvedUse.Use : setup.DominantBuildingUse,
                     res.ResolvedUse?.Found ?? false,
                     setup.ClimateZone, setup.TotalFloorAreaM2, setup.TotalOccupancy))
-                .SetOverallPct(res.Energy?.EnergySavingsPct ?? 0);
+                // WS J3 — don't headline a savings % the energy gate didn't compute
+                // (floor area 0 / occupancy 0 → degenerate, not a result).
+                .SetOverallPct(res.Energy?.Computed == true ? res.Energy.EnergySavingsPct : 0);
 
             // WS I1 — a location/use-unset model is a generic proxy, not the user's
             // project: banner it prominently and (when blocked) don't claim a level.
             if (res.Readiness != null && !string.IsNullOrEmpty(res.Readiness.Banner))
                 b.AddSection(res.Readiness.Ready ? "⚠ Indicative" : "⛔ Generic proxy — not your project")
                  .Info(res.Readiness.Banner);
+
+            // WS J3 — energy headline: show the EUI + savings only when computed; else
+            // the not-computed state + reason (floor area / occupancy 0).
+            if (res.Energy?.Computed == true)
+                b.AddSection("Energy")
+                 .Metric("Design EUI", $"{res.Energy.DesignEuiKwhM2Yr:F1} kWh/m²·yr", $"baseline {res.Energy.BaselineEuiKwhM2Yr:F1}")
+                 .Metric("Energy savings — indicative", $"{res.Energy.EnergySavingsPct:F1}%");
+            else
+                b.AddSection("Energy").MetricWarn("Energy", "not computed",
+                    res.Energy != null && res.Energy.Occupancy <= 0 ? "occupancy is 0 — set occupancy/GFA in Setup"
+                    : res.Energy != null && res.Energy.FloorAreaM2 <= 0 ? "floor area is 0 — set GFA in Setup"
+                    : "add Spaces/GFA + occupancy, then re-run");
 
             b.AddSection("Baseline resolution (proxy log)")
              .Info(res.Baseline?.Summary ?? "no baseline resolved");

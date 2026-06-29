@@ -76,11 +76,15 @@ namespace StingTools.Core.Sustainability
         /// <summary>Number of zones that fed the estimate (0 ⇒ nothing computed).</summary>
         public int ZoneCount { get; set; }
 
+        /// <summary>WS J3 — total occupants across the zones. 0 ⇒ degenerate input
+        /// (no people); the EDGE energy % is meaningless, so it is not "computed".</summary>
+        public int Occupancy { get; set; }
+
         /// <summary>True only when a real design EUI was computed from zones with
-        /// floor area against a non-zero baseline. False ⇒ the savings % is a
-        /// zero-design artefact (e.g. (baseline-0)/baseline = 100%) and must NOT
-        /// be shown as a pass.</summary>
-        public bool Computed => ZoneCount > 0 && FloorAreaM2 > 0
+        /// floor area AND occupancy against a non-zero baseline. False ⇒ the savings %
+        /// is a zero-design/degenerate artefact (floor 0 / occ 0 / (baseline-0)/baseline
+        /// = 100%) and must NOT be shown as a computed result (WS J3).</summary>
+        public bool Computed => ZoneCount > 0 && FloorAreaM2 > 0 && Occupancy > 0
                                 && Design.TotalKwh > 0 && BaselineEuiKwhM2Yr > 0;
     }
 
@@ -119,11 +123,13 @@ namespace StingTools.Core.Sustainability
 
             double totalArea = 0;
             double annualOperatingHours = 0;
+            int totalOccupants = 0;
 
             foreach (var z in zoneList)
             {
                 if (z.FloorAreaM2 <= 0) continue;
                 totalArea += z.FloorAreaM2;
+                totalOccupants += Math.Max(0, z.OccupantCount);
 
                 bool hasEnvelope = z.Envelope != null && z.Envelope.Count > 0;
                 if (!hasEnvelope) res.AnyZoneMissingEnvelope = true;
@@ -137,6 +143,7 @@ namespace StingTools.Core.Sustainability
             }
 
             res.FloorAreaM2 = totalArea;
+            res.Occupancy = totalOccupants;
             res.ZoneCount = zoneList.Count(z => z.FloorAreaM2 > 0);
             // annualOperatingHours is accumulated weighted by area inside EstimateZone;
             // normalise to an area-weighted mean for the baseline conversion.
@@ -163,6 +170,9 @@ namespace StingTools.Core.Sustainability
             else if (res.Design.TotalKwh <= 0)
                 res.Warnings.Add("Energy NOT computed — zones produced zero design energy " +
                                  "(check floor area / occupancy / COP).");
+            else if (res.Occupancy <= 0)
+                res.Warnings.Add("Energy NOT computed — occupancy is 0. Enter occupancy in Setup " +
+                                 "(or model 'Number of People' on Spaces), then re-run. (WS J3)");
             if (res.BaselineEuiKwhM2Yr <= 0)
                 res.Warnings.Add("Baseline EUI is zero — savings % not meaningful (check baseline resolution).");
             if (res.AnyZoneMissingEnvelope)
