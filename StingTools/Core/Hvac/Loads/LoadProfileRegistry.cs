@@ -38,6 +38,19 @@ namespace StingTools.Core.Hvac.Loads
         public double HeatingSetpointC           { get; set; } = 21;
         public double InfiltrationAch            { get; set; } = 0.3;
 
+        // ── WS K1/K5 — full design-parameter set + provenance ──────────────
+        /// <summary>Domestic hot water, litres/person·day (CIBSE Guide G). WS K2 — DHW
+        /// now lives on the profile (was a C# switch).</summary>
+        public double DhwLPerPersonDay  { get; set; } = 5.0;
+        public int    OperatingDaysPerYear { get; set; } = 250;
+        /// <summary>The standard each number came from (provenance).</summary>
+        public string Source            { get; set; } = "";
+        /// <summary>EDGE-app building category this profile maps onto.</summary>
+        public string EdgeBuildingType  { get; set; } = "";
+        /// <summary>WS K2 — building-use ids that resolve to this profile
+        /// (residential/dwelling/house → Residential). Case/space/hyphen-insensitive.</summary>
+        public List<string> Aliases     { get; set; } = new List<string>();
+
         public double[] OccupancySchedule { get; set; } = LoadZone.DefaultOfficeOccupancy();
         public double[] LightingSchedule  { get; set; } = LoadZone.DefaultOfficeLighting();
         public double[] EquipmentSchedule { get; set; } = LoadZone.DefaultOfficeEquipment();
@@ -152,8 +165,15 @@ namespace StingTools.Core.Hvac.Loads
                     OaLpsPerM2                 = (double?)p["oaLpsPerM2"]                 ?? 0.3,
                     CoolingSetpointC           = (double?)p["coolingSetpointC"]           ?? 24,
                     HeatingSetpointC           = (double?)p["heatingSetpointC"]           ?? 21,
-                    InfiltrationAch            = (double?)p["infiltrationAch"]            ?? 0.3
+                    InfiltrationAch            = (double?)p["infiltrationAch"]            ?? 0.3,
+                    // WS K1/K5 — new fields (back-compat defaults when absent).
+                    DhwLPerPersonDay           = (double?)p["dhwLPerPersonDay"]           ?? 5.0,
+                    OperatingDaysPerYear       = (int?)p["operatingDaysPerYear"]          ?? 250,
+                    Source                     = (string)p["source"]                     ?? "",
+                    EdgeBuildingType           = (string)p["edgeBuildingType"]            ?? ""
                 };
+                if (p["aliases"] is JArray al)
+                    profile.Aliases = al.Select(t => (string)t).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
                 profile.OccupancySchedule = ReadSchedule(p["occupancySchedule"], LoadZone.DefaultOfficeOccupancy());
                 profile.LightingSchedule  = ReadSchedule(p["lightingSchedule"],  LoadZone.DefaultOfficeLighting());
                 profile.EquipmentSchedule = ReadSchedule(p["equipmentSchedule"], LoadZone.DefaultOfficeEquipment());
