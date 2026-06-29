@@ -299,6 +299,105 @@ in the sheet header, matching the panel. Add a test on the IP export path.
 
 ---
 
+## Workstream I — Live-panel review: honesty, flexibility, integration, automation
+
+Found running the dashboard / baseline / LCC / materials / cost panels on a real model
+(`Tendo Main house.rvt`, location unset). Same ground rules: most-flexible, data-driven,
+zero hardcoding; pure engines stay Revit-free + tested. Items H2/H3/H4/H5 already
+landed — do NOT redo them; the greywater-capex fix is also already merged.
+
+### Honesty & correctness
+
+**I1. Location + building-use must be resolved, not silently defaulted.** On a model
+with no Country/City/Climate **and** no explicit use, the engine ran as a *temperate-4A
+office* — on a residential house (occ 17 at office density). **Derive building use from
+the model** (Revit building/project type → room program → BuildingUseCatalog), and
+**block + banner** when location or use is unset: "Location/use not set — figures are a
+generic proxy, not your project." Never default to office. This one fix cascades into
+climate, baseline, grid factor, energy savings and LCC, so it is top priority.
+
+**I2. Honest proxy log.** The baseline dialog calls a wildcard-country + defaulted-4A
+resolution an **"exact match."** Label any wildcard/defaulted axis as "fallback /
+default proxy"; surface that climate zone 4A was a *default* (not derived); make the
+header (`*//office`) and the resolved key (`*/4A/office`) agree.
+
+**I3. Grid carbon factor from location, labelled.** Operational carbon used a default
+~0.45 kgCO₂e/kWh because country was unset (CAR's grid is hydro-dominant — far lower).
+Source the grid factor per country/region from the location registry; label "default
+factor" until a real one resolves.
+
+**I4. Export honours the `Computed` flag.** Even after H6's unit labelling, the EDGE
+export still emits a water value/% for a gate the dashboard shows as **"Not computed."**
+Export must print "not computed / indicative default" for any gate whose `Computed`
+flag is false, matching the dashboard — no bare number a user could paste into EDGE.
+
+**I5. Materials sanity + coverage warning.** Two problems shown together: total
+**5,212 kgCO₂e/m²** is ~10× a normal office and **92% comes from one "Steel Purlins"**
+line (~4,775 kgCO₂e/m²) — implausible, likely a quantity/factor error; AND only
+**15 of 31 materials are carbon-stamped (0 EPD)** so the total under-counts 16
+materials. Add a prominent warning when one hotspot exceeds a sane share (e.g. >60%)
+or the total exceeds a sane ceiling, and surface coverage ("15/31 stamped, 0 EPD") on
+the dashboard + export, not only the Materials tab.
+
+**I6. LCC integrity.** Measures whose savings derive from a **not-computed** gate (e.g.
+energy measures saving 5–9/yr off the broken climate baseline) must be flagged
+"indicative — gate not computed," not presented as confident negatives; the headline
+"Net lifetime benefit −82,015" needs a health caveat when its inputs are proxies.
+
+**I7. RWH yield needs real rainfall.** The engine can compute RWH but yield showed 0
+because rainfall wasn't resolved (location unset). Pull annual rainfall from the
+location/climate registry so `RainwaterHarvestingCalc` produces a real yield on rainy
+sites (Bangui ≈ 1,500 mm/yr) instead of 0.
+
+**I8. Cosmetic.** Dashboard header shows "office · **zone** · 170 m²" — a placeholder
+"zone" with no value. Drop it or fill it.
+
+### Flexibility
+
+**I9. Global location resolution.** Sites not in the 41-city climate list (e.g. Bangui)
+fall to a default. Add Köppen / lat-long → climate-zone derivation **and** a per-country
+grid-emission-factor table so ANY country resolves a real climate + grid factor, with a
+documented seed + project override — never a hardcoded temperate/0.45 default.
+
+**I10. LCC currency + discounting.** Capex/savings show as bare numbers; the EDGE app
+uses XAF. Pull project currency from the BOQ Cost Manager / Project Info and label every
+value. Replace undiscounted `annual×years` with a configurable discount rate (NPV), and
+align the LCC study period with H4's whole-life-carbon period (don't keep a separate
+hardcoded 25 yr).
+
+### Integration
+
+**I11. Sustainability-readiness as a ComplianceScan/model-health dimension.** Surface
+"location / use / occupancy / fixtures incomplete" in the morning health check + status
+bar, so a mis-set project is caught before someone opens the dashboard — don't make the
+dashboard the only place the problem shows.
+
+**I12. One-click deliverable + per-option run.** Generate an EDGE/LEED summary
+schedule/sheet through the Docs/Sheet engine (a drawing-set artefact, not just xlsx) and
+feed the BEP; and run the dashboard **per Revit Design Option** (reuse
+`OptionCostCarbonCalculator`) so users can compare EUI / carbon / EDGE % and pick the
+greenest option.
+
+### Automation
+
+**I13. Auto-resolve on open + staleness.** Mirror the HVAC pattern: resolve
+location/use/occupancy on `DocumentOpened` (pre-warn if unset), and register an IUpdater
+that marks the sustainability result stale when envelope / fixtures / materials change
+(mirror `HvacEnvelopeStaleUpdater`), so the dashboard signals when it's out of date.
+
+**I14. Measure target-seeker.** The highest-value automation: an optimiser that
+auto-selects the least-cost set of measures to reach the chosen EDGE level (40/20/20 or
+Certified) using the per-measure £/%-gain already in the LCC — output the recommended
+measure set + residual gap per gate. Keep it data-driven over the measure registry.
+
+**I15. Gate the workflow.** The H1 `WORKFLOW_SustainabilityAssessment.json` chains steps
+but doesn't gate them. Add conditional gates ("location set", "fixtures modelled") via
+the existing `WorkflowEngine` conditional-step mechanism, auto-run AutoFill → SetBaseline
+→ Dashboard in order, and skip the materials step when it's delegated to the EDGE app —
+so the one-click run can't emit confident-wrong numbers on a mis-set project.
+
+---
+
 ## Acceptance criteria
 
 1. Energy uses the load-profile library + real envelope + per-façade solar from the
