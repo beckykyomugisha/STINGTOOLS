@@ -175,7 +175,8 @@ namespace StingTools.Commands.Sustainability
             // the crude floor-area proxies in the old EstimateCapex).
             var ctx = BuildQuantityContext(doc, setup, res);
 
-            var rows = new List<string[]>();
+            var rows = new List<string[]>();         // raw numerics → portable CSV
+            var displayRows = new List<string[]>();  // grouped thousands → panel + grid
             var boqRows = new List<BOQLineItem>();
             double totalCapex = 0, totalLifetimeSaving = 0;
             int proxySized = 0;
@@ -197,12 +198,24 @@ namespace StingTools.Commands.Sustainability
                     $"{capex:0}", $"{annualSaving:0}/yr",
                     $"{lifetimeSaving:0}", $"{netBenefit:0}"
                 });
+                displayRows.Add(new[]
+                {
+                    m.Name, m.Gate, sizing.BasisLabel,
+                    $"{capex:N0}", $"{annualSaving:N0}/yr",
+                    $"{lifetimeSaving:N0}", $"{netBenefit:N0}"
+                });
 
                 boqRows.Add(BuildBoqRow(m, sizing, lifetimeSaving));
             }
 
+            // No operational saving on ANY measure ⇒ the Dashboard hasn't produced
+            // energy/water savings yet (no GFA / occupancy), so every "net benefit"
+            // is just −capex and reads as a loss. Flag it loudly rather than letting
+            // capex-only rows look like the whole-life picture.
+            bool noSavings = totalLifetimeSaving <= 0.0;
+
             // Push the rows into the COST tab grid (not just the popup).
-            try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.ApplyLcc(rows); }
+            try { StingTools.UI.Sustainability.StingSustainabilityPanel.Instance?.ApplyLcc(displayRows); }
             catch (Exception ex) { StingLog.Warn($"Sustain LCC grid push: {ex.Message}"); }
 
             // WS A5 — feed the measures into the BOQ Cost Manager's manual store as
@@ -217,14 +230,21 @@ namespace StingTools.Commands.Sustainability
                 .SetTitle("STING Sustainability — Life-Cycle Cost Benefit")
                 .SetSubtitle($"{AnalysisYears}-year analysis · {boqWritten} measure(s) written to the BOQ Cost Manager");
             b.AddSection("Per-measure LCC")
-             .Table(new[] { "Measure", "Gate", "Sizing basis", "Capex", "Annual saving", "Lifetime saving", "Net benefit" }, rows);
+             .Table(new[] { "Measure", "Gate", "Sizing basis", "Capex", "Annual saving", "Lifetime saving", "Net benefit" }, displayRows);
             var totals = b.AddSection("Totals")
-             .Metric("Total measure capex", $"{totalCapex:0}")
-             .Metric($"Total {AnalysisYears}-yr operational saving", $"{totalLifetimeSaving:0}")
-             .Metric("Net lifetime benefit", $"{totalLifetimeSaving - totalCapex:0}")
+             .Metric("Total measure capex", $"{totalCapex:N0}")
+             .Metric($"Total {AnalysisYears}-yr operational saving", $"{totalLifetimeSaving:N0}")
+             .Metric("Net lifetime benefit", $"{totalLifetimeSaving - totalCapex:N0}")
              .Metric("Rows in BOQ Cost Manager", $"{boqWritten}");
             if (proxySized > 0)
                 totals.Metric("Proxy-sized measures", $"{proxySized} (no model quantity — sized by proxy)");
+            if (noSavings)
+                b.AddSection("⚠ Operational savings not computed")
+                 .Info("Every measure shows 0 operational saving, so 'Net benefit' is just minus the capex " +
+                       "— that's a cost figure, not a loss. The Dashboard hasn't produced any energy/water " +
+                       "savings yet: enter floor area (GFA) + occupancy in Setup (or click 'From model'), run " +
+                       "the Dashboard, then re-run LCC for a true payback. Until then the BOQ rows written are " +
+                       "capex-only.");
             if (csv != null) b.AddSection("Output").Metric("LCC CSV", Path.GetFileName(csv), csv);
             b.Show();
 

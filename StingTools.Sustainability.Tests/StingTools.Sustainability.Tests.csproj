@@ -37,6 +37,8 @@
     <Compile Include="..\StingTools\Core\Sustainability\AnnualWaterEstimator.cs" Link="Engines\AnnualWaterEstimator.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\MaterialsRollup.cs" Link="Engines\MaterialsRollup.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainMaterialCarbon.cs" Link="Engines\SustainMaterialCarbon.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainEnvelopeSynth.cs" Link="Engines\SustainEnvelopeSynth.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\FixtureFlowReader.cs" Link="Engines\FixtureFlowReader.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainMeasureCapex.cs" Link="Engines\SustainMeasureCapex.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\BuildingUseCatalog.cs" Link="Engines\BuildingUseCatalog.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainSavings.cs" Link="Engines\SustainSavings.cs" />

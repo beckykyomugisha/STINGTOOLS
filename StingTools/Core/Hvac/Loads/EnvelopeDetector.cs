@@ -146,26 +146,34 @@ namespace StingTools.Core.Hvac.Loads
 
         public static bool IsTopLevel(SpatialElement spatial)
         {
-            try
+            try { return spatial != null && IsTopLevelId(spatial.Document, spatial.LevelId); }
+            catch { return false; }
+        }
+
+        /// <summary>The highest-elevation Level id for a document (cached per path).</summary>
+        public static ElementId TopLevelId(Document doc)
+        {
+            if (doc == null) return ElementId.InvalidElementId;
+            return _topLevelCache.GetOrAdd(doc.PathName ?? "<no-doc>", _ =>
             {
-                var doc = spatial.Document;
-                // SpatialElement.LevelId is on the Element base; safer than `.Level`
-                // which lives on Room/Space individually.
-                var lvlId = spatial.LevelId;
-                if (lvlId == ElementId.InvalidElementId) return false;
-                string key = doc.PathName ?? "<no-doc>";
-                var topId = _topLevelCache.GetOrAdd(key, _ =>
+                try
                 {
                     var top = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Level))
-                        .Cast<Level>()
-                        .OrderByDescending(l => l.Elevation)
-                        .FirstOrDefault();
+                        .OfClass(typeof(Level)).Cast<Level>()
+                        .OrderByDescending(l => l.Elevation).FirstOrDefault();
                     return top?.Id ?? ElementId.InvalidElementId;
-                });
-                return topId != ElementId.InvalidElementId && topId == lvlId;
-            }
-            catch { return false; }
+                }
+                catch { return ElementId.InvalidElementId; }
+            });
+        }
+
+        /// <summary>True when <paramref name="levelId"/> is the document's top level.
+        /// SpatialElement.LevelId is on the Element base; safer than `.Level`.</summary>
+        public static bool IsTopLevelId(Document doc, ElementId levelId)
+        {
+            if (levelId == null || levelId == ElementId.InvalidElementId) return false;
+            var topId = TopLevelId(doc);
+            return topId != ElementId.InvalidElementId && topId == levelId;
         }
     }
 }

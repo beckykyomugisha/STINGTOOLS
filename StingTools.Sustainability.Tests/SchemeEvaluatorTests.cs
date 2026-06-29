@@ -127,7 +127,11 @@ namespace StingTools.Sustainability.Tests
                     WblcaCompleted = true,
                     GwpReductionPct = 22,
                     FloorAreaM2 = 1000,
-                    TotalCarbonKg = 1000
+                    TotalCarbonKg = 1000,
+                    // A genuinely-computed WBLCA carries at least one real (non-
+                    // indicative) carbon-stamped line; Computed now requires it so
+                    // indicative-only carbon can't score the GWP gate.
+                    CarbonStampedLines = 1
                 }
             };
             var res = SchemeEvaluator.Evaluate(leed, "Certified", providers, ctx);
