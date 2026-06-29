@@ -12,11 +12,11 @@ namespace StingTools.Sustainability.Tests
         private static LoadProfileLibrary Lib()
             => LoadProfileLibrary.FromJson(TestData.Read("STING_LOAD_PROFILES.json"));
 
-        // The EDGE app's building-type taxonomy STING maps onto.
+        // The EDGE app's REAL building-type taxonomy STING maps onto (WS L7).
         private static readonly HashSet<string> EdgeTypes = new HashSet<string>
         {
             "Offices", "Homes", "Hospitality", "Retail", "Hospitals",
-            "Education", "Light Industry"
+            "Education", "Mixed Use"
         };
 
         [Fact]
