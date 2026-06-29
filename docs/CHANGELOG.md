@@ -35,7 +35,38 @@ the real Revit 2025 API (and the server project where touched), 0 errors.
    category on the measure its rate's unit calls for (each→count, m³→volume,
    m→length, m²/default→area) instead of always rate × area.
 
-**WP0 — One per-element costing/carbon API.**
+**WP2 — Measurement parity (tag = bill = IFC = snapshot) + per-material split.**
+1. *CostStamp parity.* `CostStamp.WriteIfEnabled` now measures via
+   `BOQCostManager.MeasureQuantity` (the same NRM2/CESMM opening/void deductions +
+   project default waste the export uses), so the tag-time `CST_QTY_MEASURED` /
+   `CST_MODELED_TOTAL_UGX` equals the element's BOQ row instead of the raw rule
+   quantity.
+2. *m³ structural takeoff.* New `SolidVolume` takeoff `quantitySource` (true solid
+   geometry). The Column + Foundation rules now measure m³ via SolidVolume and
+   Framing measures m (length), matching their per-m³/per-m rates in
+   `cost_rates_5d.csv` instead of `literal:1.0`; `DeriveGrossQuantity` also falls
+   back to solid geometry when `HOST_VOLUME_COMPUTED` is empty.
+3. *No more 1.0 placeholder.* Measured-unit "could not measure" paths return a 0
+   sentinel (not a fake 1.0) via `MeasuredFallback` / `TakeoffRule.FallbackQuantity`;
+   count units stay 1.
+4. *Uncosted-at-risk rollup + export gate.* `ComputeUncostedRollup` reports
+   zero-rate / could-not-measure / low-confidence model rows (free categories
+   excluded) + a proxy value-at-risk; folded into the health score (capped penalty
+   + issues) and a hard Yes/No pricing gate on the professional/tender export
+   (`COST_MIN_RATE_CONFIDENCE_EXPORT`, default 60).
+6. *Per-material split (carbon).* `ComputeElementCarbon` sums embodied carbon
+   across an element's materials using each material's real `GetMaterialVolume` and
+   its own factor (waste grossed to match cost), instead of dumping the whole
+   quantity on one material; `GetPrimaryMaterialName` is now deterministic (dominant
+   material by volume) so density/carbon no longer flip between sessions.
+7. *Discipline preference.* `ResolveDiscipline` prefers the element's
+   `ASS_DISCIPLINE_COD_TXT` token over the category default in the build, rate
+   request, take-off match and waste paths.
+   *Open:* the full per-material COST-row split (multiple bill rows per material)
+   and shaft-void deductions on host-less openings, plus feeding
+   `ASS_SYSTEM_TYPE_TXT` into NRM2/takeoff matching, remain in ROADMAP.
+
+#### Completed (BOQ Master Impl — branch `claude/boq-master-impl`)
 
 A consolidated hardening + feature pass on the BOQ & Cost Manager, per
 `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` (WP0–WP6). Each work-package

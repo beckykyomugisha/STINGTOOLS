@@ -1261,6 +1261,21 @@ namespace StingTools.BOQ
             carbonSource = "none"; carbonQuality = BoqEpdStore.QualityMissing; carbonMaterial = "";
             try
             {
+                // WP2 — PER-MATERIAL split. A compound wall/floor carries its whole
+                // quantity across several materials; sum carbon per material (each
+                // resolved through its OWN factor) from the real per-material
+                // volumes, instead of dumping everything onto the primary material
+                // (which also flipped density/carbon between sessions). Waste is
+                // grossed onto the carbon volume to match the cost basis (RICS WLCA
+                // wants wastage in A1–A3). Falls through to the single-material path
+                // when the element has ≤ 1 material or exposes no per-material volume.
+                double multi = ComputeMultiMaterialCarbon(el, out string mSrc, out string mQual, out string mMat);
+                if (multi > 0)
+                {
+                    carbonSource = mSrc; carbonQuality = mQual; carbonMaterial = mMat;
+                    return Math.Round(multi, 2);
+                }
+
                 // R-1 — Carbon factor source-aware unit treatment.
                 // STING_EMB_CARBON_NR + MaterialLookupCsv ship kgCO₂e PER m³ (volumetric);
                 // the legacy CARBON_FACTORS.csv dictionary ships kgCO₂e PER kg.
@@ -1288,6 +1303,64 @@ namespace StingTools.BOQ
                 return Math.Round(volM3 * resolved.Factor, 2);
             }
             catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// WP2 — sum embodied carbon across an element's materials using each
+        /// material's REAL per-material volume (Element.GetMaterialVolume) and its
+        /// own resolved factor. Waste is grossed on the volume to match the cost
+        /// basis. Returns 0 (caller falls back to the single-material path) when
+        /// the element has ≤ 1 material or exposes no per-material volume / factor.
+        /// Reports the dominant (largest-volume) material's provenance.
+        /// </summary>
+        private static double ComputeMultiMaterialCarbon(Element el,
+            out string source, out string quality, out string material)
+        {
+            source = "none"; quality = BoqEpdStore.QualityMissing; material = "";
+            try
+            {
+                if (el == null) return 0;
+                var ids = el.GetMaterialIds(false);
+                if (ids == null || ids.Count < 2) return 0;
+
+                double wasteMult = 1.0 + Math.Max(0, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0)) / 100.0;
+                double totalKg = 0, dominantVol = -1; string dominantMat = ""; string dominantSrc = "none";
+                bool anyFactor = false;
+
+                foreach (var mid in ids)
+                {
+                    double volFt3;
+                    try { volFt3 = el.GetMaterialVolume(mid); }
+                    catch { volFt3 = 0; }
+                    if (volFt3 <= 0) continue;
+
+                    double mVolM3 = volFt3 * 0.0283168 * wasteMult;
+                    string mName = (el.Document.GetElement(mid) as Material)?.Name ?? "";
+                    if (string.IsNullOrEmpty(mName)) continue;
+
+                    var res = CarbonFactorResolver.Resolve(el.Document, mName);
+                    if (res.Factor <= 0) continue;
+                    anyFactor = true;
+
+                    double kg = res.PerUnit == CarbonFactorUnit.KgCo2ePerKg
+                        ? (mVolM3 * EstimateDensityKgPerM3(mName)) * res.Factor
+                        : mVolM3 * res.Factor;
+                    totalKg += kg;
+
+                    if (mVolM3 > dominantVol)
+                    {
+                        dominantVol = mVolM3; dominantMat = mName;
+                        dominantSrc = string.IsNullOrEmpty(res.Source) ? "none" : res.Source;
+                    }
+                }
+
+                if (!anyFactor || totalKg <= 0) return 0;
+                source = dominantSrc;
+                quality = BoqEpdStore.QualityForSource(dominantSrc);
+                material = dominantMat;
+                return totalKg;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("MultiMatCarbon", $"ComputeMultiMaterialCarbon: {ex.Message}"); return 0; }
         }
 
         /// <summary>
@@ -3474,7 +3547,18 @@ namespace StingTools.BOQ
                 var ids = el.GetMaterialIds(false);
                 if (ids != null && ids.Count > 0)
                 {
-                    Material m = el.Document.GetElement(ids.First()) as Material;
+                    // WP2 — deterministic: the DOMINANT material by volume, not the
+                    // non-deterministic .First(), so a compound assembly's density /
+                    // carbon / description don't flip between sessions.
+                    ElementId best = ids.First();
+                    double bestVol = -1;
+                    foreach (var id in ids)
+                    {
+                        double v;
+                        try { v = el.GetMaterialVolume(id); } catch { v = 0; }
+                        if (v > bestVol) { bestVol = v; best = id; }
+                    }
+                    Material m = el.Document.GetElement(best) as Material;
                     if (m != null) return m.Name ?? "";
                 }
             }
