@@ -688,7 +688,7 @@ namespace StingTools.UI
 
             // Phase 108b: 7 cards now — carbon added after health
             var cards = new UniformGrid { Columns = 7 };
-            _budgetValue      = MakeMetric(cards, "Project budget",       "UGX 0", NavyBrush);
+            _budgetValue      = MakeMetric(cards, "Project budget (incl. VAT)", "UGX 0", NavyBrush);
             _modeledValue     = MakeMetric(cards, "Modeled cost",         "UGX 0", GreenBrush);
             _provisionalValue = MakeMetric(cards, "Provisional / manual", "UGX 0", AmberBrush);
             _varianceValue    = MakeMetric(cards, "Variance",             "UGX 0", NavyBrush);
@@ -3853,7 +3853,9 @@ namespace StingTools.UI
                 : _boq.BudgetCoveragePct >= 60 && _boq.BudgetCoveragePct <= 130 ? AmberBrush : RedBrush;
             _grandTotalValue.Text = fmt(toDisplay(grandUgx));
 
-            _budgetBar.Value = budgetUgx > 0 ? Math.Min(100, _boq.SubtotalUGX / budgetUgx * 100.0) : 0;
+            // WP-FIX — coverage bar on the VAT-inclusive GrandTotal, the same
+            // basis as the budget (captured incl. VAT) and the variance.
+            _budgetBar.Value = budgetUgx > 0 ? Math.Min(100, grandUgx / budgetUgx * 100.0) : 0;
             _budgetBar.Foreground = _budgetBar.Value <= 100 ? GreenBrush : RedBrush;
 
             _healthValue.Text = _health != null ? $"{_health.OverallScore:F0} / 100" : "—";

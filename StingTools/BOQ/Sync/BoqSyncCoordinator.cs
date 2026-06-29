@@ -218,23 +218,35 @@ namespace StingTools.BOQ.Sync
                 level = item.Level ?? "",
                 zone = item.Location ?? "",
                 unit = item.Unit ?? "each",
-                // WP1 — ship the REAL gross/deduction/waste split instead of a
-                // waste-baked netQuantity + wastePercent=0. The server applies
-                // wastePercent ONCE to netQuantity, so base × (1 + waste/100)
-                // reconstructs item.Quantity exactly (no double-apply, no total
-                // change). `grossQuantity` is the raw pre-deduction geometry for
-                // the audit trail (0 on manual/PS rows).
+                // WP-FIX — payload contract that CANNOT under- or over-report
+                // against any server, updated or not. `netQuantity` is the FINAL
+                // measured quantity (deductions + waste already in it) and the
+                // gross-up-driving `wastePercent` is 0 — so a server that grosses
+                // up (`net × (1 + waste/100)`) and a server that treats netQuantity
+                // as final both store the correct total. The real wastage split
+                // rides as METADATA (`measuredWastePercent` + `grossQuantity` +
+                // `deductionQuantity`); a v2-aware server records it without
+                // re-grossing. `payloadSchemaVersion` + `quantityIsFinal` let a
+                // new server opt into honouring the split.
+                payloadSchemaVersion = 2,
+                quantityIsFinal = true,
+                netQuantity = Math.Round(item.Quantity, 6),
+                wastePercent = 0,
+                measuredWastePercent = Math.Round(WastePercent(item), 4),
                 grossQuantity = Math.Round(item.GrossQuantity, 6),
                 deductionQuantity = Math.Round(item.DeductionQuantity, 6),
-                netQuantity = Math.Round(WastePreBase(item), 6),
-                wastePercent = Math.Round(WastePercent(item), 4),
                 unitRate = Math.Round(item.RateUGX, 2),
                 currency = "UGX",
                 lineKind = MapSourceToLineKind(item.Source),
                 pricingBasis = "Remeasure",
-                // WP1 — ship the authoritative engine-computed carbon TOTAL, not a
-                // per-unit value back-derived from a rounded total ÷ qty.
-                embodiedCarbonKg = Math.Round(item.EmbodiedCarbonKg, 3)
+                // Carbon: ship the authoritative engine TOTAL (`embodiedCarbonKg`)
+                // AND a per-unit value derived from it against the FINAL quantity,
+                // so the current server (which stores perUnit × netQuantity) still
+                // reconstructs the right total now that netQuantity is final.
+                embodiedCarbonKg = Math.Round(item.EmbodiedCarbonKg, 3),
+                embodiedCarbonPerUnit = item.Quantity > 0
+                    ? Math.Round(item.EmbodiedCarbonKg / item.Quantity, 6)
+                    : 0
             };
         }
 

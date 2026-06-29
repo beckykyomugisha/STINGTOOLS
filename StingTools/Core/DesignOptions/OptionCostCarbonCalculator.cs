@@ -107,12 +107,29 @@ namespace StingTools.Core.DesignOptions
                     string cat = el.Category?.Name ?? "(uncategorised)";
                     double area = ReadDouble(el, BuiltInParameter.HOST_AREA_COMPUTED);
                     double vol  = ReadDouble(el, BuiltInParameter.HOST_VOLUME_COMPUTED);
-                    if (area > 0) row.TotalAreaM2 += area * 0.092903; // ft² → m²
-                    if (vol  > 0) row.TotalVolumeM3 += vol * 0.0283168; // ft³ → m³
+                    double lenFt = ReadDouble(el, BuiltInParameter.CURVE_ELEM_LENGTH);
+                    if (lenFt <= 0) lenFt = ReadDouble(el, BuiltInParameter.INSTANCE_LENGTH_PARAM);
+                    double areaM2 = area > 0 ? area * 0.092903 : 0;  // ft² → m²
+                    double volM3  = vol  > 0 ? vol * 0.0283168 : 0;  // ft³ → m³
+                    double lenM   = lenFt > 0 ? lenFt * 0.3048 : 0;  // ft → m
+                    row.TotalAreaM2 += areaM2;
+                    row.TotalVolumeM3 += volM3;
 
-                    double rate = costs != null && costs.TryGetValue(cat, out var rc) ? rc.rate : 0.0;
-                    double cost = rate * Math.Max(area * 0.092903, 0);
-                    if (cost <= 0 && rate > 0) cost = rate;     // per-unit fallback
+                    // WP-FIX — cost on the measure the rate's UNIT calls for, so the
+                    // option comparison matches the bill's basis (each → ×count,
+                    // m³ → ×volume, m → ×length, m²/default → ×area).
+                    double rate = 0.0; string unit = "m2";
+                    if (costs != null && costs.TryGetValue(cat, out var rc)) { rate = rc.rate; unit = (rc.unit ?? "m2").Trim().ToLowerInvariant(); }
+                    double measure;
+                    switch (unit)
+                    {
+                        case "each": case "item": case "nr": case "no": case "":  measure = 1; break;
+                        case "m3": case "m³":                                       measure = volM3; break;
+                        case "m": case "lm": case "rm":                            measure = lenM; break;
+                        default:                                                    measure = areaM2; break; // m2/m²
+                    }
+                    double cost = rate * Math.Max(measure, 0);
+                    if (cost <= 0 && rate > 0) cost = rate;     // per-unit fallback when the measure is unavailable
                     row.TotalCost += cost;
                     if (cost > 0)
                     {
@@ -124,7 +141,6 @@ namespace StingTools.Core.DesignOptions
                     // (BOQ engine), keyed on the element's primary material with
                     // EPD/library/legacy fallback + correct per-m³/per-kg units —
                     // not a parallel per-category dictionary.
-                    double volM3 = vol > 0 ? vol * 0.0283168 : 0;
                     double kg = StingTools.BOQ.BOQCostManager.ComputeElementCarbonKg(el, volM3);
                     row.TotalCarbonKg += kg;
                     if (kg > 0)

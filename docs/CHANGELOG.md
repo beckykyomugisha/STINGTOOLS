@@ -3,7 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (BOQ Master Impl — branch `claude/boq-master-impl`)
+#### Completed (BOQ Measurement + QS — branch `claude/boq-measurement-qs`)
+
+Builds on the BOQ Master Impl branch. Each work-package compile-verified against
+the real Revit 2025 API (and the server project where touched), 0 errors.
+
+**WP-FIX — four review fixes on the prior pass.**
+1. *Sync payload contract.* The prior pass shipped a pre-waste `netQuantity` +
+   real `wastePercent` expecting the server to gross up — and it had also dropped
+   server-side carbon (the server reads `embodiedCarbonPerUnit`, which was
+   replaced by `embodiedCarbonKg`). `BoqSyncCoordinator.BuildLinePayload` now
+   ships the FINAL `netQuantity` with the gross-up-driving `wastePercent = 0`
+   (so a server that grosses up *and* one that treats it as final both store the
+   right total — cannot under/over-report against any server), carries the real
+   split as metadata (`measuredWastePercent`/`grossQuantity`/`deductionQuantity`)
+   behind `payloadSchemaVersion = 2` + `quantityIsFinal = true`, and restores
+   `embodiedCarbonPerUnit` alongside the authoritative `embodiedCarbonKg`.
+   `Planscape.Server` `BoqController` ingest honours the flag back-compatibly:
+   v2 payloads are stored without re-grossing (recording the measured waste +
+   the authoritative carbon total); old payloads keep the legacy behaviour.
+2. *Budget basis.* `ProjectBudgetUGX` is now defined VAT-inclusive; both
+   `BudgetVarianceUGX` and `BudgetCoveragePct` (and the panel coverage bar) use
+   the VAT-inclusive `GrandTotalUGX` — previously coverage used the bare works
+   subtotal against a VAT-inclusive total. Panel field relabelled "Project budget
+   (incl. VAT)".
+3. *Uganda metal class.* `UgCarbonFactors.ResolveSpecific` now tries the keyword
+   match (which has aluminium/copper/steel entries) BEFORE the broad Revit
+   material class, so non-ferrous metals (Revit class "Metal") no longer pick up
+   the steel-specific 12 200 kgCO₂e/m³ class value.
+4. *Option rollup units.* `OptionCostCarbonCalculator.BuildRow` costs each
+   category on the measure its rate's unit calls for (each→count, m³→volume,
+   m→length, m²/default→area) instead of always rate × area.
+
+**WP0 — One per-element costing/carbon API.**
 
 A consolidated hardening + feature pass on the BOQ & Cost Manager, per
 `docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` (WP0–WP6). Each work-package

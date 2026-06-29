@@ -354,6 +354,10 @@ namespace StingTools.BOQ
         public string SnapshotLabel;
         public DateTime SnapshotDate = DateTime.UtcNow;
         public string SnapshotType;         // "DD" | "Stage" | "Weekly" | "Handover" | "Manual" | "Live"
+        /// <summary>WP-FIX — the client's cost limit, captured VAT-INCLUSIVE (the
+        /// all-in funding figure), so it compares like-with-like against the
+        /// canonical VAT-inclusive <see cref="GrandTotalUGX"/>. Both
+        /// BudgetVarianceUGX and BudgetCoveragePct use this same basis.</summary>
         public double ProjectBudgetUGX;
         public double PrelimPct = 12.0;
         public double ContingencyPct = 10.0;
@@ -413,7 +417,10 @@ namespace StingTools.BOQ
         /// the budget variance and the server sync all agree on.</summary>
         public double GrandTotalUGX => Markup.GrandTotal;
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
-        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
+        // WP-FIX — coverage now uses the VAT-inclusive GrandTotal (same basis as
+        // the budget + the variance), not the bare works subtotal, so the two
+        // budget metrics can no longer disagree on what they measure against.
+        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? GrandTotalUGX / ProjectBudgetUGX * 100 : 0;
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;

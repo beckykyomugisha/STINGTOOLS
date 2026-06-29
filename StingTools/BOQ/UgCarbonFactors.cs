@@ -109,10 +109,14 @@ namespace StingTools.BOQ
         }
 
         /// <summary>
-        /// SPECIFIC resolution: exact material name → material class → keyword.
-        /// Returns Factor=0 when nothing specific matches (caller then tries the
-        /// generic library / legacy tiers before falling back to the generic
-        /// default via <see cref="GenericDefault"/>).
+        /// SPECIFIC resolution: exact material name → KEYWORD → material class.
+        /// WP-FIX — keyword is tried before the broad Revit material class so an
+        /// "Aluminium …" / "Copper …" element (Revit class "Metal") hits its own
+        /// keyword factor instead of the steel-specific "Metal"=12200 class value
+        /// (which under-reported non-ferrous metals by ~30-50%). The class map is
+        /// the last-resort within the specific tier. Returns Factor=0 when nothing
+        /// specific matches (caller then tries the library / legacy tiers before
+        /// the generic default via <see cref="GenericDefault"/>).
         /// </summary>
         public static (double Factor, string Source) ResolveSpecific(Document doc, string materialName, string materialClass)
         {
@@ -122,10 +126,6 @@ namespace StingTools.BOQ
             if (!string.IsNullOrWhiteSpace(materialName) &&
                 t.byMaterial.TryGetValue(materialName.Trim(), out double byName) && byName > 0)
                 return (byName, "uganda-edge:material");
-
-            if (!string.IsNullOrWhiteSpace(materialClass) &&
-                t.byMaterialClass.TryGetValue(materialClass.Trim(), out double byClass) && byClass > 0)
-                return (byClass, $"uganda-edge:class:{materialClass.Trim()}");
 
             string lc = (materialName ?? "").ToLowerInvariant();
             if (!string.IsNullOrEmpty(lc) && t.byKeyword != null)
@@ -137,6 +137,11 @@ namespace StingTools.BOQ
                         return (k.perM3, $"uganda-edge:kw:{k.contains.Trim()}");
                 }
             }
+
+            if (!string.IsNullOrWhiteSpace(materialClass) &&
+                t.byMaterialClass.TryGetValue(materialClass.Trim(), out double byClass) && byClass > 0)
+                return (byClass, $"uganda-edge:class:{materialClass.Trim()}");
+
             return (0, null);
         }
 

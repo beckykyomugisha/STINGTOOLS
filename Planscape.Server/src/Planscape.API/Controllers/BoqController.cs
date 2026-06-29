@@ -278,14 +278,40 @@ public class BoqController : ControllerBase
         int created = 0, updated = 0;
         foreach (var r in req)
         {
-            var grossQty  = r.NetQuantity * (1 + r.WastePercent / 100.0);
+            // WP-FIX — payload v2: when the plugin marks the quantity FINAL, do
+            // NOT re-gross (the deductions + waste are already in NetQuantity);
+            // record the real wastage split from MeasuredWastePercent and back out
+            // a clean pre-waste NetQuantity for the column. Old payloads (no flag)
+            // keep the legacy net × (1 + waste/100) gross-up.
+            bool quantityIsFinal = r.QuantityIsFinal == true || (r.PayloadSchemaVersion ?? 0) >= 2;
+            double measuredWaste = r.MeasuredWastePercent ?? r.WastePercent;
+            double grossQty, netStored, wasteStored;
+            if (quantityIsFinal)
+            {
+                grossQty    = r.NetQuantity;                 // already final
+                wasteStored = measuredWaste;
+                netStored   = measuredWaste > 0 ? r.NetQuantity / (1 + measuredWaste / 100.0) : r.NetQuantity;
+            }
+            else
+            {
+                netStored   = r.NetQuantity;
+                wasteStored = r.WastePercent;
+                grossQty    = r.NetQuantity * (1 + r.WastePercent / 100.0);
+            }
             var lineTotal = r.UnitRate.HasValue ? (decimal)grossQty * r.UnitRate.Value : (decimal?)null;
+
+            // Carbon: prefer the authoritative engine TOTAL (EmbodiedCarbonKg);
+            // fall back to per-unit × net for old payloads.
+            double? carbonTotal = r.EmbodiedCarbonKg
+                ?? (r.EmbodiedCarbonPerUnit.HasValue ? r.EmbodiedCarbonPerUnit * netStored : null);
+            double? carbonPerUnit = r.EmbodiedCarbonPerUnit
+                ?? (r.EmbodiedCarbonKg.HasValue && grossQty > 0 ? r.EmbodiedCarbonKg / grossQty : null);
 
             if (!string.IsNullOrEmpty(r.IfcGlobalId) && existingByGuid.TryGetValue(r.IfcGlobalId, out var existing))
             {
                 // Update existing line.
-                existing.NetQuantity          = r.NetQuantity;
-                existing.WastePercent         = r.WastePercent;
+                existing.NetQuantity          = netStored;
+                existing.WastePercent         = wasteStored;
                 existing.Quantity             = grossQty;
                 existing.UnitRate             = r.UnitRate ?? existing.UnitRate;
                 existing.LineTotal            = lineTotal ?? existing.LineTotal;
@@ -293,9 +319,9 @@ public class BoqController : ControllerBase
                 existing.Zone                 = r.Zone ?? existing.Zone;
                 existing.SectionCode          = r.SectionCode ?? existing.SectionCode;
                 existing.ItemDescription      = r.ItemDescription ?? existing.ItemDescription;
-                existing.EmbodiedCarbonPerUnit = r.EmbodiedCarbonPerUnit ?? existing.EmbodiedCarbonPerUnit;
-                existing.EmbodiedCarbonTotal  = existing.EmbodiedCarbonPerUnit.HasValue
-                    ? existing.EmbodiedCarbonPerUnit * existing.NetQuantity : null;
+                existing.EmbodiedCarbonPerUnit = carbonPerUnit ?? existing.EmbodiedCarbonPerUnit;
+                existing.EmbodiedCarbonTotal  = carbonTotal ?? (existing.EmbodiedCarbonPerUnit.HasValue
+                    ? existing.EmbodiedCarbonPerUnit * existing.NetQuantity : null);
                 existing.UpdatedAt            = DateTime.UtcNow;
                 updated++;
             }
@@ -318,17 +344,16 @@ public class BoqController : ControllerBase
                     SectionCode          = r.SectionCode ?? "",
                     ItemDescription      = r.ItemDescription ?? "",
                     Unit                 = r.Unit ?? "m2",
-                    NetQuantity          = r.NetQuantity,
-                    WastePercent         = r.WastePercent,
+                    NetQuantity          = netStored,
+                    WastePercent         = wasteStored,
                     Quantity             = grossQty,
                     UnitRate             = r.UnitRate,
                     LineTotal            = lineTotal,
                     Currency             = r.Currency ?? "GBP",
                     LineKind             = r.LineKind ?? "Measured",
                     PricingBasis         = r.PricingBasis ?? "Remeasure",
-                    EmbodiedCarbonPerUnit = r.EmbodiedCarbonPerUnit,
-                    EmbodiedCarbonTotal  = r.EmbodiedCarbonPerUnit.HasValue
-                                           ? r.EmbodiedCarbonPerUnit * r.NetQuantity : null,
+                    EmbodiedCarbonPerUnit = carbonPerUnit,
+                    EmbodiedCarbonTotal  = carbonTotal,
                 });
                 created++;
             }
@@ -794,7 +819,17 @@ public record UpsertQuantityLineRequest(
     string? Currency,
     string? LineKind,
     string? PricingBasis,
-    double? EmbodiedCarbonPerUnit);
+    double? EmbodiedCarbonPerUnit,
+    // WP-FIX (plugin payload v2). All optional → an old plugin (no flags) keeps
+    // the legacy gross-up behaviour. When QuantityIsFinal/PayloadSchemaVersion>=2,
+    // NetQuantity is the FINAL measured quantity (deductions + waste already in
+    // it); MeasuredWastePercent carries the real wastage split for reporting and
+    // the server does NOT re-gross. EmbodiedCarbonKg is the authoritative A1-A3
+    // total (preferred over the per-unit value).
+    bool? QuantityIsFinal = null,
+    double? MeasuredWastePercent = null,
+    double? EmbodiedCarbonKg = null,
+    int? PayloadSchemaVersion = null);
 
 public record CreateVariationRequest(
     Guid BaselineId,
