@@ -131,6 +131,17 @@ namespace StingTools.Core.Sustainability
         /// Indicative-only carbon does NOT count as Computed — it's shown flagged
         /// as indicative, never claimed as a WBLCA or used to award a gate.</summary>
         public bool Computed => FloorAreaM2 > 0 && TotalCarbonKg > 0 && CarbonStampedLines > 0;
+
+        /// <summary>WS L8 — fraction of measured lines that carry a real carbon factor.</summary>
+        public double CarbonStampedCoverageFraction => TotalLines > 0 ? (double)CarbonStampedLines / TotalLines : 0;
+
+        /// <summary>WS L8 — the embodied-carbon headline must read "indicative — review
+        /// quantities" when a sanity flag fires (single-material dominance / implausible
+        /// per-m² / indicative-only factors) OR stamped coverage is below ~80%. The
+        /// number is still shown (with coverage), never hidden.</summary>
+        public bool CarbonHeadlineFlagged =>
+            DominantHotspotImplausible || IntensityImplausible || CarbonIsIndicative
+            || CarbonStampedCoverageFraction < 0.80;
     }
 
     public static class MaterialsRollup

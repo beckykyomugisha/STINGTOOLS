@@ -350,9 +350,23 @@ namespace StingTools.Commands.Sustainability
                  .Metric("Aggregation", sc.Aggregation)
                  .Metric("Points", sc.TotalPoints.ToString(), $"band {sc.Band}");
 
-            b.AddSection("Materials (dual metric)")
-             .Metric("Embodied carbon", $"{res.Materials?.CarbonIntensityKgM2:F1} kgCO2e/m²", "A1-A3 GWP (EN 15978)")
-             .Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
+            b.AddSection("Materials (dual metric)");
+            // WS L8 — the embodied-carbon headline reads "indicative — review quantities"
+            // whenever a sanity flag fires (single-material dominance / implausible
+            // intensity / indicative-only factors) OR carbon-stamped coverage < ~80%.
+            // The number is NOT hidden — it's shown with the coverage beside it so a
+            // partial/outlier figure isn't mistaken for a complete WBLCA.
+            if (res.Materials != null)
+            {
+                if (res.Materials.CarbonHeadlineFlagged)
+                    b.MetricWarn("Embodied carbon",
+                        $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m² — indicative, review quantities",
+                        $"A1-A3 GWP; {res.Materials.CoverageSummary} ({res.Materials.CarbonStampedCoverageFraction * 100:0}% stamped)");
+                else
+                    b.Metric("Embodied carbon", $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m²",
+                        $"A1-A3 GWP (EN 15978); {res.Materials.CoverageSummary}");
+            }
+            b.Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
             // WS I5 — coverage + sanity, surfaced here (not only the Materials tab).
             if (res.Materials != null)
             {
