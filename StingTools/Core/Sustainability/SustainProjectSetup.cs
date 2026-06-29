@@ -13,6 +13,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Sustainability
@@ -189,6 +191,63 @@ namespace StingTools.Core.Sustainability
         }
 
         public string ToJson() => JsonConvert.SerializeObject(this, Formatting.Indented);
+
+        /// <summary>WS E1 — a deterministic content hash over the RESULT-AFFECTING
+        /// fields only (UpdatedUtc is excluded, so re-saving an unchanged setup keeps
+        /// the same key). Used to cache the whole run per (document, setup-hash) so
+        /// the dashboard → export → LCC → publish chain doesn't re-walk the model for
+        /// an identical setup. Pure + deterministic across processes (SHA-256 of a
+        /// canonical string, not the process-randomised string.GetHashCode).</summary>
+        public string ContentHash()
+        {
+            var sb = new StringBuilder();
+            sb.Append("schemes=").Append(string.Join(",", Schemes ?? new List<string>())).Append('|');
+            if (TargetLevels != null)
+                foreach (var kv in TargetLevels.OrderBy(k => k.Key, StringComparer.Ordinal))
+                    sb.Append(kv.Key).Append('=').Append(kv.Value).Append(';');
+            sb.Append("|country=").Append(Country)
+              .Append("|site=").Append(ClimateSiteId)
+              .Append("|zone=").Append(ClimateZone)
+              .Append("|units=").Append(Units).Append('|');
+            if (Zones != null)
+                foreach (var z in Zones)
+                    sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')
+                      .Append(z.FloorAreaM2.ToString("R")).Append('/')
+                      .Append(z.Occupancy).Append('/').Append(z.CoolingCop.ToString("R")).Append(';');
+            sb.Append('|');
+            if (Supply != null)
+                sb.Append(Supply.Mode).Append('/').Append(Supply.PvKwp.ToString("R")).Append('/')
+                  .Append(Supply.PvPerformanceRatio.ToString("R")).Append('/')
+                  .Append((Supply.PvYieldKwhPerKwpYr ?? 0).ToString("R")).Append('/')
+                  .Append(Supply.GridCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.DieselCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.DieselFraction.ToString("R")).Append('/')
+                  .Append(Supply.GreywaterReuseFraction.ToString("R")).Append('/')
+                  .Append(Supply.HeatingSeasonalEfficiency.ToString("R")).Append('/')
+                  .Append(Supply.HeatingIsElectric).Append('/')
+                  .Append(Supply.HeatingFuelCarbonKgco2eKwh.ToString("R")).Append('/')
+                  .Append(Supply.FanEnergyFraction.ToString("R")).Append('/')
+                  .Append(Supply.EnergyTariffPerKwh.ToString("R")).Append('/')
+                  .Append(Supply.WaterTariffPerM3.ToString("R"));
+            sb.Append('|');
+            if (FactorSources != null)
+                sb.Append(string.Join(",", FactorSources.EmbodiedCarbon ?? new List<string>())).Append('/')
+                  .Append(string.Join(",", FactorSources.EmbodiedEnergy ?? new List<string>())).Append('/')
+                  .Append(FactorSources.Region);
+            sb.Append('|');
+            if (EdgeOfficial != null)
+                sb.Append(EdgeOfficial.EnergySavingsPct).Append('/')
+                  .Append(EdgeOfficial.WaterSavingsPct).Append('/')
+                  .Append(EdgeOfficial.MaterialsSavingsPct);
+
+            using (var sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
+                var hex = new StringBuilder(hash.Length * 2);
+                foreach (var b in hash) hex.Append(b.ToString("x2"));
+                return hex.ToString();
+            }
+        }
 
         /// <summary>Load from a project directory (returns default + Found=false if absent).</summary>
         public static SustainProjectSetup Load(string projectDir, out bool found)

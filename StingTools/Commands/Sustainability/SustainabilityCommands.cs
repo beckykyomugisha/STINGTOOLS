@@ -198,7 +198,9 @@ namespace StingTools.Commands.Sustainability
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
             var setup = SustainCmdHelper.EffectiveSetup(doc);
-            var res = SustainabilityEngine.Run(doc, setup);
+            // The dashboard is the explicit run — force a fresh model read; the export
+            // / LCC / publish commands then reuse this cached pass (WS E1).
+            var res = SustainabilityEngine.Run(doc, setup, forceRefresh: true);
             SustainCmdHelper.PushToPanel(res);
 
             // Persist an EdgeKpiSnapshot for trend / burn-down.

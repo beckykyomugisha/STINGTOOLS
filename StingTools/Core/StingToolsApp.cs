@@ -382,6 +382,10 @@ namespace StingTools.Core
                 // (schemes / baselines / water / measures / monthly climate).
                 try { Core.Sustainability.SustainabilityRegistries.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Sustainability cache invalidate: {cEx.Message}"); }
+                // WS E1: drop the cached sustainability run + material take-off so a
+                // re-open re-walks the model.
+                try { Core.Sustainability.SustainabilityEngine.Invalidate(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Sustainability run cache invalidate: {cEx.Message}"); }
                 // MEP-from-DWG: drop the per-document fixture-map cache so a re-open
                 // re-reads the corporate baseline + project _BIM_COORD override.
                 try { Core.Cad.Mep.MepFixtureMap.Invalidate(); }

@@ -9,6 +9,7 @@
 // project. The engines it calls are all Revit-free + unit-tested.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -39,11 +40,59 @@ namespace StingTools.Core.Sustainability
 
     public static class SustainabilityEngine
     {
-        /// <summary>Run the full pass for a document + project setup.</summary>
-        public static SustainabilityRunResult Run(Document doc, SustainProjectSetup setup)
+        // ── WS E1 — caching ─────────────────────────────────────────────────
+        // The materials take-off is the expensive walk; the supply/scheme layers
+        // are cheap. We cache (1) the whole run per (document, setup-hash) so the
+        // dashboard → export → LCC → publish chain reuses one pass for an identical
+        // setup, and (2) the material lines per (document, factor-sources) so a
+        // change that only affects energy/water (occupancy, supply, climate, target
+        // level) does NOT re-walk the model. A short stale window bounds how long a
+        // model edit can be masked (mirrors ComplianceScan); the dashboard's explicit
+        // run forces a fresh read, and Invalidate() clears on document close.
+        private const int CacheStaleSeconds = 60;
+        private static readonly ConcurrentDictionary<string, (SustainabilityRunResult res, DateTime ts)> _runCache
+            = new ConcurrentDictionary<string, (SustainabilityRunResult, DateTime)>(StringComparer.Ordinal);
+        private static readonly ConcurrentDictionary<string, (List<MaterialLine> lines, DateTime ts)> _materialCache
+            = new ConcurrentDictionary<string, (List<MaterialLine>, DateTime)>(StringComparer.Ordinal);
+
+        /// <summary>Drop all cached runs + material take-offs for a document (called
+        /// on document close and by an explicit refresh).</summary>
+        public static void Invalidate(Document doc)
+        {
+            string prefix = (doc?.PathName ?? "<no-doc>") + "|";
+            foreach (var k in _runCache.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList())
+                _runCache.TryRemove(k, out _);
+            foreach (var k in _materialCache.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList())
+                _materialCache.TryRemove(k, out _);
+        }
+
+        /// <summary>Run the full pass for a document + project setup. Reuses a cached
+        /// result for an identical (document, setup) within the stale window unless
+        /// <paramref name="forceRefresh"/> is set (the dashboard forces a fresh read;
+        /// secondary consumers reuse it). WS E1.</summary>
+        public static SustainabilityRunResult Run(Document doc, SustainProjectSetup setup, bool forceRefresh = false)
+        {
+            if (doc == null || setup == null)
+            {
+                var bad = new SustainabilityRunResult { Setup = setup };
+                bad.Warnings.Add("No document / setup.");
+                return bad;
+            }
+
+            string key = (doc.PathName ?? "<no-doc>") + "|" + setup.ContentHash();
+            if (forceRefresh) Invalidate(doc);
+            else if (_runCache.TryGetValue(key, out var hit)
+                     && (DateTime.UtcNow - hit.ts).TotalSeconds < CacheStaleSeconds)
+                return hit.res;
+
+            var computed = Compute(doc, setup, forceRefresh);
+            _runCache[key] = (computed, DateTime.UtcNow);
+            return computed;
+        }
+
+        private static SustainabilityRunResult Compute(Document doc, SustainProjectSetup setup, bool forceRefresh)
         {
             var res = new SustainabilityRunResult { Setup = setup };
-            if (doc == null || setup == null) { res.Warnings.Add("No document / setup."); return res; }
 
             // ── Climate (monthly; fall back to design-day if no monthly row) ──
             res.Climate = ResolveClimate(doc, setup);
@@ -70,7 +119,7 @@ namespace StingTools.Core.Sustainability
             res.Warnings.AddRange(res.Water.Warnings);
 
             // ── Materials (dual metric; full BOQ carbon path) ──
-            var lines = GatherMaterialLines(doc, setup);
+            var lines = GatherMaterialLines(doc, setup, forceRefresh);
             res.MaterialLines = lines.Count;
             double area = setup.TotalFloorAreaM2 > 0 ? setup.TotalFloorAreaM2 : res.Energy.FloorAreaM2;
             res.Materials = MaterialsRollup.Rollup(lines, area,
@@ -565,12 +614,31 @@ namespace StingTools.Core.Sustainability
             BuiltInCategory.OST_Rebar, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows
         };
 
-        private static List<MaterialLine> GatherMaterialLines(Document doc, SustainProjectSetup setup)
+        private static List<MaterialLine> GatherMaterialLines(Document doc, SustainProjectSetup setup, bool forceRefresh)
+        {
+            double wastePctCfg = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
+            var fs = setup?.FactorSources ?? new FactorSourceOrder();
+            // The take-off depends only on the MODEL + the carbon/energy dataset order
+            // + waste — NOT on zones/occupancy/supply/target level. Key the sub-cache
+            // accordingly so an energy/water-only change reuses it (WS E1).
+            string matKey = (doc.PathName ?? "<no-doc>") + "|mat|"
+                + string.Join(",", fs.EmbodiedCarbon ?? new List<string>()) + "|"
+                + string.Join(",", fs.EmbodiedEnergy ?? new List<string>()) + "|"
+                + fs.Region + "|" + wastePctCfg.ToString("R");
+            if (!forceRefresh && _materialCache.TryGetValue(matKey, out var mhit)
+                && (DateTime.UtcNow - mhit.ts).TotalSeconds < CacheStaleSeconds)
+                return mhit.lines;
+
+            var lines = ComputeMaterialLines(doc, setup, wastePctCfg);
+            _materialCache[matKey] = (lines, DateTime.UtcNow);
+            return lines;
+        }
+
+        private static List<MaterialLine> ComputeMaterialLines(Document doc, SustainProjectSetup setup, double wastePct)
         {
             var lines = new List<MaterialLine>();
             try
             {
-                double wastePct = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
                 var order = setup?.FactorSources ?? new FactorSourceOrder();
                 // WS C3 — real embodied-energy (MJ/kg) seed, so a material with no
                 // stamped per-m³ EPD energy gets an ICE-v3 cradle-to-gate figure
