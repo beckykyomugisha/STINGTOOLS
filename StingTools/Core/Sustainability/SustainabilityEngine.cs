@@ -412,6 +412,11 @@ namespace StingTools.Core.Sustainability
             {
                 double wastePct = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
                 var order = setup?.FactorSources ?? new FactorSourceOrder();
+                // WS C3 — real embodied-energy (MJ/kg) seed, so a material with no
+                // stamped per-m³ EPD energy gets an ICE-v3 cradle-to-gate figure
+                // instead of the carbonKg×12 ratio fallback. The per-kg path is still
+                // gated by FactorSources.EmbodiedEnergy inside SustainMaterialCarbon.
+                var iceEnergy = SustainabilityRegistries.IceEnergy(doc);
 
                 // Aggregate model material volumes by material name, scoped to the
                 // WBLCA physical categories (matches the BOQ take-off scope).
@@ -458,7 +463,10 @@ namespace StingTools.Core.Sustainability
                         // Embodied energy: prefer a material-stamped MJ/m³ (EPD PERT+PENRT);
                         // per-kg ICE-MJ is not stamped on materials today → 0 ⇒ ratio fallback.
                         EnergyMjPerM3 = ReadMaterialDouble(mat, ParamRegistry.SUS_MAT_ENERGY_MJ_M2),
-                        EnergyMjPerKg = 0
+                        // WS C3 — per-kg cradle-to-gate MJ from the ICE seed/override
+                        // (0 when the material isn't in the dataset ⇒ documented ratio
+                        // fallback in SustainMaterialCarbon, never an invented number).
+                        EnergyMjPerKg = iceEnergy?.GetMjPerKg(name) ?? 0
                     };
 
                     var outp = SustainMaterialCarbon.Compute(input, order);

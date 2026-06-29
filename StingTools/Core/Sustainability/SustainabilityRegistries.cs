@@ -22,6 +22,7 @@ namespace StingTools.Core.Sustainability
         public const string WaterFile     = "STING_WATER_USAGE_PROFILES.json";
         public const string MeasuresFile  = "STING_GREEN_MEASURES.json";
         public const string MonthlyFile   = "STING_CLIMATE_MONTHLY.json";
+        public const string IceEnergyFile = "STING_ICE_EMBODIED_ENERGY.json";
 
         private static readonly ConcurrentDictionary<string, GreenSchemeRegistry> _schemes
             = new ConcurrentDictionary<string, GreenSchemeRegistry>(StringComparer.OrdinalIgnoreCase);
@@ -33,6 +34,8 @@ namespace StingTools.Core.Sustainability
             = new ConcurrentDictionary<string, GreenMeasureRegistry>(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, ClimateMonthlyRegistry> _monthly
             = new ConcurrentDictionary<string, ClimateMonthlyRegistry>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, IceEmbodiedEnergyRegistry> _iceEnergy
+            = new ConcurrentDictionary<string, IceEmbodiedEnergyRegistry>(StringComparer.OrdinalIgnoreCase);
 
         public static GreenSchemeRegistry Schemes(Document doc)
             => _schemes.GetOrAdd(Key(doc), _ =>
@@ -54,9 +57,16 @@ namespace StingTools.Core.Sustainability
             => _monthly.GetOrAdd(Key(doc), _ =>
                 ClimateMonthlyRegistry.LoadFromFiles(Corp(MonthlyFile), Proj(doc, "climate_monthly.json")));
 
+        /// <summary>Embodied-energy (MJ/kg) seed registry — WS C3. Corporate ICE v3
+        /// seed + per-project override under _BIM_COORD/sustainability/.</summary>
+        public static IceEmbodiedEnergyRegistry IceEnergy(Document doc)
+            => _iceEnergy.GetOrAdd(Key(doc), _ =>
+                IceEmbodiedEnergyRegistry.LoadFromFiles(Corp(IceEnergyFile), Proj(doc, "ice_embodied_energy.json")));
+
         public static void Reload()
         {
             _schemes.Clear(); _baselines.Clear(); _water.Clear(); _measures.Clear(); _monthly.Clear();
+            _iceEnergy.Clear();
         }
 
         public static void Reload(Document doc)
@@ -67,6 +77,7 @@ namespace StingTools.Core.Sustainability
             _water.TryRemove(k, out _);
             _measures.TryRemove(k, out _);
             _monthly.TryRemove(k, out _);
+            _iceEnergy.TryRemove(k, out _);
         }
 
         // ── Path helpers ─────────────────────────────────────────────────
