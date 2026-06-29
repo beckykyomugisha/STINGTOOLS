@@ -63,6 +63,7 @@ namespace StingTools.UI.Sustainability
                 case "Sustain_LccBenefit":   return "Life-cycle cost";
                 case "Sustain_EpdAssign":    return "EPD register";
                 case "Sustain_LeedScorecard":return "LEED scorecard";
+                case "Sustain_PublishToServer": return "Publishing to server";
                 default:                     return "Working";
             }
         }
