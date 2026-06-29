@@ -12,6 +12,16 @@ and committed separately. Data-driven JSON with a project override under
 `_BIM_COORD/`; one canonical per-element costing/carbon API; honest
 low-confidence flagging over silent guesses.
 
+**WP2 (partial) — design-option double-count guard.** `CollectCandidateElements`
+(the host + linked-model takeoff walk) now skips non-primary design-option
+alternates by default — previously it billed every alternate in every option set,
+multiplying quantities by the option count. Bills the main model + each set's
+primary option; set `COST_BILL_PRIMARY_OPTION_ONLY = false` to bill all. (The
+remaining WP2 items — CostStamp↔export measurement parity, m³ takeoff for
+columns/foundations, the 1.0 placeholder + uncosted-at-risk rollup/gate, shaft
+voids, the per-material split, discipline/system tag preference — are tracked in
+ROADMAP.)
+
 **WP3 (core) — Uganda/EDGE default carbon basis.** New corporate factor table
 `Data/STING_CARBON_FACTORS_UG.json` (A1–A3 fossil GWP, kgCO₂e per m³) — derived
 from the IFC EDGE materials methodology cross-checked against ICE v3.0

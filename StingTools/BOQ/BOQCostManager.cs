@@ -2825,7 +2825,11 @@ namespace StingTools.BOQ
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0;
+            int excluded = 0, optionAlternates = 0;
+            // WP2 — bill the MAIN model + each set's PRIMARY design option only;
+            // never the alternates (which multiply quantities by the option count).
+            // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
+            bool primaryOptionOnly = GetConfigBool("COST_BILL_PRIMARY_OPTION_ONLY", true);
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             var catEnums = SharedParamGuids.AllCategoryEnums;
             if (catEnums != null && catEnums.Length > 0)
@@ -2834,6 +2838,17 @@ namespace StingTools.BOQ
             {
                 // P1.1 — CAD imports carry no measurable model quantity.
                 if (el is ImportInstance) { excluded++; continue; }
+
+                // WP2 — design-option double-count guard.
+                if (primaryOptionOnly)
+                {
+                    try
+                    {
+                        var dopt = el.DesignOption;
+                        if (dopt != null && !dopt.IsPrimary) { optionAlternates++; continue; }
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("BOQ.DesignOpt", $"DesignOption read: {ex.Message}"); }
+                }
 
                 // P1.1 — reject 2D / annotation / link categories.
                 Category cObj = el.Category;
@@ -2857,6 +2872,9 @@ namespace StingTools.BOQ
             if (excluded > 0)
                 StingLog.Info($"BOQ takeoff: excluded {excluded} non-measurable element(s) " +
                               "(2D content / annotation / CAD imports).");
+            if (optionAlternates > 0)
+                StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
+                              "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");
             return list;
         }
 
