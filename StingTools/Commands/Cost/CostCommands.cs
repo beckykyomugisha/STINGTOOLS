@@ -340,6 +340,10 @@ namespace StingTools.Commands.Cost
             // Phase 2A — also drop the measurement rule + void caches.
             StingTools.BOQ.MeasurementStandard.MeasurementRuleRegistry.Invalidate();
             StingTools.BOQ.MeasurementStandard.MeasurementDeductionEngine.ResetCaches();
+            // WP3 — drop the Uganda/EDGE carbon-factor table so an edit to the
+            // corporate baseline or the project _BIM_COORD/carbon_factors_ug.json
+            // override is picked up on the next BOQ build without restarting Revit.
+            StingTools.BOQ.UgCarbonFactors.InvalidateAll();
             // Phase 2D — rate / measure config changed; the incremental host cache
             // holds rows priced under the old config, so force a full rebuild next.
             BOQCostManager.InvalidateHostCache();

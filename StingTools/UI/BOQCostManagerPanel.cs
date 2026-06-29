@@ -3888,8 +3888,13 @@ namespace StingTools.UI
                 if (carbonRows.Count > 0)
                 {
                     int epd = carbonRows.Count(i => string.Equals(i.CarbonQuality, "Verified-EPD", StringComparison.OrdinalIgnoreCase));
-                    int miss = carbonRows.Count(i => i.EmbodiedCarbonKg <= 0
-                        || string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase));
+                    // WP3 — "missing" is a property of the carbon FACTOR provenance,
+                    // not of the computed total. A row with a resolved factor but
+                    // zero geometry (EmbodiedCarbonKg == 0) is NOT a missing factor.
+                    int miss = carbonRows.Count(i =>
+                        string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase)
+                        || string.IsNullOrEmpty(i.CarbonSource)
+                        || string.Equals(i.CarbonSource, "none", StringComparison.OrdinalIgnoreCase));
                     double epdPct = 100.0 * epd / carbonRows.Count;
                     double missPct = 100.0 * miss / carbonRows.Count;
                     _defaultCoverageText += $" | Carbon EPD-verified {epdPct:F0}% · missing {missPct:F0}%";

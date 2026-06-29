@@ -12,6 +12,26 @@ and committed separately. Data-driven JSON with a project override under
 `_BIM_COORD/`; one canonical per-element costing/carbon API; honest
 low-confidence flagging over silent guesses.
 
+**WP3 (core) — Uganda/EDGE default carbon basis.** New corporate factor table
+`Data/STING_CARBON_FACTORS_UG.json` (A1–A3 fossil GWP, kgCO₂e per m³) — derived
+from the IFC EDGE materials methodology cross-checked against ICE v3.0
+(cradle-to-gate) × representative in-place density, with Uganda sourcing notes
+(high-clinker CEM I structural concrete, imported primary-route steel/aluminium,
+local fired-clay brick); every adopted figure's provenance is in the file header.
+`UgCarbonFactors` loads it (corporate baseline + additive project override at
+`<project>/_BIM_COORD/carbon_factors_ug.json`, per-doc cache). `CarbonFactorResolver`
+now consults it as the primary regional default: a verified EPD and a material's
+own `STING_EMB_CARBON_NR` still win, then the UG table's specific match (exact
+name → Revit material class → keyword), then the existing material library /
+legacy dict, and finally the UG generic default (a sourced indicative figure
+flagged `uganda-edge:default` rather than 0/Missing). `Cost_ReloadRules` drops the
+table cache. WP3.5: the panel's carbon "missing %" is now based on factor
+provenance (`CarbonSource`/`CarbonQuality`) only — a row with a resolved factor
+but zero geometry is no longer mislabelled missing. (Remaining WP3 items — driving
+carbon off the WP2 per-material priced takeoff, applying waste to carbon, the
+RICS fossil-headline/biogenic-separate convention across every surface, the EN
+15978 module breakdown, and intensity-based RAG — tracked in ROADMAP.)
+
 **WP0 — One per-element costing/carbon API.** Extracted the canonical
 per-element embodied-carbon entry point `BOQCostManager.ComputeElementCarbonKg`
 (routes through `CarbonFactorResolver`: EPD → material param → lookup CSV →

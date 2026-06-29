@@ -2,6 +2,45 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## BOQ & Cost Manager — remaining from the Master Impl brief
+
+Branch `claude/boq-master-impl` landed WP0 (one costing/carbon API), WP1 (single
+canonical Contract Sum + VAT), WP3 core (Uganda/EDGE carbon factor table + default
+basis), WP5 (de-jargon) and several WP6 items. Still open:
+
+- **WP2 — measurement parity (tag = bill = IFC = snapshot).** Route `CostStamp`
+  through the same `MeasureQuantity` path as the export; explicit m³ takeoff rules
+  for Columns/Foundations (read solid geometry, not the often-empty host volume
+  param); replace the `1.0` "couldn't measure" placeholder with `0`/sentinel +
+  lowered confidence + a visible "could not measure" rollup; document-level
+  uncosted-value-at-risk rollup + a hard export gate below
+  `MinRateConfidenceForExport`; attribute shaft/host-less openings to the floors
+  they pierce; **per-material split** (compound walls/floors currently dump the
+  whole quantity on `GetMaterialIds().First()`); `ElementDesignOptionFilter` so
+  alternates aren't double-counted; prefer `ASS_DISCIPLINE_COD_TXT` + feed
+  `ASS_SYSTEM_TYPE_TXT` into NRM2/takeoff matching; replace remaining magic unit
+  literals with `UnitUtils.ConvertFromInternalUnits`.
+- **WP3 — remainder.** Drive carbon off the WP2 per-material priced takeoff (stop
+  re-deriving volume from assumed thicknesses); apply waste to carbon; adopt the
+  RICS fossil-headline / biogenic-separate convention consistently across the row,
+  the panel card, the pivot and the IFC GWP; populate the fossil/biogenic split;
+  repoint/relabel the dead legacy `CARBON_FACTORS.csv` loader; EN 15978
+  A1-A3/A4/A5/B/C/D module params; RAG the panel by kgCO₂e/m² intensity vs a
+  benchmark, not absolute thresholds.
+- **WP4 — QS lifecycle tools (net-new).** Tender comparison & adjudication;
+  final-account reconciliation (wire `BOQPricingMode.AsBuilt`); retention release
+  (the dormant `RetentionLedger` release half); variation approve/reject/incorporate
+  commands; fluctuations engine; materials-on-site valuation + statutory
+  payment/pay-less notice dates; PC-sum mechanism distinct from provisional sums;
+  time-phased EVM baseline (cost-loaded BCWS S-curve) + a unified monthly CVR;
+  loss & expense / contra-charges registers.
+- **WP6 — remainder.** Derive USD totals from the UGX total at summary level (not
+  per-line rounded sums); snapshot one FX rate per build + make currency mandatory
+  on every rate source (validate FX presence, no silent default); keep the BCIS
+  HTTP provider off the synchronous per-element/transaction path (honour
+  `RequiresNetwork`, pre-warm off-thread, never `.GetAwaiter().GetResult()` on the
+  UI thread).
+
 ## Placement Centre — residual gaps (post review/hardening)
 
 - **BOQ quantity handoff.** Placed-element counts (`PlacementResult.PlacedIds`,
