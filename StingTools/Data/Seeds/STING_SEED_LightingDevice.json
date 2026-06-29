@@ -264,10 +264,6 @@
           }
         },
         {
-          "name": "DIMMER",
-          "params": {}
-        },
-        {
           "name": "KEY",
           "params": {}
         },
