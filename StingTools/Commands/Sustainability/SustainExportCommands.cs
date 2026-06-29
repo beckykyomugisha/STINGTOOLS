@@ -39,10 +39,12 @@ namespace StingTools.Commands.Sustainability
             {
                 using (var wb = new XLWorkbook())
                 {
-                    BuildProjectSheet(wb, setup, res);
-                    BuildEnergySheet(wb, res);
-                    BuildWaterSheet(wb, setup, res);
-                    BuildMaterialsSheet(wb, doc, res);
+                    // WS H6 — the whole workbook honours the project's SI/IP units choice.
+                    var units = setup.Units;
+                    BuildProjectSheet(wb, setup, res, units);
+                    BuildEnergySheet(wb, res, units);
+                    BuildWaterSheet(wb, setup, res, units);
+                    BuildMaterialsSheet(wb, doc, res, units);
 
                     path = OutputLocationHelper.GetOutputPath(doc,
                         $"STING_EDGE_Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
@@ -64,16 +66,18 @@ namespace StingTools.Commands.Sustainability
             return Result.Succeeded;
         }
 
-        private static void BuildProjectSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res)
+        private static void BuildProjectSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res, SustainUnits u)
         {
             var ws = wb.Worksheets.Add("Project");
             int r = 1;
             ws.Cell(r, 1).Value = "STING EDGE Export — indicative inputs for the EDGE app"; ws.Cell(r, 1).Style.Font.Bold = true; r += 2;
             void Row(string k, string v) { ws.Cell(r, 1).Value = k; ws.Cell(r, 2).Value = v; r++; }
+            Row("Units", SustainUnitConverter.IsIp(u) ? "IP (imperial)" : "SI (metric)");
             Row("Country", setup.Country);
             Row("Climate zone", setup.ClimateZone);
             Row("Dominant building use", setup.DominantBuildingUse);
-            Row("Floor area (m²)", setup.TotalFloorAreaM2.ToString("0"));
+            Row($"Floor area ({SustainUnitConverter.AreaUnit(u)})",
+                SustainUnitConverter.Area(setup.TotalFloorAreaM2, u).ToString("0"));
             Row("Occupancy", setup.TotalOccupancy.ToString());
             Row("Supply mode", setup.Supply?.Mode ?? "");
             Row("PV (kWp)", (setup.Supply?.PvKwp ?? 0).ToString("0"));
@@ -82,65 +86,70 @@ namespace StingTools.Commands.Sustainability
             ws.Columns().AdjustToContents();
         }
 
-        private static void BuildEnergySheet(XLWorkbook wb, SustainabilityRunResult res)
+        private static void BuildEnergySheet(XLWorkbook wb, SustainabilityRunResult res, SustainUnits u)
         {
             var ws = wb.Worksheets.Add("Energy");
-            ws.Cell(1, 1).Value = "End use"; ws.Cell(1, 2).Value = "Annual kWh";
+            string absU = SustainUnitConverter.EnergyAbsUnit(u);
+            string euiU = SustainUnitConverter.EuiUnit(u);
+            ws.Cell(1, 1).Value = "End use"; ws.Cell(1, 2).Value = $"Annual {absU}";
             ws.Row(1).Style.Font.Bold = true;
             var e = res.Energy?.Design;
             int r = 2;
+            double A(double kwh) => SustainUnitConverter.EnergyAbs(kwh, u);
             void Row(string k, double v) { ws.Cell(r, 1).Value = k; ws.Cell(r, 2).Value = v; r++; }
             if (e != null)
             {
-                Row("Cooling", e.CoolingKwh);
-                Row("Heating", e.HeatingKwh);
-                Row("Fans/pumps", e.FansKwh);
-                Row("Lighting", e.LightingKwh);
-                Row("Equipment", e.EquipmentKwh);
-                Row("DHW", e.DhwKwh);
-                Row("TOTAL", e.TotalKwh);
+                Row("Cooling", A(e.CoolingKwh));
+                Row("Heating", A(e.HeatingKwh));
+                Row("Fans/pumps", A(e.FansKwh));
+                Row("Lighting", A(e.LightingKwh));
+                Row("Equipment", A(e.EquipmentKwh));
+                Row("DHW", A(e.DhwKwh));
+                Row("TOTAL", A(e.TotalKwh));
             }
             r++;
-            Row("Design EUI (kWh/m²·yr) — indicative", res.Energy?.DesignEuiKwhM2Yr ?? 0);
-            Row("Baseline EUI (kWh/m²·yr)", res.Energy?.BaselineEuiKwhM2Yr ?? 0);
-            Row("Energy savings % — indicative", res.Energy?.EnergySavingsPct ?? 0);
-            Row("PV generation (kWh/yr)", res.Energy?.PvGenerationKwh ?? 0);
-            Row("Net import (kWh/yr)", res.Energy?.NetImportKwh ?? 0);
+            Row($"Design EUI ({euiU}) — indicative", SustainUnitConverter.Eui(res.Energy?.DesignEuiKwhM2Yr ?? 0, u));
+            Row($"Baseline EUI ({euiU})", SustainUnitConverter.Eui(res.Energy?.BaselineEuiKwhM2Yr ?? 0, u));
+            Row("Energy savings % — indicative", res.Energy?.EnergySavingsPct ?? 0);   // % is unit-independent
+            Row($"PV generation ({absU})", A(res.Energy?.PvGenerationKwh ?? 0));
+            Row($"Net import ({absU})", A(res.Energy?.NetImportKwh ?? 0));
             ws.Columns().AdjustToContents();
         }
 
-        private static void BuildWaterSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res)
+        private static void BuildWaterSheet(XLWorkbook wb, SustainProjectSetup setup, SustainabilityRunResult res, SustainUnits u)
         {
             var ws = wb.Worksheets.Add("Water");
+            string ppU = SustainUnitConverter.WaterPerPersonDayUnit(u);
+            string volU = SustainUnitConverter.WaterVolumeUnit(u);
             int r = 1;
             void Row(string k, string v) { ws.Cell(r, 1).Value = k; ws.Cell(r, 2).Value = v; r++; }
-            Row("Design L/person·day — indicative", (res.Water?.DesignLPersonDay ?? 0).ToString("0.0"));
-            Row("Baseline L/person·day", (res.Water?.BaselineLPersonDay ?? 0).ToString("0.0"));
-            Row("Water savings % — indicative", (res.Water?.WaterSavingsPct ?? 0).ToString("0.0"));
-            Row("Annual demand (L)", (res.Water?.AnnualDemandL ?? 0).ToString("0"));
-            Row("RWH yield (L/yr)", (res.Water?.RwhYieldL ?? 0).ToString("0"));
-            Row("Net demand (L)", (res.Water?.NetDemandL ?? 0).ToString("0"));
+            Row($"Design {ppU} — indicative", SustainUnitConverter.WaterPerPersonDay(res.Water?.DesignLPersonDay ?? 0, u).ToString("0.0"));
+            Row($"Baseline {ppU}", SustainUnitConverter.WaterPerPersonDay(res.Water?.BaselineLPersonDay ?? 0, u).ToString("0.0"));
+            Row("Water savings % — indicative", (res.Water?.WaterSavingsInclAltPct ?? 0).ToString("0.0"));   // % is unit-independent; inclusive (gate)
+            Row($"Annual demand ({volU})", SustainUnitConverter.WaterVolume(res.Water?.AnnualDemandL ?? 0, u).ToString("0"));
+            Row($"RWH yield ({volU}/yr)", SustainUnitConverter.WaterVolume(res.Water?.RwhYieldL ?? 0, u).ToString("0"));
+            Row($"Net demand ({volU})", SustainUnitConverter.WaterVolume(res.Water?.NetDemandL ?? 0, u).ToString("0"));
             ws.Columns().AdjustToContents();
         }
 
-        private static void BuildMaterialsSheet(XLWorkbook wb, Document doc, SustainabilityRunResult res)
+        private static void BuildMaterialsSheet(XLWorkbook wb, Document doc, SustainabilityRunResult res, SustainUnits u)
         {
             var ws = wb.Worksheets.Add("Materials");
             ws.Cell(1, 1).Value = "Material";
-            ws.Cell(1, 2).Value = "kgCO2e/m² (indicative)";
-            ws.Cell(1, 3).Value = "MJ/m² (indicative)";
+            ws.Cell(1, 2).Value = $"{SustainUnitConverter.CarbonIntensityUnit(u)} (indicative)";
+            ws.Cell(1, 3).Value = $"{SustainUnitConverter.EnergyIntensityUnit(u)} (indicative)";
             ws.Row(1).Style.Font.Bold = true;
             int r = 2;
             ws.Cell(r, 1).Value = "BUILDING TOTAL";
-            ws.Cell(r, 2).Value = res.Materials?.CarbonIntensityKgM2 ?? 0;
-            ws.Cell(r, 3).Value = res.Materials?.EnergyIntensityMjM2 ?? 0;
+            ws.Cell(r, 2).Value = SustainUnitConverter.CarbonIntensity(res.Materials?.CarbonIntensityKgM2 ?? 0, u);
+            ws.Cell(r, 3).Value = SustainUnitConverter.EnergyIntensityMj(res.Materials?.EnergyIntensityMjM2 ?? 0, u);
             r += 2;
-            ws.Cell(r, 1).Value = "Carbon hotspots (A1-A3 GWP)"; ws.Cell(r, 1).Style.Font.Bold = true; r++;
+            ws.Cell(r, 1).Value = $"Carbon hotspots (A1-A3 GWP, {SustainUnitConverter.MassCarbonUnit(u)})"; ws.Cell(r, 1).Style.Font.Bold = true; r++;
             if (res.Materials?.Hotspots != null)
                 foreach (var h in res.Materials.Hotspots)
                 {
                     ws.Cell(r, 1).Value = h.Material;
-                    ws.Cell(r, 2).Value = h.CarbonKg;
+                    ws.Cell(r, 2).Value = SustainUnitConverter.MassCarbon(h.CarbonKg, u);   // absolute carbon mass
                     ws.Cell(r, 3).Value = $"{h.SharePct:0}%";
                     r++;
                 }

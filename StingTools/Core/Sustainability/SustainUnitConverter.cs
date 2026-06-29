@@ -18,6 +18,7 @@ namespace StingTools.Core.Sustainability
         public const double KwhToKbtu      = 3.412142;   // kWh       → kBtu
         public const double LToGal         = 0.264172;   // litre     → US gallon
         public const double M2ToFt2        = 10.763910;  // m²        → ft²
+        public const double KgToLb         = 2.204623;   // kg        → lb
 
         public static bool IsIp(SustainUnits u) => u == SustainUnits.IP;
 
@@ -38,5 +39,15 @@ namespace StingTools.Core.Sustainability
 
         public static double Area(double siM2, SustainUnits u) => IsIp(u) ? siM2 * M2ToFt2 : siM2;
         public static string AreaUnit(SustainUnits u)         => IsIp(u) ? "ft²" : "m²";
+
+        /// <summary>Absolute water VOLUME (litres → US gallons) — annual demand /
+        /// RWH yield / net demand on the EDGE export. WS H6.</summary>
+        public static double WaterVolume(double siL, SustainUnits u) => IsIp(u) ? siL * LToGal : siL;
+        public static string WaterVolumeUnit(SustainUnits u)        => IsIp(u) ? "gal" : "L";
+
+        /// <summary>Absolute carbon MASS (kgCO₂e → lbCO₂e) — e.g. material hotspot
+        /// totals on the EDGE export. WS H6.</summary>
+        public static double MassCarbon(double siKg, SustainUnits u) => IsIp(u) ? siKg * KgToLb : siKg;
+        public static string MassCarbonUnit(SustainUnits u)         => IsIp(u) ? "lbCO₂e" : "kgCO₂e";
     }
 }
