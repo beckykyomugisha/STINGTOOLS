@@ -47,10 +47,14 @@ namespace StingTools.Commands.Sustainability
             var setup = SustainProjectSetup.Load(dir, out bool found);
             if (!found)
             {
-                // Seed area/occupancy from the model when no setup exists yet
-                // (Spaces preferred, Rooms fallback for architectural models).
+                // Seed area from the model when no setup exists yet (Spaces preferred,
+                // Rooms fallback). WS M2 — occupancy is left BLANK (0, non-explicit) so
+                // the engine derives it from the resolved load-profile density (a 170 m²
+                // residential building → ~5, not the office-density 17). Only a
+                // user-typed total sets OccupancyExplicit and wins over the model.
                 double area = TotalFloorAreaM2(doc);
-                setup = SustainProjectSetup.CreateDefault(area, EstimateOccupancy(doc, area));
+                setup = SustainProjectSetup.CreateDefault(area, 0);
+                setup.OccupancyExplicit = false;
                 // Climate site stamped by the HVAC DocumentOpened auto-stamp.
                 try
                 {
@@ -101,8 +105,11 @@ namespace StingTools.Commands.Sustainability
         }
 
         /// <summary>Occupancy from Space "Number of People"; falls back to an area
-        /// density estimate (1 person / 10 m²) when no occupancy data is modelled.</summary>
-        public static int EstimateOccupancy(Document doc, double floorAreaM2)
+        /// density estimate when no occupancy is modelled. WS M1 — the fallback uses the
+        /// RESOLVED building-use load-profile density (residential 35 m²/p → ~5, office
+        /// 10 → 17), not a hardcoded office 10. <paramref name="buildingUse"/> drives the
+        /// density via the load-profile registry; null/blank ⇒ the profile default.</summary>
+        public static int EstimateOccupancy(Document doc, double floorAreaM2, string buildingUse = null)
         {
             try
             {
@@ -116,8 +123,15 @@ namespace StingTools.Commands.Sustainability
                 if (sumPeople > 0) return sumPeople;
             }
             catch { }
-            // Documented density estimate (≈10 m²/person, ASHRAE 62.1 office) — an
-            // estimate the user can override, not a silent constant.
+            // WS M1 — per-use occupancy from the resolved load profile, via the SAME
+            // pure OccupantCountFor the engine uses on synthetic zones (residential 35
+            // m²/p → ~5, office 10 → 17), so the estimate and the model agree.
+            try
+            {
+                var profile = StingTools.Core.Hvac.Loads.LoadProfileRegistry.Get(doc)?.ResolveForUse(buildingUse)?.Profile;
+                if (profile != null) return profile.OccupantCountFor(floorAreaM2);
+            }
+            catch { }
             return floorAreaM2 > 0 ? (int)Math.Round(floorAreaM2 / 10.0) : 0;
         }
 
@@ -517,8 +531,11 @@ namespace StingTools.Commands.Sustainability
             if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
 
             double area = SustainCmdHelper.TotalFloorAreaM2(doc);
-            int occ = SustainCmdHelper.EstimateOccupancy(doc, area);
             var panel = StingTools.UI.Sustainability.StingSustainabilityPanel.Instance;
+            // WS M1 — estimate occupancy at the RESOLVED building use's density (the
+            // panel's current use, else the saved setup), not a flat office 10.
+            string use = (panel?.ReadSetupForm() ?? SustainCmdHelper.LoadSetup(doc))?.DominantBuildingUse;
+            int occ = SustainCmdHelper.EstimateOccupancy(doc, area, use);
             panel?.ApplyAutoFill(area, occ);
             // WS J2 — make sure the Country dropdown is data-driven from the seed.
             try { panel?.PopulateCountries(SustainabilityRegistries.Countries(doc).DropdownLabels()); }

@@ -134,6 +134,12 @@ namespace StingTools.Core.Sustainability
         /// office numbers as the user's project.</summary>
         public bool UseExplicit { get; set; } = false;
 
+        /// <summary>WS M2 — true only when the user actually typed a project occupancy
+        /// total. False on a fresh CreateDefault / auto-seed, so the engine uses the
+        /// model-derived (load-profile-density) occupancy instead of an estimate that
+        /// would otherwise masquerade as the user's authoritative figure.</summary>
+        public bool OccupancyExplicit { get; set; } = false;
+
         /// <summary>WS H4 — whole-life carbon study period (years). Default 60 matches
         /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.
         /// WS I10 — the LCC analysis uses this SAME period (no separate hardcoded 25 yr).</summary>
@@ -231,7 +237,8 @@ namespace StingTools.Core.Sustainability
               .Append("|units=").Append(Units)
               .Append("|study=").Append(StudyPeriodYears)
               .Append("|discount=").Append(DiscountRatePct.ToString("R"))
-              .Append("|useExplicit=").Append(UseExplicit).Append('|');
+              .Append("|useExplicit=").Append(UseExplicit)
+              .Append("|occExplicit=").Append(OccupancyExplicit).Append('|');
             if (Zones != null)
                 foreach (var z in Zones)
                     sb.Append(z.ZoneId).Append('/').Append(z.BuildingUse).Append('/')

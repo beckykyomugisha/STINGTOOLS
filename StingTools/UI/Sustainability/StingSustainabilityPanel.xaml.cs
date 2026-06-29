@@ -180,6 +180,10 @@ namespace StingTools.UI.Sustainability
                 int occ = ParseInt(txtOccupancy.Text, 0);
                 double cop = ParseDouble(txtCop.Text, 0);
                 double area = ParseDouble(txtFloorArea.Text, 0);
+                // WS M2 — only a non-blank occupancy box is a user-typed (explicit) total
+                // that overrides the model; a blank box leaves the engine to derive
+                // occupancy from the resolved load-profile density.
+                s.OccupancyExplicit = !string.IsNullOrWhiteSpace(txtOccupancy.Text) && occ > 0;
                 s.Zones = new List<ZoneSetup>
                 {
                     new ZoneSetup { ZoneId = "whole-building", BuildingUse = use,
@@ -347,10 +351,13 @@ namespace StingTools.UI.Sustainability
                 Dispatcher.Invoke(() =>
                 {
                     if (floorAreaM2 > 0) txtFloorArea.Text = floorAreaM2.ToString("0", CultureInfo.InvariantCulture);
-                    if (occupancy > 0)   txtOccupancy.Text = occupancy.ToString();
+                    // WS M2 — do NOT write the occupancy estimate into the box: that would
+                    // make it an explicit user total that overrides (and freezes) the
+                    // model-derived, per-use occupancy. Leave it blank so the engine
+                    // derives it from the load-profile density and re-derives on use change.
                     if (!string.IsNullOrWhiteSpace(climateZone) && string.IsNullOrWhiteSpace(cmbClimateZone.Text))
                         cmbClimateZone.Text = climateZone;
-                    UpdateStatus($"Auto-filled from model: {floorAreaM2:0} m² · {occupancy} occ");
+                    UpdateStatus($"Auto-filled from model: {floorAreaM2:0} m² · occupancy ~{occupancy} (model-derived)");
                 });
             }
             catch (Exception ex) { StingLog.Warn($"Sus ApplyAutoFill: {ex.Message}"); }

@@ -231,7 +231,9 @@ namespace StingTools.Core.Sustainability
             // used Σ per-zone occupants (model / load-profile density); water now uses
             // the same population unless the user typed an explicit setup total.
             int zoneOccupants = zones.Sum(z => z.OccupantCount);
-            var occ = SustainOccupancy.Resolve(setup.TotalOccupancy, zoneOccupants);
+            // WS M2 — only a user-typed total wins; otherwise the model-derived
+            // (profile-density) population, so the source label is honest.
+            var occ = SustainOccupancy.Resolve(setup.TotalOccupancy, zoneOccupants, setup.OccupancyExplicit);
             res.Water = EstimateWater(doc, setup, baseline, res.Climate, occ.Occupancy);
             res.Warnings.AddRange(res.Water.Warnings);
             if (occ.Occupancy > 0)
@@ -553,7 +555,12 @@ namespace StingTools.Core.Sustainability
                     var z = new LoadZone
                     {
                         Id = zs.ZoneId, Name = zs.ZoneId, SpaceTypeId = zs.BuildingUse,
-                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0, OccupantCount = zs.Occupancy
+                        FloorAreaM2 = zs.FloorAreaM2, HeightM = 3.0,
+                        // WS M2 — only a user-typed occupancy seeds the zone; otherwise 0
+                        // so ApplyProfile derives it from the load-profile density (the
+                        // residential-vs-office fix). A stale office-density estimate in
+                        // the setup must NOT override the per-use model occupancy.
+                        OccupantCount = setup.OccupancyExplicit ? zs.Occupancy : 0
                     };
                     ApplyProfile(z, ResolveProfile(profiles, zs.BuildingUse, warnings, noted));
                     zones.Add(z);

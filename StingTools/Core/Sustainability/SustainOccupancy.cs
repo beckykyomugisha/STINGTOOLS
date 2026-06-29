@@ -24,16 +24,26 @@ namespace StingTools.Core.Sustainability
     public static class SustainOccupancy
     {
         /// <summary>Resolve the single project occupancy fed to both the energy and
-        /// water estimators. The user's explicit setup total overrides only when it
-        /// is &gt; 0; otherwise the sum of per-zone occupants (the population the
-        /// energy estimator already uses) is used so both gates see one population.</summary>
-        public static OccupancyResolution Resolve(int setupTotalOccupancy, int zoneDerivedOccupants)
+        /// water estimators. WS M2 — only a GENUINELY user-entered total wins ("setup");
+        /// an auto-estimate must NOT masquerade as the user's figure. So the priority is:
+        /// explicit user total → the model-derived (profile-density) population ("model")
+        /// → a non-explicit setup estimate (an estimate, still labelled "model") → none.
+        /// The source label reads "model" for any derived/estimated value, "setup" only
+        /// for a user-typed one.</summary>
+        public static OccupancyResolution Resolve(int setupTotalOccupancy, int zoneDerivedOccupants, bool occupancyIsExplicit)
         {
-            if (setupTotalOccupancy > 0)
+            if (occupancyIsExplicit && setupTotalOccupancy > 0)
                 return new OccupancyResolution { Occupancy = setupTotalOccupancy, Source = "setup" };
             if (zoneDerivedOccupants > 0)
                 return new OccupancyResolution { Occupancy = zoneDerivedOccupants, Source = "model" };
+            if (setupTotalOccupancy > 0)
+                return new OccupancyResolution { Occupancy = setupTotalOccupancy, Source = "model" };
             return new OccupancyResolution { Occupancy = 0, Source = "none" };
         }
+
+        /// <summary>Back-compat 2-arg overload — treats a positive setup total as the
+        /// user's explicit figure (legacy callers that don't track the flag).</summary>
+        public static OccupancyResolution Resolve(int setupTotalOccupancy, int zoneDerivedOccupants)
+            => Resolve(setupTotalOccupancy, zoneDerivedOccupants, occupancyIsExplicit: true);
     }
 }
