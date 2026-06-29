@@ -181,10 +181,6 @@ namespace StingTools.Commands.Sustainability
     [Regeneration(RegenerationOption.Manual)]
     public class SustainLccBenefitCommand : IExternalCommand
     {
-        // Default analysis period (years) for the simple LCC roll-up; overridable
-        // via the SETUP tab in a future iteration.
-        private const int AnalysisYears = 25;
-
         // WS A5 — manual BOQ rows minted by this command carry this RateSource so a
         // re-run replaces them idempotently (never duplicates, never clobbers the
         // user's own manual / provisional-sum rows).
@@ -203,6 +199,14 @@ namespace StingTools.Commands.Sustainability
             // the crude floor-area proxies in the old EstimateCapex).
             var ctx = BuildQuantityContext(doc, setup, res);
 
+            // WS I10 — align the LCC period with the whole-life study period (no
+            // separate hardcoded 25 yr), discount future savings (NPV), and label
+            // every value in the project currency.
+            int years = setup.StudyPeriodYears > 0 ? setup.StudyPeriodYears : 60;
+            double discountPct = setup.DiscountRatePct;
+            string ccy = ResolveCurrency(doc, setup);
+            string M(double v) => $"{ccy} {v:N0}";
+
             var rows = new List<string[]>();         // raw numerics → portable CSV
             var displayRows = new List<string[]>();  // grouped thousands → panel + grid
             var boqRows = new List<BOQLineItem>();
@@ -220,7 +224,7 @@ namespace StingTools.Commands.Sustainability
                 var sizing = SustainMeasureCapex.Compute(m, ctx);
                 double capex = sizing.Capex;
                 double annualSaving = EstimateAnnualSaving(m, setup, res);
-                double lifetimeSaving = annualSaving * AnalysisYears;
+                double lifetimeSaving = SustainNpv.PresentValueAnnuity(annualSaving, years, discountPct);   // NPV (WS I10)
                 double netBenefit = lifetimeSaving - capex;
                 totalCapex += capex;
                 totalLifetimeSaving += lifetimeSaving;
@@ -228,23 +232,22 @@ namespace StingTools.Commands.Sustainability
 
                 bool gateComputed = SustainLccHealth.GateComputed(m.Gate, ready, eC, wC, mC);
                 if (!gateComputed) measuresOnNotComputedGate++;
-                string netCell = gateComputed ? $"{netBenefit:0}" : $"{netBenefit:0} (indicative — gate not computed)";
-                string netDisp = gateComputed ? $"{netBenefit:N0}" : $"{netBenefit:N0} (indicative — gate not computed)";
+                string indic = gateComputed ? "" : " (indicative — gate not computed)";
 
-                rows.Add(new[]
+                rows.Add(new[]   // CSV — bare numerics for portability
                 {
                     m.Name, m.Gate, sizing.BasisLabel,
                     $"{capex:0}", $"{annualSaving:0}/yr",
-                    $"{lifetimeSaving:0}", netCell
+                    $"{lifetimeSaving:0}", $"{netBenefit:0}{indic}"
                 });
-                displayRows.Add(new[]
+                displayRows.Add(new[]   // WS I10 — currency-labelled for the panel + result
                 {
                     m.Name, m.Gate, sizing.BasisLabel,
-                    $"{capex:N0}", $"{annualSaving:N0}/yr",
-                    $"{lifetimeSaving:N0}", netDisp
+                    M(capex), $"{M(annualSaving)}/yr",
+                    M(lifetimeSaving), $"{M(netBenefit)}{indic}"
                 });
 
-                boqRows.Add(BuildBoqRow(m, sizing, lifetimeSaving));
+                boqRows.Add(BuildBoqRow(m, sizing, lifetimeSaving, years));
             }
 
             // No operational saving on ANY measure ⇒ the Dashboard hasn't produced
@@ -267,13 +270,14 @@ namespace StingTools.Commands.Sustainability
 
             var b = new StingResultPanel.Builder()
                 .SetTitle("STING Sustainability — Life-Cycle Cost Benefit")
-                .SetSubtitle($"{AnalysisYears}-year analysis · {boqWritten} measure(s) written to the BOQ Cost Manager");
+                .SetSubtitle($"NPV at {discountPct:0.#}% over {years} yr · {ccy} · " +
+                             $"{boqWritten} measure(s) written to the BOQ Cost Manager");
             b.AddSection("Per-measure LCC")
-             .Table(new[] { "Measure", "Gate", "Sizing basis", "Capex", "Annual saving", "Lifetime saving", "Net benefit" }, displayRows);
+             .Table(new[] { "Measure", "Gate", "Sizing basis", "Capex", "Annual saving", $"Lifetime saving (NPV)", "Net benefit (NPV)" }, displayRows);
             var totals = b.AddSection("Totals")
-             .Metric("Total measure capex", $"{totalCapex:N0}")
-             .Metric($"Total {AnalysisYears}-yr operational saving", $"{totalLifetimeSaving:N0}")
-             .Metric("Net lifetime benefit", $"{totalLifetimeSaving - totalCapex:N0}")
+             .Metric("Total measure capex", M(totalCapex))
+             .Metric($"Total {years}-yr operational saving (NPV)", M(totalLifetimeSaving))
+             .Metric("Net lifetime benefit (NPV)", M(totalLifetimeSaving - totalCapex))
              .Metric("Rows in BOQ Cost Manager", $"{boqWritten}");
             if (proxySized > 0)
                 totals.Metric("Proxy-sized measures", $"{proxySized} (no model quantity — sized by proxy)");
@@ -349,7 +353,30 @@ namespace StingTools.Commands.Sustainability
         /// the capex (measure rates are in the project's BOQ currency). LifecycleCost
         /// is the net whole-life position (capex − operational saving; negative ⇒ a
         /// net benefit over the analysis period).</summary>
-        private static BOQLineItem BuildBoqRow(GreenMeasure m, MeasureCapexResult sizing, double lifetimeSaving)
+        /// <summary>WS I10 — resolve the project currency: ProjectInformation param,
+        /// else the BOQ tender config, else "UGX". Labels every LCC value.</summary>
+        private static string ResolveCurrency(Document doc, SustainProjectSetup setup)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                foreach (var pn in new[] { "PRJ_CURRENCY_TXT", "PRJ_CURRENCY", "Currency" })
+                {
+                    string v = pi?.LookupParameter(pn)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v.Trim();
+                }
+            }
+            catch { }
+            try
+            {
+                var cfg = StingTools.BOQ.BOQTenderDialog.LoadFromConfig(doc);
+                if (cfg != null && !string.IsNullOrWhiteSpace(cfg.Currency)) return cfg.Currency.Trim();
+            }
+            catch { }
+            return "UGX";
+        }
+
+        private static BOQLineItem BuildBoqRow(GreenMeasure m, MeasureCapexResult sizing, double lifetimeSaving, int years)
         {
             return new BOQLineItem
             {
@@ -367,7 +394,7 @@ namespace StingTools.Commands.Sustainability
                 RevitElementId = -1,
                 BOQLineRef = $"SUS-{m.Id}",
                 Note = ($"{m.Description} [STING sustainability measure · gate {m.Gate} · " +
-                        $"sized by {sizing.BasisLabel} · {AnalysisYears}-yr op. saving {lifetimeSaving:0}]").Trim()
+                        $"sized by {sizing.BasisLabel} · {years}-yr op. saving NPV {lifetimeSaving:0}]").Trim()
             };
         }
 

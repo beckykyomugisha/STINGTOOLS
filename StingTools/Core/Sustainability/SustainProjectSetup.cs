@@ -131,8 +131,14 @@ namespace StingTools.Core.Sustainability
         public bool UseExplicit { get; set; } = false;
 
         /// <summary>WS H4 — whole-life carbon study period (years). Default 60 matches
-        /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.</summary>
+        /// CarbonStageTracker / RICS so the RIBA-stage view and the EDGE dashboard agree.
+        /// WS I10 — the LCC analysis uses this SAME period (no separate hardcoded 25 yr).</summary>
         public int StudyPeriodYears { get; set; } = 60;
+
+        /// <summary>WS I10 — LCC discount rate (%/yr) for the NPV of operational savings.
+        /// 3.5% is a common public-sector real discount rate (UK Green Book); set 0 for
+        /// undiscounted.</summary>
+        public double DiscountRatePct { get; set; } = 3.5;
 
         public string UpdatedUtc { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
@@ -220,6 +226,7 @@ namespace StingTools.Core.Sustainability
               .Append("|zone=").Append(ClimateZone)
               .Append("|units=").Append(Units)
               .Append("|study=").Append(StudyPeriodYears)
+              .Append("|discount=").Append(DiscountRatePct.ToString("R"))
               .Append("|useExplicit=").Append(UseExplicit).Append('|');
             if (Zones != null)
                 foreach (var z in Zones)
