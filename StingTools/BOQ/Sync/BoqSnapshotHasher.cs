@@ -81,6 +81,7 @@ namespace StingTools.BOQ.Sync
                 prelim = Round(boq.PrelimPct, 2),
                 contingency = Round(boq.ContingencyPct, 2),
                 overhead = Round(boq.OverheadPct, 2),
+                vat = Round(boq.VatPct, 2),            // WP1 — VAT now part of the canonical total → must be hashed
                 currency = boq.Currency ?? "UGX",
                 fx = Round(boq.ExchangeRateUgxPerUsd, 4),
                 sections = boq.Sections

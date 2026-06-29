@@ -218,16 +218,43 @@ namespace StingTools.BOQ.Sync
                 level = item.Level ?? "",
                 zone = item.Location ?? "",
                 unit = item.Unit ?? "each",
-                netQuantity = Math.Round(item.Quantity, 6),
-                wastePercent = 0,           // P0 reserves; honoured once ES schema v2 lands
+                // WP1 — ship the REAL gross/deduction/waste split instead of a
+                // waste-baked netQuantity + wastePercent=0. The server applies
+                // wastePercent ONCE to netQuantity, so base × (1 + waste/100)
+                // reconstructs item.Quantity exactly (no double-apply, no total
+                // change). `grossQuantity` is the raw pre-deduction geometry for
+                // the audit trail (0 on manual/PS rows).
+                grossQuantity = Math.Round(item.GrossQuantity, 6),
+                deductionQuantity = Math.Round(item.DeductionQuantity, 6),
+                netQuantity = Math.Round(WastePreBase(item), 6),
+                wastePercent = Math.Round(WastePercent(item), 4),
                 unitRate = Math.Round(item.RateUGX, 2),
                 currency = "UGX",
                 lineKind = MapSourceToLineKind(item.Source),
                 pricingBasis = "Remeasure",
-                embodiedCarbonPerUnit = item.Quantity > 0
-                    ? Math.Round(item.EmbodiedCarbonKg / item.Quantity, 4)
-                    : 0
+                // WP1 — ship the authoritative engine-computed carbon TOTAL, not a
+                // per-unit value back-derived from a rounded total ÷ qty.
+                embodiedCarbonKg = Math.Round(item.EmbodiedCarbonKg, 3)
             };
+        }
+
+        /// <summary>WP1 — the cost/measured quantity BEFORE the wastage step
+        /// (gross − deductions). Equals item.Quantity for rows that carry no
+        /// measurement audit trail (manual / PS / pre-2A snapshots).</summary>
+        private static double WastePreBase(BOQLineItem item)
+        {
+            if (item.GrossQuantity > 0 && item.WastageQuantity != 0)
+                return item.Quantity - item.WastageQuantity;
+            return item.Quantity;
+        }
+
+        /// <summary>WP1 — the real wastage % implied by the measurement trail,
+        /// so server-side base × (1 + %/100) reproduces the net quantity.</summary>
+        private static double WastePercent(BOQLineItem item)
+        {
+            double basis = WastePreBase(item);
+            if (basis <= 0 || item.WastageQuantity == 0) return 0;
+            return item.WastageQuantity / basis * 100.0;
         }
 
         private static string MapSourceToLineKind(BOQRowSource source)

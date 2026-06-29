@@ -1581,16 +1581,19 @@ namespace StingTools.BOQ
             SheetBanner(ws, "GRAND SUMMARY", m);
 
             double measured = rows.Sum(x => x.TotalUGX);
-            // G3 — itemised preliminaries replace the flat % when active (% lines
-            // resolved against this summary's measured subtotal).
+            // WP1 — the ONE canonical markup waterfall (BoqTotals), the same
+            // helper BOQDocument.GrandTotalUGX and the panel KPI use, so this
+            // sheet's CONTRACT SUM equals the panel's Grand total to the shilling.
+            // G3 — itemised preliminaries replace the flat % when active.
             double prelims = m.PrelimsItemised
                 ? m.PrelimLines.Sum(l => l.AmountFor(measured))
                 : measured * (m.PrelimPct / 100.0);
-            double contingency = measured * (m.ContingencyPct / 100.0);
-            double overhead = measured * (m.OverheadPct / 100.0);
-            double subTotal = measured + prelims + contingency + overhead;
-            double vat = subTotal * (m.VatPct / 100.0);
-            double contractSum = subTotal + vat;
+            var mk = BoqTotals.Compute(measured, prelims, m.OverheadPct, m.ContingencyPct, m.VatPct);
+            double overhead = mk.Overhead;
+            double contingency = mk.Contingency;
+            double subTotal = mk.NetExVat;      // Contract Sum exclusive of tax
+            double vat = mk.Vat;
+            double contractSum = mk.GrandTotal; // == boq.GrandTotalUGX
 
             int r = 5;
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>

@@ -81,6 +81,63 @@ namespace StingTools.BOQ
         SourcePromoted
     }
 
+    // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
+
+    /// <summary>WP1 — the single canonical markup waterfall for a BOQ. Every
+    /// component carries its absolute value so a caller can render the Grand
+    /// Summary without re-deriving any base.</summary>
+    public struct BoqMarkupBreakdown
+    {
+        public double Works;        // Σ measured-works line totals (ex any markup)
+        public double Prelims;      // preliminaries (itemised Σ or % of works)
+        public double Overhead;     // main-contractor OH&P
+        public double Contingency;  // design/construction contingency
+        public double NetExVat;     // Works + Prelims + Overhead + Contingency (Contract Sum ex-VAT)
+        public double Vat;          // VAT on NetExVat
+        public double GrandTotal;   // NetExVat + Vat (Contract Sum incl VAT) — rounded
+    }
+
+    /// <summary>
+    /// WP1 — the ONE markup model. Defines each component's base so the panel
+    /// KPI, both exporters' Contract Sum, the snapshot list, the drift hash and
+    /// the budget-variance write-back all reconcile to a single number.
+    ///
+    /// Canonical convention (documented):
+    ///   1. Works subtotal  W   = Σ line totals
+    ///   2. Preliminaries   P   = itemised schedule Σ, or W × prelim%   (base: works)
+    ///   3. Overhead+Profit O   = (W + P) × ohp%                        (base: works + prelims)
+    ///   4. Contingency     C   = (W + P + O) × cont%                   (base: works + prelims + OH&P)
+    ///   5. Net ex-VAT          = W + P + O + C  (Contract Sum exclusive of tax)
+    ///   6. VAT             V   = Net × vat%
+    ///   7. Contract Sum        = Net + V        (the canonical GrandTotal, incl VAT)
+    ///
+    /// Contingency is applied *after* prelims and OH&P per standard practice.
+    /// Per-element rate-level OH&P (the opt-in ES override loaded rate, i.e. a
+    /// subcontractor's already-loaded quote) is a DIFFERENT layer baked into the
+    /// net unit rate — it is part of <c>Works</c>, not re-applied here, so the
+    /// document OH&P never double-fires against the project markup.
+    /// </summary>
+    public static class BoqTotals
+    {
+        public static BoqMarkupBreakdown Compute(double works, double prelimsAbsolute,
+            double overheadPct, double contingencyPct, double vatPct)
+        {
+            var b = new BoqMarkupBreakdown
+            {
+                Works = works,
+                Prelims = prelimsAbsolute
+            };
+            double sub1 = works + b.Prelims;
+            b.Overhead = sub1 * (overheadPct / 100.0);
+            double sub2 = sub1 + b.Overhead;
+            b.Contingency = sub2 * (contingencyPct / 100.0);
+            b.NetExVat = sub2 + b.Contingency;
+            b.Vat = b.NetExVat * (vatPct / 100.0);
+            b.GrandTotal = Math.Round(b.NetExVat + b.Vat, 0);
+            return b;
+        }
+    }
+
     // ── BOQLineItem ────────────────────────────────────────────────────────
 
     /// <summary>
@@ -301,6 +358,7 @@ namespace StingTools.BOQ
         public double PrelimPct = 12.0;
         public double ContingencyPct = 10.0;
         public double OverheadPct = 8.0;
+        public double VatPct = 18.0;                    // WP1 — VAT on the BOQ document (Uganda standard rate)
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
         /// <summary>
@@ -336,9 +394,24 @@ namespace StingTools.BOQ
         public double PrelimContributionUGX =>
             PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
 
-        public double GrandTotalUGX =>
-            Math.Round(SubtotalUGX + PrelimContributionUGX
-                       + SubtotalUGX * (ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
+        /// <summary>
+        /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
+        /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
+        /// All component properties below and every external surface read from this.
+        /// </summary>
+        public BoqMarkupBreakdown Markup =>
+            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct);
+
+        public double OverheadProfitUGX => Markup.Overhead;
+        public double ContingencyUGX    => Markup.Contingency;
+        /// <summary>Contract Sum exclusive of VAT (Works + Prelims + OH&P + Contingency).</summary>
+        public double NetTotalExVatUGX  => Markup.NetExVat;
+        public double VatUGX            => Markup.Vat;
+
+        /// <summary>The canonical, fully-marked-up Contract Sum INCLUSIVE of VAT.
+        /// This is the one number the panel KPI, both exporters, the snapshot list,
+        /// the budget variance and the server sync all agree on.</summary>
+        public double GrandTotalUGX => Markup.GrandTotal;
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
         public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);

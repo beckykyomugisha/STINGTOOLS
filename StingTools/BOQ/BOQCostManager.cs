@@ -471,10 +471,19 @@ namespace StingTools.BOQ
             };
 
             // ── STEP 1: Load config ──────────────────────────────────────
-            boq.PrelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
-            boq.ContingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
-            boq.OverheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
-            boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            // WP1 — markup % come from the tender-config store (BOQ_TENDER_*),
+            // the SAME keys BOQProfessionalExportCommand reads, so the panel KPI
+            // and the professional workbook's Contract Sum reconcile to one
+            // number. The legacy COST_* keys remain as a back-compat fallback.
+            boq.PrelimPct = TagConfig.GetConfigDouble("BOQ_TENDER_PRELIMINARIES_PCT",
+                              TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0));
+            boq.ContingencyPct = TagConfig.GetConfigDouble("BOQ_TENDER_CONTINGENCY_PCT",
+                              TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0));
+            boq.OverheadPct = TagConfig.GetConfigDouble("BOQ_TENDER_OHP_PCT",
+                              TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0));
+            boq.VatPct = TagConfig.GetConfigDouble("BOQ_TENDER_VAT_PCT", 18.0);
+            boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("BOQ_TENDER_UGX_PER_USD",
+                              TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0));
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
             // Phase 2A — active measurement standard (project_config.json key set
@@ -1874,10 +1883,30 @@ namespace StingTools.BOQ
                                             }
                                         }
                                     }
-                                    double pre = 12.0, con = 10.0, oh = 8.0;
-                                    double.TryParse(jo.Value<string>("PrelimPct") ?? "", NumberStyles.Any,
-                                        CultureInfo.InvariantCulture, out pre);
-                                    total = Math.Round(total * (1 + pre / 100 + con / 100 + oh / 100), 0);
+                                    // WP1 — read the snapshot's ACTUAL markup %
+                                    // (incl. VAT + itemised prelims) and apply the
+                                    // ONE canonical waterfall so the dropdown total
+                                    // equals what BuildBOQDocument computed. Old
+                                    // snapshots lacking a field fall back to the
+                                    // tender defaults.
+                                    double works = total;
+                                    double pre = jo.Value<double?>("PrelimPct") ?? 12.0;
+                                    double con = jo.Value<double?>("ContingencyPct") ?? 10.0;
+                                    double oh  = jo.Value<double?>("OverheadPct") ?? 8.0;
+                                    double vat = jo.Value<double?>("VatPct") ?? 18.0;
+                                    bool prelimsItemised = jo.Value<bool?>("PrelimsItemised") ?? false;
+                                    double prelimsAbs = works * pre / 100.0;
+                                    if (prelimsItemised && jo["PrelimLines"] is JArray plArr)
+                                    {
+                                        try
+                                        {
+                                            var plLines = plArr.ToObject<List<BoqPrelimLine>>();
+                                            if (plLines != null && plLines.Count > 0)
+                                                prelimsAbs = plLines.Sum(l => l.AmountFor(works));
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"ListSnapshots prelimLines {Path.GetFileName(f)}: {ex.Message}"); }
+                                    }
+                                    total = BoqTotals.Compute(works, prelimsAbs, oh, con, vat).GrandTotal;
                                 }
                             }
                         }
