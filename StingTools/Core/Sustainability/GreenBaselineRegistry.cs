@@ -197,7 +197,21 @@ namespace StingTools.Core.Sustainability
                     res.Source      = hit.Source;
                     res.Provenance  = hit.Provenance;
                     res.MatchedKey   = $"{hit.Key.Country}/{hit.Key.ClimateZone}/{hit.Key.BuildingUse}";
-                    res.Summary      = BuildSummary(rule, country, climateZone, buildingUse, hit);
+
+                    // WS I2 — per-axis honesty: an axis that was unset (requested "*")
+                    // or that the matched row wildcarded is a fallback/default proxy,
+                    // NOT an exact match. Only a fully-real, fully-matched key is exact.
+                    AddFallbackAxis(res, "country", country, hit.Key.Country);
+                    AddFallbackAxis(res, "climate zone", climateZone, hit.Key.ClimateZone);
+                    AddFallbackAxis(res, "building use", buildingUse, hit.Key.BuildingUse);
+                    res.ExactMatch = res.FallbackAxes.Count == 0;
+
+                    if (res.ExactMatch)
+                        res.Summary = $"exact match {country}/{climateZone}/{buildingUse}, source {hit.Source} — {hit.Provenance}";
+                    else if (rule == "country+climateZone+buildingUse")
+                        res.Summary = $"default proxy ({string.Join("; ", res.FallbackAxes)}), source {hit.Source} — {hit.Provenance}";
+                    else
+                        res.Summary = BuildSummary(rule, country, climateZone, buildingUse, hit);
                     return res;
                 }
             }
@@ -209,6 +223,17 @@ namespace StingTools.Core.Sustainability
             res.Summary = $"No baseline catalogue row for {country}/{climateZone}/{buildingUse} — " +
                           "add one to the project override before a meaningful % can be reported.";
             return res;
+        }
+
+        /// <summary>WS I2 — record an axis as a fallback/default proxy when it was
+        /// unset (requested "*") or the matched row wildcarded it.</summary>
+        private static void AddFallbackAxis(BaselineResolution res, string name, string requested, string matched)
+        {
+            bool fb = requested == "*" || !string.Equals(matched, requested, StringComparison.OrdinalIgnoreCase);
+            if (!fb) return;
+            res.FallbackAxes.Add(requested == "*"
+                ? $"{name} (unset → {matched} default proxy)"
+                : $"{name} ({requested} → {matched} proxy)");
         }
 
         private static BaselineKey BuildWantKey(string rule, string country, string zone, string use)

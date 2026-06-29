@@ -262,6 +262,16 @@ namespace StingTools.Commands.Sustainability
 
             b.AddSection("Baseline resolution (proxy log)")
              .Info(res.Baseline?.Summary ?? "no baseline resolved");
+            // WS I2 — show the resolved key + an honest exact-vs-proxy flag so a
+            // wildcard/defaulted resolution is never read as an exact match.
+            if (res.Baseline != null && res.Baseline.Found)
+            {
+                if (res.Baseline.ExactMatch)
+                    b.Metric("Baseline match", res.Baseline.MatchedKey, "exact match");
+                else
+                    b.MetricWarn("Baseline match", res.Baseline.MatchedKey,
+                        "default proxy (not exact): " + string.Join("; ", res.Baseline.FallbackAxes));
+            }
 
             if (edge != null)
             {
