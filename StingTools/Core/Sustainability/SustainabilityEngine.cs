@@ -620,7 +620,9 @@ namespace StingTools.Core.Sustainability
         }
 
         /// <summary>DHW litres/person·day used ONLY when no profile resolves (the
-        /// per-use values now live in the load profiles — WS K2).</summary>
+        /// per-use values now live in the load profiles — WS K2). WS L4 — the old
+        /// DhwForUse C# switch is fully removed; DHW resolves solely from the profile
+        /// (e.g. hotel is now 120 L/p·d, superseding the old switch's 100).</summary>
         private const double DhwFallback = 5.0;
 
         /// <summary>WS K2 — data-driven use→profile resolution (id → alias → loose →
