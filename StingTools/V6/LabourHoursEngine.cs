@@ -104,6 +104,32 @@ namespace StingTools.V6
             public Dictionary<string, (int count, double hours)> ByCrew { get; } = new();
         }
 
+        /// <summary>
+        /// G4 — read-only sibling of <see cref="Apply"/>: resolves labour rates and
+        /// aggregates hours + cost by crew WITHOUT writing any parameters, so a
+        /// labour-content rollup can render inline without opening a transaction.
+        /// </summary>
+        public static ApplyResult Rollup(IList<Element> elements)
+        {
+            var rates = LoadRates();
+            var res = new ApplyResult();
+            if (elements == null) return res;
+            foreach (var el in elements)
+            {
+                var rate = Resolve(rates, el);
+                if (rate == null) continue;
+                double qty = Quantity(el, rate.Unit);
+                double hrs = Math.Round(qty * rate.HoursPerUnit, 2);
+                double cost = Math.Round(hrs * rate.GbpPerHour, 2);
+                res.ElementsTouched++;
+                res.TotalHours += hrs;
+                res.TotalCostGbp += cost;
+                if (!res.ByCrew.TryGetValue(rate.Crew, out var v)) v = (0, 0);
+                res.ByCrew[rate.Crew] = (v.count + 1, v.hours + hrs);
+            }
+            return res;
+        }
+
         public static ApplyResult Apply(Document doc, IList<Element> elements)
         {
             var rates = LoadRates();

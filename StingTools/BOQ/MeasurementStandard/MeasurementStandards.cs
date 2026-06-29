@@ -57,8 +57,27 @@ namespace StingTools.BOQ.MeasurementStandard
                 ? $"Supply and fix {line?.Category?.ToLowerInvariant() ?? "item"}."
                 : line.ResolvedNRM2Paragraph;
 
+        // Phase 2A — proper NRM2 rules-based deductions. Reads the per-category
+        // measurement rule (Wall.FindInserts openings net of the de-minimis,
+        // etc.) from MeasurementRuleRegistry; returns the NET-of-deductions
+        // quantity. Wastage is applied separately + visibly by the cost manager.
         public double ApplyDeductions(BOQLineItem line, Element el)
-            => line?.Quantity ?? 0;
+        {
+            double gross = line?.Quantity ?? 0;
+            if (line == null || el == null || el.Document == null) return gross;
+            try
+            {
+                var reg = MeasurementRuleRegistry.Get(el.Document, Id);
+                var rule = reg.Match(line.Category, line.Discipline, null);
+                if (rule == null) return gross;
+                return MeasurementDeductionEngine.ApplyDeductions(el, line.Unit, gross, rule, reg.Defaults);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("Nrm2Deduct", $"Nrm2 ApplyDeductions: {ex.Message}");
+                return gross;
+            }
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -116,25 +135,28 @@ namespace StingTools.BOQ.MeasurementStandard
                 : $"{baseDesc}; {material}; as drawn";
         }
 
+        // CESMM4: deduct openings > 0.5 m² from wall areas (Class U §3). Phase 2A
+        // routes the geometry through the shared MeasurementDeductionEngine with
+        // the CESMM4 0.5 m² threshold pinned, reusing the universal category
+        // measurement rules (the engine resolves Wall.FindInserts openings).
         public double ApplyDeductions(BOQLineItem line, Element el)
         {
-            // CESMM4: deduct openings > 0.5 m² from wall areas (Class U §3).
-            if (line == null) return 0;
-            double q = line.Quantity;
-            if (line.Unit == "m²" && line.Category != null &&
-                line.Category.IndexOf("wall", StringComparison.OrdinalIgnoreCase) >= 0)
+            double gross = line?.Quantity ?? 0;
+            if (line == null || el == null || el.Document == null) return gross;
+            try
             {
-                q -= EstimateLargeOpeningsM2(el);
+                var reg = MeasurementRuleRegistry.Get(el.Document, Id);
+                var rule = reg.Match(line.Category, line.Discipline, null);
+                if (rule == null) return gross;
+                // Class U §3 — fixed 0.5 m² de-minimis for wall openings.
+                return MeasurementDeductionEngine.ApplyDeductions(
+                    el, line.Unit, gross, rule, reg.Defaults, thresholdOverrideM2: 0.5);
             }
-            return Math.Max(0, q);
-        }
-
-        private double EstimateLargeOpeningsM2(Element el)
-        {
-            // Stub — full deduction algorithm requires opening-host
-            // traversal (`Wall.FindInserts`). Project-override hook lives
-            // in the cesmm4 standard JSON when authored.
-            return 0;
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("Cesmm4Deduct", $"CESMM4 ApplyDeductions: {ex.Message}");
+                return gross;
+            }
         }
     }
 

@@ -3,6 +3,1032 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ 5D Phase 2B–2E — live rates · drift · incremental · WBS/ERP)
+
+Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phases
+2B → 2E, one continuous pass after 2A was approved. Each slice compile-verified
+`-c Release -t:Rebuild` (0 errors) and committed separately; all inline (no popups),
+engines reused not forked, `_BIM_COORD` JSON for persistence, Revit reads on the API
+thread, no secrets committed.
+
+**2B — Live rate feeds inline (BCIS / Planscape).** `RateFeedsConfig` + `RateFeedsStore`
+persist BCIS (base URL / key / TTL) + Planscape on/off to `_BIM_COORD/rate_feeds.json`
+(API key in the project file only — never committed). `RateProviderRegistry.Build` now
+attaches the configured feeds so the chain *and* `ResolveAll` include them; new
+`GetLiveFeedProviders(doc)` exposes just the Revit-free network feeds for off-thread
+fetching. `PlanscapeRateProvider` reuses `PlanscapeServerClient` auth via a new public
+`GetBoqRateAsync` (null offline). Inline **Rate feeds** config form + **★ Fetch live
+rates** action: candidates fetched off the UI thread, per-line table (current vs best
+live candidate, ⚠ amber < 60 confidence, as-of date), per-line + bulk Accept; manual
+Override lines flagged "protected" and never auto-applied; Accept writes via the
+model-override sidecar (RateSource=BCIS/Planscape, survives rebuild) and re-totals.
+
+**2C — Drift / auto-reprice.** `CompareSnapshots` refactored to `BuildDiff(a,b)` +
+`CompareLiveToSnapshot` (diff the live bill vs a snapshot file, no temp write); shared
+`LineKey`. Inline **Drift check** action: checksum-changed + net Δ cost/carbon/% headline,
+element-linked Findings grouped by change type (qty moved / new / rate revised / removed),
+and a **Re-price** action → `Cost_RepriceDrift` command (`RepriceElements`, API thread)
+re-runs the rate chain incl. live feeds on qty-moved + new non-override elements, pins the
+fresh rate only when it moves (>1%), re-totals. Passive amber **drift banner** on the
+dashboard strip (checksum compare each refresh; classify only when changed) persisted to
+`_BIM_COORD/boq_drift.json` (`BoqDriftStore`), deep-links to Drift check.
+
+**2D — Incremental host take-off (highest-risk; conservative).** Default Refresh
+re-takes-off only changed/added elements over a cached raw host-item set; identical to a
+full rebuild by construction (STEP 6–9 run unchanged on the same raw set; checksum
+excludes `LastCosted`). `StingCostDirtyMarker` IUpdater (GetChangeTypeAny on cost
+categories) records changed ids; type/level/grid/material edits or >500-element bulk edits
+force a full rebuild. `BuildBOQDocument` is suppress-wrapped so its own STEP 9 stale-flag
+transaction doesn't self-dirty every element. Add/delete handled by a cheap id-universe
+diff. Safety rails: incremental gated on the marker being enabled; rate/measurement config
+changes + document close invalidate the host cache; **↻ Refresh (full)** button forces a
+complete re-walk (the always-correct fallback). 2D.2 (off-thread compute) skipped per the
+prompt — the dirty set removes the per-refresh cost without the threading/regression risk.
+
+**2E — User-defined WBS/CBS + ERP export.** `BOQLineItem.WbsCode`/`CbsCode`; `BoqWbsMap` +
+`BoqWbsMapStore` (rules from category/discipline/NRM2/level/zone → WBS/CBS, persisted to
+`_BIM_COORD/boq_wbs_map.json`); inline **WBS / CBS map** editor. `ApplyWbsCbs` (build STEP
+6d): map rule wins, else inherit the linked 4D `ScheduleTask.Wbs` (one breakdown shared by
+4D + 5D). `BoqGroupingMode.Wbs/Cbs` + Group dropdown + optional WBS/CBS columns. **★ Export
+to ERP**: `BoqErpExporter` writes a flat import-ready CSV (WBS · CBS · cost code · qty ·
+rate · total · level · location · source · IfcGuid) + optional Primavera P6 activity-cost
+XML, inline with an Open-file button. Existing 8-sheet XLSX + IFC Qto exports unchanged.
+
+**Consolidated smoke test (human, in Revit — covers 2A → 2E):**
+1. **2A measurement:** wall with door + window (> 0.5 m²) measures **net** of the openings;
+   toggle Gross/Deduct/Waste/Net columns (Gross − Deduct = Net); **Measurement audit**
+   action lists the derivation inline; switch standard NRM2↔CESMM4 + Refresh changes nets;
+   a floor with a by-face opening > 1 m² measures net of the void; pipes show "Centre-line".
+2. **2B live rates:** **Rate feeds** → enable BCIS (any base URL/key) or Planscape, save
+   (confirm `_BIM_COORD/rate_feeds.json` written, key only in project). **Fetch live rates**
+   → candidate table renders inline; Accept (per-line + bulk) applies + re-totals; a manual
+   Override line shows "protected"; with feeds unreachable it degrades cleanly (no blank
+   rates, no throw). No popups.
+3. **2C drift:** Save a snapshot. Edit a few elements + Refresh → amber **drift banner**
+   appears on the dashboard. **Drift check** lists the changed lines element-linked (click
+   selects in Revit). **Re-price** updates only drifted non-override lines + re-totals.
+   Banner survives panel reopen; Save a new snapshot resets it next refresh.
+4. **2D incremental:** On a large model, after the first build edit a handful of elements +
+   **↻ Refresh** → visibly faster, only those re-taken-off (log: "incremental host
+   take-off: re-took-off N of M"). **↻ Refresh (full)** gives an identical grand total +
+   per-section totals (verify they match). Switch measurement standard / Reload Rules →
+   next refresh is full. No Revit error in `StingTools.log`.
+5. **2E WBS/ERP:** **WBS / CBS map** → add a rule (e.g. category "Wall" → WBS "2.1"),
+   Save + Refresh; toggle WBS/CBS columns; Group dropdown → **WBS** files the bill by code;
+   a line with no rule but in a 4D task inherits that task's WBS. **Export to ERP** writes
+   the CSV (open it — WBS/CBS columns populated) + optional P6 XML; existing XLSX/IFC
+   exports still work.
+6. Confirm no data-entry popups anywhere in 2B–2E (all inline) and no errors in the log.
+
+#### Completed (BOQ 5D Phase 2A — NRM2 rules-based measurement)
+
+Branch `claude/placement-centre-review-audit`. `docs/BOQ_5D_PHASE2_PROMPT.md` Phase 2A.
+Take-off was raw Revit geometry × rate — `IMeasurementStandard.ApplyDeductions` was a
+stub and `TakeoffRule.WastePercent` was reserved-but-unused. Phase 2A adds a measurement-
+rules layer that turns *modelled geometry* into a *measured quantity* with an auditable
+gross→net trail. Four slices, each compile-verified `-c Release -t:Rebuild` (0 errors)
+and committed separately.
+
+**New model fields** (`BOQ/BOQModels.cs`): `BOQLineItem.GrossQuantity` (raw geometry),
+`DeductionQuantity` (openings/voids removed), `WastageQuantity` (visible waste step),
+`MeasurementNote` ("Area 43.0 m² − openings/voids 5.2 m² + wastage 5% = 37.8 m²").
+`Quantity` is now the **net measured** value used for cost; the raw geometry is never
+lost. Added to `Clone()`. `GrossQuantity == 0` ⇒ no separate measurement (manual/PS /
+pre-2A snapshots) — readers fall back to `Quantity`.
+
+**New measurement layer** (`BOQ/MeasurementStandard/`):
+- `MeasurementRules.cs` — `MeasurementRule` POCO + `MeasurementRuleRegistry` (corporate
+  `Data/STING_NRM2_MEASUREMENT_RULES.json` + project override
+  `<project>/_BIM_COORD/{id}_measurement_rules.json`, merged by id, project wins;
+  mirrors `TakeoffRuleRegistry`). Per-category de-minimis thresholds + per-category
+  wastage (-1 = inherit). CESMM4 reuses the NRM2 ruleset with its own threshold.
+- `MeasurementDeductionEngine.cs` — the geometry side. **Walls:** opening areas via
+  `Wall.FindInserts` (doors/windows/wall openings) net of the de-minimis. **Floors/
+  slabs/roofs/ceilings:** by-face/by-host `Opening` void areas (a per-document
+  host→openings index built lazily + reset each `BuildBOQDocument`; sketch-drawn holes
+  already excluded by `HOST_AREA_COMPUTED` so no double-count; shaft/host-less openings
+  deferred). **Linear (pipe/duct/conduit/cable tray/framing/railing):** centre-line /
+  running-girth measure points (net = centre-line; no false deductions).
+- `Nrm2Standard.ApplyDeductions` / `Cesmm4Standard.ApplyDeductions` now implemented (were
+  stubs) through the engine + registry.
+
+**Pipeline** (`BOQ/BOQCostManager.cs`): `BuildLineItemFromElement` runs
+`MeasureQuantity` — `DeriveGrossQuantity` (raw geometry, no waste) →
+`IMeasurementStandard.ApplyDeductions` → `EffectiveWastePercent` (visible wastage step,
+preserving the existing waste / rebar-lap / concrete-over-order numbers) → net +
+`MeasurementNote`. The active standard is resolved from `COST_MEASUREMENT_STANDARD` and
+threaded through both host and linked take-off, so NRM2 vs CESMM4 give different nets.
+Wastage is now a distinct, visible step — never folded into the rate. Non-deducted
+items keep identical totals (zero regression there).
+
+**Audit surface** (`UI/BOQCostManagerPanel.cs` + `BOQ/BoqPrintProfile.cs`): optional
+Gross / Deduct / Waste / Net grid columns (off by default; toggle via Columns menu /
+print profiles); the per-row NRM2 detail panel shows the measurement note; a new inline
+**Measurement audit** action (`BOQ_MeasurementAudit`) renders a panel-local read-only
+`StingResultPanel` — summary counts + a per-line gross/deduct/waste/net table — into the
+Actions report pane (no popup).
+
+**Smoke test (human, in Revit):**
+1. Model a wall with a door + window (each > 0.5 m²). Build/Refresh the BOQ → the wall
+   line's **Qty is net of the openings** (less than the gross wall area); toggle on the
+   Gross/Deduct/Waste/Net columns to see Gross − Deduct = Net; the row-detail shows
+   "Area … − openings/voids … = …".
+2. **Measurement audit** action lists that wall (and any floor with a by-face opening)
+   with its gross→net derivation; no popup, renders inline.
+3. Switch standard (Set Standard → CESMM4) and Refresh → wall nets recompute (0.5 m²
+   threshold); switch back to NRM2.
+4. A floor with a shaft/by-face opening > 1.0 m² measures net of the void.
+5. Confirm non-wall/floor items (pipes, equipment) are unchanged in total; pipes show
+   "Centre-line … m" in the audit.
+6. Drop a `_BIM_COORD/nrm2_measurement_rules.json` with a wall `wastePercent: 7.5` →
+   the wall's Waste column / note shows 7.5%.
+7. Verify no errors in `StingTools.log`.
+
+**Caveats:** shaft openings with no single host are not yet attributed to a floor
+(by-face/by-host openings are); the aggregated-constituent per-element stamp
+(`WriteElementParameters` re-derive) still uses the legacy `DeriveQuantity` (gross×waste,
+no deductions) — a stamping detail that doesn't affect line-item totals.
+
+#### Completed (BOQ 5D Phase 1 slice a — unified ScheduleModel + single store)
+
+Branch `claude/placement-centre-review-audit`. First slice of schedule unification
+(`docs/BOQ_5D_ENHANCED_REBUILD_PROMPT.md` Phase 1.1). Establishes ONE canonical
+schedule model + ONE store; the two surfaces are repointed in slice (b) and MSP/P6 XML
+import lands in slice (c).
+
+**The problem:** two schedule stores that didn't share state —
+`_BIM_COORD/boq_schedule.json` (Cost Manager: `BoqScheduleState` = Phases/Periods/
+Milestones) and `STING_BIM_MANAGER/schedule_4d.json` (BCC: a `JObject` of tasks with
+WBS + predecessors + element links, written by `Scheduling4DEngine`). Edit one, the
+other was stale.
+
+**New:** `StingTools/Core/Schedule/ScheduleModel.cs` —
+- `ScheduleModel` (Tasks / Periods / Milestones + ProjectName / Source / ImportedDate /
+  AsOf / ActualCostToDate, plus a `Version` for future in-place upgrades).
+- `ScheduleTask` (INPC) — the superset both legacy models needed: `Id`, `MsUid`, `Wbs`,
+  `Name`, `Start`/`End` (+ `StartStr`/`EndStr` for binding), `PercentComplete`,
+  `CostLoadUGX` (5D driver), `Predecessors` (`SchedulePredecessor` FS/SS/FF/SF),
+  `ElementIds` (4D link), `IsMilestone`/`IsSummary`/`OutlineLevel`/`Category`/`Notes`.
+- `SchedulePeriod` (Date/%/ACWP) + `ScheduleMilestone` (Name/Date/Done), INPC, mirroring
+  the legacy shapes so slice (b) can bind directly.
+- `ScheduleStore` (single source of truth) — `Load`/`Save` against
+  `_BIM_COORD/schedule.json`; `Migrate(doc)` one-time importer that reads **either /
+  both** legacy files (JObject-parsed, so no coupling to the UI's `BoqScheduleState`),
+  mapping boq phases→Tasks + periods + milestones and 4D tasks→Tasks (deduped by name so
+  a phase isn't double-listed; `Source` records what merged). `EnsureMigrated(doc)` is
+  the idempotent trigger — writes schedule.json only when it's absent AND a legacy store
+  exists.
+
+**Wiring:** `StingToolsApp.OnDocumentOpened` calls `ScheduleStore.EnsureMigrated` (a
+guarded try/catch step alongside the template extraction). No surface reads the new
+store yet — that is slice (b) — so existing behaviour is unchanged. Compile-verified
+Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): open a project that already has a `_BIM_COORD/
+boq_schedule.json` (saved from the Cost Manager Schedule tab) and/or a
+`STING_BIM_MANAGER/schedule_4d.json` (saved from BCC's Auto-Schedule 4D). On open, a new
+`_BIM_COORD/schedule.json` appears merging both — phases + periods + milestones from the
+BOQ store and any non-duplicate 4D tasks (with WBS/predecessors) — and `StingTools.log`
+shows a "Schedule unified → _BIM_COORD/schedule.json (N tasks, …; source migrated:…)"
+line. Re-opening is a no-op (file already present). The existing Schedule tab + BCC
+4D/5D tab are unchanged in this slice.
+
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 4: selection / keys / scroll)
+
+Branch `claude/placement-centre-review-audit`. Interactivity polish on the three Schedule
+grids via `StyleScheduleGrid<T>`:
+- **Selection** — `SelectionMode = Single`, `SelectionUnit = FullRow`, with a
+  theme-navy highlight (overrides the OS blue via `SystemColors.HighlightBrushKey` /
+  `InactiveSelectionHighlightBrushKey` in the grid's resources; white / navy text).
+- **Delete key** — pressing Delete on a focused row removes it through the same
+  `DeleteScheduleRow` path as the ✕. Guarded by `e.OriginalSource is DataGridCell` so it
+  only fires on a selected row, never while editing a cell's text (where the source is the
+  editor `TextBox`).
+- **Scroll-into-view** — `SelectScheduleRow` selects + `ScrollIntoView`s the new row after
+  ＋ Phase / ＋ Period / ＋ Milestone, and the again-current neighbour after a delete
+  (slice 3). Totals (PV/EV + S-curve) already recompute on every add / edit / delete.
+
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → click a row → it highlights navy; press
+Delete → the row is removed and the S-curve/EVM update (editing a cell's text and pressing
+Delete still deletes a character, not the row); ＋ Phase / ＋ Period / ＋ Milestone adds a
+row, selects it and scrolls it into view.
+
+**Acceptance (slices 1–4):** all three grids fill the panel width with non-truncated,
+resizable, sortable columns; long lists scroll within each grid (240/200px) with the wheel;
+each row has a working ✕ (and Delete key) that removes it, updates the S-curve/EVM, and
+persists across reopen; navy selection highlight; no popups; build 0 errors.
+
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 3: per-row delete)
+
+Branch `claude/placement-centre-review-audit`. Each of the three Schedule grids gains a
+fixed-width (34px) trailing **✕** column (`DataGridTemplateColumn`, non-resizable /
+non-sortable / non-reorderable). New generic `MakeDeleteColumn<T>` builds the button via
+a code `FrameworkElementFactory`; its click reads the row's `DataContext` and calls
+`DeleteScheduleRow<T>` — remove the item from its `ObservableCollection`, then
+`SaveSchedule()` + `RecalcSchedule()` so PV/EV and the S-curve update immediately and the
+change persists to `_BIM_COORD/schedule.json`. No popup (immediate delete; re-addable via
+the existing ＋ Phase / ＋ Period / ＋ Milestone). The last-row case is graceful — the
+collection simply empties (`RecalcSchedule`/`DrawSCurve` already no-op on an empty list).
+After a delete a sensible neighbour row is selected + scrolled into view. ✕ is themed
+navy/grey-bordered with red glyph. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → click the ✕ on a phase / period / milestone
+row → it disappears, the S-curve + EVM strip recompute, and the deletion survives closing
+and reopening the project. Deleting every phase leaves an empty grid (no crash); ＋ Phase
+adds one back.
+
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 2: resizable/sortable columns)
+
+Branch `claude/placement-centre-review-audit`. All three Schedule grids now set
+`CanUserResizeColumns = true` + `CanUserSortColumns = true` (explicit), and columns are
+sized so headers + content never clip: the name column is star-width (Phase / Milestone,
+`MinWidth` 140); date / number columns are `DataGridLength.Auto` (size to max of header
+and content, so "% Complete", "Period end", "Actual cost (cum, UGX)", "Planned (UGX)",
+"Date", "Done" all render in full) with sensible `MinWidth`s. The periods grid's
+Actual-cost column is star so that grid fills the width too. Date columns carry
+`SortMemberPath = "Start"/"End"/"Date"` so clicking the header sorts by the real
+`DateTime`, not the `yyyy-MM-dd` text. Users can drag column borders to widen any column.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): Schedule tab → every header reads in full ("Phase",
+"% Complete", "Period end", "Actual cost (cum, UGX)", "Milestone", "Planned (UGX)");
+drag a column border → it resizes; click a date/number header → rows sort (dates
+chronologically); the name columns stretch to fill remaining width.
+
+#### Completed (BOQ 5D Schedule-tab interactivity — slice 1: layout + scroll)
+
+Branch `claude/placement-centre-review-audit`. Fixes the Schedule tab's three grids
+(`_scheduleGrid` / `_periodsGrid` / `_milestonesGrid`) rendering ~150px wide with
+truncated headers ("Pr St Er % Pl").
+
+**Root cause:** the outer `ScrollViewer` wrapping the phases/periods/milestones
+`StackPanel` had `HorizontalScrollBarVisibility = Auto`, which hands its content
+*unbounded* width — so the star (`*`) name columns collapse to their minimum and each
+grid shrinks to the sum of its minimal columns.
+
+**Fix:** the outer `ScrollViewer` is now `HorizontalScrollBarVisibility = Disabled`
+(bounds content to the viewport width → star columns stretch full-width; vertical scroll
+stays Auto). Each grid gains `HorizontalAlignment = Stretch`, a bounded `MaxHeight`
+(phases 240, periods/milestones 200) with `VerticalScrollBarVisibility = Auto` so long
+lists scroll *inside* the grid instead of pushing the tab, and its own
+`HorizontalScrollBarVisibility = Auto` for column overflow. New `AttachScheduleGridWheel`
+(+ `FindChildScrollViewer`) implements nested-scroll: the wheel scrolls the grid's rows
+and only forwards to the enclosing `ScrollViewer` at the grid's scroll boundary
+(extends the existing Phase-108d wheel-forward pattern). Section headers (PROGRAMME
+PHASES / REPORTING PERIODS / MILESTONES) unchanged. Compile-verified Release
+`-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): open the BOQ Cost Manager → Schedule tab. All three grids
+now fill the panel width with full, non-truncated headers; a long phase list scrolls
+within the 240px grid (wheel over the grid scrolls its rows; past the end it scrolls the
+whole tab); the S-curve + EVM strip above are unaffected.
+
+#### Completed (BOQ 5D Phase 1 slice c — MSP/P6 XML import + Phase 1 acceptance)
+
+Branch `claude/placement-centre-review-audit`. Wires real-programme import into the Cost
+Manager Schedule tab and closes Phase 1.
+
+**MSP/P6 XML import** — new `Scheduling4DEngine.ImportP6XML` (Primavera P6 PMXML —
+`<Activity>` elements matched by local name so any P6 namespace parses; Id / Name /
+Start / Finish / %; 0..1 fractions normalised) + `ImportProgrammeXML` auto-detect
+dispatcher (`<Task>` ⇒ MS Project XML via the existing `ImportMSProjectXML`; `<Activity>`
+⇒ P6). New Schedule-tab button **⤓ Import MSP/P6 XML** (`ImportProgrammeXmlInline`): the
+only popup is the OS file-open; the parsed JObject is written to the unified store via
+`ScheduleStore.Save4d` and the tab reloads inline. Binary `.mpp` / `.xer` are out of
+scope (export to XML from MS Project / P6) — stated in the UI hint + the dispatcher
+docstring.
+
+**Phase 1 self-check (programmatically verified):**
+1. **One source of truth** — no code path reads/writes `boq_schedule.json` or
+   `schedule_4d.json` directly. Every remaining textual reference is a comment or the
+   migration importer's `LegacyBoqFileName` / `Legacy4dFileName` constants in
+   `ScheduleStore`; the only file the importer touches the legacy pair from is
+   `ScheduleStore.Migrate`. Everything else reads/writes `_BIM_COORD/schedule.json`.
+2. **Both surfaces render from `ScheduleStore`** — the Cost Manager Schedule tab
+   (`EnsureScheduleLoaded` → `Load`, `SaveSchedule` → `Save`) and BCC's 4D/5D tab
+   (`Build4D5DTab` populates its KPIs from `ScheduleStore.Load` + deep-links to the
+   Cost Manager).
+3. **MSP/P6 XML import produces tasks in the unified model** — `ImportProgrammeXML` →
+   `ScheduleStore.Save4d` → `schedule.json`.
+
+Full Release `-t:Rebuild`: **0 Warning(s), 0 Error(s).**
+
+**Consolidated Phase 1 Revit smoke test** (human — one pass for slices a + b + c):
+1. **Migration (a):** open a project with a legacy `_BIM_COORD/boq_schedule.json` and/or
+   `STING_BIM_MANAGER/schedule_4d.json`. On open, `_BIM_COORD/schedule.json` appears
+   merging both (phases + periods + milestones + non-duplicate 4D tasks with WBS/
+   predecessors); `StingTools.log` shows the "Schedule unified → …" line. Re-open = no-op.
+2. **Cost Manager Schedule tab (b):** open the BOQ Cost Manager → Schedule tab. It shows
+   the unified tasks/periods/milestones. Edit a phase name / date / %, add a phase /
+   period / milestone → the S-curve + EVM strip recompute, and the changes persist to
+   `schedule.json` (not `boq_schedule.json`, which is never rewritten). 4D tasks keep
+   their WBS/predecessors through an edit-and-save round-trip.
+3. **BCC 4D/5D tab (b):** open the BIM Coordination Center → 4D/5D tab. The KPI cards
+   (Tasks / Milestones / Earned Value) reflect the same unified schedule; the banner +
+   **Open in Cost Manager →** deep-link opens the Cost Manager window.
+4. **Cross-surface single source (b):** run BCC → Auto Schedule 4D (or Import MS Project)
+   → reopen the Cost Manager Schedule tab → the generated/imported tasks are there (one
+   store, both views).
+5. **MSP/P6 import (c):** Schedule tab → **⤓ Import MSP/P6 XML** → pick an MS Project XML
+   (and separately a P6 PMXML) export → the activities import as tasks into the schedule
+   and render inline; the inline hint notes `.mpp`/`.xer` aren't supported.
+6. **No regressions:** the inline-forms panel is still popup-free and the dispatch
+   busy-guard still prevents wedging under rapid clicks.
+
+#### Completed (BOQ 5D Phase 1 slice b — both surfaces read/render the unified store)
+
+Branch `claude/placement-centre-review-audit`. Repoints both schedule surfaces at the
+single `ScheduleStore` (Phase 1.2) and removes the independent `schedule_4d.json` write
+path — one source of truth.
+
+**ScheduleStore — 4D-engine JObject bridge** (`Core/Schedule/ScheduleModel.cs`): two
+adapters so the BCC/Scheduling4DEngine code (which speaks the legacy `schedule_4d.json`
+JObject shape) reads/writes the unified store without rewriting their internals —
+`Save4d(doc, JObject)` (replaces Tasks from a regenerate/import, preserving Periods/
+Milestones/actuals) and `Load4dJObject(doc)` (projects the model back into the
+`tasks[]` shape the timeline/export/cash-flow commands consume).
+
+**Cost Manager Schedule tab** (`BOQCostManagerPanel`): now a thin view onto the unified
+model. The grids bind directly to `ScheduleTask` / `SchedulePeriod` / `ScheduleMilestone`
+(same property names as the retired `Boq*` view-models, which are deleted), so editing a
+row mutates the model task in place and **preserves its WBS / predecessors / element
+links** on save. `EnsureScheduleLoaded` → `ScheduleStore.Load`; `SaveSchedule` →
+`ScheduleStore.Save` (updates the held `_scheduleModel`); `SchedulePath()` → the unified
+path. `boq_schedule.json` is no longer read or written by the panel.
+
+**4D scheduling commands** (`SchedulingCommands.cs` + `GapFixCommands.cs`): every direct
+`schedule_4d.json` read/write replaced — `AutoSchedule4D` + `ImportMSProject` →
+`ScheduleStore.Save4d`; `ViewTimeline4D` + `ExportSchedule4D` + `CashFlow5D` +
+`Schedule4DHandover` → `ScheduleStore.Load4dJObject`. (`cost_estimate_5d.json` is the 5D
+cost layer, not the schedule, so it's untouched.)
+
+**BCC 4D/5D tab** (`BIMCoordinationCenter.Build4D5DTab`): now a **read-only summary**
+populated straight from `ScheduleStore` (task count, milestones complete/total, overall
+% from the latest period or task average — previously these KPIs were never assigned, so
+they read 0) + a **"Open in Cost Manager →" deep-link** and a banner stating the schedule
+is the single unified store edited in the Cost Manager. No second copy.
+
+Compile-verified Release `-t:Rebuild`, 0 errors. (Smoke-test checklist consolidated at
+the end of slice c.)
+
+#### Deferred follow-ups (BOQ inline-forms sweep — tracked, not yet done)
+
+- **Run Cost Workflow** (`Cost_RunWorkflow`) still surfaces its internal **progress
+  dialog** + a **"Snapshot saved" `TaskDialog`** mid-run — these are step notifications
+  from `WorkflowEngine` / `BOQSnapshotSaveCommand`, not input prompts. Fold them into the
+  inline result pane in a later pass.
+- **Set % Complete** (`PaymentCert_SetProgress`) requires the shared parameter
+  `ASS_PMT_PCT_COMPLETE_NR` to be bound; its inline result already says "bind via Load
+  Params first" when it isn't. Expected behaviour — noted for awareness.
+
+#### Completed (BOQ 5D inline-forms sweep #6 — EVM planned-% + Reclassify Legacy)
+
+Branch `claude/placement-centre-review-audit`. Two Actions-reachable pickers caught by
+the final verification grep, now inline:
+
+- **Calculate EVM** (`Evm_Calculate`) — the planned-% (BCWS) band picker becomes an
+  inline combo (`EvmPlannedPct`: `"earned"` ⇒ use BCWP / SV=0, or a numeric %). The
+  command reads it and skips the picker; modal kept as the ribbon fallback.
+- **Reclassify Legacy** (`Variation_ReclassifyLegacy`) — was a per-VO modal loop
+  (multi-select → reason picker → liability picker, ×N). Now a **dynamic inline grid**
+  (`ShowReclassifyForm`): one row per legacy VO with a reason combo ("— skip —" first)
+  + a liability combo ("(auto-suggest)" first). On Run the assignments serialize into
+  the `ReclassifyJson` ExtraParam (`{VO number → "Reason|Liability"}`, empty liability
+  ⇒ auto-suggest via the contract/reason map); the command applies + saves, skipping
+  the picker loop. Results inline. No nested message pump. Compile-verified Release
+  `-t:Rebuild`, 0 errors.
+
+**Final verification grep** — every `StingListPicker.Show` / `new TaskDialog` /
+`ShowDialog` for input across `StingTools/Commands/Cost/*.cs` + `StingTools/BOQ/*.cs` is
+now either (a) inside an `else` ribbon-fallback after an ExtraParam gate, (b) an
+empty-state / error / result message (not input), (c) the `BOQTender_SkipDialog`-gated
+tender dialog, or (d) one of the four noted hard popups: the two import OS file pickers
+(`OpenFileDialog`), the QS-import diff-review grid, and the Reconcile-PS auto-match
+mutating Yes/No confirmation. No Actions-reachable command pops a picker/TaskDialog for
+data entry any more.
+
+**Revit smoke test** (human): EARNED VALUE MGMT card → **★ Calculate EVM** renders a
+planned-% combo + Run inline (pick "Use earned %" or a band), result inline. VARIATIONS
+card → **Reclassify Legacy** renders a per-VO grid (reason + liability combos) + Run
+inline; set a couple of rows, Run → they reclassify and the result shows inline; with
+nothing legacy it shows the inline "nothing to reclassify" note.
+
+#### Completed (BOQ 5D inline-forms sweep #5 — export coverage gate + sweep close)
+
+Branch `claude/placement-centre-review-audit`. Closes the inline-forms sweep.
+
+**Export coverage gate** (`BOQExportCommand.cs`): the low-NRM2-coverage warning was a
+blocking `TaskDialog` (Yes/No/Cancel "continue anyway"). It is now skipped when the
+export is driven from the panel — the footer **Export ↗** button sets `InlineHost=1`,
+and the command suppresses the modal in that context. No information is lost: the panel
+shows BOQ Health + coverage live in the budget strip, and the export result already
+surfaces the "Paragraph coverage" metric. The modal is kept for ribbon / non-panel
+callers. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Already compliant (no change needed):**
+- **★ Tender BOQ** (`BOQProfessionalExportCommand`) — already has the inline path via
+  the `BOQTender_SkipDialog` ExtraParam (the panel's inline tender-setup view); the
+  modal `BOQTenderDialog` is the documented ribbon fallback.
+- **Anticipated Final Cost**, **Cost Report**, **Labour rollup**, **Rate Gap /
+  Carbon Gap reports**, **Rate-Source Heat Map**, **Standard Preview** — pure
+  compute/report commands with no input popup (results already inline).
+- **Set Standard / New Cost Plan / Compare / Export / Run Cost Workflow / Variation /
+  Star Rate / Issue Cert / Approve Cert / Cert Document** — converted in sweeps #1–#4
+  and P0.3.
+
+**Deliberately kept as modal (noted with reason — not data-entry choices):**
+- **Import BOQ** (`BOQImportCommand`) and **Import QS Bill** (`BOQQsImportCommand`) —
+  use a `Microsoft.Win32.OpenFileDialog` to choose the workbook. A filesystem browser
+  has no inline equivalent; file selection is intrinsic to an import. Import QS Bill
+  additionally shows a **diff-review grid** before applying QS rates — a
+  review-before-bulk-write safety step, kept intentionally.
+- **Reconcile Provisionals (auto-match)** (`BOQReconcileProvisionalsCommand`, reached
+  from the footer **Reconcile PS**) — a Yes/No confirmation before **promoting**
+  high-confidence PS→model matches (removes PS rows from the manual store and rewrites
+  element params). This is a genuine destructive/mutating confirmation, kept per the
+  sweep rule. (The Actions-tab **Reconcile Provisionals** button is a separate,
+  fully-inline estimate→actual trail form — `ShowProvisionalReconcileForm`.)
+
+**Revit smoke test** (human): from the panel, footer **Export ↗** on a bill with <80%
+paragraph coverage exports without the coverage warning popping (coverage still shows
+in the strip + result). Invoking the same export from the ribbon still shows the
+warning. Import BOQ / Import QS Bill still open a file picker (expected); the QS import
+diff grid and the Reconcile-PS auto-match Yes/No still confirm before writing.
+
+#### Completed (BOQ 5D inline-forms sweep #4 — Payment cert pickers)
+
+Branch `claude/placement-centre-review-audit`. **Approve Cert** (`PaymentCert_Approve`,
+`PaymentCertCommands.cs`) and **Cert Document** (`PaymentCert_ExportDoc`,
+`CostControlCommands.cs`) were modal cert pickers; both now render an inline combo of
+certificate files in the Actions pane. The panel builds the options from
+`PaymentCertEngine.ListCerts`/`Load` (Approve offers only advanceable Draft/Issued
+certs; Cert Document offers all), value = the cert file path. Each command reads the
+`CertPath` ExtraParam and loads/advances/renders that cert, skipping its picker (modal
+kept as the ribbon fallback). When none are available the panel returns `false` so the
+command surfaces its own NO CERTS / NOTHING TO APPROVE panel. Results render inline.
+No nested message pump. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): PAYMENT CERTS card → **Approve Cert** renders a cert
+combo (Draft/Issued only) + Run inline, no popup; Run advances the cert state and the
+result shows inline. **Cert Document** renders an all-certs combo + Run → the XLSX is
+written and the result shows inline.
+
+#### Completed (BOQ 5D inline-forms sweep #3 — Variation + Star Rate)
+
+Branch `claude/placement-centre-review-audit`. The trickiest group of the sweep —
+`VariationAndEvmCommands.cs`. Both commands now gather input inline (no popup); the
+modal chains remain as the ribbon/non-panel fallback.
+
+- **Variation from Diff** (`Variation_FromDiff`) — the 6-step modal picker chain
+  (baseline snapshot → revised snapshot → contract form → kind → reason → liability →
+  EOT → free-text rationale) collapses into **one inline form**: two snapshot combos
+  (from `BOQCostManager.ListSnapshots`) + contract/kind/reason/liability/EOT combos +
+  a rationale text field. ExtraParams `VarSnapA/VarSnapB/VarContractForm/VarKind/
+  VarReason/VarLiability/VarEot/VarReasonDetail` (enum names; empty liability =
+  auto-suggest via the contract/reason map). The command was refactored to gather A/B
+  (gate or pickers) → compare + "no change" early-out → gather the 6 detail fields
+  (gate or pickers) → mint, so the modal early-out is preserved. `< 2` snapshots →
+  the panel returns `false` so the command shows its own NEED SNAPSHOTS panel.
+- **Star Rate Build-Up** (`Variation_BuildStarRate`) — was a bespoke modal
+  `StarRateBuilderDialog`; now a **dynamic inline editor** (`ShowStarRateForm`):
+  description + unit, three growable line sections (Labour / Plant / Materials, each
+  Resource · hours-or-qty · rate, with "+ add row"), overhead % and profit %. On Run
+  the panel builds a `StarRate` and serializes it into the `StarRateJson` ExtraParam;
+  the command deserializes it and saves (skipping the dialog). Blank rows are ignored;
+  an empty build-up shows an inline hint rather than dispatching.
+
+Results render inline via `StingResultPanel.InlineSink`. No `DispatcherFrame`/
+`PushFrame` — the banned nested pump is never reintroduced. Compile-verified Release
+`-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): VARIATIONS card → **★ Variation from Diff** renders a
+single inline form (two snapshot combos + the contract/kind/reason/liability/EOT combos
++ rationale) + Run, no popup; pick two different snapshots, Run → the VO mints and the
+result shows inline (picking the same snapshot twice → inline "NO CHANGE"). **Star Rate
+Build-Up** renders an inline build-up editor; add labour/plant/material rows, set OH/
+profit, Run → the star rate saves and the build-up totals show inline. Rapid-clicking
+never wedges the panel.
+
+#### Completed (BOQ 5D inline-forms sweep #2 — Run Cost Workflow)
+
+Branch `claude/placement-centre-review-audit`. `CostCommands.cs` — **Run Cost Workflow**
+(`Cost_RunWorkflow`) was a `WORKFLOW_BOQ_*.json` preset **picker**; now an inline combo
+of presets + Run in the Actions pane. The command reads the chosen preset path via the
+`CostWorkflowPath` ExtraParam and skips its picker when present (modal kept as the
+ribbon fallback). To keep one source of truth, the command's preset discovery
+(`DiscoverBoqPresets` + `PresetSummary`) was promoted `private` → `internal` and the
+panel builds the combo from it directly — no forked enumeration. When no presets exist
+the panel returns `false` so the command surfaces its own inline "NO PRESETS" panel.
+Results render inline via `StingResultPanel.InlineSink`. No nested message pump.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): BOQ Cost Manager → AUTOMATION card → **★ Run Cost
+Workflow** renders a preset combo (Full Refresh / Quick Valuation / Tender Pack …) +
+Run inline, no popup; Run → the workflow executes and the result shows inline.
+
+#### Completed (BOQ 5D inline-forms sweep #1 — Cost Plan)
+
+Branch `claude/placement-centre-review-audit`. Continues the zero-input-popup sweep
+(matches the P0.3 pattern). `CostPlanCommands.cs` — all three Actions commands now
+render their input inline in the Actions pane via `ShowInlineForm` + the ExtraParam
+contract; each command reads the values via `GetExtraParam` and skips its dialog when
+present (modal kept as the ribbon/non-panel fallback):
+
+- **New Cost Plan** (`CostPlan_Create`) — was a building-type **picker** + a GIFA
+  **TaskDialog**; now a 2-field inline form: building-type combo (options from
+  `CostPlanRegistry.BuildingTypes`) + a GIFA (m²) numeric field pre-filled from the
+  model's summed `Room.Area` (ft²→m², `SuggestGifaM2`). ExtraParams
+  `CostPlanBuildingType` + `CostPlanGifa`.
+- **Compare vs BOQ** (`CostPlan_Compare`) + **Export Cost Plan** (`CostPlan_Export`) —
+  were saved-plan **pickers**; now a single combo of saved plan files (display =
+  filename, value = path) via `CostPlanEngine.ListPlans`. ExtraParam `CostPlanPath`.
+
+When there are no benchmarks / no saved plans the panel returns `false` so the command
+runs and surfaces its own inline "NO BENCHMARKS" / "NO PLANS" panel. Results render
+inline via `StingResultPanel.InlineSink`. No `DispatcherFrame`/`PushFrame` — the banned
+nested pump is never reintroduced. Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): BOQ Cost Manager → COST PLAN card → **★ New Cost Plan**
+renders a building-type combo + GIFA field (pre-filled from model rooms) + Run, no
+popup; Run → the plan builds and the result shows inline. **Compare vs BOQ** and
+**Export Cost Plan** each render a saved-plan combo + Run inline. Rapid-clicking never
+wedges the panel.
+
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.3: input commands → inline forms)
+
+Branch `claude/placement-centre-review-audit`. Third gap of Phase 0. Migrates the
+input-gathering Actions commands that still popped a dialog to the existing inline
+`ShowInlineForm` pattern (render fields in the Actions pane → on Run set ExtraParams →
+dispatch once → the command reads them and skips its dialog; the dialog stays as the
+ribbon-caller fallback). Each command got an ExtraParam gate; each tag got a
+`TryShowInlineFormFor` case in `BOQCostManagerPanel`:
+
+- **Export QS Bill** (`BOQQsExport`) — the priced/unpriced **TaskDialog** is now an
+  inline combo (`QsExportPriced` 1/0). This was the literal "still pops a TaskDialog"
+  target.
+- **Issue Cert** (`PaymentCert_Issue`) — the contract-form picker is an inline combo
+  (`CertContractForm` → `ContractForm` enum: NEC4 / JCT2024 / FIDIC2017Red).
+- **Set Standard** (`Cost_SetMeasurementStandard`) — the standard picker is an inline
+  combo (`MeasStandardId`), options sourced from the same `MeasurementStandardRegistry`
+  the command validates against.
+
+All three results render inline via `StingResultPanel.InlineSink` (no popup). Each gate
+validates its ExtraParam and falls through to the original modal dialog when absent or
+invalid, so ribbon / wizard callers keep working unchanged.
+
+**Still modal (acceptance-compliant — Phase 0 permits "modal or inline-form"), flagged
+for a later dedicated inline pass:** `Variation_FromDiff` (a 6-step picker chain + a
+free-text rationale window + EOT band — too large for a flat one-shot form to do
+faithfully) and `Variation_BuildStarRate` (the bespoke `StarRateBuilderDialog` build-up
+editor, not a flat field set). Both are stable modal dialogs after P0.2 (no nested
+pump), so they don't reintroduce the deadlock. Compile-verified Release `-t:Rebuild`,
+0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager Actions tab, click **★ Export QS
+Bill** → a small Pricing combo + Run renders in the pane (no popup); pick Unpriced, Run
+→ the bill exports and the result shows inline. Same for **Issue Cert** (contract-form
+combo) and **Set Standard** (standard combo). The ribbon/wizard "Export QS Bill now"
+path still falls back to its dialog. Rapid-clicking these never wedges the panel.
+
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.2: remove the DispatcherFrame pump)
+
+Branch `claude/placement-centre-review-audit`. Second gap of Phase 0. Deletes the
+nested-message-pump that was the deadlock's mechanism. `StingListPicker`'s Slice-1.5
+inline-hosting path (`InlineHost` / `InlineHostDoc` / `InlineTitleSink` / `InlineSafe`
+/ `ShowInline` / `_inlineFrame` / `FinishInlineOrClose`) ran `Dispatcher.PushFrame`
+**inside the running ExternalEvent** — pumping a nested loop that left the dock panel
+live and re-clickable mid-command. Removed entirely: both `Show(...)` overloads now
+always render as a standard **modal `ShowDialog`** (which disables its Revit owner, so
+the panel can't be re-entered behind it), and the OK/Cancel/Esc paths call `Close()`.
+
+Callers updated in lockstep so nothing references the removed members:
+`BOQCostManagerPanel.DispatchInline` no longer sets/clears the picker statics (keeps
+only `StingResultPanel.InlineSink`, which sets a `Border` child with no pump — safe);
+`StingCommandHandler.Execute`'s finally and `BOQCostManagerWindow`'s `Closed` likewise
+drop the three picker clears and keep the result-sink clear. `PendingActionResolve`
+is retained, so the Actions pane never sticks on "Running…". Input pickers are now
+modal; results still render inline. Combined with P0.1, the re-entry vector is closed
+at both ends (guard + no pump). Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager, click an action that asks for
+a choice (e.g. a snapshot/standard picker) — it opens as a normal modal dialog over
+Revit, not an inline panel; while it's open the dock panel behind is not clickable;
+OK/Cancel returns and the result renders inline. Rapid-clicking actions never wedges
+the panel.
+
+#### Completed (BOQ 5D Enhanced Rebuild — Phase 0.1: dispatch busy-guard)
+
+Branch `claude/placement-centre-review-audit`. First gap of the BOQ 5D Enhanced
+Rebuild (`docs/BOQ_5D_ENHANCED_REBUILD_PROMPT.md` Phase 0). Stops the confirmed
+"lifeless panel" deadlock at its re-entry root: a second action clicked while the
+first command is still in flight called `ExternalEvent.Raise()` again, which
+returns `Pending`; `SetCommand` overwrote the live tag and the event never idled —
+every later button (including the footer **QTO IFC**) went dead.
+
+`BOQCostManagerPanel` gains a panel-wide busy-guard claimed at the single dispatch
+chokepoint (`DispatchAction` → `StingDockPanel.DispatchCommand`): new static
+`CommandRunning` flag + `BeginDispatchGuard`/`EndDispatchGuard`. While a command
+runs, further action clicks are ignored (logged, not crashed) and every
+dispatch-capable button is greyed (`IsEnabled=false`) via a `_dispatchButtons`
+registry fed by the central button factories (`BuildActionButton`, `BuildActionBtn`,
+`BuildHeaderBtn`, `WizardActionBtn`, `BuildScheduleBtn` now route through `Guarded`).
+The slot is released from `StingCommandHandler.Execute`'s `finally` — the universal
+command-completion hook — via the live instance's `DispatchGuardReset`, so it covers
+footer/schedule dispatches that don't register a `PendingActionResolve`. Immediate
+release on a non-accepted `Raise()` avoids a permanently frozen panel; the panel's
+`Unloaded` clears the static flag + hook so a closed/reopened panel can't strand it.
+This is the re-entry fix only — the `DispatcherFrame` pump removal is Phase 0.2.
+Compile-verified Release `-t:Rebuild`, 0 errors.
+
+**Revit smoke test** (human): in the BOQ Cost Manager, rapidly click 5 different
+actions in sequence; click a second action while a modal/picker from the first is
+open; run the footer **QTO IFC** after several actions. The panel must stay alive —
+buttons grey while a command runs and re-enable when it finishes, no button goes
+permanently dead, and nothing hangs.
+
+#### Completed (BOQ QS gap G7 — first-run Cost Setup wizard)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #7 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New inline multi-page **Cost Setup** wizard in
+`BOQCostManagerPanel` (`ShowCostSetupWizard` / `RenderWizardPage`), launched from a
+new **✦ Cost Setup** header button and auto-offered once per project
+(`MaybeOfferWizard`, gated on no budget set + not previously completed). Six pages:
+(1) plain-English intro + layman's-guide pointer; (2) model-readiness scan
+(rooms / phases / modelled items / auto-priced %, gaps flagged amber);
+(3) budget + currency; (4) pricing path radios (Auto / QS round-trip / Manual)
+with one-click **Export QS Bill** (dispatches `BOQQsExport`); (5) markups (flat %
+or open the prelims schedule); (6) finish → `RefreshAsync` + direct
+`BOQCostManager.SaveSnapshot` baseline. Per the inline-no-popups convention it
+renders into the Actions pane (not a modal `StingWizardDialog`) and **orchestrates
+existing commands** — budget via `BOQSetBudget`, export via `BOQQsExport`, prelims
+via `ShowPrelimsForm` — rather than duplicating them. Back/Next/Skip navigation;
+`WizardCompleted` persists in `boq_ui_state.json` so it doesn't nag.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): open the BOQ on a fresh project with no budget → the
+Cost Setup wizard is offered in the Actions pane → step through (set a budget, pick
+a pricing path, finish) → the bill is built, the budget shows in the strip, and a
+"Baseline" snapshot appears in the snapshot dropdown; reopening the project does
+not re-offer the wizard.
+
+#### Completed (BOQ QS gap G6 — Schedule / EVM tab maturity)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #5 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. The P2 Schedule tab in `BOQCostManagerPanel`
+gains: (a) **per-period EVM** — a new Reporting-Periods grid (`BoqSchedulePeriod`:
+period-end date, overall % complete = EV driver, cumulative actual = AC); when
+present it is the source of truth (EV = BAC×%, AC = period actual, PV = cost-loaded
+baseline at the period date), and `RecalcSchedule`/export mirror it. The S-curve
+plots **PV/EV/AC as polylines over the real periods**. (b) a dashed **EAC forecast
+band** (low = CPI=1, high = CPI×SPI weighted) from the last actual to completion,
+with `maxVal` rescaled to fit. (c) **milestones** (`BoqMilestone`: name/date/done)
+in their own grid, rendered as diamond+tick markers on the curve, **red when
+slipped** (past-due and not done); slippage also flagged in the export CSV/report.
+(d) **Sync % from cert** button + a **Cert %** EVM chip reading
+`PaymentCert.OverallPercentComplete` (latest issued cert) — writes it into the
+latest period so the schedule and certs are one source of truth (chip green when
+they agree). Legacy single-as-of behaviour preserved when no periods entered (no
+regression). All inline; periods + milestones persist to `_BIM_COORD/boq_schedule.json`.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Schedule tab → ＋ Period ×3, enter % complete +
+actual cost for each → curve shows PV/EV/AC ramps + EAC band, SPI/CPI update;
+＋ Milestone with a past date (not done) → red marker; issue a payment cert →
+Sync % from cert → latest period % matches the cert and the Cert % chip is green.
+
+#### Completed (BOQ QS gap G5 — carbon toward EPD-grade)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #4 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqEpdEntry` / `BoqEpdMap` + `BoqEpdStore`
+(per-doc cached, `Invalidate` at every `BuildBOQDocument`): per-material EPD
+override map at `_BIM_COORD/boq_epd_map.json` (`material → a1a3 + unit(m3|kg) +
+source + quality`). `CarbonFactorResolver.Resolve` gains Tier 0 — a mapped
+material uses its verified A1–A3 figure (`Source="epd:<ref>"`); ICE/library/legacy
+remain the fallback. `ComputeElementCarbon` gets a detailed overload emitting the
+factor source + data-quality band (`Verified-EPD` / `Database` / `Missing`, via
+`BoqEpdStore.QualityForSource`) + primary material; new nullable-free
+`BOQLineItem.CarbonSource` / `CarbonQuality` / `CarbonMaterial` (Clone copy).
+Panel: a toggleable **CO₂ quality** column (off by default) + a carbon-quality
+breakdown in the coverage strip (EPD-verified % · missing %). New read-only
+`BOQCarbonGapReportCommand` (`BOQ_CarbonGapReport`, Actions → COST REPORT P4.4 →
+Carbon Gap Report, StingCommandHandler dispatch) mirrors the rate-gap report:
+EPD-verified %, by-material gap table (worst quality + carbon at stake), CSV
+worklist via `SetCsvPath`. XLSX Carbon sheet gains Material / CO₂ data quality /
+Carbon factor source columns. Compile-verified Release `-t:Rebuild`, 0 errors.
+No popup.
+
+**Revit smoke test** (human): add `_BIM_COORD/boq_epd_map.json` mapping one
+material to a verified `a1a3` → Refresh → that material's rows show the new carbon
++ the **CO₂ quality** column reads "Verified-EPD" (others "Database"/"Missing");
+Actions → Carbon Gap Report → lists the remaining weak/missing materials with a
+CSV worklist.
+
+#### Completed (BOQ QS gap G4 — labour / plant / material rate split)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #2 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. `RateLookup` gains optional `LabourRate` /
+`PlantRate` / `MaterialRate` (per-unit, nullable); `ProjectRateCardProvider`
+reads optional `labour` / `plant` / `material` columns from `_BIM_COORD/
+rate_card.json` entries. `ResolveRate` threads the split out;
+`BuildLineItemFromElement` populates new nullable `BOQLineItem.LabourUGX` /
+`PlantUGX` / `MaterialUGX` (+ `HasRateSplit`, `LabourTotalUGX` etc., Clone copy).
+Absent → null (rate stays one number, no regression). Aggregation drops the split
+when a modal rate is chosen that no longer matches; a manual rate override clears
+it too. Three optional **Labour / Plant / Material** grid columns (off by default,
+toggle via ▦ Columns; added to `BoqPrintProfileRegistry.ToggleableColumns` +
+`BOQItemViewModel` display props) and three columns on the XLSX **Item Schedule**.
+New read-only `LabourHoursEngine.Rollup` (no param writes) + `BOQLabourRollupCommand`
+(`BOQ_LabourRollup`, Actions → COST REPORT P4.4 → Labour rollup, StingCommandHandler
+dispatch): Σ labour/plant/material rate-content by NRM2 section + labour hours by
+trade (crew), inline via `StingResultPanel`. Compile-verified Release `-t:Rebuild`,
+0 errors. No popup.
+
+**Revit smoke test** (human): add `rate_card.json` to `_BIM_COORD/` with an entry
+carrying `labour`/`plant`/`material` for a category → Refresh → enable Labour/Plant/
+Material via ▦ Columns → those rows show the split (others show "—"); Actions →
+Labour rollup → split totals by section + labour hours by trade.
+
+#### Completed (BOQ QS gap G3 — built-up preliminaries schedule)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #3 (prelims) in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqPrelimLine` / `BoqPrelimsSchedule` +
+`BoqPrelimsStore` (corporate baseline `Data/STING_PRELIMS_TEMPLATE.json`, 10
+starter lines, disabled; project override `_BIM_COORD/boq_prelims.json` wins).
+Each line is a fixed value or a %-of-works-subtotal. `BOQDocument` gains
+`PrelimsItemised` + `PrelimLines` + `PrelimsItemisedUGX`; `GrandTotalUGX`
+refactored to `Subtotal + PrelimContribution + Subtotal*(Cont+OH)/100` —
+identical to the historic single-round formula in the flat case (zero
+delivered-number change), swapping to the itemised total when active.
+`BuildBOQDocument` loads the schedule. New inline editable form
+`BOQCostManagerPanel.ShowPrelimsForm` (Actions → COST REPORT P4.4 → Preliminaries
+schedule): an Enable-itemised checkbox + add/delete/edit grid (name / category /
+basis combo / value-or-% / live amount) + Save → persists + rebuilds so the grand
+total reflects the active basis. Itemised prelims export as their own section:
+a dedicated **Preliminaries** sheet in `BOQExportCommand` (summary prelims line
+posts the itemised total) and a priced built-up table appended to the
+**General Preliminaries** sheet + grand-summary figure in
+`BOQProfessionalExportCommand`. Flat % stays the default everywhere.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup (inline form, JSON
+persistence).
+
+**Revit smoke test** (human): Actions → Preliminaries schedule → tick "Use
+itemised preliminaries" → add/keep 3 lines with values → Save → the grand-total
+metric updates; Export (XLSX) → a Preliminaries sheet lists the lines and the
+summary prelims line shows the itemised total. Untick → grand total reverts to
+the flat %.
+
+#### Completed (BOQ QS gap G2 — provisional-sum reconciliation trail)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #8 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqProvisionalRecord` / `BoqProvisionalStore`
++ `BoqProvisionalTrail` helper persist a per-PS reconciliation record to
+`_BIM_COORD/boq_provisionals.json` (`id, description, originalSum,
+adjustments:[{date,amount,note}], reconciledActual, status: Open|PartlyReconciled|
+Closed`), keyed off `BOQLineItem.Id` (stable — `Clone` preserves Id, PS rows come
+from the manual store). The **Reconcile Provisionals** action (Actions → COST
+REPORT P4.4) now renders an inline dynamic editable form
+(`BOQCostManagerPanel.ShowProvisionalReconcileForm`) listing each PS with its
+FROZEN original allowance + an editable actual + note; Save appends a dated
+adjustment and stamps the delta. Σ(actual − original) — the **provisional-sum
+movement** — is shown in the form + the panel coverage strip and folded into
+`Cost_AnticipatedFinalCost` (added as a delta to the frozen baseline, so PS land
+on actuals without double-counting; surfaced as a metric + XLSX line). The prior
+auto-match-and-promote `BOQReconcileProvisionalsCommand` stays in the codebase
+(still dispatchable) but the button now drives the trail form. Compile-verified
+Release `-t:Rebuild`, 0 errors. No popup (inline form, JSON persistence).
+
+**Revit smoke test** (human): Add a Provisional Sum → Actions → Reconcile
+Provisionals → enter an actual + note → Save (form re-renders showing the
+movement) → reopen the project → Reconcile Provisionals again → the actual +
+movement persist; Anticipated Final Cost shows the provisional-sum movement line.
+
+#### Completed (BOQ QS gap G9 follow-up — per-sheet draft footer)
+
+Branch `claude/placement-centre-review-audit`. Refines G9 so the DRAFT/CERTIFIED
+mark can't be missed by a reader who opens a data tab directly. New
+`BoqSignOffStore.StampSheetFooters(wb, doc, boq)` applies a print footer
+("DRAFT — not a certified bill of quantities…" / "CERTIFIED — <signer> · Snapshot
+<ref>") to **every** worksheet and tints each sheet tab red when unsigned —
+non-intrusive (footer + tab colour only, never a cell). Wired into both
+`BOQExportCommand` and `BOQProfessionalExportCommand` after `StampWorkbook`.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Export the BOQ unsigned → every sheet tab is red and
+each sheet's print/PDF footer reads DRAFT; Record QS Sign-off → re-export the
+signed snapshot → tabs no longer red, footers read CERTIFIED — <name>.
+
+#### Completed (BOQ QS gap G8 — big-model Refresh feedback)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #6 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. `BOQCostManagerPanel.RefreshAsync` now shows a
+`StingProgressDialog` ("Building bill of quantities from N elements…") during the
+synchronous build when the host model is large (≥ `COST_BIG_MODEL_THRESHOLD`
+elements, default 1,500), gated by a cheap `FilteredElementCollector` count so
+small models keep instant refresh. A new `PumpDispatcher()` helper pumps the WPF
+dispatcher to Background priority once so the dialog paints before the API thread
+blocks. Closed in a `finally`.
+
+**Why the full off-thread split was deferred (documented per the brief):**
+`BOQCostManager.BuildBOQDocument` MUST run on the Revit API thread — its
+per-element costing reads parameters + geometry inline (that *is* the heavy
+compute), `ResolveNrm2Paragraph` runs a `FilteredElementCollector` per element,
+the linked-model take-off uses collectors, and the build ends with a
+parameter-write `Transaction` (`ClearStaleFlagsForCostedRows`). A clean
+read-into-POCOs-then-compute-off-thread split would require re-architecting the
+~2k-line take-off engine into separate read/compute/write passes — high
+regression risk and an engine fork the brief forbids. The Revit API is never
+touched off the API thread. Compile-verified Release `-t:Rebuild`, 0 errors.
+No popup (modeless progress dialog only).
+
+**Revit smoke test** (human): Refresh a large model (≥ 1,500 elements) → a
+"Building bill of quantities…" progress dialog appears during the build, then the
+BOQ renders correctly; on a small model Refresh is unchanged (no dialog).
+
+#### Completed (BOQ QS gap G9 — QS sign-off + uncertified stamp)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #9 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New `BoqSignOff` record +
+`BoqSignOffStore` (`_BIM_COORD/boq_signoff.json`: signedBy / role / date /
+scope / snapshotRef). New `BOQSignOffCommand` (`BOQ_SignOff`, Actions tab
+"QS SIGN-OFF (G9)" group + inline form for name/role/scope) records a sign-off
+against the current snapshot. `BoqSignOffStore.StampWorkbook` adds a first
+**Status** sheet to `BOQExportCommand` + `BOQProfessionalExportCommand`:
+**DRAFT — UNCERTIFIED** until signed, **CERTIFIED by …** for exports of the
+signed snapshot. Export result panel surfaces the sign-off status as a metric.
+Compile-verified Release `-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Export the BOQ → first sheet reads DRAFT —
+UNCERTIFIED; Actions → Record QS Sign-off (enter name) → re-export → first
+sheet reads CERTIFIED by <name>; the export result "Sign-off" metric updates.
+
+#### Completed (BOQ QS gap G1 — rate-gap report)
+
+Branch `claude/placement-centre-review-audit`. Closes gap #1 in
+`BOQ_QS_LAYMANS_GUIDE.md §10`. New read-only `BOQRateGapReportCommand`
+(`BOQ_RateGapReport`, wired into the Actions tab QS ROUND-TRIP group + the
+StingCommandHandler dispatch). Scans `BuildBOQDocument().AllItems` modelled
+rows and classifies each as no-rate (`RateUGX <= 0`), low-confidence
+(`RateConfidence` < `COST_RATE_CONFIDENCE_FLOOR`, default 70) or defaulted
+(`RateSource == "Default"`). Renders inline via `StingResultPanel`: priced %,
+value-at-risk (Σ flagged `TotalUGX`), per-NRM2-section gap counts, biggest
+unpriced items by quantity, and a CSV worklist (`_BIM_COORD/boq_rate_gap_*.csv`)
+surfaced through the Open-file button (`SetCsvPath`). Compile-verified Release
+`-t:Rebuild`, 0 errors. No popup.
+
+**Revit smoke test** (human): Actions → Rate Gap Report → pane shows priced %,
+value-at-risk and per-section gaps, with an Open-file CSV listing every
+unpriced / low-confidence item.
+
+#### Completed (BOQ 5D — P2.3 linked-instance multiplier)
+
+Branch `claude/placement-centre-review-audit`. Lets a link placed N times
+(e.g. mirrored wings) optionally be taken off ×N — closing the undercount
+where `CollectLinkedItems` deduped by link Title and took a repeated model
+off once. Off by default (a shared reference model placed once is the common
+case). Compile-verified clean (Release, `-t:Rebuild`, 0 errors).
+
+- **`boq_links.json` upgraded** (back-compatible) to
+  `{ "included": [...], "multiply": { "Title": true } }`; a legacy bare array
+  still loads (included-only). New `BOQCostManager.GetLinkMultiplyMap` /
+  `SetLinkMultiplyMap` + `CountLinkInstancesByTitle`; `GetIncludedLinkTitles`
+  /`SetIncludedLinkTitles` preserve the multiply map.
+- **`CollectLinkedItems`** — for an opted-in link with >1 loaded instance,
+  scales each line item's `Quantity` (cost derives from it) and stored
+  `EmbodiedCarbonKg` by the instance count, and tags the row
+  `[Linked: <model> ×N]`. Applied post-cache so a selection / ×N change takes
+  effect on the next refresh without re-walking the linked Revit DBs.
+- **Chooser** (`ChooseLinkedModels`) — each link's Detail now shows its
+  instance count ("3 instances · included"); after the inclusion picker, a
+  second multi-select picker offers the ×N opt-in for the included links
+  placed more than once (pre-ticked from the persisted map).
+
+**Revit smoke test** (human): place a link twice (mirrored wing), open BOQ →
+⛓ Links: the chooser shows "2 instances"; tick to include, then in the second
+picker tick to multiply; refresh and confirm that link's rows read
+`[Linked: <model> ×2]` with doubled qty/cost/carbon. Re-open to confirm the
+opt-in persisted; untick to confirm it reverts to ×1.
+
+#### Completed (BOQ 5D — P2.2 inline editable forms)
+
+Branch `claude/placement-centre-review-audit`. Adds a reusable inline form
+host to the Actions pane (`UI/BOQCostManagerPanel.cs`) and converts the two
+most input-heavy actions from picker-chains / popups to a single editable
+form. Compile-verified clean (Release, `-t:Rebuild`, 0 errors). No popups.
+
+- **`ShowInlineForm`** — renders a titled form (labelled rows of TextBox /
+  numeric / ComboBox / CheckBox) + a Run button into `_actionReportHost`
+  (switches to the Actions tab so it's visible from any surface). On Run the
+  field values are passed to a callback that sets the command's ExtraParams,
+  then dispatches inline via the new shared `DispatchInline` (extracted from
+  `RunActionInline`). `TryShowInlineFormFor(label, tag)` routes converted tags
+  to a form; all other actions dispatch directly as before.
+- **Set % Complete** (`PaymentCert_SetProgress`) — one form (Section combo +
+  % numeric) replaces the two-step section→percent picker chain. The command
+  reads `PmtSection` / `PmtPercent` ExtraParams and skips its pickers when
+  present, falling back to the pickers for ribbon / other-surface callers.
+- **Set Budget** (`BOQSetBudget`) — the budget-strip popup
+  (`ShowBudgetDialog`) now renders a one-field inline form; the command
+  already consumed the `ProjectBudgetUgx` ExtraParam.
+- EVM actuals are already an inline editable field on the new Schedule tab
+  (P2.1 ACWP box), so no separate form was added there.
+
+**Revit smoke test** (human): Actions tab → "Set % Complete" shows a Section
+combo + % field (not two pickers), Run applies and reports inline; budget-strip
+budget button shows a one-field form in the Actions pane; dispatching
+`PaymentCert_SetProgress` from the ribbon still shows its pickers (fallback
+intact).
+
+#### Completed (BOQ 5D — P2.1 Schedule / 4D + EVM tab)
+
+Branch `claude/placement-centre-review-audit`. Adds a **Schedule** tab to the
+BOQ & Cost Manager (`UI/BOQCostManagerPanel.cs`) — 4D programme + cash-flow
+S-curve + Earned Value, all inline (no popups). Reuses `EvmCalculator`
+(`Core/Evm/`) and persists to `_BIM_COORD/boq_schedule.json` (same convention
+as `boq_ui_state.json`). Compile-verified clean (Release, `-t:Rebuild`,
+0 errors).
+
+- **Phase grid** — editable `DataGrid` of programme phases (Name / Start /
+  End / % Complete + read-only Planned cost). Seeded from Revit Phases on
+  first use; edits persist to `boq_schedule.json` on cell-edit and reload
+  across sessions. `＋ Phase` / `⟳ Seed from Revit phases` buttons.
+- **Cash-flow S-curve** — plain `Canvas` (no chart lib): planned cumulative
+  cost (cost-loaded baseline, BAC × duration share, sampled across the
+  programme) + earned (EV) and actual (AC) to-date ramps + as-of guide +
+  legend. Redraws on resize + recalculate.
+- **EVM strip** — PV / EV / AC / SPI / CPI / EAC / ETC / VAC from
+  `EvmCalculator.Compute`, RAG-coloured (SPI/CPI <0.95 amber, <0.9 red).
+  Editable as-of date + ACWP box; `⤓ Import actuals` sums
+  `_bim_manager/actuals/actuals_*.csv` via the reused
+  `EvmCalculator.ImportAllActualsToDate`; `↻ Recalculate` refreshes strip +
+  curve.
+- **Export** — `↗ Export schedule/EVM` writes a CSV next to the schedule
+  json and renders a `StingResultPanel` inline (with Open-file) via
+  `ShowInlineResult`. `⛏ Stamp 4D dates on model` dispatches the existing
+  `AssignPhaseDates` command (stamps `STING_4D_*_DATE_TXT` from Revit phase
+  order on the current selection).
+
+**Revit smoke test** (human): open BOQ Cost Manager → Schedule tab; confirm
+phases seed from Revit Phases, edit a Start/End/% and re-open the panel to
+confirm persistence; press Recalculate and confirm the S-curve + EVM strip
+render from the live BOQ total; press Export and confirm the inline result
+with an Open-file button. No popups anywhere.
+
+#### Completed (Placement — seed tier, swap bridge, placement-quality & diagnostics)
+
+Branch `claude/placement-centre-review-audit`. Implements the four items in
+`docs/PLACEMENT_SEEDS_SWAP_AND_ALGORITHM_DESIGN.md`. **Built without
+`dotnet build` verification (Linux sandbox / no Revit API). Items 1 + 2 are
+model-modifying (they create / modify families) — smoke-test in Revit before
+merge: build a seed for an empty category and place it; swap a seed to a
+non-STING family and confirm positions + values survive.**
+
+1. **Item 4 — Anchor-miss + under-fill diagnostics (A11/A14).**
+   `RuleDiagnostic` gains `AnchorMissRooms` / `FirstAnchorMiss` /
+   `UnderFilledRooms` / `UnderFillShortfall` / `FirstUnderFill`.
+   `PlacementScorer` accumulates per-`Score()` anchor fallbacks
+   (`_anchorMisses` / `LastAnchorMisses`) — every emitter that drops to the
+   room centre (no doors / windows / boundary segments / unknown anchor)
+   records the reason. `FixturePlacementEngine.ProcessRoomRule` (+ the linked
+   path) drains it after each `Score()` and folds it into the diagnostic with
+   a one-shot warning + `StingLog.Warn`. `ComputeCap` gains a `desiredCap`
+   overload so the engine flags silent under-fill (cap > candidates). The
+   Centre run report gains a **PER-RULE DIAGNOSTICS** section listing
+   anchor-→-centre / under-fill / no-symbol per rule.
+2. **Item 1 — Seed tier + EnsureSeeds pre-pass (A3).** New
+   `CategoryToSeedRegistry` (loads `STING_CATEGORY_TO_SEED_MAP.json` +
+   project override, per-doc cache) and `SeedEnsurer` (builds/loads the
+   mapped STING seed for every ticked category with no loaded family — runs
+   OUTSIDE the engine transaction). The Centre's `ExecuteRun` runs the
+   EnsureSeeds pre-pass before placement (skipped on dry-run) and folds the
+   build report into the run warnings. `FixturePlacementEngine.ResolveSymbol`
+   gains a seed tier after the loaded-family + library tiers: it loads an
+   on-disk seed `.rfa` when present, else warns "run Ensure Seeds". New
+   stand-alone `Placement_EnsureSeeds` command (`EnsureSeedsCommand`). Runs
+   never silently skip a mapped category for "no family loaded".
+3. **Item 3 — Linear densify + door/window clearance (A5/A6).**
+   `PlacementScorer.EmitLinearWallPoints` steps candidates along the room
+   perimeter at `PerLinearMetre` spacing (inset by `WallClearanceMm`); a
+   `WALL_MIDPOINT` rule that is `Linear` with `PerLinearMetre > 0`
+   auto-densifies, and an explicit `LINEAR_WALL` anchor opts in. New
+   `PlacementRule.DoorClearanceMm` / `WindowClearanceMm` (default 0 = off);
+   `BuildCandidate` rejects candidates within clearance of a door/window
+   (hard-collision via existing `TooCloseToDoor` / `TooCloseToWindow` flags,
+   now in the `HasHardCollision` mask). Editor: new Door/Window clearance
+   fields on the Coverage & Spacing card (VM proxy props + load + LostFocus
+   commit).
+4. **Item 2 — Swap parameter-bridge (A4).** New `SwapParameterBridge` +
+   `STING_PARAM_ALIAS_MAP.json`. `SwapToManufacturerCommand` now (default-on,
+   toggleable via `SwapParameterBridge.Enabled`) ensure-stamps each
+   destination family with the STING shared params the sources carry
+   (EditFamily + `FamilyParamEngine.InjectSharedParams` + reload, outside the
+   swap transaction), re-resolves winner type ids, then per instance
+   snapshots STING-GUID + aliased-native values before `ChangeTypeId` and
+   restores them after (STING values always; aliased natives only where the
+   STING target is empty). Swapping to a STING-naive family now preserves
+   positions + values. Result panel + audit report families stamped.
+
 #### Completed (Phase 195 — EDGE/LEED Sustainability Module)
 
 Built to the approved design spec
@@ -92,6 +1118,7 @@ PARAMETER_REGISTRY / climate files.
    else a documented MJ/kgCO2e ratio until EPD PERT+PENRT data is populated.
    Fixture-flow reading from the model is a hook (currently a 25%-over-baseline
    indicative default).
+
 #### Completed (Placement Centre — review follow-up: five minor fixes)
 
 Branch `claude/placement-centre-review-audit`. Closes the five minor items
@@ -9178,3 +10205,722 @@ Branch `claude/placement-center-fixes` (worktree-isolated). **Verified with
     writes `ASS_PLACE_OFFSET_Y_MM` / `_Z_MM` / `ASS_PLACE_ROTATION_DEG`
     (best-effort; no-op when unbound) so placement intent round-trips.
     (`FixturePlacementEngine.cs`)
+
+---
+
+## (Migrated from CLAUDE.md — Drawing Template Manager Phases 135–138 + 166)
+
+### Phase 135 — DrawingType TokenProfile
+
+`DrawingType.TokenProfile` adds per-profile tag depth, style preset, segment mask, and colour scheme. `Core/Drawing/TokenProfileApplier.cs` runs as Step 7.5 between the View Style Pack apply and the Annotation pass so any auto-tags emitted by `AnnotationRunner` inherit the active profile's appearance. Drift detection has a `TOKEN_PROFILE_DRIFT` kind in `DrawingDriftDetector` that compares `STING_VIEW_TAG_STYLE` + `TAG_SEG_MASK_TXT` on stamped views against the resolved profile/pack pair; SyncStyles heals automatically.
+
+### Phase 136 — Editor: ViewStylePack dropdown + full Revit VG editor + fallback chain
+
+Editor gains a `ViewStylePackId` dropdown on Drawing Types > Views card and a full Revit-style 4-tab VG editor on the View Style Packs tab (Model / Annotation / Imported / Filters) with sub-dialogs for line + pattern overrides. `ViewStylePack` extended with `ViewTemplate`, `DetailLevel`, `ScaleHint`, `ColorScheme` so the runtime can read the same fields the editor writes; `DrawingTypePresentation.Apply` resolves the pack early and uses pack settings as fallback when the DrawingType doesn't set its own (DrawingType always wins). Bidirectional template copy: View Style Packs tab gains "Push template → bound types"; Drawing Types tab gains "↑ Push to pack" and "Use pack template" links. `docs/AEC_PRODUCTION_SET_STRATEGY.md` lays out an 11-pack × 80+ DrawingType strategy indexed by RIBA stage × discipline × output.
+
+### Phase 137 — STING-Managed View Templates (Architecture C — Hybrid)
+
+Each `ViewStylePack` now carries a `templateMode` field (`managed | external`). In **managed mode** STING auto-generates and maintains Revit view templates named `STING:<pack-id>:<ViewType>` from the pack JSON. `DrawingTypePresentation.Apply` Step 7 routes through `Core/Drawing/ManagedTemplateSyncer.cs` — `EnsureTemplate(doc, pack, viewType)` is idempotent (absent → copy seed of the right ViewType + rename; present + checksum match → no-op; present + drift → re-apply pack settings + restamp). Managed fields whitelist: `vg`, `filters`, `detailLevel`, `discipline`, `visualStyle`, `phaseFilter`, `phaseName`, `annotationCrop`, `farClipMm`, `viewRange`, `underlay`. Two shared parameters stamp the template for drift detection: `STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`. Three migration commands in `Commands/Drawing/ManagedTemplateCommands.cs` — `ConvertPackToManagedCommand` / `DetachFromManagedCommand` / `RegeneratePackTemplatesCommand` — wired into the DRAWING TYPES wrap-panel and the editor toolbar. `MANAGED_TEMPLATE` drift kind added to `DrawingDriftDetector`. Editor's View Style Packs tab gains a `templateMode` toggle plus managed-mode-only fields (Visual style / View discipline / Phase filter / Phase / View range sub-card / Far clip / Annotation crop / managed-fields multi-select). `displayOptions` (shadows / sketchy lines / ambient shadows) flagged as warnings — no public Revit API.
+
+### Phase 138 — Revit VG editor parity + branch consolidation
+
+The Phase 137 entry shipped a compact VG editor and noted the
+Revit-VG-cell-style grid as deferred. That follow-up has now landed
+and every outstanding feature branch has been consolidated into the
+working tree.
+
+**New UI files** under `StingTools/UI/`:
+
+| File | Lines | Purpose |
+|---|---|---|
+| `RevitVgEditor.cs` | 1,194 | Full Revit VG dialog replica embedded inline in the View Style Pack form. Backed by `RevitCategoryTree.TaggableCategories` + `CategoriesWithCut`. Exposes Cut Fg/Bg / Projection Fg/Bg / Halftone / Transparency / Detail-Level cells + filter-rule rows + line-styles tab + working chevron expanders + modeless editor + dispatch surfacing. |
+| `VgFillPatternDialog.cs` | 197 | Fill Pattern Graphics popup mirroring Revit's Override… cell. Resolves `FillPatternElement` ids by name with solid-fill fallback. |
+| `VgLineGraphicsDialog.cs` | 157 | Line Graphics Override popup with line-pattern dropdown + colour picker + weight spinner. |
+| `VgColorPicker.cs` | 120 | Windows colour picker shell with recent-colours strip and discipline-palette swatches sourced from `ColorHelper`. |
+| `TitleBlockSlotLoader.cs` | 146 | Slot-dropdown helper that lazy-loads `<project>/Title Blocks/*.rfa` slot definitions. Exposes `GetSlotsForFamily(...)`. Replaces hardcoded slot index in `DrawingProductionConfigDialog`. |
+
+Typo-prevention pass replaces free-text TextBoxes with dropdowns for fill pattern / line pattern / colour / filter-rule names; override cells render the resolved colour swatch in-grid; per-row swatches update live on edit.
+
+**Branches consolidated**: `claude/implementation-prompt-phase-137-OrI6I` (fast-forward), `claude/merge-branches-main-HB2FF` (April-17 work — twelve content conflicts resolved with `--ours` to keep newer state), `claude/review-template-manager-JEiuF` (Phase 92 reference palettes — one trivial variable-name conflict). After consolidation `git for-each-ref` reports zero remote branches with unique commits not in HEAD. Full per-file resolution log lives in `docs/CHANGELOG.md` Phase 138 entry.
+
+### Caveats (Drawing Template Manager)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 40 corporate drawing types + 11 style packs reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+3. Crop strategy `RoomBoundary` falls back to `TightBbox` when no rooms are in the view; plan views that should be room-bounded need rooms placed first.
+4. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand. Runtime cost vs. always-on drift-zero trade-off means this stays deferred.
+5. `TitleBlockParamApplier` writes the first title-block instance found on a sheet. Sheets hosting multiple title blocks (unusual) only get the first one populated — the applier warns and moves on.
+
+### Phase 166 — AEC/FM Corporate Filter Library (199 filters)
+
+A complete corporate-baseline `ParameterFilterElement` library for the
+Drawing Template Manager. Until this phase, `ViewStylePackApplier` could
+*reference* filters by name but couldn't *create* them — the only filter
+factory in the codebase was the hard-coded ~40-filter
+`TemplateCommands.CreateFiltersCommand`. Phase 166 adds a full
+JSON-defined registry with 199 filter definitions covering every
+discipline an AEC/FM firm produces drawings for, plus matching
+`OverrideGraphicSettings` recipes per BS 1192 / ISO 19650 / Uniclass 2015 /
+BS 1710 / ASME A13.1 / GSA MEP / CIBSE-SDE / BS 9999 / BS 8300 /
+BIMForum LOD.
+
+**New files**
+
+| Path | Role |
+|---|---|
+| `StingTools/Data/STING_AEC_FILTERS.json` | 199 definitions: 47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA |
+| `StingTools/Core/Drawing/AecFilterDefinition.cs` | POCO + rule grammar (`leaf | compound`, 14 operators, `kind=builtin/shared/phase/workset/level`) |
+| `StingTools/Core/Drawing/AecFilterRegistry.cs` | Per-document loader; layers `<project>/_BIM_COORD/aec_filters.json` over corporate; `Get` / `GetByName` / `ListAll` / `ListByTag` / `Reload` |
+| `StingTools/Core/Drawing/AecFilterFactory.cs` | JSON rule tree → `LogicalAnd`/`OrFilter` + `ElementParameterFilter` + `ParameterFilterElement.Create`; resolves built-in / shared / phase / workset / level params; sniffs storage type via `Definition.GetDataType()` |
+| `StingTools/Commands/Drawing/AecFilterCommands.cs` | `AecFiltersCreate` (mint all into doc, idempotent) / `AecFiltersInspect` (read-only diagnostic) / `AecFiltersReload` (cache invalidate) |
+| `docs/AEC_FILTER_LIBRARY.md` | Reference doc — rule grammar, override recipe, lazy-create flow, standards table, per-drawing-type filter sets |
+
+**Wiring**
+
+`ViewStylePackApplier.ApplyFilterRules` now lazy-creates missing filters
+from the registry under the active transaction (was: warned "create it
+first" and skipped). Field-by-field merge: pack `StyleFilterRule` field
+wins → registry `defaultOverride` fills nulls when `inheritDefaults != false`
+→ Revit default. `StyleFilterRule` extended with 11 fields covering surface
+foreground/background patterns + line patterns + `detailLevel` to support
+fire-rated wall washes and CIBSE-SDE pipe colour fills properly. Schema-key
+drift fixed: `ViewStylePackLibrary` now accepts both `stylePacks` and
+`viewStylePacks`; `ViewStylePack.filters` ↔ `filterRules`; short-form
+field names (`name`/`projColor`/`projWeight`/`cutColor`/`cutWeight`)
+deserialise alongside long-form. The corporate `STING_VIEW_STYLE_PACKS.json`
+is now actually consumed at runtime for the first time.
+
+**Curated filter references**
+
+Four major packs populated with 64 filter references using
+`inheritDefaults: true` — they pull the corporate-baseline override
+styling without redefining it: `corp-coordination` (21 — MEP services +
+clash + insulation), `corp-standard-plan` (19 — phase + fire-rated walls
+/ doors + accessibility + escape), `corp-structural-plan` (20 — material
++ steel sections + foundations + bracing + rebar bands),
+`corp-demolition-phase` (4 — phase rules with full corporate styling).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox). API calls
+   target Revit 2025/2026/2027: `paramId.Value` (Int64) replaces
+   deprecated `IntegerValue`; `Definition.GetDataType()` (ForgeTypeId)
+   replaces `ParameterType`.
+2. Categories that don't exist in the target Revit version are silently
+   dropped with a warning; if all drop, the filter creation is skipped.
+3. Shared parameters referenced by `kind: "shared"` must be bound on the
+   project before the filter can be created — the factory warns + skips
+   gracefully rather than failing the whole batch.
+
+
+## (Migrated from CLAUDE.md — HVAC design engines Phases 187a–187h)
+
+### Phase 187a — review follow-up fixes
+
+Five bugs / gaps surfaced in the Phase 187 self-review are now closed
+(remaining work logged as caveats below):
+
+1. **Block-load heating peak-pick now respects sign.**
+   `Core/Hvac/Loads/BlockLoadEngine.cs:97-110` — system-level peak loop
+   was always `>`, returning the warmest hour even for heating.
+   Branches on the `cooling` flag so heating block load picks the
+   coldest hour (largest-magnitude negative sensible).
+2. **Climate fuzzy match no longer always returns London.**
+   `Core/Climate/ClimateRegistry.cs:ByLabelContains` previously asked
+   "does the site label contain the address?" — which is never true
+   for multi-line addresses. Rewrote as: (a) direct substring of site
+   id in the address, then (b) token-level intersection of site label
+   words with address tokens (≥ 4 chars, skips noise words).
+3. **Roof segment now only added on the top level.**
+   `HvacBlockLoadCommand.IsTopLevel(spatial)` walks the project Level
+   list once per document (cached in a `ConcurrentDictionary` keyed
+   on doc path) and only adds a `SegmentKind.Roof` envelope segment
+   when the zone's `LevelId` matches the highest-elevation Level.
+   Mid-floor zones no longer get a spurious roof credit. Also fixed
+   the area: was `0.5 × floor`, now `1.0 × floor` (correct for top
+   level — the projection of the floor area onto the roof).
+4. **Manufacturer pack now wired into a real consumer.**
+   `MEPIntelligenceEngine.FittingLossCalculator.ResolveFittingLoss(el, rules)`
+   reads `HVC_PROD_REF_TXT` (new shared param, format
+   `"brand:productCode"`) and prefers the registry's manufacturer C
+   over the generic SMACNA Kv. `MepFittingLossReportCommand` now
+   splits the result panel into "Manufacturer-specified" vs "Generic
+   fallback" counts + a per-brand breakdown so users can see at a
+   glance how much of the model is on registry-backed values.
+5. **HVAC workflow JSONs updated.** `WORKFLOW_HVACDesign.json` now
+   opens with `Hvac_BlockLoad`, replaces `Mep_VibroAcoustic` with
+   `Hvac_NcPredict`, and adds `Hvac_PressureClassAudit` +
+   `Hvac_DetectStaleSizes` between balance and validators.
+   `WORKFLOW_HVACCommissioning.json` swaps the same NC step + adds
+   pressure-class audit.
+
+### Parameters added (Phase 187a)
+
+Seven new shared parameters in MR_PARAMETERS (TXT + CSV):
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_PROD_REF_TXT` | HVC_SYSTEMS | `brand:productCode` driving manufacturer C/Kvs lookup |
+| `HVC_PEAK_SENS_W` | HVC_SYSTEMS | Per-space peak sensible W (BlockLoadEngine) |
+| `HVC_PEAK_LAT_W` | HVC_SYSTEMS | Per-space peak latent W |
+| `HVC_PEAK_HOUR` | HVC_SYSTEMS | Hour-of-day of per-space peak |
+| `HVC_OA_LS` | HVC_SYSTEMS | Per-space design OA L/s |
+| `PRJ_CLIMATE_SITE_ID` | PRJ_INFORMATION | Active climate site id resolved by ClimateRegistry |
+
+### Phase 187b — chain the engines, populate the grids, profile per space
+
+Five integration / flexibility / accuracy / automation gaps closed:
+
+1. **BlockLoad → AutoSize loop closed via `Hvac_PropagateLoads`.**
+   `Commands/Hvac/HvacPropagateLoadsCommand.cs` walks every duct in
+   scope, finds the served Space via the downstream terminal in the
+   connector graph (or `GetSpaceAtPoint` at the duct mid-point as
+   fallback), reads the space's `HVC_PEAK_SENS_W` + `HVC_OA_LS`, and
+   stamps `HVC_FLOW_LS = max(peak / (ρ·cp·ΔT), OA)` with ΔT = 11 K
+   (CIBSE Guide B3 supply-air ΔT). `HVC_LOAD_SOURCE_TXT` carries the
+   provenance string. Workflow JSON now reads BlockLoad →
+   PropagateLoads → AutoSize.
+
+2. **Empty HVAC panel grids now populated.**
+   - `HvacBlockLoadCommand` pushes per-zone rows into `SpaceLoadRows`
+     (clears + repopulates on each run so re-runs reflect the latest
+     pass).
+   - `HvacNcPredictionCommand` adds an `IssueRows` entry when the
+     predicted NC exceeds the office target (35).
+   - New `Hvac_RefreshGrids` command
+     (`HvacRefreshGridsCommand.cs`) scans the project once and seeds
+     `EquipmentRows` (mechanical equipment with capacity / flow /
+     manufacturer / system), `SystemRows` (every `MechanicalSystem`),
+     and `DuctTypeRows` (every `DuctType`). Wired into the RPRT tab.
+
+3. **Per-space-type load library.** `STING_LOAD_PROFILES.json` ships
+   12 profiles (Office, MeetingRoom, Classroom, PatientRoom,
+   OperatingRoom, Retail, Restaurant, Kitchen, Lab, Warehouse,
+   Plantroom, Corridor) each with occupant density, sensible+latent
+   per person, lighting + equipment power densities, OA per-person +
+   per-m², setpoints, infiltration, and 24-h occupancy / lighting /
+   equipment schedules. Sources: ASHRAE 90.1-2019 Table 9.6.1
+   (lighting), 62.1-2019 Table 6.2.2.1 (ventilation), Handbook
+   Fundamentals Ch.18, CIBSE Guide A 2015.
+   `Core/Hvac/Loads/LoadProfileRegistry.cs` loads + caches with
+   project override at `<project>/_BIM_COORD/load_profiles.json`.
+   `HvacBlockLoadCommand.ZoneFromSpace` resolves
+   `HVC_SPACE_TYPE_TXT` (or Revit `SpaceType` enum) and applies the
+   matching profile before envelope detection. Loose-match handles
+   `MeetingRoom`/`Meeting Room`/`meeting-room`. Falls back to Office
+   when no match. Block-load on a hospital now uses 12.5 L/s/person
+   OA + 12 W/m² equipment + 24/7 schedules instead of the office
+   defaults.
+
+4. **`DocumentOpened` climate auto-stamp.** `StingToolsApp.OnDocumentOpened`
+   resolves `ClimateRegistry.ActiveSite(doc)` on first open per
+   project, opens a transaction, stamps `PRJ_CLIMATE_SITE_ID` +
+   `PRJ_CLIMATE_SITE_LABEL_TXT` on `ProjectInformation` when
+   `PRJ_CLIMATE_SITE_ID` is empty. Subsequent commands read the
+   stamped value directly without re-fuzzy-matching the address.
+
+5. **Pressure-class audit uses role + adjacent fittings.**
+   `HvacPressureClassAuditCommand` now batch-detects every duct's
+   role via `HvacSegmentRoleDetector.DetectRolesBatch` and reports
+   role-velocity violations (`v > role.MaxVelocityMs`) as a separate
+   failure mode alongside pressure-class violations. Friction
+   estimate gains an `AdjacentFittingLossPa` term that walks each
+   connector one step, sums C·½ρv² across touching
+   `OST_DuctFitting` + `OST_DuctAccessory` via the manufacturer-aware
+   `FittingLossCalculator.ResolveFittingLoss` (so manufacturer C
+   shadows generic SMACNA when `HVC_PROD_REF_TXT` is set on the
+   fitting). Half-credit avoids double-counting the same fitting on
+   both connected ducts.
+
+### Parameters added (Phase 187b)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_SOURCE_TXT` | HVC_SYSTEMS | Provenance string written by PropagateLoads (space + peak + OA → derived HVC_FLOW_LS) |
+| `PRJ_CLIMATE_SITE_LABEL_TXT` | PRJ_INFORMATION | Human-readable site label stamped by DocumentOpened auto-stamp |
+
+### Phase 187c — accuracy, flexibility, alignment sweep
+
+Twelve gaps from the deep review now closed. All on PR #265.
+
+**Accuracy**
+
+1. **Refrigerant negative-lift credit.** `RefrigerantPipeSolver.cs:105`
+   now applies signed static head — liquid going DOWN expands the
+   ΔP budget instead of being ignored. Evap-above-condenser
+   systems no longer over-size unnecessarily.
+2. **Refrigerant subcooling-reserve / flash-gas check.** New
+   `RefrigerantState.DtDpKperKpa` (saturation-temperature slope
+   evaluated at the design condensing point) drives a new
+   `SatTempDropK` output on liquid legs. If line ΔP × slope
+   exceeds the user's subcooling reserve (default 5 K, set 8 K
+   for EEV systems), the result panel surfaces a flash-gas warning.
+3. **Real solar incidence geometry.**
+   `BlockLoadEngine.IncidenceFactor(orientationDeg, hour, lat, doy)`
+   uses ASHRAE 2021 Ch.14 solar-angle formulae (declination,
+   latitude, hour angle → altitude + azimuth from south, then
+   cosine projection onto the surface normal). Replaces the
+   linearised `azimuth = 90 + 15·(hour - 6)` which under-predicted
+   east/west glass loads by ~10° at mid-latitudes.
+4. **Seasonal Clear-Sky coefficients.**
+   `ClearSkyDirectNormalWm2` now takes a `dayOfYear` and
+   interpolates monthly ASHRAE A/B values (Handbook Fundamentals
+   Ch.14 Table 7). Cooling design uses DOY 202 (July 21); heating
+   uses DOY 21 (January 21).
+5. **Diffuser regen double-count removed.**
+   `NcPredictionEngine.Compute` no longer adds `RegenDiffuser` on
+   top of `TerminalEndReflectionDb`. Bullock's diffuser correlation
+   already represents post-reflection terminal noise — adding both
+   biased predicted NC up by ~3–5 dB.
+
+**Flexibility**
+
+6. **Per-system + per-leg refrigerant ΔP budgets** added to each
+   `RefrigerantState` (R410A 30/50/50 kPa, R32 25/50/50, R134a
+   20/40/30, CO₂ 50/100/80). Dialog defaults to vendor budget per
+   leg when the user leaves the field at its initial 30 kPa.
+7. **Construction profile library.** New
+   `STING_CONSTRUCTION_PROFILES.json` ships 7 profiles (PartL2021,
+   PartL2013, PreRegs1990, Passivhaus, IECC2021_CZ4,
+   ASHRAE901_2019_CZ5, EnEV2014_DE). `ConstructionProfileRegistry`
+   loads + caches with project override. `AddPerimeterEnvelope`
+   replaces hardcoded U-values + SHGC with the active profile's
+   values, resolved via `PRJ_CONSTRUCTION_PROFILE_TXT` on
+   ProjectInformation.
+8. **Climate multi-percentile.** `ClimateSite` gains
+   `Cooling99DbC` / `Cooling98DbC` / `Heating99DbC` fields +
+   `CoolingDbCFor(percentile)` / `HeatingDbCFor(percentile)`
+   accessors. JSON entries that omit the extra columns fall back
+   to the 0.4 %/99.6 % values shipped today.
+9. **Fan Lw + silencer IL sidecars.** New
+   `STING_FAN_SPECTRA.json` + `STING_SILENCER_DATA.json` shipped
+   as the corporate baseline; `Core/Acoustic/AcousticDataRegistry.cs`
+   loads + per-project overlay. `HvacNcPredictionCommand` looks
+   up the fan family name and the silencer name in the registry;
+   falls back to the synthetic Lw / default IL when no match.
+
+**Performance**
+
+10. **Zero-space transaction guard** in `HvacBlockLoadCommand` —
+    don't open a Revit transaction when there are no spaces to
+    stamp.
+11. **HVAC cache invalidation on document close.**
+    `StingToolsApp.OnDocumentClosing` now drops the block-load
+    top-level cache, the climate registry, the MEP sizing registry,
+    and the load profile registry for the closing document.
+
+**Automation**
+
+12. **`Hvac_FullDesignPass` composite command.** Runs block-load →
+    propagate → auto-size → balance → NC → pressure-class →
+    stale-size in one invocation, with per-step status rows in a
+    single result panel. Cancellable via Escape between steps.
+    Wired to the LOADS tab as a primary button.
+
+**Alignment**
+
+13. **`Snapshot()` adoption** in `HvacPressureClassAuditCommand`
+    + `HvacBlockLoadCommand` — replaced the per-field `Current*`
+    reads with a single atomic snapshot of the header context.
+
+### Parameters added (Phase 187c)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_CONSTRUCTION_PROFILE_TXT` | PRJ_INFORMATION | Active construction profile id (PartL2021 / Passivhaus / IECC / ASHRAE 90.1 / EnEV) — drives U-values + SHGC |
+
+### Phase 187d — close the remaining deferred list
+
+Eight items from the Phase 187c deferred list are now in place:
+
+1. **ASHRAE Radiant Time Series.**
+   `Core/Hvac/Loads/RadiantTimeSeries.cs` ships RTF tables for
+   Light / Medium / Heavy construction classes (ASHRAE 2021 Table 19a)
+   + canonical radiant fractions per gain type (Conduction 0.63,
+   SolarGlass 1.00, Occupant 0.70, Lighting 0.67, Equipment 0.50 —
+   Table 14). `BlockLoadEngine.Run` gains an optional
+   `RtsConstructionClass` parameter; each gain stream is convolved
+   with the matching RTF before aggregating. Reactive (no lag) is
+   the default so legacy callers see no change. Heavy-mass buildings
+   peak ~15-25 % lower with RTS enabled; light-mass ~5 %. Active class
+   resolved via `PRJ_RTS_CLASS_TXT` on Project Info.
+
+2. **Hardy Cross initial-flow auto-guess.**
+   `HardyCrossSolver.InitializeFromDemand(pipes, demandLpsByNode)`
+   seeds `NetworkPipe.FlowM3S` from per-node demand split equally
+   across incident pipes. `InitializeUniform(pipes, source, q)`
+   handles the single-source tree case. Eliminates the "user must
+   pre-compute flows" gap.
+
+3. **Stull RH replaced with full thermodynamic-wet-bulb solver.**
+   `BlockLoadEngine.RhFromMcwb` now uses ASHRAE Handbook Fundamentals
+   2021 Eq. 33 (W from T_wb), then back-computes RH. Improves ~5 %
+   Stull error to ~0.5 % in the HVAC design range.
+
+4. **`Hfg` temperature dependence.** `BlockLoadEngine.HfgAtC(t)` returns
+   `(2501 − 2.381·t)·1000` (J/kg) per ASHRAE handbook fit. Evaluated
+   at the setpoint inside the per-hour latent calc — ~2 % more
+   accurate than the flat 2.45 MJ/kg constant.
+
+5. **Planscape Server `/hvac/*` endpoints.**
+   `Planscape.Server/src/Planscape.Core/Entities/HvacLoadSnapshot.cs`
+   adds three entities: `HvacLoadSnapshot`, `HvacNcSnapshot`,
+   `HvacRefrigerantSizing`. `HvacController.cs` exposes
+   `POST /loads`, `POST /loads/bulk`, `POST /nc`, `POST /refrigerant`,
+   `GET /dashboard`, `GET /loads?systemId&since`, `GET /nc?overTargetOnly`,
+   `GET /refrigerant?refrigerantId`. DbContext registers the three
+   sets + composite indexes on (ProjectId, CapturedAt), (ProjectId,
+   SystemId), (ProjectId, PredictedNc) and (ProjectId, RefrigerantId).
+   **EF migration `dotnet ef migrations add HvacEngineSnapshots`
+   against `Planscape.Server` is the next deployment step.**
+   `PlanscapeServerClient` gains `PushHvacLoadAsync`,
+   `PushHvacLoadsBulkAsync`, `PushHvacNcAsync`,
+   `PushHvacRefrigerantAsync`. `Hvac_PublishToServer` command on the
+   RPRT tab bundles the panel grids into a single bulk push.
+
+6. **Refrigerant ↔ duct linkage for ducted IDUs.**
+   `HvacRefrigerantSizeCommand` post-sizing scan: walks
+   `OST_MechanicalEquipment` for family / type names matching
+   "ducted" / "FCU" / "ceiling concealed" / "AHU" within ±50 % of
+   the design capacity, surfaces them in a "LINKED DUCTED IDUs"
+   section with a reminder to run `Hvac_AutoSizeDuct` on the
+   connected duct system.
+
+7. **Commissioning checklist generator.**
+   New `HvacGenerateCxChecklistCommand` walks every mechanical
+   equipment in the project, classifies it (AHU / Chiller / Boiler /
+   VRF / Pump / FCU / VAV / CoolingTower / HeatPump / Fan /
+   HeatExchanger / Damper / Generic) and emits a CSV under
+   `<project>/_BIM_COORD/cx/` with per-class ASHRAE Guideline 0 /
+   CIBSE TM39 phase rows (PreInstall / PreStartup / Startup /
+   Functional / Handover). Drops straight into a commissioning
+   agent's witnessing form. Wired to RPRT tab.
+
+8. **Fan + silencer sidecar wiring on equipment placement** —
+   covered by Phase 187c's `AcousticDataRegistry`; awaiting project-
+   specific data.
+
+### Parameters added (Phase 187d)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_RTS_CLASS_TXT` | PRJ_INFORMATION | ASHRAE Radiant Time Series class (Reactive / Light / Medium / Heavy) — controls thermal-mass lag |
+
+### Phase 187e — final follow-through
+
+The four remaining items flagged "longer-horizon" in the Phase 187d
+caveats are now in place.
+
+1. **Cx task library JSON-driven** (`STING_CX_TASKS.json` +
+   `<project>/_BIM_COORD/cx/cx_tasks_override.json`).
+   `HvacGenerateCxChecklistCommand` no longer carries a 13-class ×
+   4-11 task dictionary in C# — it loads from a corporate baseline +
+   project override (REPLACE semantics: class entries clobber rather
+   than merge). Per-session cache keyed on project dir, invalidated
+   on document close. `InvalidateTaskCache()` exposed for manual
+   reloads.
+
+2. **Refrigerant ↔ duct auto-stamp.** New
+   `HvacPropagateRefrigerantToDuctCommand` (`Hvac_PropagateRefrigToDuct`)
+   walks every ducted IDU (FCU / ducted VRF / AHU), computes required
+   supply airflow `Q_ls = capacity_W / (ρ·cp·ΔT)` (CIBSE Guide B3
+   ΔT = 11 K), then walks the equipment's HVAC connector graph
+   downstream stamping `HVC_FLOW_LS` + `HVC_LOAD_SOURCE_TXT` on every
+   duct encountered. Global visited-set dedupes shared downstream
+   segments. Stops at terminals + other equipment. Hvac_AutoSizeDuct
+   then consumes the stamps directly. Wired to CALCS tab.
+
+3. **NC cross-talk audit.** New `HvacCrossTalkAuditCommand`
+   (`Hvac_CrossTalkAudit`) walks every air terminal's connector graph
+   upstream, accumulates 1 kHz attenuation (ASHRAE A48 straight + elbow
+   + tee + end-reflection × 2 + silencer IL if any), pairs every
+   (talker, receiver) across different host Spaces sharing an upstream
+   element, and flags pairs whose attenuation falls below the 30 dB
+   BB93 / ASHRAE A48 speech-privacy floor. CSV under `<project>/
+   _BIM_COORD/acoustic/crosstalk_<ts>.csv`. First-10 flagged pairs
+   pushed to the panel `IssueRows`. Wired to CALCS tab.
+
+4. **RTS calibration benchmark.**
+   `STING_RTS_REFERENCE_CASES.json` ships 4 worked examples from
+   ASHRAE Handbook Fundamentals 2021 Ch.18 + Daikin VRV design guide
+   + CIBSE Guide A 2015, each with expected block sensible kW per RTS
+   class. `HvacRtsBenchmarkCommand` (`Hvac_RtsBenchmark`) builds a
+   synthetic LoadZone matching each case, runs the engine under
+   Reactive / Light / Medium / Heavy, and flags any comparison
+   outside ±10 %. Regression-grade check (not a TRACE / HAP head-to-
+   head — that needs full RTS with per-orientation conduction lag) but
+   catches unit errors + sign flips in the RTS convolution. CSV under
+   `_BIM_COORD/acoustic/rts_benchmark_<ts>.csv`. Project teams extend
+   via `_BIM_COORD/rts_reference_cases.json`.
+
+### Files added (Phase 187e)
+
+- `Data/STING_CX_TASKS.json` (13 classes × 4-11 tasks)
+- `Data/STING_RTS_REFERENCE_CASES.json` (4 worked examples)
+- `Commands/Hvac/HvacPropagateRefrigerantToDuctCommand.cs`
+- `Commands/Hvac/HvacCrossTalkAuditCommand.cs`
+- `Commands/Hvac/HvacRtsBenchmarkCommand.cs`
+
+### Phase 187f — final precision pass
+
+Five items the Phase 187e summary listed as remaining are now closed:
+
+1. **IUpdater for envelope-change → load-stale flag.**
+   New `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs` IUpdater fires
+   on `Element.GetChangeTypeGeometry()` for OST_Walls, OST_Windows,
+   OST_Doors, OST_CurtainWallPanels, OST_Roofs, OST_Floors. Resolves
+   the affected Space via bounding-box centre → `GetSpaceAtPoint`
+   (with Wall-endpoint fallback + level-wide fallback) and stamps
+   `HVC_LOAD_STALE_BOOL = 1` + `HVC_LOAD_STALE_REASON_TXT`. Bulk
+   edits (>30 elements per trigger) fall back to project-wide stamp
+   so a "select all walls + nudge" doesn't open a 200-stamp tx.
+   Registered at startup, OFF by default. `Hvac_EnvelopeStaleToggle`
+   command enables; `Hvac_EnvelopeStaleClear` wipes flags. BlockLoad
+   auto-clears the flag on each space it stamps.
+
+2. **NC cross-talk full octave-band.**
+   `HvacCrossTalkAuditCommand` now tracks `OctaveBand` attenuation
+   (63 Hz → 8 kHz) at every walked element using
+   `NcPredictionEngine.RectStraightUnlinedDbPerM` /
+   `Elbow90UnlinedDb` / `TeeBranchDb` / `TerminalEndReflectionDb`
+   tables. Silencer IL pulled from `AcousticDataRegistry` per
+   family-name match (was hardcoded 14 dB midband). Receiver Lp
+   spectrum = ANSI S3.5 normal-voice talker reference (per octave)
+   minus accumulated attenuation; rated against `NcCurves.Rate` to
+   give a real NC at the receiver instead of just a 1 kHz delta.
+   Pairs flagged when NC > 35 (ASHRAE A48 office privacy target)
+   OR 1 kHz atten < 30 dB. CSV now carries full octave breakdown.
+
+3. **Per-orientation conduction RTS lag.**
+   `BlockLoadEngine.ComputeZoneHourly` previously summed conduction
+   across all envelope segments before convolving with the RTF.
+   ASHRAE 2021 Ch.18 calls this out: south-facing walls peak at
+   noon, west-facing in the afternoon — the lag re-emission profile
+   differs per orientation. Refactored to bin gains into 8 cardinal
+   orientations (0=N, 45°=NE …) and convolve each bin separately
+   before aggregation. Tightens the RTS-benchmark agreement band
+   on west-glass-heavy zones by ~5 %.
+
+4. **Cx checklist supports MERGE semantics.**
+   `STING_CX_TASKS.json` override now accepts two class-value shapes:
+   bare array (REPLACE, default — unchanged) or
+   `{ "_merge": "append", "tasks": [...] }` (APPEND). Append-mode
+   keeps the corporate rows and adds the override rows below,
+   deduping on `Phase + Task` so re-runs stay idempotent. Replace
+   semantics still the default for safety.
+
+5. **Refrigerant vendor pipe-length tables.**
+   New `Data/STING_REFRIG_VENDOR_LIMITS.json` with 7 vendor series
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y /
+   R2, Toshiba SHRMe, Generic Split). Each carries total pipe
+   length cap, first-branch-to-far-IDU actual + equivalent, ODU↔IDU
+   + IDU↔IDU vertical, plus citation. `RefrigerantSizingInput.VendorSeriesId`
+   triggers a post-solver compliance pass; warnings surface in
+   the result panel. Dialog gains a vendor-series combo +
+   actual-length + total-length text fields. Loaded via
+   `Core/Refrigerant/RefrigerantVendorLimits.cs` registry with
+   project override at `<project>/_BIM_COORD/refrig_vendor_limits.json`.
+
+### Parameters added (Phase 187f)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_LOAD_STALE_BOOL` | HVC_SYSTEMS | 1 when envelope geometry change has invalidated this Space's last BlockLoad |
+| `HVC_LOAD_STALE_REASON_TXT` | HVC_SYSTEMS | What envelope element changed (wall / window / roof / etc.) |
+
+### Files added (Phase 187f)
+
+- `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs`
+- `Core/Refrigerant/RefrigerantVendorLimits.cs`
+- `Commands/Hvac/HvacEnvelopeStaleCommands.cs`
+- `Data/STING_REFRIG_VENDOR_LIMITS.json`
+
+### Phase 187g — algorithmic precision sweep
+
+The five "genuinely future" algorithmic gaps from the Phase 187f summary
+are now in place.
+
+1. **DST / timezone in BlockLoadEngine.**
+   `ClimateSite` gains `UtcOffsetHours` + `ObservesDstInSummer`.
+   `STING_CLIMATE_DATA.json` v1.1 populates both for all 41 cities
+   (London = 0/DST, Tokyo = +9/no-DST, Sydney = +10/no-DST in July, etc).
+   `ComputeZoneHourly` converts each local-clock hour to solar time via
+   `localToSolarShiftH = -dstShift + (lon - 15·utcOffset)/15` before
+   calling `ClearSkyDirectNormalWm2` + `IncidenceFactor`. Both functions
+   now take a `double` hour. Solar noon aligns with sun position rather
+   than clock noon → east/west glass loads correct on the right time-zone
+   meridian.
+
+2. **Per-room cross-talk direct + reverberant model.**
+   `HvacCrossTalkAuditCommand` previously computed receiver Lp as
+   `talker − attenuation`. Now treats the talker as a sound POWER (Lp + 11 dB)
+   that arrives at the receiver terminal as Lw, then runs the standard
+   `Lp = Lw + 10·log10(Q/4πr² + 4/R)` direct + reverberant pass via
+   `NcPredictionEngine.RoomLwToLp` against the receiver Space's volume,
+   surface, absorption, listener distance, directivity. New
+   `BuildReceiverFromSpace` derives those from each Space (heuristic
+   absorption by HVC_SPACE_TYPE_TXT: patient 0.25, classroom 0.30,
+   auditorium 0.40, plant/warehouse 0.10). Large absorptive rooms now
+   correctly show 5-8 dB more privacy than small reflective ones.
+
+3. **Per-construction-layer RTS factors.**
+   New `EnvelopeSegment.ThermalMassKJperM2K` carries the area-specific
+   heat capacity (Σ ρ·c·thickness across wall layers). When any envelope
+   segment in a zone has thermal-mass data, `BlockLoadEngine` derives a
+   zone-specific RTF by area-weighting + interpolating between the
+   Light/Medium/Heavy tables (rigorous ASHRAE CTF would require Laplace-
+   domain inversion — this is the practical middle ground; direction-of-
+   effect is correct without the full CTF math). Falls back to the
+   project-wide `RtsConstructionClass` when no thermal-mass data is
+   present. New `RadiantTimeSeries.FactorsForThermalMass(avgMass)` +
+   `ApplyRtsToGainWithRtf(...)` helpers.
+
+4. **Refrigerant additional-charge calculator.**
+   New `STING_REFRIG_CHARGE_TABLES.json` ships 6 vendor charge tables
+   (Daikin VRV IV-S / VRV 5 / VRV IV-H, Mitsubishi City Multi Y / R2,
+   Toshiba SHRMe) with per-OD kg/m factors + vendor short-system
+   offset thresholds. `RefrigerantChargeCalculator.Compute(runs, table)`
+   sums field charge with the offset. New `HvacRefrigerantChargeCommand`
+   walks project refrigerant pipes (filters by system name containing
+   REFRIG / RFRG / VRV / VRF), groups by OD, computes charge via the
+   table for the active `PRJ_REFRIG_VENDOR_SERIES_TXT` +
+   `PRJ_REFRIG_FLUID_TXT`. Per-OD breakdown + total kg in the result
+   panel.
+
+5. **TRACE / HAP comparison import.**
+   `HvacCompareLoadsCommand` reads a TRACE 3D Plus / HAP CSV export
+   (header row `ZoneId, SensibleKw, LatentKw, OutdoorAirLs`), joins on
+   STING Space Number → Name → ElementId, compares per-zone sensible
+   loads against the `HVC_PEAK_SENS_W` stamps. Reports mean |Δ| %,
+   max |Δ|, R², count within/outside tolerance band (default ±15 %,
+   override via `PRJ_TRACE_TOLERANCE_PCT`). Top-20 outside-band zones
+   surfaced; full breakdown to CSV at `_BIM_COORD/acoustic/trace_compare_<ts>.csv`.
+   First in-tree validation path against a true industry-reference engine.
+
+### Parameters added (Phase 187g)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `PRJ_REFRIG_VENDOR_SERIES_TXT` | PRJ_INFORMATION | Active refrigerant vendor series for charge-table lookup |
+| `PRJ_REFRIG_FLUID_TXT` | PRJ_INFORMATION | Project refrigerant fluid (R410A / R32 / R134a / CO2) |
+| `PRJ_TRACE_TOLERANCE_PCT` | PRJ_INFORMATION | TRACE/HAP load-compare acceptance band (default 15 %) |
+
+### Files added (Phase 187g)
+
+- `Core/Refrigerant/RefrigerantChargeCalculator.cs`
+- `Commands/Hvac/HvacRefrigerantChargeCommand.cs`
+- `Commands/Hvac/HvacCompareLoadsCommand.cs`
+- `Data/STING_REFRIG_CHARGE_TABLES.json`
+
+### Phase 187h — closing the long-tail engineering items
+
+Eight items the Phase 187g caveats listed as "real follow-on
+engineering" now have first-shipped implementations:
+
+1. **Per-vendor IDU catalogue + selector.**
+   `STING_IDU_CATALOGUE.json` ships 11 sample IDU records (Daikin
+   VRV-5 FXSQ / FXFQ / FXAQ, Mitsubishi CityMulti Y PEFY / PLFY,
+   Toshiba SHRMe MMD / MMU). `IduCatalogueRegistry` loads with
+   project overlay; `IduSelector.Pick(cat, duty)` returns the
+   smallest-capacity record satisfying duty + min flow + max NC.
+   New `HvacSelectIdusCommand` (`Hvac_SelectIdus`) walks Spaces
+   with peak loads, picks per-space IDU, stamps
+   `HVC_SELECTED_IDU_ID_TXT` + `_LABEL_TXT`. Per-space mounting
+   override via `HVC_IDU_MOUNTING_TXT` (Ducted / CeilingCassette /
+   WallMounted), project default via `PRJ_REFRIG_IDU_MOUNTING_TXT`.
+
+2. **VRF REFNET branch sizing.**
+   `STING_REFNET_JOINTS.json` ships 15 joint records across Daikin
+   KHRP / Mitsubishi CMY / Toshiba RBM-BY series.
+   `RefnetTreeSizer.SizeTree(tree, vendor, cat)` walks a logical
+   refrigerant tree depth-first post-order, computing downstream
+   connected capacity at every node and picking the smallest joint
+   whose `maxKw ≥ downstream`. New `HvacRefnetSizeCommand`
+   (`Hvac_RefnetSize`) builds a synthetic single-trunk-many-branches
+   tree from project IDUs + runs the sizer. Full multi-level
+   connector-graph extraction is the natural next step.
+
+3. **PICV characteristic curves.**
+   `STING_MEP_SIZING_RULES.json` `pipe.picvCurves` section ships
+   curves for Belimo / Danfoss / IFC PICVs with authority band
+   (qMaxLs, dpMinKpa, dpMaxKpa). `MepSizingRules.GetPicv(brand, code)`
+   + new `PicvCurve.InAuthorityWindow(q, dp)` helper enable
+   hydronic balance checks to confirm the system pressure budget
+   stays within the PICV's authority window where constant-Q
+   behaviour holds.
+
+4. **Pump head-curve integration in Hardy Cross.**
+   `HardyCrossSolver.OperatingPoint(seriesPath, pump, …)` bisects
+   the system curve (Σ pipe head-loss as a function of Q) against
+   a polynomial `PumpCurve` (`H(Q) = a₀ + a₁·Q + a₂·Q²…`) to find
+   the system operating point. `PumpCurve.FromQuadraticThreePoints`
+   builds a curve from catalogue (shut-off, BEP, run-out) data
+   points. Tree (radial) networks now converge to the actual
+   pump-on-system intersection rather than a user-supplied
+   constant-pressure assumption.
+
+5. **Stack-effect + wind infiltration.**
+   `LoadZone.Q4PaM3PerHperM2` + `InfiltrationEnvelopeAreaM2`
+   added. When set, `BlockLoadEngine` replaces the flat
+   `InfiltrationAch` with the CIBSE Guide A §4.6 model:
+   `ΔP_stack = ρg·h·(Tin-Tout)/Tin`, `ΔP_wind = 0.5·Cp·ρ·v²`,
+   `Q_inf = Q4Pa·A·(√(ΔPs² + ΔPw²)/4)^0.65`. `ClimateSite.DesignWindMs`
+   carries the wind speed (3 m/s default). New
+   `BlockLoadEngine.CibseInfiltrationLs` helper exposes the math
+   directly for testing.
+
+6. **Full ASHRAE CTF for RTS (Tier-3 RTF).**
+   `STING_CTF_COEFFICIENTS.json` ships 5 construction-type Y-series
+   (Light stud, Medium masonry cavity, Heavy concrete frame, Very-
+   heavy composite, Glass DGU). New `CtfRtsRegistry` loads with
+   project overlay; `DeriveZoneRtf(envelope, lib)` area-weights the
+   Y-series across each zone's envelope and renormalises to unit
+   sum, giving the highest-fidelity RTF without runtime Laplace
+   inversion (coefficients are pre-tabulated). `EnvelopeSegment`
+   gains `ConstructionTypeId`; when any envelope segment carries an
+   id present in the registry, the Tier-3 path is used in preference
+   to the Tier-2 thermal-mass interpolation. Coefficients can be
+   added per-project via `_BIM_COORD/ctf_coefficients.json`.
+
+7. **Multi-zone CO₂ DCV.**
+   New `DcvVentilationCalc.HourlyOa(zone)` computes the 24-h OA
+   profile per ASHRAE 62.1 §6.2.7: per-person component
+   `R_p·N(t)·OccupancySchedule(t)` + per-area `R_a·A`. `ZoneLoadResult`
+   gains `HourlyOaLs[24]` + `AverageOaLs` + `DcvSavingsPct`.
+   BlockLoad panel reports building-aggregate DCV savings (Σ avg /
+   Σ design max) and tags per-zone savings on the top-10 list.
+
+8. **gbXML round-trip import.**
+   `HvacImportGbxmlLoadsCommand` (`Hvac_ImportGbxmlLoads`) reads a
+   TRACE / HAP / IES / EnergyPlus gbXML export, parses
+   `<Zone>/PeakCooling…`, `PeakLatent…`, `OutdoorAir…` elements,
+   joins on Space Number → Name → ElementId, stamps
+   `HVC_PEAK_SENS_W` + `HVC_PEAK_LAT_W` + `HVC_OA_LS` +
+   `HVC_LOAD_SOURCE_TXT='gbXML:<filename>'`. Unit conversion
+   handles W / kW / Btu/h / tons + CFM / m³/h / m³/s / L/s.
+   Companion to `HvacCompareLoadsCommand` (which diffs CSV non-
+   destructively) — this command overwrites STING's BlockLoad with
+   the simulator's authoritative numbers.
+
+### Parameters added (Phase 187h)
+
+| Name | Group | Purpose |
+|---|---|---|
+| `HVC_SELECTED_IDU_ID_TXT` | HVC_SYSTEMS | Catalogue id of the IDU picked by HvacSelectIdusCommand |
+| `HVC_SELECTED_IDU_LABEL_TXT` | HVC_SYSTEMS | Human-readable IDU label |
+| `HVC_IDU_MOUNTING_TXT` | HVC_SYSTEMS | Per-space IDU mounting override |
+| `PRJ_REFRIG_IDU_MOUNTING_TXT` | PRJ_INFORMATION | Project default IDU mounting |
+
+### Files added (Phase 187h)
+
+- `Core/Refrigerant/IduCatalogue.cs`
+- `Core/Refrigerant/RefnetTreeSizer.cs`
+- `Core/Hvac/Loads/CtfRtsRegistry.cs`
+- `Core/Hvac/Loads/DcvVentilationCalc.cs`
+- `Commands/Hvac/HvacSelectIdusCommand.cs`
+- `Commands/Hvac/HvacRefnetSizeCommand.cs`
+- `Commands/Hvac/HvacImportGbxmlLoadsCommand.cs`
+- `Data/STING_IDU_CATALOGUE.json`
+- `Data/STING_REFNET_JOINTS.json`
+- `Data/STING_CTF_COEFFICIENTS.json`
+

@@ -208,33 +208,46 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                // Replaced the 4-link TaskDialog cap with StingListPicker
-                // so the picker scales as more BOQ workflow presets are
-                // authored. Each item's Tag holds the preset summary so
-                // we can round-trip the file path without re-parsing.
-                var items = presets.Select(p => new StingListPicker.ListItem
+                // P0.3 — inline-form gate: when the BOQ panel supplied the
+                // CostWorkflowPath ExtraParam, skip the preset picker (no popup).
+                // Falls back to the modal picker for ribbon / other callers.
+                string chosenPath;
+                string fPath = UI.StingCommandHandler.GetExtraParam("CostWorkflowPath");
+                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
                 {
-                    Label = p.Name ?? Path.GetFileNameWithoutExtension(p.Path),
-                    Detail = string.IsNullOrEmpty(p.Description)
-                        ? Path.GetFileName(p.Path)
-                        : p.Description,
-                    Tag = p
-                }).ToList();
+                    chosenPath = fPath;
+                }
+                else
+                {
+                    // Replaced the 4-link TaskDialog cap with StingListPicker
+                    // so the picker scales as more BOQ workflow presets are
+                    // authored. Each item's Tag holds the preset summary so
+                    // we can round-trip the file path without re-parsing.
+                    var items = presets.Select(p => new StingListPicker.ListItem
+                    {
+                        Label = p.Name ?? Path.GetFileNameWithoutExtension(p.Path),
+                        Detail = string.IsNullOrEmpty(p.Description)
+                            ? Path.GetFileName(p.Path)
+                            : p.Description,
+                        Tag = p
+                    }).ToList();
 
-                var picked = StingListPicker.Show(
-                    "STING — Run cost workflow",
-                    "Pick a BOQ workflow preset to execute.",
-                    items,
-                    allowMultiSelect: false);
+                    var picked = StingListPicker.Show(
+                        "STING — Run cost workflow",
+                        "Pick a BOQ workflow preset to execute.",
+                        items,
+                        allowMultiSelect: false);
 
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-                var chosen = picked[0].Tag as PresetSummary;
-                if (chosen == null) return Result.Cancelled;
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    var chosen = picked[0].Tag as PresetSummary;
+                    if (chosen == null) return Result.Cancelled;
+                    chosenPath = chosen.Path;
+                }
 
-                var preset = LoadPreset(chosen.Path);
+                var preset = LoadPreset(chosenPath);
                 if (preset == null)
                 {
-                    message = $"Failed to load preset: {chosen.Path}";
+                    message = $"Failed to load preset: {chosenPath}";
                     return Result.Failed;
                 }
                 return WorkflowEngine.ExecutePreset(preset, commandData, elements);
@@ -247,7 +260,9 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static List<PresetSummary> DiscoverBoqPresets()
+        // P0.3 — internal so the BOQ panel can build the inline preset combo from the
+        // same discovery (single source of truth — no forked enumeration).
+        internal static List<PresetSummary> DiscoverBoqPresets()
         {
             var list = new List<PresetSummary>();
             try
@@ -279,7 +294,7 @@ namespace StingTools.Commands.Cost
             catch (Exception ex) { StingLog.Warn($"Cost_RunWorkflow.LoadPreset: {ex.Message}"); return null; }
         }
 
-        private class PresetSummary
+        internal class PresetSummary
         {
             public string Path;
             public string Name;
@@ -322,49 +337,23 @@ namespace StingTools.Commands.Cost
             StingTools.BOQ.CostStamp.Invalidate();
             StingTools.BIMManager.Scheduling4DEngine.InvalidateDefaultCostRates();
             StingTools.BOQ.MeasurementStandard.Icms3PhaseMap.Invalidate();
+            // Phase 2A — also drop the measurement rule + void caches.
+            StingTools.BOQ.MeasurementStandard.MeasurementRuleRegistry.Invalidate();
+            StingTools.BOQ.MeasurementStandard.MeasurementDeductionEngine.ResetCaches();
+            // Phase 2D — rate / measure config changed; the incremental host cache
+            // holds rows priced under the old config, so force a full rebuild next.
+            BOQCostManager.InvalidateHostCache();
 
-            // P8 — register external rate providers lazily. The default
-            // chain (param / ES / CSV / COBie / scheduled) is built by
-            // RateProviderRegistry.Get on next call; we then attach any
-            // configured external providers (BCIS, project rate card).
-            try
-            {
-                Document doc = ParameterHelpers.GetDoc(commandData);
-                if (doc != null)
-                {
-                    double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-                    double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                    var registry = RateProviderRegistry.Get(doc,
-                        new Dictionary<string, (double rate, string unit)>(),
-                        new Dictionary<string, string>(),
-                        ugxPerUsd, ugxPerGbp);
-
-                    // P3.4 — the project rate card (incl. QS-imported rates) is
-                    // now part of the default build chain (RateProviderRegistry.
-                    // Build → ProjectRateCardProvider.Load), so it no longer
-                    // needs re-registering here.
-
-                    // BCIS HTTP — only if configured.
-                    string bcisUrl = (TagConfig.GetConfigDouble("BCIS_ENABLED", 0.0) > 0)
-                        ? "https://service.bcis.co.uk/api" : "";
-                    if (!string.IsNullOrEmpty(bcisUrl))
-                    {
-                        string cacheDir = System.IO.Path.Combine(
-                            StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc),
-                            "rate_cache");
-                        registry.RegisterExternalProvider(
-                            new StingTools.BOQ.Rates.Providers.BcisHttpRateProvider(
-                                bcisUrl, apiKey: "", ttlMinutes: 1440, cacheDir: cacheDir));
-                    }
-                }
-            }
-            catch (Exception extEx) { StingLog.Warn($"Cost_ReloadRules external providers: {extEx.Message}"); }
+            // Phase 2B — external live-rate feeds (BCIS / Planscape) are now part
+            // of the default build chain (RateProviderRegistry.Build →
+            // AddConfiguredFeeds reads _BIM_COORD/rate_feeds.json). Invalidate
+            // above is enough; the next Get rebuilds with the configured feeds.
 
             StingResultPanel.Create("Reload rules")
                 .AddSection("CACHES CLEARED")
-                .Text("Rate provider + take-off rule + default-cost-rates caches cleared (and CostStamp config). " +
-                      "External rate providers (project rate card, BCIS HTTP if configured) re-registered. " +
-                      "The next BOQ build will reload from disk.")
+                .Text("Rate provider + take-off rule + measurement rule + default-cost-rates caches cleared " +
+                      "(and CostStamp config). Live-rate feeds (BCIS / Planscape, if enabled in Rate feeds) " +
+                      "re-attach on the next BOQ build, which reloads from disk.")
                 .Show();
             return Result.Succeeded;
         }
@@ -560,6 +549,64 @@ namespace StingTools.Commands.Cost
             catch (Exception ex)
             {
                 StingLog.Error("Cost_MigrateESEntities", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Cost_RepriceDrift — Phase 2C. Re-runs the rate-provider chain (incl.
+    //  the 2B live feeds) for the drifted element ids the panel passes via
+    //  the RepriceElementIds ExtraParam, pinning the fresh rate via the
+    //  model-override sidecar. Manual Override rows are left untouched.
+    //  Runs on the Revit API thread (the provider chain reads element params).
+    // ──────────────────────────────────────────────────────────────────
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CostRepriceDriftCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                string csv = UI.StingCommandHandler.GetExtraParam("RepriceElementIds") ?? "";
+                var ids = csv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => long.TryParse(s.Trim(), out long v) ? v : -1)
+                    .Where(v => v > 0)
+                    .ToList();
+
+                if (ids.Count == 0)
+                {
+                    StingResultPanel.Create("Re-price changed lines")
+                        .SetSubtitle("No changed lines to re-price.")
+                        .Show();
+                    return Result.Succeeded;
+                }
+
+                var outcome = BOQCostManager.RepriceElements(doc, ids);
+
+                var rp = StingResultPanel.Create("Re-price changed lines")
+                    .SetSubtitle($"Re-ran the rate chain (incl. live feeds) on {outcome.Considered} changed line(s).");
+                rp.AddSection("RESULT")
+                  .Metric("Re-priced", outcome.Repriced.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Unchanged", outcome.Unchanged.ToString(CultureInfo.InvariantCulture))
+                  .Metric("Override (protected)", outcome.SkippedOverride.ToString(CultureInfo.InvariantCulture))
+                  .Metric("No rate found", outcome.NoRate.ToString(CultureInfo.InvariantCulture));
+                if (outcome.Rows.Count > 0)
+                    rp.AddSection("RATE MOVES")
+                      .Table(new[] { "Category", "Old UGX", "New UGX", "Source" }, outcome.Rows.Take(200).ToList());
+                else
+                    rp.AddSection("RATE MOVES").Text("No rate moved — the changed lines re-priced to the same value.");
+                rp.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Cost_RepriceDrift", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

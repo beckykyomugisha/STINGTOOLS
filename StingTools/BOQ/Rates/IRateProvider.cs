@@ -81,6 +81,15 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>Optional matched key (category name, PROD code, MAT_CODE) — useful for logging.</summary>
         public string MatchedKey { get; set; } = "";
+
+        // ── G4 — optional labour / plant / material split (per-unit, same
+        // currency + unit as UnitRate). Null when the source carries no split;
+        // the rate then stays a single number (no regression). When all three
+        // are present they should sum to UnitRate, but the pipeline does not
+        // force this — a source may give a partial split.
+        public double? LabourRate { get; set; }
+        public double? PlantRate { get; set; }
+        public double? MaterialRate { get; set; }
     }
 
     /// <summary>

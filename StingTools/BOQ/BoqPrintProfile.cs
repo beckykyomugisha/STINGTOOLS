@@ -49,7 +49,15 @@ namespace StingTools.BOQ
         // (Ref/Item/Qty/Unit/Rate/Total) are always shown and never in this set.
         // "Model" (P1.1) surfaces host-vs-linked-model provenance.
         public static readonly string[] ToggleableColumns =
-            { "Level", "Location", "Source", "Model", "Confidence", "Carbon", "Note" };
+            { "Level", "Location", "Source", "Model", "Confidence", "Carbon", "Note",
+              // G4 — labour / plant / material rate-split columns (off by default).
+              "Labour", "Plant", "Material",
+              // G5 — carbon data-quality column (off by default).
+              "CO2 Quality",
+              // Phase 2A — NRM2 measurement audit columns (off by default).
+              "Gross", "Deduct", "Waste", "Net",
+              // Phase 2E — user-defined WBS / CBS columns (off by default).
+              "WBS", "CBS" };
 
         private static readonly ConcurrentDictionary<string, BoqPrintProfileRegistry> _cache
             = new ConcurrentDictionary<string, BoqPrintProfileRegistry>(StringComparer.OrdinalIgnoreCase);

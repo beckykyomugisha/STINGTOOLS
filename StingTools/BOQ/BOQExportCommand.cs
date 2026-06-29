@@ -51,7 +51,13 @@ namespace StingTools.BOQ
                 // gate actually reflects what the exporter will write.
                 EnsureAllParagraphsResolved(boq, doc);
 
-                if (boq.ParagraphCoveragePct < 80)
+                // P0.3 — the low-coverage warning is a modal TaskDialog gate. When the
+                // export is driven from the BOQ panel (InlineHost=1) it is skipped: the
+                // panel already shows BOQ Health + coverage live, and the export result
+                // surfaces the "Paragraph coverage" metric, so no information is lost and
+                // no popup interrupts. The modal is kept for ribbon / non-panel callers.
+                bool fromPanel = UI.StingCommandHandler.GetExtraParam("InlineHost") == "1";
+                if (boq.ParagraphCoveragePct < 80 && !fromPanel)
                 {
                     var td = new TaskDialog("BOQ paragraph coverage")
                     {
@@ -84,6 +90,9 @@ namespace StingTools.BOQ
                     BuildItemScheduleSheet(wb.Worksheets.Add("Item Schedule"), boq);
                     BuildMaterialScheduleSheet(wb.Worksheets.Add("Material Schedule"), boq);
                     BuildProvisionalSumsSheet(wb.Worksheets.Add("Provisional Sums"), boq);
+                    // G3 — itemised preliminaries get their own section when active.
+                    if (boq.PrelimsItemised && boq.PrelimLines != null && boq.PrelimLines.Count > 0)
+                        BuildPreliminariesScheduleSheet(wb.Worksheets.Add("Preliminaries"), boq);
                     BuildNrm2ReferenceSheet(wb.Worksheets.Add("NRM2 Reference"), boq);
                     BuildCarbonSheet(wb.Worksheets.Add("Carbon & Lifecycle"), boq);
                     BuildAuditTrailSheet(wb.Worksheets.Add("Audit Trail"), boq);
@@ -95,6 +104,12 @@ namespace StingTools.BOQ
                         var diff = BOQCostManager.CompareSnapshots(snaps[1].Path, snaps[0].Path);
                         BuildSnapshotDiffSheet(wb.Worksheets.Add("Snapshot Comparison"), diff);
                     }
+
+                    // G9 — DRAFT / CERTIFIED status banner (first sheet).
+                    BoqSignOffStore.StampWorkbook(wb, doc, boq);
+                    // G9 follow-up — DRAFT/CERTIFIED footer on EVERY sheet so the
+                    // mark can't be missed (+ red tab tint when unsigned).
+                    BoqSignOffStore.StampSheetFooters(wb, doc, boq);
 
                     wb.SaveAs(outputPath);
                 }
@@ -114,6 +129,7 @@ namespace StingTools.BOQ
                     .Metric("Carbon", $"{boq.TotalCarbonKg:F0} kgCO₂e")
                     .Metric("Paragraph coverage", $"{boq.ParagraphCoveragePct:F0}%")
                     .Metric("Health score", $"{healthScore.OverallScore:F0}/100 ({healthScore.Grade})")
+                    .Metric("Sign-off", BoqSignOffStore.StatusLine(doc, boq))
                     .Show();
 
                 StingLog.Info($"BOQ exported: {Path.GetFileName(outputPath)} ({boq.AllItems.Count} items)");
@@ -224,8 +240,19 @@ namespace StingTools.BOQ
             ws.Cell(row, 6).Value = "Subtotal"; ws.Cell(row, 6).Style.Font.SetBold();
             ws.Cell(row, 7).FormulaA1 = $"SUM(G{firstDataRow}:G{row - 4})"; ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
             int subtotalRow = row; row++;
-            ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
-            ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.PrelimPct / 100:F4}"; row++;
+            if (boq.PrelimsItemised)
+            {
+                // G3 — itemised prelims: post the schedule total (see Preliminaries sheet).
+                ws.Cell(row, 6).Value = "Preliminaries (itemised — see Preliminaries sheet)";
+                ws.Cell(row, 7).Value = boq.PrelimsItemisedUGX;
+                ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0";
+            }
+            else
+            {
+                ws.Cell(row, 6).Value = $"Preliminaries ({boq.PrelimPct:F0}%)";
+                ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.PrelimPct / 100:F4}";
+            }
+            row++;
             ws.Cell(row, 6).Value = $"Contingency ({boq.ContingencyPct:F0}%)";
             ws.Cell(row, 7).FormulaA1 = $"G{subtotalRow}*{boq.ContingencyPct / 100:F4}"; row++;
             ws.Cell(row, 6).Value = $"Overhead & profit ({boq.OverheadPct:F0}%)";
@@ -245,12 +272,56 @@ namespace StingTools.BOQ
             }
         }
 
+        // ── G3 — itemised preliminaries schedule as its own section ──────────
+        private void BuildPreliminariesScheduleSheet(IXLWorksheet ws, BOQDocument boq)
+        {
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.Cell(1, 1).Value = $"{boq.ProjectName} — Preliminaries (built-up schedule)";
+            ws.Range(1, 1, 1, 5).Merge().Style.Font.SetBold().Font.SetFontSize(13)
+                .Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(NavyFill);
+
+            int hr = 3;
+            string[] cols = { "Item", "Category", "Basis", "Value / %", "Amount UGX" };
+            for (int i = 0; i < cols.Length; i++) ws.Cell(hr, i + 1).Value = cols[i];
+            ws.Range(hr, 1, hr, cols.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+                .Fill.SetBackgroundColor(HeaderFill);
+            double[] widths = { 40, 22, 10, 14, 16 };
+            for (int i = 0; i < widths.Length; i++) ws.Column(i + 1).Width = widths[i];
+
+            double subtotal = boq.SubtotalUGX;
+            int row = hr + 1;
+            foreach (var line in boq.PrelimLines)
+            {
+                ws.Cell(row, 1).Value = line.Name ?? "";
+                ws.Cell(row, 2).Value = line.Category ?? "";
+                bool pct = string.Equals(line.Basis, "percent", StringComparison.OrdinalIgnoreCase);
+                ws.Cell(row, 3).Value = pct ? "% works" : "Value";
+                ws.Cell(row, 4).Value = pct ? $"{line.Value:0.###}%" : line.Value.ToString("N0");
+                ws.Cell(row, 5).Value = line.AmountFor(subtotal);
+                ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+                row++;
+            }
+            ws.Cell(row, 4).Value = "TOTAL PRELIMINARIES";
+            ws.Cell(row, 4).Style.Font.SetBold();
+            ws.Cell(row, 5).Value = boq.PrelimsItemisedUGX;
+            ws.Range(row, 4, row, 5).Style.Fill.SetBackgroundColor(NavyFill)
+                .Font.SetFontColor(XLColor.White).Font.SetBold();
+            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0";
+
+            ws.Cell(row + 2, 1).Value =
+                "Itemised preliminaries replace the flat preliminaries % in the grand total (works subtotal basis for % lines).";
+            ws.Range(row + 2, 1, row + 2, 5).Merge().Style.Font.SetItalic().Font.SetFontSize(9)
+                .Font.SetFontColor(XLColor.FromArgb(90, 90, 90));
+        }
+
         private void BuildItemScheduleSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, $"{boq.ProjectName} — Item Schedule (edit in place and re-import via BOQ → Import)");
             string[] cols = { "Line ref", "NRM2 §", "Category", "Discipline", "Item", "Family", "Unit", "Quantity",
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Note", "Source Model", "Revit ElementId",
-                "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence" };
+                "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence",
+                // G4 — per-unit labour / plant / material split (blank when none).
+                "Labour UGX", "Plant UGX", "Material UGX" };
             WriteHeader(ws, 3, cols);
 
             int row = 4;
@@ -278,6 +349,9 @@ namespace StingTools.BOQ
                 ws.Cell(row, 20).Value = it.EmbodiedCarbonKg;
                 ws.Cell(row, 21).Value = it.LifecycleCostUGX;
                 ws.Cell(row, 22).Value = it.RateConfidence;
+                if (it.LabourUGX.HasValue) ws.Cell(row, 23).Value = it.LabourUGX.Value;
+                if (it.PlantUGX.HasValue) ws.Cell(row, 24).Value = it.PlantUGX.Value;
+                if (it.MaterialUGX.HasValue) ws.Cell(row, 25).Value = it.MaterialUGX.Value;
                 row++;
             }
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
@@ -373,8 +447,9 @@ namespace StingTools.BOQ
         private void BuildCarbonSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, "Carbon & Lifecycle — per-element embodied carbon and 25-year NPV lifecycle cost");
+            // G5 — carbon data-quality + factor source columns.
             string[] cols = { "Line ref", "Category", "Discipline", "Quantity", "Unit",
-                "Carbon kgCO₂e", "Lifecycle UGX" };
+                "Carbon kgCO₂e", "Lifecycle UGX", "Material", "CO₂ data quality", "Carbon factor source" };
             WriteHeader(ws, 3, cols);
             int row = 4;
             foreach (var it in boq.AllItems)
@@ -386,6 +461,9 @@ namespace StingTools.BOQ
                 ws.Cell(row, 5).Value = it.Unit;
                 ws.Cell(row, 6).Value = it.EmbodiedCarbonKg;
                 ws.Cell(row, 7).Value = it.LifecycleCostUGX;
+                ws.Cell(row, 8).Value = it.CarbonMaterial ?? "";
+                ws.Cell(row, 9).Value = it.CarbonQuality ?? "";
+                ws.Cell(row, 10).Value = it.CarbonSource ?? "";
                 row++;
             }
             row += 1;

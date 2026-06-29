@@ -17,6 +17,7 @@ using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.BIMManager;
+using StingTools.BOQ.MeasurementStandard;
 using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
@@ -93,11 +94,294 @@ namespace StingTools.BOQ
             lock (_linkTakeoffCache) { _linkTakeoffCache.Clear(); }
         }
 
+        // ── Phase 2D — incremental host take-off ─────────────────────────────
+        //  The host walk (CollectCandidateElements + BuildLineItemFromElement
+        //  per element) is the heavy part of a full build. We cache the RAW host
+        //  line items (pre-aggregate / pre-group / pre-override, keyed per
+        //  document) exactly like the per-link cache, plus a per-document dirty
+        //  set fed by StingCostDirtyMarker (an IUpdater watching cost categories).
+        //  On an incremental refresh only the dirty + newly-added elements are
+        //  re-taken-off; removed elements drop their cached line; everything else
+        //  reuses the cached row. Aggregation / grouping / overrides / line-refs
+        //  then run identically to a full build, so the result is correct BY
+        //  CONSTRUCTION whenever the dirty set is complete. Any change the dirty
+        //  set can't safely localise (type / material / level / grid edits, rate
+        //  or measurement config changes, a tracking gap) forces a full rebuild.
+        //  Incremental only runs when the panel asks for it AND the marker is
+        //  enabled; a full rebuild is always available and always correct.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQLineItem>> _hostTakeoffCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQLineItem>>(StringComparer.OrdinalIgnoreCase);
+
+        private sealed class HostIncrementalState
+        {
+            public readonly HashSet<long> Dirty = new HashSet<long>();
+            public bool ForceFull = true;   // first build is always full
+            public readonly object Lock = new object();
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HostIncrementalState> _hostIncremental
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, HostIncrementalState>(StringComparer.OrdinalIgnoreCase);
+
+        // Set while a plugin-owned transaction runs (e.g. BuildBOQDocument's own
+        // STEP 9 stale-flag write, or WriteElementParameters) so the dirty marker
+        // doesn't self-dirty every costed element on each build — which would make
+        // the next "incremental" refresh re-walk the whole model. Single API
+        // thread ⇒ a plain static is safe.
+        private static volatile bool _suppressDirty;
+        internal static bool IsDirtySuppressed => _suppressDirty;
+
+        private static HostIncrementalState IncrementalState(Document doc)
+            => _hostIncremental.GetOrAdd(doc?.PathName ?? "default", _ => new HostIncrementalState());
+
+        /// <summary>IUpdater hook — record elements changed in any way so the next
+        /// incremental refresh re-takes-off only those.</summary>
+        internal static void MarkHostDirty(Document doc, IEnumerable<long> ids)
+        {
+            if (doc == null || ids == null || _suppressDirty) return;
+            var st = IncrementalState(doc);
+            lock (st.Lock) foreach (var id in ids) if (id > 0) st.Dirty.Add(id);
+        }
+
+        /// <summary>IUpdater hook — a broad-impact change (type / material / level /
+        /// grid) was seen; the cached rows can't be trusted, so force a full rebuild.</summary>
+        internal static void ForceHostFull(Document doc)
+        {
+            if (doc == null) return;
+            string key = doc.PathName ?? "default";
+            _hostTakeoffCache.TryRemove(key, out _);
+            var st = IncrementalState(doc);
+            lock (st.Lock) { st.ForceFull = true; st.Dirty.Clear(); }
+        }
+
+        /// <summary>Global host-cache invalidation — used when rate / carbon /
+        /// measurement config changes (Cost_ReloadRules, measurement-standard
+        /// switch), since those affect every cached row.</summary>
+        internal static void InvalidateHostCache()
+        {
+            _hostTakeoffCache.Clear();
+            foreach (var st in _hostIncremental.Values)
+                lock (st.Lock) { st.ForceFull = true; st.Dirty.Clear(); }
+        }
+
+        /// <summary>Drop the per-document host cache + dirty state (document close).</summary>
+        internal static void ClearHostIncremental(Document doc)
+        {
+            string key = doc?.PathName ?? "default";
+            _hostTakeoffCache.TryRemove(key, out _);
+            _hostIncremental.TryRemove(key, out _);
+        }
+
+        // Host raw-item builder — full walk, or incremental (dirty + added only).
+        private static List<BOQLineItem> BuildHostRawItems(Document doc, HashSet<string> knownCats,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            IMeasurementStandard measStd, bool allowIncremental)
+        {
+            string key = doc?.PathName ?? "default";
+            var st = IncrementalState(doc);
+            bool haveCache = _hostTakeoffCache.TryGetValue(key, out var cached) && cached != null;
+            bool forceFull; HashSet<long> dirtySnapshot;
+            lock (st.Lock) { forceFull = st.ForceFull; dirtySnapshot = new HashSet<long>(st.Dirty); }
+
+            bool incremental = allowIncremental && haveCache && !forceFull;
+
+            // The element collection (cheap iteration) runs in both paths; the
+            // expensive BuildLineItemFromElement is what incremental skips.
+            var currentElements = CollectCandidateElements(doc, knownCats);
+
+            if (!incremental)
+            {
+                var items = new List<BOQLineItem>(currentElements.Count);
+                foreach (var el in currentElements)
+                {
+                    var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    if (line != null) items.Add(line);
+                }
+                StoreHostCache(key, items, st);
+                return items;
+            }
+
+            // ── Incremental ──────────────────────────────────────────────────
+            var currentById = new Dictionary<long, Element>();
+            foreach (var e in currentElements)
+            {
+                long id = e.Id?.Value ?? -1;
+                if (id > 0) currentById[id] = e;
+            }
+            var currentIds = new HashSet<long>(currentById.Keys);
+
+            var cachedById = new Dictionary<long, BOQLineItem>();
+            foreach (var it in cached)
+                if (it.RevitElementId > 0 && !cachedById.ContainsKey(it.RevitElementId))
+                    cachedById[it.RevitElementId] = it;
+
+            // Re-take-off = newly-added (in current, not cached) ∪ dirty-existing.
+            var reTakeoff = new HashSet<long>();
+            foreach (var id in currentIds) if (!cachedById.ContainsKey(id)) reTakeoff.Add(id);
+            foreach (var id in dirtySnapshot) if (currentIds.Contains(id)) reTakeoff.Add(id);
+
+            var result = new List<BOQLineItem>(cached.Count + reTakeoff.Count);
+            foreach (var it in cached)
+            {
+                if (!currentIds.Contains(it.RevitElementId)) continue;   // removed → drop
+                if (reTakeoff.Contains(it.RevitElementId)) continue;     // will rebuild
+                result.Add(it.Clone());
+            }
+            int rebuilt = 0;
+            foreach (var id in reTakeoff)
+            {
+                if (!currentById.TryGetValue(id, out var el) || el == null) continue;
+                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                if (line != null) { result.Add(line); rebuilt++; }
+            }
+            StingLog.Info($"BOQ incremental host take-off: re-took-off {rebuilt} of {currentIds.Count} element(s) " +
+                          $"(cache had {cachedById.Count}).");
+            StoreHostCache(key, result, st);
+            return result;
+        }
+
+        private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
+        {
+            // Store an isolated clone so a later caller mutating the returned rows
+            // (aggregate / group / override) can never corrupt the cache.
+            _hostTakeoffCache[key] = items.Select(i => i.Clone()).ToList();
+            lock (st.Lock) { st.ForceFull = false; st.Dirty.Clear(); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2E — WBS / CBS assignment. Map rule wins; else inherit the
+        //  WBS of the 4D ScheduleTask the element belongs to (one breakdown
+        //  structure shared by the 4D programme and the 5D bill).
+        // ══════════════════════════════════════════════════════════════════
+        private static void ApplyWbsCbs(Document doc, List<BOQLineItem> items)
+        {
+            if (items == null || items.Count == 0) return;
+            try
+            {
+                var rules = BoqWbsMapStore.Load(doc)?.Rules ?? new List<BoqWbsRule>();
+                var taskWbs = BuildElementTaskWbsIndex(doc);
+
+                foreach (var item in items)
+                {
+                    string wbs = "", cbs = "";
+                    foreach (var r in rules)
+                    {
+                        if (r.Matches(item)) { wbs = r.Wbs ?? ""; cbs = r.Cbs ?? ""; break; }
+                    }
+
+                    // Fallback — inherit WBS from the linked ScheduleTask.
+                    if (string.IsNullOrEmpty(wbs) && taskWbs.Count > 0)
+                    {
+                        foreach (long id in EnumerateItemElementIds(item))
+                        {
+                            if (taskWbs.TryGetValue(id, out string tw) && !string.IsNullOrEmpty(tw)) { wbs = tw; break; }
+                        }
+                    }
+
+                    item.WbsCode = wbs;
+                    item.CbsCode = cbs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyWbsCbs: {ex.Message}"); }
+        }
+
+        /// <summary>elementId → ScheduleTask.Wbs from the unified 4D schedule store.</summary>
+        private static Dictionary<long, string> BuildElementTaskWbsIndex(Document doc)
+        {
+            var map = new Dictionary<long, string>();
+            try
+            {
+                var model = StingTools.Core.Schedule.ScheduleStore.Load(doc);
+                if (model?.Tasks == null) return map;
+                foreach (var t in model.Tasks)
+                {
+                    if (string.IsNullOrEmpty(t?.Wbs) || t.ElementIds == null) continue;
+                    foreach (long id in t.ElementIds) if (id > 0 && !map.ContainsKey(id)) map[id] = t.Wbs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildElementTaskWbsIndex: {ex.Message}"); }
+            return map;
+        }
+
+        private static IEnumerable<long> EnumerateItemElementIds(BOQLineItem item)
+        {
+            if (item == null) yield break;
+            if (item.ConstituentElementIds != null && item.ConstituentElementIds.Count > 0)
+                foreach (long id in item.ConstituentElementIds) yield return id;
+            else if (item.RevitElementId > 0)
+                yield return item.RevitElementId;
+        }
+
         private static string LinkSelectionPath(Document doc)
         {
             string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — memory only
             return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_links.json");
+        }
+
+        // P2.3 — per-link instance multiplier. boq_links.json now carries the
+        // inclusion set AND an optional Title → multiply-by-instance-count map
+        // (default off). A model legitimately placed twice (mirrored wings) can
+        // be opted in to be taken off ×N. Back-compatible: a legacy bare array
+        // is read as "included only, no multipliers".
+        private sealed class LinksConfig
+        {
+            [Newtonsoft.Json.JsonProperty("included")]
+            public List<string> Included { get; set; } = new List<string>();
+            [Newtonsoft.Json.JsonProperty("multiply")]
+            public Dictionary<string, bool> Multiply { get; set; }
+                = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Per-doc multiply map cache (parallels _linkInclusionCache).
+        private static readonly Dictionary<string, Dictionary<string, bool>> _linkMultiplyCache
+            = new Dictionary<string, Dictionary<string, bool>>(StringComparer.OrdinalIgnoreCase);
+
+        private static LinksConfig LoadLinksConfigRaw(Document doc)
+        {
+            var cfg = new LinksConfig();
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path == null || !System.IO.File.Exists(path)) return cfg;
+                string json = System.IO.File.ReadAllText(path);
+                string trimmed = json.TrimStart();
+                if (trimmed.StartsWith("["))
+                {
+                    // Legacy format — bare array of titles.
+                    var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(json);
+                    if (titles != null) cfg.Included = titles.Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+                }
+                else
+                {
+                    var parsed = Newtonsoft.Json.JsonConvert.DeserializeObject<LinksConfig>(json);
+                    if (parsed != null)
+                    {
+                        cfg.Included = parsed.Included ?? new List<string>();
+                        cfg.Multiply = parsed.Multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadLinksConfigRaw: {ex.Message}"); }
+            return cfg;
+        }
+
+        private static void SaveLinksConfig(Document doc, HashSet<string> included, Dictionary<string, bool> multiply)
+        {
+            try
+            {
+                string path = LinkSelectionPath(doc);
+                if (path == null) return;
+                var cfg = new LinksConfig
+                {
+                    Included = included.ToList(),
+                    Multiply = multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                };
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(cfg, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveLinksConfig: {ex.Message}"); }
         }
 
         /// <summary>Titles of loaded links included in the takeoff for this doc
@@ -108,50 +392,75 @@ namespace StingTools.BOQ
             lock (_linkInclusionCache)
             {
                 if (_linkInclusionCache.TryGetValue(key, out var cached)) return cached;
-                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                try
-                {
-                    string path = LinkSelectionPath(doc);
-                    if (path != null && System.IO.File.Exists(path))
-                    {
-                        var titles = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(
-                            System.IO.File.ReadAllText(path));
-                        if (titles != null) foreach (var t in titles)
-                            if (!string.IsNullOrWhiteSpace(t)) set.Add(t.Trim());
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"GetIncludedLinkTitles: {ex.Message}"); }
+                var cfg = LoadLinksConfigRaw(doc);
+                var set = new HashSet<string>(
+                    cfg.Included.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
+                    StringComparer.OrdinalIgnoreCase);
                 _linkInclusionCache[key] = set;
+                lock (_linkMultiplyCache) { _linkMultiplyCache[key] = cfg.Multiply; }
                 return set;
             }
         }
 
-        /// <summary>Persist the per-link inclusion set + refresh the cache.</summary>
+        /// <summary>P2.3 — Title → "multiply by instance count" opt-in map for this doc.</summary>
+        internal static Dictionary<string, bool> GetLinkMultiplyMap(Document doc)
+        {
+            string key = doc?.PathName ?? "";
+            lock (_linkMultiplyCache)
+            {
+                if (_linkMultiplyCache.TryGetValue(key, out var cached)) return cached;
+            }
+            // Force a load (populates both caches).
+            GetIncludedLinkTitles(doc);
+            lock (_linkMultiplyCache)
+            {
+                return _linkMultiplyCache.TryGetValue(key, out var m)
+                    ? m : new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>Persist the per-link inclusion set + refresh the cache (preserves the multiply map).</summary>
         internal static void SetIncludedLinkTitles(Document doc, IEnumerable<string> titles)
         {
             string key = doc?.PathName ?? "";
             var set = new HashSet<string>(
                 (titles ?? Enumerable.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
                 StringComparer.OrdinalIgnoreCase);
+            var mult = GetLinkMultiplyMap(doc);
             lock (_linkInclusionCache) { _linkInclusionCache[key] = set; }
-            try
-            {
-                string path = LinkSelectionPath(doc);
-                if (path != null)
-                {
-                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
-                    System.IO.File.WriteAllText(path,
-                        Newtonsoft.Json.JsonConvert.SerializeObject(set.ToList(), Newtonsoft.Json.Formatting.Indented));
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"SetIncludedLinkTitles: {ex.Message}"); }
+            SaveLinksConfig(doc, set, mult);
+        }
+
+        /// <summary>P2.3 — persist the per-link multiply opt-in map (preserves the inclusion set).</summary>
+        internal static void SetLinkMultiplyMap(Document doc, Dictionary<string, bool> multiply)
+        {
+            string key = doc?.PathName ?? "";
+            var map = multiply ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            lock (_linkMultiplyCache) { _linkMultiplyCache[key] = map; }
+            SaveLinksConfig(doc, GetIncludedLinkTitles(doc), map);
         }
 
         internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null,
-            BoqGroupingMode grouping = BoqGroupingMode.WorkSection)
+            BoqGroupingMode grouping = BoqGroupingMode.WorkSection, bool allowIncremental = false)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
+            // Phase 2D — suppress the dirty marker for the duration of the build so
+            // the build's own STEP 9 stale-flag transaction doesn't self-dirty every
+            // costed element (which would make the next incremental refresh re-walk
+            // the whole model). Single API thread ⇒ no user edit is suppressed.
+            bool prevSuppress = _suppressDirty;
+            _suppressDirty = true;
+            try
+            {
+            return BuildBOQDocumentCore(doc, extraManualRows, grouping, allowIncremental);
+            }
+            finally { _suppressDirty = prevSuppress; }
+        }
+
+        private static BOQDocument BuildBOQDocumentCore(Document doc, IEnumerable<BOQLineItem> extraManualRows,
+            BoqGroupingMode grouping, bool allowIncremental)
+        {
             var boq = new BOQDocument
             {
                 ProjectName = ReadProjectName(doc),
@@ -168,6 +477,21 @@ namespace StingTools.BOQ
             boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
+            // Phase 2A — active measurement standard (project_config.json key set
+            // by Cost_SetMeasurementStandard). Drives rules-based measurement
+            // (NRM2 vs CESMM4 give different nets) + classification + description.
+            boq.MeasurementStandardId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+            if (string.IsNullOrWhiteSpace(boq.MeasurementStandardId)) boq.MeasurementStandardId = "nrm2";
+            var measStd = MeasurementStandardRegistry.Get(boq.MeasurementStandardId);
+            // Phase 2A — drop the per-document void index so this take-off re-reads
+            // current floor/roof/ceiling openings (and link openings).
+            MeasurementDeductionEngine.ResetCaches();
+
+            // G3 — itemised preliminaries schedule (flat % stays the default).
+            var prelims = BoqPrelimsStore.Load(doc);
+            boq.PrelimsItemised = prelims.Enabled;
+            boq.PrelimLines = prelims.Lines ?? new List<BoqPrelimLine>();
+
             // ── STEP 2: Load rate tables (3-source merge) ────────────────
             //   (a) project cost_rates_5d.csv  — highest priority
             //   (b) COBie type map             — category → cost-rate code
@@ -177,18 +501,17 @@ namespace StingTools.BOQ
 
             // ── STEP 3: Load embodied carbon factors ─────────────────────
             CarbonTrackingEngine.EnsureLoaded();
+            // G5 — drop the cached EPD map so an edit to boq_epd_map.json is
+            // picked up on this Refresh.
+            BoqEpdStore.Invalidate(doc);
 
-            // ── STEP 4: Collect elements ─────────────────────────────────
+            // ── STEP 4 + 5: Collect + cost host elements ─────────────────
+            // Phase 2D — full walk, or incremental (dirty + added only) when the
+            // panel asks and a trusted cache exists. The result is the SAME raw
+            // host item set a full walk would produce (correct by construction);
+            // STEP 6 onward runs identically either way.
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
-            var allElements = CollectCandidateElements(doc, knownCats);
-
-            // ── STEP 5: Per-element costing ──────────────────────────────
-            var items = new List<BOQLineItem>(allElements.Count);
-            foreach (var el in allElements)
-            {
-                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes);
-                if (line != null) items.Add(line);
-            }
+            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental);
 
             // ── STEP 6: Merge manual + PS rows ───────────────────────────
             var manualStore = LoadManualStore(doc);
@@ -217,11 +540,18 @@ namespace StingTools.BOQ
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks);
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks, measStd);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
             }
+
+            // ── STEP 6d (Phase 2E): assign user-defined WBS / CBS ────────
+            // From the WBS map (boq_wbs_map.json), falling back to the linked 4D
+            // ScheduleTask's WBS. Runs before grouping so the Wbs / Cbs grouping
+            // modes can file the bill by the client's breakdown structure. Applied
+            // on every build so a map edit takes effect without a cache rebuild.
+            ApplyWbsCbs(doc, items);
 
             // ── STEP 7: Group into sections ──────────────────────────────
             boq.Sections = GroupIntoSections(items, grouping);
@@ -299,7 +629,8 @@ namespace StingTools.BOQ
 
         private static BOQLineItem BuildLineItemFromElement(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes)
+            Dictionary<string, string> cobieCostCodes,
+            IMeasurementStandard std = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName)) return null;
@@ -311,11 +642,31 @@ namespace StingTools.BOQ
             string rateSource;
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
-                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence);
+                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
-            double quantity = DeriveQuantity(el, unit);
+
+            // Phase 2A — rules-based measurement. Gross modelled geometry →
+            // standard deductions (NRM2/CESMM4 openings & voids) → visible
+            // wastage step → net measured quantity. Raw geometry survives in
+            // GrossQuantity; the gross→net derivation is captured in
+            // MeasurementNote for the audit surface. Falls back to the legacy
+            // DeriveQuantity (gross × waste) when no standard is supplied.
+            double quantity;
+            double grossQty = 0, deductQty = 0, wasteQty = 0;
+            string measNote = null;
+            if (std != null)
+            {
+                quantity = MeasureQuantity(el, unit, catName, std,
+                    out grossQty, out deductQty, out wasteQty, out measNote);
+            }
+            else
+            {
+                quantity = DeriveQuantity(el, unit);
+                grossQty = quantity;
+            }
 
             // (b) Currency
             double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
@@ -326,8 +677,9 @@ namespace StingTools.BOQ
             //      then a template resolution, then a safe fallback.
             string paragraph = ResolveNrm2Paragraph(doc, el, catName);
 
-            // (d) Embodied carbon
-            double carbonKg = ComputeElementCarbon(el, quantity, unit);
+            // (d) Embodied carbon (+ G5 data-quality + source + material)
+            double carbonKg = ComputeElementCarbon(el, quantity, unit,
+                out string carbonSource, out string carbonQuality, out string carbonMaterial);
 
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
@@ -347,6 +699,10 @@ namespace StingTools.BOQ
                 TypeName = el.Name ?? "",
                 Quantity = quantity,
                 Unit = unit,
+                GrossQuantity = grossQty,
+                DeductionQuantity = deductQty,
+                WastageQuantity = wasteQty,
+                MeasurementNote = measNote,
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
@@ -362,7 +718,13 @@ namespace StingTools.BOQ
                 Zone = GetZoneName(el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
-                RateConfidence = rateConfidence
+                RateConfidence = rateConfidence,
+                LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
+                PlantUGX = splitPlant,
+                MaterialUGX = splitMaterial,
+                CarbonSource = carbonSource, // G5 — carbon factor provenance + quality
+                CarbonQuality = carbonQuality,
+                CarbonMaterial = carbonMaterial
             };
 
             // Mark provisional sums on the element if configured via existing parameter.
@@ -378,8 +740,10 @@ namespace StingTools.BOQ
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            out string rateSource, out int rateConfidence)
+            out string rateSource, out int rateConfidence,
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
         {
+            splitLabour = splitPlant = splitMaterial = null;
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -414,6 +778,9 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
+            splitPlant = lookup.PlantRate;
+            splitMaterial = lookup.MaterialRate;
             return (lookup.UnitRate, lookup.Unit, lookup.MatchedKey ?? catName);
         }
 
@@ -565,6 +932,218 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2A — rules-based measurement pipeline.
+        //  Gross geometry → standard deductions (openings/voids) → visible
+        //  wastage step → net measured quantity, with an auditable
+        //  gross→net derivation note. The net is the value used for cost;
+        //  the gross is preserved so nothing is lost.
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static double MeasureQuantity(Element el, string unit, string catName,
+            IMeasurementStandard std, out double gross, out double deduction,
+            out double wastage, out string note)
+        {
+            gross = DeriveGrossQuantity(el, unit);
+            deduction = 0; wastage = 0; note = null;
+            double net = gross;
+            try
+            {
+                // 1. Standard deductions (NRM2/CESMM4 openings & voids).
+                double netOfDeductions = gross;
+                if (std != null && el != null)
+                {
+                    var scratch = new BOQLineItem
+                    {
+                        Quantity = gross,
+                        Unit = unit,
+                        Category = catName,
+                        Discipline = DisciplineForCategory(catName)
+                    };
+                    netOfDeductions = std.ApplyDeductions(scratch, el);
+                    if (double.IsNaN(netOfDeductions) || netOfDeductions < 0) netOfDeductions = gross;
+                }
+                deduction = Math.Max(0, gross - netOfDeductions);
+
+                // 2. Wastage — a distinct, visible step (never folded into the
+                //    rate), applied once to the post-deduction base. Mirrors the
+                //    existing DeriveQuantity waste + measured-addition behaviour.
+                double wastePct = EffectiveWastePercent(el, unit, catName, std);
+                double grossedUp = wastePct > 0
+                    ? netOfDeductions * (1.0 + wastePct / 100.0)
+                    : netOfDeductions;
+                wastage = Math.Max(0, grossedUp - netOfDeductions);
+                net = grossedUp;
+
+                string measureLabel = ResolveMeasureLabel(el, catName, std);
+                note = BuildMeasurementNote(measureLabel, unit, gross, deduction, wastePct, net);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("MeasureQuantity", $"MeasureQuantity({unit}): {ex.Message}");
+                net = gross; deduction = 0; wastage = 0; note = null;
+            }
+            return net;
+        }
+
+        /// <summary>
+        /// Raw modelled geometry for a unit — the SAME geometry resolution as
+        /// DeriveQuantity but WITHOUT the wastage / measured-addition gross-up
+        /// (which the measurement pipeline applies as a separate visible step).
+        /// </summary>
+        private static double DeriveGrossQuantity(Element el, string unit)
+        {
+            // Data-driven take-off rule path — raw EvaluateQuantity, no waste.
+            try
+            {
+                Document doc = el?.Document;
+                if (doc != null)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    string disc = DisciplineForCategory(catName);
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (rule != null && UnitsAlign(rule.Unit, unit))
+                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
+
+            // Legacy geometry — raw measure, no waste.
+            try
+            {
+                switch ((unit ?? "").ToLowerInvariant())
+                {
+                    case "m²": case "m2": case "sqm":
+                        Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : 1.0;
+                    case "m³": case "m3": case "cum":
+                        Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                        return (volP != null && volP.HasValue) ? volP.AsDouble() * 0.0283168 : 1.0;
+                    case "m":
+                        if (el.Location is LocationCurve lc) return lc.Curve.Length * 0.3048;
+                        Parameter lenP = el.LookupParameter("Length")
+                            ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : 1.0;
+                    case "kg": case "tonne": case "tonnes":
+                        Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        return (massP != null && massP.HasValue) ? massP.AsDouble() : 1.0;
+                    default:
+                        return 1.0;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return 1.0; }
+        }
+
+        /// <summary>
+        /// The effective wastage % to apply (matches DeriveQuantity's existing
+        /// behaviour, plus the optional per-category override from the NRM2/CESMM4
+        /// measurement-rules JSON). Priority: measurement-rule pinned % →
+        /// take-off-rule % → legacy override/COST_DEFAULT_WASTE_PCT + opt-in
+        /// measured additions (rebar lap on mass, concrete over-order on volume).
+        /// </summary>
+        private static double EffectiveWastePercent(Element el, string unit, string catName, IMeasurementStandard std)
+        {
+            try
+            {
+                Document doc = el?.Document;
+                string disc = DisciplineForCategory(catName);
+
+                // 1. Measurement-rule per-category wastage wins when pinned (>= 0).
+                if (doc != null && std != null)
+                {
+                    try
+                    {
+                        var reg = MeasurementRuleRegistry.Get(doc, std.Id);
+                        var mrule = reg.Match(catName, disc, null);
+                        if (mrule != null && mrule.WastePercent >= 0) return mrule.WastePercent;
+                    }
+                    catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Rule", $"meas-rule waste: {exr.Message}"); }
+                }
+
+                // 2. Take-off rule wastage (the existing data-driven path).
+                if (doc != null)
+                {
+                    string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
+                    var trule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
+                    if (trule != null && UnitsAlign(trule.Unit, unit)) return trule.WastePercent;
+                }
+
+                // 3. Legacy fallback — measured units only.
+                if (!WasteFactor.AppliesTo(unit)) return 0;
+                double overrideWaste = 0;
+                try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+                catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
+                double wastePct = WasteFactor.ResolveWastePercent(
+                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+
+                string nu = (unit ?? "").ToLowerInvariant();
+                if (nu == "kg" || nu == "tonne" || nu == "tonnes")
+                    wastePct += MeasuredAddition.RebarLapPercent(
+                        IsRebarElement(el), TagConfig.GetConfigDouble("REBAR_LAP_ALLOWANCE_PCT", 0.0));
+                else if (nu == "m³" || nu == "m3" || nu == "cum")
+                    wastePct += MeasuredAddition.ConcreteOverOrderPercent(
+                        IsConcreteElement(el), TagConfig.GetConfigDouble("CONCRETE_OVERORDER_PCT", 0.0));
+                return wastePct;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("EffWaste", $"EffectiveWastePercent: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// Slice 3 — the NRM2 measurement-point label for a category, so the
+        /// audit note reads "Centre-line 12.40 m" / "Running girth 8.30 m" /
+        /// "Area 43.0 m²" rather than a bare "Gross". Resolved from the active
+        /// standard's measurement rule; defaults to "Gross" when no rule matches.
+        /// </summary>
+        private static string ResolveMeasureLabel(Element el, string catName, IMeasurementStandard std)
+        {
+            try
+            {
+                if (el?.Document == null || std == null) return "Gross";
+                var reg = MeasurementRuleRegistry.Get(el.Document, std.Id);
+                var rule = reg.Match(catName, DisciplineForCategory(catName), null);
+                if (rule == null) return "Gross";
+                switch ((rule.Measure ?? "").ToLowerInvariant())
+                {
+                    case "length": return "Centre-line";
+                    case "girth":  return "Running girth";
+                    case "area":   return "Area";
+                    case "volume": return "Volume";
+                    default:       return "Gross";
+                }
+            }
+            catch { return "Gross"; }
+        }
+
+        private static string BuildMeasurementNote(string measureLabel, string unit,
+            double gross, double deduction, double wastePct, double net)
+        {
+            string u = unit ?? "";
+            string lbl = string.IsNullOrEmpty(measureLabel) ? "Gross" : measureLabel;
+            var sb = new StringBuilder();
+            sb.Append($"{lbl} {gross:0.##} {u}");
+            if (deduction > 0.0005) sb.Append($" − openings/voids {deduction:0.##} {u}");
+            if (wastePct > 0) sb.Append($" + wastage {wastePct:0.#}%");
+            sb.Append($" = {net:0.##} {u}");
+            return sb.ToString().Trim();
+        }
+
+        /// <summary>
+        /// Measurement note for an aggregated (collapsed) row. The per-element
+        /// wastage % varies across the group, so the aggregate states absolute
+        /// summed quantities rather than a single %.
+        /// </summary>
+        private static string BuildAggregateMeasurementNote(BOQLineItem agg, int count)
+        {
+            string u = agg.Unit ?? "";
+            var sb = new StringBuilder();
+            sb.Append($"{count}× — gross {agg.GrossQuantity:0.##} {u}");
+            if (agg.DeductionQuantity > 0.0005) sb.Append($" − openings/voids {agg.DeductionQuantity:0.##} {u}");
+            if (agg.WastageQuantity > 0.0005) sb.Append($" + wastage {agg.WastageQuantity:0.##} {u}");
+            sb.Append($" = {agg.Quantity:0.##} {u}");
+            return sb.ToString().Trim();
+        }
+
         // ── NRM2 paragraph resolution ──────────────────────────────────────
 
         private static readonly Regex _tokenRx = new Regex(@"\[([a-zA-Z0-9_]+)\]", RegexOptions.Compiled);
@@ -632,7 +1211,16 @@ namespace StingTools.BOQ
         // ── Carbon + lifecycle ─────────────────────────────────────────────
 
         private static double ComputeElementCarbon(Element el, double quantity, string unit)
+            => ComputeElementCarbon(el, quantity, unit, out _, out _, out _);
+
+        // G5 — detailed overload: also reports the carbon factor SOURCE, the
+        // data-quality band (Verified-EPD / Database / Missing) and the primary
+        // material so the BOQ row can carry a carbon-confidence indicator and the
+        // carbon-gap report can list weak/missing factors.
+        private static double ComputeElementCarbon(Element el, double quantity, string unit,
+            out string carbonSource, out string carbonQuality, out string carbonMaterial)
         {
+            carbonSource = "none"; carbonQuality = BoqEpdStore.QualityMissing; carbonMaterial = "";
             try
             {
                 // R-1 — Carbon factor source-aware unit treatment.
@@ -642,10 +1230,13 @@ namespace StingTools.BOQ
                 // bug the LCA audit flagged. Route through CarbonFactorResolver so the
                 // calling convention is explicit.
                 string material = GetPrimaryMaterialName(el);
+                carbonMaterial = material ?? "";
                 if (string.IsNullOrEmpty(material)) return 0;
 
                 var resolved = CarbonFactorResolver.Resolve(el.Document, material);
-                if (resolved.Factor <= 0) return 0;
+                carbonSource = string.IsNullOrEmpty(resolved.Source) ? "none" : resolved.Source;
+                carbonQuality = BoqEpdStore.QualityForSource(carbonSource);
+                if (resolved.Factor <= 0) { carbonQuality = BoqEpdStore.QualityMissing; return 0; }
 
                 if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
                 {
@@ -1350,9 +1941,25 @@ namespace StingTools.BOQ
 
         internal static BOQSnapshotDiff CompareSnapshots(string pathA, string pathB)
         {
-            var diff = new BOQSnapshotDiff();
             var a = LoadSnapshot(pathA);
             var b = LoadSnapshot(pathB);
+            return BuildDiff(a, b);
+        }
+
+        /// <summary>
+        /// Phase 2C — diff the LIVE bill (newer, B) against a saved snapshot
+        /// (older, A) so the drift check can compare the current model to the
+        /// last saved baseline without writing the live bill to disk first.
+        /// </summary>
+        internal static BOQSnapshotDiff CompareLiveToSnapshot(string olderSnapshotPath, BOQDocument liveNewer)
+        {
+            var a = LoadSnapshot(olderSnapshotPath);
+            return BuildDiff(a, liveNewer);
+        }
+
+        private static BOQSnapshotDiff BuildDiff(BOQDocument a, BOQDocument b)
+        {
+            var diff = new BOQSnapshotDiff();
             if (a == null || b == null) return diff;
 
             diff.LabelA = a.SnapshotLabel; diff.LabelB = b.SnapshotLabel;
@@ -1412,17 +2019,120 @@ namespace StingTools.BOQ
             return diff;
         }
 
+        /// <summary>Stable diff-matching key for a line — BOQ line ref when set,
+        /// else category + item name. Shared by the snapshot diff and the Phase
+        /// 2C drift check so both classify the same way.</summary>
+        internal static string LineKey(BOQLineItem it)
+        {
+            if (it == null) return "";
+            return !string.IsNullOrEmpty(it.BOQLineRef)
+                ? "ref:" + it.BOQLineRef
+                : "cat:" + (it.Category ?? "") + "|" + (it.ItemName ?? "");
+        }
+
         private static Dictionary<string, BOQLineItem> IndexByKey(BOQDocument d)
         {
             var map = new Dictionary<string, BOQLineItem>(StringComparer.OrdinalIgnoreCase);
-            foreach (var it in d.AllItems)
-            {
-                string k = !string.IsNullOrEmpty(it.BOQLineRef)
-                    ? "ref:" + it.BOQLineRef
-                    : "cat:" + (it.Category ?? "") + "|" + (it.ItemName ?? "");
-                map[k] = it;
-            }
+            foreach (var it in d.AllItems) map[LineKey(it)] = it;
             return map;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 2C — auto-reprice drifted lines. Re-runs the rate-provider
+        //  chain (incl. the live feeds from 2B) for the given elements and
+        //  pins the fresh rate via the model-override sidecar. Manual
+        //  Override rows are left untouched. MUST run on the Revit API thread
+        //  (reads element params through the provider chain).
+        // ══════════════════════════════════════════════════════════════════
+
+        internal sealed class RepriceOutcome
+        {
+            public int Considered;
+            public int Repriced;
+            public int SkippedOverride;
+            public int NoRate;
+            public int Unchanged;
+            public double OldTotalUgx;
+            public double NewTotalUgx;
+            public List<string[]> Rows = new List<string[]>();   // [category, oldRate, newRate, source]
+        }
+
+        internal static RepriceOutcome RepriceElements(Document doc, IEnumerable<long> elementIds)
+        {
+            var outcome = new RepriceOutcome();
+            if (doc == null || elementIds == null) return outcome;
+            try
+            {
+                var csvRates = LoadCsvRates();
+                var cobie = LoadCobieCostCodes();
+                double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                var registry = RateProviderRegistry.Get(doc, csvRates, cobie, ugxPerUsd, ugxPerGbp);
+
+                foreach (long id in elementIds.Distinct())
+                {
+                    Element el;
+                    try { el = doc.GetElement(new ElementId(id)); } catch { continue; }
+                    if (el == null) continue;
+                    outcome.Considered++;
+
+                    // Never silently clobber a manual override.
+                    string curSource = ParameterHelpers.GetString(el, "CST_RATE_SOURCE") ?? "";
+                    if (string.Equals(curSource, "Override", StringComparison.OrdinalIgnoreCase))
+                    { outcome.SkippedOverride++; continue; }
+
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrEmpty(catName)) continue;
+
+                    var req = new RateRequest
+                    {
+                        CategoryName = catName,
+                        Discipline = DisciplineForCategory(catName),
+                        ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
+                        MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                        Unit = csvRates != null && csvRates.TryGetValue(catName, out var hint) ? hint.unit : "",
+                        CurrencyCode = "UGX",
+                        AsOf = DateTime.UtcNow,
+                        Element = el
+                    };
+
+                    var lk = registry.Resolve(req);
+                    if (lk == null || lk.UnitRate <= 0) { outcome.NoRate++; continue; }
+
+                    double newRate = lk.UnitRate;   // already converted to UGX
+                    double oldRate = 0;
+                    double.TryParse(ParameterHelpers.GetString(el, "CST_UNIT_RATE_UGX"),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out oldRate);
+
+                    // Only pin a fresh rate when it actually moved (>1%) so we
+                    // don't freeze every drifted line at an unchanged value.
+                    if (oldRate > 0 && Math.Abs(newRate - oldRate) / oldRate <= 0.01)
+                    { outcome.Unchanged++; outcome.OldTotalUgx += oldRate; outcome.NewTotalUgx += oldRate; continue; }
+
+                    string src = MapProviderIdToLegacySource(lk.SourceId);
+                    UpsertModelOverride(doc, new BOQModelOverride
+                    {
+                        UniqueId = el.UniqueId,
+                        ElementId = id,
+                        RateUGX = newRate,
+                        RateUSD = ugxPerUsd > 0 ? Math.Round(newRate / ugxPerUsd, 2) : 0,
+                        RateSource = src,
+                        ModifiedBy = Environment.UserName ?? ""
+                    });
+                    outcome.Repriced++;
+                    outcome.OldTotalUgx += oldRate;
+                    outcome.NewTotalUgx += newRate;
+                    outcome.Rows.Add(new[]
+                    {
+                        catName,
+                        oldRate.ToString("N0", CultureInfo.InvariantCulture),
+                        newRate.ToString("N0", CultureInfo.InvariantCulture),
+                        src
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Error("BOQ RepriceElements", ex); }
+            return outcome;
         }
 
         private static BOQChangeType ClassifyChange(BOQLineItem a, BOQLineItem b)
@@ -1636,6 +2346,9 @@ namespace StingTools.BOQ
                     item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
                     item.RateSource = string.IsNullOrEmpty(ov.RateSource) ? "Override" : ov.RateSource;
                     item.RateConfidence = 100;
+                    // G4 — a single-number manual override has no split; drop any
+                    // inherited L/P/M so the columns don't show a stale breakdown.
+                    item.LabourUGX = item.PlantUGX = item.MaterialUGX = null;
                 }
                 if (!string.IsNullOrEmpty(ov.NRM2Paragraph)) item.ResolvedNRM2Paragraph = ov.NRM2Paragraph;
                 if (!string.IsNullOrEmpty(ov.Note)) item.Note = ov.Note;
@@ -1942,15 +2655,43 @@ namespace StingTools.BOQ
         /// skipped. Quantities are parameter-derived, so the link transform does
         /// not affect them.
         /// </summary>
+        /// <summary>P2.3 — count loaded RevitLinkInstances per linked-document Title.</summary>
+        internal static Dictionary<string, int> CountLinkInstancesByTitle(Document doc)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (doc == null) return counts;
+            try
+            {
+                foreach (var rli in new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>())
+                {
+                    Document ld = null; try { ld = rli.GetLinkDocument(); } catch { }
+                    if (ld == null) continue;   // unloaded instance — not quantifiable
+                    string t; try { t = ld.Title; } catch { continue; }
+                    if (string.IsNullOrWhiteSpace(t)) continue;
+                    counts[t] = counts.TryGetValue(t, out int n) ? n + 1 : 1;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CountLinkInstancesByTitle: {ex.Message}"); }
+            return counts;
+        }
+
         private static List<BOQLineItem> CollectLinkedItems(
             Document doc, HashSet<string> knownCategories,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             BoqGroupingMode grouping,
-            HashSet<string> includedTitles)
+            HashSet<string> includedTitles,
+            IMeasurementStandard measStd)
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // P2.3 — count loaded link instances per Title so an opted-in,
+            // multiply-placed link (e.g. mirrored wings) can be taken off ×N.
+            var instanceCounts = CountLinkInstancesByTitle(doc);
+            var multiplyMap = GetLinkMultiplyMap(doc);
+
             var links = new FilteredElementCollector(doc)
                 .OfClass(typeof(RevitLinkInstance))
                 .Cast<RevitLinkInstance>();
@@ -1990,7 +2731,7 @@ namespace StingTools.BOQ
                     rawItems = new List<BOQLineItem>(linkEls.Count);
                     foreach (var el in linkEls)
                     {
-                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes);
+                        var line = BuildLineItemFromElement(ld, el, csvRates, cobieCostCodes, measStd);
                         if (line != null) rawItems.Add(line);
                     }
                     // Store an isolated clone so a later caller mutating the returned
@@ -2012,16 +2753,29 @@ namespace StingTools.BOQ
                 // Aggregate + neutralise on the (cloned) raw rows every time so
                 // grouping changes stay correct without invalidating the cache.
                 var linkItems = AggregateLineItems(rawItems, grouping);
+
+                // P2.3 — opted-in multiply-placed link: scale quantity + carbon
+                // (cost is derived from Quantity) by the loaded-instance count.
+                instanceCounts.TryGetValue(linkName, out int instCount);
+                bool multiply = instCount > 1
+                    && multiplyMap != null && multiplyMap.TryGetValue(linkName, out bool on) && on;
+
                 foreach (var li in linkItems)
                 {
                     li.RevitElementId = -1;                       // never resolve against the host doc
                     li.UniqueId = "";                             // avoid cross-doc id reuse
                     li.ConstituentElementIds = new List<long>();  // link-doc ids — not host-resolvable
                     li.SourceModel = linkName;                    // drives "Group by Source model"
-                    li.Note = string.IsNullOrEmpty(li.Note)
-                        ? $"[Linked: {linkName}]"
-                        : $"{li.Note} [Linked: {linkName}]";
+                    string tag = multiply ? $"[Linked: {linkName} ×{instCount}]" : $"[Linked: {linkName}]";
+                    if (multiply)
+                    {
+                        li.Quantity *= instCount;                 // TotalUGX/USD derive from Quantity
+                        li.EmbodiedCarbonKg *= instCount;         // stored field — scale explicitly
+                    }
+                    li.Note = string.IsNullOrEmpty(li.Note) ? tag : $"{li.Note} {tag}";
                 }
+                if (multiply)
+                    StingLog.Info($"BOQ linked-model multiplier: '{linkName}' taken off ×{instCount} ({linkItems.Count} row(s)).");
                 result.AddRange(linkItems);
             }
             return result;
@@ -2117,6 +2871,12 @@ namespace StingTools.BOQ
                     case BoqGroupingMode.LevelThenWorkSection: return i.Level ?? "";
                     case BoqGroupingMode.Zone:                 return i.Zone ?? "";
                     case BoqGroupingMode.Location:             return i.Location ?? "";
+                    // Phase 2E — WBS/CBS are assigned in a post-aggregate pass from
+                    // (category/discipline/nrm2/level/zone), so keep level+zone in the
+                    // aggregation key here so a By-WBS bill never merges rows that the
+                    // map would file under different WBS codes.
+                    case BoqGroupingMode.Wbs:
+                    case BoqGroupingMode.Cbs:                  return (i.Level ?? "") + "~" + (i.Zone ?? "");
                     default:                                   return "";
                 }
             }
@@ -2154,6 +2914,14 @@ namespace StingTools.BOQ
                 agg.SimilarCount = rows.Count;
                 agg.AggregationKey = grp.Key;
                 agg.Quantity = rows.Sum(r => r.Quantity);
+                // Phase 2A — sum the measurement audit fields so the Gross/Deduct/
+                // Waste columns stay consistent with the summed Net (= Quantity)
+                // on a collapsed row, and rebuild the note for the aggregate.
+                agg.GrossQuantity = rows.Sum(r => r.GrossQuantity);
+                agg.DeductionQuantity = rows.Sum(r => r.DeductionQuantity);
+                agg.WastageQuantity = rows.Sum(r => r.WastageQuantity);
+                if (agg.GrossQuantity > 0)
+                    agg.MeasurementNote = BuildAggregateMeasurementNote(agg, rows.Count);
                 agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
                 agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
                 agg.RateConfidence = rows.Min(r => r.RateConfidence);
@@ -2178,6 +2946,9 @@ namespace StingTools.BOQ
                         .First().Key;
                     agg.RateUGX = modalRate;
                     agg.RateUSD = ugxPerUsd > 0 ? Math.Round(modalRate / ugxPerUsd, 2) : 0;
+                    // G4 — the representative's L/P/M split no longer sums to the
+                    // chosen modal rate; drop it rather than show a misleading split.
+                    agg.LabourUGX = agg.PlantUGX = agg.MaterialUGX = null;
                     StingLog.WarnRateLimited("BOQAggRate",
                         $"Aggregated row '{agg.ItemName}' had {distinctRates.Count} differing rates; " +
                         $"took modal {modalRate:N0} UGX across {rows.Count} elements.");
@@ -2241,6 +3012,10 @@ namespace StingTools.BOQ
                     return GroupBySpatial(items, i => Blank(i.Location, "(no location)"));
                 case BoqGroupingMode.SourceModel:
                     return GroupBySpatial(items, i => Blank(i.SourceModel, "Host model"));
+                case BoqGroupingMode.Wbs:
+                    return GroupBySpatial(items, i => Blank(i.WbsCode, "(no WBS)"));
+                case BoqGroupingMode.Cbs:
+                    return GroupBySpatial(items, i => Blank(i.CbsCode, "(no CBS)"));
                 case BoqGroupingMode.LevelThenWorkSection:
                     return GroupByLevelThenSection(items);
                 case BoqGroupingMode.WorkSection:

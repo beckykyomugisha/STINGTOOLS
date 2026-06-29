@@ -30,27 +30,50 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                var items = MeasurementStandardRegistry.All()
-                    .Select(s => new StingListPicker.ListItem
-                    {
-                        Label = s.DisplayName,
-                        Detail = s.Version,
-                        Tag = s.Id
-                    }).ToList();
-                var picked = StingListPicker.Show("STING — Measurement standard",
-                    "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).",
-                    items, allowMultiSelect: false);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-                string id = picked[0].Tag as string ?? "nrm2";
+                // P0.3 — inline-form gate: when the BOQ panel supplied the
+                // MeasStandardId ExtraParam, skip the picker (no popup). Falls back
+                // to the modal picker for ribbon / other callers. The id is validated
+                // against the registry; an unknown id falls through to the picker.
+                string id;
+                string label;
+                string fId = UI.StingCommandHandler.GetExtraParam("MeasStandardId");
+                var registered = MeasurementStandardRegistry.All().ToList();
+                var match = string.IsNullOrEmpty(fId) ? null
+                    : registered.FirstOrDefault(s => string.Equals(s.Id, fId, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                {
+                    id = match.Id;
+                    label = match.DisplayName;
+                }
+                else
+                {
+                    var items = registered
+                        .Select(s => new StingListPicker.ListItem
+                        {
+                            Label = s.DisplayName,
+                            Detail = s.Version,
+                            Tag = s.Id
+                        }).ToList();
+                    var picked = StingListPicker.Show("STING — Measurement standard",
+                        "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).",
+                        items, allowMultiSelect: false);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
+                    id = picked[0].Tag as string ?? "nrm2";
+                    label = picked[0].Label;
+                }
 
                 // Persist via TagConfig's project_config.json setter. The
                 // BOQ engine reads this key when building snapshots; see
                 // BOQDocument.MeasurementStandardId.
                 TagConfig.SetConfigValue("COST_MEASUREMENT_STANDARD", id);
+                // Phase 2D — the standard drives measurement nets; the incremental
+                // host cache holds rows measured under the old standard, so force a
+                // full rebuild on the next refresh.
+                StingTools.BOQ.BOQCostManager.InvalidateHostCache();
 
                 StingResultPanel.Create("Measurement standard")
                     .AddSection("RESULT")
-                    .Metric("Active standard", $"{picked[0].Label} ({id})")
+                    .Metric("Active standard", $"{label} ({id})")
                     .Text("Future BOQ_Build runs will classify and describe rows per this standard. " +
                           "Existing snapshots keep the standard they were saved with.")
                     .Show();
