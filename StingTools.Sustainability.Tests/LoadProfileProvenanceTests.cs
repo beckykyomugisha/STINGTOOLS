@@ -57,12 +57,16 @@ namespace StingTools.Sustainability.Tests
         }
 
         [Fact]
-        public void OaCarriedPerPersonAndPerM2_TheFullVentilationSet()
+        public void OaCarriesBothFields_OnOneConsistentBasis()
         {
-            // K5 requires OA per-person AND per-m²; e.g. retail carries both.
+            // WS L3 — the profile carries both OA fields, on ONE basis: CIBSE all-in
+            // per-person for occupied spaces (per-area 0, no double-count). The field
+            // still exists; the chosen basis just zeroes it for occupied uses.
             var retail = Lib().ResolveForUse("retail").Profile;
             Assert.True(retail.OaLpsPerPerson > 0);
-            Assert.True(retail.OaLpsPerM2 > 0);
+            Assert.Equal(0, retail.OaLpsPerM2, 3);   // all-in per-person basis (L3)
+            // Unoccupied spaces keep area-based ventilation.
+            Assert.True(Lib().ById["Parking"].OaLpsPerM2 > 0);
         }
     }
 }
