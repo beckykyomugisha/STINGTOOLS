@@ -2019,6 +2019,20 @@ namespace StingTools.Core
                 case "Placement_EVCharger":    return new Commands.Placement.EVChargerLayoutCommand();
                 case "Placement_MedGasOutlets": return new Commands.Placement.MedGasOutletPlacementCommand();
 
+                // Phase 195 — Sustainability (EDGE/LEED): make the module chainable +
+                // reachable from workflow presets + NLP (WS H1). Same tags the panel uses.
+                case "Sustain_AutoFill":       return new Commands.Sustainability.SustainAutoFillCommand();
+                case "Sustain_ProjectSetup":   return new Commands.Sustainability.SustainProjectSetupCommand();
+                case "Sustain_SupplyConfig":   return new Commands.Sustainability.SustainSupplyConfigCommand();
+                case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();
+                case "Sustain_Dashboard":      return new Commands.Sustainability.SustainDashboardCommand();
+                case "Sustain_EdgeExport":     return new Commands.Sustainability.SustainEdgeExportCommand();
+                case "Sustain_LccBenefit":     return new Commands.Sustainability.SustainLccBenefitCommand();
+                case "Sustain_EpdAssign":      return new Commands.Sustainability.SustainEpdAssignCommand();
+                case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias
+                case "Sustain_LeedScorecard":  return new Commands.Sustainability.SustainLeedScorecardCommand();
+                case "Sustain_Scorecard":      return new Commands.Sustainability.SustainLeedScorecardCommand(); // friendly alias
+
                 default: return null;
             }
         }

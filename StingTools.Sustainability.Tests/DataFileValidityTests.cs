@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
@@ -30,6 +31,8 @@ namespace StingTools.Sustainability.Tests
         [InlineData("STING_WATER_USAGE_PROFILES.json")]
         [InlineData("STING_GREEN_MEASURES.json")]
         [InlineData("STING_CLIMATE_MONTHLY.json")]
+        [InlineData("STING_ICE_EMBODIED_ENERGY.json")]
+        [InlineData("WORKFLOW_SustainabilityAssessment.json")]
         public void DataFile_ParsesAsValidJson(string fileName)
         {
             string path = RepoDataPath(fileName);
@@ -49,6 +52,32 @@ namespace StingTools.Sustainability.Tests
             foreach (var p in support)
                 if ((string)p["param_name"] == "SUS_ENERGY_KWH_M2_NR") { found = true; break; }
             Assert.True(found, "SUS_ENERGY_KWH_M2_NR must be registered in support_params");
+        }
+
+        [Fact]
+        public void SustainabilityWorkflow_ChainsTheSustainTags()
+        {
+            // WS H1 — the preset is auto-discovered by WorkflowEngine.AppendUserPresets;
+            // every step command must be a Sustain_* tag registered in ResolveCommand.
+            string path = RepoDataPath("WORKFLOW_SustainabilityAssessment.json");
+            Assert.NotNull(path);
+            var root = JObject.Parse(File.ReadAllText(path));
+            var steps = (JArray)root["steps"];
+            Assert.NotNull(steps);
+            Assert.True(steps.Count >= 5, "expected at least 5 steps (auto-fill → baseline → dashboard → export → LCC)");
+            foreach (var s in steps)
+            {
+                string cmd = (string)s["command"];
+                Assert.False(string.IsNullOrWhiteSpace(cmd));
+                Assert.StartsWith("Sustain_", cmd);
+            }
+            // The core chain is present.
+            var cmds = steps.Select(s => (string)s["command"]).ToList();
+            Assert.Contains("Sustain_AutoFill", cmds);
+            Assert.Contains("Sustain_SetBaseline", cmds);
+            Assert.Contains("Sustain_Dashboard", cmds);
+            Assert.Contains("Sustain_EdgeExport", cmds);
+            Assert.Contains("Sustain_LccBenefit", cmds);
         }
 
         [Fact]
