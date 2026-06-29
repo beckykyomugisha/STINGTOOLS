@@ -640,3 +640,22 @@ verbatim pass/fail counts.
   ship a documented seed + project-override path — never invent numbers in code.
 - Log any coverage caps (top-N hotspots, sampled categories) rather than silently
   truncating.
+
+## Operating-calendar basis (WS L1/L2)
+
+Energy and water share ONE operating year per building use: `operatingDaysPerYear`
+on the load profile (and propagated onto the LoadZone). This single field folds the
+weekend/closure factor into the annualisation — a weekday-only use is seeded below
+365 (office 250, education 200, worship 150), a 24/7 use is 365 (residential,
+healthcare, data centre, parking). Both engines consume it:
+
+- **Water**: `annual_demand = L/person·day × occupancy × operatingDaysPerYear`.
+- **Energy**: `operatingHours = occMeanFrac × 24 × operatingDaysPerYear` (clamped
+  ≤ 8760) drives lighting + equipment electricity and the baseline EUI conversion;
+  the internal-gain-driven conditioning is scaled by `opFrac = operatingDaysPerYear
+  / 365` (the gain/loss ratio γ is unchanged, only the magnitude); DHW is annualised
+  on `operatingDaysPerYear`.
+
+So a 250-day office is not billed 365 days of HVAC/lighting/DHW, and a weekday-only
+use is not over-counted against a 24/7 use. The factor is seed/indicative and
+project-overridable via `<project>/_BIM_COORD/load_profiles.json`.
