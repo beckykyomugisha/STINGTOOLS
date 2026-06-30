@@ -45,9 +45,15 @@ namespace StingTools.Commands.Sustainability
                     // so no gate cell prints a bare number a user could paste into EDGE.
                     bool ready = res.Readiness?.Ready ?? true;
                     BuildProjectSheet(wb, setup, res, units);
+                    // SUS-1 — EDGE-App Design-tab MEASURES (the inputs the App consumes) +
+                    // the evidence pack the Design Auditor expects, ahead of the results.
+                    BuildDesignMeasuresSheet(wb, res, units);
                     BuildEnergySheet(wb, res, units, ready);
                     BuildWaterSheet(wb, setup, res, units, ready);
                     BuildMaterialsSheet(wb, doc, res, units);
+                    BuildFixtureScheduleSheet(wb, res);
+                    BuildEnvelopeSpecSheet(wb, res);
+                    BuildEpdRegisterSheet(wb, doc, res);
 
                     path = OutputLocationHelper.GetOutputPath(doc,
                         $"STING_EDGE_Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
@@ -63,9 +69,12 @@ namespace StingTools.Commands.Sustainability
 
             StingLog.Info($"Sustain_EdgeExport: wrote {path}");
             TaskDialog.Show("STING Sustainability",
-                $"EDGE-app upload workbook written:\n{path}\n\n" +
-                "These are STING-INDICATIVE quantities + selections. The EDGE app computes the " +
-                "certified energy / water / materials %.");
+                $"EDGE-app input + evidence workbook written:\n{path}\n\n" +
+                "INPUT PACK: 'Design Measures' mirrors the EDGE App Design tab (envelope U-values, " +
+                "WWR per orientation, SHGC, lighting, AC COP, fixture flows) - transcribe straight in.\n" +
+                "EVIDENCE PACK: 'Fixture Schedule', 'Envelope Spec' and 'EPD Register' for the Design Auditor.\n\n" +
+                "All STING figures are INDICATIVE; the EDGE App owns the certified energy / water / " +
+                "materials %, and EDGE materials is embodied ENERGY (delegated to the App).");
             return Result.Succeeded;
         }
 
@@ -172,6 +181,136 @@ namespace StingTools.Commands.Sustainability
                     ws.Cell(r, 3).Value = $"{h.SharePct:0}%";
                     r++;
                 }
+            ws.Columns().AdjustToContents();
+        }
+
+        // ── SUS-1 — EDGE-App Design-tab input pack ───────────────────────────
+        /// <summary>The MEASURES the EDGE App Design tab consumes, laid out to mirror its
+        /// fields so a user transcribes rather than re-derives. Indicative.</summary>
+        private static void BuildDesignMeasuresSheet(XLWorkbook wb, SustainabilityRunResult res, SustainUnits u)
+        {
+            var ws = wb.Worksheets.Add("Design Measures");
+            var m = res.Measures;
+            int r = 1;
+            void Head(string t) { ws.Cell(r, 1).Value = t; ws.Cell(r, 1).Style.Font.Bold = true; r++; }
+            void Row(string k, string v, string note = "") { ws.Cell(r, 1).Value = k; ws.Cell(r, 2).Value = v; if (!string.IsNullOrEmpty(note)) ws.Cell(r, 3).Value = note; r++; }
+
+            Head("EDGE App - Design tab inputs (STING-indicative; transcribe into the EDGE App)"); r++;
+            if (m == null) { Row("Not available", "Run the dashboard first.", ""); ws.Columns().AdjustToContents(); return; }
+
+            Head("Envelope");
+            Row("Construction profile", string.IsNullOrWhiteSpace(m.ConstructionProfile) ? "default" : m.ConstructionProfile);
+            Row("Wall U-value (W/m2K)",   m.WallUvalueWm2K.ToString("0.00"));
+            Row("Roof U-value (W/m2K)",   m.RoofUvalueWm2K.ToString("0.00"));
+            Row("Floor U-value (W/m2K)",  m.FloorUvalueWm2K.ToString("0.00"));
+            Row("Window U-value (W/m2K)", m.WindowUvalueWm2K.ToString("0.00"));
+            Row("Window SHGC (g-value)",  m.WindowShgc.ToString("0.00"));
+            Row("External shading factor", m.WindowShadingFactor.ToString("0.00"));
+            r++;
+            Head("Glazing / window-to-wall ratio");
+            Row($"Glazing area ({SustainUnitConverter.AreaUnit(u)})", SustainUnitConverter.Area(m.GlazingAreaM2, u).ToString("0"));
+            Row($"Opaque ext. wall area ({SustainUnitConverter.AreaUnit(u)})", SustainUnitConverter.Area(m.ExtWallAreaM2, u).ToString("0"));
+            Row("WWR overall (%)", (m.WwrOverall * 100).ToString("0"));
+            foreach (var ori in new[] { "N", "E", "S", "W" })
+                if (m.WwrByOrientation.TryGetValue(ori, out var w))
+                    Row($"WWR {ori} façade (%)", (w * 100).ToString("0"));
+            r++;
+            Head("Lighting & cooling");
+            Row("Lighting power density (W/m2)", m.LightingWPerM2.ToString("0.0"));
+            Row("AC cooling COP / SEER", m.CoolingCop.ToString("0.0"));
+            Row("Heating", m.HeatingIsElectric ? "electric" : "fuel", $"seasonal eff {m.HeatingEfficiency:0.00}");
+            Row("System note", m.AcSystemNote);
+            r++;
+            Head("Water fixtures (design vs baseline)");
+            ws.Cell(r, 1).Value = "Fixture"; ws.Cell(r, 2).Value = "Design"; ws.Cell(r, 3).Value = "Baseline"; ws.Cell(r, 4).Value = "Unit"; ws.Cell(r, 5).Value = "Saving %";
+            ws.Row(r).Style.Font.Bold = true; r++;
+            foreach (var f in m.Fixtures)
+            {
+                ws.Cell(r, 1).Value = f.Fixture; ws.Cell(r, 2).Value = f.Design.ToString("0.0");
+                ws.Cell(r, 3).Value = f.Baseline.ToString("0.0"); ws.Cell(r, 4).Value = f.Unit;
+                ws.Cell(r, 5).Value = $"{f.SavingsPct:0}%"; r++;
+            }
+            Row("Fixture flow source", m.FixtureFlowsFromModel ? "model (rated)" : "indicative default (25% below baseline)");
+            r++;
+            foreach (var n in m.Notes) { ws.Cell(r, 1).Value = "Note"; ws.Cell(r, 2).Value = n; r++; }
+            ws.Cell(r, 1).Value = "All figures STING-indicative - the EDGE App computes the certified savings.";
+            ws.Columns().AdjustToContents();
+        }
+
+        // ── SUS-1 — evidence pack: fixture schedule (with cut-sheet ref) ─────
+        private static void BuildFixtureScheduleSheet(XLWorkbook wb, SustainabilityRunResult res)
+        {
+            var ws = wb.Worksheets.Add("Fixture Schedule");
+            ws.Cell(1, 1).Value = "Fixture"; ws.Cell(1, 2).Value = "Design rate";
+            ws.Cell(1, 3).Value = "Baseline rate"; ws.Cell(1, 4).Value = "Unit";
+            ws.Cell(1, 5).Value = "Saving %"; ws.Cell(1, 6).Value = "Cut-sheet / EPD ref (fill in)";
+            ws.Row(1).Style.Font.Bold = true;
+            int r = 2;
+            foreach (var f in res.Measures?.Fixtures ?? new List<SustainFixtureMeasure>())
+            {
+                ws.Cell(r, 1).Value = f.Fixture; ws.Cell(r, 2).Value = f.Design.ToString("0.0");
+                ws.Cell(r, 3).Value = f.Baseline.ToString("0.0"); ws.Cell(r, 4).Value = f.Unit;
+                ws.Cell(r, 5).Value = $"{f.SavingsPct:0}%"; r++;
+            }
+            r++;
+            ws.Cell(r, 1).Value = "EDGE Post-Construction audit measures flow rates on site - attach product cut-sheets / WELS / WaterSense refs above.";
+            ws.Columns().AdjustToContents();
+        }
+
+        // ── SUS-1 — evidence pack: envelope spec table ──────────────────────
+        private static void BuildEnvelopeSpecSheet(XLWorkbook wb, SustainabilityRunResult res)
+        {
+            var ws = wb.Worksheets.Add("Envelope Spec");
+            var m = res.Measures;
+            ws.Cell(1, 1).Value = "Element"; ws.Cell(1, 2).Value = "U-value (W/m2K)";
+            ws.Cell(1, 3).Value = "SHGC"; ws.Cell(1, 4).Value = "Area (m2)"; ws.Cell(1, 5).Value = "Spec / build-up ref (fill in)";
+            ws.Row(1).Style.Font.Bold = true;
+            int r = 2;
+            if (m != null)
+            {
+                void Row(string el, double uval, string shgc, double area)
+                { ws.Cell(r, 1).Value = el; ws.Cell(r, 2).Value = uval.ToString("0.00"); ws.Cell(r, 3).Value = shgc; ws.Cell(r, 4).Value = area.ToString("0"); r++; }
+                Row("External wall", m.WallUvalueWm2K, "-", m.ExtWallAreaM2);
+                Row("Roof", m.RoofUvalueWm2K, "-", m.RoofAreaM2);
+                Row("Ground floor", m.FloorUvalueWm2K, "-", 0);
+                Row("Glazing", m.WindowUvalueWm2K, m.WindowShgc.ToString("0.00"), m.GlazingAreaM2);
+                r++;
+                ws.Cell(r, 1).Value = "Construction profile"; ws.Cell(r, 2).Value = string.IsNullOrWhiteSpace(m.ConstructionProfile) ? "default" : m.ConstructionProfile; r++;
+                ws.Cell(r, 1).Value = "WWR overall"; ws.Cell(r, 2).Value = $"{m.WwrOverall * 100:0}%"; r++;
+            }
+            r++;
+            ws.Cell(r, 1).Value = "Evidence for the EDGE Design Audit - attach the wall/roof/glazing build-up specs above.";
+            ws.Columns().AdjustToContents();
+        }
+
+        // ── SUS-1 — evidence pack: EPD register (from boq_epd_map.json) ──────
+        private static void BuildEpdRegisterSheet(XLWorkbook wb, Document doc, SustainabilityRunResult res)
+        {
+            var ws = wb.Worksheets.Add("EPD Register");
+            ws.Cell(1, 1).Value = "Material"; ws.Cell(1, 2).Value = "A1-A3 factor";
+            ws.Cell(1, 3).Value = "Unit"; ws.Cell(1, 4).Value = "EPD source / programme"; ws.Cell(1, 5).Value = "Data quality";
+            ws.Row(1).Style.Font.Bold = true;
+            int r = 2;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                string path = string.IsNullOrEmpty(dir) ? null : System.IO.Path.Combine(dir, "_BIM_COORD", "boq_epd_map.json");
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                {
+                    var map = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqEpdMap>(System.IO.File.ReadAllText(path));
+                    foreach (var e in map?.Entries ?? new List<BoqEpdEntry>())
+                    {
+                        ws.Cell(r, 1).Value = e.Material; ws.Cell(r, 2).Value = e.A1A3;
+                        ws.Cell(r, 3).Value = e.Unit; ws.Cell(r, 4).Value = e.Source; ws.Cell(r, 5).Value = e.Quality; r++;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain EPD register: {ex.Message}"); }
+            if (r == 2)
+            {
+                ws.Cell(r, 1).Value = "No verified-EPD overrides found in _BIM_COORD/boq_epd_map.json."; r++;
+                ws.Cell(r, 1).Value = "EDGE materials savings is embodied ENERGY (MJ), self-assessed in the EDGE App; map verified EPDs here to strengthen the carbon evidence."; r++;
+            }
             ws.Columns().AdjustToContents();
         }
     }

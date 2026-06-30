@@ -50,6 +50,9 @@ namespace StingTools.Core.Sustainability
         /// <summary>WS O1 — occupancy plausibility sanity flag (model headcount vs the
         /// resolved profile density). Flag only; never overrides the number.</summary>
         public OccupancyPlausibilityResult OccupancyFlag { get; set; }
+        /// <summary>SUS-1 — the EDGE-App Design-tab measures (envelope U/SHGC, WWR per
+        /// orientation, LPD, AC COP, fixture flows) the input + evidence packs export.</summary>
+        public SustainDesignMeasures Measures { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public int ZonesGathered { get; set; }
         public int MaterialLines { get; set; }
@@ -257,6 +260,12 @@ namespace StingTools.Core.Sustainability
                 denseFactor: setup.OccupancyDenseFactor);
             if (res.OccupancyFlag.Flagged)
                 res.Warnings.Insert(0, res.OccupancyFlag.Message);
+
+            // ── SUS-1 — EDGE-App design measures (envelope U/SHGC, WWR per orientation,
+            //    LPD, AC COP, fixture flows) for the input + evidence pack export. All
+            //    indicative; the EDGE App owns the certified number. ──
+            try { res.Measures = BuildDesignMeasures(doc, setup, zones, baselineCop, baseline); }
+            catch (Exception ex) { StingLog.Warn($"Sustain BuildDesignMeasures: {ex.Message}"); }
 
             // ── Materials (dual metric; full BOQ carbon path) ──
             var lines = GatherMaterialLines(doc, setup, forceRefresh);
@@ -818,6 +827,104 @@ namespace StingTools.Core.Sustainability
         /// a median per kind. Returns null only when NO fixture yielded a rating (caller
         /// then uses the indicative default). <paramref name="note"/> records which kinds
         /// were read.</summary>
+        // ── SUS-1 — EDGE-App design measures ─────────────────────────────────
+        /// <summary>Collect the EDGE-App Design-tab measures from the data the engine
+        /// already computed: envelope U/SHGC (ConstructionProfile), glazing/wall/roof
+        /// areas + WWR per orientation (zone envelopes), area-weighted LPD, AC COP, and
+        /// per-fixture design vs baseline flows. Indicative — pre-fills the App.</summary>
+        private static SustainDesignMeasures BuildDesignMeasures(Document doc, SustainProjectSetup setup,
+            List<LoadZone> zones, double coolingCop, GreenBaseline baseline)
+        {
+            var m = new SustainDesignMeasures();
+
+            try
+            {
+                var cp = ConstructionProfileRegistry.Active(doc);
+                if (cp != null)
+                {
+                    m.WallUvalueWm2K = cp.WallUvalue; m.RoofUvalueWm2K = cp.RoofUvalue;
+                    m.FloorUvalueWm2K = cp.FloorUvalue; m.WindowUvalueWm2K = cp.WindowUvalue;
+                    m.WindowShgc = cp.WindowSHGC; m.WindowShadingFactor = cp.WindowShadingFactor;
+                    m.ConstructionProfile = string.IsNullOrWhiteSpace(cp.Label) ? cp.Id : cp.Label;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain measures envelope: {ex.Message}"); }
+
+            // Glazing / wall / roof areas + WWR (overall + per orientation) + LPD.
+            double glaz = 0, wall = 0, roof = 0, lpdWeighted = 0, areaWeight = 0;
+            var glazByOri = new Dictionary<string, double>();
+            var wallByOri = new Dictionary<string, double>();
+            foreach (var z in zones ?? new List<LoadZone>())
+            {
+                if (z == null) continue;
+                if (z.FloorAreaM2 > 0 && z.LightingWPerM2 > 0)
+                { lpdWeighted += z.LightingWPerM2 * z.FloorAreaM2; areaWeight += z.FloorAreaM2; }
+                if (z.Envelope == null) continue;
+                foreach (var s in z.Envelope)
+                {
+                    string ori = OrientationBucket(s.OrientationDeg);
+                    if (s.Kind == SegmentKind.Window) { glaz += s.AreaM2; AddTo(glazByOri, ori, s.AreaM2); }
+                    else if (s.Kind == SegmentKind.ExteriorWall) { wall += s.AreaM2; AddTo(wallByOri, ori, s.AreaM2); }
+                    else if (s.Kind == SegmentKind.Roof) roof += s.AreaM2;
+                }
+            }
+            m.GlazingAreaM2 = glaz; m.ExtWallAreaM2 = wall; m.RoofAreaM2 = roof;
+            double grossWall = glaz + wall;
+            m.WwrOverall = grossWall > 1e-6 ? glaz / grossWall : 0;
+            foreach (var ori in new[] { "N", "E", "S", "W" })
+            {
+                double g = glazByOri.TryGetValue(ori, out var gv) ? gv : 0;
+                double w = wallByOri.TryGetValue(ori, out var wv) ? wv : 0;
+                if (g + w > 1e-6) m.WwrByOrientation[ori] = g / (g + w);
+            }
+            m.LightingWPerM2 = areaWeight > 0 ? lpdWeighted / areaWeight : 0;
+
+            // Systems.
+            m.CoolingCop = coolingCop;
+            m.HeatingIsElectric = setup.Supply?.HeatingIsElectric ?? true;
+            m.HeatingEfficiency = setup.Supply?.HeatingSeasonalEfficiency ?? 1.0;
+            m.AcSystemNote = $"supply {setup.Supply?.Mode ?? "grid"}, PV {(setup.Supply?.PvKwp ?? 0):0} kWp, " +
+                             (m.HeatingIsElectric ? "electric heating" : "fuel heating");
+
+            // Water fixtures — design vs baseline flow/flush.
+            try
+            {
+                var baseFlows = FixtureFlows.FromBaseline(baseline);
+                var modelFlows = ReadDesignFixtureFlows(doc, out _);
+                m.FixtureFlowsFromModel = modelFlows != null;
+                var d = modelFlows ?? new FixtureFlows
+                {
+                    WcLpf = baseFlows.WcLpf * 0.75, UrinalLpf = baseFlows.UrinalLpf * 0.75,
+                    BasinTapLpm = baseFlows.BasinTapLpm * 0.75, ShowerLpm = baseFlows.ShowerLpm * 0.75,
+                    KitchenTapLpm = baseFlows.KitchenTapLpm * 0.75
+                };
+                void Fx(string name, double des, double bas, string unit)
+                    => m.Fixtures.Add(new SustainFixtureMeasure { Fixture = name, Design = des, Baseline = bas, Unit = unit });
+                Fx("WC", d.WcLpf, baseFlows.WcLpf, "L/flush");
+                Fx("Urinal", d.UrinalLpf, baseFlows.UrinalLpf, "L/flush");
+                Fx("Basin tap", d.BasinTapLpm, baseFlows.BasinTapLpm, "L/min");
+                Fx("Shower", d.ShowerLpm, baseFlows.ShowerLpm, "L/min");
+                Fx("Kitchen tap", d.KitchenTapLpm, baseFlows.KitchenTapLpm, "L/min");
+                if (!m.FixtureFlowsFromModel)
+                    m.Notes.Add("Fixture flows are the 25%-below-baseline indicative default - no model fixture data read; enter real rated flows in the EDGE App.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain measures fixtures: {ex.Message}"); }
+
+            return m;
+        }
+
+        private static string OrientationBucket(double deg)
+        {
+            double d = ((deg % 360) + 360) % 360;
+            if (d >= 315 || d < 45) return "N";
+            if (d < 135) return "E";
+            if (d < 225) return "S";
+            return "W";
+        }
+
+        private static void AddTo(Dictionary<string, double> map, string k, double v)
+            => map[k] = (map.TryGetValue(k, out var c) ? c : 0) + v;
+
         private static FixtureFlows ReadDesignFixtureFlows(Document doc, out string note)
         {
             note = null;
