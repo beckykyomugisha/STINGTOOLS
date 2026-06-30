@@ -1014,72 +1014,8 @@ namespace StingTools.BIMManager
                     .Replace("\"", "&quot;").Replace("'", "&apos;");
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  Import Cost Rates from CSV
-        // ═══════════════════════════════════════════════════════════
-
-        internal static Dictionary<string, (double rate, string unit)> LoadCostRatesFromCSV(string csvPath)
-        {
-            var rates = new Dictionary<string, (double, string)>();
-            try
-            {
-                string[]? headers = null;
-                foreach (string line in File.ReadLines(csvPath))
-                {
-                    var parts = StingToolsApp.ParseCsvLine(line);
-                    if (headers == null)
-                    {
-                        // Detect header row to find rate and unit column indices
-                        headers = parts.Select(p => p.Trim().ToUpperInvariant()).ToArray();
-                        continue;
-                    }
-                    if (parts.Length < 2) continue;
-
-                    string cat = parts[0].Trim();
-
-                    // Auto-detect column layout:
-                    //   7-col: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
-                    //   4-col: Category, Unit_Rate, Unit, Description
-                    //   3-col: Category, Rate, Unit
-                    int rateCol = 1, unitCol = 2; // default 3-col
-                    if (headers.Length >= 7)
-                    {
-                        // C-05 FIX: 7-column cost_rates_5d.csv format (0-indexed):
-                        // [0]=Category, [1]=MAT_CODE, [2]=MAT_DISCIPLINE, [3]=Unit_Rate_USD,
-                        // [4]=Unit_Rate_UGX, [5]=Unit, [6]=Description
-                        // Previously unitCol=5 was correct, but verify against header names
-                        rateCol = 3;
-                        unitCol = 5;
-                        // Auto-detect by header name if available (defensive)
-                        for (int hi = 0; hi < headers.Length; hi++)
-                        {
-                            string h = headers[hi].Trim().ToUpperInvariant();
-                            if (h == "UNIT" || h == "UOM") unitCol = hi;
-                            else if (h == "UNIT_RATE_USD" || h == "UNIT_RATE" || h == "RATE") rateCol = hi;
-                        }
-                    }
-                    else if (headers.Length >= 4 && headers.Any(h => h.Contains("UNIT_RATE")))
-                    {
-                        rateCol = 1;
-                        unitCol = 2;
-                    }
-
-                    if (parts.Length <= rateCol) continue;
-                    if (double.TryParse(parts[rateCol].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                    {
-                        string unit = parts.Length > unitCol ? parts[unitCol].Trim() : "each";
-                        if (string.IsNullOrEmpty(unit)) unit = "each";
-                        rates[cat] = (rate, unit);
-                    }
-                }
-                StingLog.Info($"Loaded {rates.Count} cost rates from {csvPath}");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error($"Failed to load cost rates from {csvPath}", ex);
-            }
-            return rates;
-        }
+        // P0-7 — LoadCostRatesFromCSV (a second project-CSV reader) removed.
+        // The one CSV loader is BOQCostManager.LoadCsvRates, inside the Rates/ chain.
     }
 
     #endregion
@@ -1516,35 +1452,25 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string ratesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cost_rates_5d.csv");
-
-            if (!File.Exists(ratesPath))
-            {
-                // Create template CSV
-                var template = new StringBuilder();
-                template.AppendLine("Category,Unit_Rate,Unit,Description");
-                foreach (var kv in Scheduling4DEngine.DefaultCostRates)
-                    template.AppendLine($"\"{kv.Key}\",{kv.Value.ratePerUnit},\"{kv.Value.unit}\",\"{kv.Value.description}\"");
-
-                try
-                {
-                    File.WriteAllText(ratesPath, template.ToString());
-                    TaskDialog.Show("STING 5D BIM",
-                        $"Cost rates template created with {Scheduling4DEngine.DefaultCostRates.Count} default rates:\n\n" +
-                        $"{ratesPath}\n\n" +
-                        "Edit the unit rates in this CSV file, then run\n" +
-                        "'Auto Cost' to generate an estimate with your rates.");
-                }
-                catch (Exception ex) { TaskDialog.Show("STING", $"Failed: {ex.Message}"); }
-            }
-            else
-            {
-                var rates = Scheduling4DEngine.LoadCostRatesFromCSV(ratesPath);
-                TaskDialog.Show("STING 5D BIM",
-                    $"Loaded {rates.Count} custom cost rates from:\n{ratesPath}\n\n" +
-                    "These will be used by 'Auto Cost' instead of defaults.\n" +
-                    "Edit the CSV to update rates.");
-            }
+            // P0-7 — the 5D estimate (Auto Cost) now runs the canonical BOQ
+            // take-off, so rates resolve through the ONE Rates/ provider chain —
+            // the same source the BOQ Cost Manager uses. A separate
+            // _BIM_MANAGER/cost_rates_5d.csv is no longer read. This command is
+            // now informational: it points the user at the canonical override
+            // surfaces instead of authoring a file nothing consumes.
+            TaskDialog.Show("STING 5D BIM — Cost Rates",
+                "5D cost estimates now use the canonical BOQ rate chain — the same\n" +
+                "rates the BOQ Cost Manager applies, so the 4D/5D cash-flow and the\n" +
+                "BOQ Contract Sum always reconcile.\n\n" +
+                "Rates resolve in this priority order:\n" +
+                "  1. Per-element parameter / Extensible-Storage overrides\n" +
+                "  2. Project rate card  <project>/_BIM_COORD/rate_card.json\n" +
+                "  3. Material-library rates (the MAT panel)\n" +
+                "  4. Corporate baseline  data/cost_rates_5d.csv\n" +
+                "  5. COBie type map → built-in defaults\n\n" +
+                $"Corporate baseline currently provides {Scheduling4DEngine.DefaultCostRates.Count} category rates.\n" +
+                "To override per project, edit the project rate card or the MAT panel,\n" +
+                "then run 'Auto Cost'.");
 
             return Result.Succeeded;
         }
