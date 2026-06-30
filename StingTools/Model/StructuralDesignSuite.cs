@@ -642,6 +642,9 @@ namespace StingTools.Model
                 if (thkParam != null) thickness = thkParam.AsDouble() * Units.FeetToMm / 1000.0;
 
                 double vol = areaSqM * thickness;
+                // MAT-1 — net a void slab (hollow-pot / rib / waffle / trough) so
+                // concrete + carbon + rebar are not over-measured ~30-40%.
+                vol *= StingTools.Core.Materials.SlabSystemLoader.SolidFraction(doc, slab);
                 double mass = vol * Densities["concrete"];
                 slabCarbon += mass * CarbonFactors["concrete_c30"];
                 slabCost += vol * CostRates["concrete_m3"];
@@ -825,6 +828,11 @@ namespace StingTools.Model
 
                     var (vol, isSteel) = EmbodiedCarbonCalculator.EstimateElementVolume(doc, el);
                     if (isSteel) continue;
+                    // MAT-1 — for floors, net the gross volume by the void-system
+                    // solid fraction so rebar (= net concrete × ratio) isn't
+                    // over-measured ~30-40% on a hollow-pot / rib / waffle slab.
+                    if (cat == BuiltInCategory.OST_Floors)
+                        vol *= StingTools.Core.Materials.SlabSystemLoader.SolidFraction(doc, el);
                     catConcreteM3 += vol;
                 }
 

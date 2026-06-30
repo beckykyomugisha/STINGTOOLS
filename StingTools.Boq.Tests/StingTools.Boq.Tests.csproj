@@ -24,6 +24,16 @@
     <!-- CA-1 — Document-free currency converter; pins the no-silent-mis-currency
          invariants headlessly (UGX base, default→UGX, single FX). -->
     <Compile Include="..\StingTools\BOQ\Rates\RateCurrency.cs" Link="Rates\RateCurrency.cs" />
+    <!-- MAT-1 — Document-free slab void-system registry. -->
+    <Compile Include="..\StingTools\Core\Materials\SlabSystemRegistry.cs" Link="Materials\SlabSystemRegistry.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MAT-1 — ship the slab-systems catalogue so the test validates the real
+         seeded solid fractions, not just the resolution logic. -->
+    <None Include="..\StingTools\Data\STING_SLAB_SYSTEMS.json" Link="Data\STING_SLAB_SYSTEMS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

@@ -1378,12 +1378,15 @@ namespace StingTools.BOQ
                 if (ids != null && ids.Count >= 2)
                 {
                     double fossil = 0, bio = 0, dominantVol = -1; string domMat = "", domSrc = "none"; bool any = false;
+                    double rawSumM3 = 0;        // MAT-1 — un-wasted Σ of measured layer volumes
                     foreach (var mid in ids)
                     {
                         double volFt3;
                         try { volFt3 = el.GetMaterialVolume(mid); } catch { volFt3 = 0; }
                         if (volFt3 <= 0) continue;
-                        double mVolM3 = WasteFactor.Apply(volFt3 * 0.0283168, "m3", wastePct);
+                        double rawM3 = volFt3 * 0.0283168;
+                        rawSumM3 += rawM3;
+                        double mVolM3 = WasteFactor.Apply(rawM3, "m3", wastePct);
                         string mName = (el.Document.GetElement(mid) as Material)?.Name ?? "";
                         if (string.IsNullOrEmpty(mName)) continue;
 
@@ -1401,7 +1404,26 @@ namespace StingTools.BOQ
                     }
                     if (any && (fossil != 0 || bio != 0))
                     {
+                        // MAT-1 — compound-element carbon under-count: Revit returns 0
+                        // GetMaterialVolume for some layers (paint, cavity, unmodelled
+                        // finishes), so Σ layer volume can be materially LESS than the
+                        // element's gross HOST_VOLUME_COMPUTED. Rather than silently
+                        // drop that concrete/block carbon, attribute the shortfall to
+                        // the dominant material and flag the row estimated.
+                        double grossM3 = ReadElementVolumeM3(el);
+                        if (grossM3 > 0 && rawSumM3 > 0 && rawSumM3 < 0.9 * grossM3 && !string.IsNullOrEmpty(domMat))
+                        {
+                            double missing = WasteFactor.Apply(grossM3 - rawSumM3, "m3", wastePct);
+                            AddMaterialCarbon(el.Document, domMat, missing, ref fossil, ref bio);
+                            estimated = true;
+                            StingLog.WarnRateLimited("CompoundCarbonFill",
+                                $"Compound element {el.Id}: Σ material volume {rawSumM3:F3} m³ < gross {grossM3:F3} m³ — " +
+                                $"attributed {grossM3 - rawSumM3:F3} m³ shortfall to '{domMat}' (was silently dropped).");
+                        }
                         carbonSource = domSrc; carbonQuality = BoqEpdStore.QualityForSource(domSrc); carbonMaterial = domMat;
+                        if (estimated && carbonQuality != BoqEpdStore.QualityMissing
+                            && !carbonQuality.StartsWith("Verified", StringComparison.OrdinalIgnoreCase))
+                            carbonQuality = "Estimated";
                         biogenicKg = Math.Round(bio, 2);
                         return Math.Round(fossil, 2);
                     }
@@ -1418,6 +1440,9 @@ namespace StingTools.BOQ
 
                 // WP-C — drive off REAL geometry; estimate only when absent.
                 double volM3 = RealOrEstimatedVolumeM3(el, quantity, unit, material, out estimated);
+                // MAT-1 — net a void slab (hollow-pot / rib / waffle / trough) by its
+                // solid fraction so embodied carbon is net of the pot/rib voids.
+                volM3 = ApplySlabVoidFactor(el, volM3);
                 volM3 = WasteFactor.Apply(volM3, "m3", wastePct);
 
                 double fos = 0, bg = 0;
@@ -1469,6 +1494,31 @@ namespace StingTools.BOQ
         /// m³-measured rows use the (deducted, wasted) measured quantity; otherwise
         /// the element's real solid volume; only a genuine no-geometry element falls
         /// back to the guessed thickness / cross-section estimate (estimated = true).</summary>
+        /// <summary>
+        /// MAT-1 — net a slab's gross concrete volume by its void-system solid
+        /// fraction (hollow-pot / rib / waffle / trough, data-driven via
+        /// SlabSystemRegistry + STING_SLAB_SYSTEMS.json). Returns the volume
+        /// unchanged for solid slabs and non-floors. Applied to the carbon volume
+        /// and the m³ quantity so a clay-pot slab is measured net of its voids.
+        /// </summary>
+        internal static double ApplySlabVoidFactor(Element el, double grossVolM3)
+        {
+            if (el == null || grossVolM3 <= 0) return grossVolM3;
+            try
+            {
+                if (el.Category?.Id == null ||
+                    el.Category.Id.Value != (long)BuiltInCategory.OST_Floors)
+                    return grossVolM3;
+                var m = Core.Materials.SlabSystemLoader.ForElement(el.Document, el);
+                return m.IsVoidSystem ? grossVolM3 * m.SolidFraction : grossVolM3;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("SlabVoid", $"ApplySlabVoidFactor: {ex.Message}");
+                return grossVolM3;
+            }
+        }
+
         private static double RealOrEstimatedVolumeM3(Element el, double quantity, string unit, string material, out bool estimated)
         {
             estimated = false;
