@@ -63,11 +63,10 @@ namespace StingTools.BOQ.Rates
 
     // ──────────────────────────────────────────────────────────────────────
     //  2. Extensible Storage override (priority 95)
-    //  Reads StingCostRateOverrideSchema — currently writes RateGbp only.
-    //  This provider returns GBP rates; FX-to-base conversion happens in
-    //  the registry's currency adapter. When the schema is extended in a
-    //  follow-up commit to carry currency + waste + dayworks, this
-    //  provider will return them directly.
+    //  Reads StingCostRateOverrideSchema. CA-1 — a stored override is in the
+    //  project BASE currency (UGX) unless it carries an explicit ovr.Currency;
+    //  the registry's currency adapter rebases any non-base code via the one
+    //  doc-scoped FX.
     // ──────────────────────────────────────────────────────────────────────
     internal sealed class ExtensibleStorageRateProvider : IRateProvider
     {
@@ -108,7 +107,10 @@ namespace StingTools.BOQ.Rates
                 return new RateLookup
                 {
                     UnitRate = loadedRate,
-                    CurrencyCode = string.IsNullOrEmpty(ovr.Currency) ? "GBP" : ovr.Currency,
+                    // CA-1 — an ES override that doesn't declare its currency is the
+                    // project base (UGX), not GBP. Defaulting to GBP would FX-scale a
+                    // UGX-intended override by ~4,700. Explicit ovr.Currency still wins.
+                    CurrencyCode = string.IsNullOrEmpty(ovr.Currency) ? RateCurrency.Base : ovr.Currency,
                     Unit = string.IsNullOrEmpty(ovr.Unit) ? "each" : ovr.Unit,
                     SourceId = Id,
                     Confidence = 95,
@@ -271,13 +273,19 @@ namespace StingTools.BOQ.Rates
                 return new RateLookup
                 {
                     UnitRate = dcr.ratePerUnit,
-                    CurrencyCode = "UGX",
+                    // CA-1 — the default baseline (STING_DEFAULT_COST_RATES.csv) holds
+                    // USD-magnitude global benchmarks (Walls=85, not ~315,000 UGX). It
+                    // was mislabelled UGX, so any category served only by this table
+                    // priced ~3,700× too LOW. Label USD; the registry rebases to the
+                    // project base via the one doc-scoped FX. A QS who wants UGX-native
+                    // defaults edits the higher-priority cost_rates_5d.csv (UGX).
+                    CurrencyCode = "USD",
                     Unit = string.IsNullOrEmpty(dcr.unit) ? "each" : dcr.unit,
                     SourceId = Id,
                     Confidence = 60,
                     Provenance = string.IsNullOrEmpty(dcr.description)
-                        ? "Scheduling4DEngine default"
-                        : $"Scheduling4DEngine: {dcr.description}",
+                        ? "Scheduling4DEngine default (USD benchmark)"
+                        : $"Scheduling4DEngine: {dcr.description} (USD benchmark)",
                     MatchedKey = req.CategoryName
                 };
             }

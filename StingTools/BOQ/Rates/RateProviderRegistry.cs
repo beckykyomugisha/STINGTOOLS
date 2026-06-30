@@ -230,43 +230,31 @@ namespace StingTools.BOQ.Rates
         private RateLookup ConvertCurrency(RateLookup lookup, string targetCurrency)
         {
             if (lookup == null) return null;
-            if (string.IsNullOrEmpty(targetCurrency) ||
-                string.Equals(lookup.CurrencyCode, targetCurrency, StringComparison.OrdinalIgnoreCase))
+
+            // CA-1 — one converter, one FX pair. A blank source/target currency
+            // normalises to the project base (UGX), never GBP, so a source that
+            // forgot to declare its currency cannot trigger a silent ×4,700.
+            string source = RateCurrency.Normalize(lookup.CurrencyCode);
+            string target = RateCurrency.Normalize(targetCurrency);
+            if (string.Equals(source, target, StringComparison.Ordinal))
+            {
+                // Stamp the normalised code back so downstream never sees blank.
+                if (!string.Equals(lookup.CurrencyCode, source, StringComparison.Ordinal))
+                    lookup.CurrencyCode = source;
                 return lookup;
-
-            // Convert via UGX as the base. Supported: UGX, USD, GBP.
-            double rateInUgx = lookup.UnitRate;
-            switch ((lookup.CurrencyCode ?? "").ToUpperInvariant())
-            {
-                case "UGX": rateInUgx = lookup.UnitRate; break;
-                case "USD": rateInUgx = lookup.UnitRate * _ugxPerUsd; break;
-                case "GBP": rateInUgx = lookup.UnitRate * _ugxPerGbp; break;
-                default:
-                    StingLog.Warn($"RateProviderRegistry: unsupported source currency {lookup.CurrencyCode}, treating as UGX");
-                    rateInUgx = lookup.UnitRate;
-                    break;
             }
 
-            double targetRate = rateInUgx;
-            switch ((targetCurrency ?? "").ToUpperInvariant())
-            {
-                case "UGX": targetRate = rateInUgx; break;
-                case "USD": targetRate = _ugxPerUsd > 0 ? rateInUgx / _ugxPerUsd : 0; break;
-                case "GBP": targetRate = _ugxPerGbp > 0 ? rateInUgx / _ugxPerGbp : 0; break;
-                default:
-                    StingLog.Warn($"RateProviderRegistry: unsupported target currency {targetCurrency}");
-                    return lookup;
-            }
+            double targetRate = RateCurrency.Convert(lookup.UnitRate, source, target, _ugxPerUsd, _ugxPerGbp);
 
             return new RateLookup
             {
                 UnitRate = targetRate,
-                CurrencyCode = targetCurrency.ToUpperInvariant(),
+                CurrencyCode = target,
                 Unit = lookup.Unit,
                 SourceId = lookup.SourceId,
                 FetchedUtc = lookup.FetchedUtc,
                 Confidence = lookup.Confidence,
-                Provenance = $"{lookup.Provenance} (FX {lookup.CurrencyCode}→{targetCurrency})",
+                Provenance = $"{lookup.Provenance} (FX {source}→{target})",
                 MatchedKey = lookup.MatchedKey
             };
         }

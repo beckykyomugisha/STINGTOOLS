@@ -677,10 +677,14 @@ namespace StingTools.BOQ
                 grossQty = quantity;
             }
 
-            // (b) Currency
+            // (b) Currency — CA-1: RateUSD is derived from the SAME doc-scoped FX
+            // (UGX_PER_USD) the rate registry used to rebase, via the one converter,
+            // so the UGX and USD figures on a row are never inconsistent.
             double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
             double rateUgx = picked.rate;
-            double rateUsd = exchangeRate > 0 ? Math.Round(rateUgx / exchangeRate, 2) : 0;
+            double rateUsd = Math.Round(
+                StingTools.BOQ.Rates.RateCurrency.FromUgx(rateUgx, "USD", exchangeRate, ugxPerGbp), 2);
 
             // (c) NRM2 paragraph — prefer the previously-resolved value on the element,
             //      then a template resolution, then a safe fallback.
@@ -2907,6 +2911,25 @@ namespace StingTools.BOQ
                 string header = lines[0].ToLowerInvariant();
                 bool is7Col = header.Contains("mat_code");
 
+                // CA-1 — explicit one-wins de-duplication. The first row for a key
+                // wins (top of file is authoritative); a later duplicate is skipped
+                // and logged, so a QS sees the collision instead of a silent
+                // last-row-wins overwrite. Applies to category, MAT_CODE keys alike.
+                int dupes = 0;
+                void Put(string key, double rate, string unit)
+                {
+                    if (string.IsNullOrEmpty(key)) return;
+                    string k = key.Trim();
+                    if (rates.ContainsKey(k))
+                    {
+                        dupes++;
+                        StingLog.WarnRateLimited("LoadCsvRates.Dupe",
+                            $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
+                        return;
+                    }
+                    rates[k] = (rate, string.IsNullOrEmpty(unit) ? "each" : unit);
+                }
+
                 for (int i = 1; i < lines.Length; i++)
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
@@ -2916,16 +2939,17 @@ namespace StingTools.BOQ
                         // Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
                         if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
                         {
-                            rates[cols[0].Trim()] = (rateUgx, cols[5].Trim());
-                            if (!string.IsNullOrEmpty(cols[1]))
-                                rates[cols[1].Trim()] = (rateUgx, cols[5].Trim());
+                            Put(cols[0], rateUgx, cols[5].Trim());
+                            Put(cols[1], rateUgx, cols[5].Trim());
                         }
                     }
                     else if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate3))
                     {
-                        rates[cols[0].Trim()] = (rate3, cols.Length > 2 ? cols[2].Trim() : "each");
+                        Put(cols[0], rate3, cols.Length > 2 ? cols[2].Trim() : "each");
                     }
                 }
+                if (dupes > 0)
+                    StingLog.Warn($"LoadCsvRates: {dupes} duplicate rate key(s) in {costFile} skipped (first-wins).");
             }
             catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
             return rates;

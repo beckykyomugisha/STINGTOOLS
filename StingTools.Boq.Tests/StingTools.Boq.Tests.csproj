@@ -21,6 +21,9 @@
     <Compile Include="..\StingTools\BOQ\MeasuredAddition.cs" Link="MeasuredAddition.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
+    <!-- CA-1 — Document-free currency converter; pins the no-silent-mis-currency
+         invariants headlessly (UGX base, default→UGX, single FX). -->
+    <Compile Include="..\StingTools\BOQ\Rates\RateCurrency.cs" Link="Rates\RateCurrency.cs" />
   </ItemGroup>
 
   <ItemGroup>
