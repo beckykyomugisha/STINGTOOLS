@@ -159,16 +159,65 @@ namespace StingTools.BOQ.MeasurementStandard
             if (doc == null) return map;
             try
             {
+                // WP-M — host-less shaft openings spanning levels are collected
+                // separately and attributed to the floors/roofs they pierce below.
+                var shafts = new List<(BoundingBoxXYZ bb, double areaM2)>();
+
                 foreach (var op in new FilteredElementCollector(doc).OfClass(typeof(Opening)).Cast<Opening>())
                 {
                     Element h = null;
                     try { h = op.Host; } catch { }
-                    if (h?.Id == null) continue;   // shaft / host-less openings — skip for now
+                    if (h?.Id == null)
+                    {
+                        // Host-less (shaft) opening — defer to the piercing pass.
+                        double sa = OpeningPlanAreaM2(op);
+                        BoundingBoxXYZ sbb = null;
+                        try { sbb = op.get_BoundingBox(null); } catch { }
+                        if (sa > 0 && sbb != null) shafts.Add((sbb, sa));
+                        continue;
+                    }
                     double a = OpeningPlanAreaM2(op);
                     if (a <= 0) continue;
                     long hid = h.Id.Value;
                     if (!map.TryGetValue(hid, out var list)) { list = new List<double>(); map[hid] = list; }
                     list.Add(a);
+                }
+
+                // WP-M — attribute each shaft void to every floor/roof whose slab
+                // elevation falls within the shaft's vertical span AND whose plan
+                // footprint overlaps the shaft, so a floor pierced by a shaft is
+                // deducted instead of over-measured. Bounding-box test (cheap +
+                // robust); a shaft that pierces no detected slab is logged.
+                if (shafts.Count > 0)
+                {
+                    const double zTolFt = 0.5;
+                    int attributed = 0;
+                    var slabs = new FilteredElementCollector(doc)
+                        .WherePasses(new ElementMulticategoryFilter(new[]
+                            { BuiltInCategory.OST_Floors, BuiltInCategory.OST_Roofs }))
+                        .WhereElementIsNotElementType();
+                    foreach (Element slab in slabs)
+                    {
+                        BoundingBoxXYZ fb = null;
+                        try { fb = slab.get_BoundingBox(null); } catch { }
+                        if (fb == null) continue;
+                        double zMid = (fb.Min.Z + fb.Max.Z) / 2.0;
+                        foreach (var (bb, areaM2) in shafts)
+                        {
+                            bool piercesZ = zMid > bb.Min.Z - zTolFt && zMid < bb.Max.Z + zTolFt;
+                            bool overlapXY = fb.Min.X < bb.Max.X && fb.Max.X > bb.Min.X
+                                          && fb.Min.Y < bb.Max.Y && fb.Max.Y > bb.Min.Y;
+                            if (piercesZ && overlapXY)
+                            {
+                                long sid = slab.Id.Value;
+                                if (!map.TryGetValue(sid, out var slist)) { slist = new List<double>(); map[sid] = slist; }
+                                slist.Add(areaM2);
+                                attributed++;
+                            }
+                        }
+                    }
+                    if (attributed == 0)
+                        StingLog.Warn($"BuildVoidIndex: {shafts.Count} shaft void(s) pierced no detected floor/roof — those slabs may be over-measured (flagged).");
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BuildVoidIndex: {ex.Message}"); }

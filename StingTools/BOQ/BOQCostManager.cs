@@ -1549,7 +1549,9 @@ namespace StingTools.BOQ
         {
             try
             {
-                var opt = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, DetailLevel = ViewDetailLevel.Coarse };
+                // WP-M — Fine to match TakeoffRule.ReadSolidVolumeFt3, so the same
+                // element measures identically whichever solid reader the path uses.
+                var opt = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, DetailLevel = ViewDetailLevel.Fine };
                 GeometryElement ge = el.get_Geometry(opt);
                 if (ge == null) return 0;
                 double ft3 = SumSolidVolumeFt3(ge);
@@ -1663,6 +1665,14 @@ namespace StingTools.BOQ
         {
             if (items == null) return 0;
             int written = 0;
+            // WP-M — aggregated constituents re-measure through the SAME MeasureQuantity
+            // path the bill uses (NRM2/CESMM opening/void deductions + waste), so the
+            // stamped CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX matches the net bill row
+            // instead of the legacy DeriveQuantity (which skipped deductions and could
+            // over-stamp a row above its net bill quantity).
+            string aggStdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+            if (string.IsNullOrWhiteSpace(aggStdId)) aggStdId = "nrm2";
+            var aggStd = MeasurementStandard.MeasurementStandardRegistry.Get(aggStdId);
             foreach (var item in items)
             {
                 // P1.2 — aggregated rows stamp EVERY constituent element. Shared
@@ -1685,7 +1695,11 @@ namespace StingTools.BOQ
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (el == null) continue;
 
-                    double qty = aggregated ? DeriveQuantity(el, item.Unit) : item.Quantity;
+                    double qty = aggregated
+                        ? MeasureQuantity(el, item.Unit,
+                            string.IsNullOrEmpty(item.Category) ? ParameterHelpers.GetCategoryName(el) : item.Category,
+                            aggStd, out _, out _, out _, out _)
+                        : item.Quantity;
                     double totalUgx = Math.Round(qty * item.RateUGX, 0);
                     double carbonKg = aggregated
                         ? ComputeElementCarbon(el, qty, item.Unit) : item.EmbodiedCarbonKg;

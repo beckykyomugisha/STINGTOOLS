@@ -124,7 +124,12 @@ namespace StingTools.BOQ
                 var measStd = MeasurementStandard.MeasurementStandardRegistry.Get(stdId);
                 double qty = BOQCostManager.MeasureQuantity(el, rule.Unit ?? "each", catName, measStd,
                     out _, out _, out _, out _);
-                if (qty <= 0.0001) return false;
+                // WP-M — a MEASURED unit returning 0 is "could not measure": stamp a
+                // FLAGGED zero (below) rather than silently skipping the stamp, so the
+                // element still carries cost params + a visible flag for the QS.
+                // Counted units never legitimately reach 0.
+                bool couldNotMeasure = qty <= 0.0001 && WasteFactor.AppliesTo(rule.Unit ?? "each");
+                if (qty <= 0.0001 && !couldNotMeasure) return false;
 
                 // Resolve rate via the per-batch cache → registry. Cache
                 // key intentionally excludes Element identity so two
@@ -195,7 +200,8 @@ namespace StingTools.BOQ
                     lookup.UnitRate.ToString("F0", CultureInfo.InvariantCulture),
                     overwrite: true);
                 ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
-                    $"{qty:F3} {rule.Unit ?? "each"}", overwrite: true);
+                    $"{qty:F3} {rule.Unit ?? "each"}" + (couldNotMeasure ? " [COULD NOT MEASURE]" : ""),
+                    overwrite: true);
                 ParameterHelpers.SetString(el, "CST_RATE_SOURCE",
                     MapProviderIdToLegacySource(lookup.SourceId), overwrite: true);
                 WriteNumber(el, "CST_MODELED_TOTAL_UGX", total);

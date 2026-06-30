@@ -99,7 +99,9 @@ namespace StingTools.BOQ
         public double QtyAtRisk;         // Σ quantity of the zero-rate rows
         public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
         /// <summary>True when a tender/professional export should be gated.</summary>
-        public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0;
+        // WP-M — a measured row with a valid rate but qty 0 ships a silent zero
+        // line into the Contract Sum, so it must gate the export too.
+        public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0 || CouldNotMeasureCount > 0;
         public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
     }
 

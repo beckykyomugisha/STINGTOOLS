@@ -33,6 +33,27 @@ provenance. *Decision:* biogenic materials always resolve their fossil+biogenic 
 the V6 `CarbonStageTracker` (now sharing the A1-A3 basis), with the BOQ figure
 explicitly scoped "A1-A3 upfront".
 
+**WP-M — Measurement parity, round 2.**
+- *Aggregated write-back* (`WriteElementParameters`) now re-measures each collapsed
+  constituent through `MeasureQuantity` (NRM2/CESMM deductions + waste), not the
+  legacy `DeriveQuantity` — so a stamped aggregated row's `CST_QTY_MEASURED` /
+  `CST_MODELED_TOTAL_UGX` matches its net bill row.
+- *Shaft / host-less voids*: `BuildVoidIndex` now attributes each host-less
+  `ShaftOpening` to every floor/roof whose slab elevation is within the shaft's
+  vertical span AND whose footprint overlaps it (bounding-box test), so a floor
+  pierced by a shaft is deducted instead of over-measured; shafts that pierce no
+  detected slab are logged (flagged) rather than silently dropped.
+- *Export gate* (`BoqUncostedRollup.BlocksExport`) now also blocks on
+  `CouldNotMeasureCount`; `CostStamp` stamps a **flagged zero**
+  (`CST_QTY_MEASURED … [COULD NOT MEASURE]`) for a measured unit returning 0 rather
+  than silently skipping the stamp.
+- *Solid-reader detail level* unified: `BOQCostManager.ReadGeometryVolumeM3` now uses
+  `ViewDetailLevel.Fine` to match `TakeoffRule.ReadSolidVolumeFt3`, so the same
+  column measures identically whichever path reads it.
+- *Open (ROADMAP):* the per-material COST split (carbon already splits), the
+  optional `matchSystem` (SYS) token in takeoff/measurement matching, and a
+  regional/per-category waste override.
+
 #### Completed (BOQ Measurement + QS — branch `claude/boq-measurement-qs`)
 
 Builds on the BOQ Master Impl branch. Each work-package compile-verified against
