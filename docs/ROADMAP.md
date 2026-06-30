@@ -2,6 +2,36 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
+
+PM-1 landed (the §2 correctness bugs + the do-once shared helpers
+`IssueStatusNormalizer` / `MoneyRound` / `ContractSumResolver`, with
+`StingTools.Cost.Tests`, 41 green). The full catalogue with file:line anchors is in
+`docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md`. Still open:
+
+- **PM-2 — wire the silos.** CostPlan `GrandTotalLikely` → `PROJECT_BUDGET_UGX` →
+  EVM PV; approved VO → next-cert "Adjustments/Variations" SOV section → EVM BAC
+  (BAC anchoring is done via `ContractSumResolver`); clash → tracked issue (via the
+  normalizer) into `issues.json` with SLA + reconcile `clashes.json`; FinalAccount
+  reconcile against certified-to-date; cert cumulative valuation keyed by
+  line/element id not the free-text section string.
+- **PM-3 — QS lifecycle gaps.** Schedule-driven cash-flow S-curve (real time-phased
+  PV, needs PM-4 dates); fluctuations engine (NEDO/BCIS index); dayworks build-up
+  (via `StarRate`); loss & expense / compensation events (valued off the captured
+  EOT days); CVR report; NRM1 elemental cost plan + OCE; line-level cost-to-complete;
+  commitments register; QuickBooks/Sage/Excel offline export. (Retention release +
+  Set Contract Sum already landed in round-3.)
+- **PM-4 — scheduling depth.** Converge the two MSP/XER parsers; read P6 `TASKPRED`;
+  forward/backward CPM pass → critical path + total/free float; model-driven %
+  complete; Uganda working-calendar into generation.
+- **PM-5 — carbon data.** Per-material/category waste table; UG clamp-kiln brick
+  factor; Kampala/UG green-baseline rows; stainless factor. (B6→GridCarbonRegistry +
+  benchmark consolidation done in PM-1.)
+- **PM-6 perf / PM-7 hygiene / PM-8 delivery layer** — multicategory filters on the
+  heavy sweeps + one cached `BuildBOQDocument` per command run; the WorkflowEngine
+  name-collision rename, dup `ContractForm`/`SuggestLiability`/`MapProviderIdToLegacySource`,
+  sidecar-root unification; MIDP/TIDP engine + real KPI time-series + risk register.
+
 ## BOQ & Cost Manager — remaining after Round 3
 
 Branches `claude/boq-master-impl`, `claude/boq-measurement-qs` and
