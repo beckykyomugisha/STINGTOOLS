@@ -3,6 +3,49 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Map-DWG-Layers dialog — refresh, dropdown-revert, skip-all, multi-select)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);
+`StingTools.dll` + `data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD`. **UI / model-adjacent
+— sandbox cannot open Revit, so verify the four behaviours in Revit before merge.** Four
+fixes to `UI/DwgLayerMapDialog.cs` + the launcher in
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`.
+
+**B1 — dialog + Place run target the SAME import (was: always the oldest).** The launcher
+used `FindImportInstances(doc).FirstOrDefault()` (first/oldest), so a newly imported DWG
+never showed. Added `ResolveTargetImport(app, doc)`: one import -> use it; multiple ->
+prefer an `ImportInstance` selected in `uidoc.Selection`, else a `StingListPicker` of imports
+sorted newest-first by `ElementId.Value` (label = type/CAD name + `[id N]`). The Map dialog,
+the "DWG -> STING fixtures" Place button, and the experimental exploded-capture button all
+now resolve through this one helper and call `DwgFixtureBridge.PlaceFromImport(doc, import, …)`
+(the pre-existing explicit-import overload — `PlaceFromFirstImport` already delegates to it,
+no pipeline duplication). The Map dialog also calls `DwgSymbolMapRegistry.Reload(doc)` and
+always re-runs `PreviewImport` so re-opening after a new import re-reads its layers.
+
+**B2 — category/anchor dropdown no longer reverts.** The grid used `DataGridComboBoxColumn`
++ `SelectedItemBinding`, which didn't commit the edit (snapped back to the prefilled value).
+Replaced the STING-category and Anchor columns with `DataGridTemplateColumn` whose
+`CellTemplate` is an always-live `ComboBox` (`IsEditable=false`,
+`SelectedItem={Binding … TwoWay, UpdateSourceTrigger=PropertyChanged}`) — selection commits
+straight into the `DwgLayerMapRow` and is what Save writes.
+
+**B3 — Skip all / Reset to detected.** Added two buttons. "Skip all" sets every row's
+`Category` to the `(skip)` sentinel (the launcher already writes `(skip)` -> blank = no
+`ByLayer` rule). "Reset to detected" restores each row's category/variant/anchor from a
+construction-time snapshot (`DetectedCategory/Variant/Anchor`). Both mutate via the row's
+`INotifyPropertyChanged` setters so the grid updates live.
+
+**B4 — Ctrl/Shift multi-select + bulk apply.** Grid is now
+`SelectionMode=Extended` / `SelectionUnit=FullRow`. Added a toolbar (category combo +
+anchor combo + "Apply to selected") that writes the chosen category + anchor onto every
+selected row at once.
+
+Judgment calls: (a) import-selection UX = selected-in-Revit first, else newest-first picker
+(reused `StingListPicker`, no new dialog); (b) skip sentinel = the existing `(skip)` string
+(`IsMapped` already treats it as unmapped, launcher maps it to blank); (c) "Reset to detected"
+restores all three editable fields, not category alone; (d) bulk "Apply to selected" sets both
+category and anchor (anchor defaults to `WALL_MIDPOINT`) for flexibility.
+
 #### Completed (DWG fixture bridge — scope, counters, report noise fix)
 
 Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors); DLL +

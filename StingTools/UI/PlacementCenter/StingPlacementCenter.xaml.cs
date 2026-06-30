@@ -2705,9 +2705,81 @@ namespace StingTools.UI.PlacementCenter
             RunInlineAction("DWG → STING fixtures", app =>
             {
                 var doc = app?.ActiveUIDocument?.Document ?? _doc;
-                var res = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: false);
+                // Target the SAME import the Map-DWG-Layers dialog uses (selected > picked).
+                var import = ResolveTargetImport(app, doc, out _);
+                if (import == null)
+                    return StingResultPanel.Create("STING — DWG → STING fixtures")
+                        .AddSection("RESULT").Text("No DWG/DXF import found. Link or import a DWG first.");
+                var res = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromImport(doc, import, dryRun: false);
                 return StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(res);
             });
+        }
+
+        /// <summary>Pick the DWG/DXF import to act on, so the Map-DWG-Layers dialog and the
+        /// actual Place run always target the SAME import. One import -> use it. Multiple ->
+        /// prefer the one selected in Revit; else show a picker sorted newest-first (by
+        /// ElementId). Returns null when none exist. Runs on the API thread (called from
+        /// inside RunInlineAction), so Selection and a modal picker are both valid here.</summary>
+        private static Autodesk.Revit.DB.ImportInstance ResolveTargetImport(
+            Autodesk.Revit.UI.UIApplication app, Autodesk.Revit.DB.Document doc, out string note)
+        {
+            note = "";
+            List<Autodesk.Revit.DB.ImportInstance> imports;
+            try { imports = StingTools.Model.CADToModelEngine.FindImportInstances(doc) ?? new List<Autodesk.Revit.DB.ImportInstance>(); }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.ResolveTargetImport.find: {ex.Message}"); return null; }
+
+            if (imports.Count == 0) return null;
+            if (imports.Count == 1) { note = "Using the only DWG import."; return imports[0]; }
+
+            // (a) Prefer an ImportInstance currently selected in Revit.
+            try
+            {
+                var sel = app?.ActiveUIDocument?.Selection?.GetElementIds();
+                if (sel != null)
+                {
+                    foreach (var id in sel)
+                    {
+                        if (doc.GetElement(id) is Autodesk.Revit.DB.ImportInstance ii)
+                        {
+                            note = "Using the DWG import selected in Revit.";
+                            return ii;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.ResolveTargetImport.selection: {ex.Message}"); }
+
+            // (b) Otherwise let the user choose — newest first (highest ElementId first).
+            var ordered = imports.OrderByDescending(i => i.Id.Value).ToList();
+            var labels = new List<string>();
+            var byLabel = new Dictionary<string, Autodesk.Revit.DB.ImportInstance>();
+            foreach (var imp in ordered)
+            {
+                string name = DescribeImport(doc, imp);
+                string label = $"{name}  [id {imp.Id.Value}]";
+                if (!byLabel.ContainsKey(label)) { labels.Add(label); byLabel[label] = imp; }
+            }
+            string chosen;
+            try { chosen = StingTools.Select.StingListPicker.Show("STING — Choose DWG import", "Multiple DWG/DXF imports found. Pick the one to map (newest first).", labels); }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.ResolveTargetImport.picker: {ex.Message}"); chosen = null; }
+            if (string.IsNullOrEmpty(chosen)) { note = "No import chosen."; return null; }
+            note = "Using the chosen DWG import.";
+            return byLabel.TryGetValue(chosen, out var picked) ? picked : ordered[0];
+        }
+
+        /// <summary>A readable name for an ImportInstance (the CAD file/type name), id appended by the caller.</summary>
+        private static string DescribeImport(Autodesk.Revit.DB.Document doc, Autodesk.Revit.DB.ImportInstance imp)
+        {
+            try
+            {
+                var typeId = imp.GetTypeId();
+                var sym = typeId != null ? doc.GetElement(typeId) : null;
+                string n = sym?.Name;
+                if (!string.IsNullOrWhiteSpace(n)) return n;
+            }
+            catch { }
+            try { string cn = imp.Category?.Name; if (!string.IsNullOrWhiteSpace(cn)) return cn; } catch { }
+            return "DWG import";
         }
 
         /// <summary>Tier 1 — open the Map DWG Layers grid over the import's real layers,
@@ -2720,10 +2792,17 @@ namespace StingTools.UI.PlacementCenter
             RunInlineAction("Map DWG layers", app =>
             {
                 var doc = app?.ActiveUIDocument?.Document ?? _doc;
-                var import = StingTools.Model.CADToModelEngine.FindImportInstances(doc)?.FirstOrDefault();
+                // Same import-selection logic as the Place run: selected > single > picker.
+                var import = ResolveTargetImport(app, doc, out _);
                 if (import == null)
                     return StingResultPanel.Create("STING — Map DWG Layers")
-                        .AddSection("RESULT").Text("No DWG/DXF import found. Link or import a DWG first.");
+                        .AddSection("RESULT").Text("No DWG/DXF import found (or none chosen). Link or import a DWG first.");
+
+                // Bust the per-document layer-rule cache so re-opening after importing
+                // another DWG re-reads the chosen import's layers (not a stale snapshot),
+                // and always re-run PreviewImport against the chosen import.
+                try { StingTools.Core.Placement.DwgSymbolMapRegistry.Reload(doc); }
+                catch (Exception ex) { StingLog.Warn($"PlacementCenter.MapLayers.Reload: {ex.Message}"); }
 
                 var extraction = new StingTools.Model.CADToModelEngine(doc).PreviewImport(import);
                 var layerCounts = extraction?.LayerCounts ?? new System.Collections.Generic.Dictionary<string, int>();
@@ -2797,8 +2876,13 @@ namespace StingTools.UI.PlacementCenter
             RunInlineAction("Exploded DWG fixtures (experimental)", app =>
             {
                 var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                // Target the SAME import as the dialog / Place run.
+                var import = ResolveTargetImport(app, doc, out _);
+                if (import == null)
+                    return StingResultPanel.Create("STING — Exploded DWG capture (experimental)")
+                        .AddSection("RESULT").Text("No DWG/DXF import found (or none chosen). Link or import a DWG first.");
                 // Mandatory dry-run preview with the experimental cluster pass ON.
-                var dry = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: true, includeLineClusters: true);
+                var dry = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromImport(doc, import, dryRun: true, includeLineClusters: true);
 
                 var td = new TaskDialog("STING — Exploded DWG capture (experimental)")
                 {
@@ -2816,7 +2900,7 @@ namespace StingTools.UI.PlacementCenter
                 var choice = td.Show();
                 if (choice == TaskDialogResult.CommandLink1 && dry.Placed > 0)
                 {
-                    var real = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromFirstImport(doc, dryRun: false, includeLineClusters: true);
+                    var real = StingTools.Core.Placement.DwgFixtureBridge.PlaceFromImport(doc, import, dryRun: false, includeLineClusters: true);
                     return StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(real);
                 }
                 var panel = StingTools.Commands.Placement.DwgToSeedFixturesCommand.BuildPanel(dry);
