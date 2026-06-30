@@ -33,6 +33,20 @@ provenance. *Decision:* biogenic materials always resolve their fossil+biogenic 
 the V6 `CarbonStageTracker` (now sharing the A1-A3 basis), with the BOQ figure
 explicitly scoped "A1-A3 upfront".
 
+**WP-A — Turn on the automation.** The incremental/stale machinery now actually
+engages: the dirty marker is enabled when the Cost Manager panel opens (already
+wired) and its `ChangeEpoch` keys the `BOQBccBridge` cache, so in-place edits run
+an incremental take-off and don't feed stale 4D/5D rates. New **debounced
+auto-refresh**: a 1 s `DispatcherTimer` on the panel watches `ChangeEpoch`; after
+the model has been quiet for `COST_AUTO_REFRESH_QUIET_MS` (default 1500) it re-runs
+an *incremental* `RefreshAsync` (dirty elements only) — so the bill tracks the
+model without a manual click, guarded against thrash (restarts the window on each
+edit, skips while a command runs, opt-out via `COST_AUTO_REFRESH`), with the manual
+full refresh untouched. New workflow preset `WORKFLOW_BOQ_CostLifecycle.json`
+(reload → refresh → validate/gate → snapshot → drift-check → route) runs the manual
+sequence in one action. *Open (ROADMAP):* off-thread rate-feed pre-warm on document
+open and a low-frequency scheduled server-baseline drift check.
+
 **WP-M — Measurement parity, round 2.**
 - *Aggregated write-back* (`WriteElementParameters`) now re-measures each collapsed
   constituent through `MeasureQuantity` (NRM2/CESMM deductions + waste), not the

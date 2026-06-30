@@ -252,6 +252,16 @@ namespace StingTools.UI
         // hook) via DispatchGuardReset, so it covers footer/schedule dispatches
         // that don't register a PendingActionResolve.
         internal static volatile bool CommandRunning;
+
+        // WP-A — debounced auto-refresh. A 1 s DispatcherTimer (UI thread) watches
+        // StingCostDirtyMarker.ChangeEpoch; when it advances (an in-place edit) the
+        // debounce window restarts, and once the model has been quiet for
+        // COST_AUTO_REFRESH_QUIET_MS the bill re-runs an INCREMENTAL RefreshAsync
+        // (dirty elements only). No model-thread work happens here — the tick only
+        // reads a long and, when due, calls the same RefreshAsync a button uses.
+        private System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
+        private long _lastSeenEpoch;
+        private DateTime _lastEpochChangeAt = DateTime.MinValue;
         // Re-enable hook the static completion path fires on the live instance to
         // un-grey buttons. Set in the ctor, cleared on Unloaded.
         internal static Action DispatchGuardReset;
@@ -332,7 +342,48 @@ namespace StingTools.UI
             // first build is always full (state defaults to force-full).
             try { StingTools.BOQ.StingCostDirtyMarker.SetEnabled(true); }
             catch (Exception ex) { StingLog.Warn($"BOQ enable dirty marker: {ex.Message}"); }
+            StartAutoRefresh();
             RefreshAsync();
+        }
+
+        // ── WP-A — debounced auto-refresh ──────────────────────────────────
+        private void StartAutoRefresh()
+        {
+            try
+            {
+                if (TagConfig.GetConfigDouble("COST_AUTO_REFRESH", 1.0) <= 0) return;   // opt-out
+                _lastSeenEpoch = StingTools.BOQ.StingCostDirtyMarker.ChangeEpoch;
+                _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer
+                { Interval = TimeSpan.FromMilliseconds(1000) };
+                _autoRefreshTimer.Tick += AutoRefreshTick;
+                _autoRefreshTimer.Start();
+                Unloaded += (s, e) => { try { _autoRefreshTimer?.Stop(); } catch { } };
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ StartAutoRefresh: {ex.Message}"); }
+        }
+
+        private void AutoRefreshTick(object sender, EventArgs e)
+        {
+            try
+            {
+                long epoch = StingTools.BOQ.StingCostDirtyMarker.ChangeEpoch;
+                if (epoch != _lastSeenEpoch)
+                {
+                    // A cost-relevant edit happened — (re)start the quiet window.
+                    _lastSeenEpoch = epoch;
+                    _lastEpochChangeAt = DateTime.Now;
+                    return;
+                }
+                if (_lastEpochChangeAt == DateTime.MinValue) return;        // nothing pending
+                if (CommandRunning) return;                                 // a command is mid-flight
+                double quietMs = TagConfig.GetConfigDouble("COST_AUTO_REFRESH_QUIET_MS", 1500.0);
+                if ((DateTime.Now - _lastEpochChangeAt).TotalMilliseconds < quietMs) return;
+
+                // Quiet long enough — re-run the INCREMENTAL bill (dirty set only).
+                _lastEpochChangeAt = DateTime.MinValue;
+                RefreshAsync(false);
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("BOQ.AutoRefresh", $"AutoRefreshTick: {ex.Message}"); }
         }
 
         // ── Theming ────────────────────────────────────────────────────────
