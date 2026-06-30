@@ -1415,6 +1415,8 @@ namespace StingTools.UI
                     case "Health_DashboardHtml": RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
                     // Clash → BIM tab
                     case "Clash_XlsxExport":    RunCommand<Core.Clash.ClashXlsxExportCommand>(app); break;
+                    // PM-2 — reconcile clashes.json ↔ issues.json (clash → tracked issue).
+                    case "Clash_SyncIssues":    RunCommand<Core.Clash.ClashSyncIssuesCommand>(app); break;
                     // ══ end Group 5 ══
 
                     case "DrawingTypesBrowse": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
