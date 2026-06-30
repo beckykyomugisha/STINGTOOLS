@@ -747,6 +747,84 @@ namespace StingTools.BOQ
             return line;
         }
 
+        // ── Published per-element cost seam (P0-7) ─────────────────────────
+        //
+        // Other subsystems (4D/5D cash-flow, BIMManager 5D export, COBie
+        // replacement-cost fallback) must NOT run their own take-off + qty×rate.
+        // They acquire an ElementCostContext once, then call CostElement per
+        // element to get a BOQLineItem costed by the EXACT canonical procedure
+        // (ResolveRate → MeasureQuantity → carbon). This is the single source of
+        // truth the consolidation-invariant tests pin.
+
+        /// <summary>
+        /// Per-document costing context: the rate tables + active measurement
+        /// standard, loaded once. Mirrors the STEP 1-3 setup BuildBOQDocument
+        /// performs so a per-element cost matches a whole-bill cost exactly.
+        /// </summary>
+        internal sealed class ElementCostContext
+        {
+            public Dictionary<string, (double rate, string unit)> CsvRates;
+            public Dictionary<string, string> CobieCostCodes;
+            public IMeasurementStandard Std;
+
+            public static ElementCostContext Build(Document doc)
+            {
+                string stdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+                if (string.IsNullOrWhiteSpace(stdId)) stdId = "nrm2";
+                // Same load + cache-prime as BuildBOQDocumentCore so carbon /
+                // deductions resolve identically on the per-element path.
+                MeasurementDeductionEngine.ResetCaches();
+                CarbonTrackingEngine.EnsureLoaded();
+                try { BoqEpdStore.Invalidate(doc); } catch (Exception ex) { StingLog.Warn($"ElementCostContext EPD: {ex.Message}"); }
+                return new ElementCostContext
+                {
+                    CsvRates = LoadCsvRates(),
+                    CobieCostCodes = LoadCobieCostCodes(),
+                    Std = MeasurementStandardRegistry.Get(stdId)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cost a single element through the canonical procedure. Returns null
+        /// for elements that carry no cost (no category / phase-demolished).
+        /// Identical to the per-element row BuildBOQDocument produces (pre
+        /// aggregation), so consumers can read line.TotalUGX / Quantity / Unit
+        /// without re-implementing a take-off.
+        /// </summary>
+        internal static BOQLineItem CostElement(Document doc, Element el, ElementCostContext ctx)
+        {
+            if (doc == null || el == null) return null;
+            var c = ctx ?? ElementCostContext.Build(doc);
+            return BuildLineItemFromElement(doc, el, c.CsvRates, c.CobieCostCodes, c.Std);
+        }
+
+        /// <summary>
+        /// Project a built BOQDocument's modelled + manual + PS line items into
+        /// the Document-free <see cref="Boq5DRow"/> rows the 5D estimate
+        /// assembler consumes. The canonical per-line total (TotalUGX) flows
+        /// through verbatim — no qty×rate is recomputed downstream.
+        /// </summary>
+        internal static List<Boq5DRow> ProjectTo5DRows(BOQDocument boq)
+        {
+            var rows = new List<Boq5DRow>();
+            if (boq == null) return rows;
+            foreach (var it in boq.AllItems)
+            {
+                rows.Add(new Boq5DRow
+                {
+                    Category = it.Category ?? "",
+                    Discipline = it.Discipline ?? "",
+                    Quantity = it.Quantity,
+                    Unit = it.Unit,
+                    RateUgx = it.RateUGX,
+                    LineTotalUgx = it.TotalUGX,
+                    Description = string.IsNullOrEmpty(it.ItemName) ? it.Category : it.ItemName
+                });
+            }
+            return rows;
+        }
+
         // ── Rate resolution ────────────────────────────────────────────────
 
         private static (double rate, string unit, string description) ResolveRate(
