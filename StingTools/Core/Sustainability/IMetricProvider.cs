@@ -86,6 +86,20 @@ namespace StingTools.Core.Sustainability
                         : (ctx.Energy.ZoneCount == 0
                             ? "no Spaces / floor area — add Spaces or enter GFA in Setup"
                             : "zero design energy — check area / occupancy / COP"));
+
+                // SUS-7 — operational-carbon offset proxy for the EDGE ZeroCarbon gate: the
+                // share of operational electricity met by ON-SITE RENEWABLES (PV). Net-zero
+                // operational carbon (>=100%) is ZeroCarbon's real differentiator vs Advanced.
+                // Always computed when energy is (0% when there's no PV), so the trivial
+                // op_carbon=0 threshold never blocks Certified/Advanced. Indicative.
+                double grossElec = ctx.Energy.Design?.ElectricityKwh ?? 0;
+                double pv = ctx.Energy.PvGenerationKwh;
+                double offsetPct = grossElec > 1.0 ? System.Math.Min(150.0, 100.0 * pv / grossElec) : 0.0;
+                r.Numbers["operational_carbon_reduction_pct"] = offsetPct;
+                r.SetComputed("operational_carbon_reduction_pct", ctx.Energy.Computed,
+                    ctx.Energy.Computed
+                        ? (pv <= 0 ? "no on-site renewables — net-zero operational carbon needs PV / off-site renewables / offsets (indicative)" : null)
+                        : "energy not computed");
             }
             MetricProviderOfficial.ApplyOfficial(r, ctx,"energy_savings_pct");
             return r;

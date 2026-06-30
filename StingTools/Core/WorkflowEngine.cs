@@ -2047,6 +2047,8 @@ namespace StingTools.Core
                 case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();
                 case "Sustain_Dashboard":      return new Commands.Sustainability.SustainDashboardCommand();
                 case "Sustain_EdgeExport":     return new Commands.Sustainability.SustainEdgeExportCommand();
+                case "Sustain_Report":         return new Commands.Sustainability.SustainReportCommand();          // SUS-4
+                case "Sustain_PublishToServer": return new Commands.Sustainability.SustainPublishToServerCommand(); // SUS-5 symmetry
                 case "Sustain_LccBenefit":     return new Commands.Sustainability.SustainLccBenefitCommand();
                 case "Sustain_EpdAssign":      return new Commands.Sustainability.SustainEpdAssignCommand();
                 case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias

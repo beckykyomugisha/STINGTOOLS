@@ -1,0 +1,35 @@
+{
+  "schema": "sting.green.physics/v1",
+  "_note": "SUS-5 - promotes the last in-code magic numbers of the sustainability engine to data. Corporate baseline; a project override layers on top at <project>/_BIM_COORD/sustainability/green_physics.json (same shape, additive merge). Every value has an in-code default so a missing/partial file degrades to the prior behaviour.",
+
+  "verticalSolar": {
+    "_note": "Indicative vertical-facade transposition of horizontal GHI by orientation: factor = base + range*0.5*(1+cos(theta-equatorFacing)). base ~ anti-equator facade, base+range ~ equator-facing.",
+    "base": 0.27,
+    "range": 0.35
+  },
+
+  "dhw": {
+    "_note": "DHW delivery target (degC). deltaT = target - climate cold-feed (~ annual mean air temp). 45 = low-temp target; raise to 55-60 for hotel/healthcare storage (legionella).",
+    "targetC": 45.0
+  },
+
+  "indicativeCarbon": {
+    "_note": "Generic per-material-class A1-A3 carbon factors (kgCO2e/kg, ICE v3 / RICS order-of-magnitude) used ONLY when no real factor (EPD / library / WLCA split) resolves and the material is not bio-based - so an unmapped model still yields an INDICATIVE figure, never 0. Keyword match against the material name; longest keyword wins.",
+    "defaultKgCo2ePerKg": 0.50,
+    "classFactorsKgCo2ePerKg": {
+      "reinforced concrete": 0.16, "concrete": 0.13, "screed": 0.13,
+      "mortar": 0.20, "cement": 0.83, "blockwork": 0.10, "block": 0.10,
+      "brick": 0.24, "stone": 0.08, "aggregate": 0.01, "gravel": 0.01,
+      "stainless steel": 6.15, "steel": 1.55, "rebar": 1.40, "metal": 1.55,
+      "aluminium": 8.50, "aluminum": 8.50, "copper": 2.80, "zinc": 3.90,
+      "glass": 1.35, "glazing": 1.35,
+      "plasterboard": 0.39, "gypsum": 0.39, "plaster": 0.13,
+      "insulation": 1.50, "mineral wool": 1.20,
+      "ceramic": 0.78, "tile": 0.78, "porcelain": 0.78,
+      "pvc": 3.10, "plastic": 3.10, "polymer": 3.10, "membrane": 2.50,
+      "asphalt": 0.07, "bitumen": 0.45,
+      "plywood": 0.45, "mdf": 0.30, "chipboard": 0.30,
+      "paint": 2.10, "render": 0.20
+    }
+  }
+}

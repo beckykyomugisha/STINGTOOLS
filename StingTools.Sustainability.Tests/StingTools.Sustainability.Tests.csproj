@@ -20,6 +20,7 @@
        no Revit dependency, so the suite runs with `dotnet test` and no Revit API. -->
   <ItemGroup>
     <Compile Include="..\StingTools\Core\Sustainability\SustainabilityResult.cs" Link="Engines\SustainabilityResult.cs" />
+    <Compile Include="..\StingTools\Core\Sustainability\SustainOverrideHealth.cs" Link="Engines\SustainOverrideHealth.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SustainProjectSetup.cs" Link="Engines\SustainProjectSetup.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\GreenSchemeRegistry.cs" Link="Engines\GreenSchemeRegistry.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\GreenBaselineRegistry.cs" Link="Engines\GreenBaselineRegistry.cs" />

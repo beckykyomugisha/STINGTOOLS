@@ -71,8 +71,12 @@ namespace StingTools.V6
             {
                 TransactionHelper.RunInScope(doc, "STING carbon stage tracker", t =>
                 {
+                    // SUS-2 — walk the SAME WBLCA take-off scope the EDGE dashboard uses
+                    // (was SharedParamGuids.AllCategoryEnums, which made the two whole-life
+                    // numbers disagree). One shared category list ends that drift.
                     var col = new FilteredElementCollector(doc)
-                        .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                        .WherePasses(new ElementMulticategoryFilter(
+                            StingTools.Core.Sustainability.SustainabilityEngine.WblcaCategories))
                         .WhereElementIsNotElementType();
                     foreach (var el in col)
                     {
@@ -140,6 +144,29 @@ namespace StingTools.V6
             }
 
             res.ByDisciplineA1A3 = byDisc;
+
+            // SUS-2 — surface the SAME A1–A3 the EDGE dashboard reports. The per-element
+            // loop above (scope-aligned to WblcaCategories) stamps the param store + the
+            // discipline split; the headline A1–A3 is then reconciled to the EDGE engine's
+            // canonical WBLCA take-off (per-material aggregation of the same elements +
+            // shared resolver) so CarbonStageTracker.TotalA1A3 == res.Materials.TotalCarbonKg.
+            // The discipline split is rescaled to stay consistent with the reconciled total.
+            try
+            {
+                double edgeA1A3 = StingTools.Core.Sustainability.SustainabilityEngine.WblcaA1A3Kg(doc);
+                if (edgeA1A3 > 0)
+                {
+                    if (res.TotalA1A3 > 0)
+                    {
+                        double k = edgeA1A3 / res.TotalA1A3;
+                        foreach (var key in byDisc.Keys.ToList()) byDisc[key] *= k;
+                    }
+                    res.TotalA1A3 = edgeA1A3;
+                    res.ByDisciplineA1A3 = byDisc;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CarbonStageTracker SUS-2 reconcile: {ex.Message}"); }
+
             res.ExportPath       = ExportIsoReport(doc, res);
             return res;
         }

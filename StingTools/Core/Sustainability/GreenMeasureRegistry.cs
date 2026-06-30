@@ -71,13 +71,13 @@ namespace StingTools.Core.Sustainability
         private static string SafeRead(string path)
         {
             try { return !string.IsNullOrEmpty(path) && File.Exists(path) ? File.ReadAllText(path) : null; }
-            catch { return null; }
+            catch (Exception ex) { SustainOverrideHealth.Report("GreenMeasure", $"read failed for {path}: {ex.Message}"); return null; }
         }
 
         private void Apply(string json)
         {
             JObject root;
-            try { root = JObject.Parse(json); } catch { return; }
+            try { root = JObject.Parse(json); } catch (Exception ex) { SustainOverrideHealth.Report("GreenMeasure", $"malformed override/data JSON: {ex.Message}"); return; }
             var arr = root["measures"] as JArray;
             if (arr == null) return;
             foreach (var m in arr.OfType<JObject>())

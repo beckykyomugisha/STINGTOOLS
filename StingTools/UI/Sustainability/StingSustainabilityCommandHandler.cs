@@ -61,6 +61,18 @@ namespace StingTools.UI.Sustainability
                         Run<StingTools.Commands.Sustainability.SustainLeedScorecardCommand>(app); break;
                     case "Sustain_PublishToServer":
                         Run<StingTools.Commands.Sustainability.SustainPublishToServerCommand>(app); break;
+                    // SUS-5 — dispatch parity: the improve-loop + readiness + report commands
+                    // existed only via WorkflowEngine.ResolveCommand and had no panel button.
+                    case "Sustain_ReadinessCheck":
+                        Run<StingTools.Commands.Sustainability.SustainReadinessCheckCommand>(app); break;
+                    case "Sustain_TargetSeeker":
+                        Run<StingTools.Commands.Sustainability.SustainTargetSeekerCommand>(app); break;
+                    case "Sustain_CompareOptions":
+                        Run<StingTools.Commands.Sustainability.SustainCompareOptionsCommand>(app); break;
+                    case "Sustain_GenerateDeliverable":
+                        Run<StingTools.Commands.Sustainability.SustainGenerateDeliverableCommand>(app); break;
+                    case "Sustain_Report":
+                        Run<StingTools.Commands.Sustainability.SustainReportCommand>(app); break;
 
                     default:
                         // Unknown tags fall through to the main handler via the

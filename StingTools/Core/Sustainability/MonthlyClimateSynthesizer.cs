@@ -37,6 +37,7 @@ namespace StingTools.Core.Sustainability
         {
             if (site == null) return;
 
+            site.LatitudeDeg = latDeg;   // SUS-3 — carry latitude for hemisphere-correct solar
             double annualGhi = annualGhiKwhM2Yr > 0 ? annualGhiKwhM2Yr : EstimateAnnualGhiFromLatitude(latDeg);
             site.AnnualGhiKwhM2Yr = annualGhi;
 
