@@ -629,7 +629,12 @@ namespace StingTools.Commands.Cost
 
                 // Build a single period from live BOQ + actuals CSV.
                 var boq = BOQCostManager.BuildBOQDocument(doc);
-                double bac = boq.GrandTotalUGX;
+                // PM-1 — BAC anchors on the FROZEN Award contract sum
+                // (COST_CONTRACT_SUM_UGX) + agreed variations, via the one shared
+                // ContractSumResolver — NOT the live GrandTotal, which drifts upward
+                // as the model grows even with zero progress. Falls back to the live
+                // bill only when no baseline has been frozen.
+                double bac = ContractSumResolver.Resolve(doc, boq, out _);
 
                 // BCWS — use the current BOQ value × (planned % at this date).
                 // No 4D wiring yet in this commit; QS sets BCWS via Cost_ReloadRules
@@ -1047,6 +1052,37 @@ namespace StingTools.Commands.Cost
                 case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
                 default:                                    return VariationLiability.Employer;
             }
+        }
+    }
+
+    /// <summary>
+    /// PM-1/PM-2 — the ONE contract-sum source. Returns the frozen Award baseline
+    /// (COST_CONTRACT_SUM_UGX, set by Cost_SetContractSum) plus agreed (Approved +
+    /// Incorporated) variations, so EVM BAC, AFC and Final Account all anchor on the
+    /// same number. Falls back to the live bill only when nothing has been frozen.
+    /// </summary>
+    internal static class ContractSumResolver
+    {
+        public static double Resolve(Document doc, BOQDocument boq, out string source)
+        {
+            double frozen = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
+            double agreedVo = 0;
+            try
+            {
+                agreedVo = VariationEngine.ListVariations(doc)
+                    .Select(VariationEngine.Load).Where(v => v != null)
+                    .Where(v => v.Status == VariationStatus.Approved || v.Status == VariationStatus.Incorporated)
+                    .Sum(v => v.TotalValue);
+            }
+            catch (Exception ex) { StingLog.Warn($"ContractSumResolver variations: {ex.Message}"); }
+
+            if (frozen > 0)
+            {
+                source = "frozen Award baseline + agreed variations";
+                return frozen + agreedVo;
+            }
+            source = "live bill (no frozen contract sum) + agreed variations";
+            return (boq?.GrandTotalUGX ?? 0) + agreedVo;
         }
     }
 }

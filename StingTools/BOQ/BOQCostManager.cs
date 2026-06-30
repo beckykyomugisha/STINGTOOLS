@@ -3447,12 +3447,26 @@ namespace StingTools.BOQ
                 string prefix = string.IsNullOrWhiteSpace(section.NRM2Section)
                     ? secOrdinal.ToString(CultureInfo.InvariantCulture)
                     : section.NRM2Section;
-                int rowIndex = 1;
-                string sectionIndex = "1";
+                // PM-1 — the middle segment was a hard-coded "1" (every ref
+                // {prefix}.1.{n}), so the promised hierarchy was dead and the wrong
+                // ref was stamped onto elements. It now increments per sub-section
+                // group (by Category) within the work section, with the row index
+                // reset per group → a real NRM2-style {section}.{sub}.{item} ref.
+                var subIndexByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var rowBySub = new Dictionary<int, int>();
+                int nextSub = 0;
                 foreach (var item in section.Items)
                 {
-                    item.BOQLineRef = $"{prefix}.{sectionIndex}.{rowIndex}";
-                    rowIndex++;
+                    string subKey = item.Category ?? "";
+                    if (!subIndexByKey.TryGetValue(subKey, out int sub))
+                    {
+                        sub = ++nextSub;
+                        subIndexByKey[subKey] = sub;
+                    }
+                    rowBySub.TryGetValue(sub, out int row);
+                    row++;
+                    rowBySub[sub] = row;
+                    item.BOQLineRef = $"{prefix}.{sub}.{row}";
                 }
             }
         }

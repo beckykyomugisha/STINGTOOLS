@@ -3,6 +3,55 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (PM / Cost-Control — branch `claude/pm-cost-control`)
+
+Per `docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md` (PM-1…PM-8), re-baselined off
+`claude/boq-round3`. Build verified (0 errors) against the real Revit 2025 API and
+the commercially-consequential pure math is unit-tested in a new
+**`StingTools.Cost.Tests`** project (41 tests green) — `dotnet test` is the gate.
+
+**Do-once shared helpers (build once, consume everywhere).**
+- `IssueStatusNormalizer` — one canonical issue-status vocabulary collapsing the
+  four historical spellings (`OPEN`/`Open`/`open`/`Resolved`/`Void`…). The workflow
+  gate `has_open_issues` now routes through `IsOpen`, so it sees clash/ACC issues
+  (it previously matched only `"OPEN"`). Fails safe (unknown → open).
+- `MoneyRound` — one half-even (banker's) money-rounding helper. Scoped decision
+  recorded: money stays `double` (the persisted JSON contract is double-typed) but
+  all rounding funnels through this helper so per-line float residue can't be
+  masked; a `decimal` overload is provided for opt-in cert/EVM paths.
+- `ContractSumResolver` — the ONE contract-sum source: the frozen Award baseline
+  (`COST_CONTRACT_SUM_UGX`, from `Cost_SetContractSum`) + agreed (Approved/
+  Incorporated) variations. EVM BAC now anchors on it (was the live `GrandTotalUGX`,
+  which drifted upward as the model grew with zero progress); AFC/Final Account
+  already prioritise the same config key.
+
+**PM-1 — §2 correctness fixes (each with a before/after + test where pure).**
+- *EVM EAC no longer collapses to 0 at CPI=0* (`EvmPeriod`, extracted to a pure file
+  for testing): CPI-typical EAC = `AC+(BAC−EV)/CPI` (= `BAC/CPI`), budget-rate
+  fallback `AC+(BAC−EV)` at CPI=0 so ETC stays positive + VAC reads the real
+  forecast; added the schedule-blended `AC+(BAC−EV)/(CPI×SPI)` variant.
+- *CostPlan currency* default GBP → **UGX** (the GBP/UGX no-FX variance was ~3700×
+  wrong); *PERT mean* now weights the unrounded line values then rounds once.
+- *StarRateLine* costs on the resource type (Hours for labour/plant via Unit, else
+  Quantity) instead of `Max(Hours,Quantity)`.
+- *Cert VAT* default UK 20% → **Uganda 18%**; *retention* halving default 100% →
+  95% (a practical-completion proxy, was inert).
+- *SLA timezone*: the `…Z` UTC deadline is parsed `AssumeUniversal|AdjustToUniversal`
+  (breaches fired 3 h early in Kampala UTC+3).
+- *B6 operational carbon* via `GridCarbonRegistry` (Uganda 0.05), the hard-coded
+  0.233 kg/kWh (≈5× too high) deleted; the ISO-14064 export benchmarks now read the
+  same `COST_CARBON_RAG_*` project/region config the BOQ panel uses (UK LETI/RIBA
+  placeholders removed).
+- *AssignBoqLineRefs* middle segment now increments per sub-section (by Category)
+  with a per-group row index — the hard-coded `"1"` (every ref `{prefix}.1.{n}`,
+  stamped onto elements) is gone.
+- *Snapshot hasher* includes zero/default values (an unmeasured qty-0 row was
+  invisible to the checksum/dedupe).
+
+*Remaining (PM-2 integration silos, PM-3 lifecycle tools, PM-4 CPM/scheduling,
+PM-5 carbon data, PM-6 perf, PM-7 hygiene, PM-8 delivery layer) — tracked in
+ROADMAP; the audit doc catalogues each with file:line anchors.*
+
 #### Completed (BOQ Round 3 — branch `claude/boq-round3`)
 
 Carbon convergence, measurement parity round 2, automation enablement and QS

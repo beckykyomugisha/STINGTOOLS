@@ -77,8 +77,13 @@ namespace StingTools.Core.PaymentCert
         /// <summary>Retention as a percentage of gross (typical 3% or 5%).</summary>
         public double RetentionPercent { get; set; } = 3.0;
 
-        /// <summary>Retention release threshold (% of contract completed at which retention halves).</summary>
-        public double HalfRetentionAtPercent { get; set; } = 100.0;
+        /// <summary>Retention release threshold (% of contract completed at which
+        /// retention halves). PM-1: defaults to a practical-completion PROXY (95%)
+        /// rather than 100% — works rarely measure to an exact 100% (snagging /
+        /// retained items), so a 100% trigger made the half-retention feature inert.
+        /// JCT/FIDIC halve retention AT Practical Completion; the cloud owns the true
+        /// PC milestone, this is the in-tool proxy (override per project).</summary>
+        public double HalfRetentionAtPercent { get; set; } = 95.0;
 
         /// <summary>B.4 — max retention THIS cert may withhold = contractual
         /// cumulative cap (RetentionPercent × contract sum) minus retention
@@ -89,8 +94,10 @@ namespace StingTools.Core.PaymentCert
         /// <summary>Other deductions (LDs, contra-charges).</summary>
         public double OtherDeductions { get; set; }
 
-        /// <summary>VAT rate applied to net amount before deductions.</summary>
-        public double VatPercent { get; set; } = 20.0;
+        /// <summary>VAT rate applied to net amount before deductions. PM-1: Uganda
+        /// standard rate 18% (not UK 20%); PaymentCertEngine.CreateDraft seeds this
+        /// from the project/BOQ when available.</summary>
+        public double VatPercent { get; set; } = 18.0;
 
         public PaymentCertStatus Status { get; set; } = PaymentCertStatus.Draft;
         public int? SupersededByCertNumber { get; set; }

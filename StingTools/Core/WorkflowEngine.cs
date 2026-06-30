@@ -685,7 +685,9 @@ namespace StingTools.Core
                                 if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
                                 // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
                                 var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
-                                int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
+                                // PM-1 — normalise the status so the gate sees clash/ACC
+                                // issues too (they spell it "Open"/"open", not "OPEN").
+                                int openCount = issuesArr.Count(i => IssueStatusNormalizer.IsOpen((string)i["status"]));
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }

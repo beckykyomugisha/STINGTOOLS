@@ -234,6 +234,26 @@ namespace StingTools.Core.Variation
         public double UnitRate { get; set; }         // £/hr or £/unit
         public string Unit { get; set; } = "hr";
 
-        public double LineTotal => Math.Round(Math.Max(Hours, Quantity) * UnitRate, 2);
+        // PM-1 — select the basis by RESOURCE TYPE (via Unit), not Max(Hours,Quantity)
+        // which silently mis-costs a line that carries both. Time-based resources
+        // (labour / plant) are priced on Hours; everything else on Quantity.
+        public double LineTotal => Math.Round(BasisQuantity * UnitRate, 2);
+
+        private double BasisQuantity
+        {
+            get
+            {
+                switch ((Unit ?? "").Trim().ToLowerInvariant())
+                {
+                    case "hr": case "hrs": case "hour": case "hours":
+                    case "day": case "days": case "week": case "weeks":
+                        return Hours;
+                    default:
+                        // Materials priced on Quantity; if a line only carries Hours
+                        // (mis-set Unit) fall back to whichever is populated.
+                        return Quantity > 0 ? Quantity : Hours;
+                }
+            }
+        }
     }
 }

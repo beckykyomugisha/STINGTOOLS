@@ -51,7 +51,8 @@ namespace StingTools.V6
         // ICE database v3.0 building-industry averages.
         public const double A4TransportFactorKgPerKmTonne = 0.105;
         public const double A5InstallFactorKgPerHr        = 6.2;
-        public const double B6OperationalKwhFactor         = 0.233;
+        // PM-1 — B6 is no longer a hard-coded 0.233 kgCO2e/kWh (UK grid); it comes
+        // from GridCarbonRegistry per project country (Uganda 0.05). See ResolveGridFactor.
         public const double C1DeconstructKgPerM3          = 3.1;
         public const double C2TransportFactorKgPerKm       = 0.085;
         public const double C3C4DisposalKgPerKg            = 0.04;
@@ -62,6 +63,9 @@ namespace StingTools.V6
             if (doc == null) return res;
 
             var byDisc = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            // PM-1 — B6 operational factor from GridCarbonRegistry (Uganda 0.05),
+            // not the hard-coded 0.233 (≈5× too high for Uganda's hydro grid).
+            double gridFactor = ResolveGridFactor(doc);
 
             try
             {
@@ -105,7 +109,7 @@ namespace StingTools.V6
                         // B6 operational (only MEP equipment). Uses
                         // RGL_ENERGY_KWH_YR (existing) if present.
                         double kwh = ReadDouble(el, "RGL_ENERGY_KWH_YR");
-                        double b6  = kwh * B6OperationalKwhFactor;
+                        double b6  = kwh * gridFactor;   // PM-1 — region grid factor
                         WriteDouble(el, ParamRegistry.CBN_B6_KG_CO2E_YR, b6);
                         res.TotalB6AnnualKgYr += b6;
 
@@ -159,6 +163,24 @@ namespace StingTools.V6
             return StingTools.BOQ.BOQCostManager.ComputeElementCarbonKg(el, volM3);
         }
 
+        /// <summary>PM-1 — the operational (B6) grid carbon factor (kgCO2e/kWh) for
+        /// the project country via GridCarbonRegistry (corporate seed + project
+        /// override). Country from PRJ_COUNTRY config, defaulting to Uganda ("UG")
+        /// for the East-Africa deployment. Falls back to 0.05 (Uganda hydro grid)
+        /// only if the registry can't be read.</summary>
+        private static double ResolveGridFactor(Document doc)
+        {
+            try
+            {
+                string country = TagConfig.GetConfigValue("PRJ_COUNTRY");
+                if (string.IsNullOrWhiteSpace(country)) country = "UG";
+                var reg = StingTools.Core.Sustainability.SustainabilityRegistries.GridCarbon(doc);
+                var res = reg?.Resolve(country);
+                return (res != null && res.Factor > 0) ? res.Factor : 0.05;
+            }
+            catch (Exception ex) { StingLog.Warn($"CarbonStageTracker.ResolveGridFactor: {ex.Message}"); return 0.05; }
+        }
+
         private static double ReadDouble(Element el, string paramName)
         {
             var p = el.LookupParameter(paramName);
@@ -201,9 +223,13 @@ namespace StingTools.V6
                 sb.AppendLine($"C3-C4 Disposal,{r.TotalC3C4:F2}");
                 sb.AppendLine($"TOTAL (60y lifecycle),{r.TotalLifecycleOver60y():F2}");
                 sb.AppendLine();
-                sb.AppendLine("Benchmark,KgCO2e/m2,Status");
-                sb.AppendLine("LETI 2030 new-build target,625,*placeholder until GIFA read*");
-                sb.AppendLine("RIBA 2030 Challenge net zero,300,*placeholder until GIFA read*");
+                // PM-1/PM-5 — benchmarks come from the SAME project/region config the
+                // BOQ panel RAG uses (one source of truth), not hard-coded UK LETI/RIBA.
+                double greenKgM2 = TagConfig.GetConfigDouble("COST_CARBON_RAG_GREEN_KGM2", 400.0);
+                double amberKgM2 = TagConfig.GetConfigDouble("COST_CARBON_RAG_AMBER_KGM2", 700.0);
+                sb.AppendLine("Benchmark,KgCO2e/m2,Source");
+                sb.AppendLine($"Carbon-intensity green band,{greenKgM2:F0},project/region (COST_CARBON_RAG_GREEN_KGM2)");
+                sb.AppendLine($"Carbon-intensity amber band,{amberKgM2:F0},project/region (COST_CARBON_RAG_AMBER_KGM2)");
                 File.WriteAllText(path, sb.ToString());
                 return path;
             }

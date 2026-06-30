@@ -37,7 +37,11 @@ namespace StingTools.BOQ.Sync
         {
             Formatting = Formatting.None,
             NullValueHandling = NullValueHandling.Ignore,
-            DefaultValueHandling = DefaultValueHandling.Ignore,
+            // PM-1 — DO NOT drop default/zero values. An unmeasured (qty 0) or
+            // zero-rate row was invisible to the checksum, so a model change that
+            // only zeroed a line slipped past dedupe/drift detection. Zeros are
+            // now part of the canonical projection.
+            DefaultValueHandling = DefaultValueHandling.Include,
             Culture = CultureInfo.InvariantCulture
         };
 

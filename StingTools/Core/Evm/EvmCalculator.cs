@@ -31,39 +31,8 @@ using StingTools.BIMManager;
 
 namespace StingTools.Core.Evm
 {
-    public class EvmPeriod
-    {
-        /// <summary>Period end date (typically last day of month).</summary>
-        public DateTime PeriodEnd { get; set; } = DateTime.UtcNow;
-        public string PeriodLabel { get; set; } = "";
-
-        // ── Inputs ──────────────────────────────────────────────────
-        public double Bac { get; set; }     // Budget at Completion (£)
-        public double Bcws { get; set; }    // Planned Value (£)
-        public double Bcwp { get; set; }    // Earned Value (£)
-        public double Acwp { get; set; }    // Actual Cost (£)
-
-        // ── Derived ─────────────────────────────────────────────────
-        public double Cv => Math.Round(Bcwp - Acwp, 2);
-        public double Sv => Math.Round(Bcwp - Bcws, 2);
-        public double Cpi => Acwp > 0 ? Math.Round(Bcwp / Acwp, 4) : 0;
-        public double Spi => Bcws > 0 ? Math.Round(Bcwp / Bcws, 4) : 0;
-        public double Eac => Cpi > 0 ? Math.Round(Bac / Cpi, 2) : 0;
-        public double Etc => Math.Round(Eac - Acwp, 2);
-        public double Vac => Math.Round(Bac - Eac, 2);
-        public double Tcpi
-        {
-            get
-            {
-                double denom = Bac - Acwp;
-                if (Math.Abs(denom) < 0.01) return 0;
-                return Math.Round((Bac - Bcwp) / denom, 4);
-            }
-        }
-
-        public string CostHealth => Cpi >= 1.0 ? "Green" : Cpi >= 0.95 ? "Amber" : "Red";
-        public string ScheduleHealth => Spi >= 1.0 ? "Green" : Spi >= 0.95 ? "Amber" : "Red";
-    }
+    // EvmPeriod (pure EVM math) lives in EvmPeriod.cs so it is unit-tested without
+    // the Revit API. PM-1.
 
     public class EvmReport
     {
