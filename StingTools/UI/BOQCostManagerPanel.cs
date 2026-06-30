@@ -1285,6 +1285,20 @@ namespace StingTools.UI
                      "List materials whose embodied-carbon factor is missing or only database-grade (not an EPD), the carbon at stake, and a CSV worklist to drive EPD sourcing. Read-only.", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("Cost-Value & Commitments",
+                "Contractor CVR, line-level cost-to-complete, commitments register and loss-&-expense valuation.",
+                new[]
+                {
+                    ("★ CVR Report", "Cvr_Report",
+                     "Cost-Value Reconciliation at today's cut-off — value of work done vs cost vs certified: gross margin, margin %, WIP (under/over-claim) and the forecast out-turn margin. On screen + CSV.", true),
+                    ("Cost-to-Complete (lines)", "CostToComplete_Lines",
+                     "Per-BOQ-line cost-to-complete: each line's remaining cost from its budget × remaining %, with a CPI-implied productivity factor where actuals exist, plus forecast-final and variance. CSV.", false),
+                    ("Commitments Register", "Commitments_Report",
+                     "Roll PO / sub-contract commitments (QS-authored in <BIM manager>/commitments.json) up against budget by NRM2 section — committed / outstanding / uncommitted balance + over-commitment flags. CSV.", false),
+                    ("Loss & Expense", "LossExpense_Value",
+                     "Value a prolongation claim off the EOT days already captured on agreed variations: weeks × weekly prelims + head-office OHP + disruption + finance. Raise a CompensationEvent VO for the result.", false),
+                }));
+
             sp.Children.Add(BuildActionGroup("Measurement Standard",
                 "Switch the active standard. Affects how rows are classified and described.",
                 new[]

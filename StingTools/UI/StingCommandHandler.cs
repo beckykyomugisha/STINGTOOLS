@@ -3576,6 +3576,12 @@ namespace StingTools.UI
                     case "Sched_ModelPercent":          RunCommand<Commands.Cost.ScheduleModelPercentCommand>(app); break;
                     case "Sched_SCurve":                RunCommand<Commands.Cost.ScheduleSCurveCommand>(app); break;
 
+                    // PM-3 — lifecycle (CVR, loss & expense, line CTC, commitments).
+                    case "Cvr_Report":                  RunCommand<Commands.Cost.CvrReportCommand>(app); break;
+                    case "LossExpense_Value":           RunCommand<Commands.Cost.LossExpenseValueCommand>(app); break;
+                    case "CostToComplete_Lines":        RunCommand<Commands.Cost.CostToCompleteLinesCommand>(app); break;
+                    case "Commitments_Report":          RunCommand<Commands.Cost.CommitmentsReportCommand>(app); break;
+
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
                     case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;

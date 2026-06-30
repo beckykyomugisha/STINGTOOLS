@@ -730,12 +730,18 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static double WeightedPctComplete(Document doc)
+        // PM-3/PM-6 — internal so the CVR / CTC commands reuse the one weighted
+        // %-complete measure; scoped to STING-tracked categories (was an unfiltered
+        // whole-model sweep) so the heavy LookupParameter pass only touches priced
+        // categories.
+        internal static double WeightedPctComplete(Document doc)
         {
             try
             {
                 double weightSum = 0, valueSum = 0;
-                var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .WhereElementIsNotElementType();
                 foreach (Element el in col)
                 {
                     Parameter p = el.LookupParameter(ParamRegistry.PMT_PCT_COMPLETE_NR);
