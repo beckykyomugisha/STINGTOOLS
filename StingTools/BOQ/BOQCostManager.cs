@@ -891,8 +891,13 @@ namespace StingTools.BOQ
                 double overrideWaste = 0;
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
-                double wastePct = WasteFactor.ResolveWastePercent(
-                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+                // PM-5 — per-material/category waste table: override wins, else the
+                // NRM2-typical allowance for this category (rebar 2.5 / timber 10 /
+                // tiling 10 …), else the project default knob. Same table the carbon
+                // path resolves through, so quantity is grossed up identically.
+                double wastePct = WasteTable.ResolveWastePercent(
+                    null, el.Category?.Name, overrideWaste,
+                    TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
                 // general waste above. NRM2: rebar laps are a measured addition to
@@ -1106,8 +1111,10 @@ namespace StingTools.BOQ
                 double overrideWaste = 0;
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
-                double wastePct = WasteFactor.ResolveWastePercent(
-                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+                // PM-5 — per-material/category waste table (catName is in scope).
+                double wastePct = WasteTable.ResolveWastePercent(
+                    null, catName, overrideWaste,
+                    TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 string nu = (unit ?? "").ToLowerInvariant();
                 if (nu == "kg" || nu == "tonne" || nu == "tonnes")
@@ -1398,7 +1405,8 @@ namespace StingTools.BOQ
             double overrideWaste = 0;
             try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
             catch (Exception ex) { StingLog.WarnRateLimited("Carbon.OvrWaste", $"override waste read: {ex.Message}"); }
-            return WasteFactor.ResolveWastePercent(overrideWaste,
+            // PM-5 — carbon path resolves the SAME per-material/category waste table.
+            return WasteTable.ResolveWastePercent(null, el.Category?.Name, overrideWaste,
                 TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
