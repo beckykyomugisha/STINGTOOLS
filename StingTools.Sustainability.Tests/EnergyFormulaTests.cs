@@ -45,18 +45,30 @@ namespace StingTools.Sustainability.Tests
             Assert.InRange(AnnualEnergyEstimator.Utilisation(3, a), 0, 1);
         }
 
-        // ── Per-façade orientation solar ──────────────────────────────────────
+        // ── Per-façade orientation solar (SUS-3: hemisphere-aware) ─────────────
         [Fact]
-        public void VerticalSolarFactor_SouthExceedsEastWestExceedsNorth()
+        public void VerticalSolarFactor_NorthHemi_SouthExceedsEastWestExceedsNorth()
         {
-            double s = AnnualEnergyEstimator.VerticalSolarFactor(180);
-            double e = AnnualEnergyEstimator.VerticalSolarFactor(90);
-            double w = AnnualEnergyEstimator.VerticalSolarFactor(270);
-            double n = AnnualEnergyEstimator.VerticalSolarFactor(0);
+            const double latN = 51.0;   // Northern hemisphere → equator-facing = south
+            double s = AnnualEnergyEstimator.VerticalSolarFactor(180, latN);
+            double e = AnnualEnergyEstimator.VerticalSolarFactor(90, latN);
+            double w = AnnualEnergyEstimator.VerticalSolarFactor(270, latN);
+            double n = AnnualEnergyEstimator.VerticalSolarFactor(0, latN);
             Assert.True(s > e);
             Assert.True(e > n);
             Assert.Equal(e, w, 6);          // symmetric east/west
             Assert.True(s > 0.5 && n < 0.35);
+        }
+
+        [Fact]
+        public void VerticalSolarFactor_SouthHemi_NorthExceedsSouth()
+        {
+            // SUS-3 — sub-Saharan / southern band: the equator-facing façade is NORTH.
+            const double latS = -26.0;   // e.g. Johannesburg
+            double nFace = AnnualEnergyEstimator.VerticalSolarFactor(0, latS);    // equator-facing
+            double sFace = AnnualEnergyEstimator.VerticalSolarFactor(180, latS);  // anti-equator
+            Assert.True(nFace > sFace);
+            Assert.True(nFace > 0.5 && sFace < 0.35);
         }
 
         [Fact]
