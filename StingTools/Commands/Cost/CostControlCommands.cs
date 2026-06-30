@@ -112,11 +112,12 @@ namespace StingTools.Commands.Cost
                             if (item.RevitElementId <= 0) continue;
                             Element el;
                             try { el = doc.GetElement(new ElementId(item.RevitElementId)); }
-                            catch { continue; }
+                            catch (Exception ex) { StingLog.WarnRateLimited("PctComplete.GetEl", $"GetElement({item.RevitElementId}): {ex.Message}"); continue; }
                             if (el == null) continue;
                             var p = el.LookupParameter(ParamRegistry.PMT_PCT_COMPLETE_NR);
                             if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) { missing++; continue; }
-                            try { p.Set(pct); stamped++; } catch { missing++; }
+                            try { p.Set(pct); stamped++; }
+                            catch (Exception ex) { StingLog.WarnRateLimited("PctComplete.Set", $"set %-complete on {item.RevitElementId}: {ex.Message}"); missing++; }
                         }
                     }
                     t.Commit();

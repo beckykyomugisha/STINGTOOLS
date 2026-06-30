@@ -68,7 +68,12 @@ namespace StingTools.Core.PaymentCert
 
             int nextNum = (prior.FirstOrDefault()?.CertNumber ?? 0) + 1;
 
-            const double retentionPct = 3.0;
+            double retentionPct = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_PCT", 3.0);
+            // PM-1 — seed VAT (Uganda 18%) + the half-retention trigger (practical-
+            // completion proxy, 95%) from the project config instead of hard-coding
+            // UK 20% / an inert 100%.
+            double vatPct = StingTools.Core.TagConfig.GetConfigDouble("BOQ_TENDER_VAT_PCT", 18.0);
+            double halfAtPct = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_HALF_AT_PCT", 95.0);
             var cert = new PaymentCertificate
             {
                 ContractRef = contractRef,
@@ -79,7 +84,8 @@ namespace StingTools.Core.PaymentCert
                 Lines = currentSov,
                 Currency = "UGX",                 // overridden from boq.Currency at the call site
                 RetentionPercent = retentionPct,
-                HalfRetentionAtPercent = 100.0
+                HalfRetentionAtPercent = halfAtPct,
+                VatPercent = vatPct
             };
 
             // B.4 — cap cumulative retention at RetentionPercent × contract sum
