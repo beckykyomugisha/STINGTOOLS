@@ -230,7 +230,7 @@ namespace StingTools.Commands.Cost
                     .ToDictionary(g => g.Key, g => g.Sum(s => s.TotalUGX));
 
                 var variance = CostPlanEngine.Compare(plan, byNrm2);
-                ShowVarianceReport(plan, variance);
+                ShowVarianceReport(doc, plan, variance, boq);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -241,8 +241,8 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static void ShowVarianceReport(CostPlanDocument plan,
-            List<CostPlanEngine.CostPlanVariance> variances)
+        private static void ShowVarianceReport(Document doc, CostPlanDocument plan,
+            List<CostPlanEngine.CostPlanVariance> variances, BOQDocument boq)
         {
             int red = variances.Count(v => v.Status == "Red");
             int amber = variances.Count(v => v.Status == "Amber");
@@ -250,6 +250,32 @@ namespace StingTools.Commands.Cost
 
             var rp = StingResultPanel.Create("Cost plan compare")
                 .SetSubtitle($"{plan.Label}  ({plan.BuildingType}, {plan.GifaM2:N0} m² GIFA)");
+
+            // P0-7 — total-level reconciliation: the NRM1 benchmark estimate
+            // (GIFA × £/m²) and the NRM2 element take-off are TWO DELIBERATE
+            // VIEWS of the same project. Tie the plan grand total to the BOQ
+            // Contract Sum via the shared ContractSumResolver so the headline is
+            // "one rate source, two methods" — not two accidental numbers.
+            double planUgx = plan.GrandTotalLikely;
+            string pc = (plan.Currency ?? "UGX").ToUpperInvariant();
+            if (pc == "USD") planUgx *= TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            else if (pc == "GBP") planUgx *= TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+
+            double boqSum = ContractSumResolver.Resolve(doc, boq, out string sumSource);
+            double recDelta = boqSum - planUgx;
+            double recPct = planUgx > 0 ? recDelta / planUgx * 100.0 : 0;
+            string recStatus = Math.Abs(recPct) > 20 ? "Red" : Math.Abs(recPct) > 10 ? "Amber" : "Green";
+
+            rp.AddSection("RECONCILIATION — NRM1 plan vs BOQ Contract Sum")
+                .Metric("NRM1 plan (UGX)", $"{planUgx:N0}")
+                .Metric("BOQ Contract Sum (UGX)", $"{boqSum:N0}")
+                .Metric("Δ", $"{recDelta:+#,##0;-#,##0}")
+                .Metric("Δ%", $"{recPct:+0.0;-0.0}%")
+                .Metric("Status", recStatus)
+                .Text($"BOQ basis: {sumSource}. The NRM1 benchmark and the NRM2 element " +
+                      "take-off are deliberate alternative views; both draw on the canonical " +
+                      "rate library so a large Δ flags a real estimating gap, not a method artefact.");
+
             rp.AddSection("STATUS")
                 .Metric("Red", red.ToString())
                 .Metric("Amber", amber.ToString())
