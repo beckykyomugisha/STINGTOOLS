@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- PM-3/PM-4 — the pure scheduling/cash-flow math, linked (no Revit API).
+       These files carry zero Autodesk.Revit.* imports on purpose. -->
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\MoneyRound.cs" Link="MoneyRound.cs" />
+    <Compile Include="..\StingTools\Core\Scheduling\CpmEngine.cs" Link="CpmEngine.cs" />
+    <Compile Include="..\StingTools\Core\Schedule\ScheduleModelPocos.cs" Link="ScheduleModelPocos.cs" />
+    <Compile Include="..\StingTools\Core\Schedule\ScheduleImporter.cs" Link="ScheduleImporter.cs" />
+    <Compile Include="..\StingTools\Core\Schedule\WorkingCalendar.cs" Link="WorkingCalendar.cs" />
+    <Compile Include="..\StingTools\Core\Schedule\ScheduleCpmBridge.cs" Link="ScheduleCpmBridge.cs" />
+    <Compile Include="..\StingTools\Core\Schedule\CashFlowSCurve.cs" Link="CashFlowSCurve.cs" />
+  </ItemGroup>
+
+</Project>

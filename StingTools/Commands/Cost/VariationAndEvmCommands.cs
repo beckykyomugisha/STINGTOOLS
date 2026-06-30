@@ -643,30 +643,45 @@ namespace StingTools.Commands.Cost
                 double pctEarned = WeightedPctComplete(doc);
                 double bcwp = bac * pctEarned / 100.0;
 
-                // P4.3 — BCWS (planned value) from a QS-entered planned %% rather
-                // than the old optimistic BCWS == BCWP. Cancel ⇒ fall back to the
-                // earned %% (no schedule variance) so the command stays one-click.
-                // P0.3 — inline-form gate: the planned %% comes from the EvmPlannedPct
-                // ExtraParam ("earned" ⇒ use BCWP, else a number) when driven from the
-                // panel; otherwise the modal band picker (Cancel ⇒ earned %%).
-                double plannedPct = pctEarned;
-                string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
-                if (!string.IsNullOrEmpty(fPlan))
+                // PM-3/PM-4 — BCWS (Planned Value) now comes from the SCHEDULE-DRIVEN
+                // cash-flow S-curve when one has been built (Sched_SCurve). That curve
+                // time-phases each task's value over its own start/finish, so PV is the
+                // real time-phased planned value — not a hand-keyed planned %. The
+                // QS-entered planned % and the modal picker remain as the fallback when
+                // no S-curve exists yet, so the command stays one-click either way.
+                double bcws;
+                string bcwsSource;
+                var savedCurve = SCurveStore.Load(doc);
+                if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0
+                    && savedCurve.TotalValue > 0)
                 {
-                    if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
-                        && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
-                        plannedPct = Math.Max(0, Math.Min(100, pp0));
+                    bcws = savedCurve.PlannedValueAt(DateTime.UtcNow);
+                    bcwsSource = "schedule-driven S-curve";
                 }
                 else
                 {
-                    var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
-                        .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
-                    var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
-                        $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
-                        "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
-                    if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                    double plannedPct = pctEarned;
+                    string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
+                    if (!string.IsNullOrEmpty(fPlan))
+                    {
+                        if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
+                            && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
+                            plannedPct = Math.Max(0, Math.Min(100, pp0));
+                    }
+                    else
+                    {
+                        var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                            .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                        var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                            $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                            "Cancel to use the earned %% (SV = 0). Tip: build a schedule-driven S-curve "
+                            + "(Sched_SCurve) for an automatic time-phased PV.", planItems, allowMultiSelect: false);
+                        if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                    }
+                    bcws = bac * plannedPct / 100.0;
+                    bcwsSource = "planned % (no S-curve)";
                 }
-                double bcws = bac * plannedPct / 100.0;
+                StingLog.Info($"EVM BCWS source: {bcwsSource} → {bcws:N0}.");
 
                 // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
                 // deduped by content so a re-dropped export can't double-count (B.5).

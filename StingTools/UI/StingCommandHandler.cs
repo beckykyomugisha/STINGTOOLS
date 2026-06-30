@@ -3570,6 +3570,12 @@ namespace StingTools.UI
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
 
+                    // PM-4 — scheduling (converged import, CPM, model %, S-curve).
+                    case "Sched_Import":                RunCommand<Commands.Cost.ScheduleImportCommand>(app); break;
+                    case "Sched_Cpm":                   RunCommand<Commands.Cost.ScheduleCpmCommand>(app); break;
+                    case "Sched_ModelPercent":          RunCommand<Commands.Cost.ScheduleModelPercentCommand>(app); break;
+                    case "Sched_SCurve":                RunCommand<Commands.Cost.ScheduleSCurveCommand>(app); break;
+
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
                     case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;
