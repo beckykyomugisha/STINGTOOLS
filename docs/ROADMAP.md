@@ -2,37 +2,38 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
-## BOQ & Cost Manager — remaining from the Master Impl + Measurement/QS briefs
+## BOQ & Cost Manager — remaining after Round 3
 
-Branches `claude/boq-master-impl` (WP0/WP1/WP3-core/WP5/most WP6) and
-`claude/boq-measurement-qs` (WP-FIX, WP2 items 1-4/6/7, WP4a) landed. Still open:
+Branches `claude/boq-master-impl`, `claude/boq-measurement-qs` and
+`claude/boq-round3` (WP-C carbon convergence, WP-M measurement parity 2, WP-A
+automation, WP-Q QS fills) landed. Round 3 closed: the fossil/biogenic carbon
+convention on every surface (off real volume, with waste), shaft-void deduction,
+aggregated MeasureQuantity write-back, the could-not-measure export gate, unified
+solid-reader detail level, debounced incremental auto-refresh, frozen contract sum,
+retention release and the sign-off guard. Still open:
 
-- **WP2 — remainder.** The full per-material COST-row split (multiple bill rows per
-  material — the carbon split + deterministic dominant material are done, but cost
-  still bills the whole element on its measured quantity); shaft/host-less opening
-  deductions attributed to the floors they pierce; feeding `ASS_SYSTEM_TYPE_TXT`
-  into NRM2/takeoff matching (the discipline preference is done); replacing the
-  remaining magic unit literals with `UnitUtils.ConvertFromInternalUnits`.
-- **WP3 — remainder.** Adopt the RICS fossil-headline / biogenic-separate
-  convention consistently across the row, the panel card, the pivot and the IFC GWP;
-  populate the fossil/biogenic split; repoint/relabel the dead legacy
-  `CARBON_FACTORS.csv` loader; EN 15978 A1-A3/A4/A5/B/C/D module params; RAG the
-  panel by kgCO₂e/m² intensity vs a benchmark, not absolute thresholds. (Carbon is
-  now driven off the per-material volumes with waste applied.)
-- **WP4 — QS lifecycle remainder.** Tender adjudication, final-account reconciliation
-  and variation approve/reject/incorporate are DONE (`claude/boq-measurement-qs`).
-  Still net-new: retention release (the dormant `RetentionLedger` release half); a
-  full fluctuations engine (index/NEDO formula method — currently a single
-  `COST_FLUCTUATIONS_UGX` total); materials-on-site valuation + statutory
-  payment/pay-less notice dates; PC-sum mechanism distinct from provisional sums;
-  time-phased EVM baseline (cost-loaded BCWS S-curve) + a unified monthly CVR;
-  loss & expense / contra-charges registers.
-- **WP6 — remainder.** Derive USD totals from the UGX total at summary level (not
-  per-line rounded sums); snapshot one FX rate per build + make currency mandatory
-  on every rate source (validate FX presence, no silent default); keep the BCIS
-  HTTP provider off the synchronous per-element/transaction path (honour
-  `RequiresNetwork`, pre-warm off-thread, never `.GetAwaiter().GetResult()` on the
-  UI thread).
+- **WP-M — remainder.** The full per-material COST-row split (multiple bill rows per
+  material — carbon already splits, cost still bills the whole element); the optional
+  `matchSystem` (SYS) token in takeoff/measurement matching (discipline preference is
+  done); a regional/per-category waste override (currently the flat
+  `COST_DEFAULT_WASTE_PCT`); remaining magic unit literals → `UnitUtils`.
+- **WP-C — remainder.** Per-row EN 15978 A4/A5/C module surfacing on the BOQ (the
+  V6 `CarbonStageTracker` computes them and now shares the A1-A3 basis; the BOQ row
+  is explicitly scoped "A1-A3 upfront"); repoint/relabel the dead legacy
+  `CARBON_FACTORS.csv` loader.
+- **WP-Q — remainder.** Index-linked Fluctuations engine (NEDO/BCIS formula or local
+  CPI, basket UI) feeding both AFC and Final Account; contractor CVR (`Cost_CVR`)
+  fusing BOQ total + latest cert + VOs + PS movement + retention + EVM + cash-flow;
+  itemised contra-charges register behind the flat `OtherDeductions`; Materials-on-Site
+  capture into `SovLine.MaterialsOnSite` with a vesting trail + statutory
+  payment/pay-less dates; Dayworks build-up sheet (mirror the star-rate builder);
+  distinct PC-sum mechanism (NRM2 defined/undefined) separate from provisional sums;
+  time-phased EVM BCWS curve; adjudication hardening (IQR/std-dev outliers).
+- **WP-A — remainder.** Off-thread rate-feed pre-warm on document open; a low-frequency
+  scheduled server-baseline drift check (surface `SyncState=Conflict` proactively).
+- **WP6 — remainder.** Snapshot one FX rate per build + make currency mandatory on
+  every rate source (validate FX presence, no silent default). (USD-from-UGX at
+  summary and BCIS-off-sync-path are done.)
 
 ## Placement Centre — residual gaps (post review/hardening)
 
