@@ -694,7 +694,7 @@ namespace StingTools.UI
             _varianceValue    = MakeMetric(cards, "Variance",             "UGX 0", NavyBrush);
             _coverageValue    = MakeMetric(cards, "Coverage",             "0%",    NavyBrush);
             _healthValue      = MakeMetric(cards, "BOQ Health",           "—",     GreenBrush);
-            _carbonValue      = MakeMetric(cards, "Embodied carbon",      "0 kgCO₂e", GreenBrush);
+            _carbonValue      = MakeMetric(cards, "Embodied carbon (A1-A3)", "0 kgCO₂e", GreenBrush);
             sp.Children.Add(cards);
 
             _budgetBar = new ProgressBar
@@ -2702,6 +2702,20 @@ namespace StingTools.UI
             return false;
         }
 
+        /// <summary>WP-C — the GIFA (m²) used to normalise the carbon-intensity RAG:
+        /// the tender-config GIA_M2 if set, else the model Room.Area sum, else 0
+        /// (RAG falls back to the absolute label with no benchmark).</summary>
+        private double ResolveCarbonGifaM2()
+        {
+            try
+            {
+                double g = TagConfig.GetConfigDouble("BOQ_TENDER_GIA_M2", 0.0);
+                if (g > 0) return g;
+                return SuggestGifaM2();
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCarbonGifaM2: {ex.Message}"); return 0; }
+        }
+
         /// <summary>P0.3 — sum of model Room.Area (ft² → m²) as a GIFA default for the
         /// Cost Plan inline form. Reads run on the dockable pane's Revit-main thread.
         /// Returns 0 when there are no rooms (the form shows a blank, editable field).</summary>
@@ -3875,16 +3889,31 @@ namespace StingTools.UI
                 : _health.OverallScore >= 85 ? GreenBrush
                 : _health.OverallScore >= 50 ? AmberBrush : RedBrush;
 
-            double carbonKg = _boq.TotalCarbonKg;
-            _carbonValue.Text = carbonKg >= 1000
-                ? $"{carbonKg / 1000:F1} tCO₂e"
-                : $"{carbonKg:N0} kgCO₂e";
-            _carbonValue.Foreground = carbonKg < 300000 ? GreenBrush
-                : carbonKg < 800000 ? AmberBrush : RedBrush;
+            // WP-C — carbon headline is A1-A3 FOSSIL; biogenic reported separately.
+            // RAG on kgCO₂e/m² GIFA intensity (RIBA 2030 / LETI upfront bands),
+            // not absolute kg — absolute kept as a secondary label.
+            double carbonKg = _boq.TotalCarbonKg;         // A1-A3 fossil
+            double biogenicKg = _boq.TotalBiogenicKg;     // A1-A3 biogenic (≤0)
+            string absLabel = carbonKg >= 1000 ? $"{carbonKg / 1000:F1} tCO₂e" : $"{carbonKg:N0} kgCO₂e";
+            double gifaM2 = ResolveCarbonGifaM2();
+            if (gifaM2 > 0)
+            {
+                double intensity = carbonKg / gifaM2;
+                double green = TagConfig.GetConfigDouble("COST_CARBON_RAG_GREEN_KGM2", 400.0); // A1-A3 fossil band, indicative vs RIBA 2030/LETI
+                double amber = TagConfig.GetConfigDouble("COST_CARBON_RAG_AMBER_KGM2", 700.0);
+                _carbonValue.Text = $"{intensity:N0} kgCO₂e/m²  ({absLabel} A1-A3)";
+                _carbonValue.Foreground = intensity < green ? GreenBrush : intensity < amber ? AmberBrush : RedBrush;
+            }
+            else
+            {
+                _carbonValue.Text = $"{absLabel} A1-A3  (set GIFA for intensity RAG)";
+                _carbonValue.Foreground = NavyBrush;
+            }
 
             _defaultCoverageText = $"Description coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
                 + $"| Avg rate confidence {_boq.AverageRateConfidence:F0} "
-                + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
+                + $"| A1-A3 fossil {carbonKg / 1000.0:F2} tCO₂e"
+                + (Math.Abs(biogenicKg) >= 1 ? $" (biogenic {biogenicKg / 1000.0:F2} tCO₂e, separate)" : "");
             // G2 — show provisional-sum movement (Σ actual − original) when reconciled.
             try
             {

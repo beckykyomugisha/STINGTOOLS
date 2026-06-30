@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (BOQ Round 3 — branch `claude/boq-round3`)
+
+Carbon convergence, measurement parity round 2, automation enablement and QS
+lifecycle fills, per `docs/BOQ_*` Round-3 brief. Each work-package compile-verified
+against the real Revit 2025 API (0 errors).
+
+**WP-C — Carbon: one convention (fossil headline + biogenic line) on every surface.**
+`ComputeElementCarbon` is replaced by `ComputeElementCarbonSplit`, the single RICS
+WLCA computation: it returns the **A1-A3 fossil** headline (`EmbodiedCarbonKg`) and
+the separate **A1-A3 biogenic** line (`BiogenicKg`, ≤ 0), via the existing
+`BiogenicCarbon` + `CarbonFactorResolver.GetCarbonFossilPerM3/GetCarbonBiogenicPerM3`
+split — so the fossil/biogenic figure is identical regardless of which resolver
+tier fires (no more net-vs-fossil drift). Carbon is driven off **real geometry**
+(`ReadGeometryVolumeM3`/`GetMaterialVolume`) for single-material surface/linear
+elements too, falling back to the guessed-thickness estimate only when geometry is
+genuinely absent (those rows are flagged `CarbonEstimated` / quality "Estimated").
+Carbon waste now routes through the **same `WasteFactor`** per-element lookup the
+cost uses (was a flat 5%). The panel card, status strip, `CarbonPivotByPhaseLevel`
+(new biogenic column) and the IFC writer (`IfcMaterialPsetWriter` — new
+`GlobalWarmingPotential_Biogenic` + `CarbonScope = "A1-A3 fossil"`) all read the
+fossil figure; the card is relabelled "Embodied carbon (A1-A3)" and its **RAG is
+now kgCO₂e/m² GIFA intensity** (RIBA 2030 / LETI bands, `COST_CARBON_RAG_GREEN/AMBER_KGM2`
+defaults 400/700, GIFA from `BOQ_TENDER_GIA_M2` → model rooms), absolute kg kept as
+a secondary label. `STING_CARBON_FACTORS_UG.json` aluminium/copper raised to
+primary-route values (33 000 / 34 000 kgCO₂e/m³) to match the file's stated
+provenance. *Decision:* biogenic materials always resolve their fossil+biogenic via
+`BiogenicCarbon` (tier-independent); full A4/A5/C per-row module surfacing remains in
+the V6 `CarbonStageTracker` (now sharing the A1-A3 basis), with the BOQ figure
+explicitly scoped "A1-A3 upfront".
+
 #### Completed (BOQ Measurement + QS — branch `claude/boq-measurement-qs`)
 
 Builds on the BOQ Master Impl branch. Each work-package compile-verified against

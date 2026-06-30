@@ -686,9 +686,11 @@ namespace StingTools.BOQ
             //      then a template resolution, then a safe fallback.
             string paragraph = ResolveNrm2Paragraph(doc, el, catName);
 
-            // (d) Embodied carbon (+ G5 data-quality + source + material)
-            double carbonKg = ComputeElementCarbon(el, quantity, unit,
-                out string carbonSource, out string carbonQuality, out string carbonMaterial);
+            // (d) Embodied carbon — WP-C: A1-A3 FOSSIL headline + separate biogenic
+            // line (RICS WLCA) + estimated flag (+ G5 data-quality + source + material)
+            double carbonKg = ComputeElementCarbonSplit(el, quantity, unit,
+                out string carbonSource, out string carbonQuality, out string carbonMaterial,
+                out double biogenicKg, out bool carbonEstimated);
 
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
@@ -715,6 +717,8 @@ namespace StingTools.BOQ
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
+                BiogenicKg = biogenicKg,
+                CarbonEstimated = carbonEstimated,
                 LifecycleCostUGX = lifecycleUgx,
                 ResolvedNRM2Paragraph = paragraph,
                 Note = "",
@@ -1255,112 +1259,147 @@ namespace StingTools.BOQ
         // data-quality band (Verified-EPD / Database / Missing) and the primary
         // material so the BOQ row can carry a carbon-confidence indicator and the
         // carbon-gap report can list weak/missing factors.
+        // WP-C — back-compat overload: returns the A1-A3 FOSSIL headline only.
         private static double ComputeElementCarbon(Element el, double quantity, string unit,
             out string carbonSource, out string carbonQuality, out string carbonMaterial)
+            => ComputeElementCarbonSplit(el, quantity, unit,
+                   out carbonSource, out carbonQuality, out carbonMaterial, out _, out _);
+
+        /// <summary>
+        /// WP-C — the ONE carbon computation, RICS WLCA convention: returns the
+        /// A1-A3 FOSSIL headline and reports the separate A1-A3 BIOGENIC term
+        /// (≤ 0, timber only) + whether the volume was geometry-real or estimated.
+        /// Splits per-material (each material its own fossil/biogenic factor) off
+        /// REAL per-material / solid volumes, with the SAME per-element WasteFactor
+        /// the cost uses — so cost and carbon waste agree and the fossil/biogenic
+        /// split is identical regardless of which resolver tier fires.
+        /// </summary>
+        private static double ComputeElementCarbonSplit(Element el, double quantity, string unit,
+            out string carbonSource, out string carbonQuality, out string carbonMaterial,
+            out double biogenicKg, out bool estimated)
         {
             carbonSource = "none"; carbonQuality = BoqEpdStore.QualityMissing; carbonMaterial = "";
+            biogenicKg = 0; estimated = false;
             try
             {
-                // WP2 — PER-MATERIAL split. A compound wall/floor carries its whole
-                // quantity across several materials; sum carbon per material (each
-                // resolved through its OWN factor) from the real per-material
-                // volumes, instead of dumping everything onto the primary material
-                // (which also flipped density/carbon between sessions). Waste is
-                // grossed onto the carbon volume to match the cost basis (RICS WLCA
-                // wants wastage in A1–A3). Falls through to the single-material path
-                // when the element has ≤ 1 material or exposes no per-material volume.
-                double multi = ComputeMultiMaterialCarbon(el, out string mSrc, out string mQual, out string mMat);
-                if (multi > 0)
+                if (el == null) return 0;
+                double wastePct = ResolveElementWastePct(el);
+
+                // Multi-material split — real per-material volumes.
+                var ids = el.GetMaterialIds(false);
+                if (ids != null && ids.Count >= 2)
                 {
-                    carbonSource = mSrc; carbonQuality = mQual; carbonMaterial = mMat;
-                    return Math.Round(multi, 2);
+                    double fossil = 0, bio = 0, dominantVol = -1; string domMat = "", domSrc = "none"; bool any = false;
+                    foreach (var mid in ids)
+                    {
+                        double volFt3;
+                        try { volFt3 = el.GetMaterialVolume(mid); } catch { volFt3 = 0; }
+                        if (volFt3 <= 0) continue;
+                        double mVolM3 = WasteFactor.Apply(volFt3 * 0.0283168, "m3", wastePct);
+                        string mName = (el.Document.GetElement(mid) as Material)?.Name ?? "";
+                        if (string.IsNullOrEmpty(mName)) continue;
+
+                        var res = CarbonFactorResolver.Resolve(el.Document, mName);
+                        if (res.Factor > 0)
+                        {
+                            any = true;
+                            AddMaterialCarbon(el.Document, mName, mVolM3, ref fossil, ref bio);
+                        }
+                        if (mVolM3 > dominantVol)
+                        {
+                            dominantVol = mVolM3; domMat = mName;
+                            domSrc = string.IsNullOrEmpty(res.Source) ? "none" : res.Source;
+                        }
+                    }
+                    if (any && (fossil != 0 || bio != 0))
+                    {
+                        carbonSource = domSrc; carbonQuality = BoqEpdStore.QualityForSource(domSrc); carbonMaterial = domMat;
+                        biogenicKg = Math.Round(bio, 2);
+                        return Math.Round(fossil, 2);
+                    }
                 }
 
-                // R-1 — Carbon factor source-aware unit treatment.
-                // STING_EMB_CARBON_NR + MaterialLookupCsv ship kgCO₂e PER m³ (volumetric);
-                // the legacy CARBON_FACTORS.csv dictionary ships kgCO₂e PER kg.
-                // Multiplying a volumetric factor by element MASS is the 1000× wrong-answer
-                // bug the LCA audit flagged. Route through CarbonFactorResolver so the
-                // calling convention is explicit.
+                // Single-material.
                 string material = GetPrimaryMaterialName(el);
                 carbonMaterial = material ?? "";
                 if (string.IsNullOrEmpty(material)) return 0;
-
                 var resolved = CarbonFactorResolver.Resolve(el.Document, material);
                 carbonSource = string.IsNullOrEmpty(resolved.Source) ? "none" : resolved.Source;
                 carbonQuality = BoqEpdStore.QualityForSource(carbonSource);
                 if (resolved.Factor <= 0) { carbonQuality = BoqEpdStore.QualityMissing; return 0; }
 
-                if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
-                {
-                    // Legacy mass-based factor — multiply by mass.
-                    double kg = EstimateMassKg(el, quantity, unit);
-                    return Math.Round(kg * resolved.Factor, 2);
-                }
-                // Default + STING / lookup tiers are kgCO₂e per m³ — multiply by volume.
-                // R-4 — Surface elements use area × thickness; linear use length × cross-section.
-                double volM3 = EstimateVolumeM3(el, quantity, unit, material);
-                return Math.Round(volM3 * resolved.Factor, 2);
+                // WP-C — drive off REAL geometry; estimate only when absent.
+                double volM3 = RealOrEstimatedVolumeM3(el, quantity, unit, material, out estimated);
+                volM3 = WasteFactor.Apply(volM3, "m3", wastePct);
+
+                double fos = 0, bg = 0;
+                AddMaterialCarbon(el.Document, material, volM3, ref fos, ref bg);
+                biogenicKg = Math.Round(bg, 2);
+                if (estimated && carbonQuality != BoqEpdStore.QualityMissing
+                    && !carbonQuality.StartsWith("Verified", StringComparison.OrdinalIgnoreCase))
+                    carbonQuality = "Estimated";
+                return Math.Round(fos, 2);
             }
-            catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+            catch (Exception ex) { StingLog.Warn($"ComputeElementCarbonSplit: {ex.Message}"); return 0; }
         }
 
-        /// <summary>
-        /// WP2 — sum embodied carbon across an element's materials using each
-        /// material's REAL per-material volume (Element.GetMaterialVolume) and its
-        /// own resolved factor. Waste is grossed on the volume to match the cost
-        /// basis. Returns 0 (caller falls back to the single-material path) when
-        /// the element has ≤ 1 material or exposes no per-material volume / factor.
-        /// Reports the dominant (largest-volume) material's provenance.
-        /// </summary>
-        private static double ComputeMultiMaterialCarbon(Element el,
-            out string source, out string quality, out string material)
+        /// <summary>WP-C — accumulate one material's A1-A3 fossil + biogenic carbon
+        /// from a volume (m³). Fossil is the headline; biogenic (≤ 0) is the RICS
+        /// WLCA separate line. Resolution: an explicit material/library fossil &
+        /// biogenic split wins; else timber uses the ICE <see cref="BiogenicCarbon"/>
+        /// fossil/biogenic factors (tier-independent); else a non-bio material's net
+        /// factor IS its fossil (biogenic 0).</summary>
+        private static void AddMaterialCarbon(Document doc, string mName, double volM3,
+            ref double fossil, ref double biogenic)
         {
-            source = "none"; quality = BoqEpdStore.QualityMissing; material = "";
-            try
+            if (string.IsNullOrEmpty(mName) || volM3 <= 0) return;
+            var res = CarbonFactorResolver.Resolve(doc, mName);
+            if (res.Factor <= 0) return;
+            double density = EstimateDensityKgPerM3(mName);
+            double netPerM3 = res.PerUnit == CarbonFactorUnit.KgCo2ePerKg ? res.Factor * density : res.Factor;
+
+            double fossilPerM3 = CarbonFactorResolver.GetCarbonFossilPerM3(doc, mName);
+            double bioPerM3 = CarbonFactorResolver.GetCarbonBiogenicPerM3(doc, mName);
+            if (fossilPerM3 <= 0 && bioPerM3 == 0)
             {
-                if (el == null) return 0;
-                var ids = el.GetMaterialIds(false);
-                if (ids == null || ids.Count < 2) return 0;
-
-                double wasteMult = 1.0 + Math.Max(0, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0)) / 100.0;
-                double totalKg = 0, dominantVol = -1; string dominantMat = ""; string dominantSrc = "none";
-                bool anyFactor = false;
-
-                foreach (var mid in ids)
+                if (BiogenicCarbon.IsBiogenic(mName) && density > 0)
                 {
-                    double volFt3;
-                    try { volFt3 = el.GetMaterialVolume(mid); }
-                    catch { volFt3 = 0; }
-                    if (volFt3 <= 0) continue;
-
-                    double mVolM3 = volFt3 * 0.0283168 * wasteMult;
-                    string mName = (el.Document.GetElement(mid) as Material)?.Name ?? "";
-                    if (string.IsNullOrEmpty(mName)) continue;
-
-                    var res = CarbonFactorResolver.Resolve(el.Document, mName);
-                    if (res.Factor <= 0) continue;
-                    anyFactor = true;
-
-                    double kg = res.PerUnit == CarbonFactorUnit.KgCo2ePerKg
-                        ? (mVolM3 * EstimateDensityKgPerM3(mName)) * res.Factor
-                        : mVolM3 * res.Factor;
-                    totalKg += kg;
-
-                    if (mVolM3 > dominantVol)
-                    {
-                        dominantVol = mVolM3; dominantMat = mName;
-                        dominantSrc = string.IsNullOrEmpty(res.Source) ? "none" : res.Source;
-                    }
+                    fossilPerM3 = BiogenicCarbon.TimberFossilPerKg * density;
+                    bioPerM3 = BiogenicCarbon.TimberBiogenicPerKg * density;
                 }
-
-                if (!anyFactor || totalKg <= 0) return 0;
-                source = dominantSrc;
-                quality = BoqEpdStore.QualityForSource(dominantSrc);
-                material = dominantMat;
-                return totalKg;
+                else { fossilPerM3 = netPerM3; bioPerM3 = 0; }
             }
-            catch (Exception ex) { StingLog.WarnRateLimited("MultiMatCarbon", $"ComputeMultiMaterialCarbon: {ex.Message}"); return 0; }
+            else if (fossilPerM3 <= 0)
+            {
+                fossilPerM3 = netPerM3;   // biogenic split present, fossil missing → net proxy
+            }
+            fossil += volM3 * fossilPerM3;
+            biogenic += volM3 * bioPerM3;
+        }
+
+        /// <summary>WP-C — the carbon volume from REAL geometry where possible.
+        /// m³-measured rows use the (deducted, wasted) measured quantity; otherwise
+        /// the element's real solid volume; only a genuine no-geometry element falls
+        /// back to the guessed thickness / cross-section estimate (estimated = true).</summary>
+        private static double RealOrEstimatedVolumeM3(Element el, double quantity, string unit, string material, out bool estimated)
+        {
+            estimated = false;
+            string u = (unit ?? "").Trim().ToLowerInvariant();
+            if (u == "m³" || u == "m3" || u == "cum") return quantity;   // measured volume is authoritative
+            double real = ReadGeometryVolumeM3(el);
+            if (real <= 0) real = ReadElementVolumeM3(el);
+            if (real > 0) return real;
+            estimated = true;
+            return EstimateVolumeM3(el, quantity, unit, material);
+        }
+
+        private static double ResolveElementWastePct(Element el)
+        {
+            double overrideWaste = 0;
+            try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+            catch (Exception ex) { StingLog.WarnRateLimited("Carbon.OvrWaste", $"override waste read: {ex.Message}"); }
+            return WasteFactor.ResolveWastePercent(overrideWaste,
+                TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
         /// <summary>
@@ -2989,6 +3028,7 @@ namespace StingTools.BOQ
                     {
                         li.Quantity *= instCount;                 // TotalUGX/USD derive from Quantity
                         li.EmbodiedCarbonKg *= instCount;         // stored field — scale explicitly
+                        li.BiogenicKg *= instCount;               // WP-C — biogenic scales with the count too
                     }
                     li.Note = string.IsNullOrEmpty(li.Note) ? tag : $"{li.Note} {tag}";
                 }
@@ -3159,6 +3199,7 @@ namespace StingTools.BOQ
                 if (agg.GrossQuantity > 0)
                     agg.MeasurementNote = BuildAggregateMeasurementNote(agg, rows.Count);
                 agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
+                agg.BiogenicKg = rows.Sum(r => r.BiogenicKg);   // WP-C — biogenic aggregates with fossil
                 agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
                 agg.RateConfidence = rows.Min(r => r.RateConfidence);
                 agg.ConstituentElementIds = rows

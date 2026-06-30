@@ -197,7 +197,16 @@ namespace StingTools.BOQ
         public string MeasurementNote;
         public double RateUGX;
         public double RateUSD;
-        public double EmbodiedCarbonKg;     // kgCO2e
+        public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
+        // ── WP-C — RICS WLCA fossil/biogenic split. EmbodiedCarbonKg is the
+        // A1-A3 FOSSIL upfront figure (the benchmark headline); BiogenicKg is the
+        // separate A1-A3 biogenic line (≤ 0 for timber, 0 otherwise) — never
+        // netted into the headline. NetCarbonKg is the whole-life-context net.
+        // CarbonEstimated = true when the carbon volume came from a guessed
+        // thickness / cross-section rather than real geometry.
+        public double BiogenicKg;           // kgCO2e — A1-A3 biogenic (≤ 0)
+        public bool CarbonEstimated;
+        public double NetCarbonKg => EmbodiedCarbonKg + BiogenicKg;
         public double LifecycleCostUGX;     // capital + maintenance NPV 25yr
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
@@ -328,6 +337,8 @@ namespace StingTools.BOQ
                 LabourUGX = this.LabourUGX,
                 PlantUGX = this.PlantUGX,
                 MaterialUGX = this.MaterialUGX,
+                BiogenicKg = this.BiogenicKg,
+                CarbonEstimated = this.CarbonEstimated,
                 CarbonSource = this.CarbonSource,
                 CarbonQuality = this.CarbonQuality,
                 CarbonMaterial = this.CarbonMaterial,
@@ -359,7 +370,8 @@ namespace StingTools.BOQ
         public double TotalUSD => Items.Sum(i => i.TotalUSD);
         public double ModeledUGX => Items.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvUGX => Items.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
-        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);
+        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);       // A1-A3 fossil
+        public double TotalBiogenicKg => Items.Sum(i => i.BiogenicKg);           // A1-A3 biogenic (≤0)
     }
 
     // ── BOQDocument ────────────────────────────────────────────────────────
@@ -443,7 +455,9 @@ namespace StingTools.BOQ
         // the budget + the variance), not the bare works subtotal, so the two
         // budget metrics can no longer disagree on what they measure against.
         public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? GrandTotalUGX / ProjectBudgetUGX * 100 : 0;
-        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);
+        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);    // A1-A3 fossil headline
+        public double TotalBiogenicKg => AllItems.Sum(i => i.BiogenicKg);        // A1-A3 biogenic (≤0), reported separately
+        public double TotalNetCarbonKg => TotalCarbonKg + TotalBiogenicKg;       // whole-life context only
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
 
