@@ -159,16 +159,24 @@ namespace StingTools.Commands.Cost
                 //    most relevant snapshot (tender/award/contract/DD) → the live
                 //    canonical total (clearly flagged as not yet frozen).
                 var prior = FinalAccountStore.Load(doc);
-                double contractSum = 0; string contractSrc = "";
-                double cfg = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
-                if (cfg > 0) { contractSum = cfg; contractSrc = "COST_CONTRACT_SUM_UGX (config)"; }
-                else if (prior != null && prior.ContractSumUGX > 0)
-                { contractSum = prior.ContractSumUGX; contractSrc = "saved final_account.json"; }
-                else
+                // PM-2 — resolve the FROZEN BASE through the one shared
+                // ContractSumResolver (COST_CONTRACT_SUM_UGX) so the Final Account,
+                // AFC and EVM BAC all anchor on the same number. Only when nothing is
+                // frozen (the resolver returns the live bill) do we fall back to a
+                // saved statement, then a tender/award snapshot, before the live bill.
+                // ResolveBase excludes variations (added separately at step 3).
+                double contractSum = ContractSumResolver.ResolveBase(doc, boq, out string contractSrc);
+                bool frozen = contractSrc.IndexOf("frozen", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!frozen)
                 {
-                    var snap = PickAwardSnapshot(doc);
-                    if (snap != null) { contractSum = snap.GrandTotalUGX; contractSrc = $"snapshot \"{snap.Label}\" ({snap.Type})"; }
-                    else { contractSum = asBuilt; contractSrc = "live bill (NOT frozen — set COST_CONTRACT_SUM_UGX or save a tender snapshot)"; }
+                    if (prior != null && prior.ContractSumUGX > 0)
+                    { contractSum = prior.ContractSumUGX; contractSrc = "saved final_account.json"; }
+                    else
+                    {
+                        var snap = PickAwardSnapshot(doc);
+                        if (snap != null) { contractSum = snap.GrandTotalUGX; contractSrc = $"snapshot \"{snap.Label}\" ({snap.Type})"; }
+                        else { contractSum = asBuilt; contractSrc = "live bill (NOT frozen — set COST_CONTRACT_SUM_UGX or save a tender snapshot)"; }
+                    }
                 }
 
                 // 2. Provisional / PC-sum reconciliation trail.
