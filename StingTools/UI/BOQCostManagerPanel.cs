@@ -1256,6 +1256,9 @@ namespace StingTools.UI
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
                     ("Set Contract Sum", "Cost_SetContractSum",
                      "Freeze the contract sum at award (writes COST_CONTRACT_SUM_UGX + an Award snapshot) so the Final Account and AFC use a frozen baseline instead of guessing from a snapshot name.", false),
+                    ("Fluctuations", "Fluctuations_Compute",
+                     "Compute index-linked fluctuations (NEDO/BCIS formula or UBOS CPI) from a basket edited at " +
+                     "_BIM_COORD/fluctuations.json; writes COST_FLUCTUATIONS_UGX into the AFC + Final Account waterfalls.", false),
                     ("Final Account", "FinalAccount_Reconcile",
                      "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures; persists to _BIM_COORD/final_account.json.", false),
                     ("Reconcile Provisionals", "ReconcileProvisionals",

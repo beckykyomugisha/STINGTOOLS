@@ -1633,6 +1633,7 @@ namespace StingTools.Core
                 case "Tender_Adjudicate":          return new Commands.Cost.TenderAdjudicateCommand();
                 case "Cost_SetContractSum":        return new Commands.Cost.CostSetContractSumCommand();
                 case "Retention_Release":          return new Commands.Cost.RetentionReleaseCommand();
+                case "Fluctuations_Compute":       return new Commands.Cost.FluctuationsComputeCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();

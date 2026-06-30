@@ -28,9 +28,23 @@ Build 0 errors; `StingTools.Cost.Tests` 42 green.
 - *CostPlan → budget*: the elemental cost plan auto-seeds `PROJECT_BUDGET_UGX`
   (FX-converted from the plan currency) on create, so the budget variance + forecast
   read `GrandTotalLikely` without a separate manual budget entry.
-- *Open (ROADMAP):* the remaining PM-2 wirings (VO → next-cert "Adjustments" SOV
-  section; clash → tracked issue/SLA → transmittal via `IssueStatusNormalizer`) and
-  PM-3…PM-8.
+- *AFC contract sum unified* through `ContractSumResolver.ResolveBase` (frozen Award
+  baseline wins, then earliest-cert SOV, then live) so AFC + Final Account + EVM agree.
+
+**PM-3 (fluctuations) — index-linked fluctuations engine.** New pure, tested
+`FluctuationsEngine` (NEDO/BCIS Price-Adjustment-Formula method + single-CPI method,
+e.g. UBOS): fluctuation = adjustable-work-value × (1 − non-adjustable %) × blended
+weighted index movement. `Fluctuations_Compute` reads a basket from
+`_BIM_COORD/fluctuations.json` (seeds a template with the adjustable value pre-filled
+from the live works subtotal on first run), computes the recoverable amount and
+writes `COST_FLUCTUATIONS_UGX` — which **both** the AFC and the Final Account
+waterfalls now consume (AFC previously omitted fluctuations). Panel button + handler
++ workflow wiring; 6 worked-number tests.
+
+- *Open (ROADMAP):* remaining PM-2 wirings (VO → next-cert "Adjustments" SOV section;
+  clash → tracked issue/SLA → transmittal via `IssueStatusNormalizer`); PM-3 remainder
+  (dayworks, L&E, CVR, NRM1/OCE, CTC, commitments, accounting export); PM-4 CPM; PM-5
+  carbon data; PM-6/7/8.
 
 #### Completed (PM / Cost-Control — branch `claude/pm-cost-control`)
 

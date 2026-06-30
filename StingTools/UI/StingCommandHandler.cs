@@ -3565,6 +3565,7 @@ namespace StingTools.UI
                     case "Tender_Adjudicate":           RunCommand<Commands.Cost.TenderAdjudicateCommand>(app); break;
                     case "Cost_SetContractSum":         RunCommand<Commands.Cost.CostSetContractSumCommand>(app); break;
                     case "Retention_Release":           RunCommand<Commands.Cost.RetentionReleaseCommand>(app); break;
+                    case "Fluctuations_Compute":        RunCommand<Commands.Cost.FluctuationsComputeCommand>(app); break;
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
