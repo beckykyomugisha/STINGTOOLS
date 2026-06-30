@@ -725,254 +725,44 @@ namespace StingTools.BIMManager
         internal static JObject GenerateCostEstimate(Document doc,
             Dictionary<string, (double rate, string unit)>? costRates)
         {
-            var estimate = new JObject();
-            estimate["project_name"] = doc.ProjectInformation?.Name ?? "";
-            estimate["generated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-            estimate["currency"] = "GBP";
+            // ── P0-7: single take-off ────────────────────────────────────────
+            // The 4D/5D cash-flow no longer runs its own element take-off. It
+            // builds the canonical BOQ (BuildBOQDocument) and assembles the
+            // estimate from those already-costed line items via
+            // Boq5DEstimateAssembler. This retires the parallel procedure that
+            // drifted from the BOQ Cost Manager: the per-unit qty fallbacks, the
+            // hardcoded 0.888 kg/m rebar constant, the own qty*rate, and the flat
+            // (VAT-less) markup are all gone.
+            //
+            // The `costRates` parameter is intentionally ignored. Rates resolve
+            // through the canonical Rates/ provider chain (parameter / ES
+            // overrides -> project rate card -> material library -> corporate
+            // cost_rates_5d.csv -> COBie map -> default), the SAME source the BOQ
+            // uses, so the cash-flow curve and the BOQ Contract Sum reconcile to
+            // one number. Per-project rate overrides go through the canonical
+            // surfaces (<project>/_BIM_COORD/rate_card.json + the MAT panel),
+            // not a separate _BIM_MANAGER/cost_rates_5d.csv read.
+            _ = costRates;
 
-            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var lineItems = new JArray();
-            double grandTotal = 0;
-            int skippedCount = 0;
-            var skippedCategories = new Dictionary<string, int>();
-
-            // Phase 108k Item 5 — BOQ × 4D/5D cash-flow integration.
-            // Prefer the LIVE BOQ rates (per-category averages of the
-            // modeled BOQLineItem rates, picks up the P0 "Override" edits
-            // the QS made inline) over cost_rates_5d.csv / DefaultCostRates
-            // so the cash-flow curve and 4D timeline stay consistent with
-            // the BOQ Cost Manager's totals.
-            Dictionary<string, (double rate, string unit, string description)>? boqRateMap = null;
-            try { boqRateMap = StingTools.BOQ.BOQBccBridge.GetBOQCostRateTable(doc); }
-            catch (Exception ex) { StingLog.Warn($"BOQ rate-table lookup: {ex.Message}"); }
-
-            // GAP-024: Build sets of phase IDs for cost exclusion
-            var temporaryPhaseIds = new HashSet<long>();
-            foreach (Phase ph in doc.Phases.Cast<Phase>())
+            var boq = StingTools.BOQ.BOQCostManager.BuildBOQDocument(doc);
+            var rows = StingTools.BOQ.BOQCostManager.ProjectTo5DRows(boq);
+            var markup = new StingTools.BOQ.Boq5DMarkup
             {
-                string phaseName = ph.Name?.ToUpperInvariant() ?? "";
-                if (phaseName.Contains("TEMPORARY"))
-                    temporaryPhaseIds.Add(ph.Id.Value);
-            }
+                PrelimsAbsoluteUgx = boq.PrelimContributionUGX,
+                PrelimPct = boq.PrelimPct,
+                OverheadPct = boq.OverheadPct,
+                ContingencyPct = boq.ContingencyPct,
+                VatPct = boq.VatPct
+            };
 
-            // Group elements by category
-            var byCategory = new Dictionary<string, List<Element>>();
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                string cat = ParameterHelpers.GetCategoryName(el);
-                if (string.IsNullOrEmpty(cat)) continue;
+            var estimate = StingTools.BOQ.Boq5DEstimateAssembler.Assemble(
+                rows, markup,
+                projectName: boq.ProjectName,
+                currency: boq.Currency,
+                generatedDate: DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
 
-                bool hasCostRate = knownCats.Contains(cat) || DefaultCostRates.ContainsKey(cat)
-                    || (costRates != null && costRates.ContainsKey(cat));
-                if (!hasCostRate)
-                {
-                    skippedCount++;
-                    skippedCategories.TryGetValue(cat, out int skCnt);
-                    skippedCategories[cat] = skCnt + 1;
-                    continue;
-                }
-
-                // GAP-024: Skip temporary elements and demolished elements from costing
-                // 1. Skip elements created in a "Temporary" phase
-                var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                if (phaseParam != null && temporaryPhaseIds.Contains(phaseParam.AsElementId().Value))
-                    continue;
-                // 2. Skip elements that have a demolition phase assigned (they won't exist in final state)
-                var phaseDemoParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-                if (phaseDemoParam != null)
-                {
-                    var demoPhaseId = phaseDemoParam.AsElementId();
-                    if (demoPhaseId != null && demoPhaseId.Value > 0)
-                        continue;
-                }
-
-                if (!byCategory.TryGetValue(cat, out var catList))
-                {
-                    catList = new List<Element>();
-                    byCategory[cat] = catList;
-                }
-                catList.Add(el);
-            }
-
-            // Phase 184 / P3 — route through the pluggable rate provider
-            // registry so 4D and 5D consume the same rate source the BOQ
-            // engine uses. Live BOQ overrides still win at the top of
-            // the chain; the registry covers everything below.
-            double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-            var rateRegistry = StingTools.BOQ.Rates.RateProviderRegistry.Get(
-                doc, costRates, new Dictionary<string, string>(), ugxPerUsd, ugxPerGbp);
-
-            foreach (var kv in byCategory.OrderBy(x => x.Key))
-            {
-                string cat = kv.Key;
-                var elems = kv.Value;
-
-                double rate;
-                string unit;
-                // Phase 108k Item 5 priority: LIVE BOQ override rates first.
-                if (boqRateMap != null && boqRateMap.TryGetValue(cat, out var bqVal) && bqVal.rate > 0)
-                {
-                    rate = bqVal.rate;
-                    unit = bqVal.unit;
-                }
-                else
-                {
-                    // Phase 184 / P3 — single rate source for 4D + 5D + BOQ.
-                    var lookup = rateRegistry.Resolve(new StingTools.BOQ.Rates.RateRequest
-                    {
-                        CategoryName = cat,
-                        Discipline = TagConfig.DiscMap.TryGetValue(cat, out var d) ? d : "X",
-                        CurrencyCode = "UGX",
-                        AsOf = DateTime.UtcNow,
-                        // No representative element here; the param-override
-                        // + ES providers will skip but CSV / COBie / default
-                        // providers still resolve.
-                        Element = elems.FirstOrDefault()
-                    });
-                    if (lookup != null && lookup.UnitRate > 0)
-                    {
-                        rate = lookup.UnitRate;
-                        unit = lookup.Unit;
-                    }
-                    else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
-                    {
-                        // Final fallback — caller-supplied custom rates.
-                        rate = crVal.rate;
-                        unit = crVal.unit;
-                    }
-                    else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
-                    {
-                        rate = dcrVal.ratePerUnit;
-                        unit = dcrVal.unit;
-                    }
-                    else continue;
-                }
-
-                // Extract actual measured quantity based on unit type instead of just counting elements.
-                // For area-based items (m²), sum actual element areas; for linear items (m), sum lengths;
-                // for volume items (m³), sum volumes. Fall back to element count for "each" items.
-                double qty = 0;
-                if (unit == "m²")
-                {
-                    foreach (var el in elems)
-                    {
-                        var areaParam = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)
-                            ?? el.get_Parameter(BuiltInParameter.ROOM_AREA)
-                            ?? el.LookupParameter("Host Area");
-                        if (areaParam != null && areaParam.HasValue)
-                            qty += areaParam.AsDouble() * 0.092903; // sqft → m²
-                        else
-                            qty += 1; // fallback: count as 1 unit
-                    }
-                }
-                else if (unit == "m")
-                {
-                    foreach (var el in elems)
-                    {
-                        var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)
-                            ?? el.LookupParameter("Length");
-                        if (lenParam != null && lenParam.HasValue)
-                            qty += lenParam.AsDouble() * 0.3048; // ft → m
-                        else
-                            qty += 1;
-                    }
-                }
-                else if (unit == "m³")
-                {
-                    foreach (var el in elems)
-                    {
-                        var volParam = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)
-                            ?? el.LookupParameter("Volume");
-                        if (volParam != null && volParam.HasValue)
-                            qty += volParam.AsDouble() * 0.0283168; // cuft → m³
-                        else
-                            qty += 1;
-                    }
-                }
-                else if (unit == "kg")
-                {
-                    foreach (var el in elems)
-                    {
-                        var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-                        double barLen = lenParam != null && lenParam.HasValue ? lenParam.AsDouble() * 0.3048 : 1;
-                        // Try to get bar diameter for accurate weight (kg/m = diameter_mm² × 0.00617)
-                        double kgPerMetre = 0.888; // default 12mm bar (most common)
-                        var diaParam = el.LookupParameter("Bar Diameter")
-                            ?? el.LookupParameter("Diameter");
-                        if (diaParam != null && diaParam.HasValue)
-                        {
-                            double diaMm = diaParam.AsDouble() * 304.8; // ft → mm
-                            if (diaMm > 0)
-                                kgPerMetre = diaMm * diaMm * 0.00617; // steel density formula
-                        }
-                        qty += barLen * kgPerMetre;
-                    }
-                }
-                else
-                {
-                    // "each" or unknown: use element count
-                    qty = elems.Count;
-                }
-                qty = Math.Round(qty, 2);
-
-                double lineTotal = qty * rate;
-                grandTotal += lineTotal;
-
-                // Get discipline from first tagged element (skip untagged elements in lookup)
-                string disc = "";
-                foreach (var el in elems)
-                {
-                    disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                    if (!string.IsNullOrEmpty(disc)) break;
-                }
-
-                lineItems.Add(new JObject
-                {
-                    ["category"] = cat,
-                    ["discipline"] = disc,
-                    ["quantity"] = qty,
-                    ["unit"] = unit,
-                    ["unit_rate"] = rate,
-                    ["total"] = Math.Round(lineTotal, 2),
-                    ["description"] = DefaultCostRates.TryGetValue(cat, out var dcrDesc) ? dcrDesc.description : cat
-                });
-            }
-
-            estimate["line_items"] = lineItems;
-            estimate["subtotal"] = Math.Round(grandTotal, 2);
-
-            // R4-B FIX: Configurable percentages via project_config.json (was hardcoded)
-            double prelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
-            double contingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
-            double overheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
-
-            estimate["preliminaries_pct"] = prelimPct;
-            estimate["preliminaries"] = Math.Round(grandTotal * prelimPct / 100.0, 2);
-            estimate["contingency_pct"] = contingencyPct;
-            estimate["contingency"] = Math.Round(grandTotal * contingencyPct / 100.0, 2);
-            estimate["overhead_profit_pct"] = overheadPct;
-            estimate["overhead_profit"] = Math.Round(grandTotal * overheadPct / 100.0, 2);
-            estimate["grand_total"] = Math.Round(grandTotal + (double)(estimate["preliminaries"] ?? 0.0)
-                + (double)(estimate["contingency"] ?? 0.0) + (double)(estimate["overhead_profit"] ?? 0.0), 2);
-
-            // Breakdown by discipline
-            var byDisc = lineItems.GroupBy(i => i["discipline"]?.ToString() ?? "?")
-                .ToDictionary(g => g.Key, g => g.Sum(i => (double)(i["total"] ?? 0)));
-            estimate["discipline_totals"] = JObject.FromObject(
-                byDisc.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value, 2)));
-
-            // Report skipped elements (categories with no cost rate)
-            estimate["skipped_element_count"] = skippedCount;
-            if (skippedCount > 0)
-            {
-                var skippedDetail = new JObject();
-                foreach (var sk in skippedCategories.OrderByDescending(x => x.Value))
-                    skippedDetail[sk.Key] = sk.Value;
-                estimate["skipped_categories"] = skippedDetail;
-                estimate["warning"] = $"{skippedCount} elements in {skippedCategories.Count} categories were skipped (no cost rate defined). Use Import Cost Rates to add rates for: {string.Join(", ", skippedCategories.Keys.OrderBy(k => k).Take(10))}{(skippedCategories.Count > 10 ? "..." : "")}";
-            }
-
+            StingLog.Info($"5D estimate (canonical BOQ take-off): {rows.Count} rows, " +
+                $"grand total {(double)(estimate["grand_total"] ?? 0):N0} {boq.Currency}");
             return estimate;
         }
 
@@ -1628,7 +1418,11 @@ namespace StingTools.BIMManager
 
     #region ── Command: Auto Cost Estimate (5D) ──
 
-    [Transaction(TransactionMode.ReadOnly)]
+    // P0-7 — Manual transaction: the estimate now runs the canonical BOQ
+    // take-off (BuildBOQDocument), which clears ASS_CST_STALE_BOOL on re-costed
+    // elements inside its own "STING …" transaction. That legitimate write needs
+    // a modifiable document context, so this command is no longer ReadOnly.
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class AutoCost5DCommand : IExternalCommand
     {
@@ -1639,15 +1433,11 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            StingLog.Info("5D BIM: Auto-generating cost estimate...");
+            StingLog.Info("5D BIM: Auto-generating cost estimate (canonical BOQ take-off)...");
 
-            // Check for custom rates
-            string ratesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cost_rates_5d.csv");
-            Dictionary<string, (double rate, string unit)>? customRates = null;
-            if (File.Exists(ratesPath))
-                customRates = Scheduling4DEngine.LoadCostRatesFromCSV(ratesPath);
-
-            var estimate = Scheduling4DEngine.GenerateCostEstimate(doc, customRates);
+            // P0-7 — rates flow through the canonical Rates/ provider chain inside
+            // BuildBOQDocument; no separate _BIM_MANAGER/cost_rates_5d.csv read.
+            var estimate = Scheduling4DEngine.GenerateCostEstimate(doc, null);
 
             // Save
             string estimatePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "cost_estimate_5d.json");
@@ -1659,7 +1449,7 @@ namespace StingTools.BIMManager
             report.AppendLine(new string('═', 60));
             report.AppendLine($"  Project: {estimate["project_name"]}");
             report.AppendLine($"  Currency: {estimate["currency"]}");
-            report.AppendLine($"  Using: {(customRates != null ? "Custom rates" : "Default rates")}");
+            report.AppendLine($"  Source: Canonical BOQ take-off (Rates/ provider chain)");
             report.AppendLine();
 
             report.AppendLine($"  {"Category",-25} {"Qty",6} {"Unit",-5} {"Rate",10} {"Total",12}");
