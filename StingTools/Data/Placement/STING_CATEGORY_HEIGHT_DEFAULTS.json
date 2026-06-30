@@ -1,0 +1,33 @@
+{
+  "version": "v1",
+  "description": "Default standards-based mounting height per STING fixture category, for the DWG->seed->swap bridge (DwgFixtureBridge). When the bridge builds a synthetic PlacementRule for a captured fixture it looks the rule's category up here and sets HeightStandard + MountingHeightMm (= the standard's PreferredMm from STING_HEIGHT_STANDARDS.json), so a DWG-placed socket lands at 450mm, a switch at 1350mm, an MCP at 1400mm etc. with zero user input. Override per project at <project>/_BIM_COORD/category_height_defaults.json (same shape; entries layer over this corporate baseline by category name).",
+  "notes": [
+    "heightStandard MUST be a key in STING_HEIGHT_STANDARDS.json; the resolved MountingHeightMm is that entry's PreferredMm.",
+    "Only categories in the DWG_SYMBOL_MAP fixtureCategories allowlist need an entry; others default to the rule's built-in 300mm.",
+    "Ceiling-hosted fixtures (lighting/sprinkler/air terminal/ceiling fire devices) host to the ceiling face, so their mounting height is largely informational; values here are sensible defaults the user can override per layer in the Map-DWG-Layers dialog.",
+    "quickHeightsMm is the raw mounting-height quick-list the Map-DWG-Layers dialog offers in addition to the named standards (Custom: N mm). Extend per project via the override file."
+  ],
+  "categoryHeightDefaults": {
+    "Electrical Fixtures":     { "heightStandard": "BS7671_SOCKET_STD" },
+    "Electrical Equipment":    { "heightStandard": "BS8300_CONSUMER_UNIT" },
+    "Junction Boxes":          { "heightStandard": "BS7671_SWITCH_STD" },
+    "Communication Devices":   { "heightStandard": "BB103_DATA_SOCKET" },
+    "Data Devices":            { "heightStandard": "BB103_DATA_SOCKET" },
+    "Telephone Devices":       { "heightStandard": "BB103_DATA_SOCKET" },
+    "Security Devices":        { "heightStandard": "BS5839_SOUNDER" },
+    "Nurse Call Devices":      { "heightStandard": "HTM0601_NURSE_CALL" },
+    "Fire Alarm Devices":      { "heightStandard": "BS5839_MCP" },
+    "Fire Protection":         { "mountingHeightMm": 2400.0 },
+    "Sprinklers":              { "mountingHeightMm": 2700.0 },
+    "Air Terminals":           { "mountingHeightMm": 2700.0 },
+    "Lighting Fixtures":       { "mountingHeightMm": 2400.0 },
+    "Lighting Devices":        { "heightStandard": "BS5266_EMERG_LIGHT" },
+    "Mechanical Equipment":    { "mountingHeightMm": 2200.0 },
+    "Mechanical Control Devices": { "heightStandard": "BS7671_SWITCH_STD" },
+    "Duct Accessories":        { "mountingHeightMm": 2700.0 },
+    "Plumbing Fixtures":       { "heightStandard": "BS6465_BASIN" },
+    "Plumbing Equipment":      { "mountingHeightMm": 1500.0 },
+    "Specialty Equipment":     { "heightStandard": "HTM0201_OUTLET" }
+  },
+  "quickHeightsMm": [ 0, 150, 300, 450, 900, 1200, 1350, 1400, 2200, 2500, 3150 ]
+}

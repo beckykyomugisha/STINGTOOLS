@@ -29,6 +29,13 @@ namespace StingTools.Core.Placement
         public string Category    { get; set; } = "";
         public string VariantHint { get; set; } = "";
         public string Anchor      { get; set; } = "WALL_MIDPOINT";
+        /// <summary>F3 — optional per-layer mounting-height override (mm above host level /
+        /// FFL). 0 (default) ⇒ no override: the bridge falls back to the category default
+        /// (CategoryHeightDefaults), else the rule's built-in 300mm.</summary>
+        public double MountingHeightMm { get; set; } = 0.0;
+        /// <summary>F3 — optional HeightStandard key carried with a per-layer override, so the
+        /// placed fixture stamps its standard ref. "" when the override is a raw height.</summary>
+        public string HeightStandard { get; set; } = "";
     }
 
     public static class DwgSymbolMapRegistry
@@ -40,6 +47,8 @@ namespace StingTools.Core.Placement
             public string Category = "";
             public string VariantHint = "";
             public string Anchor = "WALL_MIDPOINT";
+            public double MountingHeightMm = 0.0;   // F3 — per-rule height override (0 = none)
+            public string HeightStandard = "";      // F3 — optional standard ref for the override
         }
 
         private sealed class MapData
@@ -73,6 +82,11 @@ namespace StingTools.Core.Placement
             public string Category { get; set; } = "";
             public string VariantHint { get; set; } = "";
             public string Anchor { get; set; } = "WALL_MIDPOINT";
+            /// <summary>F3 — per-layer mounting-height override (mm). 0 = leave to the category
+            /// default. Persisted as "mountingHeightMm" on the ByLayer rule.</summary>
+            public double MountingHeightMm { get; set; } = 0.0;
+            /// <summary>F3 — optional HeightStandard key persisted alongside the override.</summary>
+            public string HeightStandard { get; set; } = "";
         }
 
         /// <summary>Resolve a LAYER (no block name) to its STING FIXTURE mapping. D1 — this
@@ -143,6 +157,8 @@ namespace StingTools.Core.Placement
                 };
                 if (!string.IsNullOrWhiteSpace(i.VariantHint)) rule["variantHint"] = i.VariantHint;
                 rule["anchor"] = string.IsNullOrWhiteSpace(i.Anchor) ? "WALL_MIDPOINT" : i.Anchor;
+                if (i.MountingHeightMm > 0) rule["mountingHeightMm"] = i.MountingHeightMm;     // F3
+                if (!string.IsNullOrWhiteSpace(i.HeightStandard)) rule["heightStandard"] = i.HeightStandard; // F3
                 kept.Add(rule);
                 written++;
             }
@@ -198,7 +214,9 @@ namespace StingTools.Core.Placement
                         // each type after its variant, so a 'SOCKET_2G' block resolves the
                         // 'SOCKET_2G' type directly); the seed default is the final fallback.
                         VariantHint = string.IsNullOrWhiteSpace(r.VariantHint) ? bn : r.VariantHint,
-                        Anchor      = string.IsNullOrWhiteSpace(r.Anchor) ? "WALL_MIDPOINT" : r.Anchor
+                        Anchor      = string.IsNullOrWhiteSpace(r.Anchor) ? "WALL_MIDPOINT" : r.Anchor,
+                        MountingHeightMm = r.MountingHeightMm,   // F3 — per-layer override (0 = none)
+                        HeightStandard   = r.HeightStandard
                     });
             }
 
@@ -286,7 +304,9 @@ namespace StingTools.Core.Placement
                         Pattern     = (string)r["pattern"] ?? "",
                         Category    = cat,
                         VariantHint = (string)r["variantHint"] ?? "",
-                        Anchor      = (string)r["anchor"] ?? "WALL_MIDPOINT"
+                        Anchor      = (string)r["anchor"] ?? "WALL_MIDPOINT",
+                        MountingHeightMm = r["mountingHeightMm"] != null ? (double)r["mountingHeightMm"] : 0.0,  // F3
+                        HeightStandard   = (string)r["heightStandard"] ?? ""
                     });
                 }
             if (prepend) data.Rules.InsertRange(0, parsed);

@@ -3,6 +3,66 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (DWG bridge — import picker, automatic + flexible mounting heights, deploy-bat fix)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);
+`StingTools.dll` + `data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD` and the 2025/2026 Revit
+addins re-pinned to GOLD via the fixed `deploy-gold.bat`. **Model-adjacent — the sandbox
+cannot open Revit, so the import-switch, the per-fixture placement Z and the height stamp are
+verified by build + logic review only; confirm in Revit before merge.** Files: new
+`Core/Placement/CategoryHeightDefaults.cs` + `Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json`;
+edits to `Core/Placement/DwgFixtureBridge.cs`, `Core/Placement/DwgSymbolMapRegistry.cs`,
+`UI/DwgLayerMapDialog.cs`, `UI/PlacementCenter/StingPlacementCenter.xaml.cs`, `deploy-gold.bat`.
+
+**F1 — explicit Import picker (stop silently reading the wrong/only import).** The Map-DWG-Layers
+dialog gained an "Import:" dropdown listing EVERY detected `ImportInstance`
+(`<name> . id <ElementId> . [Import|Link] . view <owner view or "model">`, newest first) plus a
+"N DWG imports found" header. Switching it re-runs a caller callback that re-reads that import's
+`LayerCounts` and rebuilds the grid; the chosen `ImportInstance` is exposed via
+`DwgLayerMapDialog.SelectedImport`. The launcher records the picked import id (`_lastMappedImportId`)
+and `ResolveTargetImport` now prefers it, so the Place run targets the SAME import the dialog
+mapped. Import-capture findings: `FindImportInstances(doc)` is doc-scoped so it already lists
+imports owned by non-active views (surfaced via `ViewSpecific`/`OwnerViewId` -> view column);
+CAD links list too (flagged `[Link]` via `ImportInstance.IsLinked`). A Revit-format link / nested
+xref is NOT an `ImportInstance` and won't appear — the dropdown + "not a DWG import" note make
+that VISIBLE rather than silently substituting. Capture was NOT deepened for nested xrefs (low
+value, higher risk) — judgment call.
+
+**F2 — automatic standards-based mounting heights per category.** New corporate
+`STING_CATEGORY_HEIGHT_DEFAULTS.json` (+ `<project>/_BIM_COORD/category_height_defaults.json`
+override) maps each fixture category to a `STING_HEIGHT_STANDARDS.json` key (resolved to its
+`PreferredMm`) or a raw mm. `CategoryHeightDefaults.Resolve(doc, category)` is consulted when the
+bridge builds its synthetic `PlacementRule`, so DWG-placed sockets land at 450 mm
+(`BS7671_SOCKET_STD`), switches/JBs at 1350 mm (`BS7671_SWITCH_STD`), MCPs at 1400 mm
+(`BS5839_MCP`), data/comms at 350 mm (`BB103_DATA_SOCKET`), med-gas/specialty at 1500 mm
+(`HTM0201_OUTLET`), basins at 825 mm (`BS6465_BASIN`), emergency lighting at 2000 mm
+(`BS5266_EMERG_LIGHT`); ceiling-hosted categories (general lighting/sprinkler/air-terminal) carry
+sensible raw heights since they host to the ceiling face. The rule stamps `HeightStandard` +
+`MountingHeightMm`.
+
+**F3 — flexible per-layer override in the Map dialog.** A "Mounting height" column (always-live
+`DataGridTemplateColumn` + `ComboBox`, same non-reverting pattern as category/anchor) offers both
+the named `HeightStandards` entries (`<key> - <PreferredMm>mm (<Standard>)`) and a raw quick-list
+(`Custom: N mm`, from `quickHeightsMm` in JSON), pre-filled from the category default. A bulk
+"Height:" combo in the "Apply to selected" toolbar sets many rows at once. The resolved mm +
+standard persist on the ByLayer rule (`mountingHeightMm` / `heightStandard`) in the `_BIM_COORD`
+override; the bridge honours the per-layer override over the category default.
+
+**F4 — apply the height at placement + range-validate.** Verified `PlacementHostPreflight.Place`
+placed at the DWG insertion point's Z (≈ level) and did NOT apply `MountingHeightMm`, so every
+fixture sat at one Z. The bridge now lifts the placement point to `levelElevation + mountingHeight`
+(`ApplyMountingHeight`, level from the room else nearest level below the DWG Z — X/Y unchanged so
+wall/ceiling hosting still works) and stamps `MNT_HGT_MM` on the placed instance (the bridge
+bypasses the engine's `WriteAnchorParameters`). Out-of-range heights are reported as a non-blocking,
+de-duplicated warning via `HeightStandardsTable.ValidateRulesAgainstStandards`.
+
+**F5 — `deploy-gold.bat :pin` addin-pinning bug.** `$f=%1` substituted the quoted path into the
+double-quoted `-Command` string, producing nested double quotes that terminated the string early
+so `$f` was empty (`Cannot bind argument to parameter 'Path' because it is null`) and the addin was
+never re-pointed. Fixed to `$f='%~1'` (strip quotes, single-quote for PowerShell) + `if exist "%~1"`
++ `-LiteralPath`. Verified: the buggy form reproduces the exact null-Path error and leaves a stale
+manifest; the fixed form re-points every addin with exit 0.
+
 #### Completed (Map-DWG-Layers dialog — refresh, dropdown-revert, skip-all, multi-select)
 
 Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);

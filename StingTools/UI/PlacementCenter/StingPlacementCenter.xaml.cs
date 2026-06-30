@@ -58,6 +58,11 @@ namespace StingTools.UI.PlacementCenter
         private List<ElementId> _runResultIds  = new List<ElementId>();
         private string          _runReportText = string.Empty;
 
+        // F1 — the DWG import the user last chose in the Map-DWG-Layers dialog, so the
+        // subsequent "Place STING fixtures from DWG" run targets the SAME import (rather
+        // than silently re-resolving to a different / only one). -1 = none chosen yet.
+        private long _lastMappedImportId = -1;
+
         public StingPlacementCenter(UIApplication uiApp)
         {
             // Pre-register the IsDirty → "●" converter before InitializeComponent
@@ -2720,7 +2725,7 @@ namespace StingTools.UI.PlacementCenter
         /// prefer the one selected in Revit; else show a picker sorted newest-first (by
         /// ElementId). Returns null when none exist. Runs on the API thread (called from
         /// inside RunInlineAction), so Selection and a modal picker are both valid here.</summary>
-        private static Autodesk.Revit.DB.ImportInstance ResolveTargetImport(
+        private Autodesk.Revit.DB.ImportInstance ResolveTargetImport(
             Autodesk.Revit.UI.UIApplication app, Autodesk.Revit.DB.Document doc, out string note)
         {
             note = "";
@@ -2730,6 +2735,14 @@ namespace StingTools.UI.PlacementCenter
 
             if (imports.Count == 0) return null;
             if (imports.Count == 1) { note = "Using the only DWG import."; return imports[0]; }
+
+            // (a0) F1 — prefer the import the user chose in the Map-DWG-Layers dialog this
+            // session, so Map and Place target the SAME import.
+            if (_lastMappedImportId >= 0)
+            {
+                var prior = imports.FirstOrDefault(i => i.Id.Value == _lastMappedImportId);
+                if (prior != null) { note = "Using the DWG import chosen in Map DWG Layers."; return prior; }
+            }
 
             // (a) Prefer an ImportInstance currently selected in Revit.
             try
@@ -2782,6 +2795,123 @@ namespace StingTools.UI.PlacementCenter
             return "DWG import";
         }
 
+        /// <summary>F1 — owner view name for a view-specific import, else "model" for a
+        /// model-space import.</summary>
+        private static string DescribeImportView(Autodesk.Revit.DB.Document doc, Autodesk.Revit.DB.ImportInstance imp)
+        {
+            try
+            {
+                if (imp != null && imp.ViewSpecific && imp.OwnerViewId != Autodesk.Revit.DB.ElementId.InvalidElementId)
+                {
+                    var v = doc.GetElement(imp.OwnerViewId) as Autodesk.Revit.DB.View;
+                    if (!string.IsNullOrWhiteSpace(v?.Name)) return v.Name;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.DescribeImportView: {ex.Message}"); }
+            return "model";
+        }
+
+        /// <summary>F1 — build the dropdown choices for every detected import, newest first.
+        /// Surfaces import-vs-link and owner view so a link / import-in-another-view is VISIBLE
+        /// instead of silently substituted.</summary>
+        private static List<StingTools.UI.DwgImportChoice> BuildImportChoices(
+            Autodesk.Revit.DB.Document doc, List<Autodesk.Revit.DB.ImportInstance> imports)
+        {
+            var choices = new List<StingTools.UI.DwgImportChoice>();
+            foreach (var imp in (imports ?? new List<Autodesk.Revit.DB.ImportInstance>())
+                         .OrderByDescending(i => i.Id.Value))
+            {
+                bool isLink = false;
+                try { isLink = imp.IsLinked; } catch { }
+                choices.Add(new StingTools.UI.DwgImportChoice
+                {
+                    Import = imp,
+                    Id = imp.Id.Value,
+                    Name = DescribeImport(doc, imp),
+                    IsLink = isLink,
+                    ViewName = DescribeImportView(doc, imp)
+                });
+            }
+            return choices;
+        }
+
+        /// <summary>F2/F3 — build the mounting-height options for the Map dialog: the named
+        /// HeightStandards entries ("<key> - <PreferredMm>mm (<Standard>)") plus the raw
+        /// quick-list ("Custom: N mm"). Also returns the per-category default option so each
+        /// row pre-fills from its category.</summary>
+        private static List<StingTools.UI.DwgHeightOption> BuildHeightOptions(
+            Autodesk.Revit.DB.Document doc,
+            out Dictionary<string, StingTools.UI.DwgHeightOption> categoryDefaults)
+        {
+            var options = new List<StingTools.UI.DwgHeightOption>();
+            // Named standards first (sorted by height for a sensible order).
+            foreach (var kv in HeightStandardsTable.All.OrderBy(k => k.Value?.PreferredMm ?? 0))
+            {
+                var e = kv.Value;
+                if (e == null) continue;
+                double mm = e.PreferredMm > 0 ? e.PreferredMm : e.MinMm;
+                options.Add(new StingTools.UI.DwgHeightOption
+                {
+                    Display = $"{kv.Key} - {mm:F0}mm ({e.Standard})",
+                    Mm = mm,
+                    Standard = kv.Key
+                });
+            }
+            // Raw quick-list.
+            foreach (var mm in CategoryHeightDefaults.QuickHeightsMm(doc))
+                options.Add(new StingTools.UI.DwgHeightOption
+                {
+                    Display = $"Custom: {mm:F0} mm",
+                    Mm = mm,
+                    Standard = ""
+                });
+
+            // Per-category default option (resolved to a list entry where possible).
+            categoryDefaults = new Dictionary<string, StingTools.UI.DwgHeightOption>(StringComparer.OrdinalIgnoreCase);
+            var fixtures = StingTools.Core.Placement.DwgSymbolMapRegistry.GetFixtureCategories(doc);
+            foreach (var cat in fixtures)
+            {
+                var def = CategoryHeightDefaults.Resolve(doc, cat);
+                if (def == null || def.MountingHeightMm <= 0) continue;
+                var match = options.FirstOrDefault(o =>
+                    Math.Abs(o.Mm - def.MountingHeightMm) < 0.5 &&
+                    string.Equals(o.Standard ?? "", def.HeightStandard ?? "", StringComparison.OrdinalIgnoreCase));
+                categoryDefaults[cat] = match ?? new StingTools.UI.DwgHeightOption
+                {
+                    Display = string.IsNullOrWhiteSpace(def.HeightStandard)
+                        ? $"Custom: {def.MountingHeightMm:F0} mm"
+                        : $"{def.HeightStandard} - {def.MountingHeightMm:F0}mm",
+                    Mm = def.MountingHeightMm,
+                    Standard = def.HeightStandard ?? ""
+                };
+            }
+            return options;
+        }
+
+        /// <summary>F1 — read an import's layers and pre-fill seed rows from the existing
+        /// resolution chain (override / detector). Shared by the initial dialog build and the
+        /// dialog's import-switch callback so both target the SAME import consistently.</summary>
+        private static List<(string Layer, int Count, string Category, string Variant, string Anchor)>
+            BuildSeedRowsForImport(Autodesk.Revit.DB.Document doc, Autodesk.Revit.DB.ImportInstance import)
+        {
+            var rows = new List<(string, int, string, string, string)>();
+            if (doc == null || import == null) return rows;
+            try
+            {
+                var extraction = new StingTools.Model.CADToModelEngine(doc).PreviewImport(import);
+                var layerCounts = extraction?.LayerCounts ?? new System.Collections.Generic.Dictionary<string, int>();
+                foreach (var kv in layerCounts)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key) || kv.Key == "(unnamed)") continue;
+                    var m = StingTools.Core.Placement.DwgSymbolMapRegistry.ResolveLayer(doc, kv.Key);
+                    rows.Add((kv.Key, kv.Value, m?.Category ?? "", m?.VariantHint ?? "",
+                              string.IsNullOrWhiteSpace(m?.Anchor) ? "WALL_MIDPOINT" : m.Anchor));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter.BuildSeedRowsForImport: {ex.Message}"); }
+            return rows;
+        }
+
         /// <summary>Tier 1 — open the Map DWG Layers grid over the import's real layers,
         /// pre-filled from the auto-detector, and save ByLayer rules to the project
         /// override. The dialog shows on the API thread (like the MEP wizard); the next
@@ -2792,23 +2922,24 @@ namespace StingTools.UI.PlacementCenter
             RunInlineAction("Map DWG layers", app =>
             {
                 var doc = app?.ActiveUIDocument?.Document ?? _doc;
-                // Same import-selection logic as the Place run: selected > single > picker.
-                var import = ResolveTargetImport(app, doc, out _);
-                if (import == null)
+
+                // F1 — enumerate ALL imports so the dialog can list them (import/link/view).
+                List<Autodesk.Revit.DB.ImportInstance> allImports;
+                try { allImports = StingTools.Model.CADToModelEngine.FindImportInstances(doc) ?? new List<Autodesk.Revit.DB.ImportInstance>(); }
+                catch (Exception ex) { StingLog.Warn($"PlacementCenter.MapLayers.find: {ex.Message}"); allImports = new List<Autodesk.Revit.DB.ImportInstance>(); }
+                if (allImports.Count == 0)
                     return StingResultPanel.Create("STING — Map DWG Layers")
-                        .AddSection("RESULT").Text("No DWG/DXF import found (or none chosen). Link or import a DWG first.");
+                        .AddSection("RESULT").Text("No DWG/DXF import found. Link or import a DWG first. " +
+                            "(Note: a Revit-format link is not a DWG import and will not appear here.)");
+
+                // Default to the same import the Place run would pick (chosen > selected > newest).
+                var import = ResolveTargetImport(app, doc, out _);
+                if (import == null) import = allImports.OrderByDescending(i => i.Id.Value).First();
 
                 // Bust the per-document layer-rule cache so re-opening after importing
-                // another DWG re-reads the chosen import's layers (not a stale snapshot),
-                // and always re-run PreviewImport against the chosen import.
+                // another DWG re-reads the chosen import's layers (not a stale snapshot).
                 try { StingTools.Core.Placement.DwgSymbolMapRegistry.Reload(doc); }
                 catch (Exception ex) { StingLog.Warn($"PlacementCenter.MapLayers.Reload: {ex.Message}"); }
-
-                var extraction = new StingTools.Model.CADToModelEngine(doc).PreviewImport(import);
-                var layerCounts = extraction?.LayerCounts ?? new System.Collections.Generic.Dictionary<string, int>();
-                if (layerCounts.Count == 0)
-                    return StingResultPanel.Create("STING — Map DWG Layers")
-                        .AddSection("RESULT").Text("The import has no layered geometry to map.");
 
                 // Category list = the FIXTURE allowlist (D1) ∩ seed-mappable categories — the
                 // set the bridge can actually place. A fixture bridge never offers doors/
@@ -2822,29 +2953,42 @@ namespace StingTools.UI.PlacementCenter
                     categories = seedable.Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
                         .Select(kv => kv.Key).OrderBy(k => k, System.StringComparer.OrdinalIgnoreCase).ToList();
 
-                // Pre-fill each row from the existing resolution chain (override or LayerMapper).
-                var seedRows = layerCounts
-                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && kv.Key != "(unnamed)")
-                    .Select(kv =>
-                    {
-                        var m = StingTools.Core.Placement.DwgSymbolMapRegistry.ResolveLayer(doc, kv.Key);
-                        return (kv.Key, kv.Value, m?.Category ?? "", m?.VariantHint ?? "",
-                                string.IsNullOrWhiteSpace(m?.Anchor) ? "WALL_MIDPOINT" : m.Anchor);
-                    });
+                // F1 — dropdown choices + which one we start on.
+                var choices = BuildImportChoices(doc, allImports);
+                int startIdx = choices.FindIndex(c => c.Id == import.Id.Value);
+                if (startIdx < 0) startIdx = 0;
 
-                var dlg = new StingTools.UI.DwgLayerMapDialog(categories, seedRows);
+                // F2/F3 — height options + per-category defaults.
+                var heightOptions = BuildHeightOptions(doc, out var categoryDefaults);
+
+                // Seed rows for the starting import.
+                var seedRows = BuildSeedRowsForImport(doc, import);
+                if (seedRows.Count == 0 && choices.Count <= 1)
+                    return StingResultPanel.Create("STING — Map DWG Layers")
+                        .AddSection("RESULT").Text("The import has no layered geometry to map.");
+
+                var dlg = new StingTools.UI.DwgLayerMapDialog(
+                    categories, seedRows, heightOptions, categoryDefaults, choices, startIdx,
+                    // F1 repopulate callback — runs on the API thread (dialog shows on it).
+                    chosen => BuildSeedRowsForImport(doc, chosen as Autodesk.Revit.DB.ImportInstance));
                 try { var owner = System.Windows.Window.GetWindow(this); if (owner != null) dlg.Owner = owner; } catch { }
 
                 bool ok = dlg.ShowDialog() == true && dlg.Confirmed;
                 if (!ok)
                     return StingResultPanel.Create("STING — Map DWG Layers").AddSection("RESULT").Text("Cancelled — no changes saved.");
 
+                // F1 — remember the import the user mapped so the Place run targets the SAME one.
+                if (dlg.SelectedImport is Autodesk.Revit.DB.ImportInstance picked)
+                    _lastMappedImportId = picked.Id.Value;
+
                 var inputs = dlg.Rows.Select(r => new StingTools.Core.Placement.DwgSymbolMapRegistry.LayerRuleInput
                 {
                     Layer = r.Layer,
                     Category = r.IsMapped ? r.Category : "",   // "(skip)" → blank = unmap
                     VariantHint = r.Variant,
-                    Anchor = r.Anchor
+                    Anchor = r.Anchor,
+                    MountingHeightMm = r.MountingHeightMm,      // F3 — per-layer override (0 = category default)
+                    HeightStandard = r.HeightStandard
                 }).ToList();
 
                 int written;
@@ -2855,14 +2999,23 @@ namespace StingTools.UI.PlacementCenter
                 }
 
                 int mapped = inputs.Count(i => !string.IsNullOrWhiteSpace(i.Category));
+                string importLabel = (dlg.SelectedImport is Autodesk.Revit.DB.ImportInstance pi)
+                    ? $"{DescribeImport(doc, pi)} (id {pi.Id.Value})"
+                    : "(unknown)";
                 var panel = StingResultPanel.Create("STING — Map DWG Layers")
                     .SetSubtitle("Saved layer mappings to the project override (_BIM_COORD/dwg_symbol_map.json).")
                     .AddSection("RESULT")
+                    .Metric("Import", importLabel)
                     .Metric("Layers mapped", mapped.ToString())
                     .Metric("Rules written", written.ToString());
                 foreach (var i in inputs.Where(x => !string.IsNullOrWhiteSpace(x.Category)).Take(40))
-                    panel.Text($"{i.Layer} -> {i.Category}{(string.IsNullOrWhiteSpace(i.VariantHint) ? "" : " / " + i.VariantHint)} ({i.Anchor})");
-                panel.AddSection("NEXT").Text("Run 'Place STING fixtures from DWG symbols' — points on these layers now place too.");
+                {
+                    string h = i.MountingHeightMm > 0
+                        ? $" @ {i.MountingHeightMm:F0}mm{(string.IsNullOrWhiteSpace(i.HeightStandard) ? "" : " " + i.HeightStandard)}"
+                        : " @ category default";
+                    panel.Text($"{i.Layer} -> {i.Category}{(string.IsNullOrWhiteSpace(i.VariantHint) ? "" : " / " + i.VariantHint)} ({i.Anchor}){h}");
+                }
+                panel.AddSection("NEXT").Text("Run 'Place STING fixtures from DWG symbols' — points on these layers now place at their mounting height.");
                 return panel;
             });
         }

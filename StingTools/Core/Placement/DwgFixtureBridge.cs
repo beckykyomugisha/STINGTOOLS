@@ -65,6 +65,10 @@ namespace StingTools.Core.Placement
             public string Variant = "";
             public string Anchor = "WALL_MIDPOINT";
             public string Mode = "block";   // "block" | "point" | "cluster"
+            // F2/F3 — standards-based mounting height resolved for this fixture
+            // (per-layer override > category default). 0 ⇒ rule's built-in 300mm.
+            public double MountingHeightMm = 0.0;
+            public string HeightStandard = "";
         }
 
         /// <summary>Pick the (first / only, else selected) DWG import and run the bridge.
@@ -133,11 +137,12 @@ namespace StingTools.Core.Placement
                 if (map == null || string.IsNullOrWhiteSpace(map.Category)) { res.SkippedNoMapping++; continue; }
                 string seedId = CategoryToSeedRegistry.Resolve(doc, map.Category);
                 if (string.IsNullOrWhiteSpace(seedId)) { res.SkippedSeedless++; continue; }
+                ResolveHeight(doc, map, out double hMm, out string hStd);   // F2/F3
                 captured.Add(new Captured
                 {
                     Point = b.InsertionPoint, BlockName = b.BlockName ?? "", LayerName = b.LayerName ?? "",
                     Category = map.Category, SeedId = seedId, Variant = map.VariantHint ?? "", Anchor = map.Anchor,
-                    Mode = "block"
+                    Mode = "block", MountingHeightMm = hMm, HeightStandard = hStd
                 });
             }
 
@@ -185,11 +190,13 @@ namespace StingTools.Core.Placement
                     if (map == null || string.IsNullOrWhiteSpace(map.Category)) { res.SkippedNoMapping++; continue; }
                     string seedId = CategoryToSeedRegistry.Resolve(doc, map.Category);
                     if (string.IsNullOrWhiteSpace(seedId)) { res.SkippedSeedless++; continue; }
+                    ResolveHeight(doc, map, out double hMm, out string hStd);   // F2/F3
                     captured.Add(new Captured
                     {
                         Point = fp.Point, BlockName = fp.BlockName ?? "", LayerName = layer,
                         Category = map.Category, SeedId = seedId, Variant = map.VariantHint ?? "",
-                        Anchor = map.Anchor, Mode = string.IsNullOrWhiteSpace(fp.CaptureMode) ? "point" : fp.CaptureMode
+                        Anchor = map.Anchor, Mode = string.IsNullOrWhiteSpace(fp.CaptureMode) ? "point" : fp.CaptureMode,
+                        MountingHeightMm = hMm, HeightStandard = hStd
                     });
                 }
 
@@ -262,6 +269,9 @@ namespace StingTools.Core.Placement
                 return res;
             }
 
+            // F4 — non-blocking height range validation (warns once per standard+height).
+            ValidateHeights(placeable, res);
+
             if (dryRun)
             {
                 foreach (var grp in placeable.GroupBy(c => c.Category, StringComparer.OrdinalIgnoreCase))
@@ -292,19 +302,35 @@ namespace StingTools.Core.Placement
                             RuleId = $"dwg:{c.SeedId}",
                             CategoryFilter = c.Category,
                             VariantHint = c.Variant,
-                            AnchorType = string.IsNullOrWhiteSpace(c.Anchor) ? "WALL_MIDPOINT" : c.Anchor
+                            AnchorType = string.IsNullOrWhiteSpace(c.Anchor) ? "WALL_MIDPOINT" : c.Anchor,
+                            // F2/F3 — standards-based mounting height (per-layer override > category
+                            // default). When 0 the rule keeps its built-in 300mm default.
+                            MountingHeightMm = c.MountingHeightMm > 0 ? c.MountingHeightMm : 300.0,
+                            HeightStandard = c.HeightStandard ?? ""
                         };
 
-                        var placed = PlacementHostPreflight.Place(doc, symbol, room, c.Point, rule);
+                        // F4 — the DWG insertion point carries the DWG's plan Z (≈ level), not the
+                        // mounting height. Lift the placement point to (host level + mounting height)
+                        // so the fixture physically sits at the correct Z, not all at one default.
+                        XYZ placePoint = ApplyMountingHeight(doc, c.Point, room, c.MountingHeightMm);
+
+                        var placed = PlacementHostPreflight.Place(doc, symbol, room, placePoint, rule);
                         if (placed?.Placed != null)
                         {
                             res.Placed++;
                             res.PlacedIds.Add(placed.Placed.Id);
                             res.PlacedByCategory[c.Category] =
                                 (res.PlacedByCategory.TryGetValue(c.Category, out var n) ? n : 0) + 1;
+                            // F4 — stamp the mounting height onto the placed instance (the
+                            // bridge places via PlacementHostPreflight, which doesn't run the
+                            // engine's WriteAnchorParameters, so MNT_HGT_MM is set here). No-op
+                            // when the param is unbound. Only stamp a real (non-default) height.
+                            if (c.MountingHeightMm > 0)
+                                TrySetMntHgtMm(placed.Placed, c.MountingHeightMm);
+
                             // Provenance + the source DWG block/layer + capture mode (audit) — caller owns the tx.
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
-                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}"); }
+                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}"); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
                         }
                         else
@@ -414,6 +440,127 @@ namespace StingTools.Core.Placement
                 try { if (FixturePlacementEngine.PointInSpatial(r, p)) return r; } catch { }
             }
             return null; // best-effort: Place handles a null room (level-based / hosted)
+        }
+
+        // ── F2/F3/F4 height helpers ───────────────────────────────────────────
+
+        private const double MmToFt = 1.0 / 304.8;
+
+        /// <summary>F2/F3 — resolve the mounting height (mm) + standard for a captured fixture.
+        /// Precedence: the per-layer override carried on the mapping (F3) wins; else the
+        /// per-category standards-based default (F2, CategoryHeightDefaults); else 0 (the
+        /// bridge keeps the rule's built-in 300mm). Read-only; runs in the pre-pass.</summary>
+        private static void ResolveHeight(Document doc, DwgSymbolMapping map, out double mountingHeightMm, out string heightStandard)
+        {
+            mountingHeightMm = 0.0;
+            heightStandard = "";
+            if (map == null) return;
+
+            // F3 — explicit per-layer override (set in the Map-DWG-Layers dialog) wins.
+            if (map.MountingHeightMm > 0)
+            {
+                mountingHeightMm = map.MountingHeightMm;
+                heightStandard = map.HeightStandard ?? "";
+                return;
+            }
+
+            // F2 — category default (standards-based).
+            try
+            {
+                var def = CategoryHeightDefaults.Resolve(doc, map.Category);
+                if (def != null && def.MountingHeightMm > 0)
+                {
+                    mountingHeightMm = def.MountingHeightMm;
+                    heightStandard = def.HeightStandard ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.ResolveHeight '{map.Category}': {ex.Message}"); }
+        }
+
+        /// <summary>F4 — lift the DWG insertion point to (host level elevation + mounting
+        /// height). The DWG point carries the drawing's plan Z (≈ the level it was imported
+        /// onto), not the mounting height, so without this every fixture lands at one Z.
+        /// We replace Z with levelZ + mountingHeight so wall-hosted fixtures sit correctly;
+        /// the host search uses X/Y, so the bumped Z doesn't break hosting. When mounting
+        /// height is 0 (no standard) the original point is returned unchanged.</summary>
+        private static XYZ ApplyMountingHeight(Document doc, XYZ point, SpatialElement room, double mountingHeightMm)
+        {
+            if (point == null || mountingHeightMm <= 0) return point;
+            double levelZ;
+            try
+            {
+                // Prefer the room's level; else the nearest level below the DWG point's Z.
+                levelZ = room?.Level?.Elevation ?? NearestLevelElevation(doc, point.Z);
+            }
+            catch { levelZ = point.Z; }
+            return new XYZ(point.X, point.Y, levelZ + mountingHeightMm * MmToFt);
+        }
+
+        /// <summary>Nearest level at or below z (else the lowest level, else z itself).</summary>
+        private static double NearestLevelElevation(Document doc, double z)
+        {
+            try
+            {
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+                if (levels.Count == 0) return z;
+                Level best = null;
+                foreach (var l in levels)
+                {
+                    if (l.Elevation <= z + 1e-6) best = l;
+                    else break;
+                }
+                return (best ?? levels[0]).Elevation;
+            }
+            catch { return z; }
+        }
+
+        /// <summary>F4 — stamp MNT_HGT_MM (mm) onto the placed instance. No-op when the param
+        /// is unbound / read-only. Mirrors FixturePlacementEngine.TrySetDoubleMm semantics
+        /// (Double param stored in feet, String/Integer fall back).</summary>
+        private static void TrySetMntHgtMm(Element el, double valueMm)
+        {
+            try
+            {
+                var p = el?.LookupParameter("MNT_HGT_MM");
+                if (p == null || p.IsReadOnly) return;
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:  p.Set(valueMm * MmToFt); break;
+                    case StorageType.String:  p.Set(valueMm.ToString("F1")); break;
+                    case StorageType.Integer: p.Set((int)Math.Round(valueMm)); break;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.TrySetMntHgtMm={valueMm}: {ex.Message}"); }
+        }
+
+        /// <summary>F4 — non-blocking range validation: warn (one rolled-up line) when a
+        /// captured fixture's mounting height falls outside its HeightStandard's Min/Max.
+        /// Reuses HeightStandardsTable.ValidateRulesAgainstStandards by projecting the
+        /// captured heights onto throwaway PlacementRules.</summary>
+        private static void ValidateHeights(IEnumerable<Captured> captured, DwgFixtureBridgeResult res)
+        {
+            try
+            {
+                var rules = captured
+                    .Where(c => c != null && !string.IsNullOrWhiteSpace(c.HeightStandard) && c.MountingHeightMm > 0)
+                    .Select(c => new PlacementRule
+                    {
+                        RuleId = $"dwg:{c.Category}",
+                        CategoryFilter = c.Category,
+                        HeightStandard = c.HeightStandard,
+                        MountingHeightMm = c.MountingHeightMm
+                    })
+                    // Distinct by (standard, height) so a hundred sockets warn once, not 100×.
+                    .GroupBy(r => $"{r.HeightStandard}|{r.MountingHeightMm:F0}")
+                    .Select(g => g.First())
+                    .ToList();
+                if (rules.Count == 0) return;
+                var warnings = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
+                foreach (var w in warnings) res.Messages.Add(w);
+            }
+            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.ValidateHeights: {ex.Message}"); }
         }
     }
 }
