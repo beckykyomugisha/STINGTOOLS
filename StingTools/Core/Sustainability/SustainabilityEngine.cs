@@ -138,6 +138,22 @@ namespace StingTools.Core.Sustainability
         {
             var res = new SustainabilityRunResult { Setup = setup };
 
+            // ── SUS-5 — inject the data-driven physics constants (vertical-solar coeffs,
+            //    DHW target, indicative carbon class table) so the engine carries no magic
+            //    numbers. Defaults reproduce the prior behaviour when the JSON is absent. ──
+            try
+            {
+                var phys = GreenPhysicsRegistry.Active(doc);
+                AnnualEnergyEstimator.SolarBaseFactor  = phys.SolarBase;
+                AnnualEnergyEstimator.SolarRangeFactor = phys.SolarRange;
+                AnnualEnergyEstimator.DhwTargetC       = phys.DhwTargetC;
+                SustainMaterialCarbon.IndicativeClassFactorsOverride =
+                    phys.IndicativeClassFactors.Count > 0 ? phys.IndicativeClassFactors : null;
+                SustainMaterialCarbon.IndicativeDefaultOverride =
+                    phys.IndicativeClassFactors.Count > 0 ? phys.IndicativeDefaultKgCo2ePerKg : (double?)null;
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain physics inject: {ex.Message}"); }
+
             // ── Climate (monthly; fall back to design-day if no monthly row) ──
             res.Climate = ResolveClimate(doc, setup);
 
@@ -323,6 +339,15 @@ namespace StingTools.Core.Sustainability
                         if (string.IsNullOrEmpty(g.Note)) g.Note = "location/use not set — generic proxy, not your project";
                     }
                 }
+
+            // SUS-5 — surface any registry override-load failure (malformed / unreadable
+            // project override) so a silently-defaulted factor never masquerades as real
+            // data. Drained here so a later fixed load shows no stale warning.
+            foreach (var ovr in SustainOverrideHealth.Drain())
+            {
+                StingLog.Warn($"Sustain override-load failure - {ovr}");
+                res.Warnings.Insert(0, "OVERRIDE FAILED — " + ovr);
+            }
 
             return res;
         }

@@ -117,13 +117,27 @@ namespace StingTools.Core.Sustainability
         /// mid-range construction-material value. Clearly flagged as indicative.</summary>
         public const double IndicativeDefaultKgCo2ePerKg = 0.50;
 
+        /// <summary>SUS-5 — optional data-driven override of the indicative class table
+        /// (keyword → kgCO₂e/kg), loaded from STING_GREEN_PHYSICS.json + project override by
+        /// GreenPhysicsRegistry and injected by the engine per run. Null/empty → the in-code
+        /// table above is used, so unit tests and a missing data file are unchanged.</summary>
+        public static System.Collections.Generic.IReadOnlyDictionary<string, double> IndicativeClassFactorsOverride { get; set; }
+        public static double? IndicativeDefaultOverride { get; set; }
+
         /// <summary>Resolve a generic indicative carbon factor (kgCO₂e/kg) for a
         /// material name. Longest matching keyword wins; falls back to the broad
-        /// default. Public for unit tests.</summary>
+        /// default. Public for unit tests. SUS-5 — honours the JSON override when set.</summary>
         public static double IndicativeClassFactorPerKg(string material)
         {
             string lc = (material ?? "").ToLowerInvariant();
             double best = 0; int bestLen = -1;
+            var ovr = IndicativeClassFactorsOverride;
+            if (ovr != null && ovr.Count > 0)
+            {
+                foreach (var kv in ovr)
+                    if (lc.Contains(kv.Key.ToLowerInvariant()) && kv.Key.Length > bestLen) { best = kv.Value; bestLen = kv.Key.Length; }
+                return bestLen >= 0 ? best : (IndicativeDefaultOverride ?? IndicativeDefaultKgCo2ePerKg);
+            }
             foreach (var (key, f) in IndicativeClassFactors)
                 if (lc.Contains(key) && key.Length > bestLen) { best = f; bestLen = key.Length; }
             return bestLen >= 0 ? best : IndicativeDefaultKgCo2ePerKg;

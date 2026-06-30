@@ -93,10 +93,17 @@ namespace StingTools.Core.Sustainability
         // Days per month (non-leap) for hour integration.
         private static readonly int[] DaysInMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-        /// <summary>SUS-3 — DHW delivery target (°C). ΔT = this − climate cold-feed (≈ annual
+        /// <summary>SUS-3/5 — DHW delivery target (°C). ΔT = this − climate cold-feed (≈ annual
         /// mean air temp). 45 °C is a low-temp DHW target; raise for hotel/healthcare storage
-        /// (legionella). SUS-5 promotes this to JSON; here it replaces the flat 30 K ΔT.</summary>
-        private const double DhwTargetC = 45.0;
+        /// (legionella). Data-driven via GreenPhysicsRegistry (SUS-5); the engine sets it per
+        /// run, the default reproduces the prior behaviour. Replaces the flat 30 K ΔT.</summary>
+        public static double DhwTargetC = 45.0;
+
+        /// <summary>SUS-5 — vertical-solar transposition coefficients, data-driven via
+        /// GreenPhysicsRegistry (was the in-code 0.27 / 0.35). The engine sets these per run;
+        /// the defaults reproduce the prior behaviour.</summary>
+        public static double SolarBaseFactor  = 0.27;
+        public static double SolarRangeFactor = 0.35;
 
         /// <summary>
         /// Estimate annual energy for a set of LoadZones against monthly climate.
@@ -359,7 +366,7 @@ namespace StingTools.Core.Sustainability
         {
             double equatorFacing = latitudeDeg >= 0 ? 180.0 : 0.0;   // S in N hemi, N in S hemi
             double rad = (orientationDeg - equatorFacing) * Math.PI / 180.0;
-            return 0.27 + 0.35 * 0.5 * (1.0 + Math.Cos(rad));   // 0.27 (anti-equator) … 0.62 (equator-facing)
+            return SolarBaseFactor + SolarRangeFactor * 0.5 * (1.0 + Math.Cos(rad));   // base (anti-equator) … base+range (equator-facing)
         }
 
         private static double ScheduleMean(double[] sched)
