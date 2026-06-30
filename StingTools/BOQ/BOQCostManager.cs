@@ -698,6 +698,13 @@ namespace StingTools.BOQ
 
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
+            // CA-4 — TRUE whole-life cost: fold the monetised embodied carbon
+            // (carbon price × A1-A3) into the LCC. Operational carbon is
+            // building-level (added by the EDGE LCC), so 0 here. Zero-impact
+            // until COST_CARBON_PRICE_UGX_PER_KG is set.
+            double lifecycleInclCarbonUgx = StingTools.Core.Sustainability.CarbonLcc
+                .LifecycleCostInclCarbonUgx(lifecycleUgx, carbonKg, 0,
+                    CarbonPriceUgxPerKg(), LifecycleYears, LifecycleDiscountRate * 100.0);
 
             string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
@@ -724,6 +731,7 @@ namespace StingTools.BOQ
                 BiogenicKg = biogenicKg,
                 CarbonEstimated = carbonEstimated,
                 LifecycleCostUGX = lifecycleUgx,
+                LifecycleCostInclCarbonUGX = lifecycleInclCarbonUgx,
                 ResolvedNRM2Paragraph = paragraph,
                 Note = "",
                 Source = BOQRowSource.Model,
@@ -1663,6 +1671,12 @@ namespace StingTools.BOQ
         /// column when present (falls back to 2%/y for hard assets, 0.5%/y for shell).
         /// Discount rate = 3.5% (UK Treasury Green Book).
         /// </summary>
+        /// <summary>CA-4 — the project carbon price (UGX per kgCO₂e) from
+        /// project_config.json (COST_CARBON_PRICE_UGX_PER_KG). 0 = carbon not
+        /// priced, so the carbon-inclusive LCC equals the plain LCC.</summary>
+        internal static double CarbonPriceUgxPerKg()
+            => TagConfig.GetConfigDouble(StingTools.Core.Sustainability.CarbonLcc.CarbonPriceConfigKey, 0.0);
+
         private static double ComputeLifecycleCost(double capitalUgx, string catName)
         {
             if (capitalUgx <= 0) return 0;
@@ -3320,6 +3334,7 @@ namespace StingTools.BOQ
                 agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
                 agg.BiogenicKg = rows.Sum(r => r.BiogenicKg);   // WP-C — biogenic aggregates with fossil
                 agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
+                agg.LifecycleCostInclCarbonUGX = rows.Sum(r => r.LifecycleCostInclCarbonUGX); // CA-4
                 agg.RateConfidence = rows.Min(r => r.RateConfidence);
                 agg.ConstituentElementIds = rows
                     .Where(r => r.RevitElementId >= 0)

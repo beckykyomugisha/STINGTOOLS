@@ -157,6 +157,11 @@ namespace StingTools.BOQ
         public bool CarbonEstimated;
         public double NetCarbonKg => EmbodiedCarbonKg + BiogenicKg;
         public double LifecycleCostUGX;     // capital + maintenance NPV 25yr
+        // CA-4 — TRUE whole-life cost: LifecycleCostUGX + monetised carbon
+        // (carbon price × embodied A1-A3; operational carbon is folded at the
+        // building/EDGE level). Equals LifecycleCostUGX when no carbon price is
+        // set. Additive — safe default 0 for old saved rows.
+        public double LifecycleCostInclCarbonUGX;
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
         public string Note;
@@ -266,6 +271,7 @@ namespace StingTools.BOQ
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
                 LifecycleCostUGX = this.LifecycleCostUGX,
+                LifecycleCostInclCarbonUGX = this.LifecycleCostInclCarbonUGX,
                 ResolvedNRM2Paragraph = this.ResolvedNRM2Paragraph,
                 BOQLineRef = this.BOQLineRef,
                 Note = this.Note,
@@ -407,6 +413,12 @@ namespace StingTools.BOQ
         public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);    // A1-A3 fossil headline
         public double TotalBiogenicKg => AllItems.Sum(i => i.BiogenicKg);        // A1-A3 biogenic (≤0), reported separately
         public double TotalNetCarbonKg => TotalCarbonKg + TotalBiogenicKg;       // whole-life context only
+        // CA-4 — whole-life cost totals. Plain LCC (capital + maintenance NPV) and
+        // the carbon-inclusive LCC (plain + monetised embodied carbon). Equal when
+        // no carbon price is set.
+        public double TotalLifecycleCostUGX => AllItems.Sum(i => i.LifecycleCostUGX);
+        public double TotalLifecycleCostInclCarbonUGX => AllItems.Sum(i => i.LifecycleCostInclCarbonUGX);
+        public double EmbodiedCarbonCostUGX => TotalLifecycleCostInclCarbonUGX - TotalLifecycleCostUGX;
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
 

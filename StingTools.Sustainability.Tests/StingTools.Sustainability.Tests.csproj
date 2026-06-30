@@ -52,6 +52,8 @@
     <Compile Include="..\StingTools\Core\Sustainability\SustainHeader.cs" Link="Engines\SustainHeader.cs" />
     <!-- WS I10 — LCC NPV discounting (pure). -->
     <Compile Include="..\StingTools\Core\Sustainability\SustainNpv.cs" Link="Engines\SustainNpv.cs" />
+    <!-- CA-4 — carbon-as-cost / whole-life LCC math. -->
+    <Compile Include="..\StingTools\Core\Sustainability\CarbonLcc.cs" Link="Engines\CarbonLcc.cs" />
     <!-- WS I12 — per-Design-Option comparison (pure). -->
     <Compile Include="..\StingTools\Core\Sustainability\SustainOptionComparison.cs" Link="Engines\SustainOptionComparison.cs" />
     <!-- WS I13 — staleness state (pure). -->
