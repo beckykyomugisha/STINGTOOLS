@@ -277,7 +277,7 @@ STEEL,STRUCTURAL,CARBON_KG_PER_M3,12090,kgCO₂/m³,ICE v3.0 structural steel 1.
 STEEL,STRUCTURAL,DENSITY_KG_M3,7850,kg/m³,Steel density
 STEEL,GALVANISED,CARBON_KG_PER_M3,22372,kgCO₂/m³,ICE v3.0 galvanised sheet 2.85 kg/kg × 7850 (= Z-20 galv duct)
 STEEL,GALVANISED,DENSITY_KG_M3,7850,kg/m³,Steel density
-STEEL,STAINLESS,CARBON_KG_PER_M3,12090,kgCO₂/m³,as-shipped plain-steel basis (true stainless ~6.15 kg/kg pending)
+STEEL,STAINLESS,CARBON_KG_PER_M3,48278,kgCO₂/m³,ICE/worldsteel austenitic stainless 6.15 kg/kg × 7850 (≈4× plain steel)
 STEEL,STAINLESS,DENSITY_KG_M3,7850,kg/m³,Steel density
 COPPER,DEFAULT,CARBON_KG_PER_M3,31360,kgCO₂/m³,ICE v3.0 copper 3.50 kg/kg × 8960 (= Z-20 copper pipe)
 COPPER,DEFAULT,DENSITY_KG_M3,8960,kg/m³,Copper density

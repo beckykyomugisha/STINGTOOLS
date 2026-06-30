@@ -1314,6 +1314,11 @@ namespace StingTools.Core.Sustainability
                     string name = mat?.Name ?? "(unnamed)";
                     double m3 = kv.Value;
 
+                    // PM-5 — per-material waste from the shared table (else the passed-in
+                    // project default). Same table the cost path resolves through.
+                    double wastePctMat = StingTools.BOQ.WasteTable.ResolveWastePercent(
+                        name, mat?.MaterialClass, 0.0, wastePct);
+
                     // Full carbon-factor chain (per-m³ AND per-kg) + WLCA split — the
                     // BOQ-shared resolver, NOT the dead CarbonTrackingEngine.
                     var cf = CarbonFactorResolver.Resolve(doc, name);
@@ -1322,7 +1327,7 @@ namespace StingTools.Core.Sustainability
                         Material = name,
                         VolumeM3 = m3,
                         DensityKgM3 = DensityFor(name),
-                        WastePercent = wastePct,
+                        WastePercent = wastePctMat,
                         NetFactorPerM3 = cf.PerUnit == CarbonFactorUnit.KgCo2ePerM3 ? cf.Factor : 0,
                         NetFactorPerKg = cf.PerUnit == CarbonFactorUnit.KgCo2ePerKg ? cf.Factor : 0,
                         FactorIsEpdSpecific = cf.Source == "material-param"
@@ -1340,7 +1345,7 @@ namespace StingTools.Core.Sustainability
                     lines.Add(new MaterialLine
                     {
                         Material = name, Category = mat?.MaterialClass ?? "",
-                        VolumeM3 = m3, MassKg = outp.MassKg, WastePercent = wastePct,
+                        VolumeM3 = m3, MassKg = outp.MassKg, WastePercent = wastePctMat,
                         CarbonKg = outp.NetCarbonKg,
                         FossilCarbonKg = outp.FossilCarbonKg,
                         BiogenicCarbonKg = outp.BiogenicCarbonKg,
