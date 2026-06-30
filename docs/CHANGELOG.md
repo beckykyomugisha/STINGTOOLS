@@ -41,10 +41,18 @@ writes `COST_FLUCTUATIONS_UGX` — which **both** the AFC and the Final Account
 waterfalls now consume (AFC previously omitted fluctuations). Panel button + handler
 + workflow wiring; 6 worked-number tests.
 
+**PM-4 (CPM core) — critical-path engine.** New pure, tested `CpmEngine` (the
+scheduling math Revit doesn't provide): forward/backward pass → early/late
+start/finish, total + free float, critical path, with Kahn topological ordering +
+cycle detection. FS links in whole days (the working-calendar conversion + parser
+convergence are the Revit-coupled remainder). 7 worked-network tests (diamond
+network: A-B-D critical = 12 d, C carries 2 d float; cycle detection).
+
 - *Open (ROADMAP):* remaining PM-2 wirings (VO → next-cert "Adjustments" SOV section;
   clash → tracked issue/SLA → transmittal via `IssueStatusNormalizer`); PM-3 remainder
-  (dayworks, L&E, CVR, NRM1/OCE, CTC, commitments, accounting export); PM-4 CPM; PM-5
-  carbon data; PM-6/7/8.
+  (dayworks, L&E, CVR, NRM1/OCE, CTC, commitments, accounting export) + the
+  schedule-driven S-curve consuming CPM dates; PM-4 parser convergence / model-driven
+  % / Uganda calendar; PM-5 carbon data; PM-6/7/8.
 
 #### Completed (PM / Cost-Control — branch `claude/pm-cost-control`)
 

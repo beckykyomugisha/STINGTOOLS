@@ -23,6 +23,7 @@
     <Compile Include="..\StingTools\Core\CostPlan\CostPlanLine.cs" Link="CostPlanLine.cs" />
     <Compile Include="..\StingTools\Core\Variation\VariationModels.cs" Link="VariationModels.cs" />
     <Compile Include="..\StingTools\Core\Cost\FluctuationsEngine.cs" Link="FluctuationsEngine.cs" />
+    <Compile Include="..\StingTools\Core\Scheduling\CpmEngine.cs" Link="CpmEngine.cs" />
   </ItemGroup>
 
 </Project>
