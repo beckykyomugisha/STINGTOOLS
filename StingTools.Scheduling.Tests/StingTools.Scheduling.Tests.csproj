@@ -24,6 +24,12 @@
     <Compile Include="..\StingTools\Core\Schedule\WorkingCalendar.cs" Link="WorkingCalendar.cs" />
     <Compile Include="..\StingTools\Core\Schedule\ScheduleCpmBridge.cs" Link="ScheduleCpmBridge.cs" />
     <Compile Include="..\StingTools\Core\Schedule\CashFlowSCurve.cs" Link="CashFlowSCurve.cs" />
+    <!-- P0-7 — the Document-free 5D estimate seam + the one markup waterfall.
+         Linked so the consolidation invariant (the 5D estimate consumes the
+         canonical BOQ line totals + the canonical markup, with no second
+         qty×rate) is covered headlessly. Zero Autodesk.Revit.* imports. -->
+    <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BOQ\BoqTotals.cs" />
+    <Compile Include="..\StingTools\BOQ\Boq5DEstimateAssembler.cs" Link="BOQ\Boq5DEstimateAssembler.cs" />
   </ItemGroup>
 
 </Project>

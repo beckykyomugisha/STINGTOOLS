@@ -3,6 +3,86 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (P0-7 — one canonical costing procedure: kill the cost forks, branch `claude/pm-complete`)
+
+Element costing now flows through a single procedure. Previously the correct
+engine (`BOQ/BOQCostManager` — `BuildBOQDocument` → per-element
+`BuildLineItemFromElement` → `ResolveRate` via the `Rates/` provider chain +
+`MeasureQuantity` + `BoqTotals` markup + `CarbonFactorResolver`) was shadowed by
+three independent forks that each re-read `cost_rates_5d.csv` and did their own
+quantity × rate, so the numbers drifted. WP0 had already converged the carbon
+path + the design-options fork; this run finishes the job.
+
+**Published the canonical per-element seam.**
+- Extracted `BoqMarkupBreakdown` + `BoqTotals` out of `BOQModels.cs` into a new
+  Document-free `BOQ/BoqTotals.cs` (zero `Autodesk.Revit.*` imports) so the one
+  markup waterfall is linkable into the headless test projects.
+- Added `BOQ/Boq5DEstimateAssembler.cs` (Document-free): builds the 5D estimate
+  JObject from already-costed BOQ rows — groups by category, **sums the
+  canonical per-line totals** (never re-derives qty × rate), and applies
+  `BoqTotals.Compute` (incl VAT).
+- Published `BOQCostManager.ElementCostContext` + `CostElement(doc, el, ctx)` +
+  `ProjectTo5DRows(boq)` so other subsystems cost via the exact canonical
+  `BuildLineItemFromElement` instead of their own take-off.
+
+**Routed the 4D/5D cash-flow through it.** `Scheduling4DEngine.GenerateCostEstimate`
+no longer runs its own take-off. It calls `BuildBOQDocument`, projects the line
+items, and hands them to `Boq5DEstimateAssembler`. Retired: the per-unit
+`qty += 1` fallbacks, the hardcoded `0.888 kg/m` rebar constant, the own
+`qty × rate` lineTotal, the flat VAT-less markup, and the duplicate `BccBridge`
+live-rate read. `AutoCost5DCommand` drops its `_BIM_MANAGER/cost_rates_5d.csv`
+read (rates flow through the canonical `Rates/` chain) and is now `Manual` (the
+canonical take-off clears stale flags in its own transaction). The S-curve
+distribution (`GenerateCashFlow` over the real 4D schedule) is unchanged and now
+consumes canonical numbers.
+
+**Routed the BIMManager forks.** `Export5DCostData` costs every element via
+`BOQCostManager.CostElement` (one take-off shared by the CSV + XLSX mirror) —
+deleting the worst fork: `EstimateCost` (a hardcoded GBP category→rate table with
+own `rate × qty`) and `ExtractQuantity` (own 1-each fallback) that ignored both
+the CSV *and* the canonical engine. Output currency corrected to UGX with
+`RateSource`/`RateConfidence` columns. The COBie `ReplacementCost` fallback now
+reads category rates through the one loader (`BOQCostManager.LoadCsvRates`, UGX)
+instead of a private inline reader that mislabelled a USD column as the UGX
+replacement cost.
+
+**Retired the legacy exporter.** All three `BOQExportLegacy` dispatch sites
+(`WorkflowEngine`, `TempCommandModule`, `StingCommandHandler`) now route to the
+canonical `BOQ.BOQExportCommand`. `Temp.BOQExportCommand` (own `DiscMap` +
+`BOQ_TEMPLATE.csv` rate logic) is left compiled but unreferenced and marked
+retired — nothing can reach its divergent take-off.
+
+**Reconciled NRM1.** `CostPlan_Compare` adds a total-level reconciliation: the
+NRM1 benchmark estimate (GIFA × £/m², FX-converted to UGX) against the BOQ
+Contract Sum resolved through the shared `ContractSumResolver`. NRM1 stays a
+deliberately different *method*, but its total now ties to the same canonical
+contract-sum number — "one rate source, two deliberate views", not two
+accidental numbers.
+
+**Consolidation-invariant tests.** `StingTools.Scheduling.Tests` links the
+Document-free `Boq5DEstimateAssembler` + `BoqTotals` and adds 8 tests
+(`Boq5DConsolidationTests`): the 5D subtotal equals the sum of the canonical BOQ
+line totals (single source of truth); line totals are summed, never recomputed
+from qty × rate (proved with a loaded rate where total ≠ qty × rate); the grand
+total is the canonical `BoqTotals` waterfall incl VAT (and is *not* the retired
+flat formula); category grouping, discipline reconciliation, and zero-qty safety.
+Build clean (0 errors); touched test projects green — Scheduling 38, Boq 98,
+Cost 84.
+
+**Judgement calls / for in-Revit verification.**
+- The element → rate → quantity path is shared *by construction* (every consumer
+  calls `BuildLineItemFromElement`); that part needs the Revit API and is
+  verified in Revit (the 4D cash-flow now sourced from the real BOQ take-off;
+  COBie `ReplacementCost` / `Export5DCostData` from the canonical per-element
+  cost). The headless tests pin the Document-free seam both paths cross.
+- Per-project 5D rate overrides no longer come from a separate
+  `_BIM_MANAGER/cost_rates_5d.csv`; they flow through the canonical surfaces
+  (`<project>/_BIM_COORD/rate_card.json` + the MAT panel), the same as the BOQ.
+  `LoadCsvRates` (corporate `data/cost_rates_5d.csv`) remains the one CSV loader
+  inside the `Rates/` chain.
+- `ExportMeasuredQuantities` (a quantity-only CSV, no cost) keeps its own
+  geometry roll-up — it computes no rate × qty, so it is not a cost fork.
+
 #### Completed (Shared-parameter alignment — Material cost/carbon + water-efficiency, branch `claude/pm-complete`)
 
 Aligned the shared-parameter data surfaces with the latest Material-Manager
