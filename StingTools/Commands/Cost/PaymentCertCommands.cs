@@ -117,7 +117,11 @@ namespace StingTools.Commands.Cost
                 // For each SOV line (= NRM2 section), sum ASS_PMT_PCT_COMPLETE_NR
                 // weighted by element TotalUGX so the line-level % matches the
                 // £-weighted average completion across all elements in the section.
-                var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                // PM-6 — scope the sweep to STING-tracked categories (was unfiltered
+                // whole-model), the same fix applied to WeightedPctComplete.
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(StingTools.Core.SharedParamGuids.AllCategoryEnums))
+                    .WhereElementIsNotElementType();
                 var weighted = new Dictionary<string, (double weightSum, double valueSum)>(
                     StringComparer.OrdinalIgnoreCase);
 
