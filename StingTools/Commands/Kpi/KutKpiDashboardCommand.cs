@@ -245,6 +245,32 @@ namespace StingTools.Commands.Kpi
                 Row(sb, "SpecLink CSI coverage", $"{s.SpecCoveragePct:F1}% ({s.SpecAssigned}/{s.SpecTotal})", Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 Row(sb, "BMS points (Niagara)", $"{s.BmsPoints} ({s.BmsNoEndpoint} no endpoint)", Delta(s.BmsPoints, prev?.BmsPoints, ""));
                 sb.Append("</table>");
+
+                // SUS-6 — fold the latest EDGE/sustainability snapshot into the monthly
+                // management report so it carries the EDGE trend (energy/water/materials
+                // savings + level), not just tag/clash KPIs. Read-only; absent => skipped.
+                try
+                {
+                    string projDir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                    var edge = string.IsNullOrEmpty(projDir)
+                        ? null
+                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(projDir);
+                    if (edge != null)
+                    {
+                        sb.Append("<h3>EDGE / sustainability (latest snapshot)</h3>");
+                        sb.Append($"<p>As of {Esc(edge.Ts)} UTC &middot; STING-indicative; the EDGE App owns the certified figure.</p>");
+                        sb.Append("<table><tr><th>EDGE KPI</th><th>Value</th></tr>");
+                        Row2(sb, "EDGE level", $"{Esc(edge.EdgeLevel)} ({(edge.EdgePassed ? "pass" : "below target")})");
+                        Row2(sb, "Energy savings", $"{edge.EnergySavingsPct:F1}%");
+                        Row2(sb, "Water savings", $"{edge.WaterSavingsPct:F1}%");
+                        Row2(sb, "Material embodied-energy savings", $"{edge.MaterialEnergySavingsPct:F1}%");
+                        Row2(sb, "Embodied carbon", $"{edge.MaterialCarbonKgM2:F0} kgCO2e/m2");
+                        Row2(sb, "Operational carbon", $"{edge.OperationalCarbonKgYr:F0} kgCO2e/yr");
+                        sb.Append("</table>");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"KutKpi EDGE fold-in: {ex.Message}"); }
+
                 if (s.OpenClashBySeverity.Count > 0)
                 {
                     sb.Append("<h3>Open clashes by severity</h3><table><tr><th>Severity</th><th>Open</th></tr>");
@@ -262,6 +288,10 @@ namespace StingTools.Commands.Kpi
 
         private static void Row(StringBuilder sb, string k, string v, string d)
             => sb.Append($"<tr><td>{Esc(k)}</td><td>{Esc(v)}</td><td>{Esc(d)}</td></tr>");
+
+        // SUS-6 — two-column row for the folded-in EDGE snapshot table.
+        private static void Row2(StringBuilder sb, string k, string v)
+            => sb.Append($"<tr><td>{Esc(k)}</td><td>{Esc(v)}</td></tr>");
 
         public static string Delta(double now, double? prev, string unit, bool invert = false)
         {

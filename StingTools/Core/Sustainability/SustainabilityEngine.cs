@@ -1224,10 +1224,15 @@ namespace StingTools.Core.Sustainability
             // The take-off depends only on the MODEL + the carbon/energy dataset order
             // + waste — NOT on zones/occupancy/supply/target level. Key the sub-cache
             // accordingly so an energy/water-only change reuses it (WS E1).
+            // SUS-6 — also key on the CARBON-FACTOR CONTENT (the EPD override map's
+            // last-write time): re-stamping a verified EPD in boq_epd_map.json and re-running
+            // within the 60 s window (without force-refresh) must NOT serve stale carbon to
+            // the export / LCC consumers that reuse this cache.
             string matKey = (doc.PathName ?? "<no-doc>") + "|mat|"
                 + string.Join(",", fs.EmbodiedCarbon ?? new List<string>()) + "|"
                 + string.Join(",", fs.EmbodiedEnergy ?? new List<string>()) + "|"
-                + fs.Region + "|" + wastePctCfg.ToString("R");
+                + fs.Region + "|" + wastePctCfg.ToString("R")
+                + "|epd:" + EpdMapSignature(doc);
             if (!forceRefresh && _materialCache.TryGetValue(matKey, out var mhit)
                 && (DateTime.UtcNow - mhit.ts).TotalSeconds < CacheStaleSeconds)
                 return mhit.lines;
@@ -1235,6 +1240,25 @@ namespace StingTools.Core.Sustainability
             var lines = ComputeMaterialLines(doc, setup, wastePctCfg);
             _materialCache[matKey] = (lines, DateTime.UtcNow);
             return lines;
+        }
+
+        /// <summary>SUS-6 — a cheap content signature for the verified-EPD override map
+        /// (boq_epd_map.json last-write ticks). Folded into the material sub-cache key so an
+        /// EPD re-stamp invalidates the cached carbon take-off without a force-refresh.
+        /// (A material-PARAMETER carbon re-stamp still needs the dashboard's force-refresh;
+        /// noted here so the limit is explicit.)</summary>
+        private static string EpdMapSignature(Document doc)
+        {
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                if (string.IsNullOrEmpty(dir)) return "0";
+                string path = System.IO.Path.Combine(dir, "_BIM_COORD", "boq_epd_map.json");
+                return System.IO.File.Exists(path)
+                    ? System.IO.File.GetLastWriteTimeUtc(path).Ticks.ToString()
+                    : "0";
+            }
+            catch { return "0"; }
         }
 
         private static List<MaterialLine> ComputeMaterialLines(Document doc, SustainProjectSetup setup, double wastePct)
