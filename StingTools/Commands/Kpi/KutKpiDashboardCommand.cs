@@ -374,9 +374,47 @@ namespace StingTools.Commands.Kpi
              .Metric("Sheet ISO 19650 compliance", $"{snap.SheetCompliancePct:F1}%")
              .Metric("Stale elements", snap.Stale.ToString())
              .Metric("Model warnings", snap.Warnings.ToString())
-             .Metric("Exchange punctuality", "tracked in workflow log", "models published on time vs the exchange calendar")
-             .Metric("Review comment close-out", "via ReviewComments_Import", "import the Bluebeam session summary to compute")
-             .Metric("As-built capture currency", "construction stage", "days lag between site change and model update");
+             // PM-8 — these three are longitudinal / multi-party (exchange calendar,
+             // Bluebeam review sessions, site-change telemetry) and live server-side
+             // per the audit's Revit-API line; the Revit dashboard points at the
+             // source rather than fabricating a number.
+             .Metric("Exchange punctuality", "Planscape (server)", "models published on time vs the exchange calendar — longitudinal, tracked server-side")
+             .Metric("Review comment close-out", "ReviewComments_Import", "import the Bluebeam session summary to compute closed/total")
+             .Metric("As-built capture currency", "Planscape (server)", "days lag between site change and model update — needs site telemetry");
+
+            // PM-8 — real computed delivery + risk KPIs from the model-side engines.
+            {
+                var sectDel = b.AddSection("Delivery & risk (PM-8)");
+                try
+                {
+                    var risks = StingTools.Commands.Delivery.RiskStore.Load(doc);
+                    var rs = StingTools.Core.Delivery.RiskRegister.Summarise(risks, 5);
+                    sectDel.Metric("Open risks", rs.OpenCount.ToString(),
+                                   risks.Count == 0 ? "none raised — Risk_Raise against an element/zone" : null)
+                           .Metric("Open red risks", rs.RedResidualCount.ToString())
+                           .Metric("Avg residual (open)", rs.AverageResidualScore.ToString("F1"));
+                }
+                catch (Exception ex) { StingLog.Warn($"KPI risk roll-up: {ex.Message}"); }
+
+                // Deliverable lifecycle count + a pointer to the computed MIDP drift
+                // (Midp_DriftReport joins a plan CSV to the lifecycle and reports the
+                // on-programme %; kept there to avoid re-parsing the plan here).
+                try
+                {
+                    string projDir2 = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                    string delivJson = string.IsNullOrEmpty(projDir2) ? null
+                        : System.IO.Path.Combine(projDir2, "_BIM_COORD", "deliverables.json");
+                    int delivCount = 0;
+                    if (!string.IsNullOrEmpty(delivJson) && System.IO.File.Exists(delivJson))
+                    {
+                        try { delivCount = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(delivJson)).Count; }
+                        catch { /* shape varies — count best-effort */ }
+                    }
+                    sectDel.Metric("Deliverables tracked", delivCount.ToString(),
+                                   "run Midp_DriftReport with a plan CSV for the on-programme %");
+                }
+                catch (Exception ex) { StingLog.Warn($"KPI MIDP: {ex.Message}"); }
+            }
 
             // Owner-system coverage (Fohlio / SpecLink / Niagara)
             b.AddSection("Owner-system coverage")
