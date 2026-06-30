@@ -83,7 +83,7 @@ public class BoqController : ControllerBase
             DayworkPlantPct             = req.DayworkPlantPct ?? 112m,
             LocationFactor              = req.LocationFactor ?? 1.000m,
             PricingBasis                = req.PricingBasis ?? "Remeasure",
-            Currency                    = req.Currency ?? "GBP",
+            Currency                    = req.Currency ?? "UGX",
             Status                      = "Draft",
             Revision                    = "A",
             PrimaryClassificationSystemId = req.PrimaryClassificationSystemId,
@@ -201,9 +201,17 @@ public class BoqController : ControllerBase
             ProjectId     = projectId,
             Name          = req.Name,
             Kind          = req.Kind ?? "Tender",
-            Currency      = req.Currency ?? "GBP",
+            Currency      = req.Currency ?? "UGX",
             Description   = req.Description,
             CreatedBy     = User.Identity?.Name,
+            // CA-5 — store the markup breakdown the plugin pushes.
+            WorksValue         = req.WorksValue,
+            Preliminaries      = req.Preliminaries,
+            Overhead           = req.Overhead,
+            Contingency        = req.Contingency,
+            ContractSumExVat   = req.NetExVat,
+            Vat                = req.Vat,
+            ContractSumInclVat = req.ContractSum,
         };
         _db.BoqBaselines.Add(baseline);
         await _db.SaveChangesAsync();
@@ -349,7 +357,7 @@ public class BoqController : ControllerBase
                     Quantity             = grossQty,
                     UnitRate             = r.UnitRate,
                     LineTotal            = lineTotal,
-                    Currency             = r.Currency ?? "GBP",
+                    Currency             = r.Currency ?? "UGX",
                     LineKind             = r.LineKind ?? "Measured",
                     PricingBasis         = r.PricingBasis ?? "Remeasure",
                     EmbodiedCarbonPerUnit = carbonPerUnit,
@@ -413,7 +421,7 @@ public class BoqController : ControllerBase
             Kind       = req.Kind ?? "VO",
             Status     = "Draft",
             NetValue   = req.NetValue,
-            Currency   = req.Currency ?? "GBP",
+            Currency   = req.Currency ?? "UGX",
             BimIssueId = req.BimIssueId,
             // Phase 184o — reason + liability + EOT carried in from the plugin.
             Reason     = req.Reason ?? "Other",
@@ -562,7 +570,7 @@ public class BoqController : ControllerBase
             Form = req.Form ?? "NEC4",
             Status = "Draft",
             ValuationDate = req.ValuationDate ?? DateTime.UtcNow,
-            Currency = req.Currency ?? "GBP",
+            Currency = req.Currency ?? "UGX",
             ContractorName = req.ContractorName ?? "",
             EmployerName = req.EmployerName ?? "",
             ProjectName = req.ProjectName ?? "",
@@ -798,7 +806,11 @@ public record CreateBoqDocumentRequest(
     Guid PrimaryClassificationSystemId,
     Guid? SecondaryClassificationSystemId);
 
-public record CreateBaselineRequest(string Name, string? Kind, string? Currency, string? Description);
+public record CreateBaselineRequest(string Name, string? Kind, string? Currency, string? Description,
+    // CA-5 — optional BoqMarkupBreakdown pushed by the plugin so the server stores
+    // works value + contract sum, not works-only. All nullable for back-compat.
+    decimal? WorksValue = null, decimal? Preliminaries = null, decimal? Overhead = null,
+    decimal? Contingency = null, decimal? NetExVat = null, decimal? Vat = null, decimal? ContractSum = null);
 
 public record UpsertQuantityLineRequest(
     Guid ClassificationCodeId,

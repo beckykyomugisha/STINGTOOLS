@@ -1807,7 +1807,16 @@ namespace StingTools.BOQ
                     WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
                     WriteIfChanged(el, "CST_QTY_MEASURED", $"{qty:F3} {item.Unit}", ref written);
 
-                    // Computed total — stored as NUMBER parameter
+                    // Computed total — stored as NUMBER parameter.
+                    // CA-5 — ADDITIVITY: CST_MODELED_TOTAL_UGX is per-ELEMENT
+                    // (qty × this element's resolved rate). Σ over modelled
+                    // elements reconstructs the modelled-works subtotal and is the
+                    // correct weighting base for EVM/SOV %-completion. It is NOT
+                    // expected to equal an AGGREGATED bill row's TotalUGX
+                    // line-by-line: the bill may collapse mixed-rate near-identical
+                    // elements into one row at a representative rate, so per-element
+                    // Σ and the aggregated bill agree at the subtotal level, not row
+                    // by row. Both now resolve rates from the SAME provider chain.
                     TrySetNumber(el, "CST_MODELED_TOTAL_UGX", totalUgx, ref written);
 
                     WriteIfChanged(el, "CST_RATE_SOURCE", item.RateSource ?? "", ref written);
@@ -2973,7 +2982,7 @@ namespace StingTools.BOQ
             return rates;
         }
 
-        private static Dictionary<string, string> LoadCobieCostCodes()
+        internal static Dictionary<string, string> LoadCobieCostCodes()
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");

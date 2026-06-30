@@ -86,6 +86,14 @@ namespace StingTools.BOQ.Sync
                 contingency = Round(boq.ContingencyPct, 2),
                 overhead = Round(boq.OverheadPct, 2),
                 vat = Round(boq.VatPct, 2),            // WP1 — VAT now part of the canonical total → must be hashed
+                // CA-5 — an itemised-preliminaries edit or a measurement-standard
+                // change alters the contract sum / net quantities but left the flat
+                // prelim% / category lines untouched, so the old hash missed it.
+                // Hash the itemised flag, the RESOLVED prelim total, and the active
+                // measurement standard so these edits are detected as drift.
+                prelimsItemised = boq.PrelimsItemised,
+                prelimResolved = Round(boq.PrelimContributionUGX, 0),
+                measStd = boq.MeasurementStandardId ?? "nrm2",
                 currency = boq.Currency ?? "UGX",
                 fx = Round(boq.ExchangeRateUgxPerUsd, 4),
                 sections = boq.Sections

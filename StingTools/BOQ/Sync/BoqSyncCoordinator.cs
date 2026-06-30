@@ -85,13 +85,25 @@ namespace StingTools.BOQ.Sync
                 }
 
                 // 1. Create the baseline shell.
+                // CA-5 — push the full BoqMarkupBreakdown so the server stores the
+                // works value AND the contract sum (not works-only). Currency
+                // defaults to UGX (the project base), never GBP. The server ignores
+                // any field it doesn't yet persist (additive, back-compat).
+                var mk = boq.Markup;
                 var baselinePayload = new
                 {
                     name = string.IsNullOrEmpty(snapshotLabel) ? boq.SnapshotLabel : snapshotLabel,
                     kind = MapSnapshotTypeToBaselineKind(boq.SnapshotType),
                     currency = boq.Currency ?? "UGX",
                     description = $"Auto-pushed by STING plugin on {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}",
-                    checksum = checksum
+                    checksum = checksum,
+                    worksValue   = Math.Round(mk.Works, 0),
+                    preliminaries = Math.Round(mk.Prelims, 0),
+                    overhead     = Math.Round(mk.Overhead, 0),
+                    contingency  = Math.Round(mk.Contingency, 0),
+                    netExVat     = Math.Round(mk.NetExVat, 0),   // CA-2 lifecycle basis
+                    vat          = Math.Round(mk.Vat, 0),
+                    contractSum  = Math.Round(mk.GrandTotal, 0)  // VAT-inclusive presentation
                 };
 
                 Guid? baselineId = await CreateBaselineAsync(client, projectId, baselinePayload);

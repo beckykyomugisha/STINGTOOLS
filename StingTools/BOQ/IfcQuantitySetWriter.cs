@@ -76,15 +76,21 @@ namespace StingTools.BOQ
                         // `value <= 0` guard skipped it. Canonicalise through the
                         // BOQ engine's own table so both sides match.
                         string u = BOQCostManager.NormaliseUnit(item.Unit);
-                        double q = item.Quantity;
+                        // CA-5 — Net* = the NET measured quantity (after NRM2/CESMM
+                        // deductions); Gross* = the GROSS modelled quantity. The old
+                        // code stamped the net value into BOTH Gross* and Net*, which
+                        // mis-reported the gross as net-of-deductions. Fall back to net
+                        // when no gross was captured (legacy/aggregated rows).
+                        double q = item.Quantity;                                   // net
+                        double g = item.GrossQuantity > 0 ? item.GrossQuantity : q;  // gross
                         if (u == "m2")
                         {
-                            StampQuantity(el, qtoSetName, "GrossArea", q);
+                            StampQuantity(el, qtoSetName, "GrossArea", g);
                             StampQuantity(el, qtoSetName, "NetArea",   q);
                         }
                         else if (u == "m3")
                         {
-                            StampQuantity(el, qtoSetName, "GrossVolume", q);
+                            StampQuantity(el, qtoSetName, "GrossVolume", g);
                             StampQuantity(el, qtoSetName, "NetVolume",   q);
                         }
                         else if (u == "m")
@@ -93,7 +99,7 @@ namespace StingTools.BOQ
                         }
                         else if (u == "kg")
                         {
-                            StampQuantity(el, qtoSetName, "GrossWeight", q);
+                            StampQuantity(el, qtoSetName, "GrossWeight", g);
                             StampQuantity(el, qtoSetName, "NetWeight",   q);
                         }
                         else if (u == "each")

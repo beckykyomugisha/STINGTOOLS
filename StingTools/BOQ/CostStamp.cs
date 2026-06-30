@@ -145,8 +145,17 @@ namespace StingTools.BOQ
                 string cacheKey = $"{catName}|{disc}|{prod}|{matCode}|{rule.Unit ?? "each"}";
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
 
+                // CA-5 — the shared rate cache is keyed on category tuple, NOT element
+                // identity, so a per-element override (param CST_RATE_SOURCE=Override
+                // or an ES rate override) must BYPASS it — otherwise the overridden
+                // element would be stamped a sibling's generic category rate, skewing
+                // CST_MODELED_TOTAL_UGX and the EVM %-weighting that reads it.
+                bool hasOverride =
+                    string.Equals(ParameterHelpers.GetString(el, "CST_RATE_SOURCE"), "Override", StringComparison.OrdinalIgnoreCase)
+                    || StingTools.Core.Storage.StingCostRateOverrideSchema.Read(el) != null;
+
                 Rates.RateLookup lookup;
-                if (_rateCache.TryGetValue(cacheKey, out lookup))
+                if (!hasOverride && _rateCache.TryGetValue(cacheKey, out lookup))
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheHits);
                 }
@@ -154,9 +163,15 @@ namespace StingTools.BOQ
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheMisses);
                     double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                    // CA-5 — pass the REAL CSV + COBie rate tables (was two empty
+                    // dicts). The registry is cached per-document, so whichever caller
+                    // builds it first wins; with empty dicts here a tag-time stamp that
+                    // ran before BuildBOQDocument would have poisoned the bill's
+                    // registry with no CSV/COBie rates. Now CST_MODELED_TOTAL_UGX uses
+                    // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
-                        new Dictionary<string, (double rate, string unit)>(),
-                        new Dictionary<string, string>(),
+                        BOQCostManager.LoadCsvRates(),
+                        BOQCostManager.LoadCobieCostCodes(),
                         ugxPerUsd, ugxPerGbp);
                     var req = new RateRequest
                     {
@@ -172,8 +187,10 @@ namespace StingTools.BOQ
                     lookup = rateRegistry.Resolve(req);
                     // Bounded cache — drop if we exceed the cap. We don't
                     // need LRU semantics because a single tag operation
-                    // typically touches < 100 unique category tuples.
-                    if (lookup != null && _rateCache.Count < _rateCacheMaxEntries)
+                    // typically touches < 100 unique category tuples. CA-5 —
+                    // never cache an override result under the category key (it
+                    // would leak the per-element rate to siblings).
+                    if (lookup != null && !hasOverride && _rateCache.Count < _rateCacheMaxEntries)
                         _rateCache[cacheKey] = lookup;
                 }
                 if (lookup == null || lookup.UnitRate <= 0) return false;
