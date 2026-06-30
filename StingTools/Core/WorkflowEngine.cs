@@ -1629,6 +1629,8 @@ namespace StingTools.Core
                 case "Variation_Incorporate":      return new Commands.Cost.VariationIncorporateCommand();
                 case "FinalAccount_Reconcile":     return new Commands.Cost.FinalAccountReconcileCommand();
                 case "Tender_Adjudicate":          return new Commands.Cost.TenderAdjudicateCommand();
+                case "Cost_SetContractSum":        return new Commands.Cost.CostSetContractSumCommand();
+                case "Retention_Release":          return new Commands.Cost.RetentionReleaseCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();

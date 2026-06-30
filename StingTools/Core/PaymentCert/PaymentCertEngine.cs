@@ -176,7 +176,46 @@ namespace StingTools.Core.PaymentCert
                     Reason = $"Cert {cert.CertNumber} retention @ {cert.EffectiveRetentionPercent}%"
                 });
             }
+            // WP-Q — merge persisted RELEASE entries (first moiety at Practical
+            // Completion, second at end of Defects Liability) so TotalReleased /
+            // Balance go live instead of being dead fields.
+            try { ledger.Entries.AddRange(LoadReleases(doc, contractRef)); }
+            catch (Exception ex) { StingLog.Warn($"ComputeLedger releases: {ex.Message}"); }
             return ledger;
+        }
+
+        private static string ReleasePath(Document doc, string contractRef)
+        {
+            string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "payment_certs");
+            Directory.CreateDirectory(dir);
+            string safe = string.Concat((contractRef ?? "default")
+                .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+            return Path.Combine(dir, $"retention_releases_{safe}.json");
+        }
+
+        /// <summary>WP-Q — persisted retention RELEASE entries for a contract.</summary>
+        public static List<RetentionEntry> LoadReleases(Document doc, string contractRef)
+        {
+            try
+            {
+                string p = ReleasePath(doc, contractRef);
+                if (!File.Exists(p)) return new List<RetentionEntry>();
+                return JsonConvert.DeserializeObject<List<RetentionEntry>>(File.ReadAllText(p), _jsonSettings)
+                       ?? new List<RetentionEntry>();
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadReleases: {ex.Message}"); return new List<RetentionEntry>(); }
+        }
+
+        /// <summary>WP-Q — record a retention RELEASE (half-moiety at PC / second at
+        /// end of DLP). Additive; persisted alongside the certs.</summary>
+        public static void RecordRelease(Document doc, string contractRef, RetentionEntry release)
+        {
+            if (doc == null || release == null) return;
+            release.Kind = "release";
+            var list = LoadReleases(doc, contractRef);
+            list.Add(release);
+            File.WriteAllText(ReleasePath(doc, contractRef), JsonConvert.SerializeObject(list, _jsonSettings));
+            StingLog.Info($"Retention release recorded: {release.Reason} — {release.Amount:N0}.");
         }
 
         // ── Element write-back ─────────────────────────────────────────

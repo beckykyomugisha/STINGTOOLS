@@ -33,6 +33,26 @@ provenance. *Decision:* biogenic materials always resolve their fossil+biogenic 
 the V6 `CarbonStageTracker` (now sharing the A1-A3 basis), with the BOQ figure
 explicitly scoped "A1-A3 upfront".
 
+**WP-Q — QS lifecycle fills + the missing buttons (bounded subset).**
+- *Set Contract Sum / Award Baseline* (`Cost_SetContractSum`): freezes the canonical
+  VAT-inclusive Contract Sum (writes `COST_CONTRACT_SUM_UGX` + an "Award" snapshot)
+  so the Final Account / AFC use a frozen baseline instead of the fuzzy
+  `PickAwardSnapshot` name-grep (a negotiated figure can be pre-set in config).
+- *Retention Release* (`Retention_Release`): the dormant release half of
+  `RetentionLedger` is now live — `PaymentCertEngine` persists release entries
+  (`retention_releases_*.json`) which `ComputeLedger` merges, so `TotalReleased` /
+  `Balance` work; the command releases the first moiety at Practical Completion
+  (`COST_RETENTION_FIRST_MOIETY_PCT`, default 50%) and the balance at end of the
+  Defects Liability Period.
+- *Sign-off guard*: `BOQ_SignOff` now strongly prompts (Yes/No) before signing the
+  LIVE, unfrozen bill and tells the QS whether a snapshot exists — so a moving bill
+  isn't certified by accident.
+- *Exposed orphaned commands*: panel buttons added for `BOQRateHeatMap` (rate-source
+  heatmap) and `BOQPrepForExport` (pre-export normalisation).
+- *Open (ROADMAP):* the index-linked Fluctuations engine, contractor CVR, itemised
+  contra-charges register, Materials-on-Site capture, Dayworks build-up sheet, and
+  the distinct PC-sum mechanism — each scoped with its reuse pointer.
+
 **WP-A — Turn on the automation.** The incremental/stale machinery now actually
 engages: the dirty marker is enabled when the Cost Manager panel opens (already
 wired) and its `ChangeEpoch` keys the `BOQBccBridge` cache, so in-place edits run

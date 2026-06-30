@@ -1131,6 +1131,9 @@ namespace StingTools.UI
                      "Import N priced QS-Bill returns (one .xlsx per bidder), build a per-line × bidder comparison " +
                      "matrix, flag arithmetic errors / unpriced rows / rate outliers / front-loading, rank by corrected " +
                      "total and recommend the most advantageous. Award stamps the winner's rates as the contract baseline.", false),
+                    ("Prep for Export", "BOQPrepForExport",
+                     "Normalise the bill before export — resolve outstanding NRM2 paragraphs, fill missing line refs and " +
+                     "tidy descriptions — so the exported workbook is clean. Read-only preview.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Automation",
@@ -1161,6 +1164,8 @@ namespace StingTools.UI
                      "Configure the BCIS feed (base URL · API key · TTL) and the Planscape feed on/off. Saved to the project file only — the API key is never committed.", false),
                     ("★ Fetch live rates", "BOQ_FetchLiveRates",
                      "Pull candidate rates for the current bill from every configured feed, side-by-side with the current rate + confidence. Accept the best live rate per line or in bulk. Manual overrides are protected.", true),
+                    ("Rate-source heatmap", "BOQRateHeatMap",
+                     "Colour the model by each element's rate provenance (rate-book / CSV / override / live feed / unpriced) so you can see at a glance where the bill's prices come from. Read-only.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Change Detection",
@@ -1207,6 +1212,8 @@ namespace StingTools.UI
                      "Advance the cert state machine — Draft → Issued or Issued → Agreed", false),
                     ("Cert Register",    "PaymentCert_Register",
                      "Export CSV register of every cert (gross / retention / payable / signers / cumulative)", false),
+                    ("Release Retention","Retention_Release",
+                     "Release a retention moiety — first half at Practical Completion, the balance at the end of the Defects Liability Period. Surfaces the live retention balance.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Variations & Star Rates",
@@ -1247,6 +1254,8 @@ namespace StingTools.UI
                 {
                     ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
+                    ("Set Contract Sum", "Cost_SetContractSum",
+                     "Freeze the contract sum at award (writes COST_CONTRACT_SUM_UGX + an Award snapshot) so the Final Account and AFC use a frozen baseline instead of guessing from a snapshot name.", false),
                     ("Final Account", "FinalAccount_Reconcile",
                      "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures; persists to _BIM_COORD/final_account.json.", false),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
