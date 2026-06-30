@@ -3,6 +3,79 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (PM/Cost-Control + Sustainability COMPLETION — branch `claude/pm-complete`)
+
+Final completion run consolidating all remaining PM-1…PM-8 + sustainability work
+onto the single `claude/pm-complete` branch (no new branches/worktrees). Every
+engine-math commit was gated on `dotnet build` = 0 errors and `dotnet test` green
+on the touched projects. End state: **build 0 errors; StingTools.Cost.Tests 84/84
+· StingTools.Scheduling.Tests 30/30 · StingTools.Sustainability.Tests 429/429 ·
+StingTools.Boq.Tests 98/98.** The rescue branch `claude/pm4-wip-rescue` (06dd0b6e7)
+is integrated and **can now be deleted.**
+
+**Completion matrix — every PM-2…PM-8 item + the round-3 deferrals:**
+
+| Item | Status | Where |
+|---|---|---|
+| **STEP 0** — integrate rescued PM-4 scheduling slice; one CPM namespace | **DONE** | `Core/Schedule/*` feeds existing `Core/Scheduling/CpmEngine`; `ScheduleCpmCommands` |
+| **PM-4** converge MSP/XER parsers; read P6 TASKPRED + MSP links | **DONE** | `Core/Schedule/ScheduleImporter` (MSP/P6/XER, one parser) |
+| **PM-4** central %-complete normalisation; seconds-tolerant XER + warn-on-skip | **DONE** | `ScheduleImporter.NormalisePercent` / `TryParseXerDate` |
+| **PM-4** model-driven % complete (element-linked + phase-reached) | **DONE** | `Sched_ModelPercent` |
+| **PM-4** Uganda working-calendar into CPM | **DONE** | `WorkingCalendar` + `ScheduleCpmBridge`; override `_BIM_COORD/working_calendar.json` |
+| **PM-4** parser→bridge→engine round-trip tests; panel buttons | **DONE** | `StingTools.Scheduling.Tests`; "Programme & Cash-Flow" group |
+| **PM-3** schedule-driven cash-flow S-curve → real EVM PV | **DONE** | `CashFlowSCurve` + `Sched_SCurve`; EVM BCWS reads `SCurveStore` |
+| **PM-3** CVR (cost vs value, WIP, margin) | **DONE** | `Core/Cost/CvrEngine` + `Cvr_Report` |
+| **PM-3** loss & expense / compensation events off captured EOT days | **DONE** | `Core/Cost/LossAndExpenseEngine` + `LossExpense_Value` |
+| **PM-3** cost-to-complete at line level | **DONE** | `Core/Cost/CostToCompleteEngine` + `CostToComplete_Lines` |
+| **PM-3** commitments register (sub-contracts/POs → budget lines) | **DONE** | `Core/Cost/CommitmentsRegister` + `Commitments_Report` |
+| **PM-3** QuickBooks/Sage/Excel offline export (IIF/CSV) | **DONE** | `BOQ/ErpFormats` (IIF + Sage CSV) + panel ERP screen (CSV/P6 already shipped) |
+| **PM-3** NRM1 elemental cost plan + OCE (UGX/m² GIFA) | **DONE (pre-existing)** | `Core/CostPlan/*`; `CostPlan_Create/Compare/Export` (NRM2→NRM1 map) |
+| **PM-3** dayworks build-up (StarRate, BOQRowSource.Dayworks) | **DONE (via StarRate)** | `Variation_BuildStarRate` (labour+plant+material) + `BOQRowSource.Dayworks` row class |
+| **PM-3** per-material COST split + SYS-token rate matching | **DEFERRED (round-3)** | L/P/M split done (`BOQCostManager.ResolveRate`); SYS-token section/rate matching explicitly round-3-deferred |
+| **PM-2** approved VO → "Adjustments / Variations" SOV on next cert; BAC moves | **DONE** | `PaymentCertEngine.AppendAgreedVariations`; BAC via `ContractSumResolver` |
+| **PM-2** clash → tracked issue (IssueStatusNormalizer) into issues.json w/ SLA | **DONE** | `Clash_SyncIssues` (reuses `CreateIssue` SLA-by-priority) |
+| **PM-2** reconcile clashes.json ↔ issues.json; transmittal bundle | **DONE** | `Clash_SyncIssues` close-on-resolve + transmittal-ready CSV manifest |
+| **PM-2** unify contract-sum source (FinalAccount = AFC = EVM) | **DONE** | `FinalAccount` now uses `ContractSumResolver.ResolveBase` |
+| **PM-2** PaymentCert cumulative valuation by line/element id | **DONE (PM-2 prior)** | `SovLine.SectionKey` (survives section rename) |
+| **PM-5** per-material/category waste table (cost + carbon) | **DONE** | `BOQ/WasteTable` wired into `BOQCostManager` + `SustainElementCarbon`/`SustainabilityEngine` |
+| **PM-5** UG clamp-kiln brick factor | **DONE** | `STING_CARBON_FACTORS_UG.json` (clamp row 650; generic brick 350→420) |
+| **PM-5** Kampala/UG green-baseline rows | **DONE** | `STING_GREEN_BASELINES.json` 18 `UGA` rows (0A/1A/2A × 6 uses) |
+| **PM-5** stainless-steel factor | **DONE** | `MATERIAL_LOOKUP.csv` 12090→48278 (6.15 kg/kg × 7850) |
+| **PM-5** consolidate grid/benchmarks on GridCarbonRegistry | **DONE (PM-1)** | B6/benchmark wiring landed in PM-1; UG grid 0.05 confirmed |
+| **PM-6** ElementMulticategoryFilter on heavy sweeps | **DONE (key sweeps)** | `WeightedPctComplete`, `AggregatePercentComplete`, `Sched_ModelPercent`, CTC sweep |
+| **PM-6** reuse one weighted-%-complete (not duplicated) | **DONE** | `WeightedPctComplete` made internal, reused by CVR/CTC |
+| **PM-6** cache BuildBOQDocument across cert→EVM→AFC; collect-once MilestoneRegister/ListVariations; AuditLog last-hash | **PARTIAL** | per-command sweeps filtered; a shared per-run BOQ cache + the three collect-once micro-opts remain (separate command runs, low impact) |
+| **PM-7** de-dup `MapProviderIdToLegacySource` + `SuggestLiability` | **DONE** | `Rates/RateSourceLabels.ToLegacy`; `Core/Variation/VariationLiabilityRules.Suggest` |
+| **PM-7** consolidate the two ContractForm enums | **DONE (pre-existing)** | `ContractForm` (3) vs renamed `VariationContractForm` (8) — collision already removed |
+| **PM-7** rename one WorkflowEngine (Core preset vs Docs/Workflow state-machine) | **DEFERRED (reason)** | the two are namespace-separated (`StingTools.Core` vs `Planscape.Docs.Workflow`) and disambiguated by a `using` alias; the rename is a large mechanical change across many call sites — deferred to avoid destabilising the green build at end-of-run |
+| **PM-7** unify CST_* storage types + the three sidecar-folder roots | **DEFERRED (reason)** | `_BIM_COORD` / `STING_BIM_MANAGER` / `_bim_manager` are referenced across dozens of files with live JSON sidecars; a safe consolidation needs a back-compat migration shim — out of scope for a non-destabilising completion pass |
+| **PM-8** MIDP/TIDP engine (register joined to lifecycle; drift detection) | **DONE** | `Core/Delivery/MidpEngine` + `Midp_DriftReport` (joins `deliverables.json`) |
+| **PM-8** make KutKpiDashboard KPIs real (computed, auto-snapshotted, trended) | **DONE** | most KPIs already computed + auto-snapshot; added computed risk/delivery KPIs; the 3 string KPIs are longitudinal/multi-party (server-side per the audit's Revit-API line) |
+| **PM-8** risk register (data + lifecycle; thin "raise risk against element/zone" hook) | **DONE** | `Core/Delivery/RiskRegister` + `Risk_Raise`/`Risk_Report` (reuses issues sidecar + audit log) |
+
+**Acceptance narrative (§7) holds end-to-end:** NRM1 cost plan (UGX/GIFA) → seeds
+budget + EVM PV → NRM2 BoQ + tender adjudication → frozen contract-sum baseline →
+interim certs (18% VAT, retention) with approved variations flowing into the next
+cert + BAC → dayworks/fluctuations/L&E → schedule-driven S-curve + EVM CPI/SPI/
+EAC/CTC → CVR + client cost report → final account reconciled vs certified-to-date
++ retention-release ledger → carbon on EDGE/Uganda defaults throughout → export to
+QuickBooks/Sage/Excel offline.
+
+**New pure Core engines (all headless-tested):** `Core/Cost/{CvrEngine,
+LossAndExpenseEngine, CostToCompleteEngine, CommitmentsRegister}`, `Core/Delivery/
+{RiskRegister, MidpEngine}`, `BOQ/{WasteTable, ErpFormats}`, `BOQ/Rates/
+RateSourceLabels`, `Core/Variation/VariationLiabilityRules`.
+
+**Needs in-Revit runtime verification** (all built without a Revit host —
+Linux/headless): every new `IExternalCommand` — `Sched_Import/Cpm/ModelPercent/
+SCurve`, `Cvr_Report`, `LossExpense_Value`, `CostToComplete_Lines`,
+`Commitments_Report`, `Risk_Raise/Report`, `Midp_DriftReport`, `Clash_SyncIssues`
+— plus the new cost-panel button groups, the ERP IIF/Sage checkboxes, the
+VO→cert SOV append in `PaymentCert_Issue`, and the carbon-path waste re-weighting
+on a real model.
+
+---
+
 #### Completed (PM Cost-Control PM-2 — branch `claude/pm2-onward`)
 
 PM-2 wires the cost-side silos (no new features — connect what exists), consuming
