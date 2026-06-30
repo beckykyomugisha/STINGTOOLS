@@ -2344,8 +2344,14 @@ namespace StingTools.UI
                 });
 
                 var p6Cb = new CheckBox { Content = "Also write Primavera P6 activity-cost XML", IsChecked = false,
-                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) };
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4) };
                 sp.Children.Add(p6Cb);
+                var iifCb = new CheckBox { Content = "Also write QuickBooks IIF (general journal)", IsChecked = false,
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4) };
+                sp.Children.Add(iifCb);
+                var sageCb = new CheckBox { Content = "Also write Sage 50 nominal-journal CSV", IsChecked = false,
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) };
+                sp.Children.Add(sageCb);
 
                 var runBtn = new Button { Content = "Export", FontSize = 12, FontWeight = FontWeights.Bold,
                     Height = 28, MinWidth = 120, Background = GreenBrush, Foreground = Brushes.White,
@@ -2366,6 +2372,18 @@ namespace StingTools.UI
                             p6Path = System.IO.Path.Combine(dir, $"boq_p6_{stamp}.xml");
                             StingTools.BOQ.BoqErpExporter.ExportP6Xml(_boq, p6Path);
                         }
+                        string iifPath = null;
+                        if (iifCb.IsChecked == true)
+                        {
+                            iifPath = System.IO.Path.Combine(dir, $"boq_quickbooks_{stamp}.iif");
+                            StingTools.BOQ.BoqErpExporter.ExportIif(_boq, iifPath, DateTime.Now);
+                        }
+                        string sagePath = null;
+                        if (sageCb.IsChecked == true)
+                        {
+                            sagePath = System.IO.Path.Combine(dir, $"boq_sage_{stamp}.csv");
+                            StingTools.BOQ.BoqErpExporter.ExportSageCsv(_boq, sagePath, DateTime.Now);
+                        }
 
                         int withWbs = _boq.AllItems.Count(i => !string.IsNullOrEmpty(i.WbsCode));
                         var b = StingResultPanel.Create("Export to ERP");
@@ -2376,6 +2394,12 @@ namespace StingTools.UI
                          .Metric("Grand total", $"UGX {_boq.GrandTotalUGX:N0}");
                         if (p6Path != null)
                             b.AddSection("PRIMAVERA P6").Text($"P6 activity-cost XML: {p6Path}");
+                        if (iifPath != null || sagePath != null)
+                        {
+                            var acc = b.AddSection("ACCOUNTING");
+                            if (iifPath != null) acc.Text($"QuickBooks IIF: {iifPath}");
+                            if (sagePath != null) acc.Text($"Sage CSV: {sagePath}");
+                        }
                         b.SetCsvPath(csvPath);   // renders an inline "Open file" button
                         ShowInlineResult(b);
                     }
