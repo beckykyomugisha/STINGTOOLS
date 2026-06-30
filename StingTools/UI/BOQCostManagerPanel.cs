@@ -1236,6 +1236,20 @@ namespace StingTools.UI
                      "Advance an Approved variation to Incorporated (folded into the contract).", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("Programme & Cash-Flow (CPM)",
+                "Converged programme import, critical-path/float, model-driven % complete and the schedule-driven cash-flow S-curve that feeds EVM Planned Value.",
+                new[]
+                {
+                    ("Import Programme", "Sched_Import",
+                     "Import an MS Project .xml or Primavera .xer/.xml through the one converged parser — predecessors read, % complete normalised, dates seconds-tolerant — into the unified _BIM_COORD/schedule.json.", false),
+                    ("★ Critical Path", "Sched_Cpm",
+                     "Run the CPM forward/backward pass over the unified schedule — critical path, total & free float — on the Uganda working calendar (override at _BIM_COORD/working_calendar.json). CSV out.", true),
+                    ("Model % Complete", "Sched_ModelPercent",
+                     "Derive each task's % complete from model state — element-linked tasks from ASS_PMT_PCT_COMPLETE_NR, phase-named tasks from a phase-reached proxy — and write it back to feed EVM + the S-curve.", false),
+                    ("★ Cash-Flow S-Curve", "Sched_SCurve",
+                     "Time-phase each task's value over its own start/finish into a monthly cash-flow S-curve. This becomes the REAL EVM Planned Value (EVM reads PV off it). CSV out.", true),
+                }));
+
             sp.Children.Add(BuildActionGroup("Earned Value Management",
                 "PMI EVM metrics — BCWS / BCWP / ACWP, CPI, SPI, EAC, ETC, VAC, TCPI.",
                 new[]
