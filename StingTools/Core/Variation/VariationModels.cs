@@ -122,6 +122,34 @@ namespace StingTools.Core.Variation
     }
 
     /// <summary>
+    /// PM-7 — the single default-liability-by-reason rule. Was duplicated as
+    /// SuggestLiability / SuggestLiabilityShared in two variation commands; both
+    /// now delegate here. The QS picker still overrides this — it just front-loads
+    /// the typical assignment. Pure — unit-tested in StingTools.Cost.Tests.
+    /// </summary>
+    public static class VariationLiabilityRules
+    {
+        public static VariationLiability Suggest(VariationReason reason)
+        {
+            switch (reason)
+            {
+                case VariationReason.DesignChange:
+                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
+                case VariationReason.ClientRequest:
+                case VariationReason.ScopeAddition:
+                case VariationReason.ScopeOmission:
+                case VariationReason.Specification:
+                case VariationReason.Quality:              return VariationLiability.Employer;
+                case VariationReason.SiteCondition:
+                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
+                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
+                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
+                default:                                    return VariationLiability.Employer;
+            }
+        }
+    }
+
+    /// <summary>
     /// One variation instruction. Items are individual measured lines
     /// that price the change — typically minted from a BOQSnapshotDiff
     /// cluster.

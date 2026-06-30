@@ -347,27 +347,9 @@ namespace StingTools.Commands.Cost
         private static T EnumOr<T>(string s, T fallback) where T : struct
             => (!string.IsNullOrEmpty(s) && Enum.TryParse<T>(s, out var v)) ? v : fallback;
 
-        // Default liability suggestion per reason. The picker still lets
-        // the QS override — this just front-loads the common case so
-        // they can hit Enter on the typical assignment.
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiability(VariationReason reason)
-        {
-            switch (reason)
-            {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
-            }
-        }
+            => VariationLiabilityRules.Suggest(reason);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -1054,26 +1036,9 @@ namespace StingTools.Commands.Cost
             new() { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
         };
 
-        // Duplicates VariationFromDiffCommand.SuggestLiability so this
-        // command stays self-contained when the other one isn't used.
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiabilityShared(VariationReason reason)
-        {
-            switch (reason)
-            {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
-            }
-        }
+            => VariationLiabilityRules.Suggest(reason);
     }
 
     /// <summary>

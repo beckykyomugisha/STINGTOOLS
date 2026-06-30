@@ -825,20 +825,11 @@ namespace StingTools.BOQ
             }
         }
 
-        // Legacy RateSource labels — preserved so heat-maps and schedules
-        // built against the old shape keep working.
+        // Legacy RateSource labels — preserved so heat-maps and schedules built
+        // against the old shape keep working. PM-7: delegates to the one shared
+        // map (Rates.RateSourceLabels) so CostStamp can't drift from this.
         private static string MapProviderIdToLegacySource(string providerId)
-        {
-            switch (providerId ?? "")
-            {
-                case "param-override": return "Override";
-                case "es-override":    return "Override";
-                case "csv-default":    return "CSV";
-                case "cobie-typemap":  return "COBie";
-                case "default-baseline": return "Default";
-                default:               return providerId ?? "None";
-            }
-        }
+            => StingTools.BOQ.Rates.RateSourceLabels.ToLegacy(providerId);
 
         // ── Quantity derivation ────────────────────────────────────────────
         // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity

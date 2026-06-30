@@ -227,20 +227,9 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Warn($"CostStamp.WriteNumber {paramName} on {el?.Id}: {ex.Message}"); }
         }
 
-        // Mirrors BOQCostManager.MapProviderIdToLegacySource — kept local
-        // here to avoid a dependency on BOQCostManager from the tag
-        // pipeline.
+        // PM-7: delegates to the one shared map (Rates.RateSourceLabels) instead
+        // of the previously-duplicated local copy.
         private static string MapProviderIdToLegacySource(string providerId)
-        {
-            switch (providerId ?? "")
-            {
-                case "param-override": return "Override";
-                case "es-override":    return "Override";
-                case "csv-default":    return "CSV";
-                case "cobie-typemap":  return "COBie";
-                case "default-baseline": return "Default";
-                default:               return providerId ?? "None";
-            }
-        }
+            => StingTools.BOQ.Rates.RateSourceLabels.ToLegacy(providerId);
     }
 }
