@@ -24,6 +24,11 @@
     <Compile Include="..\StingTools\Core\Variation\VariationModels.cs" Link="VariationModels.cs" />
     <Compile Include="..\StingTools\Core\Cost\FluctuationsEngine.cs" Link="FluctuationsEngine.cs" />
     <Compile Include="..\StingTools\Core\Scheduling\CpmEngine.cs" Link="CpmEngine.cs" />
+    <!-- PM-3 lifecycle engines (CVR / L&E / line CTC / commitments). -->
+    <Compile Include="..\StingTools\Core\Cost\CvrEngine.cs" Link="Cost\CvrEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\LossAndExpenseEngine.cs" Link="Cost\LossAndExpenseEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\CostToCompleteEngine.cs" Link="Cost\CostToCompleteEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\CommitmentsRegister.cs" Link="Cost\CommitmentsRegister.cs" />
   </ItemGroup>
 
 </Project>
