@@ -6,9 +6,10 @@
 //    BCWP (Earned value)     = % complete × baseline budget
 //    ACWP (Actual cost)      = imported actuals from accounts
 //
-//  We compute:
-//    CV  = BCWP − ACWP                 (cost variance, GBP)
-//    SV  = BCWP − BCWS                 (schedule variance, GBP)
+//  We compute (all monetary values in the project base currency, UGX, NET of
+//  VAT — CA-2: actuals and certs are net, so EVM reconciles on the net basis):
+//    CV  = BCWP − ACWP                 (cost variance)
+//    SV  = BCWP − BCWS                 (schedule variance)
 //    CPI = BCWP / ACWP                 (cost performance index)
 //    SPI = BCWP / BCWS                 (schedule performance index)
 //    EAC = BAC / CPI                   (estimate at completion)
@@ -16,7 +17,8 @@
 //    VAC = BAC − EAC                   (variance at completion)
 //    TCPI = (BAC − BCWP) / (BAC − ACWP) (to-complete performance index)
 //
-//  BAC (budget at completion) = total contract value at baseline.
+//  BAC (budget at completion) = the net-of-VAT contract sum at baseline
+//  (ContractSumResolver: frozen COST_CONTRACT_SUM_UGX + agreed variations).
 //
 //  P5.3 of the Cost Management Implementation Plan.
 // ══════════════════════════════════════════════════════════════════════════

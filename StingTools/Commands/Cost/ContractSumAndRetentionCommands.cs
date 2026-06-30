@@ -36,36 +36,45 @@ namespace StingTools.Commands.Cost
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 if (boq == null) { TaskDialog.Show("Set Contract Sum", "Could not build the bill."); return Result.Cancelled; }
                 string ccy = boq.Currency ?? "UGX";
-                double grand = boq.GrandTotalUGX;     // canonical VAT-inclusive Contract Sum
+                // CA-2 — ONE BASIS: freeze the NET-OF-VAT contract sum (works +
+                // prelims + OH&P + contingency). The lifecycle (EVM/CVR/AFC/Final
+                // Account/certs) reconciles net because actuals + certs are net;
+                // VAT is presented only as the final line. The VAT-inclusive figure
+                // is shown for reference but is NOT what gets frozen.
+                double net = boq.NetTotalExVatUGX;    // the frozen Contract Sum basis
+                double grandInclVat = boq.GrandTotalUGX; // presentation reference only
                 double existing = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
 
                 var td = new TaskDialog("Set Contract Sum / Award Baseline")
                 {
-                    MainInstruction = $"Freeze the contract sum at {ccy} {grand:N0}?",
+                    MainInstruction = $"Freeze the contract sum at {ccy} {net:N0} (net of VAT)?",
                     MainContent =
-                        $"This writes COST_CONTRACT_SUM_UGX = {grand:N0} (the live, fully-marked-up Contract Sum) "
-                        + "and saves an \"Award\" snapshot, so the Final Account and Anticipated Final Cost use a "
-                        + "frozen baseline instead of guessing from a snapshot name.\n\n"
+                        $"This writes COST_CONTRACT_SUM_UGX = {net:N0} — the NET-OF-VAT Contract Sum "
+                        + "(works + prelims + OH&P + contingency) — and saves an \"Award\" snapshot, so the "
+                        + "Final Account, Anticipated Final Cost and EVM all reconcile on one net basis "
+                        + "(certs and actuals are net; VAT is the final presentation line only).\n\n"
+                        + $"For reference, VAT-inclusive total: {ccy} {grandInclVat:N0}.\n\n"
                         + (existing > 0 ? $"Current frozen value: {ccy} {existing:N0} (will be replaced).\n\n" : "")
                         + "Tip: to award a NEGOTIATED figure different from the live total, set COST_CONTRACT_SUM_UGX "
-                        + "in the project config before running this.",
+                        + "(net of VAT) in the project config before running this.",
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.No
                 };
                 if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-                TagConfig.SetConfigValue("COST_CONTRACT_SUM_UGX", grand);
+                TagConfig.SetConfigValue("COST_CONTRACT_SUM_UGX", net);
                 string snapPath = null;
                 try { snapPath = BOQCostManager.SaveSnapshot(doc, boq, "Award", "Award"); }
                 catch (Exception ex) { StingLog.Warn($"SetContractSum snapshot: {ex.Message}"); }
 
                 StingResultPanel.Create("Contract Sum frozen")
                     .AddSection("AWARD BASELINE")
-                    .Metric("Contract Sum (incl. VAT)", $"{ccy} {grand:N0}")
+                    .Metric("Contract Sum (net of VAT)", $"{ccy} {net:N0}")
+                    .Metric("VAT-inclusive (reference)", $"{ccy} {grandInclVat:N0}")
                     .Metric("Snapshot", snapPath != null ? "Award snapshot saved" : "(snapshot save failed — value still frozen)")
-                    .Text("The Final Account and Anticipated Final Cost now read this frozen Contract Sum.")
+                    .Text("Frozen NET of VAT — the Final Account, Anticipated Final Cost and EVM all reconcile on this one basis.")
                     .Show();
-                StingLog.Info($"Contract sum frozen at {ccy} {grand:N0} (award baseline).");
+                StingLog.Info($"Contract sum frozen at {ccy} {net:N0} net of VAT (award baseline).");
                 return Result.Succeeded;
             }
             catch (Exception ex)

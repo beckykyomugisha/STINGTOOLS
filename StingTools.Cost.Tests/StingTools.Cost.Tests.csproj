@@ -17,6 +17,8 @@
        These files carry zero Autodesk.Revit.* imports on purpose. -->
   <ItemGroup>
     <Compile Include="..\StingTools\Core\Evm\EvmPeriod.cs" Link="EvmPeriod.cs" />
+    <!-- CA-2 — the canonical markup waterfall, for the net-of-VAT basis tests. -->
+    <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BOQ\BoqTotals.cs" />
     <Compile Include="..\StingTools\Core\MoneyRound.cs" Link="MoneyRound.cs" />
     <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="IssueStatusNormalizer.cs" />
     <Compile Include="..\StingTools\Core\PaymentCert\PaymentCertModels.cs" Link="PaymentCertModels.cs" />

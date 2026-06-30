@@ -152,7 +152,10 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
                 string ccy = boq.Currency ?? "UGX";
-                double asBuilt = boq.GrandTotalUGX;
+                // CA-2 — ONE BASIS: the Final Account waterfall is net of VAT (certs,
+                // variations, PS movement and fluctuations are all net). VAT is the
+                // final presentation line only. asBuilt is the live NET total.
+                double asBuilt = boq.NetTotalExVatUGX;
 
                 // 1. Contract Sum at award (frozen). Priority: an explicit
                 //    COST_CONTRACT_SUM_UGX → a previously saved statement → the
@@ -174,8 +177,18 @@ namespace StingTools.Commands.Cost
                     else
                     {
                         var snap = PickAwardSnapshot(doc);
-                        if (snap != null) { contractSum = snap.GrandTotalUGX; contractSrc = $"snapshot \"{snap.Label}\" ({snap.Type})"; }
-                        else { contractSum = asBuilt; contractSrc = "live bill (NOT frozen — set COST_CONTRACT_SUM_UGX or save a tender snapshot)"; }
+                        if (snap != null)
+                        {
+                            // CA-2 — prefer the snapshot's net-of-VAT total; old snapshots
+                            // without it derive net from the VAT-inclusive grand using this
+                            // bill's VAT rate (GrandTotal = NetExVat × (1+vat%) exactly).
+                            double snapNet = snap.NetExVatUGX > 0
+                                ? snap.NetExVatUGX
+                                : snap.GrandTotalUGX / (1.0 + (boq.VatPct / 100.0));
+                            contractSum = snapNet;
+                            contractSrc = $"snapshot \"{snap.Label}\" ({snap.Type}, net of VAT)";
+                        }
+                        else { contractSum = asBuilt; contractSrc = "live bill net of VAT (NOT frozen — set COST_CONTRACT_SUM_UGX or save a tender snapshot)"; }
                     }
                 }
 

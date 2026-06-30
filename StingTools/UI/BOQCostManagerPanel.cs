@@ -6194,8 +6194,12 @@ namespace StingTools.UI
             try
             {
                 _scheduleActualToDate = ParseActualsBox();
+                // CA-2 — ONE BASIS: BAC is NET of VAT (actuals are net), matching
+                // ContractSumResolver. Using the VAT-inclusive GrandTotal biased
+                // CPI ~1.18× low. The frozen-sum + variations refinement lives in
+                // the command-side EvmCalculateCommand (it has the Document).
                 double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX
-                           : (_boq?.GrandTotalUGX ?? 0);
+                           : (_boq?.NetTotalExVatUGX ?? 0);
 
                 // Planned cost per phase = BAC × duration share.
                 double totalDays = _schedulePhases.Sum(p => Math.Max(1, (p.End - p.Start).TotalDays));
@@ -6557,7 +6561,8 @@ namespace StingTools.UI
                 SaveSchedule();
                 RecalcSchedule();
                 var asOf = ParseAsOf();
-                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.GrandTotalUGX ?? 0);
+                // CA-2 — BAC net of VAT (see RecalcSchedule), matching ContractSumResolver.
+                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.NetTotalExVatUGX ?? 0);
                 // G6 — mirror the period-aware EVM used on screen.
                 double bcws = 0, bcwp, acwp;
                 var lastPeriod = _schedulePeriods.OrderBy(p => p.Date).LastOrDefault();

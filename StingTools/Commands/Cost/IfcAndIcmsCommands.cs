@@ -4,7 +4,8 @@
 //  Cost_StampIfcQuantities — populate IFC4 Qto_* + Pset_StingCost on
 //                             every BOQ element so the next IFC export
 //                             carries the cost + quantity data.
-//  Cost_ExportIcms3Report  — produce a CSV with cost £ + carbon kgCO₂e
+//  Cost_ExportIcms3Report  — produce a CSV with cost (project currency, UGX)
+//                            + carbon kgCO₂e
 //                             side by side per ICMS3 group code.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
@@ -139,10 +140,24 @@ namespace StingTools.Commands.Cost
                     double overall = totalCarbon > 0
                         ? Math.Round(totalCost / totalCarbon, 2) : 0;
                     sw.WriteLine();
-                    sw.WriteLine("TOTAL,"
+                    sw.WriteLine("MEASURED_WORKS_TOTAL,"
                         + totalCost.ToString("F2", CultureInfo.InvariantCulture) + ","
                         + totalCarbon.ToString("F2", CultureInfo.InvariantCulture) + ","
                         + overall.ToString("F2", CultureInfo.InvariantCulture));
+
+                    // CA-2 — explicit reconciliation: the ICMS3 ledger above is the
+                    // MEASURED WORKS (Σ line totals). State what's excluded and tie
+                    // it to the one net-of-VAT contract-sum basis the lifecycle uses,
+                    // then the VAT-inclusive presentation total. C = currency value.
+                    string C(double v) => v.ToString("F2", CultureInfo.InvariantCulture);
+                    sw.WriteLine();
+                    sw.WriteLine("# Reconciliation to the agreed (net-of-VAT) basis:");
+                    sw.WriteLine($"Preliminaries,{C(boq.PrelimContributionUGX)},,");
+                    sw.WriteLine($"Overhead_and_Profit,{C(boq.OverheadProfitUGX)},,");
+                    sw.WriteLine($"Contingency,{C(boq.ContingencyUGX)},,");
+                    sw.WriteLine($"NET_CONTRACT_SUM_EX_VAT,{C(boq.NetTotalExVatUGX)},,");
+                    sw.WriteLine($"VAT_{boq.VatPct.ToString("0.#", CultureInfo.InvariantCulture)}pct,{C(boq.VatUGX)},,");
+                    sw.WriteLine($"GROSS_TOTAL_INCL_VAT,{C(boq.GrandTotalUGX)},,");
                 }
 
                 StingResultPanel.Create("ICMS3 report")

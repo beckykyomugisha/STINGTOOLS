@@ -1052,13 +1052,20 @@ namespace StingTools.Commands.Cost
         /// <summary>The frozen contract-sum BASE (no variations): COST_CONTRACT_SUM_UGX
         /// when set (Cost_SetContractSum), else the live bill. Use this where the
         /// caller adds variations separately (e.g. the Final Account waterfall) so
-        /// agreed VOs aren't double-counted.</summary>
+        /// agreed VOs aren't double-counted.
+        ///
+        /// CA-2 — ONE BASIS: this is NET OF VAT (works + prelims + OH&P +
+        /// contingency = NetTotalExVatUGX). The whole PM/QS lifecycle (EVM BAC,
+        /// CVR value, AFC, Final Account, cert SOV) reconciles on this net basis
+        /// because actuals, certs, variations and fluctuations are all net; VAT is
+        /// added only at the final presentation line. COST_CONTRACT_SUM_UGX is
+        /// therefore stored net-of-VAT (re-run Cost_SetContractSum after upgrade).</summary>
         public static double ResolveBase(Document doc, BOQDocument boq, out string source)
         {
             double frozen = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
-            if (frozen > 0) { source = "frozen Award baseline (COST_CONTRACT_SUM_UGX)"; return frozen; }
-            source = "live bill (no frozen contract sum)";
-            return boq?.GrandTotalUGX ?? 0;
+            if (frozen > 0) { source = "frozen Award baseline (COST_CONTRACT_SUM_UGX, net of VAT)"; return frozen; }
+            source = "live bill (net of VAT, no frozen contract sum)";
+            return boq?.NetTotalExVatUGX ?? 0;
         }
 
         /// <summary>Sum of agreed (Approved + Incorporated) variation values.</summary>

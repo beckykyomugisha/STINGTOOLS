@@ -477,6 +477,10 @@ namespace StingTools.BOQ
         public string Type;
         public DateTime Date;
         public double GrandTotalUGX;
+        // CA-2 — net-of-VAT contract-sum basis (works + prelims + OH&P +
+        // contingency). The PM/QS lifecycle anchors on this; old metas without it
+        // default to 0 and callers fall back to deriving net from GrandTotalUGX.
+        public double NetExVatUGX;
 
         // P1: server-sync provenance. Populated by BoqSyncCoordinator
         // after a successful push. SyncState values:

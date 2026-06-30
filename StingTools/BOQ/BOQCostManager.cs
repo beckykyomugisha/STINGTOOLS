@@ -2098,6 +2098,7 @@ namespace StingTools.BOQ
                             DateTimeStyles.None, out DateTime dt);
 
                         double total = 0;
+                        double netExVat = 0;   // CA-2 — net-of-VAT basis for the lifecycle
                         try
                         {
                             // Only parse the single top-level property we need.
@@ -2142,7 +2143,9 @@ namespace StingTools.BOQ
                                         }
                                         catch (Exception ex) { StingLog.Warn($"ListSnapshots prelimLines {Path.GetFileName(f)}: {ex.Message}"); }
                                     }
-                                    total = BoqTotals.Compute(works, prelimsAbs, oh, con, vat).GrandTotal;
+                                    var mk = BoqTotals.Compute(works, prelimsAbs, oh, con, vat);
+                                    total = mk.GrandTotal;
+                                    netExVat = mk.NetExVat;   // CA-2 — net-of-VAT contract-sum basis
                                 }
                             }
                         }
@@ -2171,6 +2174,7 @@ namespace StingTools.BOQ
                         list.Add(new BOQSnapshotMeta
                         {
                             Path = f, Label = label, Type = type, Date = dt, GrandTotalUGX = total,
+                            NetExVatUGX = netExVat,
                             Checksum = checksum,
                             ServerBaselineId = serverBaselineId,
                             SyncState = syncState

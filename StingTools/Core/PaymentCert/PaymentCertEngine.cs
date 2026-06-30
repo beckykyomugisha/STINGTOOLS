@@ -114,7 +114,7 @@ namespace StingTools.Core.PaymentCert
         public static List<SovLine> SovFromSnapshot(BOQ.BOQDocument snapshot)
         {
             if (snapshot == null) return new List<SovLine>();
-            return snapshot.Sections.Select(s => new SovLine
+            var lines = snapshot.Sections.Select(s => new SovLine
             {
                 Section = string.IsNullOrEmpty(s.NRM2Section) ? s.Name : s.NRM2Section,
                 // PM-2 — stable cumulative-valuation key (survives a section rename).
@@ -125,6 +125,31 @@ namespace StingTools.Core.PaymentCert
                 PreviouslyCertified = 0,
                 MaterialsOnSite = 0
             }).ToList();
+
+            // CA-2 — ONE BASIS: carry preliminaries, OH&P and contingency as
+            // explicit SOV lines so Σ ContractValue equals the NET-OF-VAT contract
+            // sum (works + prelims + OH&P + contingency). Without these the SOV
+            // tops out at the works subtotal and a cert can never reach the
+            // contract sum. The retention cap (Σ ContractValue × ret%) then rides
+            // the same net basis. VAT is added only on the cert's final line.
+            void AddMarkup(string section, string key, double value)
+            {
+                if (value <= 0.005) return;
+                lines.Add(new SovLine
+                {
+                    Section = section,
+                    SectionKey = key,
+                    Description = section,
+                    ContractValue = Math.Round(value, 2),
+                    PercentComplete = 0,
+                    PreviouslyCertified = 0,
+                    MaterialsOnSite = 0
+                });
+            }
+            AddMarkup("Preliminaries", "MARKUP|PRELIMS", snapshot.PrelimContributionUGX);
+            AddMarkup("Overhead & Profit", "MARKUP|OHP", snapshot.OverheadProfitUGX);
+            AddMarkup("Contingency", "MARKUP|CONT", snapshot.ContingencyUGX);
+            return lines;
         }
 
         /// <summary>

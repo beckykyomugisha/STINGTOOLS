@@ -353,8 +353,12 @@ namespace StingTools.Commands.Cost
                 }
                 else
                 {
-                    contractSum = grand;
-                    contractSumBasis = "live BOQ grand total — no frozen baseline / cert, assumption";
+                    // CA-2 — ONE BASIS: the fallback must be NET of VAT, like the
+                    // frozen-baseline and cert-SOV paths above. Using the
+                    // VAT-inclusive grand here made the contract-sum definition
+                    // flip basis depending on which source resolved.
+                    contractSum = boq.NetTotalExVatUGX;
+                    contractSumBasis = "live BOQ net-of-VAT total — no frozen baseline / cert, assumption";
                 }
 
                 // G2 — provisional-sum movement (Σ reconciled actual − original)
