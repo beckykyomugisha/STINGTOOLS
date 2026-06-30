@@ -1063,26 +1063,38 @@ namespace StingTools.Commands.Cost
     /// </summary>
     internal static class ContractSumResolver
     {
-        public static double Resolve(Document doc, BOQDocument boq, out string source)
+        /// <summary>The frozen contract-sum BASE (no variations): COST_CONTRACT_SUM_UGX
+        /// when set (Cost_SetContractSum), else the live bill. Use this where the
+        /// caller adds variations separately (e.g. the Final Account waterfall) so
+        /// agreed VOs aren't double-counted.</summary>
+        public static double ResolveBase(Document doc, BOQDocument boq, out string source)
         {
             double frozen = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
-            double agreedVo = 0;
+            if (frozen > 0) { source = "frozen Award baseline (COST_CONTRACT_SUM_UGX)"; return frozen; }
+            source = "live bill (no frozen contract sum)";
+            return boq?.GrandTotalUGX ?? 0;
+        }
+
+        /// <summary>Sum of agreed (Approved + Incorporated) variation values.</summary>
+        public static double AgreedVariationsUGX(Document doc)
+        {
             try
             {
-                agreedVo = VariationEngine.ListVariations(doc)
+                return VariationEngine.ListVariations(doc)
                     .Select(VariationEngine.Load).Where(v => v != null)
                     .Where(v => v.Status == VariationStatus.Approved || v.Status == VariationStatus.Incorporated)
                     .Sum(v => v.TotalValue);
             }
-            catch (Exception ex) { StingLog.Warn($"ContractSumResolver variations: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"ContractSumResolver variations: {ex.Message}"); return 0; }
+        }
 
-            if (frozen > 0)
-            {
-                source = "frozen Award baseline + agreed variations";
-                return frozen + agreedVo;
-            }
-            source = "live bill (no frozen contract sum) + agreed variations";
-            return (boq?.GrandTotalUGX ?? 0) + agreedVo;
+        /// <summary>The contract sum INCLUDING agreed variations — the EVM BAC / AFC
+        /// anticipated basis.</summary>
+        public static double Resolve(Document doc, BOQDocument boq, out string source)
+        {
+            double baseSum = ResolveBase(doc, boq, out source);
+            source += " + agreed variations";
+            return baseSum + AgreedVariationsUGX(doc);
         }
     }
 }

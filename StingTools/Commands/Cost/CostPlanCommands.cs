@@ -83,6 +83,21 @@ namespace StingTools.Commands.Cost
                 var plan = CostPlanEngine.Create(doc, buildingType, gifa, label: "Concept");
                 string path = CostPlanEngine.Save(doc, plan);
 
+                // PM-2 — the elemental cost plan auto-seeds the project budget
+                // (PROJECT_BUDGET_UGX, FX-converted), so the budget-variance and the
+                // forecast read the plan's GrandTotalLikely instead of needing a
+                // separate manual budget entry. ReadProjectBudget consumes this.
+                double budgetUgx = plan.GrandTotalLikely;
+                string pc = (plan.Currency ?? "UGX").ToUpperInvariant();
+                if (pc == "USD") budgetUgx *= TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                else if (pc == "GBP") budgetUgx *= TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                try
+                {
+                    TagConfig.SetConfigValue("PROJECT_BUDGET_UGX",
+                        Math.Round(budgetUgx, 0).ToString("F0", CultureInfo.InvariantCulture));
+                }
+                catch (Exception ex) { StingLog.Warn($"CostPlan budget seed: {ex.Message}"); }
+
                 StingResultPanel.Create("Cost plan created")
                     .SetSubtitle($"{buildingType} · {gifa:N0} m² GIFA")
                     .AddSection("PLAN")

@@ -51,18 +51,23 @@ namespace StingTools.Core.PaymentCert
                 .ToList();
 
             // Carry previously-certified per SOV line.
+            // PM-2 — carry the previously-certified value forward keyed on the
+            // STABLE SectionKey (NRM2 § + discipline), not the free-text Section.
+            // Renaming a section used to miss the join → PreviouslyCertified reset
+            // to 0 → the next cert over-paid the full earned value again.
+            static string KeyOf(SovLine l) => string.IsNullOrEmpty(l.SectionKey) ? l.Section : l.SectionKey;
             var priorByLine = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             if (prior.Count > 0)
             {
                 foreach (var line in prior[0].Lines)
                 {
-                    priorByLine[line.Section] =
+                    priorByLine[KeyOf(line)] =
                         line.PreviouslyCertified + line.GrossThisCert - line.MaterialsOnSite;
                 }
             }
             foreach (var line in currentSov)
             {
-                priorByLine.TryGetValue(line.Section, out double prev);
+                priorByLine.TryGetValue(KeyOf(line), out double prev);
                 line.PreviouslyCertified = prev;
             }
 
@@ -74,6 +79,8 @@ namespace StingTools.Core.PaymentCert
             // UK 20% / an inert 100%.
             double vatPct = StingTools.Core.TagConfig.GetConfigDouble("BOQ_TENDER_VAT_PCT", 18.0);
             double halfAtPct = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_HALF_AT_PCT", 95.0);
+            // PM-2 — contract-specific: retention on work-done-only vs MoS-inclusive.
+            bool retExclMos = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_EXCLUDES_MOS", 0.0) > 0;
             var cert = new PaymentCertificate
             {
                 ContractRef = contractRef,
@@ -85,7 +92,8 @@ namespace StingTools.Core.PaymentCert
                 Currency = "UGX",                 // overridden from boq.Currency at the call site
                 RetentionPercent = retentionPct,
                 HalfRetentionAtPercent = halfAtPct,
-                VatPercent = vatPct
+                VatPercent = vatPct,
+                RetentionExcludesMos = retExclMos
             };
 
             // B.4 — cap cumulative retention at RetentionPercent × contract sum
@@ -109,6 +117,8 @@ namespace StingTools.Core.PaymentCert
             return snapshot.Sections.Select(s => new SovLine
             {
                 Section = string.IsNullOrEmpty(s.NRM2Section) ? s.Name : s.NRM2Section,
+                // PM-2 — stable cumulative-valuation key (survives a section rename).
+                SectionKey = $"{s.NRM2Section}|{s.Discipline}",
                 Description = s.Name,
                 ContractValue = s.TotalUGX,
                 PercentComplete = 0,
@@ -160,6 +170,24 @@ namespace StingTools.Core.PaymentCert
                     .ToList();
             }
             catch (Exception ex) { StingLog.Warn($"ListCerts: {ex.Message}"); return new List<string>(); }
+        }
+
+        /// <summary>PM-2 — cumulative certified-to-date GROSS valuation (the latest
+        /// non-superseded, non-draft cert's Σ line PreviouslyCertified + GrossThisCert).
+        /// The Final Account reconciles against this instead of ignoring the cert
+        /// series.</summary>
+        public static double CertifiedToDate(Document doc, string contractRef)
+        {
+            try
+            {
+                var latest = ListCerts(doc, contractRef).Select(p => Load(p))
+                    .Where(c => c != null && c.Status != PaymentCertStatus.Superseded
+                                          && c.Status != PaymentCertStatus.Draft)
+                    .OrderByDescending(c => c.CertNumber).FirstOrDefault();
+                if (latest == null) return 0;
+                return Math.Round(latest.Lines.Sum(l => l.PreviouslyCertified + l.GrossThisCert), 2);
+            }
+            catch (Exception ex) { StingLog.Warn($"CertifiedToDate: {ex.Message}"); return 0; }
         }
 
         // ── Retention ledger ───────────────────────────────────────────

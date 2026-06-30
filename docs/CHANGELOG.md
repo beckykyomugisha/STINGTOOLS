@@ -3,6 +3,35 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (PM Cost-Control PM-2 — branch `claude/pm2-onward`)
+
+PM-2 wires the cost-side silos (no new features — connect what exists), consuming
+the PM-1 spine (`ContractSumResolver` / `IssueStatusNormalizer` / `MoneyRound`).
+Build 0 errors; `StingTools.Cost.Tests` 42 green.
+
+- *PaymentCert cumulative valuation* now joins on a STABLE `SovLine.SectionKey`
+  (NRM2 § + discipline) instead of the free-text section name — renaming a section
+  no longer resets `PreviouslyCertified` to 0 (which silently over-paid the full
+  earned value again). Old certs without the key fall back to the name.
+- *Retention basis is contract-configurable* (`COST_RETENTION_EXCLUDES_MOS`):
+  retention on work-done-only vs the materials-on-site-inclusive gross — replacing
+  the PM-1 hardcoded proxy a QS flagged as contract-dependent (default unchanged →
+  no regression).
+- *FinalAccount reconciles against certified-to-date*: new
+  `PaymentCertEngine.CertifiedToDate` (latest cert cumulative gross); the statement
+  + panel now show certified-to-date and the "still to certify at close" variance,
+  instead of ignoring the cert series.
+- *One contract-sum source*: `ContractSumResolver` split into `ResolveBase` (frozen
+  Award baseline, no variations — the Final Account waterfall base) + `Resolve`
+  (base + agreed variations — the EVM BAC / AFC basis), so the three never
+  double-count or diverge.
+- *CostPlan → budget*: the elemental cost plan auto-seeds `PROJECT_BUDGET_UGX`
+  (FX-converted from the plan currency) on create, so the budget variance + forecast
+  read `GrandTotalLikely` without a separate manual budget entry.
+- *Open (ROADMAP):* the remaining PM-2 wirings (VO → next-cert "Adjustments" SOV
+  section; clash → tracked issue/SLA → transmittal via `IssueStatusNormalizer`) and
+  PM-3…PM-8.
+
 #### Completed (PM / Cost-Control — branch `claude/pm-cost-control`)
 
 Per `docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md` (PM-1…PM-8), re-baselined off

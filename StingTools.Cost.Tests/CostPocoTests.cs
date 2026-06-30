@@ -54,6 +54,25 @@ namespace StingTools.Cost.Tests
         }
 
         [Fact]
+        public void Retention_Basis_IsContractConfigurable_OnMaterialsOnSite()
+        {
+            // 50% of 100k contract + 20k materials on site → gross 70,000.
+            var c = new PaymentCertificate();
+            c.Lines.Add(new SovLine { ContractValue = 100_000, PercentComplete = 50, PreviouslyCertified = 0, MaterialsOnSite = 20_000 });
+            Assert.Equal(70_000, c.GrossValuation, 2);
+
+            // Default (MoS-inclusive): retention 3% on 70,000 = 2,100.
+            Assert.False(c.RetentionExcludesMos);
+            Assert.Equal(70_000, c.RetentionBasis, 2);
+            Assert.Equal(2_100, c.RetentionAmount, 2);
+
+            // Contract holds retention on work-done only: 3% on (70,000 − 20,000) = 1,500.
+            c.RetentionExcludesMos = true;
+            Assert.Equal(50_000, c.RetentionBasis, 2);
+            Assert.Equal(1_500, c.RetentionAmount, 2);
+        }
+
+        [Fact]
         public void RetentionLedger_BalanceReconciles_WithheldMinusReleased()
         {
             var ledger = new RetentionLedger();

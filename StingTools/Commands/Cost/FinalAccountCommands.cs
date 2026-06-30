@@ -29,6 +29,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using Newtonsoft.Json;
+using StingTools.Core.PaymentCert;   // PM-2 — CertifiedToDate
 using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Variation;
@@ -61,6 +62,10 @@ namespace StingTools.Commands.Cost
 
         public double AsBuiltRemeasureUGX;        // live canonical GrandTotal (as-built basis)
         public double AsBuiltVarianceUGX;         // asBuilt − contractSum
+
+        // PM-2 — reconciliation against the payment-cert series.
+        public double CertifiedToDateUGX;         // latest cert cumulative gross
+        public double FinalAccountVsCertifiedUGX; // finalAccount − certifiedToDate (still to certify + retention)
 
         public string SignedBy = "";
         public string SignedRole = "";
@@ -187,6 +192,14 @@ namespace StingTools.Commands.Cost
                 // 5. The waterfall.
                 double finalAccount = Math.Round(contractSum + psMovement + agreedVo + fluctuations, 0);
 
+                // PM-2 — reconcile against the payment-cert series (certified-to-date),
+                // so the Final Account no longer ignores what has actually been paid.
+                // The variance is the value still to certify at close (the final
+                // valuation + retention release).
+                string contractRefFa = doc.ProjectInformation?.Number ?? "";
+                double certifiedToDate = PaymentCertEngine.CertifiedToDate(doc, contractRefFa);
+                double finalVsCertified = Math.Round(finalAccount - certifiedToDate, 0);
+
                 // 6. Sign-off (draft until a BoqSignOff is recorded).
                 var signoff = BoqSignOffStore.Load(doc);
 
@@ -206,6 +219,8 @@ namespace StingTools.Commands.Cost
                     FinalAccountUGX = finalAccount,
                     AsBuiltRemeasureUGX = Math.Round(asBuilt, 0),
                     AsBuiltVarianceUGX = Math.Round(asBuilt - contractSum, 0),
+                    CertifiedToDateUGX = Math.Round(certifiedToDate, 0),
+                    FinalAccountVsCertifiedUGX = finalVsCertified,
                     SignedBy = signoff?.SignedBy ?? "",
                     SignedRole = signoff?.Role ?? "",
                     SignedDate = signoff?.Date ?? "",
@@ -237,6 +252,9 @@ namespace StingTools.Commands.Cost
                     .Metric($"± Agreed variations ({agreed.Count})", $"{Sign(agreedVo)}{ccy} {Math.Abs(agreedVo):N0}")
                     .Metric("± Fluctuations", $"{Sign(fluctuations)}{ccy} {Math.Abs(fluctuations):N0}")
                     .Metric("= FINAL ACCOUNT", $"{ccy} {finalAccount:N0}")
+                    .AddSection("CERTIFIED TO DATE")
+                    .Metric("Certified to date (gross)", $"{ccy} {stmt.CertifiedToDateUGX:N0}")
+                    .Metric("Still to certify at close", $"{Sign(stmt.FinalAccountVsCertifiedUGX)}{ccy} {Math.Abs(stmt.FinalAccountVsCertifiedUGX):N0}")
                     .AddSection("AS-BUILT BASIS")
                     .Metric("As-built remeasure (live)", $"{ccy} {stmt.AsBuiltRemeasureUGX:N0}")
                     .Metric("Variance vs Contract Sum", $"{Sign(stmt.AsBuiltVarianceUGX)}{ccy} {Math.Abs(stmt.AsBuiltVarianceUGX):N0}");
