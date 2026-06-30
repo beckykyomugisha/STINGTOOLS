@@ -9,21 +9,22 @@ PM-1 landed (the §2 correctness bugs + the do-once shared helpers
 `StingTools.Cost.Tests`, 41 green). The full catalogue with file:line anchors is in
 `docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md`. Still open:
 
-- **PM-2 — wire the silos.** CostPlan `GrandTotalLikely` → `PROJECT_BUDGET_UGX` →
-  EVM PV; approved VO → next-cert "Adjustments/Variations" SOV section → EVM BAC
-  (BAC anchoring is done via `ContractSumResolver`); clash → tracked issue (via the
-  normalizer) into `issues.json` with SLA + reconcile `clashes.json`; FinalAccount
-  reconcile against certified-to-date; cert cumulative valuation keyed by
-  line/element id not the free-text section string.
-- **PM-3 — QS lifecycle gaps.** Schedule-driven cash-flow S-curve (real time-phased
-  PV, needs PM-4 dates); fluctuations engine (NEDO/BCIS index); dayworks build-up
-  (via `StarRate`); loss & expense / compensation events (valued off the captured
-  EOT days); CVR report; NRM1 elemental cost plan + OCE; line-level cost-to-complete;
-  commitments register; QuickBooks/Sage/Excel offline export. (Retention release +
-  Set Contract Sum already landed in round-3.)
-- **PM-4 — scheduling depth.** Converge the two MSP/XER parsers; read P6 `TASKPRED`;
-  forward/backward CPM pass → critical path + total/free float; model-driven %
-  complete; Uganda working-calendar into generation.
+- **PM-2 — remainder.** Done (`claude/pm2-onward`): CostPlan→`PROJECT_BUDGET_UGX`
+  seeding, cert cumulative keyed on stable `SectionKey`, FinalAccount certified-to-date,
+  AFC/FinalAccount/EVM unified on `ContractSumResolver`, retention-MoS basis
+  configurable. Still open: approved VO → next-cert "Adjustments/Variations" SOV
+  section; clash → tracked issue (via the normalizer) into `issues.json` with SLA +
+  reconcile `clashes.json`.
+- **PM-3 — remainder.** Done: index-linked fluctuations engine (feeds AFC +
+  FinalAccount). Still open: schedule-driven cash-flow S-curve (real time-phased PV,
+  consuming the PM-4 CPM dates); dayworks build-up (via `StarRate`); loss & expense /
+  compensation events (off the captured EOT days); CVR report; NRM1 elemental cost
+  plan + OCE; line-level cost-to-complete; commitments register; QuickBooks/Sage/Excel
+  export.
+- **PM-4 — remainder.** Done: the pure `CpmEngine` (forward/backward pass → critical
+  path + total/free float, cycle detection). Still open: converge the two MSP/XER
+  parsers + read P6 `TASKPRED`/MSP links to feed the engine; model-driven % complete;
+  Uganda working-calendar into generation.
 - **PM-5 — carbon data.** Per-material/category waste table; UG clamp-kiln brick
   factor; Kampala/UG green-baseline rows; stainless factor. (B6→GridCarbonRegistry +
   benchmark consolidation done in PM-1.)
