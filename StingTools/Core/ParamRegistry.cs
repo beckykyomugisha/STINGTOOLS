@@ -602,14 +602,34 @@ namespace StingTools.Core
             ORG_AI_EXTRACT_ENABLED
         };
 
-        // I-4 — Material Manager cost-split + EPD params (registered so the
-        // parameter audit / drift detection picks them up).
+        // I-4 — Material Manager cost-split + EPD + lifecycle params, plus the
+        // water-efficiency fixture params consumed by the Sustainability engine.
+        // GUIDs are UUIDv5 in the Planscape namespace a7c0b2e4-4d91-4a55-9c7e-
+        // 7f6e5d4c3b2a; values mirror the PARAM rows in MR_PARAMETERS.txt so
+        // LoadSharedParamsCommand binds them (the STING_* material ones bind to
+        // OST_Materials via IsMaterialRelevantParam; the SUS_FIXTURE_* ones bind
+        // to plumbing fixtures via the PLM_DRN group → MEP category set).
         public const string MAT_COST_SUPPLY  = "MAT_COST_SUPPLY_NR";
+        public const string MAT_COST_SUPPLY_GUID = "114852b0-7002-5680-80cd-930f91e8250b";
         public const string MAT_COST_INSTALL = "MAT_COST_INSTALL_NR";
+        public const string MAT_COST_INSTALL_GUID = "0621af78-0fbf-540e-9e6d-61df9925ae90";
         public const string MAT_VAT_PCT      = "MAT_VAT_PCT_NR";
+        public const string MAT_VAT_PCT_GUID = "9794f566-efc2-5622-a23f-9e65e117eb48";
         public const string MAT_EMB_CARBON   = "STING_EMB_CARBON_NR";
+        public const string MAT_EMB_CARBON_GUID = "800e0d61-f88d-5071-bc87-0c4ca3e51243";
         public const string MAT_EPD_SRC      = "STING_MAT_EPD_SRC_TXT";
+        public const string MAT_EPD_SRC_GUID = "2776ca48-33b8-57a8-b2a6-ee982e442767";
         public const string MAT_EPD_DATE     = "STING_MAT_EPD_DATE_TXT";
+        public const string MAT_EPD_DATE_GUID = "c02ad751-5de9-50cc-a018-d7469595f8cf";
+        public const string MAT_LIFECYCLE    = "STING_MAT_LIFECYCLE_TXT";
+        public const string MAT_LIFECYCLE_GUID = "e5455edb-f4f9-5585-a65e-363aa31f0b59";
+
+        // Sustainability water-efficiency stamps (read off plumbing fixtures by
+        // SustainabilityEngine before falling back to vendor flow/flush params).
+        public const string SUS_FIXTURE_FLOW = "SUS_FIXTURE_FLOW_LPM";
+        public const string SUS_FIXTURE_FLOW_GUID = "b9c085ac-8d25-5286-bb8c-50f78c515e7c";
+        public const string SUS_FIXTURE_FLUSH = "SUS_FIXTURE_FLUSH_L";
+        public const string SUS_FIXTURE_FLUSH_GUID = "733de214-c4aa-5640-896c-ff9c472c8dfd";
 
         /// <summary>All Material-scoped STING parameters surfaced by the
         /// Material Manager. Drift detection + ParameterHelpers refresh
@@ -617,7 +637,7 @@ namespace StingTools.Core
         public static readonly string[] AllMaterialParams = new[]
         {
             MAT_COST_SUPPLY, MAT_COST_INSTALL, MAT_VAT_PCT,
-            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE,
+            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE, MAT_LIFECYCLE,
         };
 
         /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>

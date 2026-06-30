@@ -1,3 +1,6 @@
+# v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
+# v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
+# v6.8 | 20260630 | +9 material cost/carbon/EPD + water-efficiency fixture params (Sustainability/BOQ-cost) — aligns with MR_PARAMETERS.txt
 # v6.7 | 20260524 | +5 params for Template Manager v2 (STING_TEMPLATE_CHECKSUM/LOCKED + PRJ_CORPORATE_LIBRARY_PATH/VERSION + PRJ_TEMPLATE_PROFILE) — aligns with MR_PARAMETERS.txt
 # v6.6 | 20260520 | +22 params aligned with deduped MR_PARAMETERS.txt (Phase 188 frame-analysis + supply (10) + Phase 189 Uganda regional (6) + Phase 190 EC8/EC1-1-4 (6)) — pulled from claude/fix-nlp-suggestions-kDQu9
 # v6.5 | 20260520 | +94 params aligned with deduped MR_PARAMETERS.txt (43 proper-GUID WARN_* moved out of group 17 + 40 net-new WARN_* + 11 STING_SLEEVE_/STING_PACK_/STING_CROP_) — Phase 187 / post-dedup alignment
@@ -3341,3 +3344,47 @@ Project,SUS_MAT_CARBON_KGM2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03,NUMBER,SUS_S
 Project,SUS_MAT_ENERGY_MJ_M2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04,NUMBER,SUS_SUSTAINABILITY,Instance,Embodied energy intensity MJ/m2 (CED EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED],False,,,MULTI,1,0
 Project,SUS_EDGE_LEVEL_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05,TEXT,SUS_SUSTAINABILITY,Instance,Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED],False,,,MULTI,1,0
 Multiple,SUS_EPD_REF_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06,TEXT,SUS_SUSTAINABILITY,Instance,Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED],False,,,MULTI,1,0
+Materials,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,NUMBER,MAT_INFO,Instance,Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ],False,,,MULTI,1,0
+Materials,MAT_COST_INSTALL_NR,0621af78-0fbf-540e-9e6d-61df9925ae90,NUMBER,MAT_INFO,Instance,Material install unit cost (labour and plant) [Material Manager RFQ],False,,,MULTI,1,0
+Materials,MAT_VAT_PCT_NR,9794f566-efc2-5622-a23f-9e65e117eb48,NUMBER,MAT_INFO,Instance,Material VAT percentage applied to supply and install [Material Manager RFQ],False,,,MULTI,1,0
+Materials,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,MAT_INFO,Instance,Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon],False,,,MULTI,1,0
+Materials,STING_MAT_EPD_SRC_TXT,2776ca48-33b8-57a8-b2a6-ee982e442767,TEXT,MAT_INFO,Instance,EPD data source / publisher reference [Sustainability Carbon],False,,,MULTI,1,0
+Materials,STING_MAT_EPD_DATE_TXT,c02ad751-5de9-50cc-a018-d7469595f8cf,TEXT,MAT_INFO,Instance,EPD publication / validity date ISO 8601 [Sustainability Carbon],False,,,MULTI,1,0
+Materials,STING_MAT_LIFECYCLE_TXT,e5455edb-f4f9-5585-a65e-363aa31f0b59,TEXT,MAT_INFO,Instance,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager],False,,,MULTI,1,0
+Plumbing Fixtures,SUS_FIXTURE_FLOW_LPM,b9c085ac-8d25-5286-bb8c-50f78c515e7c,NUMBER,PLM_DRN,Instance,Sanitary fixture flow rate l/min, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1,0
+Plumbing Fixtures,SUS_FIXTURE_FLUSH_L,733de214-c4aa-5640-896c-ff9c472c8dfd,NUMBER,PLM_DRN,Instance,WC/urinal flush volume litres, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_REF_TXT,dd54810b-00a1-55eb-a388-8a37eea1aa9c,TEXT,ELC_PWR,Instance,Circuit reference / designation for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_VOLTAGE_TXT,a4618f96-d723-5366-8961-4acfb94e2b60,TEXT,ELC_PWR,Instance,Circuit nominal voltage for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_DESIGN_CURRENT_TXT,0a442c44-90fa-5d48-b11f-fca5d4cb4407,TEXT,ELC_PWR,Instance,Circuit design current Ib for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_DESIGN_LOAD_TXT,edd91653-9ccc-580a-af7f-554193b52d4c,TEXT,ELC_PWR,Instance,Circuit connected/design load for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_FAULT_LEVEL_TXT,f9bc09f0-ca10-511f-9d0d-6c92e3da775c,TEXT,ELC_PWR,Instance,Prospective fault level for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_BREAKER_RATING_TXT,d4ceb9cd-fc26-5c0d-9fc9-fea42b6d56da,TEXT,ELC_PWR,Instance,Protective device rating for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_ZS_TXT,6d0798f2-612f-5576-9ad0-a5e824e87ba2,TEXT,ELC_PWR,Instance,Earth-fault loop impedance Zs for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIR_DIVERSITY_FACTOR_TXT,ef54f174-8dae-5080-8789-ae7eb49e4da1,TEXT,ELC_PWR,Instance,Applied diversity factor for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CABLE_CSA_TXT,35388573-c2c4-5b1f-95b2-c5e02340682b,TEXT,ELC_PWR,Instance,Cable conductor cross-section for SLD annotation [Electrical SLD],False,,,MULTI,1,0
+Electrical Equipment,ELC_CIRCUIT_TRACE_ACTIVE,5311f1a3-f770-5f4a-bb70-4ac466bb9fbf,TEXT,ELC_PWR,Instance,Circuit-trace highlight flag (active element marker) [Electrical],False,,,MULTI,1,0
+Conduits,ELC_CDT_STALE_ANNOT_BOOL,c449c9ee-acc2-5961-b400-5ef7049d2169,YESNO,ELC_PWR,Instance,Conduit wire annotation is stale and needs refresh [Electrical],False,,,MULTI,1,0
+Conduits,ELC_RECONCILE_DRIFT_BOOL,2e92fb04-df99-51d1-a450-739a4a943a27,YESNO,ELC_PWR,Instance,Conduit reconciliation drift flag [Electrical],False,,,MULTI,1,0
+Conduits,ELC_WIRE_BEND_COUNT_INT,39ad1df7-28c0-5144-a8a5-b4963df20a94,INTEGER,ELC_PWR,Instance,Conduit bend count for BS 7671 pull validation [Electrical],False,,,MULTI,1,0
+Conduits,STING_CONDUIT_FILL_SUMMARY_TXT,7cd6fb48-fe09-54c6-af5d-73ade7627e17,TEXT,ELC_PWR,Instance,Conduit fill summary string for audit reporting [Electrical],False,,,MULTI,1,0
+Pipes,PLM_CONN_FROM_TAG,0034f546-a7a6-5be0-9789-dd2124edd868,TEXT,PLM_DRN,Instance,Routed pipe connection-from fixture tag [Plumbing routing],False,,,MULTI,1,0
+Pipes,PLM_CONN_TO_TAG,69d9ba42-3973-5428-82af-18a5907ae9a9,TEXT,PLM_DRN,Instance,Routed pipe connection-to fixture tag [Plumbing routing],False,,,MULTI,1,0
+Pipes,PLM_NOMINAL_DIA_MM,bbad6a0a-5b5d-5a47-a2e4-62a66d38d861,TEXT,PLM_DRN,Instance,Routed pipe nominal diameter mm [Plumbing routing],False,,,MULTI,1,0
+Pipes,PLM_PIPE_SERVICE_TXT,2f15c878-6cfe-5a8f-a725-2c329a3c0c4e,TEXT,PLM_DRN,Instance,Pipe service type stamp (SoilWaste/ColdWaterSupply/etc) [Plumbing routing],False,,,MULTI,1,0
+Pipes,PLM_PRESSURE_KPA,de1041d9-47fb-5e65-9010-ec50f188a112,TEXT,PLM_DRN,Instance,Pipe pressure-zone value kPa [Plumbing],False,,,MULTI,1,0
+Pipes,PLM_SLOPE_PCT_V4,d71d2cee-95fc-519b-8d61-bb28173c1413,TEXT,PLM_DRN,Instance,Drainage pipe slope percent (BS EN 12056-2 validation) [Plumbing],False,,,MULTI,1,0
+Pipe Accessories,PLM_TMV_KVS,45c2deda-df6a-56bd-8004-fe9c88744aa5,NUMBER,PLM_DRN,Instance,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing],False,,,MULTI,1,0
+Generic Models,ASS_OPTION_SET_TXT,a7c0b2e4-d000-4002-9c7e-7f6e5d4c3b2a,TEXT,ASS_MNG,Instance,Design option set name carried on the element [Design Options],False,,,MULTI,1,0
+Generic Models,ASS_OPTION_PRIMARY_BOOL,a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a,YESNO,ASS_MNG,Instance,Element lives in a primary design option [Design Options],False,,,MULTI,1,0
+Generic Models,ASS_LAST_PARA_CONTAINER_TXT,d026a860-0000-5d0f-8f9a-192fef886734,TEXT,ASS_MNG,Instance,Cache of the last TAG7 paragraph container written [Tagging],False,,,MULTI,1,0
+Generic Models,STING_COMPOUND_PARENT_ID,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F,TEXT,ASS_MNG,Instance,Parent compound-symbol element id (multi-connector grouping) [Symbols],False,,,MULTI,1,0
+Generic Models,IFC_GLOBAL_ID_TXT,c3e0ef84-0950-55cf-a5b2-d1cc67786128,TEXT,IFC_EXCH,Instance,Stable IFC GlobalId snapshot for cross-host sync [IFC interop],False,,,MULTI,1,0
+Sheets,SHT_REV_DATE_TXT,ab506594-63fa-5981-8653-48164bef8737,TEXT,STING_DRAWING,Instance,Sheet revision date synced by TitleBlockRevisionSyncer [Drawing],False,,,MULTI,1,0
+Walls,CLASH_LIVE_FLAG,c08f13d1-d442-5afb-a986-81289fd261e4,YESNO,CLASH_COORDINATION,Instance,Element is flagged by live clash detection [Clash],False,,,MULTI,1,0
+Walls,CLASH_COUNT_INT,2f60d397-1bd5-5115-916e-d9d917e3d167,INTEGER,CLASH_COORDINATION,Instance,Count of active clashes on this element [Clash],False,,,MULTI,1,0
+Views,STING_VIEW_TOKEN_MASK_TXT,F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E,TEXT,STING_VIEWPARAMS,Instance,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging],False,,,MULTI,1,0
+Detail Items,STING_PLACED_BY_SYMBOL_PLACER_BOOL,8a7365eb-60a1-5224-90d2-d0176ff2e65f,YESNO,STING_PLACER,Instance,Idempotency stamp: instance was placed by the STING symbol placer [Symbols],False,,,Symbols,1,0
+Detail Items,STING_PLACER_ASSY_ID_TXT,5e189877-e121-53f8-ac57-849685c272e6,TEXT,STING_PLACER,Instance,Source assembly element id for the placed symbol (undo/idempotency) [Symbols],False,,,Symbols,1,0
+Detail Items,STING_PLACER_MEMBER_ID_TXT,091ab7ea-32fc-57dd-94e4-89a0af05c31c,TEXT,STING_PLACER,Instance,Source assembly-member element id for the placed symbol [Symbols],False,,,Symbols,1,0
+Detail Items,STING_PLACER_SYMBOL_CODE_TXT,f44c8c2c-5981-517e-91e0-2a1c2970a74d,TEXT,STING_PLACER,Instance,Resolved symbol code stamped on the placed symbol [Symbols],False,,,Symbols,1,0
+Detail Items,STING_PLACER_VIEW_ID_TXT,e2b1686a-8c6a-5db8-ba02-144add1cc43f,TEXT,STING_PLACER,Instance,View id where the symbol was placed (per-view idempotency) [Symbols],False,,,Symbols,1,0

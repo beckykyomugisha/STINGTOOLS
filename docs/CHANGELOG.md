@@ -3,6 +3,64 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Shared-parameter alignment — Material cost/carbon + water-efficiency, branch `claude/pm-complete`)
+
+Aligned the shared-parameter data surfaces with the latest Material-Manager
+cost-split, Sustainability/carbon, and EDGE water-efficiency work. Nine
+element-bound shared parameters were declared/consumed in code but absent from
+`MR_PARAMETERS.txt` (so they never bound, and the `mat.LookupParameter` reads in
+`StingMaterialUpdater` / `MaterialRow` / `MaterialRfqGenerator` / `IfcMaterialPsetWriter`
+and the `SustainabilityEngine` fixture lookups silently no-opped):
+
+- Materials (group 12 `MAT_INFO`, NUMBER): `MAT_COST_SUPPLY_NR`, `MAT_COST_INSTALL_NR`,
+  `MAT_VAT_PCT_NR`, `STING_EMB_CARBON_NR`; (TEXT) `STING_MAT_EPD_SRC_TXT`,
+  `STING_MAT_EPD_DATE_TXT`, `STING_MAT_LIFECYCLE_TXT`.
+- Plumbing fixtures (group 6 `PLM_DRN`, NUMBER): `SUS_FIXTURE_FLOW_LPM`, `SUS_FIXTURE_FLUSH_L`.
+
+GUIDs are deterministic UUIDv5 in the Planscape namespace
+`a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a` (collision-checked against the existing
+3,336 rows). Surfaces updated: `MR_PARAMETERS.txt` (+9), `PARAMETER_REGISTRY.json`
+support_params (+9, v5.13), `MR_PARAMETERS.csv` (+9), `CATEGORY_BINDINGS.csv` (+9),
+`BINDING_COVERAGE_MATRIX.csv` (+9), `FAMILY_PARAMETER_BINDINGS.csv` (+7 material),
+`PARAMETER_CATEGORIES.csv` (+7 material). **Create-parameters function fix:**
+`LoadSharedParamsCommand.IsMaterialRelevantParam` now returns true for `STING_MAT_*`
+and `STING_EMB_CARBON_NR` so the carbon/EPD/lifecycle params get OST_Materials
+binding via `CleanMaterialBindings` (the `MAT_*` cost params already matched the
+`MAT_` prefix). `ParamRegistry.cs` gained the canonical GUID consts + a
+`MAT_LIFECYCLE` / `SUS_FIXTURE_*` declaration and added `MAT_LIFECYCLE` to
+`AllMaterialParams`. Data-only + loader change — not `dotnet build`-verified here
+(no Revit API in this environment); verify binding in Revit before merge.
+
+Tier-2 follow-up (same change set): the further 30 genuinely
+element-bound shared params referenced in earlier electrical (`ELC_CIR_*`,
+`ELC_CABLE_CSA_TXT`, `ELC_WIRE_BEND_COUNT_INT`, …), plumbing-router (`PLM_CONN_*`,
+`PLM_PIPE_SERVICE_TXT`, `PLM_NOMINAL_DIA_MM`, `PLM_PRESSURE_KPA`, `PLM_SLOPE_PCT_V4`,
+`PLM_TMV_KVS`), design-option (`ASS_OPTION_*`), sheet (`SHT_REV_DATE_TXT`), and
+clash (`CLASH_LIVE_FLAG`, `CLASH_COUNT_INT`) code were also aligned into
+`MR_PARAMETERS.txt` (groups 4 `ELC_PWR` / 6 `PLM_DRN` / 1 `ASS_MNG` / 22
+`IFC_EXCH` / 27 `STING_DRAWING` / 20 `CLASH_COORDINATION`, plus a new group 36
+`STING_VIEWPARAMS` with a dedicated `OST_Views` override in
+`LoadSharedParamsCommand.BuildGroupCategoryOverrides` for `STING_VIEW_TOKEN_MASK_TXT`).
+GUIDs reuse the existing code-declared values where present (`ASS_OPTION_*`,
+`STING_COMPOUND_PARENT_ID`, `STING_VIEW_TOKEN_MASK_TXT`) and are UUIDv5-minted
+otherwise. End state: MR_PARAMETERS.txt = 3,375 params / 36 groups;
+`PARAMETER_REGISTRY.json` v5.14. Sheet/view params are omitted from
+`BINDING_COVERAGE_MATRIX.csv` (no Sheets/Views columns) and clash params from the
+two family-binding CSVs (clash flags are not family-authored). Verified non-params
+were excluded (family-internal symbol params, annotation-marker text prefixes,
+ExtensibleStorage/config keys, the `RBS_SYSTEM_CLASSIFICATION_PARAM` BuiltInParameter,
+and LPS element-type tag *values*). Data + loader only — not `dotnet build`-verified
+here; verify binding in Revit before merge. See `StingTools/Data/MISSING_PARAMETERS.md`.
+
+**Tier-3 (same change set):** the 5 `STING_PLACER_*` symbol-placement idempotency
+stamps (`STING_PLACED_BY_SYMBOL_PLACER_BOOL`, `STING_PLACER_{ASSY,MEMBER,SYMBOL_CODE,VIEW}_ID*`),
+written by `IsoSymbolPlacer` / `MepSymbolEngine` onto placed detail/annotation
+symbols for re-run idempotency, were added under a new **group 37 `STING_PLACER`**
+with a loader override binding to detail components / generic annotations /
+generic models / lines (`PlacerCategories`). End state: MR_PARAMETERS.txt = 3,380
+params / 37 groups; `PARAMETER_REGISTRY.json` v5.15. (Matrix + family-binding CSVs
+skipped — detail/annotation categories aren't tracked there.)
+
 #### Completed (PM/Cost-Control + Sustainability COMPLETION — branch `claude/pm-complete`)
 
 Final completion run consolidating all remaining PM-1…PM-8 + sustainability work
