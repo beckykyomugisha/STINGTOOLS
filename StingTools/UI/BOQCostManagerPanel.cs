@@ -1299,6 +1299,18 @@ namespace StingTools.UI
                      "Value a prolongation claim off the EOT days already captured on agreed variations: weeks × weekly prelims + head-office OHP + disruption + finance. Raise a CompensationEvent VO for the result.", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("Delivery & Risk (ISO 19650)",
+                "Project risk register and MIDP/TIDP delivery-drift detection.",
+                new[]
+                {
+                    ("Raise Risk", "Risk_Raise",
+                     "Raise a risk against the selected element/zone (or project-level) — pick category + 5×5 likelihood/impact. Persists to risks.json and the tamper-evident audit log.", false),
+                    ("★ Risk Register", "Risk_Report",
+                     "Roll the risk register up — RAG counts on the residual (post-mitigation) score, open-red exposure and the top risks. CSV out.", true),
+                    ("MIDP Drift", "Midp_DriftReport",
+                     "Load a MIDP/TIDP CSV (Code, Title, Discipline, Milestone, PlannedDate, RequiredSuitability), join it to the live deliverables lifecycle and classify each as on-track / at-risk / overdue / suitability-short. CSV out.", false),
+                }));
+
             sp.Children.Add(BuildActionGroup("Measurement Standard",
                 "Switch the active standard. Affects how rows are classified and described.",
                 new[]

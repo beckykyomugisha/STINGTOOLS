@@ -3582,6 +3582,11 @@ namespace StingTools.UI
                     case "CostToComplete_Lines":        RunCommand<Commands.Cost.CostToCompleteLinesCommand>(app); break;
                     case "Commitments_Report":          RunCommand<Commands.Cost.CommitmentsReportCommand>(app); break;
 
+                    // PM-8 — delivery layer (risk register, MIDP/TIDP drift).
+                    case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
+                    case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;
+                    case "Midp_DriftReport":            RunCommand<Commands.Delivery.MidpDriftReportCommand>(app); break;
+
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
                     case "Cost_StandardInspect":        RunCommand<Commands.Cost.CostStandardInspectCommand>(app); break;

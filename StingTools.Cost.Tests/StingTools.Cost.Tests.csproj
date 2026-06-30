@@ -29,6 +29,9 @@
     <Compile Include="..\StingTools\Core\Cost\LossAndExpenseEngine.cs" Link="Cost\LossAndExpenseEngine.cs" />
     <Compile Include="..\StingTools\Core\Cost\CostToCompleteEngine.cs" Link="Cost\CostToCompleteEngine.cs" />
     <Compile Include="..\StingTools\Core\Cost\CommitmentsRegister.cs" Link="Cost\CommitmentsRegister.cs" />
+    <!-- PM-8 delivery-management engines (risk register / MIDP drift). -->
+    <Compile Include="..\StingTools\Core\Delivery\RiskRegister.cs" Link="Delivery\RiskRegister.cs" />
+    <Compile Include="..\StingTools\Core\Delivery\MidpEngine.cs" Link="Delivery\MidpEngine.cs" />
   </ItemGroup>
 
 </Project>
