@@ -18,15 +18,17 @@
       "version": "3.x",
       "level": "Advanced",
       "aggregation": "all_required",
+      "_zeroCarbonNote": "SUS-7 — ZeroCarbon carries a distinct op_carbon gate (net-zero operational carbon, >=100% of operational electricity met by on-site renewables, indicative) so it is no longer a rank-tie with Advanced (both were energy 40/water 20/materials 20). Certified/Advanced set op_carbon 0 so they are never blocked by it; ZeroCarbon's 100 also ranks it above Advanced.",
       "levels": {
-        "Certified":  { "energy": 20, "water": 20, "materials": 20 },
-        "Advanced":   { "energy": 40, "water": 20, "materials": 20 },
-        "ZeroCarbon": { "energy": 40, "water": 20, "materials": 20 }
+        "Certified":  { "energy": 20, "water": 20, "materials": 20, "op_carbon": 0 },
+        "Advanced":   { "energy": 40, "water": 20, "materials": 20, "op_carbon": 0 },
+        "ZeroCarbon": { "energy": 40, "water": 20, "materials": 20, "op_carbon": 100 }
       },
       "gates": [
         { "id": "energy",    "metric": "energy_savings_pct",          "provider": "AnnualEnergyEstimator", "operator": ">=", "required": true, "unit": "%", "label": "Energy savings" },
         { "id": "water",     "metric": "water_savings_pct",           "provider": "AnnualWaterEstimator",  "operator": ">=", "required": true, "unit": "%", "label": "Water savings" },
-        { "id": "materials", "metric": "embodied_energy_savings_pct", "provider": "MaterialsRollup",       "operator": ">=", "required": true, "unit": "%", "label": "Materials (embodied energy) savings", "delegated": "EDGE_APP" }
+        { "id": "materials", "metric": "embodied_energy_savings_pct", "provider": "MaterialsRollup",       "operator": ">=", "required": true, "unit": "%", "label": "Materials (embodied energy) savings", "delegated": "EDGE_APP" },
+        { "id": "op_carbon", "metric": "operational_carbon_reduction_pct", "provider": "AnnualEnergyEstimator", "operator": ">=", "required": true, "unit": "%", "label": "Operational carbon (net-zero, on-site renewables)" }
       ]
     },
     {

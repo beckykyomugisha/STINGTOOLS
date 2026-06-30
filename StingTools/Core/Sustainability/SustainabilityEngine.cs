@@ -700,10 +700,24 @@ namespace StingTools.Core.Sustainability
                     ?? new ProfileResolution { Profile = new LoadProfile { Id = "Office" }, IsFallback = true, RequestedUse = use };
             if (r.IsFallback && warnings != null && (noted == null || noted.Add("profile|" + (use ?? ""))))
             {
-                string note = $"ℹ {(string.IsNullOrWhiteSpace(use) ? "(unset)" : use)} load profile resolved by fallback " +
-                              $"({r.FromTo}) — indicative";
-                warnings.Add(note);
-                StingLog.Info("Sustain " + note);
+                // SUS-7 — a fallback that lands on OFFICE physics is the dangerous one (an
+                // office-biased LPD/EPD/occupancy/DHW silently applied to a non-office zone),
+                // so flag it LOUDLY as a warning rather than a quiet indicative note.
+                bool office = string.Equals(r.Profile?.Id, "Office", StringComparison.OrdinalIgnoreCase);
+                string label = string.IsNullOrWhiteSpace(use) ? "(unset)" : use;
+                if (office)
+                {
+                    string warn = $"⚠ {label} load profile fell back to OFFICE physics ({r.FromTo}) — " +
+                                  "LPD/EPD/occupancy/DHW are office-biased, NOT this use; set the building use or add a profile.";
+                    warnings.Insert(0, warn);
+                    StingLog.Warn("Sustain " + warn);
+                }
+                else
+                {
+                    string note = $"ℹ {label} load profile resolved by fallback ({r.FromTo}) — indicative";
+                    warnings.Add(note);
+                    StingLog.Info("Sustain " + note);
+                }
             }
             return r;
         }

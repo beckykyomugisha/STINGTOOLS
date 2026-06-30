@@ -14,6 +14,10 @@ namespace StingTools.Core.Sustainability
 {
     public sealed class EdgeKpiSnapshot
     {
+        /// <summary>SUS-7 — snapshot schema version, so a future reader can migrate / reject
+        /// an old log line instead of mis-binding fields. Additive (older lines deserialize
+        /// with the default empty string).</summary>
+        public string SchemaVersion { get; set; } = "sting.edge.snapshot/v1";
         public string Ts { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
         // Design intensities + savings %.

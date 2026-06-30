@@ -89,6 +89,7 @@ namespace StingTools.Core.Sustainability
         {
             JObject root;
             try { root = JObject.Parse(json); } catch (Exception ex) { SustainOverrideHealth.Report("GreenScheme", $"malformed override/data JSON: {ex.Message}"); return; }
+            SustainOverrideHealth.CheckSchema("GreenScheme", (string)root["schema"], "sting.green.schemes/");   // SUS-7
             var arr = root["schemes"] as JArray;
             if (arr == null) return;
             foreach (var s in arr.OfType<JObject>())

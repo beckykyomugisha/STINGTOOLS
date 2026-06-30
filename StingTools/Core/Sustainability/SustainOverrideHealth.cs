@@ -29,6 +29,17 @@ namespace StingTools.Core.Sustainability
             lock (_lock) { if (!_issues.Contains(m)) _issues.Add(m); }
         }
 
+        /// <summary>SUS-7 — schema-version gate. Warns when a data/override file's "schema"
+        /// field doesn't match the expected family prefix, so a future incompatible schema is
+        /// surfaced (fields may be read wrong) instead of silently mis-parsed. Empty schema =
+        /// legacy file, tolerated.</summary>
+        public static void CheckSchema(string registry, string schemaValue, string expectedPrefix)
+        {
+            if (!string.IsNullOrEmpty(schemaValue) &&
+                !schemaValue.StartsWith(expectedPrefix, System.StringComparison.OrdinalIgnoreCase))
+                Report(registry, $"schema '{schemaValue}' is not '{expectedPrefix}*' - fields may be read incorrectly");
+        }
+
         /// <summary>Return + clear the accumulated issues (the engine folds these into the
         /// run Warnings each Compute, so a later fixed load shows no stale warning).</summary>
         public static List<string> Drain()
