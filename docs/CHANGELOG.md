@@ -3,6 +3,41 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (DWG bridge — editable custom mounting height in the Map-DWG-Layers dialog)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings). GOLD
+deploy was staged (`CompiledPlugin/`) but the copy into `C:\Dev\STING_PLACEMENT_GOLD` was blocked
+by a running Revit holding the live DLL — close Revit and re-run `deploy-gold.bat`. **UI-adjacent —
+the sandbox cannot open Revit, so the editable-combo commit/parse/validate behaviour is verified by
+build + logic review only; confirm in Revit before merge.** Files: `UI/DwgLayerMapDialog.cs`,
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`, `Core/Placement/CategoryHeightDefaults.cs`,
+`Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json`.
+
+**Replaced the hard-coded `Custom: N mm` quick-list with a single editable field.** The Mounting-
+height grid column (`MakeHeightColumn`) and the bulk "Set selected to: Height" combo are now
+`IsEditable = true`. The dropdown lists ONLY the named `HeightStandards` entries
+(`<key> - <mm>mm (<Standard>)`); the long raw list (`0,150,300,450,900,1200,1350,1400,2200,2500,
+3150`) is gone. `BuildHeightOptions` no longer appends the quick-list; `CategoryHeightDefaults`
+lost its `QuickHeightsMm()`/`DefaultQuickHeightsMm`/`MapData.QuickHeightsMm` plumbing and the JSON
+`quickHeightsMm` array was deleted (note updated). Categories with a raw `mountingHeightMm` pre-fill
+a typed-style `"N mm"` value instead of `"Custom: N mm"`.
+
+**Typed input parses + validates + commits without reverting.** The editable combo binds its `Text`
+OneWay to a new `DwgLayerMapRow.HeightText` (so bulk-apply / reset / dropdown picks refresh the box)
+and reads typed input back on dropdown selection, focus-loss, and Enter via `HeightCell_*` handlers.
+`TryResolveHeightText` resolves, in order: a named-standard match by Display, then by standard key,
+then a bare number (tolerating a trailing `"mm"`, spaces, thousands separators) into a raw custom
+height with empty `HeightStandard`. Non-numeric / negative input is **rejected** (the box reverts to
+the committed value via `BindingExpression.UpdateTarget()` — NOT a direct `cb.Text =` assignment,
+which would clear the OneWay binding); a valid-but-absurd value (>5000 mm) **warns** inline but
+applies. Standards range-checking (below-min / above-max) continues to surface through the existing
+`DwgFixtureBridge` → `HeightStandardsTable.ValidateRulesAgainstStandards` save-path (typed customs
+carry no standard, named picks are always in-range PreferredMm). The resolved mm + standard key
+persist to the existing `_BIM_COORD/dwg_symbol_map.json` ByLayer rule and drive placement Z — no new
+persistence. Judgment calls: typed numbers clear any prior standard (raw height, empty key); empty
+box ⇒ defer to the category default (mm 0); Enter in the height combo is `Handled` so it commits
+without also triggering the default Save button.
+
 #### Completed (DWG bridge — import picker, automatic + flexible mounting heights, deploy-bat fix)
 
 Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);

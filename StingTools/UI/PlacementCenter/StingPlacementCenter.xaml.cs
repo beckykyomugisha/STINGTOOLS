@@ -2835,16 +2835,17 @@ namespace StingTools.UI.PlacementCenter
             return choices;
         }
 
-        /// <summary>F2/F3 — build the mounting-height options for the Map dialog: the named
-        /// HeightStandards entries ("<key> - <PreferredMm>mm (<Standard>)") plus the raw
-        /// quick-list ("Custom: N mm"). Also returns the per-category default option so each
-        /// row pre-fills from its category.</summary>
+        /// <summary>F2/F3 — build the mounting-height options for the Map dialog: ONLY the named
+        /// HeightStandards entries ("<key> - <PreferredMm>mm (<Standard>)"). The dialog's height
+        /// combos are editable, so any raw custom height is typed directly (no hard-coded
+        /// quick-list). Also returns the per-category default option so each row pre-fills from
+        /// its category.</summary>
         private static List<StingTools.UI.DwgHeightOption> BuildHeightOptions(
             Autodesk.Revit.DB.Document doc,
             out Dictionary<string, StingTools.UI.DwgHeightOption> categoryDefaults)
         {
             var options = new List<StingTools.UI.DwgHeightOption>();
-            // Named standards first (sorted by height for a sensible order).
+            // Named standards only (sorted by height for a sensible order).
             foreach (var kv in HeightStandardsTable.All.OrderBy(k => k.Value?.PreferredMm ?? 0))
             {
                 var e = kv.Value;
@@ -2857,16 +2858,9 @@ namespace StingTools.UI.PlacementCenter
                     Standard = kv.Key
                 });
             }
-            // Raw quick-list.
-            foreach (var mm in CategoryHeightDefaults.QuickHeightsMm(doc))
-                options.Add(new StingTools.UI.DwgHeightOption
-                {
-                    Display = $"Custom: {mm:F0} mm",
-                    Mm = mm,
-                    Standard = ""
-                });
 
-            // Per-category default option (resolved to a list entry where possible).
+            // Per-category default option (resolved to a list entry where possible). Categories
+            // with a raw mountingHeightMm (no standard) pre-fill a typed-style "N mm" value.
             categoryDefaults = new Dictionary<string, StingTools.UI.DwgHeightOption>(StringComparer.OrdinalIgnoreCase);
             var fixtures = StingTools.Core.Placement.DwgSymbolMapRegistry.GetFixtureCategories(doc);
             foreach (var cat in fixtures)
@@ -2879,7 +2873,7 @@ namespace StingTools.UI.PlacementCenter
                 categoryDefaults[cat] = match ?? new StingTools.UI.DwgHeightOption
                 {
                     Display = string.IsNullOrWhiteSpace(def.HeightStandard)
-                        ? $"Custom: {def.MountingHeightMm:F0} mm"
+                        ? $"{def.MountingHeightMm:F0} mm"
                         : $"{def.HeightStandard} - {def.MountingHeightMm:F0}mm",
                     Mm = def.MountingHeightMm,
                     Standard = def.HeightStandard ?? ""

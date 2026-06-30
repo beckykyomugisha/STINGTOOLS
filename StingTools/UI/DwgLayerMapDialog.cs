@@ -17,11 +17,16 @@
 // expected DWG is a Revit link / nested xref / import-in-another-view, the
 // dropdown makes that VISIBLE instead of silently substituting.
 //
-// F3 — a "Mounting height" column (DataGridTemplateColumn + always-live combo)
-// offers both the named HeightStandards entries and a raw quick-list (Custom: N
-// mm), pre-filled from the category default. A bulk "Set selected to:" height
-// combo sets many rows at once. The resolved mm + standard key are stored on the
-// row and written into the project override.
+// F3 — a "Mounting height" column (DataGridTemplateColumn + always-live EDITABLE
+// combo) lists the named HeightStandards entries in its dropdown and lets the user
+// type ANY custom height in mm directly (no raw quick-list). Pre-filled from the
+// category default. Typed text commits on focus-loss / Enter / row-change: a match
+// against a named standard reuses it (key + PreferredMm); otherwise the number is
+// parsed (tolerating a trailing "mm") into a raw custom height with empty standard.
+// Non-numeric / negative input is rejected (reverts) and absurd values (>5000 mm)
+// warn but apply. A bulk "Set selected to:" editable height combo sets many rows at
+// once. The resolved mm + standard key are stored on the row and written into the
+// project override.
 //
 // Programmatic WPF (no XAML), modelled on MepCadWizard. ASCII-only.
 //
@@ -64,9 +69,9 @@ namespace StingTools.UI
         public override string ToString() => Label;
     }
 
-    /// <summary>F3 — one selectable mounting-height option in the grid / bulk combos.
-    /// Either a named HeightStandards entry or a raw "Custom: N mm" value. Resolves to
-    /// a millimetre value + (optional) standard key when chosen.</summary>
+    /// <summary>F3 — one mounting-height value carried by a row / offered in the combos.
+    /// Either a named HeightStandards entry (dropdown) or a raw typed height in mm.
+    /// Resolves to a millimetre value + (optional) standard key.</summary>
     public sealed class DwgHeightOption
     {
         public string Display { get; set; } = "";   // shown in the combo
@@ -231,8 +236,8 @@ namespace StingTools.UI
                 Text = "Map each DWG layer to the STING category it represents. Category " + SkipOption +
                        " leaves the layer unmapped. Variant is optional (e.g. SOCKET_2G, DOWNLIGHT); " +
                        "Anchor picks the host search (wall vs ceiling); Mounting height pre-fills from the " +
-                       "category's standard default (BS 7671 / BS 8300 / BS 5839 etc.) - override per layer or " +
-                       "pick a raw height. Pre-filled from the auto-detector - correct as needed. " +
+                       "category's standard default (BS 7671 / BS 8300 / BS 5839 etc.) - override per layer by " +
+                       "picking a named standard OR typing any height in mm. Pre-filled from the auto-detector - correct as needed. " +
                        "Ctrl/Shift-click to select several layers, then 'Apply to selected'. " +
                        "Saved to this project's _BIM_COORD override; the corporate map is untouched."
             };
@@ -248,9 +253,11 @@ namespace StingTools.UI
             var bulkAnchor = new ComboBox { ItemsSource = Anchors, Width = 140, IsEditable = false, VerticalAlignment = VerticalAlignment.Center };
             bulkAnchor.SelectedItem = DefaultAnchor;
             toolbar.Children.Add(bulkAnchor);
-            // F3 — bulk height combo. Includes a leading "(category default)" no-op entry.
+            // F3 — bulk height combo. EDITABLE: pick a named standard or type a height in mm.
+            // ToString() on DwgHeightOption renders the Display text (no DisplayMemberPath so
+            // the editable text box can show typed custom values too).
             toolbar.Children.Add(new TextBlock { Text = "Height:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 6, 0) });
-            var bulkHeight = new ComboBox { ItemsSource = _heightOptions, Width = 230, IsEditable = false, VerticalAlignment = VerticalAlignment.Center, DisplayMemberPath = nameof(DwgHeightOption.Display) };
+            var bulkHeight = new ComboBox { ItemsSource = _heightOptions, Width = 230, IsEditable = true, VerticalAlignment = VerticalAlignment.Center };
             if (_heightOptions.Count > 0) bulkHeight.SelectedIndex = 0;
             toolbar.Children.Add(bulkHeight);
             var applySel = new Button { Content = "Apply to selected", Width = 130, Margin = new Thickness(10, 0, 0, 0) };
@@ -258,14 +265,26 @@ namespace StingTools.UI
             {
                 var cat = bulkCat.SelectedItem as string ?? SkipOption;
                 var anchor = bulkAnchor.SelectedItem as string ?? DefaultAnchor;
-                var height = bulkHeight.SelectedItem as DwgHeightOption;
                 var selected = _grid?.SelectedItems?.OfType<DwgLayerMapRow>().ToList() ?? new List<DwgLayerMapRow>();
                 if (selected.Count == 0) { ToastInline("Select one or more layers first (Ctrl/Shift-click)."); return; }
+                // Resolve the bulk height: a picked item OR typed text. Invalid text warns and
+                // leaves heights untouched (category + anchor still apply).
+                DwgHeightOption height = bulkHeight.SelectedItem as DwgHeightOption;
+                bool applyHeight = height != null;
+                if (height == null)
+                {
+                    if (TryResolveHeightText(bulkHeight.Text, out var opt, out var note))
+                    {
+                        if (note != null) ToastInline(note);
+                        height = opt; applyHeight = opt != null;
+                    }
+                    else { ToastInline(note); applyHeight = false; }
+                }
                 foreach (var row in selected)
                 {
                     row.Category = cat;
                     row.Anchor = anchor;
-                    if (height != null) row.Height = height;
+                    if (applyHeight) row.Height = height;
                 }
             };
             toolbar.Children.Add(applySel);
@@ -359,24 +378,111 @@ namespace StingTools.UI
             };
         }
 
-        /// <summary>F3 — always-live height combo column. Same pattern as MakeComboColumn but
-        /// bound to the row's Height (a DwgHeightOption object). DisplayMemberPath shows the
-        /// option's Display text.</summary>
-        private static DataGridTemplateColumn MakeHeightColumn(string header, IEnumerable<DwgHeightOption> items, double width)
+        /// <summary>F3 — always-live EDITABLE height combo column. The dropdown lists the named
+        /// HeightStandards options (DwgHeightOption.ToString() renders Display — no
+        /// DisplayMemberPath so the editable text box can also show a typed custom value). The
+        /// Text is bound OneWay to the row's HeightText so programmatic changes (bulk apply /
+        /// reset) refresh the box; user input is parsed + committed by HeightCell_Commit on
+        /// dropdown selection, focus loss, or Enter.</summary>
+        private DataGridTemplateColumn MakeHeightColumn(string header, IEnumerable<DwgHeightOption> items, double width)
         {
             var factory = new System.Windows.FrameworkElementFactory(typeof(ComboBox));
             factory.SetValue(ComboBox.ItemsSourceProperty, items);
-            factory.SetValue(ComboBox.IsEditableProperty, false);
-            factory.SetValue(ComboBox.DisplayMemberPathProperty, nameof(DwgHeightOption.Display));
+            factory.SetValue(ComboBox.IsEditableProperty, true);
+            factory.SetValue(ComboBox.StaysOpenOnEditProperty, true);
             factory.SetValue(ComboBox.MarginProperty, new Thickness(1));
-            factory.SetBinding(ComboBox.SelectedItemProperty,
-                new Binding("Height") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            // OneWay: the row drives the displayed text; typed input is read back by the handlers.
+            factory.SetBinding(ComboBox.TextProperty,
+                new Binding(nameof(DwgLayerMapRow.HeightText)) { Mode = BindingMode.OneWay });
+            factory.AddHandler(ComboBox.SelectionChangedEvent, new SelectionChangedEventHandler(HeightCell_SelectionChanged));
+            factory.AddHandler(ComboBox.LostFocusEvent, new RoutedEventHandler(HeightCell_Commit));
+            factory.AddHandler(ComboBox.KeyDownEvent, new System.Windows.Input.KeyEventHandler(HeightCell_KeyDown));
             return new DataGridTemplateColumn
             {
                 Header = header,
                 Width = new DataGridLength(width),
                 CellTemplate = new DataTemplate { VisualTree = factory }
             };
+        }
+
+        // F3 — a dropdown pick commits the named option straight onto the row.
+        private void HeightCell_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!(sender is ComboBox cb) || !(cb.DataContext is DwgLayerMapRow row)) return;
+            if (e.AddedItems != null && e.AddedItems.Count > 0 && e.AddedItems[0] is DwgHeightOption opt)
+                row.Height = opt;   // OneWay Text binding refreshes the box to the canonical display
+        }
+
+        // F3 — Enter commits the typed text (same path as focus-loss). Handled so Enter-in-combo
+        // doesn't also fire the default Save button and close the dialog mid-edit.
+        private void HeightCell_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter) { HeightCell_Commit(sender, null); e.Handled = true; }
+        }
+
+        // F3 — parse the editable combo's text and commit it to the row. A named-standard match
+        // reuses the standard; a bare number becomes a raw custom height; junk/negative reverts.
+        private void HeightCell_Commit(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is ComboBox cb) || !(cb.DataContext is DwgLayerMapRow row)) return;
+            string text = cb.Text;
+            // Already canonical for the committed value? Nothing to do (avoids redundant churn).
+            if (string.Equals((text ?? "").Trim(), (row.Height?.Display ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                return;
+            if (TryResolveHeightText(text, out var option, out var note))
+            {
+                if (note != null) ToastInline(note);   // out-of-range warning (non-blocking)
+                row.Height = option;                    // commit (null = defer to category default)
+            }
+            else
+            {
+                ToastInline(note);                      // reject — leave Height; revert the box below
+            }
+            // Re-pull the committed value into the box ("450" -> "450 mm", junk -> prior committed).
+            // UpdateTarget refreshes from HeightText WITHOUT clearing the OneWay binding (a direct
+            // cb.Text assignment would remove it and break later bulk-apply refreshes).
+            cb.GetBindingExpression(ComboBox.TextProperty)?.UpdateTarget();
+        }
+
+        /// <summary>F3 — resolve a typed/selected height string. Returns true with <paramref name="option"/>
+        /// (null = clear, defer to the category default) when valid; false + <paramref name="note"/> on
+        /// reject (non-numeric / negative). A valid-but-absurd value (&gt;5000 mm) returns true with a
+        /// warning note. Matching order: named-standard Display, then standard key, then a bare number
+        /// (tolerating a trailing "mm", spaces, thousands separators).</summary>
+        private bool TryResolveHeightText(string text, out DwgHeightOption option, out string note)
+        {
+            option = null; note = null;
+            text = (text ?? "").Trim();
+            if (text.Length == 0) return true;   // empty -> clear (category default at place time)
+
+            // 1) Named standard, matched by its dropdown Display ...
+            var named = _heightOptions.FirstOrDefault(o =>
+                o != null && string.Equals(o.Display, text, StringComparison.OrdinalIgnoreCase));
+            // ... or by its HeightStandard key (e.g. user types "BS7671_SOCKET_STD").
+            if (named == null)
+                named = _heightOptions.FirstOrDefault(o =>
+                    o != null && !string.IsNullOrEmpty(o.Standard) &&
+                    string.Equals(o.Standard, text, StringComparison.OrdinalIgnoreCase));
+            if (named != null) { option = named; return true; }
+
+            // 2) Bare number in mm. Tolerate a trailing "mm", spaces, and thousands separators.
+            string num = text;
+            if (num.EndsWith("mm", StringComparison.OrdinalIgnoreCase))
+                num = num.Substring(0, num.Length - 2);
+            num = num.Trim().Replace(",", "");
+            if (double.TryParse(num, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double mm) ||
+                double.TryParse(num, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.CurrentCulture, out mm))
+            {
+                if (mm < 0) { note = $"Mounting height must be 0 or positive - '{text}' rejected."; return false; }
+                option = new DwgHeightOption { Display = $"{mm:F0} mm", Mm = mm, Standard = "" };
+                if (mm > 5000) note = $"Mounting height {mm:F0} mm is unusually high (>5000 mm) - applied anyway.";
+                return true;
+            }
+
+            note = $"Enter a height in mm (e.g. 450) or pick a named standard - '{text}' is not a number.";
+            return false;
         }
 
         private void ToastInline(string msg)
@@ -401,7 +507,11 @@ namespace StingTools.UI
 
         // F3 — chosen mounting-height option (null = leave to the category default at place time).
         private DwgHeightOption _height;
-        public DwgHeightOption Height { get => _height; set { _height = value; OnChanged(nameof(Height)); } }
+        public DwgHeightOption Height { get => _height; set { _height = value; OnChanged(nameof(Height)); OnChanged(nameof(HeightText)); } }
+
+        /// <summary>F3 — the editable height combo's displayed text (OneWay source). Reflects the
+        /// committed Height; bulk apply / reset that set Height refresh the box through this.</summary>
+        public string HeightText => _height?.Display ?? "";
 
         // Auto-detected snapshot (set at construction) for "Reset to detected".
         public string DetectedCategory { get; set; } = DwgLayerMapDialog.SkipOption;

@@ -5,7 +5,7 @@
     "heightStandard MUST be a key in STING_HEIGHT_STANDARDS.json; the resolved MountingHeightMm is that entry's PreferredMm.",
     "Only categories in the DWG_SYMBOL_MAP fixtureCategories allowlist need an entry; others default to the rule's built-in 300mm.",
     "Ceiling-hosted fixtures (lighting/sprinkler/air terminal/ceiling fire devices) host to the ceiling face, so their mounting height is largely informational; values here are sensible defaults the user can override per layer in the Map-DWG-Layers dialog.",
-    "quickHeightsMm is the raw mounting-height quick-list the Map-DWG-Layers dialog offers in addition to the named standards (Custom: N mm). Extend per project via the override file."
+    "The Map-DWG-Layers dialog's Mounting-height combo lists ONLY these named standards in its dropdown; any other height is typed directly in mm (the combo is editable). There is no raw quick-list to maintain."
   ],
   "categoryHeightDefaults": {
     "Electrical Fixtures":     { "heightStandard": "BS7671_SOCKET_STD" },
@@ -28,6 +28,5 @@
     "Plumbing Fixtures":       { "heightStandard": "BS6465_BASIN" },
     "Plumbing Equipment":      { "mountingHeightMm": 1500.0 },
     "Specialty Equipment":     { "heightStandard": "HTM0201_OUTLET" }
-  },
-  "quickHeightsMm": [ 0, 150, 300, 450, 900, 1200, 1350, 1400, 2200, 2500, 3150 ]
+  }
 }

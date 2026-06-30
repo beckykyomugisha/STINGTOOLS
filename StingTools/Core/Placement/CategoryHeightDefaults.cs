@@ -9,7 +9,8 @@
 //
 // A category maps to EITHER a HeightStandard key (resolved to that standard's
 // PreferredMm via HeightStandardsTable) OR an explicit mountingHeightMm. The
-// dialog also reads QuickHeightsMm() for its raw-height quick-list.
+// Map-DWG-Layers dialog pre-fills each row from these defaults; the user overrides
+// per layer by picking a named standard or typing any height (no raw quick-list).
 //
 // Corporate baseline: Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json.
 // Project override:    <project>/_BIM_COORD/category_height_defaults.json (same
@@ -21,7 +22,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.Placement
@@ -41,15 +41,10 @@ namespace StingTools.Core.Placement
     {
         private const string FileName = "STING_CATEGORY_HEIGHT_DEFAULTS.json";
 
-        // Hard fallback quick-list, used only when the JSON is missing entirely.
-        private static readonly double[] DefaultQuickHeightsMm =
-            { 0, 150, 300, 450, 900, 1200, 1350, 1400, 2200, 2500, 3150 };
-
         private sealed class MapData
         {
             public Dictionary<string, CategoryHeightDefault> ByCategory
                 = new Dictionary<string, CategoryHeightDefault>(StringComparer.OrdinalIgnoreCase);
-            public List<double> QuickHeightsMm = new List<double>();
         }
 
         private static readonly Dictionary<string, MapData> _cache
@@ -88,16 +83,6 @@ namespace StingTools.Core.Placement
                 };
             }
             return new CategoryHeightDefault { HeightStandard = "", MountingHeightMm = d.MountingHeightMm };
-        }
-
-        /// <summary>The raw mounting-height quick-list (mm) the Map-DWG-Layers dialog offers
-        /// alongside the named standards.</summary>
-        public static IReadOnlyList<double> QuickHeightsMm(Autodesk.Revit.DB.Document doc)
-        {
-            var data = GetMap(doc);
-            return (data.QuickHeightsMm != null && data.QuickHeightsMm.Count > 0)
-                ? data.QuickHeightsMm
-                : DefaultQuickHeightsMm.ToList();
         }
 
         private static MapData GetMap(Autodesk.Revit.DB.Document doc)
@@ -161,16 +146,6 @@ namespace StingTools.Core.Placement
                         MountingHeightMm = mm
                     };
                 }
-
-            if (root["quickHeightsMm"] is JArray q)
-            {
-                var list = new List<double>();
-                foreach (var v in q)
-                {
-                    try { list.Add((double)v); } catch { }
-                }
-                if (list.Count > 0) data.QuickHeightsMm = list; // override replaces the list
-            }
         }
     }
 }
