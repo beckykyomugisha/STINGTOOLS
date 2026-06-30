@@ -21,6 +21,39 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Sustainability
 {
+    // ── Sustain_Report (SUS-4) — formatted HTML EDGE / whole-life report ──────
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SustainReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var doc = SustainCmdHelper.Doc(cmd);
+            if (doc == null) { TaskDialog.Show("STING Sustainability", "No document open."); return Result.Failed; }
+            try
+            {
+                var setup = SustainCmdHelper.EffectiveSetup(doc);
+                var res = SustainabilityEngine.Run(doc, setup);
+                string path = SustainReportEngine.ExportHtml(doc, res, setup);
+                StingLog.Info($"Sustain_Report: wrote {path}");
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
+                catch (Exception ex) { StingLog.Warn($"Sustain_Report open: {ex.Message}"); }
+                TaskDialog.Show("STING Sustainability",
+                    $"EDGE / whole-life report written:\n{path}\n\n" +
+                    "Shareable HTML - operational / embodied / water savings, scheme gates, the WBLCA " +
+                    "A1-A3 prerequisite, design measures, and the honesty caveats. All STING-indicative; " +
+                    "the EDGE App owns the certified figure.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Sustain_Report", ex);
+                TaskDialog.Show("STING Sustainability", "Report failed: " + ex.Message);
+                return Result.Failed;
+            }
+        }
+    }
+
     // ── Sustain_EdgeExport ───────────────────────────────────────────────────
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
