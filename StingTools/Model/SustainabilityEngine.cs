@@ -352,138 +352,48 @@ namespace StingTools.Model
 
     internal static class LifecycleAssessmentEngine
     {
-        // ICE Database v3.0 carbon factors (kgCO2e per kg)
-        private static readonly Dictionary<string, (double CarbonFactor, double Density, double RecycledPct, double EndOfLifeRecovery)> _iceData =
-            new Dictionary<string, (double, double, double, double)>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "concrete_rc",        (0.13,  2400, 0.0, 0.80) },   // reinforced concrete
-            { "concrete_precast",   (0.17,  2400, 0.0, 0.85) },
-            { "steel_structural",   (1.55,  7850, 0.60, 0.95) },  // UK average 60% recycled
-            { "steel_rebar",        (1.40,  7850, 0.97, 0.95) },  // 97% recycled in UK
-            { "timber_softwood",    (-1.0,   500, 0.0, 0.50) },   // carbon sequestration
-            { "timber_glulam",      (-0.7,   450, 0.0, 0.60) },   // CLT/glulam
-            { "timber_hardwood",    (-0.9,   700, 0.0, 0.40) },
-            { "aluminium",         (6.67,  2700, 0.30, 0.90) },
-            { "brick",             (0.24,  1800, 0.0, 0.50) },
-            { "block_concrete",    (0.09,  1400, 0.0, 0.80) },
-            { "glass_float",       (1.20,  2500, 0.15, 0.70) },
-            { "glass_double",      (1.80,  2500, 0.15, 0.70) },
-            { "plasterboard",      (0.39,   750, 0.25, 0.30) },
-            { "insulation_mineral",(1.28,    30, 0.40, 0.20) },
-            { "insulation_pir",    (3.48,    30, 0.0, 0.05) },
-            { "insulation_eps",    (2.50,    20, 0.0, 0.10) },
-            { "copper",            (2.71,  8900, 0.40, 0.95) },
-            { "pvc",               (2.41,  1380, 0.0, 0.30) },
-            { "bitumen",           (0.49,  1100, 0.0, 0.10) },
-            { "mortar",            (0.20,  2000, 0.0, 0.50) },
-            { "ceramic_tiles",     (0.74,  2000, 0.0, 0.50) },
-            { "stone_natural",     (0.06,  2600, 0.0, 0.90) },
-            { "soil_fill",         (0.003, 1800, 0.0, 1.00) },
-        };
-
-        // Transport emissions factors
-        private const double _roadTransportKgCO2PerTonneKm = 0.089;
-        private const double _avgTransportDistanceKm = 50.0;
+        // CA-3 — the ICE factor table + transport constants removed; carbon
+        // now resolves through CarbonFactorResolver via the canonical stage tracker.
 
         /// <summary>Run full BS EN 15978 lifecycle assessment.</summary>
         public static LCAResult Assess(Document doc, double gfaM2, double buildingLifeYears = 60,
             double operationalEnergyKWhM2Yr = 100)
         {
             var result = new LCAResult { GrossFloorAreaM2 = gfaM2 };
-
             try
             {
-                // Extract material quantities from model
-                var materialQuantities = ExtractMaterialQuantities(doc);
+                // CA-3 — the parallel LCA take-off (own ICE table, per-kg mass,
+                // Take(5000) walk, hardcoded UK grid 0.233, net timber -1.0) is
+                // retired. Delegate to the canonical EN 15978 stage tracker, which
+                // walks the shared WBLCA scope and resolves every factor through
+                // CarbonFactorResolver (EPD -> material param -> lookup CSV -> legacy)
+                // and the GridCarbonRegistry (per-project country) -- so this command
+                // and the EDGE dashboard never disagree on the carbon.
+                var stage = StingTools.V6.CarbonStageTracker.Compute(doc);
 
-                double totalA1A3 = 0;
-                double totalA4 = 0;
-                double totalA5 = 0;
-                double totalC = 0;
-                double totalD = 0;
-                double totalMassKg = 0;
+                result.A1_A3_ProductKgCO2   = stage.TotalA1A3;
+                result.A4_TransportKgCO2    = stage.TotalA4;
+                result.A5_ConstructionKgCO2 = stage.TotalA5;
+                result.C1_C4_EndOfLifeKgCO2 = stage.TotalC1 + stage.TotalC2 + stage.TotalC3C4;
+                // B6 operational over the building life (canonical annual x years;
+                // grid factor from GridCarbonRegistry, not the old 0.233).
+                result.B6_OperationalEnergyKgCO2 = stage.TotalB6AnnualKgYr * buildingLifeYears;
+                // B1-B7 in-use: a documented maintenance proxy (~1%/yr of A1-A3) on
+                // the canonical A1-A3 -- not a second take-off.
+                result.B1_B7_InUseKgCO2 = Math.Abs(stage.TotalA1A3) * 0.01 * buildingLifeYears;
+                // Module D needs per-material recovery factors the canonical stage
+                // walk does not produce; declared excluded (0) rather than fabricated.
+                result.D_BeyondLifeKgCO2 = 0;
 
-                foreach (var (matName, volumeM3) in materialQuantities)
-                {
-                    var iceKey = MapToICEKey(matName);
-                    if (!_iceData.TryGetValue(iceKey, out var iceEntry)) continue;
+                // Per-discipline A1-A3 breakdown surfaced in the MaterialBreakdown slot.
+                double total = Math.Abs(stage.TotalA1A3);
+                if (stage.ByDisciplineA1A3 != null)
+                    foreach (var kv in stage.ByDisciplineA1A3.OrderByDescending(x => Math.Abs(x.Value)))
+                        result.MaterialBreakdown.Add((kv.Key, kv.Value,
+                            total > 0 ? Math.Abs(kv.Value) / total * 100.0 : 0));
 
-                    double massKg = volumeM3 * iceEntry.Density;
-                    totalMassKg += massKg;
-
-                    // A1-A3: Product stage — adjust for recycled content (recycled steel/aluminium has lower embodied carbon)
-                    double recycledReduction = iceEntry.RecycledPct > 0 ? iceEntry.RecycledPct * 0.4 : 0; // ~40% lower for recycled feedstock
-                    double effectiveCarbonFactor = iceEntry.CarbonFactor * (1.0 - recycledReduction);
-                    double a1a3 = massKg * effectiveCarbonFactor;
-                    totalA1A3 += a1a3;
-
-                    // A4: Transport to site
-                    double a4 = (massKg / 1000.0) * _roadTransportKgCO2PerTonneKm * _avgTransportDistanceKm;
-                    totalA4 += a4;
-
-                    // A5: Construction — material-specific waste factors per WRAP benchmarks
-                    double a5Factor = iceKey.StartsWith("concrete") ? 0.05 : iceKey.StartsWith("steel") ? 0.02 : iceKey.StartsWith("timber") ? 0.10 : 0.04;
-                    double a5 = Math.Abs(a1a3) * a5Factor;
-                    totalA5 += a5;
-
-                    // C1-C4: End of life (demolition + processing + disposal)
-                    double c = massKg * 0.02; // ~20 kgCO2/tonne demolition
-                    totalC += c;
-
-                    // D: Benefits beyond system boundary (recycling credit)
-                    double d = -massKg * Math.Abs(iceEntry.CarbonFactor) * iceEntry.EndOfLifeRecovery * 0.5;
-                    totalD += d;
-
-                    double pct = 0; // calculated after totals
-                    result.MaterialBreakdown.Add((matName, a1a3, pct));
-                }
-
-                // Wave D #10 — Add LPS conductor + earth + SPD embodied
-                // carbon into A1-A3. LpsCarbonContributor handles the
-                // full per-component calc (Cu/Al/St/Ss density × length
-                // × cross-section × ICE factor + flat per-unit SPD body).
-                try
-                {
-                    double lpsKgCo2 = StingTools.Core.Lightning.LpsCarbonContributor.ComputeProjectKgCo2(doc);
-                    if (lpsKgCo2 > 0)
-                    {
-                        totalA1A3 += lpsKgCo2;
-                        result.MaterialBreakdown.Add(("Lightning Protection (BS EN 62305)", lpsKgCo2, 0));
-                        StingLog.Info($"LCA: LPS contribution +{lpsKgCo2:F0} kgCO2");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"LCA LPS contribution: {ex.Message}"); }
-
-                result.A1_A3_ProductKgCO2 = totalA1A3;
-                result.A4_TransportKgCO2 = totalA4;
-                result.A5_ConstructionKgCO2 = totalA5;
-                result.C1_C4_EndOfLifeKgCO2 = totalC;
-                result.D_BeyondLifeKgCO2 = totalD;
-
-                // B6: Operational energy (over building life)
-                // UK grid carbon factor ~0.233 kgCO2/kWh (2023, declining annually)
-                double gridFactor = 0.233;
-                result.B6_OperationalEnergyKgCO2 = gfaM2 * operationalEnergyKWhM2Yr * buildingLifeYears * gridFactor;
-
-                // B1-B7: In-use maintenance/replacement (~1% of A1-A3 per year)
-                result.B1_B7_InUseKgCO2 = Math.Abs(totalA1A3) * 0.01 * buildingLifeYears;
-
-                // Recalculate percentages
-                double total = Math.Abs(totalA1A3);
-                if (total > 0)
-                {
-                    for (int i = 0; i < result.MaterialBreakdown.Count; i++)
-                    {
-                        var item = result.MaterialBreakdown[i];
-                        result.MaterialBreakdown[i] = (item.Material, item.KgCO2,
-                            Math.Abs(item.KgCO2) / total * 100.0);
-                    }
-                    result.MaterialBreakdown = result.MaterialBreakdown
-                        .OrderByDescending(m => Math.Abs(m.KgCO2)).ToList();
-                }
-
-                StingLog.Info($"LCA: A1-A3={totalA1A3:F0} kgCO2, B6={result.B6_OperationalEnergyKgCO2:F0}, " +
-                    $"WLC={result.WholeLifeCarbon:F0} kgCO2 ({result.KgCO2PerM2:F0} kgCO2/m²)");
+                StingLog.Info($"LCA (canonical stage tracker): A1-A3={stage.TotalA1A3:F0} kgCO2e, " +
+                    $"B6/yr={stage.TotalB6AnnualKgYr:F0}, WLC={result.WholeLifeCarbon:F0} kgCO2e");
             }
             catch (Exception ex)
             {
@@ -493,82 +403,8 @@ namespace StingTools.Model
             return result;
         }
 
-        /// <summary>Extract material volumes from all model elements.</summary>
-        private static List<(string MaterialName, double VolumeM3)> ExtractMaterialQuantities(Document doc)
-        {
-            var quantities = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-            try
-            {
-                var elements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null)
-                    .Take(5000)
-                    .ToList();
-
-                foreach (var el in elements)
-                {
-                    try
-                    {
-                        var matIds = el.GetMaterialIds(false);
-                        foreach (var matId in matIds)
-                        {
-                            var mat = doc.GetElement(matId) as Material;
-                            if (mat == null) continue;
-
-                            double volCuFt = el.GetMaterialVolume(matId);
-                            double volM3 = volCuFt * 0.0283168; // cu ft → m³
-
-                            if (volM3 > 0)
-                            {
-                                string name = mat.Name;
-                                quantities.TryGetValue(name, out double prevVol);
-                                quantities[name] = prevVol + volM3;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"LCA material extraction el {el.Id}: {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("ExtractMaterialQuantities", ex);
-            }
-
-            return quantities.Select(kv => (kv.Key, kv.Value)).ToList();
-        }
-
-        /// <summary>Map a Revit material name to an ICE Database key.</summary>
-        private static string MapToICEKey(string materialName)
-        {
-            string name = materialName.ToLower();
-            if (name.Contains("reinforc") && name.Contains("concrete")) return "concrete_rc";
-            if (name.Contains("precast")) return "concrete_precast";
-            if (name.Contains("concrete") || name.Contains("screed")) return "concrete_rc";
-            if (name.Contains("rebar") || name.Contains("reinforcement")) return "steel_rebar";
-            if (name.Contains("steel") || name.Contains("metal frame")) return "steel_structural";
-            if (name.Contains("glulam") || name.Contains("clt") || name.Contains("laminated")) return "timber_glulam";
-            if (name.Contains("hardwood") || name.Contains("oak") || name.Contains("maple")) return "timber_hardwood";
-            if (name.Contains("timber") || name.Contains("wood") || name.Contains("softwood") || name.Contains("pine")) return "timber_softwood";
-            if (name.Contains("alumin")) return "aluminium";
-            if (name.Contains("brick")) return "brick";
-            if (name.Contains("block")) return "block_concrete";
-            if (name.Contains("glass") || name.Contains("glazing")) return "glass_double";
-            if (name.Contains("plasterboard") || name.Contains("gypsum") || name.Contains("drywall")) return "plasterboard";
-            if (name.Contains("mineral") && name.Contains("wool")) return "insulation_mineral";
-            if (name.Contains("pir") || name.Contains("polyiso")) return "insulation_pir";
-            if (name.Contains("eps") || name.Contains("polystyrene")) return "insulation_eps";
-            if (name.Contains("copper")) return "copper";
-            if (name.Contains("pvc") || name.Contains("upvc")) return "pvc";
-            if (name.Contains("bitumen") || name.Contains("asphalt")) return "bitumen";
-            if (name.Contains("mortar") || name.Contains("render")) return "mortar";
-            if (name.Contains("ceramic") || name.Contains("tile")) return "ceramic_tiles";
-            if (name.Contains("stone") || name.Contains("granite") || name.Contains("marble")) return "stone_natural";
-            return "concrete_rc"; // default fallback
-        }
+        // CA-3 — ExtractMaterialQuantities + MapToICEKey removed: the
+        // parallel ICE take-off is retired (Assess delegates to CarbonStageTracker).
     }
 
     // ════════════════════════════════════════════════════════════════

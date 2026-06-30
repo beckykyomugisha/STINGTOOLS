@@ -80,16 +80,17 @@ namespace StingTools.V6
                         .WhereElementIsNotElementType();
                     foreach (var el in col)
                     {
-                        // A1-A3: reuse existing CarbonTrackingCommands
-                        // embodied value if previously computed;
-                        // otherwise estimate from volume × material.
-                        double a1a3 = ReadDouble(el, "CBN_EMBODIED_KG_CO2E");
+                        // CA-3 — CST_EMBODIED_CARBON_KG is the ONE embodied-carbon
+                        // store and its canonical value is the BOQ's A1-A3 FOSSIL
+                        // headline. Prefer it so the EN 15978 tracker and the BOQ are
+                        // single-valued REGARDLESS of pass order; fall back to the
+                        // prior CBN store, then the shared fossil resolver estimate
+                        // (EstimateA1A3 → BOQCostManager.ComputeElementCarbonKg).
+                        double a1a3 = ReadDouble(el, "CST_EMBODIED_CARBON_KG");
+                        if (a1a3 <= 0) a1a3 = ReadDouble(el, "CBN_EMBODIED_KG_CO2E");
                         if (a1a3 <= 0) a1a3 = EstimateA1A3(el);
                         WriteDouble(el, ParamRegistry.CBN_A1_A3_KG_CO2E, a1a3);
-                        // WP0 — also stamp the ONE canonical embodied-carbon store
-                        // (CST_EMBODIED_CARBON_KG, the same param CostStamp/BOQ
-                        // writes) so the EN 15978 tracker and the BOQ never report
-                        // the embodied figure under two different parameter names.
+                        // Idempotent when the BOQ already stamped the fossil figure.
                         WriteDouble(el, "CST_EMBODIED_CARBON_KG", a1a3);
                         res.TotalA1A3 += a1a3;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);

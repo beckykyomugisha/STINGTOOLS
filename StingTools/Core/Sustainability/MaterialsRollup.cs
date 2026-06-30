@@ -74,7 +74,15 @@ namespace StingTools.Core.Sustainability
         public double TotalEnergyMj { get; set; }
         public double FloorAreaM2   { get; set; }
 
+        /// <summary>NET embodied intensity (incl. biogenic credit), kgCO₂e/m² —
+        /// the whole-life basis.</summary>
         public double CarbonIntensityKgM2 => FloorAreaM2 > 0 ? TotalCarbonKg / FloorAreaM2 : 0;
+        /// <summary>CA-3 — A1-A3 FOSSIL intensity, kgCO₂e/m² — the RICS/RIBA
+        /// upfront-carbon HEADLINE. This is the figure the EDGE dashboard now
+        /// leads with so it matches the BOQ panel's fossil headline (the BOQ
+        /// EmbodiedCarbonKg is also fossil). Net is reported separately as the
+        /// whole-life line.</summary>
+        public double FossilCarbonIntensityKgM2 => FloorAreaM2 > 0 ? TotalFossilCarbonKg / FloorAreaM2 : 0;
         public double EnergyIntensityMjM2 => FloorAreaM2 > 0 ? TotalEnergyMj / FloorAreaM2 : 0;
 
         /// <summary>Three largest embodied-carbon hotspots (LEED v5 prerequisite).</summary>
