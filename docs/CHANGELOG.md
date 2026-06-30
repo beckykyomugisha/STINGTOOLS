@@ -3,6 +3,100 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (CA-1…CA-5 — Cost & Carbon Basis Alignment, branch `claude/pm-complete`)
+
+The lifecycle + sustainability layers reconciled against the BOQ on mismatched
+bases. This run aligns them. Build 0 errors; tests green — Cost 90, Boq 109,
+Scheduling 38, Sustainability 438.
+
+| Item | Status | What |
+|---|---|---|
+| **CA-1** Currency safety | **DONE** | Closed the ~3,700× silent errors |
+| **CA-2** One cost basis | **DONE** | Net-of-VAT across the PM/QS lifecycle |
+| **CA-3** One carbon convention | **DONE** | Fossil headline everywhere; parallel LCA engine retired |
+| **CA-4** Carbon-as-cost | **DONE** | Configurable carbon price → whole-life LCC |
+| **CA-5** Remaining tail | **DONE** | CostStamp rates, IFC Qto gross/net, drift hash, server markup |
+
+**Chosen conventions (explicit):**
+- **Currency** — project BASE currency is **UGX**; one doc-scoped FX
+  (`UGX_PER_USD` / `UGX_PER_GBP`); a missing/blank currency defaults to **UGX,
+  never GBP**; an unknown currency passes through 1:1 (never silently scaled).
+  BCIS stays GBP — it is a £ service (a labelled-source default, not the arbitrary
+  GBP default removed elsewhere).
+- **Cost basis** — the PM/QS lifecycle (EVM BAC, CVR, AFC, Final Account, cert
+  SOV, `ContractSumResolver`, frozen `COST_CONTRACT_SUM_UGX`) reconciles on
+  **net of VAT** (`NetTotalExVatUGX` = works + prelims + OH&P + contingency).
+  **VAT is added only at the final presentation line.** The BOQ panel/exports
+  keep the VAT-inclusive `GrandTotalUGX` as the client-facing headline.
+- **Carbon basis** — the **A1-A3 FOSSIL** figure is the headline everywhere
+  (BOQ panel and EDGE dashboard); net (incl. biogenic credit) is a separate
+  whole-life line. `CST_EMBODIED_CARBON_KG` is single-valued = the BOQ fossil.
+  `CST_EMBODIED_CARBON_KG` is documented **A1-A3-only**; A4–D live in the
+  CarbonStageTracker (`CBN_*` params) — one reconciliation point.
+- **Carbon price** — `COST_CARBON_PRICE_UGX_PER_KG` in `project_config.json`,
+  default **0** (opt-in; no fabricated shadow price). When set, carbon enters a
+  true whole-life cost via the shared `CarbonLcc` seam.
+
+**CA-1 — currency safety.** New Document-free `RateCurrency` converter (the
+registry delegates to it). `MaterialLibraryRateProvider` labels project material
+costs UGX (was USD → ×3,700 at priority 95). `STING_DEFAULT_COST_RATES.csv` is
+declared USD-magnitude benchmarks; `DefaultRateProvider` labels them USD so the
+registry rebases to UGX (was mislabelled UGX → categories on the default table
+priced ~3,700× low). ES override + project rate-card default missing currency to
+UGX. `RateUSD` derived from the same FX (`RateCurrency.FromUgx`). `LoadCsvRates`
+de-dups keys (first-wins + logged). 11 headless tests (Boq.Tests 98→109).
+
+**CA-2 — one cost basis.** `ContractSumResolver.ResolveBase` → `NetTotalExVatUGX`
+(was VAT-inclusive) — flows to EVM BAC, AFC, Final Account, variations, CVR.
+`Cost_SetContractSum` freezes the net sum. Payment-cert SOV carries explicit
+Preliminaries / OH&P / Contingency lines so Σ ContractValue = net contract sum
+(cumulative cert can reach it); retention cap rides it. AFC live fallback +
+Final-Account asBuilt/snapshot fallbacks → net (`BOQSnapshotMeta.NetExVatUGX`
+added; old snapshots derive net via `VatPct`). Panel inline EVM BAC → net (was
+biasing CPI ~1.18×). ICMS3 net-basis reconciliation footer; £ residue removed.
+6 headless tests (Cost.Tests 84→90): contract sum = cert@100% = Final Account on
+net; CPI=1.0 when EV=AC; the VAT-mix bias guard.
+
+**CA-3 — one carbon convention + retire the parallel LCA engine.**
+`CST_EMBODIED_CARBON_KG` single-valued (the stage tracker prefers the BOQ's
+fossil value). EDGE dashboard leads with `FossilCarbonIntensityKgM2` (new,
+matches the BOQ); net shown separately. `Model/LifecycleAssessmentEngine.Assess`
+gutted — its ICE factor table, per-kg mass `Take(5000)` walk, `0.233` UK grid and
+net-timber `−1.0` deleted; it now delegates to `CarbonStageTracker.Compute`
+(shared `CarbonFactorResolver` + `GridCarbonRegistry`); BREEAM + LCA commands
+inherit the canonical carbon. COBie Impact sheet reconnected to
+`CST_EMBODIED_CARBON_KG` (was the never-written `BLE_EMBODIED_CARBON_TXT` →
+always empty). 4 headless tests (Sustainability.Tests 429→433).
+
+**CA-4 — carbon-as-cost.** New Document-free `CarbonLcc` seam: whole-life carbon
+cost = upfront embodied + NPV of annual operational carbon, at the configurable
+price; shared by the BOQ + EDGE LCC. `BOQLineItem.LifecycleCostInclCarbonUGX` +
+document totals (`TotalLifecycleCostUGX` / `…InclCarbonUGX` /
+`EmbodiedCarbonCostUGX`). ICMS3 gains a real `Carbon_Cost` column + whole-life
+footer + panel metrics. 5 headless tests (Sustainability.Tests 433→438).
+
+**CA-5 — the tail.** CostStamp passes the real CSV+COBie rate tables and bypasses
+the category-keyed cache for per-element overrides (was stamping siblings' generic
+rates, skewing `CST_MODELED_TOTAL_UGX` + EVM weighting); additivity documented.
+IFC Qto: `Gross*` from `GrossQuantity`, `Net*` from `Quantity` (was net in both).
+Drift hash adds `PrelimsItemised` + resolved prelim total + `MeasurementStandardId`.
+Server: plugin pushes the full `BoqMarkupBreakdown` (works value + contract sum
+ex/incl VAT); `BoqBaseline` entity + `CreateBaselineRequest` gain nullable markup
+fields; server BOQ currency defaults UGX (5 sites + entity).
+
+**Judgement calls / for in-Revit (and server) runtime verification.**
+- The element→rate→quantity and carbon paths are Revit-side; the headless tests
+  pin the Document-free seams (`RateCurrency`, `BoqTotals`, `CarbonLcc`,
+  `EvmPeriod`, `MaterialsRollupResult`). Verify in Revit: a UGX bill no longer
+  inflates a material-library or default-table rate; EVM/CVR/AFC/Final-Account
+  reconcile on the net basis; the EDGE dashboard and BOQ panel show the same
+  fossil kgCO₂e/m²; COBie Impact + IFC Gross/Net stamp correctly.
+- `COST_CONTRACT_SUM_UGX` is now stored **net of VAT** — re-run
+  `Cost_SetContractSum` on any project frozen before this change.
+- The server `BoqBaseline` columns need an EF migration
+  (`dotnet ef migrations add BoqBaselineMarkup`) before the markup fields persist;
+  the plugin payload and server DTO are additive and degrade gracefully until then.
+
 #### Completed (P0-7 — one canonical costing procedure: kill the cost forks, branch `claude/pm-complete`)
 
 Element costing now flows through a single procedure. Previously the correct
