@@ -127,6 +127,49 @@ namespace StingTools.Core.PaymentCert
             }).ToList();
         }
 
+        /// <summary>
+        /// PM-2 — append an "Adjustments / Variations" SOV line per AGREED variation
+        /// (Approved / Incorporated) so an approved VO flows straight into the next
+        /// certificate's gross valuation. Each line carries the VO value at 100%
+        /// (the work is instructed; the QS can dial progress back before issuing).
+        /// The stable SectionKey "VO|{number}" lets cumulative valuation carry
+        /// forward across certs even if the VO title changes. Returns the count
+        /// appended. Idempotent against the supplied list by SectionKey.
+        /// </summary>
+        public static int AppendAgreedVariations(List<SovLine> sov, Document doc, string contractRef)
+        {
+            if (sov == null || doc == null) return 0;
+            int added = 0;
+            try
+            {
+                var existingKeys = new HashSet<string>(sov.Select(l => l.SectionKey ?? ""), StringComparer.OrdinalIgnoreCase);
+                foreach (var p in Variation.VariationEngine.ListVariations(doc, contractRef))
+                {
+                    var v = Variation.VariationEngine.Load(p);
+                    if (v == null) continue;
+                    if (v.Status != Variation.VariationStatus.Approved
+                        && v.Status != Variation.VariationStatus.Incorporated) continue;
+                    if (Math.Abs(v.TotalValue) < 0.005) continue;
+
+                    string key = $"VO|{v.Number}";
+                    if (!existingKeys.Add(key)) continue;   // already present
+                    sov.Add(new SovLine
+                    {
+                        Section = $"Variation {v.Number}",
+                        SectionKey = key,
+                        Description = string.IsNullOrEmpty(v.Title) ? v.Description : v.Title,
+                        ContractValue = v.TotalValue,
+                        PercentComplete = 100,
+                        PreviouslyCertified = 0,
+                        MaterialsOnSite = 0
+                    });
+                    added++;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"AppendAgreedVariations: {ex.Message}"); }
+            return added;
+        }
+
         // ── Persistence ────────────────────────────────────────────────
 
         public static string Save(Document doc, PaymentCertificate cert)
