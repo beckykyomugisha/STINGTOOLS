@@ -1153,7 +1153,11 @@ namespace StingTools.Core.Sustainability
         // WBLCA scope (LEED v5 / RICS): structure + enclosure + reinforcement. Scoping
         // to physical categories (vs. every non-type element) also fixes the old O(n)
         // all-element walk (WS E1) and drops non-physical elements (WS D1).
-        private static readonly BuiltInCategory[] WblcaCategories =
+        // SUS-2 — PUBLIC so V6/CarbonStageTracker (the RIBA-stage A1–C4 view) walks the
+        // SAME take-off scope as the EDGE dashboard. The audit found the two whole-life
+        // numbers disagreed because the tracker walked SharedParamGuids.AllCategoryEnums
+        // while the EDGE engine walks this WBLCA set — one shared list ends that drift.
+        public static readonly BuiltInCategory[] WblcaCategories =
         {
             BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors, BuiltInCategory.OST_Roofs,
             BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_StructuralFraming,
@@ -1162,6 +1166,31 @@ namespace StingTools.Core.Sustainability
             BuiltInCategory.OST_CurtainWallPanels, BuiltInCategory.OST_CurtainWallMullions,
             BuiltInCategory.OST_Rebar, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows
         };
+
+        /// <summary>SUS-2 — the canonical WBLCA A1–A3 take-off the EDGE dashboard reports
+        /// (the same scope + CarbonFactorResolver + waste + biogenic split as the materials
+        /// rollup). The single source of truth so CarbonStageTracker can surface the SAME
+        /// A1–A3 number. Uses the project setup's FactorSources when present; cached via the
+        /// material sub-cache.</summary>
+        public static double WblcaA1A3Kg(Document doc)
+        {
+            try { return WblcaMaterialLines(doc).Sum(l => l.CarbonKg); }
+            catch (Exception ex) { StingLog.Warn($"WblcaA1A3Kg: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>SUS-2 — the canonical WBLCA material take-off lines (shared with the
+        /// dashboard via the material sub-cache).</summary>
+        public static List<MaterialLine> WblcaMaterialLines(Document doc)
+        {
+            SustainProjectSetup setup = null;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                if (!string.IsNullOrEmpty(dir)) setup = SustainProjectSetup.Load(dir, out _);
+            }
+            catch { }
+            return GatherMaterialLines(doc, setup, forceRefresh: false);
+        }
 
         private static List<MaterialLine> GatherMaterialLines(Document doc, SustainProjectSetup setup, bool forceRefresh)
         {
