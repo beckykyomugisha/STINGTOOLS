@@ -1,4 +1,5 @@
 using StingTools.Core.Validation;
+using StingTools.Core.Radiation;
 using System;
 // Healthcare Pack H-25 — flags PET / NM rooms whose RAD_LEAD_MM_NR
 // was derived from kV (NCRP 147) without the 511 keV correction.
@@ -24,9 +25,17 @@ namespace StingTools.Core.Validation.Healthcare
                 if (rc is not ("IMG-PET" or "IMG-LIN" or "IMG-NM" or "IMG-BRACHY")) continue;
                 // PET / NM rooms need much thicker concrete — Pb-only design under-shields.
                 // Encourage explicit RAD_BARRIER_TYPE_TXT review and QE sign-off.
-                if (string.IsNullOrEmpty(GetParam(r, "RAD_QE_NAME_TXT")))
-                    res.Add(new ValidationResult(r.Id, ValidationSeverity.Warning, "RAD.HIGH_E.QE_MISSING",
-                        $"{r.Name} ({rc}) advanced-imaging shielding without QE sign-off", Tag));
+                // Severity escalates to Error when the project sets
+                // PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT=BLOCKING (RadiationSignoffGate).
+                if (!RadiationSignoffGate.IsElementSigned(r))
+                {
+                    bool blocking = RadiationSignoffGate.IsBlocking(doc);
+                    res.Add(new ValidationResult(r.Id,
+                        blocking ? ValidationSeverity.Error : ValidationSeverity.Warning,
+                        "RAD.HIGH_E.QE_MISSING",
+                        $"{r.Name} ({rc}) advanced-imaging shielding without QE sign-off"
+                            + (blocking ? " [project policy: BLOCKING]" : ""), Tag));
+                }
                 var leadOnly = (GetParamDouble(r, "RAD_LEAD_MM_NR") ?? 0) > 0;
                 if (leadOnly)
                     res.Add(new ValidationResult(r.Id, ValidationSeverity.Warning, "RAD.HIGH_E.LEAD_ONLY",

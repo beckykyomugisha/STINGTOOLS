@@ -4,6 +4,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Radiation;
 using System;
 using System.Text;
 
@@ -17,6 +18,7 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
                 // NCRP 151 worked baseline (≥ 10 MV; concrete primary).
                 // Hc.Rad.* re-purpose for LINAC inputs:
                 //   RadW (mA·min/wk) → Gy/month workload (the panel slider's
@@ -37,6 +39,8 @@ namespace StingTools.Commands.Radiation
                 double primaryConcreteMm = n_required * tvl_concrete;
                 double mazeAdditionalMm = primaryConcreteMm * 0.4;  // approx scatter/leak
                 var sb = new StringBuilder();
+                sb.AppendLine(RadiationSignoffGate.StatusBanner(doc));
+                sb.AppendLine();
                 sb.AppendLine($"STING — NCRP 151 LINAC Vault First-Pass ({(mv >= 1000 ? "10 MV" : "6 MV")} baseline, {area})");
                 sb.AppendLine();
                 sb.AppendLine($"Annual goal P={dose:F1} mGy/yr ({area})");
@@ -49,7 +53,7 @@ namespace StingTools.Commands.Radiation
                 sb.AppendLine("at maze door — handled by Qualified Expert.");
                 sb.AppendLine("Output is a draft for QE sign-off — STING does not certify.");
                 StingLog.Info(sb.ToString());
-                TaskDialog.Show("STING — Rad LINAC Vault Calc", sb.ToString());
+                TaskDialog.Show("STING — Rad LINAC Vault Calc" + RadiationSignoffGate.TitleSuffix(doc), sb.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)

@@ -3,6 +3,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Radiation;
 using StingTools.Standards.NCRP147;
 using System;
 using System.Text;
@@ -17,6 +18,7 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
                 // Hc.Rad.* overrides come from the Healthcare tab → Radiation
                 // inputs grid. Panel defaults match the historic worked example
                 // (NCRP 147 Tables A.4 / A.5: kVp 150, W 600, U 0.25, T 0.5, d 3 m).
@@ -31,6 +33,8 @@ namespace StingTools.Commands.Radiation
                 var calc = NCRP147Calculator.Compute("SECONDARY", area,
                     workload, useFactor, occFactor, distance, kVp, providedPb);
                 var sb = new StringBuilder();
+                sb.AppendLine(RadiationSignoffGate.StatusBanner(doc));
+                sb.AppendLine();
                 sb.AppendLine($"STING — NCRP 147 CT Room Secondary Barrier ({area})");
                 sb.AppendLine();
                 sb.AppendLine($"Workload W={workload} mA·min/wk DLP-equiv");
@@ -42,7 +46,7 @@ namespace StingTools.Commands.Radiation
                 sb.AppendLine();
                 sb.AppendLine(calc.Note);
                 StingLog.Info(sb.ToString());
-                TaskDialog.Show("STING — Rad CT Room Calc", sb.ToString());
+                TaskDialog.Show("STING — Rad CT Room Calc" + RadiationSignoffGate.TitleSuffix(doc), sb.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)

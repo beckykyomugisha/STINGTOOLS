@@ -1,4 +1,5 @@
 using StingTools.Core.Validation;
+using StingTools.Core.Radiation;
 using System;
 using Autodesk.Revit.DB;
 using StingTools.Standards.NCRP147;
@@ -39,7 +40,6 @@ namespace StingTools.Core.Validation.Healthcare
                 var useFactor  = GetParamDouble(el, "RAD_USE_FACTOR_NR") ?? 0.25;
                 var occFactor  = GetParamDouble(el, "RAD_OCC_FACTOR_NR") ?? 1.0;
                 var goalCode   = GetParam(el, "RAD_DOSE_DESIGN_GOAL_TXT");
-                var qe         = GetParam(el, "RAD_QE_NAME_TXT");
 
                 if (providedMm <= 0)
                 {
@@ -65,13 +65,21 @@ namespace StingTools.Core.Validation.Healthcare
                     }
                 }
 
+                // QE sign-off gate (centralised in RadiationSignoffGate). The
+                // panel toggle RequireQeSignoff decides whether to surface the
+                // finding at all; the project setting
+                // PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT=BLOCKING escalates it from
+                // Warning to Error — both without a code change.
                 if (RequireQeSignoff &&
                     string.Equals(barrier, "PRIMARY", System.StringComparison.OrdinalIgnoreCase) &&
-                    string.IsNullOrEmpty(qe))
+                    !RadiationSignoffGate.IsElementSigned(el))
                 {
-                    res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
+                    bool blocking = RadiationSignoffGate.IsBlocking(doc);
+                    res.Add(new ValidationResult(el.Id,
+                        blocking ? ValidationSeverity.Error : ValidationSeverity.Warning,
                         "RAD.QE.MISSING",
-                        $"{el.Name} primary barrier missing Qualified Expert sign-off (RAD_QE_NAME_TXT)",
+                        $"{el.Name} primary barrier missing Qualified Expert sign-off (RAD_QE_NAME_TXT)"
+                            + (blocking ? " [project policy: BLOCKING]" : ""),
                         Tag));
                 }
             }

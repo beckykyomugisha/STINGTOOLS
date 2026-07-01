@@ -3,6 +3,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Radiation;
 using StingTools.Standards.NCRP147;
 using System;
 using System.Text;
@@ -17,6 +18,7 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
                 // Hc.Rad.* overrides come from the Healthcare tab → Radiation
                 // sub-tab inputs grid. Defaults match the historic worked
                 // example (NCRP 147 §A.1) so callers who never opened the dock
@@ -32,6 +34,8 @@ namespace StingTools.Commands.Radiation
                 var calc = NCRP147Calculator.Compute("PRIMARY", area,
                     workload, useFactor, occFactor, distance, kVp, providedPb);
                 var sb = new StringBuilder();
+                sb.AppendLine(RadiationSignoffGate.StatusBanner(doc));
+                sb.AppendLine();
                 sb.AppendLine($"STING — NCRP 147 Chest Room Shielding ({area})");
                 sb.AppendLine();
                 sb.AppendLine($"Workload W={workload} mA·min/wk");
@@ -44,7 +48,7 @@ namespace StingTools.Commands.Radiation
                 sb.AppendLine();
                 sb.AppendLine(calc.Note);
                 StingLog.Info(sb.ToString());
-                TaskDialog.Show("STING — Rad Chest Room Calc", sb.ToString());
+                TaskDialog.Show("STING — Rad Chest Room Calc" + RadiationSignoffGate.TitleSuffix(doc), sb.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)
