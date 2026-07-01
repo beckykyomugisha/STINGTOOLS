@@ -151,6 +151,27 @@ namespace StingTools.BOQ.Rates
         {
             if (req == null || _rates.Count == 0) return null;
 
+            // Pass A0 (RC-2): system-keyed CSV match — "Category|System" (e.g.
+            // "Pipes|MedicalGas") lets a project price otherwise-identical
+            // categories differently by ASS_SYSTEM_TYPE_TXT. Falls through to the
+            // plain category match when no system-keyed row exists, so legacy
+            // (category-only) rate cards are unaffected.
+            if (!string.IsNullOrEmpty(req.CategoryName) && !string.IsNullOrEmpty(req.SystemType))
+            {
+                string sysKey = $"{req.CategoryName}|{req.SystemType}";
+                if (_rates.TryGetValue(sysKey, out var bySys))
+                    return new RateLookup
+                    {
+                        UnitRate = bySys.rate,
+                        CurrencyCode = "UGX",
+                        Unit = bySys.unit ?? "each",
+                        SourceId = Id,
+                        Confidence = 92,
+                        Provenance = $"{_sourceFile} system match ({req.SystemType})",
+                        MatchedKey = sysKey
+                    };
+            }
+
             // Pass A: CSV match by category name (highest CSV confidence).
             if (!string.IsNullOrEmpty(req.CategoryName) &&
                 _rates.TryGetValue(req.CategoryName, out var direct))

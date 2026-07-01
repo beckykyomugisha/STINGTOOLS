@@ -30,6 +30,8 @@
     <Compile Include="..\StingTools\Core\Materials\SlabConcreteCalculator.cs" Link="Materials\SlabConcreteCalculator.cs" />
     <!-- RC-1 — Document-free material-key canonicaliser. -->
     <Compile Include="..\StingTools\Core\Materials\MaterialKeyCanonicaliser.cs" Link="Materials\MaterialKeyCanonicaliser.cs" />
+    <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
+    <Compile Include="..\StingTools\BOQ\BoqUnits.cs" Link="BoqUnits.cs" />
     <!-- MAT-3 — Document-free compound take-off engine. -->
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
   </ItemGroup>
@@ -38,6 +40,10 @@
     <!-- MAT-1 — ship the slab-systems catalogue so the test validates the real
          seeded solid fractions, not just the resolution logic. -->
     <None Include="..\StingTools\Data\STING_SLAB_SYSTEMS.json" Link="Data\STING_SLAB_SYSTEMS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- RC-2 — validate the shipped take-off rules (curtain ordering + excludes). -->
+    <None Include="..\StingTools\Data\STING_TAKEOFF_RULES.json" Link="Data\STING_TAKEOFF_RULES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

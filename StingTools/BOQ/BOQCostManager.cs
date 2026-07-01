@@ -879,6 +879,7 @@ namespace StingTools.BOQ
                 Discipline = ResolveDiscipline(el, catName),
                 ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
                 MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                SystemType = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",   // RC-2
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
                 CurrencyCode = "UGX",
                 AsOf = DateTime.UtcNow,
@@ -907,30 +908,17 @@ namespace StingTools.BOQ
         // Normalises unit strings so a CSV "m²" matches a rule's "m2".
         // Returns true when the units denote the same quantity dimension.
         private static bool UnitsAlign(string ruleUnit, string callerUnit)
-        {
-            string a = NormaliseUnit(ruleUnit);
-            string b = NormaliseUnit(callerUnit);
-            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
-            return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-        }
+            => BoqUnits.Align(ruleUnit, callerUnit);   // RC-2 — one source (incl. tonne↔kg)
+
+        /// <summary>RC-2 — tonne↔kg scale (1 elsewhere). Delegates to BoqUnits.</summary>
+        internal static double MassFactor(string fromUnit, string toUnit)
+            => BoqUnits.MassFactor(fromUnit, toUnit);
 
         // internal so IfcQuantitySetWriter (same assembly) can canonicalise
         // units against the same table — avoids the m²/m2 glyph mismatch that
         // silently zeroed every exported Qto (P0-1).
-        internal static string NormaliseUnit(string u)
-        {
-            if (string.IsNullOrEmpty(u)) return "";
-            string s = u.Trim().ToLowerInvariant();
-            switch (s)
-            {
-                case "m²": case "sqm": case "m2": return "m2";
-                case "m³": case "cum": case "m3": return "m3";
-                case "lm": case "lin-m": case "linear-m": case "m": return "m";
-                case "tonne": case "tonnes": case "t": case "kg": return "kg";
-                case "no": case "nr": case "item": case "each": case "ea": return "each";
-                default: return s;
-            }
-        }
+        // RC-2 — one canonicalisation source (BoqUnits, Document-free + tested).
+        internal static string NormaliseUnit(string u) => BoqUnits.Normalise(u);
 
         // Legacy RateSource labels — preserved so heat-maps and schedules built
         // against the old shape keep working. PM-7: delegates to the one shared
@@ -966,7 +954,9 @@ namespace StingTools.BOQ
                         // pipeline lands in P5.2 once star-rates use it).
                         if (rule.WastePercent > 0)
                             q *= 1.0 + rule.WastePercent / 100.0;
-                        return q;
+                        // RC-2 — convert the rule's quantity into the caller/rate
+                        // unit across tonne↔kg (1× otherwise).
+                        return q * MassFactor(rule.Unit, unit);
                     }
                 }
             }
@@ -1135,7 +1125,7 @@ namespace StingTools.BOQ
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
-                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule) * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
@@ -1344,6 +1334,30 @@ namespace StingTools.BOQ
 
         // ── Carbon + lifecycle ─────────────────────────────────────────────
 
+        /// <summary>
+        /// RC-2 — fold the element's BLE_STRUCT_CONCRETE_GRADE_TXT into the
+        /// material name so the grade-keyed carbon/density row resolves. The grade
+        /// is PREPENDED (and CONCRETE ensured present) so ResolveConcreteGradeKey
+        /// picks the param's grade over any grade already in the material name.
+        /// Returns the material name unchanged when the param is empty.
+        /// </summary>
+        private static string ApplyConcreteGrade(Element el, string material)
+        {
+            try
+            {
+                string grade = ParameterHelpers.GetString(el, "BLE_STRUCT_CONCRETE_GRADE_TXT");
+                if (string.IsNullOrWhiteSpace(grade)) return material;
+                grade = grade.Trim();
+                string m = material ?? "";
+                // Ensure the concrete keyword is present so grade parsing engages.
+                if (m.IndexOf("concrete", StringComparison.OrdinalIgnoreCase) < 0 &&
+                    !System.Text.RegularExpressions.Regex.IsMatch(m, @"\bRC\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    m = "Concrete " + m;
+                return $"{grade} {m}".Trim();
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ApplyGrade", $"ApplyConcreteGrade: {ex.Message}"); return material; }
+        }
+
         private static double ComputeElementCarbon(Element el, double quantity, string unit)
             => ComputeElementCarbon(el, quantity, unit, out _, out _, out _);
 
@@ -1450,13 +1464,19 @@ namespace StingTools.BOQ
                 string material = GetPrimaryMaterialName(el);
                 carbonMaterial = material ?? "";
                 if (string.IsNullOrEmpty(material)) return 0;
-                var resolved = CarbonFactorResolver.Resolve(el.Document, material);
+                // RC-2 — concrete grade: read BLE_STRUCT_CONCRETE_GRADE_TXT FIRST
+                // (the CSV's declared source) and fold it into the lookup name so
+                // the grade-specific carbon/density row is reachable even when the
+                // material name is generic ("Concrete"); name-parsing remains the
+                // fallback when the param is unset.
+                string lookupMaterial = ApplyConcreteGrade(el, material);
+                var resolved = CarbonFactorResolver.Resolve(el.Document, lookupMaterial);
                 carbonSource = string.IsNullOrEmpty(resolved.Source) ? "none" : resolved.Source;
                 carbonQuality = BoqEpdStore.QualityForSource(carbonSource);
                 if (resolved.Factor <= 0) { carbonQuality = BoqEpdStore.QualityMissing; return 0; }
 
                 // WP-C — drive off REAL geometry; estimate only when absent.
-                double volM3 = RealOrEstimatedVolumeM3(el, quantity, unit, material, out estimated);
+                double volM3 = RealOrEstimatedVolumeM3(el, quantity, unit, lookupMaterial, out estimated);
                 // MAT-1 — net a void slab (hollow-pot / rib / waffle / trough) by its
                 // solid fraction so embodied carbon is net of the pot/rib voids.
                 volM3 = ApplySlabVoidFactor(el, volM3);

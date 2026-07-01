@@ -45,6 +45,12 @@ namespace StingTools.BOQ.Takeoff
     {
         public string Id { get; set; } = "";
         public string MatchCategory { get; set; } = "";
+        /// <summary>RC-2 — comma-separated tokens that DISQUALIFY a category even
+        /// when MatchCategory matched (contains, case-insensitive). Stops a linear
+        /// "Pipe"/"Duct"/"Cable" rule from swallowing point items like "Pipe
+        /// Fittings" / "Cable Tray Fittings" / "Duct Accessories". Empty = no
+        /// exclusion.</summary>
+        public string MatchCategoryExclude { get; set; } = "";
         public string MatchDiscipline { get; set; } = "*";
         public string MatchProdCode { get; set; } = "*";
         public string Unit { get; set; } = "each";
@@ -64,9 +70,25 @@ namespace StingTools.BOQ.Takeoff
         internal bool Matches(string categoryName, string discipline, string prodCode)
         {
             if (!FieldMatches(MatchCategory, categoryName)) return false;
+            if (ExcludedByCategory(categoryName)) return false;   // RC-2
             if (!FieldMatches(MatchDiscipline, discipline)) return false;
             if (!FieldMatches(MatchProdCode, prodCode)) return false;
             return true;
+        }
+
+        // RC-2 — true when the category contains any exclude token (fittings /
+        // accessories / insulation etc.), disqualifying a linear-run rule.
+        private bool ExcludedByCategory(string categoryName)
+        {
+            if (string.IsNullOrEmpty(MatchCategoryExclude) || string.IsNullOrEmpty(categoryName))
+                return false;
+            foreach (var tok in MatchCategoryExclude.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length > 0 && categoryName.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
         }
 
         private static bool FieldMatches(string pattern, string value)

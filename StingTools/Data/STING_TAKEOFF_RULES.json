@@ -3,6 +3,19 @@
   "_note": "Corporate baseline take-off rules. Project overrides go in <project>/_BIM_COORD/takeoff_rules.json. Rule order matters — first match wins.",
   "rules": [
     {
+      "id": "curtain-wall-area",
+      "matchCategory": "Curtain",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "quantitySource": "HOST_AREA_COMPUTED",
+      "unitConversion": "ft2_to_m2",
+      "wastePercent": 0,
+      "nrm2Section": "17",
+      "description": "Curtain wall / mullion system",
+      "_note": "RC-2 — ordered BEFORE wall-area so a Curtain* category files under §17, not §14."
+    },
+    {
       "id": "wall-area",
       "matchCategory": "Walls",
       "matchDiscipline": "*",
@@ -13,18 +26,6 @@
       "wastePercent": 0,
       "nrm2Section": "14",
       "description": "Wall — supply and fix as drawn"
-    },
-    {
-      "id": "curtain-wall-area",
-      "matchCategory": "Curtain",
-      "matchDiscipline": "*",
-      "matchProdCode": "*",
-      "unit": "m2",
-      "quantitySource": "HOST_AREA_COMPUTED",
-      "unitConversion": "ft2_to_m2",
-      "wastePercent": 0,
-      "nrm2Section": "17",
-      "description": "Curtain wall / mullion system"
     },
     {
       "id": "floor-area",
@@ -209,6 +210,7 @@
     {
       "id": "duct",
       "matchCategory": "Duct",
+      "matchCategoryExclude": "Fitting,Accessor,Insulation,Lining,Flex",
       "matchDiscipline": "M",
       "matchProdCode": "*",
       "unit": "m",
@@ -221,6 +223,7 @@
     {
       "id": "pipe",
       "matchCategory": "Pipe",
+      "matchCategoryExclude": "Fitting,Accessor,Insulation,Flex",
       "matchDiscipline": "*",
       "matchProdCode": "*",
       "unit": "m",
@@ -281,6 +284,7 @@
     {
       "id": "cable-tray",
       "matchCategory": "Cable",
+      "matchCategoryExclude": "Fitting,Accessor",
       "matchDiscipline": "E",
       "matchProdCode": "*",
       "unit": "m",
