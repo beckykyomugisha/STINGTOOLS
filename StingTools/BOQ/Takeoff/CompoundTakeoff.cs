@@ -14,6 +14,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using StingTools.Core.Materials;
 
 namespace StingTools.BOQ.Takeoff
 {
@@ -56,6 +57,17 @@ namespace StingTools.BOQ.Takeoff
         public double ConcreteM3Net;  // net of MAT-1 void factor
         public double RebarBandKgPerM3;
         public double FormworkM2;     // soffit + sides / both wall faces
+    }
+
+    /// <summary>MAT-4.3 — RC beam inputs (all m).</summary>
+    public struct RcBeamInput
+    {
+        public double WidthM;             // b
+        public double DepthM;             // D (overall)
+        public double NetLengthM;         // clear span (column widths deducted)
+        public double SlabBearingM;       // ds — slab thickness on top (no side form there)
+        public double ConcreteM3Override; // > 0 → use this net volume (e.g. SolidVolume)
+        public double RebarBandKgPerM3;
     }
 
     public static class CompoundTakeoff
@@ -120,6 +132,92 @@ namespace StingTools.BOQ.Takeoff
             // 5. Formwork for an RC wall (both faces).
             if (m.IsRcWall)
                 lines.Add(new CompoundLine("formwork", "Wall formwork (both faces)", "m2", area * 2.0, SecFormwork));
+
+            return lines;
+        }
+
+        /// <summary>
+        /// MAT-4.2 — constituent lines for a VOID slab, splitting precast/blocks
+        /// from in-situ concrete. Emits: in-situ concrete m³ (net — topping only
+        /// for precast systems), precast ribs (m) for maxspan/beam-block, infill
+        /// blocks/pots (nr), topping mesh (m²), in-situ rib reinforcement (kg by
+        /// rib volume, NOT a flat slab band), and formwork = rib/edge/props (never
+        /// gross soffit — pots/blocks are permanent formwork).
+        /// </summary>
+        public static List<CompoundLine> VoidSlab(SlabCalcResult calc, double areaM2,
+            string systemLabel, double ribRebarBandKgPerM3)
+        {
+            var lines = new List<CompoundLine>();
+            if (!calc.Valid || areaM2 <= 0) return lines;
+            string label = string.IsNullOrEmpty(systemLabel) ? "void slab" : systemLabel;
+
+            // 1. In-situ concrete m³ (net). For precast systems this is topping only.
+            double insitu = calc.InsituConcreteM3PerM2 * areaM2;
+            if (insitu > 0)
+                lines.Add(new CompoundLine("concrete", $"In-situ concrete — {label} (net)", "m3", insitu, SecConcrete));
+
+            // 2. Precast ribs/beams (m) — supplied, EXCLUDED from in-situ concrete.
+            double precastLen = calc.PrecastRibLengthMPerM2 * areaM2;
+            if (precastLen > 0)
+                lines.Add(new CompoundLine("precast_rib", $"Precast ribs/beams — {label}", "m", precastLen, SecConcrete));
+
+            // 3. Infill blocks / clay pots (nr) — not structural concrete.
+            double blocks = calc.InfillBlockCountPerM2 * areaM2;
+            if (blocks > 0)
+                lines.Add(new CompoundLine("infill_block", $"Infill blocks/pots — {label}", "nr", blocks, SecMasonry));
+
+            // 4. Structural topping mesh (m²).
+            lines.Add(new CompoundLine("mesh", "Topping mesh", "m2", areaM2, SecRebar));
+
+            // 5. In-situ rib reinforcement (kg) — by rib CONCRETE volume × a rib
+            //    band (ribs act like small beams), NOT the ~80 kg/m³ solid-slab band
+            //    on the gross volume. Precast ribs carry their own (excluded) rebar.
+            double ribConcrete = calc.InsituRibM3PerM2 * areaM2;
+            if (ribConcrete > 0 && ribRebarBandKgPerM3 > 0)
+                lines.Add(new CompoundLine("rebar", $"Rib reinforcement — {label}", "kg",
+                    ribConcrete * ribRebarBandKgPerM3, SecRebar));
+
+            // 6. Formwork = rib-side/edge forms ONLY when the ribs are cast against
+            //    removable forms. Pots/blocks (InfillBlockCount > 0) are PERMANENT
+            //    formwork → props only (no measured soffit form). Never gross soffit.
+            bool permanentFormwork = calc.InfillBlockCountPerM2 > 0 || calc.PrecastRibLengthMPerM2 > 0;
+            if (!permanentFormwork)
+            {
+                double ribSide = 2.0 * calc.RibDepthM * calc.RibLengthMPerM2 * areaM2; // both rib faces
+                if (ribSide > 0)
+                    lines.Add(new CompoundLine("formwork", $"Rib/edge formwork — {label}", "m2", ribSide, SecFormwork));
+            }
+            else
+            {
+                lines.Add(new CompoundLine("formwork", $"Formwork — {label} (props only; pots/blocks are permanent formwork)",
+                    "item", 1, SecFormwork));
+            }
+
+            return lines;
+        }
+
+        /// <summary>
+        /// MAT-4.3 — RC beam constituents. Concrete = section × net length (columns
+        /// deducted) or a supplied SolidVolume; formwork = (b + 2·(D − ds)) × L
+        /// (soffit + two sides, less the slab-bearing top); rebar by the beam band,
+        /// applied ONCE (no double-count with composite column/beam rates).
+        /// </summary>
+        public static List<CompoundLine> RcBeam(RcBeamInput b)
+        {
+            var lines = new List<CompoundLine>();
+            double L = Math.Max(0, b.NetLengthM);
+            double concrete = b.ConcreteM3Override > 0 ? b.ConcreteM3Override : b.WidthM * b.DepthM * L;
+            if (concrete <= 0) return lines;
+
+            lines.Add(new CompoundLine("concrete", "In-situ concrete — beam", "m3", concrete, SecConcrete));
+
+            double sides = Math.Max(0, b.DepthM - b.SlabBearingM);
+            double formwork = (b.WidthM + 2.0 * sides) * L;   // soffit + two sides
+            if (formwork > 0)
+                lines.Add(new CompoundLine("formwork", "Formwork — beam (soffit + sides)", "m2", formwork, SecFormwork));
+
+            if (b.RebarBandKgPerM3 > 0)
+                lines.Add(new CompoundLine("rebar", "Reinforcement — beam", "kg", concrete * b.RebarBandKgPerM3, SecRebar));
 
             return lines;
         }

@@ -45,6 +45,8 @@ namespace StingTools.Core.Materials
         public double InsituRibM3PerM2;        // 0 when ribs are precast
         public double PrecastRibConcreteM3PerM2;
         public double PrecastRibLengthMPerM2;  // m of precast rib per m²
+        public double RibLengthMPerM2;         // m of rib per m² (precast or in-situ) = 1/pitch
+        public double RibDepthM;               // rib depth below topping
         public double InfillBlockCountPerM2;   // pots/blocks nr per m²
         public double GrossDepthM;             // topping + ribDepth (modelled thickness)
         public double SolidFraction;           // InsituConcreteM3PerM2 ÷ GrossDepthM
@@ -71,12 +73,14 @@ namespace StingTools.Core.Materials
             if (grossDepth <= 0) return r;
             r.GrossDepthM = grossDepth;
             r.ToppingM3PerM2 = topping;
+            r.RibDepthM = ribD;
 
             // Effective rib spacing: pot systems pitch at potW + ribW; else the
             // stated rib spacing. Guard against zero.
             double pitch = spacing > 0 ? spacing : (potW + ribW);
             if (pitch <= 0) return r;
             double ribFraction = ribW / pitch;   // plan fraction occupied by ribs
+            r.RibLengthMPerM2 = 1.0 / pitch;     // m of rib per m² (precast or in-situ)
 
             double ribConcretePerM2;
             if (i.TwoWay)

@@ -49,7 +49,10 @@ namespace StingTools.BOQ.Takeoff
                     return BuildWall(doc, el, csvRates);
                 if (cat.IndexOf("Floor", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcSlab(doc, el, csvRates);
-                // Beams/columns/foundations covered by MAT-4's accurate path.
+                if (cat.IndexOf("Structural Framing", StringComparison.OrdinalIgnoreCase) >= 0
+                    || cat.IndexOf("Beam", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcBeam(doc, el, csvRates);
+                // Columns/foundations retain the composite line for now.
                 return null;
             }
             catch (Exception ex)
@@ -132,20 +135,68 @@ namespace StingTools.BOQ.Takeoff
 
             double grossM3 = ReadVolumeM3(el);
             if (grossM3 <= 0) return null;
+            double areaM2 = ReadAreaM2(el);
 
-            // MAT-1 flat factor (MAT-4 supersedes with the parameter calculator).
-            double net = BOQCostManager.ApplySlabVoidFactor(el, grossM3);
-            double band = PropOr("REBAR_ELEMENT SLAB", "STEEL_KG_PER_M3", 80);
-            double soffit = ReadAreaM2(el);
+            // MAT-4 — parameter-driven net-concrete resolution.
+            var net = Core.Materials.SlabSystemLoader.ResolveNetConcrete(doc, el, grossM3, areaM2);
 
-            var input = new RcElementInput
+            List<CompoundLine> constituents;
+            if (net.IsVoid && net.Method == "calculator" && net.Calc.Valid && areaM2 > 0)
             {
-                ElementKind = "slab",
-                ConcreteM3Net = net,
-                RebarBandKgPerM3 = band,
-                FormworkM2 = soffit
-            };
-            var constituents = CompoundTakeoff.RcElement(input);
+                // Void slab with resolved dims → precast/block-aware constituent
+                // split (in-situ net + precast ribs + blocks + mesh + rib rebar +
+                // rib/edge formwork). Rib reinforcement uses a beam-like band.
+                double ribBand = PropOr("REBAR_ELEMENT BEAM", "STEEL_KG_PER_M3", 120);
+                constituents = CompoundTakeoff.VoidSlab(net.Calc, areaM2, net.Match.Label, ribBand);
+            }
+            else
+            {
+                // Solid slab, or a void slab resolved by geometry / flat factor →
+                // the simple concrete(net) + rebar + formwork split.
+                double band = PropOr("REBAR_ELEMENT SLAB", "STEEL_KG_PER_M3", 80);
+                constituents = CompoundTakeoff.RcElement(new RcElementInput
+                {
+                    ElementKind = "slab",
+                    ConcreteM3Net = net.NetConcreteM3,
+                    RebarBandKgPerM3 = band,
+                    FormworkM2 = net.IsVoid ? 0 : areaM2  // don't take gross soffit for void slabs
+                });
+            }
+            if (constituents.Count == 0) return null;
+            return Materialise(doc, el, constituents, csvRates, "S");
+        }
+
+        // ── RC beam (MAT-4.3) ───────────────────────────────────────────────
+        private static List<BOQLineItem> BuildRcBeam(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            // Steel beams are not RC — leave them on the composite line.
+            string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
+            var fi = el as FamilyInstance;
+            string fam = fi?.Symbol?.FamilyName?.ToLowerInvariant() ?? "";
+            if (fam.Contains("steel") || fam.Contains("ub") || fam.Contains("uc") || fam.Contains("shs")
+                || material.Contains("steel"))
+                return null;
+
+            // Net length from the location curve (columns naturally deducted when
+            // the beam solid is joined; SolidVolume is the accurate net concrete).
+            double lengthM = 0;
+            if (el.Location is LocationCurve lc && lc.Curve != null) lengthM = lc.Curve.Length * 0.3048;
+            double solidM3 = SolidVolumeM3(el);
+            double bM = ReadDimM(el, "b", "Width", "b1");
+            double dM = ReadDimM(el, "h", "Height", "d", "Depth");
+            if (solidM3 <= 0 && (bM <= 0 || dM <= 0 || lengthM <= 0)) return null;
+
+            double band = PropOr("REBAR_ELEMENT BEAM", "STEEL_KG_PER_M3", 120);
+            var constituents = CompoundTakeoff.RcBeam(new RcBeamInput
+            {
+                WidthM = bM,
+                DepthM = dM,
+                NetLengthM = lengthM,
+                SlabBearingM = 0.150,   // typical slab bearing; refine per project
+                ConcreteM3Override = solidM3,  // accurate net (columns trimmed)
+                RebarBandKgPerM3 = band
+            });
             if (constituents.Count == 0) return null;
             return Materialise(doc, el, constituents, csvRates, "S");
         }
@@ -215,6 +266,9 @@ namespace StingTools.BOQ.Takeoff
                 case "plaster_cement": return "Cement";
                 case "plaster_sand": return "Sand";
                 case "concrete": return "In-situ Concrete";
+                case "precast_rib": return "Precast Concrete";
+                case "infill_block": return "Infill Blocks";
+                case "mesh": return "Mesh Reinforcement";
                 case "rebar": return "Reinforcement";
                 case "formwork": return "Formwork";
                 default: return kind;
@@ -232,6 +286,61 @@ namespace StingTools.BOQ.Takeoff
         {
             var p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
             return (p != null && p.HasValue) ? p.AsDouble() * 0.0283168 : 0;
+        }
+
+        private static double SolidVolumeM3(Element el)
+        {
+            try
+            {
+                var opt = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Fine };
+                var geo = el.get_Geometry(opt);
+                double ft3 = 0;
+                if (geo != null)
+                    foreach (GeometryObject g in geo)
+                    {
+                        if (g is Solid s && s.Volume > 0) ft3 += s.Volume;
+                        else if (g is GeometryInstance gi)
+                        {
+                            var inst = gi.GetInstanceGeometry();
+                            if (inst != null)
+                                foreach (GeometryObject g2 in inst)
+                                    if (g2 is Solid s2 && s2.Volume > 0) ft3 += s2.Volume;
+                        }
+                    }
+                return ft3 * 0.0283168;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CompoundBeamVol", $"SolidVolumeM3: {ex.Message}"); return 0; }
+        }
+
+        // Read a cross-section dimension (mm-family param) in metres. Tries the
+        // instance then the type; family length params are internal ft → m.
+        private static double ReadDimM(Element el, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                try
+                {
+                    var p = el.LookupParameter(n);
+                    if (p != null && p.HasValue && p.StorageType == StorageType.Double && p.AsDouble() > 0)
+                        return p.AsDouble() * 0.3048;
+                }
+                catch { }
+            }
+            // Type-level fallback.
+            try
+            {
+                var typeId = el.GetTypeId();
+                if (typeId != null && typeId != ElementId.InvalidElementId
+                    && el.Document.GetElement(typeId) is Element t)
+                    foreach (var n in names)
+                    {
+                        var p = t.LookupParameter(n);
+                        if (p != null && p.HasValue && p.StorageType == StorageType.Double && p.AsDouble() > 0)
+                            return p.AsDouble() * 0.3048;
+                    }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CompoundDim", $"ReadDimM: {ex.Message}"); }
+            return 0;
         }
 
         private static string GetPrimaryMaterialName(Document doc, Element el)
