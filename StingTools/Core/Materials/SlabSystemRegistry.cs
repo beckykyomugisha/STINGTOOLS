@@ -18,13 +18,35 @@ using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Materials
 {
+    /// <summary>Indicative default dimensions for a void slab system (mm), used by
+    /// the MAT-4 parameter-driven calculator when the element itself doesn't carry
+    /// BLE_SLAB_* dimension params.</summary>
+    public sealed class SlabSystemDims
+    {
+        public double ToppingMm { get; set; }
+        public double RibWidthMm { get; set; }
+        public double RibSpacingMm { get; set; }
+        public double RibDepthMm { get; set; }
+        public double PotWidthMm { get; set; }   // infill block/pot width
+        public double PotLengthMm { get; set; }  // infill block/pot length
+    }
+
     public sealed class SlabSystem
     {
         public string Id { get; set; } = "";
         public string Label { get; set; } = "";
-        /// <summary>Net concrete volume ÷ gross slab volume. 1.0 = solid.</summary>
+        /// <summary>Net concrete volume ÷ gross slab volume. 1.0 = solid. MAT-4 —
+        /// this flat fraction is the LAST-RESORT fallback behind real geometry and
+        /// the parameter calculator.</summary>
         public double SolidFraction { get; set; } = 1.0;
         public bool Indicative { get; set; } = true;
+        /// <summary>Two-way (waffle) vs one-way (ribbed/trough/pot/maxspan).</summary>
+        public bool TwoWay { get; set; } = false;
+        /// <summary>MAT-4.2 — ribs are supplied PRECAST (maxspan/beam-block), so the
+        /// in-situ concrete is the topping only and the ribs bill as a separate
+        /// precast line. false = ribs cast in situ (ribbed/waffle/hollow-pot).</summary>
+        public bool RibsArePrecast { get; set; } = false;
+        public SlabSystemDims Dims { get; set; }
         public List<string> Keywords { get; set; } = new List<string>();
     }
 
@@ -35,12 +57,17 @@ namespace StingTools.Core.Materials
         public readonly double SolidFraction;
         public readonly bool Indicative;
         public readonly string MatchedOn;   // "param" | "keyword" | "none"
+        /// <summary>The full matched system (dims + flags) for the MAT-4 calculator;
+        /// null for the Solid sentinel.</summary>
+        public readonly SlabSystem System;
 
-        public SlabSystemMatch(string id, string label, double solidFraction, bool indicative, string matchedOn)
-        { Id = id; Label = label; SolidFraction = solidFraction; Indicative = indicative; MatchedOn = matchedOn; }
+        public SlabSystemMatch(string id, string label, double solidFraction, bool indicative, string matchedOn, SlabSystem system = null)
+        { Id = id; Label = label; SolidFraction = solidFraction; Indicative = indicative; MatchedOn = matchedOn; System = system; }
 
         /// <summary>True when this is a void system (solid fraction materially < 1).</summary>
         public bool IsVoidSystem => SolidFraction > 0 && SolidFraction < 0.999;
+        /// <summary>MAT-4.2 — the ribs are supplied precast (maxspan/beam-block).</summary>
+        public bool RibsArePrecast => System != null && System.RibsArePrecast;
 
         public static SlabSystemMatch Solid => new SlabSystemMatch("solid", "Solid slab", 1.0, false, "none");
     }
@@ -90,7 +117,7 @@ namespace StingTools.Core.Materials
             => Resolve(typeName, paramValue).SolidFraction;
 
         private static SlabSystemMatch Match(SlabSystem s, string on)
-            => new SlabSystemMatch(s.Id, s.Label, s.SolidFraction, s.Indicative, on);
+            => new SlabSystemMatch(s.Id, s.Label, s.SolidFraction, s.Indicative, on, s);
 
         private SlabSystem MatchByKeyword(string text)
         {

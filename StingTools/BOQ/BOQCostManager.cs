@@ -1526,8 +1526,13 @@ namespace StingTools.BOQ
                 if (el.Category?.Id == null ||
                     el.Category.Id.Value != (long)BuiltInCategory.OST_Floors)
                     return grossVolM3;
-                var m = Core.Materials.SlabSystemLoader.ForElement(el.Document, el);
-                return m.IsVoidSystem ? grossVolM3 * m.SolidFraction : grossVolM3;
+                // MAT-4 — parameter-driven calculator (or real geometry) is the
+                // default; the flat solid-fraction is the last-resort fallback.
+                double areaM2 = 0;
+                var ap = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                if (ap != null && ap.HasValue) areaM2 = ap.AsDouble() * 0.092903;
+                var net = Core.Materials.SlabSystemLoader.ResolveNetConcrete(el.Document, el, grossVolM3, areaM2);
+                return net.NetConcreteM3;
             }
             catch (Exception ex)
             {
