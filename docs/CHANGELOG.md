@@ -3,6 +3,58 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MAT-1…MAT-3 — Building-Material Accuracy, branch `claude/pm-complete`)
+
+A QS/materials audit found three accuracy problems in sand/cement/aggregate/
+mortar/concrete/plaster handling. Build 0 errors; Boq.Tests 109→148 (39 new).
+
+| Item | Status | What |
+|---|---|---|
+| **MAT-1** Slab void systems | **DONE** | Hollow-pot / rib / waffle / trough slabs measured NET of voids |
+| **MAT-2** Ratio data | **DONE** | Corrected MATERIAL_LOOKUP.csv mortar/concrete/plaster/screed ratios |
+| **MAT-3** Compound takeoff | **DONE** | Type-aware constituent line items (toggled) that consume the ratios |
+
+**MAT-1** — rib/waffle/trough/hollow-pot (clay-pot) slabs were measured as solid
+concrete, over-measuring concrete + carbon + rebar ~30-40%. New data-driven
+`STING_SLAB_SYSTEMS.json` (corporate + `<project>/_BIM_COORD` override) +
+Document-free `SlabSystemRegistry` resolve a slab's **solid fraction** from
+`BLE_SLAB_SYSTEM_TXT` or a word-boundary type-name keyword. **Seeded indicative
+fractions**: hollow-pot 0.62, ribbed 0.60, waffle/coffer 0.65, trough 0.60. The
+canonical BOQ (`ApplySlabVoidFactor`) nets a floor's concrete volume before
+embodied carbon; `StructuralDesignSuite` slab carbon + `AutoRebarEstimator` net
+the volume before rebar. Also fixed the **compound-element carbon under-count**:
+`ComputeElementCarbonSplit` no longer silently drops layers whose
+`GetMaterialVolume` is 0 — when Σ material volume is materially < gross
+`HOST_VOLUME_COMPUTED` the shortfall is attributed to the dominant material and
+the row flagged Estimated.
+
+**MAT-2** — data-only corrections (basis: bag 50 kg, cement loose density 1440
+kg/m³ → 0.034722 m³/bag). Mortar `SAND_RATIO` corrected to the true mix (was
+missing the dry/bulking factor; 1:6 behaved like ~1:4.1) → **1:3/1:4/1:6/1:8
+≈1.25, 1:5 ≈1.30** m³/m³ (SAND = N × bags × 0.034722; cement bags unchanged).
+Concrete C35/C40/C45 aggregate lifted (0.83/0.80/0.78 → **0.866/0.855/0.844**) so
+dry volume ≈ 1.54. Plaster/render gained a 1:4 cement:sand mix; new **SCREED**
+section (1:3/1:4, 50-75 mm). One-brick bond mortar doubled (HEADER 0.055,
+ENGLISH 0.050, FLEMISH 0.052; half-brick 0.025 stays). Added NOMINAL_MIX per
+grade, lean C10 (1:3:6) + C7.5 (1:4:8), and cement:lime:sand mortars (BS EN
+998-2 / BS 5628 designations i-iv) + lime mortar.
+
+**MAT-3** — walls/slabs were priced as one composite m² rate, type-blind.
+Compound takeoff (behind **`COST_COMPOUND_TAKEOFF`, default off**) emits measured
+constituent lines: walls → blockwork/brickwork m² + units + mortar m³ + its
+cement & sand + plaster m² × faces + its cement & sand (+ formwork for RC); RC
+slabs → concrete m³ (net) + rebar + formwork, filed under §14/§28/§11/§13/§15.
+The corrected MAT-2 ratios now **drive** cement/sand quantities (flipped from
+reference-only to consumed). Document-free `CompoundTakeoff` engine (tested);
+Revit-side `CompoundTakeoffBuilder` gathers inputs; unpriced constituents are
+honestly flagged low-confidence rather than borrowing a composite rate. Toggle
+off → legacy bills unchanged.
+
+**In-Revit runtime verification:** a clay-pot slab measures net on a real model;
+a block wall in compound mode produces the constituent items; mortar/plaster/
+screed orders reconcile. **Note:** the MAT-1 flat solid-fraction is superseded by
+the MAT-4 parameter-driven calculator as the default (flat factor → last resort).
+
 #### Completed (CA-1…CA-5 — Cost & Carbon Basis Alignment, branch `claude/pm-complete`)
 
 The lifecycle + sustainability layers reconciled against the BOQ on mismatched
