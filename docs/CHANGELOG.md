@@ -3,6 +3,59 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
+
+Closes silent-wrong-ratio, alignment and performance gaps in the parameter-driven
+takeoff/ratio/cost machinery. Build 0 errors; Boq.Tests 161→196 (35 new).
+
+| Item | Status | What |
+|---|---|---|
+| **RC-1** Silent-DEFAULT | **DONE** | Canonicalise param values; infer; surface every DEFAULT fall |
+| **RC-2** Alignment | **DONE** | grade / curtain / tonne-kg / cable-pipe / system-rate |
+| **RC-3** Performance | **DONE** (memoisation); RC-3.3/3.4 deferred (PM-6) | Per-element JSON/CSV parsed once |
+| **RC-4** Rate-cache key | **DONE** (documented) | category\|unit key, no location dim — design constraint |
+
+**RC-1** — the compound takeoff composed lookup keys RAW, so `440X215` / `440×215`
+/ `440 x 215` / `215x440` and `1 : 6` all missed the table and silently fell to
+DEFAULT (a ~25% block-count error; a 1:3 mortar priced at half cement). New
+Document-free `MaterialKeyCanonicaliser` (upper-case, whitespace-collapse, ×→x,
+largest-first block order, aliases) applied to block size / mortar mix / brick
+bond / plaster type; block-size + bond inferred from the type name when unset;
+every DEFAULT fall lowers `RateConfidence` (unmatched value 35 + warn once; empty
+param 55), routes to the uncosted/low-confidence at-risk rollup, and notes which
+param defaulted — never a silent wrong number.
+
+**RC-2** — five alignment fixes: (1) concrete grade reads
+`BLE_STRUCT_CONCRETE_GRADE_TXT` FIRST (folded into the lookup name), name-parse
+fallback; (2) curtain-wall rule moved ABOVE wall-area (§17 not §14); (3) **tonne
+and kg kept DISTINCT** (extracted to Document-free `BoqUnits`) with a ×1000/÷1000
+`MassFactor` when they differ — was a latent 1000× error; (4) linear
+Pipe/Duct/Cable rules gain `matchCategoryExclude` so `Pipe Fittings` /
+`Cable Tray Fittings` point items aren't mis-routed to a linear rate;
+(5) **RC-2.5 decision — IMPLEMENTED**: `RateRequest` gains `SystemType` (from
+`ASS_SYSTEM_TYPE_TXT`) and `CsvRateProvider` adds a `Category|System` pass so
+med-gas vs domestic copper can price differently — legacy category-only rate
+cards unaffected.
+
+**RC-3** — memoised the per-element hot spots: `BOQTemplateLibrary.LoadAll` (per
+doc; was up to 3 JSON re-parses per element via `ResolveNrm2Paragraph`) and
+`LoadCsvRates`/`LoadCobieCostCodes` (by path + mtime); `Cost_ReloadRules`
+invalidates all memos. RC-3.3 (share one `BuildBOQDocument` across
+cert→EVM→AFC) and RC-3.4 (resolve the per-element takeoff/measurement/ES/
+discipline context once) remain the open PM-6 optimisation — the memoisations
+remove the dominant per-element re-parse cost behind the 3× rebuild.
+
+**RC-4** — documented the CostStamp rate-cache key (`category|discipline|prod|
+matcode|unit`, no location dimension) as a deliberate design constraint: one FX
+pair + one rate table per document ⇒ a category tuple resolves to one rate
+model-wide. A location token would only be added if multi-region-per-document
+pricing became a requirement.
+
+**In-Revit runtime verification:** a mis-formatted block size now flags rather
+than mis-quantifies; a large-model refresh parses the tables once; a graded
+material with a generic name ("Concrete") carbons correctly from
+`BLE_STRUCT_CONCRETE_GRADE_TXT`.
+
 #### Completed (MAT-4 — Accurate Ribbed/Hollow-Pot/Maxspan/Beam-System Takeoff, branch `claude/pm-complete`)
 
 Replaces MAT-1's flat solid-fraction with an accurate, parameter-driven method and

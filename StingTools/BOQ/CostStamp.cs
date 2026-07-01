@@ -43,6 +43,14 @@ namespace StingTools.BOQ
         // Cache cuts the perf hit to O(unique-category-tuples), typically
         // < 50 entries. Reset via Invalidate() or naturally bounded by
         // _rateCacheMaxEntries.
+        //
+        // RC-4 (documented design constraint): the cache key carries NO location
+        // dimension. This is deliberate and safe because a document uses ONE FX
+        // pair and ONE rate table (the registry is per-doc), so a category tuple
+        // resolves to the same rate everywhere in the model. If multi-region
+        // pricing WITHIN one document ever becomes a requirement, add a location
+        // token (e.g. ASS_LOC_TXT / a region code) to this key AND to the rate
+        // lookup — until then a location key would only bloat the cache.
         private const int _rateCacheMaxEntries = 500;
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>
             _rateCache = new System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>();
