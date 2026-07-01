@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Planscape.Infrastructure.Data.Migrations;
 
 /// <summary>
-/// Phase 178f — Creates the <c>PenetrationSignoffs</c> table (mobile
+/// Phase 196 — Creates the <c>PenetrationSignoffs</c> table (mobile
 /// commissioning sign-off for placed FRP / fire-damper / acoustic-seal
 /// instances). The entity, its <c>DbSet</c>, model config and all four
 /// controller endpoints already exist, and the table is present in

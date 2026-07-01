@@ -3,7 +3,7 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 195 — Healthcare gap fixes, branch `claude/healthcare-gap-fixes`)
+#### Completed (Phase 196 — Healthcare gap fixes, branch `claude/healthcare-gap-fixes`)
 
 Four gap-remediation workstreams from the read-only healthcare-pack audit. The
 StingTools plugin was **build-verified** against the Revit 2025 API (0 errors)

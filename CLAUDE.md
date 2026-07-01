@@ -16,7 +16,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Phase history
 
-The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward) lives in [docs/CHANGELOG.md](docs/CHANGELOG.md). Notable reference facts: the family placeholders are **2D symbolic curves, not 3D** (when a real 3D family is missing, `FixturePlacementEngine.ResolveSymbol` returns null and placement is silently skipped — no synthetic geometry); the Family Conformance Checker (`StingTools/Tags/FamilyConformanceCheckCommand.cs` + `FamilyConformanceInspector`, command tag `FamilyConformanceCheck`) audits a vendor `.rfa` folder against the STING contract on a 100-point scale (PASS ≥ 85 / WARN 70-84 / BLOCK < 70) before bulk-stamping.
+The codebase is currently at **Phase 196**. Per-phase history (Phase 179 onward) lives in [docs/CHANGELOG.md](docs/CHANGELOG.md). Notable reference facts: the family placeholders are **2D symbolic curves, not 3D** (when a real 3D family is missing, `FixturePlacementEngine.ResolveSymbol` returns null and placement is silently skipped — no synthetic geometry); the Family Conformance Checker (`StingTools/Tags/FamilyConformanceCheckCommand.cs` + `FamilyConformanceInspector`, command tag `FamilyConformanceCheck`) audits a vendor `.rfa` folder against the STING contract on a 100-point scale (PASS ≥ 85 / WARN 70-84 / BLOCK < 70) before bulk-stamping.
 
 ## Documentation Map
 
