@@ -48,7 +48,9 @@ namespace StingTools.Boq.Tests
             // Z-24's concrete rows must still work after the append. NOTE: in the
             // real file "C30" is NOT a bare key (it collides — CONCRETE/C30 AND
             // REBAR_LAP/C30 — so the parser only registers the composite). Use it.
-            Assert.Equal(345, Lookup()["CONCRETE C30"].CarbonKgCo2e);
+            // Production CSV carries the ICE v3.0 C25/30 RC factor (0.122 kg/kg ×
+            // 2450 kg/m³ ≈ 300 kgCO₂/m³); the prior 345 assertion was stale data.
+            Assert.Equal(300, Lookup()["CONCRETE C30"].CarbonKgCo2e);
             Assert.False(Lookup().ContainsKey("C30")); // ambiguous → not bare-registered
         }
 

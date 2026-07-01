@@ -112,11 +112,12 @@ namespace StingTools.Commands.Cost
                             if (item.RevitElementId <= 0) continue;
                             Element el;
                             try { el = doc.GetElement(new ElementId(item.RevitElementId)); }
-                            catch { continue; }
+                            catch (Exception ex) { StingLog.WarnRateLimited("PctComplete.GetEl", $"GetElement({item.RevitElementId}): {ex.Message}"); continue; }
                             if (el == null) continue;
                             var p = el.LookupParameter(ParamRegistry.PMT_PCT_COMPLETE_NR);
                             if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) { missing++; continue; }
-                            try { p.Set(pct); stamped++; } catch { missing++; }
+                            try { p.Set(pct); stamped++; }
+                            catch (Exception ex) { StingLog.WarnRateLimited("PctComplete.Set", $"set %-complete on {item.RevitElementId}: {ex.Message}"); missing++; }
                         }
                     }
                     t.Commit();
@@ -337,12 +338,28 @@ namespace StingTools.Commands.Cost
                     .OrderBy(c => c.CertNumber)
                     .FirstOrDefault();
                 bool haveBaseline = baseCert != null;
-                double contractSum = haveBaseline
-                    ? Math.Round(baseCert.Lines.Sum(l => l.ContractValue), 0)
-                    : grand;
-                string contractSumBasis = haveBaseline
-                    ? $"Cert #{baseCert.CertNumber} SOV (frozen)"
-                    : "live BOQ grand total — no issued cert, assumption";
+                // PM-2 — unify the contract-sum source with the Final Account + EVM:
+                // the FROZEN Award baseline (COST_CONTRACT_SUM_UGX via ContractSumResolver)
+                // wins, then the earliest cert's SOV, then the live grand total.
+                double contractSum; string contractSumBasis;
+                if (TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0) > 0)
+                {
+                    contractSum = ContractSumResolver.ResolveBase(doc, boq, out contractSumBasis);
+                }
+                else if (haveBaseline)
+                {
+                    contractSum = Math.Round(baseCert.Lines.Sum(l => l.ContractValue), 0);
+                    contractSumBasis = $"Cert #{baseCert.CertNumber} SOV (no frozen baseline)";
+                }
+                else
+                {
+                    // CA-2 — ONE BASIS: the fallback must be NET of VAT, like the
+                    // frozen-baseline and cert-SOV paths above. Using the
+                    // VAT-inclusive grand here made the contract-sum definition
+                    // flip basis depending on which source resolved.
+                    contractSum = boq.NetTotalExVatUGX;
+                    contractSumBasis = "live BOQ net-of-VAT total — no frozen baseline / cert, assumption";
+                }
 
                 // G2 — provisional-sum movement (Σ reconciled actual − original)
                 // from the reconciliation trail. The baseline carries PS at their
@@ -350,8 +367,11 @@ namespace StingTools.Commands.Cost
                 // full actual) lands the AFC on PS actuals without double-counting.
                 double psMovement = BoqProvisionalTrail.MovementUGX(doc);
 
-                double afcAgreedOnly = Math.Round(contractSum + agreedVo + psMovement, 0);
-                double afc = Math.Round(contractSum + agreedVo + pendingVo + psMovement, 0);
+                // PM-3 — fluctuations (index-linked) now feed the AFC too, not only
+                // the Final Account. Computed via Fluctuations_Compute → COST_FLUCTUATIONS_UGX.
+                double fluctuations = TagConfig.GetConfigDouble("COST_FLUCTUATIONS_UGX", 0.0);
+                double afcAgreedOnly = Math.Round(contractSum + agreedVo + psMovement + fluctuations, 0);
+                double afc = Math.Round(contractSum + agreedVo + pendingVo + psMovement + fluctuations, 0);
                 double variance = budget > 0 ? budget - afc : 0;
 
                 // On-screen summary.
@@ -367,6 +387,7 @@ namespace StingTools.Commands.Cost
                     .Metric("Agreed variations", $"{ccy} {agreedVo:N0}")
                     .Metric("Pending variations", $"{ccy} {pendingVo:N0}")
                     .Metric("Variation count", $"{vos.Count}")
+                    .Metric("Fluctuations (index-linked)", $"{ccy} {fluctuations:N0}")
                     .AddSection("ANTICIPATED FINAL COST")
                     .Metric("Contract sum (baseline)", $"{ccy} {contractSum:N0}")
                     .Metric("Baseline basis", contractSumBasis)

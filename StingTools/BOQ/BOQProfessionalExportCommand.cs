@@ -75,6 +75,30 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
+                // WP2 — uncosted-at-risk export gate. A professional/tender bill
+                // must not silently ship zero-value lines or below-confidence
+                // rates folded into the Contract Sum. Hard-warn with the exposure;
+                // the QS can override knowingly.
+                double minConf = BOQCostManager.MinRateConfidenceForExport();
+                var risk = BOQCostManager.ComputeUncostedRollup(boq, minConf);
+                if (risk.BlocksExport)
+                {
+                    var gate = new TaskDialog("Professional BOQ — pricing gate")
+                    {
+                        MainInstruction = "This bill has unpriced or low-confidence rows.",
+                        MainContent =
+                            $"• {risk.ZeroRateCount} measured row(s) have NO rate — ≈ UGX {risk.ValueAtRiskUGX:N0} at risk (proxy median rates).\n" +
+                            $"• {risk.LowConfidenceCount} row(s) priced below the confidence floor ({minConf:F0}).\n" +
+                            (risk.CouldNotMeasureCount > 0 ? $"• {risk.CouldNotMeasureCount} row(s) could not be measured (quantity 0).\n" : "") +
+                            "\nExporting now ships these into the Contract Sum. Price them first (QS round-trip / rate library), or proceed knowingly.",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                        AllowCancellation = true
+                    };
+                    if (gate.Show() != TaskDialogResult.Yes)
+                        return Result.Cancelled;
+                }
+
                 // Phase 108h / 108j — tender config acquisition.
                 // When invoked from the inline-panel flow on BOQCostManagerPanel
                 // the caller has already persisted config values to
@@ -1581,16 +1605,19 @@ namespace StingTools.BOQ
             SheetBanner(ws, "GRAND SUMMARY", m);
 
             double measured = rows.Sum(x => x.TotalUGX);
-            // G3 — itemised preliminaries replace the flat % when active (% lines
-            // resolved against this summary's measured subtotal).
+            // WP1 — the ONE canonical markup waterfall (BoqTotals), the same
+            // helper BOQDocument.GrandTotalUGX and the panel KPI use, so this
+            // sheet's CONTRACT SUM equals the panel's Grand total to the shilling.
+            // G3 — itemised preliminaries replace the flat % when active.
             double prelims = m.PrelimsItemised
                 ? m.PrelimLines.Sum(l => l.AmountFor(measured))
                 : measured * (m.PrelimPct / 100.0);
-            double contingency = measured * (m.ContingencyPct / 100.0);
-            double overhead = measured * (m.OverheadPct / 100.0);
-            double subTotal = measured + prelims + contingency + overhead;
-            double vat = subTotal * (m.VatPct / 100.0);
-            double contractSum = subTotal + vat;
+            var mk = BoqTotals.Compute(measured, prelims, m.OverheadPct, m.ContingencyPct, m.VatPct);
+            double overhead = mk.Overhead;
+            double contingency = mk.Contingency;
+            double subTotal = mk.NetExVat;      // Contract Sum exclusive of tax
+            double vat = mk.Vat;
+            double contractSum = mk.GrandTotal; // == boq.GrandTotalUGX
 
             int r = 5;
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>

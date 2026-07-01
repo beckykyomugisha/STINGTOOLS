@@ -2,6 +2,70 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
+
+PM-1 landed (the §2 correctness bugs + the do-once shared helpers
+`IssueStatusNormalizer` / `MoneyRound` / `ContractSumResolver`, with
+`StingTools.Cost.Tests`, 41 green). The full catalogue with file:line anchors is in
+`docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md`. Still open:
+
+- **PM-2 — remainder.** Done (`claude/pm2-onward`): CostPlan→`PROJECT_BUDGET_UGX`
+  seeding, cert cumulative keyed on stable `SectionKey`, FinalAccount certified-to-date,
+  AFC/FinalAccount/EVM unified on `ContractSumResolver`, retention-MoS basis
+  configurable. Still open: approved VO → next-cert "Adjustments/Variations" SOV
+  section; clash → tracked issue (via the normalizer) into `issues.json` with SLA +
+  reconcile `clashes.json`.
+- **PM-3 — remainder.** Done: index-linked fluctuations engine (feeds AFC +
+  FinalAccount). Still open: schedule-driven cash-flow S-curve (real time-phased PV,
+  consuming the PM-4 CPM dates); dayworks build-up (via `StarRate`); loss & expense /
+  compensation events (off the captured EOT days); CVR report; NRM1 elemental cost
+  plan + OCE; line-level cost-to-complete; commitments register; QuickBooks/Sage/Excel
+  export.
+- **PM-4 — remainder.** Done: the pure `CpmEngine` (forward/backward pass → critical
+  path + total/free float, cycle detection). Still open: converge the two MSP/XER
+  parsers + read P6 `TASKPRED`/MSP links to feed the engine; model-driven % complete;
+  Uganda working-calendar into generation.
+- **PM-5 — carbon data.** Per-material/category waste table; UG clamp-kiln brick
+  factor; Kampala/UG green-baseline rows; stainless factor. (B6→GridCarbonRegistry +
+  benchmark consolidation done in PM-1.)
+- **PM-6 perf / PM-7 hygiene / PM-8 delivery layer** — multicategory filters on the
+  heavy sweeps + one cached `BuildBOQDocument` per command run; the WorkflowEngine
+  name-collision rename, dup `ContractForm`/`SuggestLiability`/`MapProviderIdToLegacySource`,
+  sidecar-root unification; MIDP/TIDP engine + real KPI time-series + risk register.
+
+## BOQ & Cost Manager — remaining after Round 3
+
+Branches `claude/boq-master-impl`, `claude/boq-measurement-qs` and
+`claude/boq-round3` (WP-C carbon convergence, WP-M measurement parity 2, WP-A
+automation, WP-Q QS fills) landed. Round 3 closed: the fossil/biogenic carbon
+convention on every surface (off real volume, with waste), shaft-void deduction,
+aggregated MeasureQuantity write-back, the could-not-measure export gate, unified
+solid-reader detail level, debounced incremental auto-refresh, frozen contract sum,
+retention release and the sign-off guard. Still open:
+
+- **WP-M — remainder.** The full per-material COST-row split (multiple bill rows per
+  material — carbon already splits, cost still bills the whole element); the optional
+  `matchSystem` (SYS) token in takeoff/measurement matching (discipline preference is
+  done); a regional/per-category waste override (currently the flat
+  `COST_DEFAULT_WASTE_PCT`); remaining magic unit literals → `UnitUtils`.
+- **WP-C — remainder.** Per-row EN 15978 A4/A5/C module surfacing on the BOQ (the
+  V6 `CarbonStageTracker` computes them and now shares the A1-A3 basis; the BOQ row
+  is explicitly scoped "A1-A3 upfront"); repoint/relabel the dead legacy
+  `CARBON_FACTORS.csv` loader.
+- **WP-Q — remainder.** Index-linked Fluctuations engine (NEDO/BCIS formula or local
+  CPI, basket UI) feeding both AFC and Final Account; contractor CVR (`Cost_CVR`)
+  fusing BOQ total + latest cert + VOs + PS movement + retention + EVM + cash-flow;
+  itemised contra-charges register behind the flat `OtherDeductions`; Materials-on-Site
+  capture into `SovLine.MaterialsOnSite` with a vesting trail + statutory
+  payment/pay-less dates; Dayworks build-up sheet (mirror the star-rate builder);
+  distinct PC-sum mechanism (NRM2 defined/undefined) separate from provisional sums;
+  time-phased EVM BCWS curve; adjudication hardening (IQR/std-dev outliers).
+- **WP-A — remainder.** Off-thread rate-feed pre-warm on document open; a low-frequency
+  scheduled server-baseline drift check (surface `SyncState=Conflict` proactively).
+- **WP6 — remainder.** Snapshot one FX rate per build + make currency mandatory on
+  every rate source (validate FX presence, no silent default). (USD-from-UGX at
+  summary and BCIS-off-sync-path are done.)
+
 ## Placement Centre — residual gaps (post review/hardening)
 
 - **BOQ quantity handoff.** Placed-element counts (`PlacementResult.PlacedIds`,

@@ -4,7 +4,8 @@
 //  Cost_StampIfcQuantities — populate IFC4 Qto_* + Pset_StingCost on
 //                             every BOQ element so the next IFC export
 //                             carries the cost + quantity data.
-//  Cost_ExportIcms3Report  — produce a CSV with cost £ + carbon kgCO₂e
+//  Cost_ExportIcms3Report  — produce a CSV with cost (project currency, UGX)
+//                            + carbon kgCO₂e
 //                             side by side per ICMS3 group code.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
@@ -121,28 +122,58 @@ namespace StingTools.Commands.Cost
                     sw.WriteLine($"# Generated:  {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
                     sw.WriteLine($"# Currency:   {boq.Currency}");
                     sw.WriteLine();
-                    sw.WriteLine("ICMS3_Group,Cost,Carbon_kgCO2e,Cost_Per_kgCO2e");
+                    // CA-4 — carbon-as-cost. Monetise carbon at the project price
+                    // (COST_CARBON_PRICE_UGX_PER_KG); 0 ⇒ Carbon_Cost is 0 (ratio
+                    // column unchanged). This turns the cost-per-kgCO₂e RATIO into an
+                    // actual carbon COST column the QS can fold into whole-life cost.
+                    double carbonPrice = BOQCostManager.CarbonPriceUgxPerKg();
+                    sw.WriteLine($"# Carbon price: {carbonPrice.ToString("F2", CultureInfo.InvariantCulture)} {boq.Currency}/kgCO2e (COST_CARBON_PRICE_UGX_PER_KG)");
+                    sw.WriteLine("ICMS3_Group,Cost,Carbon_kgCO2e,Cost_Per_kgCO2e,Carbon_Cost");
                     foreach (var kv in grouped.OrderBy(x => x.Key))
                     {
                         double perKg = kv.Value.carbon > 0
                             ? Math.Round(kv.Value.cost / kv.Value.carbon, 2) : 0;
+                        double carbonCost = Math.Round(kv.Value.carbon * carbonPrice, 2);
                         sw.WriteLine(string.Join(",", new[]
                         {
                             kv.Key,
                             kv.Value.cost.ToString("F2", CultureInfo.InvariantCulture),
                             kv.Value.carbon.ToString("F2", CultureInfo.InvariantCulture),
-                            perKg.ToString("F2", CultureInfo.InvariantCulture)
+                            perKg.ToString("F2", CultureInfo.InvariantCulture),
+                            carbonCost.ToString("F2", CultureInfo.InvariantCulture)
                         }));
                     }
                     double totalCost = grouped.Sum(x => x.Value.cost);
                     double totalCarbon = grouped.Sum(x => x.Value.carbon);
                     double overall = totalCarbon > 0
                         ? Math.Round(totalCost / totalCarbon, 2) : 0;
+                    double totalCarbonCost = Math.Round(totalCarbon * carbonPrice, 2);
                     sw.WriteLine();
-                    sw.WriteLine("TOTAL,"
+                    sw.WriteLine("MEASURED_WORKS_TOTAL,"
                         + totalCost.ToString("F2", CultureInfo.InvariantCulture) + ","
                         + totalCarbon.ToString("F2", CultureInfo.InvariantCulture) + ","
-                        + overall.ToString("F2", CultureInfo.InvariantCulture));
+                        + overall.ToString("F2", CultureInfo.InvariantCulture) + ","
+                        + totalCarbonCost.ToString("F2", CultureInfo.InvariantCulture));
+
+                    // CA-2 — explicit reconciliation: the ICMS3 ledger above is the
+                    // MEASURED WORKS (Σ line totals). State what's excluded and tie
+                    // it to the one net-of-VAT contract-sum basis the lifecycle uses,
+                    // then the VAT-inclusive presentation total. C = currency value.
+                    string C(double v) => v.ToString("F2", CultureInfo.InvariantCulture);
+                    sw.WriteLine();
+                    sw.WriteLine("# Reconciliation to the agreed (net-of-VAT) basis:");
+                    sw.WriteLine($"Preliminaries,{C(boq.PrelimContributionUGX)},,");
+                    sw.WriteLine($"Overhead_and_Profit,{C(boq.OverheadProfitUGX)},,");
+                    sw.WriteLine($"Contingency,{C(boq.ContingencyUGX)},,");
+                    sw.WriteLine($"NET_CONTRACT_SUM_EX_VAT,{C(boq.NetTotalExVatUGX)},,");
+                    sw.WriteLine($"VAT_{boq.VatPct.ToString("0.#", CultureInfo.InvariantCulture)}pct,{C(boq.VatUGX)},,");
+                    sw.WriteLine($"GROSS_TOTAL_INCL_VAT,{C(boq.GrandTotalUGX)},,");
+                    // CA-4 — whole-life cost view (LCC + monetised embodied carbon).
+                    sw.WriteLine();
+                    sw.WriteLine("# Whole-life cost (capital + maintenance NPV + carbon):");
+                    sw.WriteLine($"LIFECYCLE_COST,{C(boq.TotalLifecycleCostUGX)},,");
+                    sw.WriteLine($"EMBODIED_CARBON_COST,{C(boq.EmbodiedCarbonCostUGX)},,");
+                    sw.WriteLine($"LIFECYCLE_COST_INCL_CARBON,{C(boq.TotalLifecycleCostInclCarbonUGX)},,");
                 }
 
                 StingResultPanel.Create("ICMS3 report")
@@ -152,6 +183,11 @@ namespace StingTools.Commands.Cost
                     .Metric("Groups", grouped.Count.ToString())
                     .Metric("Total cost", $"{boq.Currency} {grouped.Sum(x => x.Value.cost):N0}")
                     .Metric("Total carbon", $"{grouped.Sum(x => x.Value.carbon):N0} kgCO₂e")
+                    .Metric("Carbon cost", $"{boq.Currency} {boq.EmbodiedCarbonCostUGX:N0}",
+                        BOQCostManager.CarbonPriceUgxPerKg() > 0
+                            ? $"@ {BOQCostManager.CarbonPriceUgxPerKg():N0}/kgCO₂e"
+                            : "set COST_CARBON_PRICE_UGX_PER_KG to price carbon")
+                    .Metric("Whole-life cost incl. carbon", $"{boq.Currency} {boq.TotalLifecycleCostInclCarbonUGX:N0}")
                     .Text($"Path: {outPath}")
                     .Show();
                 return Result.Succeeded;

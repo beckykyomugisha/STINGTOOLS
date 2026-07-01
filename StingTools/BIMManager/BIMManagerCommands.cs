@@ -2529,29 +2529,15 @@ namespace StingTools.BIMManager
             data["Zone"] = zones;
 
             // ── Type (from FamilySymbol) ──
-            // IG-01: Load cost_rates_5d.csv for ReplacementCost fallback
-            var costRateByCategory = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                string costPath = StingToolsApp.FindDataFile("cost_rates_5d.csv");
-                if (!string.IsNullOrEmpty(costPath))
-                {
-                    foreach (string line in File.ReadAllLines(costPath).Skip(1))
-                    {
-                        var cols = StingToolsApp.ParseCsvLine(line);
-                        if (cols.Length >= 5 && !string.IsNullOrWhiteSpace(cols[0]))
-                        {
-                            // cols[0]=Category, cols[3]=Unit_Rate_USD (or cols[1] for 3-col format)
-                            string cat = cols[0].Trim();
-                            string rate = cols.Length >= 5 ? cols[3].Trim() : cols[1].Trim();
-                            if (!string.IsNullOrEmpty(rate))
-                                costRateByCategory.TryAdd(cat, rate);
-                        }
-                    }
-                    StingLog.Info($"IG-01: Loaded {costRateByCategory.Count} cost rates from cost_rates_5d.csv");
-                }
-            }
-            catch (Exception costEx) { StingLog.Warn($"IG-01: cost_rates_5d.csv load: {costEx.Message}"); }
+            // IG-01 / P0-7: ReplacementCost fallback uses the ONE rate loader
+            // (BOQCostManager.LoadCsvRates — corporate cost_rates_5d.csv, UGX)
+            // instead of a private inline reader. The element's stamped
+            // ASS_CST_UNIT_PRICE_UGX_NR (written by the BOQ) still wins; this
+            // category map only fills the fallback for as-yet-uncosted types.
+            // UGX matches the UGX-named parameter (the old reader mislabelled a
+            // USD column as the UGX replacement cost).
+            var costRateByCategory = StingTools.BOQ.BOQCostManager.LoadCsvRates();
+            StingLog.Info($"IG-01: ReplacementCost fallback from {costRateByCategory.Count} canonical cost rates");
 
             var types = new List<Dictionary<string, string>>();
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
@@ -2608,10 +2594,12 @@ namespace StingTools.BIMManager
                     ["WarrantyGuarantorLabor"] = warrantyLabor,
                     ["WarrantyDurationLabor"] = warrantyDurLabor,
                     ["WarrantyDurationUnit"] = (!string.IsNullOrEmpty(warrantyDurParts) || !string.IsNullOrEmpty(warrantyDurLabor)) ? "years" : "",
-                    // IG-01: Fallback to cost_rates_5d.csv when element has no cost
+                    // IG-01 / P0-7: stamped CST_* unit price wins; else the
+                    // canonical category rate (UGX) from the one loader.
                     ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
                         ? ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
-                        : (costRateByCategory.TryGetValue(fs.Category?.Name ?? "", out string csvRate) ? csvRate : ""),
+                        : (costRateByCategory.TryGetValue(fs.Category?.Name ?? "", out var csvRate) && csvRate.rate > 0
+                            ? csvRate.rate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : ""),
                     ["ExpectedLife"] = ParameterHelpers.GetString(fs, "ASS_EXPECTED_LIFE_YEARS_YRS"),
                     ["DurationUnit"] = "years",
                     ["NominalLength"] = nomLength, ["NominalWidth"] = nomWidth, ["NominalHeight"] = nomHeight,
@@ -8606,27 +8594,43 @@ namespace StingTools.BIMManager
         {
             string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_5D_CostData", ".csv");
 
+            // P0-7 — per-element cost comes from the canonical procedure
+            // (BOQCostManager.CostElement → BuildLineItemFromElement: the same
+            // ResolveRate + MeasureQuantity the BOQ line item uses). The old
+            // hardcoded GBP category table (EstimateCost) and its own qty
+            // fallback (ExtractQuantity) are retired so this export and the BOQ
+            // can never disagree on an element's cost. Currency is UGX (matching
+            // the BOQ + the CST_* stamps), not the old mislabelled GBP.
+            var costCtx = StingTools.BOQ.BOQCostManager.ElementCostContext.Build(doc);
+
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,Category,Tag,Discipline,Family,Type,Quantity,Unit,EstimatedCost_GBP");
+            sb.AppendLine("ElementId,Category,Tag,Discipline,Family,Type,Quantity,Unit,EstimatedCost_UGX,RateSource,RateConfidence");
 
             var elements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
                 .ToList();
 
+            var headers = new List<string> { "ElementId","Category","Tag","Discipline","Family","Type","Quantity","Unit","EstimatedCost_UGX","RateSource","RateConfidence" };
+            var xlRows = new List<List<string>>();
+            int costed = 0;
+
             foreach (var el in elements)
             {
+                var li = StingTools.BOQ.BOQCostManager.CostElement(doc, el, costCtx);
+                if (li == null) continue;
+                costed++;
+
                 string catName = el.Category?.Name ?? "";
-                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                string family = ParameterHelpers.GetFamilyName(el);
-                string type = ParameterHelpers.GetFamilySymbolName(el);
-
-                // Extract quantity
-                (double qty, string unit) = ExtractQuantity(el);
-
-                // Estimate cost
-                double cost = EstimateCost(catName, qty);
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
+                string disc = !string.IsNullOrEmpty(li.Discipline)
+                    ? li.Discipline : (ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "");
+                string family = ParameterHelpers.GetFamilyName(el) ?? "";
+                string type = ParameterHelpers.GetFamilySymbolName(el) ?? "";
+                double qty = li.Quantity;
+                string unit = li.Unit ?? "";
+                double cost = li.TotalUGX;
+                string rateSource = li.RateSource ?? "";
 
                 sb.AppendLine(string.Join(",",
                     $"\"{el.Id}\"",
@@ -8636,33 +8640,27 @@ namespace StingTools.BIMManager
                     $"\"{Esc(family)}\"",
                     $"\"{Esc(type)}\"",
                     $"{qty:F2}",
-                    $"\"{unit}\"",
-                    $"{cost:F2}"));
+                    $"\"{Esc(unit)}\"",
+                    $"{cost:F2}",
+                    $"\"{Esc(rateSource)}\"",
+                    $"{li.RateConfidence}"));
+
+                xlRows.Add(new List<string>
+                {
+                    el.Id.ToString(), catName, tag, disc, family, type,
+                    qty.ToString("F2"), unit, cost.ToString("F2"),
+                    rateSource, li.RateConfidence.ToString()
+                });
             }
 
             File.WriteAllText(path, sb.ToString());
-            StingLog.Info($"5DCostData: exported {elements.Count} elements to {path}");
+            StingLog.Info($"5DCostData: exported {costed}/{elements.Count} elements (canonical take-off) to {path}");
 
-            // Phase 76: XLSX mirror
+            // Phase 76: XLSX mirror — reuse the rows already costed above (no
+            // second per-element take-off, so the two outputs cannot diverge).
             try
             {
                 string xlsxPath = Path.ChangeExtension(path, ".xlsx");
-                var headers = new List<string> { "ElementId","Category","Tag","Discipline","Family","Type","Quantity","Unit","EstimatedCost_GBP" };
-                var xlRows = elements.Select(el =>
-                {
-                    string catN = el.Category?.Name ?? "";
-                    (double qty, string unit) = ExtractQuantity(el);
-                    double cost = EstimateCost(catN, qty);
-                    return new List<string>
-                    {
-                        el.Id.ToString(), catN,
-                        ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "",
-                        ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "",
-                        ParameterHelpers.GetFamilyName(el) ?? "",
-                        ParameterHelpers.GetFamilySymbolName(el) ?? "",
-                        qty.ToString("F2"), unit, cost.ToString("F2")
-                    };
-                }).ToList();
                 Core.StingExcelExporter.ExportTable(xlsxPath, "5D Cost Data", headers, xlRows, openFolder: false);
             }
             catch (Exception ex) { StingLog.Warn($"5DCostData XLSX: {ex.Message}"); }
@@ -8740,42 +8738,11 @@ namespace StingTools.BIMManager
             _       => value
         };
 
-        private static (double qty, string unit) ExtractQuantity(Element el)
-        {
-            const double ftToM = 0.3048;
-            const double sqFtToSqM = 0.092903;
-
-            // Try length first
-            Parameter lenP = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-            if (lenP != null && lenP.HasValue && lenP.AsDouble() > 0)
-                return (lenP.AsDouble() * ftToM, "m");
-
-            // Try area
-            Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
-            if (areaP != null && areaP.HasValue && areaP.AsDouble() > 0)
-                return (areaP.AsDouble() * sqFtToSqM, "m2");
-
-            // Default: 1 each
-            return (1.0, "ea");
-        }
-
-        private static double EstimateCost(string categoryName, double qty)
-        {
-            // NRM2-based cost estimates (GBP per unit)
-            double rate = 50.0; // default £50/unit
-            if (categoryName.Contains("Wall")) rate = 120.0;
-            if (categoryName.Contains("Floor")) rate = 85.0;
-            if (categoryName.Contains("Roof")) rate = 180.0;
-            if (categoryName.Contains("Door")) rate = 450.0;
-            if (categoryName.Contains("Window")) rate = 600.0;
-            if (categoryName.Contains("Mechanical Equipment")) rate = 2500.0;
-            if (categoryName.Contains("Electrical Equipment")) rate = 1500.0;
-            if (categoryName.Contains("Lighting")) rate = 250.0;
-            if (categoryName.Contains("Plumbing")) rate = 350.0;
-            if (categoryName.Contains("Duct")) rate = 75.0;
-            if (categoryName.Contains("Pipe")) rate = 65.0;
-            return rate * qty;
-        }
+        // P0-7 — ExtractQuantity (its own 1-each fallback) and EstimateCost (a
+        // hardcoded GBP category→rate table with its own qty×rate) were the
+        // worst cost fork: they ignored cost_rates_5d.csv AND the canonical
+        // engine entirely. Both are deleted; Export5DCostData now costs every
+        // element through BOQCostManager.CostElement.
 
         private static string Esc(string s) => (s ?? "").Replace("\"", "\"\"");
     }

@@ -88,34 +88,38 @@ namespace StingTools.Commands.Sustainability
                 ["payloadJson"]              = JsonConvert.SerializeObject(snap)
             };
 
-            Guid? newId = null;
-            string lastErr = null;
-            Task.Run(async () =>
+            // SUS-6 — the push is fire-and-forget background HTTP; the UI thread is NEVER
+            // blocked (was a .Wait(15s) that froze Revit on a slow/unreachable server). The
+            // command returns immediately; the outcome is logged on completion.
+            string snapTs = snap.Ts;
+            string edgeLevel = snap.EdgeLevel;
+            _ = Task.Run(async () =>
             {
                 try
                 {
                     var client = PlanscapeServerClient.Instance;
-                    newId = await client.PushSustainabilitySnapshotAsync(projectId, body);
-                    if (!newId.HasValue) lastErr = client.LastError;
+                    var newId = await client.PushSustainabilitySnapshotAsync(projectId, body);
+                    if (newId.HasValue)
+                        StingLog.Info($"Sustain_PublishToServer: pushed snapshot {newId.Value} (EDGE {edgeLevel}, {snapTs}).");
+                    else
+                        StingLog.Warn($"Sustain_PublishToServer: push returned no id - {client.LastError ?? "unknown error"}.");
                 }
-                catch (Exception ex) { lastErr = ex.Message; StingLog.Warn($"SustainPublishToServer: {ex.Message}"); }
-            }).Wait(TimeSpan.FromSeconds(15));
+                catch (Exception ex) { StingLog.Warn($"SustainPublishToServer: {ex.Message}"); }
+            });
 
             var panel = StingResultPanel.Create("Sustainability — Publish to Server");
             panel.SetSubtitle($"projectId={projectId}");
-            panel.AddSection("PUSH RESULT")
-                 .Metric("Snapshot time", snap.Ts)
-                 .Metric("EDGE level", $"{snap.EdgeLevel} ({(snap.EdgePassed ? "pass" : "below target")})")
+            panel.AddSection("PUSH QUEUED")
+                 .Metric("Snapshot time", snapTs)
+                 .Metric("EDGE level", $"{edgeLevel} ({(snap.EdgePassed ? "pass" : "below target")})")
                  .Metric("Energy savings", $"{snap.EnergySavingsPct:0.#}%")
-                 .Metric("Pushed", newId.HasValue ? "yes" : "no")
-                 .Metric("Server snapshot id", newId?.ToString() ?? "—")
-                 .Metric("Server last error", lastErr ?? "(none)");
-            panel.Text("Publishes the most recent Dashboard snapshot. Endpoint: " +
-                       "POST /api/projects/{id}/sustainability/snapshots. Disabled for " +
-                       "offline projects.");
+                 .Metric("Status", "publishing in the background");
+            panel.Text("The snapshot is pushed in the background (POST /api/projects/{id}/" +
+                       "sustainability/snapshots) so Revit is never blocked. The outcome is " +
+                       "written to the STING log. Disabled for offline projects.");
             panel.Show();
 
-            StingLog.Info($"Sustain_PublishToServer: pushed={newId.HasValue}, EDGE {snap.EdgeLevel}, err={lastErr ?? "none"}.");
+            StingLog.Info($"Sustain_PublishToServer: queued background push (EDGE {edgeLevel}, {snapTs}).");
             return Result.Succeeded;
         }
 

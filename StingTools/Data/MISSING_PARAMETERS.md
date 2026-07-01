@@ -1,5 +1,48 @@
 # Missing Parameters Audit — Code vs Shared-Parameter Files
 
+> **Status (2026-06-30):** Material-Manager + Sustainability gap closed on
+> branch `claude/pm-complete`. Nine element-bound shared params that were
+> declared/consumed in code but missing from `MR_PARAMETERS.txt` are now
+> aligned across `MR_PARAMETERS.txt`, `PARAMETER_REGISTRY.json` (v5.13),
+> `MR_PARAMETERS.csv`, `CATEGORY_BINDINGS.csv`, `BINDING_COVERAGE_MATRIX.csv`,
+> `FAMILY_PARAMETER_BINDINGS.csv`, `PARAMETER_CATEGORIES.csv`, plus
+> `ParamRegistry.cs` consts and the `LoadSharedParamsCommand.IsMaterialRelevantParam`
+> material-binding gate:
+> `MAT_COST_SUPPLY_NR`, `MAT_COST_INSTALL_NR`, `MAT_VAT_PCT_NR`,
+> `STING_EMB_CARBON_NR`, `STING_MAT_EPD_SRC_TXT`, `STING_MAT_EPD_DATE_TXT`,
+> `STING_MAT_LIFECYCLE_TXT` (group 12 MAT_INFO → Materials), and
+> `SUS_FIXTURE_FLOW_LPM`, `SUS_FIXTURE_FLUSH_L` (group 6 PLM_DRN → plumbing
+> fixtures). GUIDs are UUIDv5 in the Planscape namespace
+> `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`.
+>
+> **Tier-2 (now also closed, same date):** a code-const scan surfaced 30 further
+> genuinely element-bound params from earlier phases that were absent from
+> `MR_PARAMETERS.txt`; these are now aligned across the same surfaces (MR.txt =
+> 3,375 params / 36 groups; new group 36 `STING_VIEWPARAMS` with an `OST_Views`
+> loader override for `STING_VIEW_TOKEN_MASK_TXT`) — electrical SLD/circuit
+> (`ELC_CIR_REF_TXT`,
+> `ELC_CIR_VOLTAGE_TXT`, `ELC_CIR_DESIGN_CURRENT_TXT`, `ELC_CIR_DESIGN_LOAD_TXT`,
+> `ELC_CIR_FAULT_LEVEL_TXT`, `ELC_CIR_BREAKER_RATING_TXT`, `ELC_CIR_ZS_TXT`,
+> `ELC_CIR_DIVERSITY_FACTOR_TXT`, `ELC_CABLE_CSA_TXT`, `ELC_WIRE_BEND_COUNT_INT`,
+> `ELC_CDT_STALE_ANNOT_BOOL`, `ELC_RECONCILE_DRIFT_BOOL`, `ELC_CIRCUIT_TRACE_ACTIVE`),
+> plumbing-router (`PLM_CONN_FROM_TAG`, `PLM_CONN_TO_TAG`, `PLM_NOMINAL_DIA_MM`,
+> `PLM_PIPE_SERVICE_TXT`, `PLM_PRESSURE_KPA`, `PLM_SLOPE_PCT_V4`, `PLM_TMV_KVS`),
+> design-options (`ASS_OPTION_SET_TXT`, `ASS_OPTION_PRIMARY_BOOL`), paragraph
+> cache (`ASS_LAST_PARA_CONTAINER_TXT`), sheet revision (`SHT_REV_DATE_TXT`),
+> compound family (`STING_COMPOUND_PARENT_ID`), view token mask
+> (`STING_VIEW_TOKEN_MASK_TXT`), conduit fill (`STING_CONDUIT_FILL_SUMMARY_TXT`),
+> IFC interop (`IFC_GLOBAL_ID_TXT`), and clash (`CLASH_LIVE_FLAG`,
+> `CLASH_COUNT_INT`). Excluded as non-params (verified): family-internal symbol
+> params (`STING_SYM_R/G/B`, `STING_SYMBOL_SIZE_MM`, `STING_SYMBOL_STD`,
+> `STING_SHOW_*_BOOL`), annotation-marker text prefixes (`STING_WIRE_*`,
+> `STING_*_ANNOT`, `STING_SLD_ANNOT_*`), ExtensibleStorage / config keys
+> (`STING_LPS_EXPOSED`, `STING_PLANSCAPE_URL`, `STING_SYNC`, `STING_SNAPSHOTS`),
+> the Revit BuiltInParameter `RBS_SYSTEM_CLASSIFICATION_PARAM`, and LPS
+> element-type tag *values* (`AIR_TERMINAL`, `DOWN_CONDUCTOR`, `EARTH_ELECTRODE`,
+> `BONDING_BAR`, `TEST_CLAMP`).
+>
+> ---
+>
 > **Status (2026-05-19):** RE-VERIFIED on branch
 > `claude/review-parameter-alignment-riKvx`. The 25 net-new
 > parameters introduced by Phase 184 (cost / payment cert /

@@ -1415,6 +1415,8 @@ namespace StingTools.UI
                     case "Health_DashboardHtml": RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
                     // Clash → BIM tab
                     case "Clash_XlsxExport":    RunCommand<Core.Clash.ClashXlsxExportCommand>(app); break;
+                    // PM-2 — reconcile clashes.json ↔ issues.json (clash → tracked issue).
+                    case "Clash_SyncIssues":    RunCommand<Core.Clash.ClashSyncIssuesCommand>(app); break;
                     // ══ end Group 5 ══
 
                     case "DrawingTypesBrowse": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
@@ -1437,9 +1439,10 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
-                    // "BOQExport" is now routed to BOQ.BOQExportCommand at line ~2547 (new BOQ Cost Manager).
-                    // Legacy Phase 5 Temp.BOQExportCommand accessible via "BOQExportLegacy" tag.
-                    case "BOQExportLegacy": RunCommand<Temp.BOQExportCommand>(app); break;
+                    // "BOQExport" routes to BOQ.BOQExportCommand (the BOQ Cost Manager).
+                    // P0-7 — the legacy Phase 5 Temp.BOQExportCommand is retired; the
+                    // "BOQExportLegacy" tag now also routes to the canonical command.
+                    case "BOQExportLegacy": RunCommand<BOQ.BOQExportCommand>(app); break;
                     case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
                     case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
                     case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;
@@ -3557,9 +3560,35 @@ namespace StingTools.UI
                     case "Variation_BuildStarRate":     RunCommand<Commands.Cost.VariationBuildStarRateCommand>(app); break;
                     case "Variation_ExportRegister":    RunCommand<Commands.Cost.VariationExportRegisterCommand>(app); break;
                     case "Variation_ReclassifyLegacy":  RunCommand<Commands.Cost.VariationReclassifyLegacyCommand>(app); break;
+                    // WP4a — variation approval workflow + final-account reconciliation.
+                    case "Variation_Approve":           RunCommand<Commands.Cost.VariationApproveCommand>(app); break;
+                    case "Variation_Reject":            RunCommand<Commands.Cost.VariationRejectCommand>(app); break;
+                    case "Variation_Incorporate":       RunCommand<Commands.Cost.VariationIncorporateCommand>(app); break;
+                    case "FinalAccount_Reconcile":      RunCommand<Commands.Cost.FinalAccountReconcileCommand>(app); break;
+                    case "Tender_Adjudicate":           RunCommand<Commands.Cost.TenderAdjudicateCommand>(app); break;
+                    case "Cost_SetContractSum":         RunCommand<Commands.Cost.CostSetContractSumCommand>(app); break;
+                    case "Retention_Release":           RunCommand<Commands.Cost.RetentionReleaseCommand>(app); break;
+                    case "Fluctuations_Compute":        RunCommand<Commands.Cost.FluctuationsComputeCommand>(app); break;
                     case "Evm_Calculate":               RunCommand<Commands.Cost.EvmCalculateCommand>(app); break;
                     case "Evm_ImportActuals":           RunCommand<Commands.Cost.EvmImportActualsCommand>(app); break;
                     case "Evm_ExportReport":            RunCommand<Commands.Cost.EvmExportReportCommand>(app); break;
+
+                    // PM-4 — scheduling (converged import, CPM, model %, S-curve).
+                    case "Sched_Import":                RunCommand<Commands.Cost.ScheduleImportCommand>(app); break;
+                    case "Sched_Cpm":                   RunCommand<Commands.Cost.ScheduleCpmCommand>(app); break;
+                    case "Sched_ModelPercent":          RunCommand<Commands.Cost.ScheduleModelPercentCommand>(app); break;
+                    case "Sched_SCurve":                RunCommand<Commands.Cost.ScheduleSCurveCommand>(app); break;
+
+                    // PM-3 — lifecycle (CVR, loss & expense, line CTC, commitments).
+                    case "Cvr_Report":                  RunCommand<Commands.Cost.CvrReportCommand>(app); break;
+                    case "LossExpense_Value":           RunCommand<Commands.Cost.LossExpenseValueCommand>(app); break;
+                    case "CostToComplete_Lines":        RunCommand<Commands.Cost.CostToCompleteLinesCommand>(app); break;
+                    case "Commitments_Report":          RunCommand<Commands.Cost.CommitmentsReportCommand>(app); break;
+
+                    // PM-8 — delivery layer (risk register, MIDP/TIDP drift).
+                    case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
+                    case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;
+                    case "Midp_DriftReport":            RunCommand<Commands.Delivery.MidpDriftReportCommand>(app); break;
 
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;

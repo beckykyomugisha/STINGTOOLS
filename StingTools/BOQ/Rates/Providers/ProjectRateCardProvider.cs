@@ -60,7 +60,9 @@ namespace StingTools.BOQ.Rates.Providers
                     map[e.Category] = new RateLookup
                     {
                         UnitRate = e.UnitRate,
-                        CurrencyCode = string.IsNullOrEmpty(e.Currency) ? "GBP" : e.Currency,
+                        // CA-1 — a rate-card row without a currency is project base
+                        // (UGX), not GBP. Explicit e.Currency still wins.
+                        CurrencyCode = string.IsNullOrEmpty(e.Currency) ? RateCurrency.Base : e.Currency,
                         Unit = string.IsNullOrEmpty(e.Unit) ? "each" : e.Unit,
                         SourceId = "project-rate-card",
                         Confidence = 87,

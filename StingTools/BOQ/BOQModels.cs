@@ -81,6 +81,34 @@ namespace StingTools.BOQ
         SourcePromoted
     }
 
+    // ── BoqUncostedRollup ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// WP2 — document-level "value at risk" rollup. Unmatched-rate model rows
+    /// otherwise fold into the grand total as invisible zero-value lines; this
+    /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
+    /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
+    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
+    /// are excluded.
+    /// </summary>
+    public struct BoqUncostedRollup
+    {
+        public int ZeroRateCount;        // measured/count model rows with no rate found
+        public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
+        public int LowConfidenceCount;   // priced rows below the export confidence floor
+        public double QtyAtRisk;         // Σ quantity of the zero-rate rows
+        public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
+        /// <summary>True when a tender/professional export should be gated.</summary>
+        // WP-M — a measured row with a valid rate but qty 0 ships a silent zero
+        // line into the Contract Sum, so it must gate the export too.
+        public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0 || CouldNotMeasureCount > 0;
+        public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
+    }
+
+    // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
+    // Moved to BoqTotals.cs (P0-7) so the markup waterfall is Document-free and
+    // linkable into the headless cost tests. Still namespace StingTools.BOQ.
+
     // ── BOQLineItem ────────────────────────────────────────────────────────
 
     /// <summary>
@@ -118,8 +146,22 @@ namespace StingTools.BOQ
         public string MeasurementNote;
         public double RateUGX;
         public double RateUSD;
-        public double EmbodiedCarbonKg;     // kgCO2e
+        public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
+        // ── WP-C — RICS WLCA fossil/biogenic split. EmbodiedCarbonKg is the
+        // A1-A3 FOSSIL upfront figure (the benchmark headline); BiogenicKg is the
+        // separate A1-A3 biogenic line (≤ 0 for timber, 0 otherwise) — never
+        // netted into the headline. NetCarbonKg is the whole-life-context net.
+        // CarbonEstimated = true when the carbon volume came from a guessed
+        // thickness / cross-section rather than real geometry.
+        public double BiogenicKg;           // kgCO2e — A1-A3 biogenic (≤ 0)
+        public bool CarbonEstimated;
+        public double NetCarbonKg => EmbodiedCarbonKg + BiogenicKg;
         public double LifecycleCostUGX;     // capital + maintenance NPV 25yr
+        // CA-4 — TRUE whole-life cost: LifecycleCostUGX + monetised carbon
+        // (carbon price × embodied A1-A3; operational carbon is folded at the
+        // building/EDGE level). Equals LifecycleCostUGX when no carbon price is
+        // set. Additive — safe default 0 for old saved rows.
+        public double LifecycleCostInclCarbonUGX;
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
         public string Note;
@@ -229,6 +271,7 @@ namespace StingTools.BOQ
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
                 LifecycleCostUGX = this.LifecycleCostUGX,
+                LifecycleCostInclCarbonUGX = this.LifecycleCostInclCarbonUGX,
                 ResolvedNRM2Paragraph = this.ResolvedNRM2Paragraph,
                 BOQLineRef = this.BOQLineRef,
                 Note = this.Note,
@@ -249,6 +292,8 @@ namespace StingTools.BOQ
                 LabourUGX = this.LabourUGX,
                 PlantUGX = this.PlantUGX,
                 MaterialUGX = this.MaterialUGX,
+                BiogenicKg = this.BiogenicKg,
+                CarbonEstimated = this.CarbonEstimated,
                 CarbonSource = this.CarbonSource,
                 CarbonQuality = this.CarbonQuality,
                 CarbonMaterial = this.CarbonMaterial,
@@ -280,7 +325,8 @@ namespace StingTools.BOQ
         public double TotalUSD => Items.Sum(i => i.TotalUSD);
         public double ModeledUGX => Items.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvUGX => Items.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
-        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);
+        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);       // A1-A3 fossil
+        public double TotalBiogenicKg => Items.Sum(i => i.BiogenicKg);           // A1-A3 biogenic (≤0)
     }
 
     // ── BOQDocument ────────────────────────────────────────────────────────
@@ -297,10 +343,15 @@ namespace StingTools.BOQ
         public string SnapshotLabel;
         public DateTime SnapshotDate = DateTime.UtcNow;
         public string SnapshotType;         // "DD" | "Stage" | "Weekly" | "Handover" | "Manual" | "Live"
+        /// <summary>WP-FIX — the client's cost limit, captured VAT-INCLUSIVE (the
+        /// all-in funding figure), so it compares like-with-like against the
+        /// canonical VAT-inclusive <see cref="GrandTotalUGX"/>. Both
+        /// BudgetVarianceUGX and BudgetCoveragePct use this same basis.</summary>
         public double ProjectBudgetUGX;
         public double PrelimPct = 12.0;
         public double ContingencyPct = 10.0;
         public double OverheadPct = 8.0;
+        public double VatPct = 18.0;                    // WP1 — VAT on the BOQ document (Uganda standard rate)
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
         /// <summary>
@@ -336,12 +387,38 @@ namespace StingTools.BOQ
         public double PrelimContributionUGX =>
             PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
 
-        public double GrandTotalUGX =>
-            Math.Round(SubtotalUGX + PrelimContributionUGX
-                       + SubtotalUGX * (ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
+        /// <summary>
+        /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
+        /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
+        /// All component properties below and every external surface read from this.
+        /// </summary>
+        public BoqMarkupBreakdown Markup =>
+            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct);
+
+        public double OverheadProfitUGX => Markup.Overhead;
+        public double ContingencyUGX    => Markup.Contingency;
+        /// <summary>Contract Sum exclusive of VAT (Works + Prelims + OH&P + Contingency).</summary>
+        public double NetTotalExVatUGX  => Markup.NetExVat;
+        public double VatUGX            => Markup.Vat;
+
+        /// <summary>The canonical, fully-marked-up Contract Sum INCLUSIVE of VAT.
+        /// This is the one number the panel KPI, both exporters, the snapshot list,
+        /// the budget variance and the server sync all agree on.</summary>
+        public double GrandTotalUGX => Markup.GrandTotal;
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
-        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
-        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);
+        // WP-FIX — coverage now uses the VAT-inclusive GrandTotal (same basis as
+        // the budget + the variance), not the bare works subtotal, so the two
+        // budget metrics can no longer disagree on what they measure against.
+        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? GrandTotalUGX / ProjectBudgetUGX * 100 : 0;
+        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);    // A1-A3 fossil headline
+        public double TotalBiogenicKg => AllItems.Sum(i => i.BiogenicKg);        // A1-A3 biogenic (≤0), reported separately
+        public double TotalNetCarbonKg => TotalCarbonKg + TotalBiogenicKg;       // whole-life context only
+        // CA-4 — whole-life cost totals. Plain LCC (capital + maintenance NPV) and
+        // the carbon-inclusive LCC (plain + monetised embodied carbon). Equal when
+        // no carbon price is set.
+        public double TotalLifecycleCostUGX => AllItems.Sum(i => i.LifecycleCostUGX);
+        public double TotalLifecycleCostInclCarbonUGX => AllItems.Sum(i => i.LifecycleCostInclCarbonUGX);
+        public double EmbodiedCarbonCostUGX => TotalLifecycleCostInclCarbonUGX - TotalLifecycleCostUGX;
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
 
@@ -412,6 +489,10 @@ namespace StingTools.BOQ
         public string Type;
         public DateTime Date;
         public double GrandTotalUGX;
+        // CA-2 — net-of-VAT contract-sum basis (works + prelims + OH&P +
+        // contingency). The PM/QS lifecycle anchors on this; old metas without it
+        // default to 0 and callers fall back to deriving net from GrandTotalUGX.
+        public double NetExVatUGX;
 
         // P1: server-sync provenance. Populated by BoqSyncCoordinator
         // after a successful push. SyncState values:

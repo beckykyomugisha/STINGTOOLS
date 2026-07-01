@@ -1,0 +1,73 @@
+{
+  "version": "2.0",
+  "note": "MAT-1/MAT-4 — slab void systems. RESOLUTION PRIORITY (most→least accurate): (1) real modelled geometry — summed Solid.Volume when it is materially below the gross bounding box; (2) parameter-driven calculator — net concrete from the system dimensions below (the primary path for typical flat-solid models); (3) flat solidFraction × gross (LAST RESORT, flagged low-confidence). Dimensions are INDICATIVE (confirm vs supplier span tables) — refine per project at <project>/_BIM_COORD/STING_SLAB_SYSTEMS.json (additive by id). ribsArePrecast=true (maxspan / beam-block) means the ribs are supplied precast and are EXCLUDED from in-situ concrete (topping only) — measured as a separate precast line. All *Mm are millimetres.",
+  "paramName": "BLE_SLAB_SYSTEM_TXT",
+  "systems": [
+    {
+      "id": "hollow_pot",
+      "label": "Hollow-pot / clay-pot slab",
+      "solidFraction": 0.62,
+      "range": "0.55-0.70",
+      "indicative": true,
+      "twoWay": false,
+      "ribsArePrecast": false,
+      "dims": { "toppingMm": 50, "ribWidthMm": 125, "ribSpacingMm": 475, "ribDepthMm": 225, "potWidthMm": 350, "potLengthMm": 300 },
+      "keywords": ["hollow pot", "hollowpot", "hollow-pot", "clay pot", "claypot", "clay-pot", "pot slab", "hourdis"]
+    },
+    {
+      "id": "ribbed",
+      "label": "Ribbed slab (one-way)",
+      "solidFraction": 0.60,
+      "range": "0.55-0.65",
+      "indicative": true,
+      "twoWay": false,
+      "ribsArePrecast": false,
+      "dims": { "toppingMm": 75, "ribWidthMm": 125, "ribSpacingMm": 600, "ribDepthMm": 300, "potWidthMm": 475, "potLengthMm": 0 },
+      "keywords": ["ribbed", "rib slab", "one-way joist", "joist slab"]
+    },
+    {
+      "id": "trough",
+      "label": "Trough slab (one-way)",
+      "solidFraction": 0.60,
+      "range": "0.55-0.65",
+      "indicative": true,
+      "twoWay": false,
+      "ribsArePrecast": false,
+      "dims": { "toppingMm": 75, "ribWidthMm": 150, "ribSpacingMm": 750, "ribDepthMm": 300, "potWidthMm": 600, "potLengthMm": 0 },
+      "keywords": ["trough"]
+    },
+    {
+      "id": "waffle",
+      "label": "Waffle / coffered slab (two-way)",
+      "solidFraction": 0.65,
+      "range": "0.60-0.70",
+      "indicative": true,
+      "twoWay": true,
+      "ribsArePrecast": false,
+      "dims": { "toppingMm": 75, "ribWidthMm": 150, "ribSpacingMm": 750, "ribDepthMm": 325, "potWidthMm": 600, "potLengthMm": 600 },
+      "keywords": ["waffle", "coffer", "coffered", "two-way joist"]
+    },
+    {
+      "id": "maxspan",
+      "label": "Maxspan (precast rib + infill block + in-situ topping)",
+      "solidFraction": 0.40,
+      "range": "0.30-0.50",
+      "indicative": true,
+      "twoWay": false,
+      "ribsArePrecast": true,
+      "dims": { "toppingMm": 65, "ribWidthMm": 125, "ribSpacingMm": 625, "ribDepthMm": 200, "potWidthMm": 500, "potLengthMm": 600 },
+      "keywords": ["maxspan", "max span", "precast rib"]
+    },
+    {
+      "id": "beam_block",
+      "label": "Beam-and-block (precast beam + infill block + in-situ topping)",
+      "solidFraction": 0.40,
+      "range": "0.30-0.50",
+      "indicative": true,
+      "twoWay": false,
+      "ribsArePrecast": true,
+      "dims": { "toppingMm": 65, "ribWidthMm": 125, "ribSpacingMm": 600, "ribDepthMm": 200, "potWidthMm": 440, "potLengthMm": 600 },
+      "keywords": ["beam and block", "beam-and-block", "beam block", "beam-block", "block and beam"]
+    }
+  ]
+}

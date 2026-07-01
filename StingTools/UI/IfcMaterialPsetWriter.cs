@@ -40,8 +40,12 @@ namespace StingTools.UI
                 string uniclass = MaterialUniclassMapper.ResolveCode(mat?.MaterialClass ?? "");
 
                 // IFC4 Pset_EnvironmentalImpactIndicators (subset).
+                // WP-C — the headline GWP is the A1-A3 FOSSIL figure (RICS WLCA);
+                // biogenic (≤ 0) is written as a SEPARATE indicator, never netted in.
                 Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_PerLifeCycle", carbon);
+                Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_Biogenic", item.BiogenicKg);
                 SetString(el, "Pset_EnvironmentalImpactIndicators", "ReferenceUnit", "kgCO2e");
+                SetString(el, "Pset_EnvironmentalImpactIndicators", "CarbonScope", "A1-A3 fossil (upfront)");
                 if (!string.IsNullOrEmpty(epdSrc))
                     SetString(el, "Pset_EnvironmentalImpactIndicators", "ProductionReference", epdSrc);
 

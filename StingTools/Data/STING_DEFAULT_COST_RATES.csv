@@ -1,8 +1,12 @@
-# STING default cost rates — Phase 184d.
+# STING default cost rates — Phase 184d / CA-1.
 # Source of truth for Scheduling4DEngine.DefaultCostRates +
 # DefaultRateProvider (priority 60). Edit here; no rebuild needed.
-# Columns: Category,RatePerUnit_UGX,Unit,Description
-Category,RatePerUnit_UGX,Unit,Description
+# CA-1: these are USD-magnitude GLOBAL BENCHMARK rates (e.g. Walls=85 USD/m²).
+# DefaultRateProvider labels them USD and the rate registry rebases to the
+# project base currency (UGX) via the one doc-scoped FX (UGX_PER_USD). For
+# UGX-native defaults, edit the higher-priority project cost_rates_5d.csv (UGX).
+# Columns: Category,RatePerUnit_USD,Unit,Description
+Category,RatePerUnit_USD,Unit,Description
 Structural Foundations,250,m³,RC foundations
 Structural Framing,180,m,Steel/RC beams
 Structural Columns,350,each,Columns

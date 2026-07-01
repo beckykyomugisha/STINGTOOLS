@@ -50,21 +50,21 @@ CONCRETE,C30,STEEL_KG_PER_M3,110,kg/m³,Typical reinforcement (moderate-heavy)
 CONCRETE,C30,CARBON_KG_PER_M3,300,kgCO₂/m³,ICE v3.0 C25/30 RC 0.122 kg/kg × 2450
 CONCRETE,C30,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
 CONCRETE,C35,CEMENT_BAGS_PER_M3,7.6,bags/m³,Cement 380 kg/m³ (C28-35 BS 8500)
-CONCRETE,C35,AGGREGATE_RATIO,0.83,,Coarse aggregate volume fraction
+CONCRETE,C35,AGGREGATE_RATIO,0.866,,MAT-2 [Med] lifted 0.83→0.866 so cement-vol+SAND+AGG≈1.54
 CONCRETE,C35,SAND_RATIO,0.41,,Fine aggregate volume fraction
 CONCRETE,C35,WATER_PER_BAG,22,L,Water per 50kg bag (W/C 0.44)
 CONCRETE,C35,STEEL_KG_PER_M3,130,kg/m³,Typical reinforcement (heavy)
 CONCRETE,C35,CARBON_KG_PER_M3,340,kgCO₂/m³,ICE v3.0 C28/35 RC 0.139 kg/kg × 2450
 CONCRETE,C35,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
 CONCRETE,C40,CEMENT_BAGS_PER_M3,8.2,bags/m³,Cement 410 kg/m³ (C32-40 BS 8500)
-CONCRETE,C40,AGGREGATE_RATIO,0.80,,Coarse aggregate volume fraction
+CONCRETE,C40,AGGREGATE_RATIO,0.855,,MAT-2 [Med] lifted 0.80→0.855 so dry-vol≈1.54
 CONCRETE,C40,SAND_RATIO,0.40,,Fine aggregate volume fraction
 CONCRETE,C40,WATER_PER_BAG,20,L,Water per 50kg bag (W/C 0.40)
 CONCRETE,C40,STEEL_KG_PER_M3,150,kg/m³,Typical reinforcement (very heavy)
 CONCRETE,C40,CARBON_KG_PER_M3,392,kgCO₂/m³,ICE v3.0 C32/40 RC 0.16 kg/kg × 2450
 CONCRETE,C40,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete
 CONCRETE,C45,CEMENT_BAGS_PER_M3,8.8,bags/m³,Cement 440 kg/m³ (C40-50 BS 8500)
-CONCRETE,C45,AGGREGATE_RATIO,0.78,,Coarse aggregate volume fraction
+CONCRETE,C45,AGGREGATE_RATIO,0.844,,MAT-2 [Med] lifted 0.78→0.844 so dry-vol≈1.54
 CONCRETE,C45,SAND_RATIO,0.39,,Fine aggregate volume fraction
 CONCRETE,C45,WATER_PER_BAG,19,L,Water per 50kg bag (W/C 0.38)
 CONCRETE,C45,STEEL_KG_PER_M3,170,kg/m³,Typical reinforcement (very heavy)
@@ -77,6 +77,35 @@ CONCRETE,DEFAULT,WATER_PER_BAG,25,L,Default W/C 0.50
 CONCRETE,DEFAULT,STEEL_KG_PER_M3,90,kg/m³,Default reinforcement
 CONCRETE,DEFAULT,CARBON_KG_PER_M3,300,kgCO₂/m³,ICE v3.0 C25/30 RC default
 CONCRETE,DEFAULT,DENSITY_KG_M3,2450,kg/m³,Reinforced concrete default
+#
+# MAT-2 [Low/Med] — NOMINAL VOLUME MIX per grade (cement:sand:aggregate). Value
+# is a ratio string (reference for hand mass/volume batching). Only C15 carried
+# one before. Designed-mix grades (C30+) are normally design-mix in practice; the
+# nominal mix is the field-batching equivalent.
+CONCRETE,C15,NOMINAL_MIX,1:3:6,,Lean structural / 1:3:6 nominal
+CONCRETE,C20,NOMINAL_MIX,1:2:4,,Standard 1:2:4 nominal
+CONCRETE,C25,NOMINAL_MIX,1:1.5:3,,1:1.5:3 nominal
+CONCRETE,C30,NOMINAL_MIX,1:1.5:3,,1:1.5:3 nominal
+CONCRETE,C35,NOMINAL_MIX,1:1.5:3,,1:1.5:3 nominal (design mix preferred)
+CONCRETE,C40,NOMINAL_MIX,1:1:2,,1:1:2 nominal (design mix preferred)
+CONCRETE,C45,NOMINAL_MIX,1:1:2,,1:1:2 nominal (design mix preferred)
+CONCRETE,DEFAULT,NOMINAL_MIX,1:1.5:3,,Default nominal mix
+#
+# MAT-2 [Low/Med] — LEAN / BLINDING CONCRETE (unreinforced; no STEEL band).
+CONCRETE,C10,CEMENT_BAGS_PER_M3,3.6,bags/m³,Lean concrete 180 kg/m³ (1:3:6 blinding)
+CONCRETE,C10,NOMINAL_MIX,1:3:6,,Blinding / mass fill
+CONCRETE,C10,SAND_RATIO,0.47,,Fine aggregate fraction
+CONCRETE,C10,AGGREGATE_RATIO,0.94,,Coarse aggregate fraction
+CONCRETE,C10,STEEL_KG_PER_M3,0,kg/m³,Unreinforced blinding
+CONCRETE,C10,CARBON_KG_PER_M3,200,kgCO₂/m³,ICE v3.0 mass concrete ~0.087 kg/kg × 2300
+CONCRETE,C10,DENSITY_KG_M3,2300,kg/m³,Mass/plain concrete
+CONCRETE,C7.5,CEMENT_BAGS_PER_M3,2.9,bags/m³,Very lean 145 kg/m³ (1:4:8 blinding)
+CONCRETE,C7.5,NOMINAL_MIX,1:4:8,,Blinding only
+CONCRETE,C7.5,SAND_RATIO,0.48,,Fine aggregate fraction
+CONCRETE,C7.5,AGGREGATE_RATIO,0.96,,Coarse aggregate fraction
+CONCRETE,C7.5,STEEL_KG_PER_M3,0,kg/m³,Unreinforced blinding
+CONCRETE,C7.5,CARBON_KG_PER_M3,180,kgCO₂/m³,ICE v3.0 mass concrete ~0.080 kg/kg × 2250
+CONCRETE,C7.5,DENSITY_KG_M3,2250,kg/m³,Mass/plain concrete
 #
 # REINFORCEMENT LAP LENGTHS (BS 8666)
 # TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT
@@ -113,16 +142,16 @@ BRICK_BOND,STRETCHER,BRICKS_PER_M2,60,bricks/m²,Standard stretcher/running bond
 BRICK_BOND,STRETCHER,MORTAR_RATIO,0.025,,Mortar volume per m² (10mm joints)
 BRICK_BOND,STRETCHER,WASTE_PCT,5,%,Cutting waste percentage
 BRICK_BOND,HEADER,BRICKS_PER_M2,120,bricks/m²,Header bond (all headers one-brick wall)
-BRICK_BOND,HEADER,MORTAR_RATIO,0.030,,Mortar volume per m²
+BRICK_BOND,HEADER,MORTAR_RATIO,0.055,,MAT-2 [Med] one-brick wall: 0.030→0.055 m³/m² (count doubled, mortar must too)
 BRICK_BOND,HEADER,WASTE_PCT,5,%,Cutting waste
 BRICK_BOND,ENGLISH,BRICKS_PER_M2,89,bricks/m²,English bond (alternating stretcher/header courses)
-BRICK_BOND,ENGLISH,MORTAR_RATIO,0.035,,Mortar volume per m²
+BRICK_BOND,ENGLISH,MORTAR_RATIO,0.050,,MAT-2 [Med] one-brick wall: 0.035→0.050 m³/m²
 BRICK_BOND,ENGLISH,WASTE_PCT,7,%,More cutting waste (closers needed)
 BRICK_BOND,FLEMISH,BRICKS_PER_M2,79,bricks/m²,Flemish bond (alternating in same course)
-BRICK_BOND,FLEMISH,MORTAR_RATIO,0.032,,Mortar volume per m²
+BRICK_BOND,FLEMISH,MORTAR_RATIO,0.052,,MAT-2 [Med] one-brick wall: 0.032→0.052 m³/m²
 BRICK_BOND,FLEMISH,WASTE_PCT,8,%,Most cutting waste
 BRICK_BOND,ENGLISH_GARDEN_WALL,BRICKS_PER_M2,74,bricks/m²,English garden wall bond (3 stretcher to 1 header course)
-BRICK_BOND,ENGLISH_GARDEN_WALL,MORTAR_RATIO,0.028,,Mortar volume per m²
+BRICK_BOND,ENGLISH_GARDEN_WALL,MORTAR_RATIO,0.048,,MAT-2 [Med] one-brick wall: 0.028→0.048 m³/m²
 BRICK_BOND,ENGLISH_GARDEN_WALL,WASTE_PCT,6,%,Moderate cutting waste
 BRICK_BOND,STACK,BRICKS_PER_M2,60,bricks/m²,Stack bond (aligned vertical joints)
 BRICK_BOND,STACK,MORTAR_RATIO,0.025,,Mortar volume per m²
@@ -146,18 +175,48 @@ BLOCK,DEFAULT,MORTAR_VOLUME_FACTOR,0.011,m³/m²,Default mortar factor
 #
 # MORTAR MIX RATIOS
 # TypeKey sourced from: BLE_MORTAR_MIX_TXT
+# MAT-2 [High] — SAND_RATIO corrected. The old values omitted the mortar
+# dry/bulking factor, so a labelled 1:6 behaved like ~1:4.1 (sand under-ordered
+# 20-30%). Basis: bag = 50 kg, cement loose density 1440 kg/m³ → cement
+# volume/bag = 0.034722 m³. For a 1:N mix the sand:cement volume ratio is N:1, so
+# SAND_RATIO (m³ sand per m³ mortar) = N × CEMENT_BAGS_PER_M3 × 0.034722. Cement
+# bags are unchanged (they were correct). Each mix now delivers its true cement:sand.
 MORTAR,1:3,CEMENT_BAGS_PER_M3,12,bags/m³,Strong mortar (retaining walls below DPC)
-MORTAR,1:3,SAND_RATIO,0.75,,Sand volume fraction
+MORTAR,1:3,SAND_RATIO,1.25,,Sand m³/m³ = 3 × 12 × 0.034722 (true 1:3 cement:sand)
 MORTAR,1:4,CEMENT_BAGS_PER_M3,9,bags/m³,Medium-strong mortar (exposed external walls)
-MORTAR,1:4,SAND_RATIO,0.80,,Sand volume fraction
+MORTAR,1:4,SAND_RATIO,1.25,,Sand m³/m³ = 4 × 9 × 0.034722 (true 1:4)
 MORTAR,1:5,CEMENT_BAGS_PER_M3,7.5,bags/m³,General purpose mortar (standard brickwork)
-MORTAR,1:5,SAND_RATIO,0.83,,Sand volume fraction
+MORTAR,1:5,SAND_RATIO,1.30,,Sand m³/m³ = 5 × 7.5 × 0.034722 (true 1:5)
 MORTAR,1:6,CEMENT_BAGS_PER_M3,6,bags/m³,Weak mortar (internal non-loadbearing walls)
-MORTAR,1:6,SAND_RATIO,0.86,,Sand volume fraction
+MORTAR,1:6,SAND_RATIO,1.25,,Sand m³/m³ = 6 × 6 × 0.034722 (true 1:6, was 0.86)
 MORTAR,1:8,CEMENT_BAGS_PER_M3,4.5,bags/m³,Very weak mortar (temporary or infill)
-MORTAR,1:8,SAND_RATIO,0.89,,Sand volume fraction
+MORTAR,1:8,SAND_RATIO,1.25,,Sand m³/m³ = 8 × 4.5 × 0.034722 (true 1:8)
 MORTAR,DEFAULT,CEMENT_BAGS_PER_M3,6,bags/m³,Default: 1:6 mix
-MORTAR,DEFAULT,SAND_RATIO,0.86,,Default sand fraction
+MORTAR,DEFAULT,SAND_RATIO,1.25,,Default sand fraction (true 1:6)
+#
+# CEMENT:LIME:SAND MORTARS (BS EN 998-2 / BS 5628 designations (i)-(iv))
+# TypeKey sourced from: BLE_MORTAR_MIX_TXT. LIME_RATIO + SAND_RATIO are volume
+# parts per 1 part cement. Lime improves workability/water retention; sand parts
+# rise as the mix weakens. CEMENT_BAGS recomputed at 0.034722 m³/bag for the
+# cement fraction of a ~1.25 m³ dry yield.
+MORTAR_CL,M_I,CEMENT_BAGS_PER_M3,12,bags/m³,Designation (i) 1:0.25:3 — strongest, parapets/retaining
+MORTAR_CL,M_I,LIME_RATIO,0.25,,Lime parts per 1 cement
+MORTAR_CL,M_I,SAND_RATIO,1.10,,Sand m³/m³ (3-3.75 parts)
+MORTAR_CL,M_II,CEMENT_BAGS_PER_M3,8,bags/m³,Designation (ii) 1:0.5:4.5 — external above DPC
+MORTAR_CL,M_II,LIME_RATIO,0.5,,Lime parts per 1 cement
+MORTAR_CL,M_II,SAND_RATIO,1.25,,Sand m³/m³ (4-4.5 parts)
+MORTAR_CL,M_III,CEMENT_BAGS_PER_M3,6,bags/m³,Designation (iii) 1:1:6 — general internal/external
+MORTAR_CL,M_III,LIME_RATIO,1.0,,Lime parts per 1 cement
+MORTAR_CL,M_III,SAND_RATIO,1.25,,Sand m³/m³ (5-6 parts)
+MORTAR_CL,M_IV,CEMENT_BAGS_PER_M3,4,bags/m³,Designation (iv) 1:2:9 — internal/sheltered
+MORTAR_CL,M_IV,LIME_RATIO,2.0,,Lime parts per 1 cement
+MORTAR_CL,M_IV,SAND_RATIO,1.25,,Sand m³/m³ (8-9 parts)
+MORTAR_CL,LIME,CEMENT_BAGS_PER_M3,0,bags/m³,Pure lime:sand mortar (non-hydraulic/NHL) 1:3 binder:sand
+MORTAR_CL,LIME,LIME_RATIO,1.0,,Binder = lime only (no OPC)
+MORTAR_CL,LIME,SAND_RATIO,1.25,,Sand m³/m³ at 1:3 lime:sand
+MORTAR_CL,DEFAULT,CEMENT_BAGS_PER_M3,6,bags/m³,Default designation (iii) 1:1:6
+MORTAR_CL,DEFAULT,LIME_RATIO,1.0,,Default lime parts
+MORTAR_CL,DEFAULT,SAND_RATIO,1.25,,Default sand fraction
 #
 # PAINT TYPES
 # TypeKey sourced from: BLE_PAINT_TYPE_TXT
@@ -195,16 +254,48 @@ GROUT,DEFAULT,GROUT_KG_PER_M2,0.8,kg/m²,Default: 5mm joints
 #
 # PLASTER TYPES
 # TypeKey sourced from: BLE_PLASTER_TYPE_TXT
+# MAT-2 [High] — plaster/render now carry a cement:sand MIX so cement + sand are
+# derivable. CEMENT_BAGS_PER_M3 / SAND_RATIO mirror the corrected MORTAR table
+# (1:4 internal/render = 9 bags + 1.25 m³ sand per m³ of plaster). Cement+sand for
+# a wall = plaster volume (face area × THICKNESS × (1+WASTE)) × these per-m³ values.
+# LIME plaster is lime:sand (no OPC) → CEMENT_BAGS 0, LIME binder.
 PLASTER,THIN_COAT,THICKNESS_M,0.008,m,Thin coat render (8mm)
 PLASTER,THIN_COAT,WASTE_PCT,15,%,Thin coat waste
+PLASTER,THIN_COAT,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,Render 1:4 cement:sand
+PLASTER,THIN_COAT,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:4)
 PLASTER,STANDARD,THICKNESS_M,0.013,m,Standard 2-coat plaster (13mm)
 PLASTER,STANDARD,WASTE_PCT,20,%,Standard waste
+PLASTER,STANDARD,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,Internal plaster 1:4 cement:sand
+PLASTER,STANDARD,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:4)
 PLASTER,THICK,THICKNESS_M,0.020,m,Thick coat / rough cast (20mm)
 PLASTER,THICK,WASTE_PCT,25,%,Thick coat waste
+PLASTER,THICK,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,Rough cast 1:4 cement:sand
+PLASTER,THICK,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:4)
 PLASTER,LIME,THICKNESS_M,0.015,m,Lime plaster (15mm)
 PLASTER,LIME,WASTE_PCT,20,%,Lime waste
+PLASTER,LIME,MIX_CEMENT_BAGS_PER_M3,0,bags/m³,Lime:sand 1:3 (no OPC)
+PLASTER,LIME,MIX_LIME_RATIO,1.0,,Binder = lime only
+PLASTER,LIME,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:3 lime:sand)
 PLASTER,DEFAULT,THICKNESS_M,0.015,m,Default: 15mm
 PLASTER,DEFAULT,WASTE_PCT,25,%,Default waste
+PLASTER,DEFAULT,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,Default 1:4 cement:sand
+PLASTER,DEFAULT,MIX_SAND_RATIO,1.25,,Default sand m³/m³ (1:4)
+#
+# SCREED (floor screed) — MAT-2 [High] new section. Cement:sand mix + thickness.
+# TypeKey sourced from: BLE_SCREED_TYPE_TXT. Cement+sand for a floor = area ×
+# THICKNESS_M × (1+WASTE) × MIX_* per-m³ values.
+SCREED,STANDARD,THICKNESS_M,0.050,m,Standard floor screed (50mm)
+SCREED,STANDARD,WASTE_PCT,10,%,Screed waste
+SCREED,STANDARD,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,1:4 cement:sand screed
+SCREED,STANDARD,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:4)
+SCREED,HEAVY_DUTY,THICKNESS_M,0.075,m,Heavy-duty screed (75mm)
+SCREED,HEAVY_DUTY,WASTE_PCT,10,%,Screed waste
+SCREED,HEAVY_DUTY,MIX_CEMENT_BAGS_PER_M3,12,bags/m³,1:3 cement:sand screed
+SCREED,HEAVY_DUTY,MIX_SAND_RATIO,1.25,,Sand m³/m³ (1:3)
+SCREED,DEFAULT,THICKNESS_M,0.050,m,Default: 50mm 1:4
+SCREED,DEFAULT,WASTE_PCT,10,%,Default screed waste
+SCREED,DEFAULT,MIX_CEMENT_BAGS_PER_M3,9,bags/m³,Default 1:4 cement:sand
+SCREED,DEFAULT,MIX_SAND_RATIO,1.25,,Default sand m³/m³ (1:4)
 #
 # ROOFING SHEET PROFILES
 # TypeKey sourced from: BLE_ROOF_SHEET_PROFILE_TXT
@@ -277,7 +368,7 @@ STEEL,STRUCTURAL,CARBON_KG_PER_M3,12090,kgCO₂/m³,ICE v3.0 structural steel 1.
 STEEL,STRUCTURAL,DENSITY_KG_M3,7850,kg/m³,Steel density
 STEEL,GALVANISED,CARBON_KG_PER_M3,22372,kgCO₂/m³,ICE v3.0 galvanised sheet 2.85 kg/kg × 7850 (= Z-20 galv duct)
 STEEL,GALVANISED,DENSITY_KG_M3,7850,kg/m³,Steel density
-STEEL,STAINLESS,CARBON_KG_PER_M3,12090,kgCO₂/m³,as-shipped plain-steel basis (true stainless ~6.15 kg/kg pending)
+STEEL,STAINLESS,CARBON_KG_PER_M3,48278,kgCO₂/m³,ICE/worldsteel austenitic stainless 6.15 kg/kg × 7850 (≈4× plain steel)
 STEEL,STAINLESS,DENSITY_KG_M3,7850,kg/m³,Steel density
 COPPER,DEFAULT,CARBON_KG_PER_M3,31360,kgCO₂/m³,ICE v3.0 copper 3.50 kg/kg × 8960 (= Z-20 copper pipe)
 COPPER,DEFAULT,DENSITY_KG_M3,8960,kg/m³,Copper density

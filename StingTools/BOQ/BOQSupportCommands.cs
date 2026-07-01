@@ -335,6 +335,28 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
+                // WP-Q — sign-off guard. Signing the LIVE bill certifies a number
+                // that can still move; strongly prompt to freeze a snapshot first
+                // and make the live-vs-snapshot basis explicit.
+                bool isLive = string.IsNullOrEmpty(boq.SnapshotLabel)
+                    || boq.SnapshotLabel.Equals("Live", StringComparison.OrdinalIgnoreCase);
+                if (isLive)
+                {
+                    var snaps = BOQCostManager.ListSnapshots(doc);
+                    bool hasSnap = snaps != null && snaps.Count > 0;
+                    var warn = new TaskDialog("QS Sign-off — LIVE bill")
+                    {
+                        MainInstruction = "You are about to sign the LIVE bill, not a frozen snapshot.",
+                        MainContent = (hasSnap
+                            ? "The live bill can still change after you sign it. "
+                            : "No snapshot exists yet, and the live bill can still change after you sign it. ")
+                            + "Save a snapshot first (Save snapshot) to certify a frozen bill, or proceed to sign the live bill knowingly.",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No
+                    };
+                    if (warn.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                }
+
                 var rec = new BoqSignOff
                 {
                     SignedBy = by,

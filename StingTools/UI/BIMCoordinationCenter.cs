@@ -1771,6 +1771,8 @@ namespace StingTools.UI
             var clashWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
             clashWrap.Children.Add(MakeActionButton("Run Clash Detection", "ClashDetection", Br(CRed),
                 "Rule-based MEP vs structural clash on the active model. Writes JSON report to 12_CLASHES."));
+            clashWrap.Children.Add(MakeActionButton("Clash → Issues", "Clash_SyncIssues", Br(CRed),
+                "Reconcile clashes.json ↔ issues.json: open clashes become tracked CLASH issues (SLA by priority), resolved clashes close their issue, and a transmittal-ready manifest is written."));
             clashWrap.Children.Add(MakeActionButton("Cross-Model Clash", "CrossModelClash", Br(Color.FromRgb(0xAD, 0x14, 0x57)),
                 "Host MEP vs linked-model structural clash using each link's total transform."));
             clashWrap.Children.Add(MakeActionButton("MEP Clearance", "MEPClearance", Br(CAmber),

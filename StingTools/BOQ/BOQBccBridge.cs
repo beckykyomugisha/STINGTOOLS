@@ -47,7 +47,10 @@ namespace StingTools.BOQ
         private static BOQDocument GetBoq(Document doc)
         {
             if (doc == null) return null;
-            string key = doc.PathName ?? doc.Title ?? "";
+            // WP6 — fold the model-edit epoch into the cache key so an in-place
+            // geometry/type/material edit (which leaves PathName unchanged) busts
+            // the cache instead of feeding stale rates into 4D/5D cash-flow.
+            string key = (doc.PathName ?? doc.Title ?? "") + "#" + StingCostDirtyMarker.ChangeEpoch;
             if (_boqCache != null && _boqCacheDocKey == key) return _boqCache;
             try
             {

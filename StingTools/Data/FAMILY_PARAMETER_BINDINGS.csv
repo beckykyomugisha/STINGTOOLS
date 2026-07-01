@@ -1,3 +1,5 @@
+# v3.2 | 20260630 | +26 Tier-2 electrical/plumbing/design-option/IFC family bindings
+# v3.1 | 20260630 | +7 material cost/carbon/EPD family bindings (Sustainability/BOQ-cost)
 # v3.0 | 20260313 | BIM Template family_parameter_bindings
 ParameterGroup,ParameterName,GUID,DataType,BindingType,Description,RevitCategory,Maps_To_Shared_Param_GUID
 ASS_MNG,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,Type,Catalog Number,Casework,f8fe813a-44e9-5e47-9109-921171dc53b6
@@ -12843,3 +12845,36 @@ STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,TE
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,TEXT,Type,Tag 3.5Nom White [ISO 19650-3:2020],Doors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,TEXT,Type,Tag 3.5Nom White [ISO 19650-3:2020],Floors,d5a1b2c3-3536-4e01-a1c1-350000000036
 STINGTags_ISO19650,TAG_3.5NOM_WHITE_BOOL,d5a1b2c3-3536-4e01-a1c1-350000000036,TEXT,Type,Tag 3.5Nom White [ISO 19650-3:2020],Roofs,d5a1b2c3-3536-4e01-a1c1-350000000036
+MAT_INFO,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,CURRENCY,Instance,Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ],Materials,114852b0-7002-5680-80cd-930f91e8250b
+MAT_INFO,MAT_COST_INSTALL_NR,0621af78-0fbf-540e-9e6d-61df9925ae90,CURRENCY,Instance,Material install unit cost (labour and plant) [Material Manager RFQ],Materials,0621af78-0fbf-540e-9e6d-61df9925ae90
+MAT_INFO,MAT_VAT_PCT_NR,9794f566-efc2-5622-a23f-9e65e117eb48,NUMBER,Instance,Material VAT percentage applied to supply and install [Material Manager RFQ],Materials,9794f566-efc2-5622-a23f-9e65e117eb48
+MAT_INFO,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,Instance,Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon],Materials,800e0d61-f88d-5071-bc87-0c4ca3e51243
+MAT_INFO,STING_MAT_EPD_SRC_TXT,2776ca48-33b8-57a8-b2a6-ee982e442767,TEXT,Instance,EPD data source / publisher reference [Sustainability Carbon],Materials,2776ca48-33b8-57a8-b2a6-ee982e442767
+MAT_INFO,STING_MAT_EPD_DATE_TXT,c02ad751-5de9-50cc-a018-d7469595f8cf,TEXT,Instance,EPD publication / validity date ISO 8601 [Sustainability Carbon],Materials,c02ad751-5de9-50cc-a018-d7469595f8cf
+MAT_INFO,STING_MAT_LIFECYCLE_TXT,e5455edb-f4f9-5585-a65e-363aa31f0b59,TEXT,Instance,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager],Materials,e5455edb-f4f9-5585-a65e-363aa31f0b59
+ELC_PWR,ELC_CIR_REF_TXT,dd54810b-00a1-55eb-a388-8a37eea1aa9c,TEXT,Instance,Circuit reference / designation for SLD annotation [Electrical SLD],Electrical Equipment,dd54810b-00a1-55eb-a388-8a37eea1aa9c
+ELC_PWR,ELC_CIR_VOLTAGE_TXT,a4618f96-d723-5366-8961-4acfb94e2b60,TEXT,Instance,Circuit nominal voltage for SLD annotation [Electrical SLD],Electrical Equipment,a4618f96-d723-5366-8961-4acfb94e2b60
+ELC_PWR,ELC_CIR_DESIGN_CURRENT_TXT,0a442c44-90fa-5d48-b11f-fca5d4cb4407,TEXT,Instance,Circuit design current Ib for SLD annotation [Electrical SLD],Electrical Equipment,0a442c44-90fa-5d48-b11f-fca5d4cb4407
+ELC_PWR,ELC_CIR_DESIGN_LOAD_TXT,edd91653-9ccc-580a-af7f-554193b52d4c,TEXT,Instance,Circuit connected/design load for SLD annotation [Electrical SLD],Electrical Equipment,edd91653-9ccc-580a-af7f-554193b52d4c
+ELC_PWR,ELC_CIR_FAULT_LEVEL_TXT,f9bc09f0-ca10-511f-9d0d-6c92e3da775c,TEXT,Instance,Prospective fault level for SLD annotation [Electrical SLD],Electrical Equipment,f9bc09f0-ca10-511f-9d0d-6c92e3da775c
+ELC_PWR,ELC_CIR_BREAKER_RATING_TXT,d4ceb9cd-fc26-5c0d-9fc9-fea42b6d56da,TEXT,Instance,Protective device rating for SLD annotation [Electrical SLD],Electrical Equipment,d4ceb9cd-fc26-5c0d-9fc9-fea42b6d56da
+ELC_PWR,ELC_CIR_ZS_TXT,6d0798f2-612f-5576-9ad0-a5e824e87ba2,TEXT,Instance,Earth-fault loop impedance Zs for SLD annotation [Electrical SLD],Electrical Equipment,6d0798f2-612f-5576-9ad0-a5e824e87ba2
+ELC_PWR,ELC_CIR_DIVERSITY_FACTOR_TXT,ef54f174-8dae-5080-8789-ae7eb49e4da1,TEXT,Instance,Applied diversity factor for SLD annotation [Electrical SLD],Electrical Equipment,ef54f174-8dae-5080-8789-ae7eb49e4da1
+ELC_PWR,ELC_CABLE_CSA_TXT,35388573-c2c4-5b1f-95b2-c5e02340682b,TEXT,Instance,Cable conductor cross-section for SLD annotation [Electrical SLD],Electrical Equipment,35388573-c2c4-5b1f-95b2-c5e02340682b
+ELC_PWR,ELC_CIRCUIT_TRACE_ACTIVE,5311f1a3-f770-5f4a-bb70-4ac466bb9fbf,TEXT,Instance,Circuit-trace highlight flag (active element marker) [Electrical],Electrical Equipment,5311f1a3-f770-5f4a-bb70-4ac466bb9fbf
+ELC_PWR,ELC_CDT_STALE_ANNOT_BOOL,c449c9ee-acc2-5961-b400-5ef7049d2169,YESNO,Instance,Conduit wire annotation is stale and needs refresh [Electrical],Conduits,c449c9ee-acc2-5961-b400-5ef7049d2169
+ELC_PWR,ELC_RECONCILE_DRIFT_BOOL,2e92fb04-df99-51d1-a450-739a4a943a27,YESNO,Instance,Conduit reconciliation drift flag [Electrical],Conduits,2e92fb04-df99-51d1-a450-739a4a943a27
+ELC_PWR,ELC_WIRE_BEND_COUNT_INT,39ad1df7-28c0-5144-a8a5-b4963df20a94,INTEGER,Instance,Conduit bend count for BS 7671 pull validation [Electrical],Conduits,39ad1df7-28c0-5144-a8a5-b4963df20a94
+ELC_PWR,STING_CONDUIT_FILL_SUMMARY_TXT,7cd6fb48-fe09-54c6-af5d-73ade7627e17,TEXT,Instance,Conduit fill summary string for audit reporting [Electrical],Conduits,7cd6fb48-fe09-54c6-af5d-73ade7627e17
+PLM_DRN,PLM_CONN_FROM_TAG,0034f546-a7a6-5be0-9789-dd2124edd868,TEXT,Instance,Routed pipe connection-from fixture tag [Plumbing routing],Pipes,0034f546-a7a6-5be0-9789-dd2124edd868
+PLM_DRN,PLM_CONN_TO_TAG,69d9ba42-3973-5428-82af-18a5907ae9a9,TEXT,Instance,Routed pipe connection-to fixture tag [Plumbing routing],Pipes,69d9ba42-3973-5428-82af-18a5907ae9a9
+PLM_DRN,PLM_NOMINAL_DIA_MM,bbad6a0a-5b5d-5a47-a2e4-62a66d38d861,TEXT,Instance,Routed pipe nominal diameter mm [Plumbing routing],Pipes,bbad6a0a-5b5d-5a47-a2e4-62a66d38d861
+PLM_DRN,PLM_PIPE_SERVICE_TXT,2f15c878-6cfe-5a8f-a725-2c329a3c0c4e,TEXT,Instance,Pipe service type stamp (SoilWaste/ColdWaterSupply/etc) [Plumbing routing],Pipes,2f15c878-6cfe-5a8f-a725-2c329a3c0c4e
+PLM_DRN,PLM_PRESSURE_KPA,de1041d9-47fb-5e65-9010-ec50f188a112,TEXT,Instance,Pipe pressure-zone value kPa [Plumbing],Pipes,de1041d9-47fb-5e65-9010-ec50f188a112
+PLM_DRN,PLM_SLOPE_PCT_V4,d71d2cee-95fc-519b-8d61-bb28173c1413,TEXT,Instance,Drainage pipe slope percent (BS EN 12056-2 validation) [Plumbing],Pipes,d71d2cee-95fc-519b-8d61-bb28173c1413
+PLM_DRN,PLM_TMV_KVS,45c2deda-df6a-56bd-8004-fe9c88744aa5,NUMBER,Instance,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing],Pipe Accessories,45c2deda-df6a-56bd-8004-fe9c88744aa5
+ASS_MNG,ASS_OPTION_SET_TXT,a7c0b2e4-d000-4002-9c7e-7f6e5d4c3b2a,TEXT,Instance,Design option set name carried on the element [Design Options],Generic Models,a7c0b2e4-d000-4002-9c7e-7f6e5d4c3b2a
+ASS_MNG,ASS_OPTION_PRIMARY_BOOL,a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a,YESNO,Instance,Element lives in a primary design option [Design Options],Generic Models,a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a
+ASS_MNG,ASS_LAST_PARA_CONTAINER_TXT,d026a860-0000-5d0f-8f9a-192fef886734,TEXT,Instance,Cache of the last TAG7 paragraph container written [Tagging],Generic Models,d026a860-0000-5d0f-8f9a-192fef886734
+ASS_MNG,STING_COMPOUND_PARENT_ID,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F,TEXT,Instance,Parent compound-symbol element id (multi-connector grouping) [Symbols],Generic Models,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F
+IFC_EXCH,IFC_GLOBAL_ID_TXT,c3e0ef84-0950-55cf-a5b2-d1cc67786128,TEXT,Instance,Stable IFC GlobalId snapshot for cross-host sync [IFC interop],Generic Models,c3e0ef84-0950-55cf-a5b2-d1cc67786128
