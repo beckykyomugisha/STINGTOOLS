@@ -26,6 +26,8 @@
     <Compile Include="..\StingTools\BOQ\Rates\RateCurrency.cs" Link="Rates\RateCurrency.cs" />
     <!-- MAT-1 — Document-free slab void-system registry. -->
     <Compile Include="..\StingTools\Core\Materials\SlabSystemRegistry.cs" Link="Materials\SlabSystemRegistry.cs" />
+    <!-- MAT-3 — Document-free compound take-off engine. -->
+    <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
   </ItemGroup>
 
   <ItemGroup>

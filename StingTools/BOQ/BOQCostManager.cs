@@ -193,10 +193,7 @@ namespace StingTools.BOQ
             {
                 var items = new List<BOQLineItem>(currentElements.Count);
                 foreach (var el in currentElements)
-                {
-                    var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
-                    if (line != null) items.Add(line);
-                }
+                    items.AddRange(BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd));
                 StoreHostCache(key, items, st);
                 return items;
             }
@@ -231,13 +228,33 @@ namespace StingTools.BOQ
             foreach (var id in reTakeoff)
             {
                 if (!currentById.TryGetValue(id, out var el) || el == null) continue;
-                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
-                if (line != null) { result.Add(line); rebuilt++; }
+                var lines = BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd);
+                if (lines.Count > 0) { result.AddRange(lines); rebuilt++; }
             }
             StingLog.Info($"BOQ incremental host take-off: re-took-off {rebuilt} of {currentIds.Count} element(s) " +
                           $"(cache had {cachedById.Count}).");
             StoreHostCache(key, result, st);
             return result;
+        }
+
+        /// <summary>
+        /// MAT-3 — the per-element line producer. In COMPOUND mode
+        /// (COST_COMPOUND_TAKEOFF on) a masonry/RC wall or RC slab emits its
+        /// measured CONSTITUENT lines (blockwork + plaster×faces + mortar (+
+        /// formwork); concrete net + rebar + formwork); otherwise the single
+        /// composite-rate line. Default off → legacy bills unchanged.
+        /// </summary>
+        private static List<BOQLineItem> BuildLinesForElement(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes, IMeasurementStandard measStd)
+        {
+            if (Takeoff.CompoundTakeoffBuilder.Enabled())
+            {
+                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(doc, el, csvRates, cobieCostCodes, measStd);
+                if (compound != null && compound.Count > 0) return compound;
+            }
+            var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+            return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
         }
 
         private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
