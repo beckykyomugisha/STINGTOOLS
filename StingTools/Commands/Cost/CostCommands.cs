@@ -347,6 +347,12 @@ namespace StingTools.Commands.Cost
             // Phase 2D — rate / measure config changed; the incremental host cache
             // holds rows priced under the old config, so force a full rebuild next.
             BOQCostManager.InvalidateHostCache();
+            // RC-3 — drop the (path,mtime) memo of the corporate CSV rate + COBie
+            // tables + the paragraph template library so an edit to those files is
+            // re-read on the next build.
+            BOQCostManager.InvalidateRateTables();
+            StingTools.Temp.BOQTemplateLibrary.Invalidate();
+            StingTools.Core.Materials.SlabSystemLoader.Invalidate();
 
             // Phase 2B — external live-rate feeds (BCIS / Planscape) are now part
             // of the default build chain (RateProviderRegistry.Build →

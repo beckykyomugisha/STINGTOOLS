@@ -3017,7 +3017,41 @@ namespace StingTools.BOQ
 
         // Internal so PlumbingBOQEnricher (and future supplemental builders)
         // can reuse the canonical CSV reader instead of duplicating it.
+        // RC-3 — memoise the corporate CSV loaders by (path, last-write-time) so a
+        // full BOQ build (M elements) parses each table ONCE instead of per element.
+        // Invalidated by Cost_ReloadRules → InvalidateRateTables().
+        private static (string path, long ticks, int count, object data)? _csvRatesMemo;
+        private static (string path, long ticks, int count, object data)? _cobieMemo;
+        private static readonly object _rateMemoLock = new object();
+
+        internal static void InvalidateRateTables()
+        {
+            lock (_rateMemoLock) { _csvRatesMemo = null; _cobieMemo = null; }
+        }
+
         internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+        {
+            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
+            string path = StingToolsApp.FindDataFile(costFile);
+            long ticks = SafeWriteTicks(path);
+            lock (_rateMemoLock)
+            {
+                if (_csvRatesMemo is { } m && m.path == path && m.ticks == ticks
+                    && m.data is Dictionary<string, (double rate, string unit)> cached)
+                    return cached;
+            }
+            var loaded = LoadCsvRatesUncached();
+            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Count, loaded); }
+            return loaded;
+        }
+
+        private static long SafeWriteTicks(string path)
+        {
+            try { return (!string.IsNullOrEmpty(path) && File.Exists(path)) ? File.GetLastWriteTimeUtc(path).Ticks : 0; }
+            catch { return 0; }
+        }
+
+        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached()
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
             string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
@@ -3075,6 +3109,21 @@ namespace StingTools.BOQ
         }
 
         internal static Dictionary<string, string> LoadCobieCostCodes()
+        {
+            string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
+            long ticks = SafeWriteTicks(path);
+            lock (_rateMemoLock)
+            {
+                if (_cobieMemo is { } m && m.path == path && m.ticks == ticks
+                    && m.data is Dictionary<string, string> cached)
+                    return cached;
+            }
+            var loaded = LoadCobieCostCodesUncached();
+            lock (_rateMemoLock) { _cobieMemo = (path, ticks, loaded.Count, loaded); }
+            return loaded;
+        }
+
+        private static Dictionary<string, string> LoadCobieCostCodesUncached()
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
