@@ -53,9 +53,21 @@
     "prj.ae_elec":          "PRJ_ORG_HEALTH_AE_ELEC_TXT"
   },
   "loops": {
-    "services":     "RDS — repeating services row (type / quantity / spec / notes)",
-    "equipment":    "RDS — repeating FF&E row (prod_code / description / make_model / qty / notes)",
-    "finishes":     "RDS — repeating finish row (element / spec / notes)",
-    "signatures":   "RDS — sign-off block: architect / clinician / mechanical / electrical / date"
+    "services": {
+      "description": "RDS — repeating services row",
+      "fields": ["type", "count", "spec", "notes"]
+    },
+    "equipment": {
+      "description": "RDS — repeating FF&E row",
+      "fields": ["prod_code", "description", "make_model", "qty", "notes"]
+    },
+    "finishes": {
+      "description": "RDS — repeating finish row",
+      "fields": ["element", "spec", "notes"]
+    },
+    "signatures": {
+      "description": "RDS — sign-off block (one row per signatory)",
+      "fields": ["role", "name", "date"]
+    }
   }
 }
