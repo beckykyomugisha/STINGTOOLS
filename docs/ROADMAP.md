@@ -526,3 +526,19 @@ Still open (cannot complete in Linux sandbox or out-of-scope for this session):
 | GAP-SYM-04 | Verify and promote `status: draft` → `status: reviewed` for the 884 symbols by running each in Revit against its standard plate | 6–8 weeks (1 discipline/week × 8) | This is the path from "comprehensive draft" to "comprehensive verified". No symbol is `final` without (a) seed `.rfa` committed, (b) Revit-rendered comparison vs standard plate, (c) `STING_FINALIZATION_CHECKLIST` bitmask = 127. Cannot run in Linux sandbox. |
 | GAP-SYM-05 | Author hand-drafted seed `.rfa` families for the ISO 6412 priority symbols (5 elbows + 5 valves + 5 flanges + butt-weld + tee + cap = 18 families) | 3 days | Currently every ISO 6412 symbol resolves via the runtime generator. Hand-drafted seeds give pixel-perfect standard accuracy and let users hot-fix specific symbols without regenerating the whole pack. Requires Revit family editor. |
 | GAP-SYM-06 | Project-scoped overlay layer for symbol catalogues, mirroring the Drawing-Type project override mechanism (`<project>/_BIM_COORD/symbol_overrides.json`) | 1 week | Every symbol catalogue today loads directly from `StingTools/Data/Symbols/`. Organisations want to override specific glyphs (e.g. corporate sub-form of MCB) without forking the corporate baseline. Touches 5+ catalogue loaders so deferred for a focused refactor session. |
+
+### Healthcare Pack — tracked deferrals (2026-07 gap audit)
+
+Partial / stub surfaces surfaced by the read-only healthcare-pack audit and the
+gap-remediation pass (RDS template + PenetrationSignoffs migration + radiation QE
+gate + AcousticValidator refactor landed on `claude/healthcare-gap-fixes`). These
+remain deliberately out of scope and are flagged here so their status is explicit:
+
+| ID | Gap | Why open |
+|---|---|---|
+| HC-DEF-01 | **Radiation shielding write-back.** `RadCalc*` commands compute from Healthcare-panel inputs and show a (now DRAFT-labelled) result but do **not** persist `RAD_LEAD_MM_NR` / companions onto a barrier/room element. `RadiationSignoffGate` gates presentation only. | Safe write-back needs element selection + an audit-trailed, QE-gated stamp (draft/approved flag). Deferred to avoid writing authoritative shielding values without a QE workflow; the gate + draft labelling ship now. |
+| HC-DEF-02 | **`RadCalcLinacVaultCommand` is a first-pass NCRP-151 estimate.** No occupancy/use/distance factors; maze = flat 40% rule-of-thumb; neutron component is narrative-only. | Indicative only — the full LINAC vault calc belongs with the Qualified Expert. |
+| HC-DEF-03 | **`AdvancedRadShield` PET/SPECT/Brachy** use single-TVL constants (no build-up / scatter); NCRP-147 Archer coefficients are approximate digitisations. | High-energy photon shielding needs a fuller model; current output flags Pb-only designs for QE review rather than certifying thickness. |
+| HC-DEF-04 | **`AdjacencyValidator` uses centroid distance** as a Phase-H-10 placeholder for the planned door-graph BFS. | Can false-flag corridor-connected rooms as adjacent; the room-graph BFS (`RoomGraphBuilder`) is the intended replacement. |
+| HC-DEF-05 | **Twin `BacnetReadback` / `OpcUaReadback` return empty.** | Live BMS read-back is an FM/commissioning add-on; only the transport hooks exist today. |
+| HC-DEF-06 | **`MgasNetworkAuditCommand`** computes diversified per-zone loads but does not display the per-gas / per-zone breakdown. | Minor UX follow-up — the computation is present, only the tabular surfacing is missing. |

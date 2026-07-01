@@ -131,6 +131,35 @@ namespace StingTools.Standards.HTM
 
         public static IEnumerable<string> KnownRoomClasses() => MinAchByRoomClass.Keys;
 
+        // ── HTM 08-01 (Acoustics) ───────────────────────────────────────────
+
+        // HTM 08-01 — indoor ambient noise NR target excerpts per room class.
+        public static readonly Dictionary<string, int> NrTargetByRoomClass =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "WARD-INPT", 35 }, { "ICU", 35 }, { "NICU", 35 }, { "OR-CONV", 40 },
+            { "OR-ULTRA", 40 }, { "PSY-BED", 30 }, { "EXAM", 35 }, { "CONS", 30 },
+            { "MAT-LDR", 35 }
+        };
+
+        // HTM 08-01 — reverberation time RT60 baseline (s) per room class.
+        public static readonly Dictionary<string, double> Rt60TargetByRoomClass =
+            new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "WARD-INPT", 0.6 }, { "ICU", 0.6 }, { "NICU", 0.5 }, { "OR-CONV", 0.7 },
+            { "PSY-BED", 0.6 }, { "EXAM", 0.6 }, { "CONS", 0.6 }
+        };
+
+        /// <summary>HTM 08-01 NR target for a room class; null when not listed.</summary>
+        public static int? GetNrTarget(string roomClass) =>
+            string.IsNullOrEmpty(roomClass) ? (int?)null :
+            NrTargetByRoomClass.TryGetValue(roomClass, out var v) ? v : (int?)null;
+
+        /// <summary>HTM 08-01 RT60 target (s) for a room class; null when not listed.</summary>
+        public static double? GetRt60Target(string roomClass) =>
+            string.IsNullOrEmpty(roomClass) ? (double?)null :
+            Rt60TargetByRoomClass.TryGetValue(roomClass, out var v) ? v : (double?)null;
+
         /// <summary>HTM 02-01 / NFPA 99 verification 12-step checklist.</summary>
         public static readonly string[] MgpsVerificationChecklist = new[]
         {

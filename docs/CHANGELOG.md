@@ -3,6 +3,69 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 — Healthcare gap fixes, branch `claude/healthcare-gap-fixes`)
+
+Four gap-remediation workstreams from the read-only healthcare-pack audit. The
+StingTools plugin was **build-verified** against the Revit 2025 API (0 errors)
+and `Planscape.sln` builds clean (0 errors) — this session had .NET 10 SDK +
+Revit 2025/2026 available, so nothing here is unverified except a live Postgres
+`ef database update` (no DB reachable) and in-Revit runtime behaviour.
+
+| WS | Status | What |
+|---|---|---|
+| **1** RDS template (blocking) | **DONE** | Generated `healthcare_rds.docx` + re-runnable generator |
+| **2** PenetrationSignoffs migration (blocking) | **DONE** | CreateTable ordered before `20260601` |
+| **3** Radiation QE gate | **DONE** | Centralised `RadiationSignoffGate`; DRAFT labelling |
+| **4** Maintainability + doc hygiene | **DONE** | AcousticValidator→HTMStandards; ROADMAP deferrals; CLAUDE.md caveats |
+
+**WS-1** — `RdsRenderer.Render()` looked for
+`_template_sources/healthcare_rds.docx` which never existed, so every Room Data
+Sheet returned null and silently broke `IssueRoomDataSheetCommand` /
+`BatchIssueRoomDataSheetsCommand` and the RdsIssue / HealthcareCommissioning /
+HTM-04-01-Annual workflows. Added `tools/build_healthcare_rds_docx.py` — a
+portable, self-verifying generator that emits the `.docx` from
+`HEALTHCARE_RDS_FIELDMAP.json` (no opaque binary). It honours the **real** runtime
+token contract (`room.*`→`{{doc.*}}`, `prj.*`→`{{project.*}}`, builder extras
+`doc.generated_at`/`doc.generator`) and the 4 loops (services / equipment /
+finishes / signatures) via MiniWord `{{foreach}}`/`{{endforeach}}` table rows —
+matching `transmittal.docx` style, with a banded header + PAGE/NUMPAGES footer.
+The field-map `loops` block was restructured into declarative field lists so loop
+columns are data-driven (RdsContextBuilder reads only `tokens`, so backward
+compatible). Generator self-test passes: 51 flat tokens, 4 loops; `.docx` is a
+valid zip with well-formed OOXML.
+
+**WS-2** — `PenetrationSignoff` had entity + DbSet + config + all 4 controller
+endpoints + snapshot entry but **no creating migration**, while
+`20260601000000_CrossHostIdentityFields` does `AddColumn`/`CreateIndex` on the
+table. Added `20260517000010_CreatePenetrationSignoffs.cs` (hand-authored in
+`HealthcarePack.cs` style — the snapshot already contains the table, so
+`ef migrations add` would emit an empty migration), ordered after HealthcarePack
+and before CrossHostIdentityFields. Columns/types match the snapshot; tenant +
+project FKs cascade like the sibling healthcare tables; `TenantId` index (global
+`ITenantScoped` convention) + non-unique idempotency index on
+`(ProjectId, PenetrationControlNumber, PfvUuid)` backing the controller's upsert;
+deliberately omits `ElementIfcGlobalId` (20260601's job).
+
+**WS-3** — radiation shielding could be presented as authoritative with no
+Qualified Expert on record. Added `Core/Radiation/RadiationSignoffGate.cs` — one
+home for the policy: `ResolveQe` (element → ProjectInformation → panel),
+`IsSigned`/`IsElementSigned`, `IsBlocking` (project switch
+`PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT=BLOCKING`), and `StatusBanner`/`TitleSuffix`.
+`RadCalcChestRoom` / `RadCalcCtRoom` / `RadCalcLinacVault` now prepend a prominent
+**DRAFT — NOT FOR CONSTRUCTION** (or BLOCKED) banner + `[DRAFT]` title suffix when
+unsigned, keeping their NCRP disclaimers. `RadShieldValidator` +
+`AdvancedRadShieldValidator` route the QE-missing finding through the gate and
+escalate Warning→Error under BLOCKING. Write-back persistence deferred (ROADMAP
+HC-DEF-01).
+
+**WS-4** — moved `AcousticValidator`'s hardcoded NR/RT60 dictionaries into
+`HTMStandards` (`GetNrTarget`/`GetRt60Target`, HTM 08-01) with values preserved
+exactly and null-fallback for unknown room classes — matching the
+`GetDesignDeltaPa` pattern the rest of the pack uses. Filed six Healthcare Pack
+deferrals in `docs/ROADMAP.md` (HC-DEF-01..06) and corrected the stale
+`CLAUDE.md` Healthcare caveats (#1 RDS now ships; #4 QE gate; #5 the false "EF
+migration not run" replaced with the real migration state).
+
 #### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
 
 Closes silent-wrong-ratio, alignment and performance gaps in the parameter-driven

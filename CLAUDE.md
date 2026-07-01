@@ -453,11 +453,11 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ### Caveats
 
-1. `healthcare_rds.docx` template ships only as a README authoring guide
+1. `healthcare_rds.docx` now ships as a **generated** MiniWord template — rebuild it with `python tools/build_healthcare_rds_docx.py` from `HEALTHCARE_RDS_FIELDMAP.json` (self-verifying token/loop coverage); `healthcare_rds_README.md` documents the runtime token contract
 2. MGS family stubs ship parameter specs only — real `.rfa` files come from manufacturers
 3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs
-4. `RAD_QE_NAME_TXT` sign-off remains mandatory before radiation calculators are treated as authoritative
-5. EF migration not run yet — `dotnet ef migrations add HealthcarePack` is required
+4. Radiation QE sign-off is enforced by `RadiationSignoffGate` (`Core/Radiation/`): `RadCalc*` output is labelled **DRAFT — NOT FOR CONSTRUCTION** until `RAD_QE_NAME_TXT` is on record, and a project can set `PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT=BLOCKING` to escalate the validators' QE-missing finding to Error — no code change. Write-back persistence of stamped shielding values with an audit trail is still deferred (see `docs/ROADMAP.md`)
+5. Healthcare Pack tables have a creating migration (`20260515000000_HealthcarePack.cs`) and all four `DbSet`s are registered; `PenetrationSignoffs` now has its own creating migration (`20260517000010_CreatePenetrationSignoffs.cs`), ordered before `20260601000000_CrossHostIdentityFields`. These healthcare migrations are documentation-DDL (no `[Migration]` attribute) — dev/local stacks build schema from the model via `CreateTables()`; repairing the prod EF migration pipeline is backlog P3-2
 6. No dedicated Healthcare tab in the dock panel — commands dispatch via `WorkflowEngine.ResolveCommand` and `StingCommandHandler` button tags
 
 ---
