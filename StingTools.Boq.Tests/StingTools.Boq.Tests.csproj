@@ -28,6 +28,8 @@
     <Compile Include="..\StingTools\Core\Materials\SlabSystemRegistry.cs" Link="Materials\SlabSystemRegistry.cs" />
     <!-- MAT-4 — Document-free parameter-driven slab net-concrete calculator. -->
     <Compile Include="..\StingTools\Core\Materials\SlabConcreteCalculator.cs" Link="Materials\SlabConcreteCalculator.cs" />
+    <!-- RC-1 — Document-free material-key canonicaliser. -->
+    <Compile Include="..\StingTools\Core\Materials\MaterialKeyCanonicaliser.cs" Link="Materials\MaterialKeyCanonicaliser.cs" />
     <!-- MAT-3 — Document-free compound take-off engine. -->
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
   </ItemGroup>
