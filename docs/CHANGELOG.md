@@ -3,6 +3,58 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (MAT-4 — Accurate Ribbed/Hollow-Pot/Maxspan/Beam-System Takeoff, branch `claude/pm-complete`)
+
+Replaces MAT-1's flat solid-fraction with an accurate, parameter-driven method and
+gets the precast/beam-and-block constituent split right. Build 0 errors;
+Boq.Tests 148→161 (13 new).
+
+| Item | Status | What |
+|---|---|---|
+| **MAT-4.1** Params + calculator | **DONE** | 3-tier resolution; per-system net-concrete formulas |
+| **MAT-4.2** Precast/block split | **DONE** | In-situ vs precast vs blocks vs mesh; rib rebar; rib/edge formwork |
+| **MAT-4.3** RC beams | **DONE** | Section × net length; (b+2(D−ds))·L formwork; beam band once |
+
+**Resolution priority (most→least accurate), the governing decision tree:**
+1. **Real geometry** — summed `Solid.Volume` when materially below the gross
+   bounding box (voids actually modelled).
+2. **Parameter-driven calculator** — net concrete from the system rib/pot
+   dimensions (the primary path for typical flat-solid models).
+3. **Flat solid-fraction** (MAT-1) — LAST RESORT only, flagged low-confidence.
+
+**Net in-situ concrete per m² (calculator):** ribbed `topping + (w/s)·d`; waffle
+`topping + 2·(w/s)·d − (w/s)²·d`; hollow-pot `topping + (w/(pot+w))·d`;
+maxspan/beam-block `topping ONLY` (ribs precast, reported separately).
+
+**Seeded indicative default dimensions** (mm; confirm vs supplier span tables):
+hollow-pot pot 350 / rib 125 / depth 225 / topping 50; ribbed rib 125 @ 600 /
+depth 300 / topping 75; waffle 750 module / rib 150 / depth 325 / topping 75;
+maxspan ribs @ 625 / block 500×600 / topping 65; beam-block ribs @ 600 / block
+440×600 / topping 65. Element `BLE_SLAB_*` params override the seeds.
+
+**6 new shared params (additive, TEXT):** `BLE_SLAB_SYSTEM_TXT`,
+`BLE_SLAB_RIB_WIDTH_MM`, `BLE_SLAB_RIB_SPACING_MM`, `BLE_SLAB_RIB_DEPTH_MM`,
+`BLE_SLAB_TOPPING_MM`, `BLE_SLAB_BLOCK_SIZE_TXT`.
+
+**MAT-4.2** — void slabs now bill their constituents: in-situ concrete (net —
+topping only for maxspan), precast ribs/beams (m — **excluded** from in-situ, the
+maxspan correctness point: leaving precast in the in-situ line over-states it
+~3-4× and mis-bills precast as in-situ), infill blocks/pots (nr), topping mesh
+(m²), in-situ rib reinforcement (kg by rib concrete volume, **not** a flat
+80 kg/m³ on gross), and formwork = rib/edge forms or props (pots/blocks are
+permanent formwork — never gross soffit).
+
+**MAT-4.3** — RC beams (FamilyInstance framing): concrete = `SolidVolume` (net,
+columns trimmed) or section × net length; formwork = `(b + 2(D−ds))·L`; rebar by
+the beam band once (no double-count).
+
+**In-Revit runtime verification:** a real clay-pot slab measures net (calculator);
+a maxspan slab bills topping + precast ribs + blocks separately; a beam measures
+net length. **Correction note:** maxspan/pot bills now show LOWER in-situ concrete
++ new precast/block lines — this is the intended accuracy fix, not a regression.
+Accurate hollow-pot fraction is ~0.40 (wide pots), below the optimistic 0.62 flat
+fallback.
+
 #### Completed (MAT-1…MAT-3 — Building-Material Accuracy, branch `claude/pm-complete`)
 
 A QS/materials audit found three accuracy problems in sand/cement/aggregate/
