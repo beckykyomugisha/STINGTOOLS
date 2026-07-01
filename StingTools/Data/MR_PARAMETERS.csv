@@ -2785,6 +2785,7 @@ Generic Models,PRJ_ORG_HEALTH_IHFG_BOOL,c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014,YES
 Generic Models,PRJ_ORG_HEALTH_OR_INT,c8d4f6e2-1503-4d27-8c61-0e7a3f9ba003,INTEGER,PRJ_INFORMATION,Type,Operating room count,False,,,MULTI,1,0
 Generic Models,PRJ_ORG_HEALTH_PACK_PROFILE_TXT,c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015,TEXT,PRJ_INFORMATION,Type,Healthcare pack profile (acute / community / mental / standalone) for validator gating,False,,,MULTI,1,0
 Generic Models,PRJ_ORG_HEALTH_QE_TXT,c8d4f6e2-1508-4d27-8c61-0e7a3f9ba008,TEXT,PRJ_INFORMATION,Type,Qualified Expert (radiation),False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT,c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016,TEXT,PRJ_INFORMATION,Type,Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default),False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_ADDRESS_TXT,85e93a80-42bc-535e-a9e3-bcd76b7c07a0,TEXT,PRJ_INFORMATION,Type,Project / site address shown on the title block [STING Phase 171],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_NAME_TXT,33188c51-0a4f-52e7-ad2a-37e68ca7ddda,TEXT,PRJ_INFORMATION,Type,Project name shown on the title block [STING Phase 171],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_NORTH_TXT,783db6dd-fccc-5efa-b126-b724db119f8f,TEXT,PRJ_INFORMATION,Type,"Project north angle relative to true north, e.g. '12.5° E of true north' — for sheet-level coordination + wayfinding [ISO 19650-1:2018]",False,,,MULTI,1,0

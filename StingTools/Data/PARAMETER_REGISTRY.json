@@ -21055,6 +21055,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT",
+      "guid": "c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016",
+      "description": "Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default)",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
       "param_name": "STING_TEMPLATE_CHECKSUM_TXT",
       "guid": "a1f2b3c4-d5e6-4f70-8123-456789abcd01",
       "description": "SHA-256 checksum of view template's VG state - DriftDetector baseline [Template Manager v2]",

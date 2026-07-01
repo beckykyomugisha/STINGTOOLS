@@ -2871,6 +2871,7 @@ PARAM	c8d4f6e2-1512-4d27-8c61-0e7a3f9ba012	PRJ_ORG_HEALTH_AE_ELEC_TXT	TEXT		13	1
 PARAM	c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013	PRJ_ORG_HEALTH_HTM_REGION_TXT	TEXT		13	1	Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI	1	0
 PARAM	c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014	PRJ_ORG_HEALTH_IHFG_BOOL	YESNO		13	1	iHFG (International Health Facility Guidelines) authority applies	1	0
 PARAM	c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015	PRJ_ORG_HEALTH_PACK_PROFILE_TXT	TEXT		13	1	Healthcare pack profile (acute / community / mental / standalone) for validator gating	1	0
+PARAM	c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016	PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT	TEXT		13	1	Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default)	1	0
 PARAM	c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001	CLN_FLOOR_LOAD_KN_M2_NR	NUMBER		28	1	Imposed floor load (kN/m2) for heavy imaging equipment [H-23]	1	0
 PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (_m/s rms VC band) [H-23]	1	0
 PARAM	c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003	CLN_EQUIP_WEIGHT_KG_NR	NUMBER		28	1	Heavy-equipment design weight (kg) [H-23]	1	0
