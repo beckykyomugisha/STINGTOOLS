@@ -35,8 +35,10 @@ namespace StingTools.Commands.Symbols
             try
             {
                 SymbolStandardResolver.SetProjectStandard(ctx.Doc, pick);
-                int swapped = SwapAllTags(ctx.Doc, pick);
-                TaskDialog.Show("STING", $"Switched to {pick}. {swapped} tag(s) updated.");
+                int swapped = SwapAllTags(ctx.Doc, pick, out int modelSwapped, out int modelSkipped);
+                string modelLine = $"\n{modelSwapped} model symbol instance(s) swapped"
+                    + (modelSkipped > 0 ? $", {modelSkipped} skipped (no resolvable/compatible target)." : ".");
+                TaskDialog.Show("STING", $"Switched to {pick}. {swapped} tag(s) updated.{modelLine}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -53,9 +55,12 @@ namespace StingTools.Commands.Symbols
         // partial success preserved.
         private const int SwapChunkSize = 100;
 
-        internal static int SwapAllTags(Document doc, string newStandard)
+        internal static int SwapAllTags(Document doc, string newStandard,
+            out int modelSwapped, out int modelSkipped)
         {
             int n = 0;
+            modelSwapped = 0;
+            modelSkipped = 0;
             int stdCode = StandardNameToCode(newStandard);
 
             var tags = new FilteredElementCollector(doc)
@@ -64,12 +69,14 @@ namespace StingTools.Commands.Symbols
                 .Where(t => !string.IsNullOrEmpty(t.LookupParameter("STING_SYMBOL_ID")?.AsString()))
                 .ToList();
 
-            // Collect model family instances that have STING_SYMBOL_STD so we can
-            // switch the embedded multi-standard curve set in one transaction.
+            // Collect model family instances that either carry STING_SYMBOL_ID (P2-2 —
+            // swap the placed symbol to the new-standard family) or STING_SYMBOL_STD
+            // (multi-standard families whose embedded curve set follows the int).
             var modelInstances = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilyInstance))
                 .Cast<FamilyInstance>()
-                .Where(fi => fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM) != null)
+                .Where(fi => fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM) != null
+                          || !string.IsNullOrEmpty(fi.LookupParameter("STING_SYMBOL_ID")?.AsString()))
                 .ToList();
 
             using (var tx = new Transaction(doc, "STING Swap Symbol Standard"))
@@ -104,19 +111,52 @@ namespace StingTools.Commands.Symbols
                     catch (Exception ex) { StingLog.Warn($"SwapAllTags tag: {ex.Message}"); }
                 }
 
-                // ── 2. Model family instances: set STING_SYMBOL_STD integer ───────
+                // ── 2. Model family instances (P2-2) ─────────────────────────────
+                //   a) keep the embedded-standard int in sync (multi-standard families
+                //      restyle from it);
+                //   b) additionally swap the TYPE to the new-standard family for
+                //      instances that name a concept via STING_SYMBOL_ID, reusing the
+                //      same GetFamilyName resolution as the tag path. Skip (never
+                //      corrupt) instances with no resolvable / category-compatible
+                //      target and count them.
                 foreach (var fi in modelInstances)
                 {
                     try
                     {
+                        // (a) embedded-standard int.
                         var p = fi.LookupParameter(ParamRegistry.SYMBOL_STD_PARAM);
-                        if (p != null && !p.IsReadOnly)
-                        {
-                            p.Set(stdCode);
-                            n++;
-                        }
+                        if (p != null && !p.IsReadOnly) p.Set(stdCode);
+
+                        // (b) per-standard family swap.
+                        string conceptId = fi.LookupParameter("STING_SYMBOL_ID")?.AsString();
+                        if (string.IsNullOrEmpty(conceptId)) continue;
+
+                        View v = doc.GetElement(fi.OwnerViewId) as View; // null for model-space
+                        string vctx = v != null
+                            ? SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(v)) : null;
+                        string stier = v != null ? SymbolScaleEngine.GetScaleTier(v) : null;
+
+                        string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, vctx, stier, null);
+                        if (string.IsNullOrEmpty(fam)) { modelSkipped++; continue; }
+
+                        // Already the target family → int-set above is all that's needed.
+                        if (string.Equals(fi.Symbol?.FamilyName, fam, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        var target = new FilteredElementCollector(doc)
+                            .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                            .FirstOrDefault(fs => string.Equals(fs.FamilyName, fam, StringComparison.OrdinalIgnoreCase)
+                                               || string.Equals(fs.Name, fam, StringComparison.OrdinalIgnoreCase));
+                        if (target == null) { modelSkipped++; continue; } // not loaded → don't corrupt
+
+                        // Category-compatibility guard — ChangeTypeId across categories corrupts.
+                        if (fi.Category?.Id?.Value != target.Category?.Id?.Value) { modelSkipped++; continue; }
+
+                        if (!target.IsActive) target.Activate();
+                        fi.ChangeTypeId(target.Id);
+                        modelSwapped++;
                     }
-                    catch (Exception ex) { StingLog.Warn($"SwapAllTags model fi: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"SwapAllTags model fi: {ex.Message}"); modelSkipped++; }
                 }
 
                 tx.Commit();
