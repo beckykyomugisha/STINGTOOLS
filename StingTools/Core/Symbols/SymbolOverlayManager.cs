@@ -28,20 +28,38 @@ namespace StingTools.Core.Symbols
                 string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
                 string scaleTier = SymbolScaleEngine.GetScaleTier(view);
 
-                string famName = SymbolConceptRegistry.GetFamilyName(
-                    conceptId, standardId, viewCtx, scaleTier, null);
-                if (string.IsNullOrEmpty(famName))
+                // P1-2 — resolve the host's orientation vs the view so vertical-riser /
+                // end-on symbols pick their data-driven variant (falling back to the
+                // base family when no variant is loaded). Horizontal-plan is the default
+                // case → null key → no variant offered.
+                var orientState = SymbolOrientationEngine.Compute(host, view);
+                string orientKey = orientState == OrientationState.Horizontal
+                    ? null
+                    : SymbolOrientationEngine.GetOrientationStateKey(orientState);
+
+                var candidates = SymbolConceptRegistry.GetFamilyNameCandidates(
+                    conceptId, standardId, viewCtx, scaleTier, orientKey);
+                if (candidates.Count == 0)
                 {
                     StingTools.Core.StingLog.Warn(
                         $"PlaceSymbolOverlay: no family for {conceptId}/{standardId}.");
                     return ElementId.InvalidElementId;
                 }
 
-                FamilySymbol sym = FindFamilySymbol(doc, famName);
+                // Try candidates in order (orientation variant → base); use the first
+                // that is actually loaded in the project.
+                FamilySymbol sym = null;
+                string famName = null;
+                foreach (var cand in candidates)
+                {
+                    var found = FindFamilySymbol(doc, cand);
+                    if (found != null) { sym = found; famName = cand; break; }
+                }
                 if (sym == null)
                 {
                     StingTools.Core.StingLog.Warn(
-                        $"PlaceSymbolOverlay: family {famName} not loaded — skip.");
+                        $"PlaceSymbolOverlay: no candidate family loaded for {conceptId}/{standardId} " +
+                        $"(tried {string.Join(", ", candidates)}) — skip.");
                     return ElementId.InvalidElementId;
                 }
                 if (!sym.IsActive)
