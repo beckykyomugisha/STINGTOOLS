@@ -18,6 +18,8 @@ namespace StingTools.Core.MedGas
         public int TerminalCount;
         public double SumDesignFlowLpm;
         public double DiversifiedFlowLpm;
+        public double Diversity;          // factor applied to SumDesignFlowLpm
+        public bool DiversityAssumed;     // true when no tabulated factor → 1.0 (over-sizes, safe)
     }
 
     public static class MgasFlowSolver
@@ -30,7 +32,17 @@ namespace StingTools.Core.MedGas
 
             foreach (var (gas, nodes) in net.Nodes)
             {
-                var diversity = NFPA99Standards.GetDiversity(gas) ?? 1.0;
+                var tabulated = NFPA99Standards.GetDiversity(gas);
+                bool assumed = tabulated == null;
+                var diversity = tabulated ?? 1.0;
+                // Surface the silent fallback: 1.0 over-sizes (safe) but must not be
+                // invisible — a gas with no tabulated diversity is worth flagging so
+                // the engineer supplies a real factor from HTM 02-01 Pt A Table 8 /
+                // NFPA 99 Table 5.1.13.3.4. Logged once per gas, not per zone.
+                if (assumed && nodes.Any(n => n.Role == "TU"))
+                    StingLog.Warn($"MGPS: gas '{gas}' has no tabulated NFPA 99 §5.1.13 diversity " +
+                                  $"factor — assuming 1.0 (no diversity; over-sizes, safe). " +
+                                  $"Supply a real factor for {gas} if available.");
                 var byZone = nodes.Where(n => n.Role == "TU")
                                   .GroupBy(n => n.Tag ?? "(unzoned)");
                 foreach (var grp in byZone)
@@ -46,7 +58,9 @@ namespace StingTools.Core.MedGas
                         GasCode = gas, ZoneRef = grp.Key,
                         TerminalCount = count,
                         SumDesignFlowLpm = sum,
-                        DiversifiedFlowLpm = sum * diversity
+                        DiversifiedFlowLpm = sum * diversity,
+                        Diversity = diversity,
+                        DiversityAssumed = assumed
                     });
                 }
             }

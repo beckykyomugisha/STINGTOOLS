@@ -40,8 +40,29 @@ namespace StingTools.Commands.MedGas
                     total += nodes.Count;
                 }
                 sb.AppendLine().AppendLine($"Total elements in MGPS network: {total}");
+
                 var loads = MgasFlowSolver.Solve(net);
-                sb.AppendLine($"Diversified zone loads computed: {loads.Count}");
+                sb.AppendLine().AppendLine($"Diversified zone loads (NFPA 99 §5.1.13):");
+                if (loads.Count == 0)
+                {
+                    sb.AppendLine("  (no terminal units found)");
+                }
+                else
+                {
+                    sb.AppendLine($"  {"Gas",-6} {"Zone",-16} {"TUs",4} {"Σflow",9} {"div",6} {"diversified",12}");
+                    foreach (var l in loads.OrderBy(l => l.GasCode).ThenBy(l => l.ZoneRef))
+                    {
+                        string divTxt = l.DiversityAssumed ? $"{l.Diversity:F2}*" : $"{l.Diversity:F2}";
+                        sb.AppendLine($"  {l.GasCode,-6} {Trunc(l.ZoneRef, 16),-16} {l.TerminalCount,4} " +
+                                      $"{l.SumDesignFlowLpm,7:F0}lpm {divTxt,6} {l.DiversifiedFlowLpm,9:F0}lpm");
+                    }
+                    var assumedGases = loads.Where(l => l.DiversityAssumed)
+                                            .Select(l => l.GasCode).Distinct().OrderBy(g => g).ToList();
+                    if (assumedGases.Count > 0)
+                        sb.AppendLine().AppendLine(
+                            $"  * diversity assumed 1.0 (no NFPA 99 table entry — over-sizes, safe): "
+                            + string.Join(", ", assumedGases));
+                }
                 StingLog.Info(sb.ToString());
                 TaskDialog.Show("STING — MGPS Audit", sb.ToString());
                 return Result.Succeeded;
@@ -53,5 +74,8 @@ namespace StingTools.Commands.MedGas
                 return Result.Failed;
             }
         }
+
+        private static string Trunc(string s, int n) =>
+            string.IsNullOrEmpty(s) ? "" : (s.Length <= n ? s : s.Substring(0, n));
     }
 }
