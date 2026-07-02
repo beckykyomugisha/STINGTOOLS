@@ -22,7 +22,7 @@
     "room.temp.design_c":   "PER_ENVIRONMENTAL_TEMP_DESIGN_C",
     "room.rh.design_pct":   "PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT",
     "room.noise.db":        "PER_ACOUSTICS_BACKGROUND_NOISE_DB",
-    "room.noise.nr":        "CLN_ROOM_NOISE_NR_NR",
+    "room.noise.nr":        "CLN_NOISE_NR_NR",
     "room.lighting.lux":    "LTG_DESIGN_ILLUMINANCE_LUX",
     "room.lighting.cct":    "LTG_CLR_TEMP_K",
     "room.infect.class":    "CLN_INFECT_CLASS_TXT",
