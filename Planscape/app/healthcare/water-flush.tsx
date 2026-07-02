@@ -1,7 +1,9 @@
 // Healthcare Pack H-21 — HTM 04-01 sentinel flushing log (mobile).
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useProjectStore } from '@/stores/projectStore';
+import { enqueue } from '@/utils/offlineQueue';
+import type { HealthcareWaterFlush } from '@/api/endpoints';
 
 export default function WaterFlushScreen() {
   const activeProject = useProjectStore((s) => s.active);
@@ -10,8 +12,28 @@ export default function WaterFlushScreen() {
   const [duration, setDuration] = useState('');
   const [history, setHistory] = useState<{ id: string; t: string; d: string; ts: string }[]>([]);
 
-  const log = () => {
-    if (!outletId || !tempC) { alert('Enter outlet ID and temperature.'); return; }
+  const log = async () => {
+    if (!activeProject?.id) { Alert.alert('No project', 'Select a project first.'); return; }
+    if (!outletId || !tempC) { Alert.alert('Missing data', 'Enter outlet ID and temperature.'); return; }
+
+    const payload: HealthcareWaterFlush = {
+      outletId,
+      flushType: 'SENTINEL',
+      temperatureC: Number(tempC),
+      durationSec: Number(duration) || 0,
+      source: 'MANUAL',
+      capturedAt: new Date().toISOString(),
+    };
+    try {
+      // Dynamic import mirrors pressure-live.tsx (avoids a circular import).
+      const { postWaterFlush } = await import('@/api/endpoints');
+      await postWaterFlush(activeProject.id, payload);
+      Alert.alert('Saved', `${outletId} — ${tempC} °C flush submitted to server.`);
+    } catch {
+      // HC-21: enqueue for automatic replay on reconnect.
+      await enqueue('HC_WATER_FLUSH', { projectId: activeProject.id, payload });
+      Alert.alert('Saved offline', `${outletId} queued — will sync when reconnected.`);
+    }
     setHistory(h => [{ id: outletId, t: tempC, d: duration, ts: new Date().toISOString() }, ...h].slice(0, 50));
     setOutletId(''); setTempC(''); setDuration('');
   };

@@ -2163,11 +2163,26 @@ export type HealthcareAntiLigatureAudit = {
   capturedBy?: string;
 };
 
+// HC-21 — HTM 04-01 sentinel-flush capture (mirrors server HealthcareWaterLog).
+export type HealthcareWaterFlush = {
+  id?: string;
+  roomBimId?: string;
+  roomName?: string;
+  outletId: string;
+  flushType?: string;      // SENTINEL / ROUTINE / POST-WORKS
+  temperatureC: number;
+  durationSec: number;
+  capturedAt?: string;
+  capturedBy?: string;
+  source?: 'MANUAL' | 'BMS';
+};
+
 export type HealthcareDashboard = {
   pressure: { totalLast7d: number; breachLast7d: number; rag: 'R' | 'A' | 'G' };
   mgas: { latest: string | null; pass: boolean; rag: 'R' | 'A' | 'G' };
   antiLigature: { totalAudits: number; failed: number; rag: 'R' | 'A' | 'G' };
   rdsCount: number;
+  waterLogCount?: number;
 };
 
 export function getHealthcareDashboard(projectId: string): Promise<HealthcareDashboard> {
@@ -2205,6 +2220,22 @@ export function postAntiLigatureAudit(projectId: string, body: HealthcareAntiLig
 
 export function getRdsSnapshot(projectId: string, roomBimId: string): Promise<unknown> {
   return apiFetch(`/api/projects/${projectId}/healthcare/rds/${encodeURIComponent(roomBimId)}`);
+}
+
+// HC-21 — sentinel-flush capture. Mirrors postPressureLog (POST + JSON body).
+export function postWaterFlush(projectId: string, body: HealthcareWaterFlush): Promise<HealthcareWaterFlush> {
+  return apiFetch(`/api/projects/${projectId}/healthcare/water-log`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function listWaterFlush(projectId: string, since?: string, outletId?: string): Promise<HealthcareWaterFlush[]> {
+  const q = new URLSearchParams();
+  if (since) q.set('since', since);
+  if (outletId) q.set('outletId', outletId);
+  const qs = q.toString();
+  return apiFetch(`/api/projects/${projectId}/healthcare/water-log${qs ? `?${qs}` : ''}`);
 }
 
 // ── Phase 188 (Tier 3) — HVAC snapshots from the desktop plugin. ──

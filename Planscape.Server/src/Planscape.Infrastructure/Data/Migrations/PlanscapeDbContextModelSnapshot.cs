@@ -2697,6 +2697,68 @@ namespace Planscape.Infrastructure.Data.Migrations
                     b.ToTable("HealthcarePressureLogs");
                 });
 
+            modelBuilder.Entity("Planscape.Core.Entities.HealthcareWaterLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CapturedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("DurationSec")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("FlushType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutletId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RoomBimId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RoomIfcGlobalId")
+                        .HasMaxLength(22)
+                        .HasColumnType("character varying(22)");
+
+                    b.Property<string>("RoomName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("TemperatureC")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ProjectId", "CapturedAt");
+
+                    b.HasIndex("ProjectId", "RoomBimId");
+
+                    b.HasIndex("ProjectId", "RoomIfcGlobalId");
+
+                    b.ToTable("HealthcareWaterLogs");
+                });
+
             modelBuilder.Entity("Planscape.Core.Entities.HealthcareRdsSnapshot", b =>
                 {
                     b.Property<Guid>("Id")

@@ -202,7 +202,8 @@ public record HealthcareDashboardDto(
     HealthcarePressureRagDto Pressure,
     HealthcareMgasRagDto Mgas,
     HealthcareAntiLigatureRagDto AntiLigature,
-    int RdsCount);
+    int RdsCount,
+    int WaterLogCount = 0);
 
 public record HealthcarePressureRagDto(int TotalLast7d, int BreachLast7d, string Rag);
 public record HealthcareMgasRagDto(DateTime? Latest, bool Pass, string Rag);

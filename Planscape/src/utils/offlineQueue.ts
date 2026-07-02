@@ -371,6 +371,14 @@ async function replayAction(action: OfflineAction): Promise<void> {
       );
       break;
     }
+    case 'HC_WATER_FLUSH': {
+      const { postWaterFlush } = await import('@/api/endpoints');
+      await postWaterFlush(
+        p.projectId as string,
+        p.payload as Parameters<typeof postWaterFlush>[1],
+      );
+      break;
+    }
   }
 }
 

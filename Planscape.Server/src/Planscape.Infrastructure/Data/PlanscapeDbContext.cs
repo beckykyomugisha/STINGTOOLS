@@ -172,6 +172,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<HealthcareMgasVerification>  HealthcareMgasVerifications  => Set<HealthcareMgasVerification>();
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
+    public DbSet<HealthcareWaterLog>          HealthcareWaterLogs          => Set<HealthcareWaterLog>();
 
     // Phase 188 (Tier 3) — HVAC snapshots pushed by the desktop plugin.
     // One row per sizing / balance / drift / loads / carbon run; mobile
@@ -1260,6 +1261,13 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<HealthcareRdsSnapshot>(e =>
         {
             e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+        });
+        modelBuilder.Entity<HealthcareWaterLog>(e =>
+        {
+            e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+            e.HasIndex(x => new { x.ProjectId, x.RoomBimId });
+            e.Property(x => x.RoomIfcGlobalId).HasMaxLength(22);
+            e.HasIndex(x => new { x.ProjectId, x.RoomIfcGlobalId });
         });
         modelBuilder.Entity<PenetrationSignoff>(e =>
         {

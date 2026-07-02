@@ -273,7 +273,9 @@ export interface OfflineAction {
     // HC-11 — Healthcare Pack mobile screens: queued when network is absent.
     | 'HC_MGAS_VERIFICATION'
     | 'HC_PRESSURE_LOG'
-    | 'HC_ANTI_LIGATURE_AUDIT';
+    | 'HC_ANTI_LIGATURE_AUDIT'
+    // HC-21 — HTM 04-01 sentinel-flush capture, queued when offline.
+    | 'HC_WATER_FLUSH';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;

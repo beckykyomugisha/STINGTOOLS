@@ -62,6 +62,8 @@ public class HealthcareController : ControllerBase
             .FirstOrDefaultAsync();
         var rdsCount = await _db.Set<HealthcareRdsSnapshot>()
             .Where(x => x.ProjectId == projectId).CountAsync();
+        var waterCount = await _db.Set<HealthcareWaterLog>()
+            .Where(x => x.ProjectId == projectId && x.CapturedAt >= since).CountAsync();
         var pressure = pressureCounts?.Total ?? 0;
         var pressureFail = pressureCounts?.Fail ?? 0;
         var ligTotal = ligCounts?.Total ?? 0;
@@ -75,7 +77,8 @@ public class HealthcareController : ControllerBase
                 : new HealthcareMgasRagDto(mgasLatest.CapturedAt, mgasLatest.OverallPass,
                                            mgasLatest.OverallPass ? "G" : "R"),
             new HealthcareAntiLigatureRagDto(ligTotal, ligFail, ligFail > 0 ? "A" : "G"),
-            rdsCount));
+            rdsCount,
+            waterCount));
     }
 
     // ── Pressure log ─────────────────────────────────────────────────
@@ -218,6 +221,30 @@ public class HealthcareController : ControllerBase
             .FirstOrDefaultAsync();
         if (snap == null) return NotFound();
         return Ok(snap);
+    }
+
+    // ── Water-flush log (HTM 04-01 sentinel flushing) ────────────────
+    [HttpPost("water-log")]
+    public async Task<IActionResult> PostWaterLog(Guid projectId,
+        [FromBody] HealthcareWaterLog body)
+    {
+        body.ProjectId = projectId;
+        _db.Set<HealthcareWaterLog>().Add(body);
+        await _db.SaveChangesAsync();
+        return Created($"api/projects/{projectId}/healthcare/water-log/{body.Id}", body);
+    }
+
+    [HttpGet("water-log")]
+    public async Task<IActionResult> GetWaterLog(Guid projectId,
+        [FromQuery] DateTime? since = null, [FromQuery] string? roomBimId = null,
+        [FromQuery] string? outletId = null)
+    {
+        var q = _db.Set<HealthcareWaterLog>().Where(x => x.ProjectId == projectId);
+        if (since.HasValue) q = q.Where(x => x.CapturedAt >= since.Value);
+        if (!string.IsNullOrEmpty(roomBimId)) q = q.Where(x => x.RoomBimId == roomBimId);
+        if (!string.IsNullOrEmpty(outletId)) q = q.Where(x => x.OutletId == outletId);
+        var rows = await q.OrderByDescending(x => x.CapturedAt).Take(500).ToListAsync();
+        return Ok(rows);
     }
 
     // ── Cross-reference: all healthcare data for an IFC element ──────
