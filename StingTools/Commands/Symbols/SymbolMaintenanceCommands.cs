@@ -244,8 +244,9 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>Family names available anywhere: loaded in the project + every .rfa
-        /// base-name across the content roots (recursive). Used for a fast membership test.</summary>
-        private static HashSet<string> BuildAvailableFamilySet(Document doc)
+        /// base-name across the content roots (recursive). Used for a fast membership test.
+        /// Shared with the standard-switch preflight (F6).</summary>
+        internal static HashSet<string> BuildAvailableFamilySet(Document doc)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
