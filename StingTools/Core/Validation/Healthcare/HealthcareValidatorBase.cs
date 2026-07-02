@@ -16,7 +16,9 @@ using StingTools.Core;
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Validation.Healthcare
 {
@@ -40,6 +42,31 @@ namespace StingTools.Core.Validation.Healthcare
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
+        // Leading numeric token, InvariantCulture — tolerates values that carry a
+        // trailing unit/annotation ("12 ACH", "0.6 s", "45 dB") because several
+        // healthcare params are registered TEXT rather than Double (HVC_AIR_CHANGES_PER_HR,
+        // PER_ACOUSTICS_BACKGROUND_NOISE_DB, PER_ACOUSTICS_RT60_S, PLM_HOTWTR_TEMP_C).
+        private static readonly Regex LeadingNumber =
+            new Regex(@"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", RegexOptions.Compiled);
+
+        /// <summary>Parses the first numeric token in a string, ignoring any trailing
+        /// unit/annotation. Returns null for empty input; logs a warning for a
+        /// non-empty value that yields no number so a malformed cell is visible.</summary>
+        internal static double? TryParseNumericText(string raw, string paramName = null)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var trimmed = raw.Trim();
+            // Fast path: clean numeric string parses identically to the old behaviour.
+            if (double.TryParse(trimmed, NumberStyles.Float | NumberStyles.AllowLeadingSign,
+                                CultureInfo.InvariantCulture, out var clean)) return clean;
+            var m = LeadingNumber.Match(trimmed);
+            if (m.Success && double.TryParse(m.Value, NumberStyles.Float | NumberStyles.AllowLeadingSign,
+                                             CultureInfo.InvariantCulture, out var v)) return v;
+            StingLog.Warn($"GetParamDouble: TEXT value '{raw}' for parameter " +
+                          $"'{paramName ?? "?"}' is not numeric; check skipped.");
+            return null;
+        }
+
         protected static double? GetParamDouble(Element el, string name)
         {
             try
@@ -48,7 +75,7 @@ namespace StingTools.Core.Validation.Healthcare
                 if (p == null || !p.HasValue) return null;
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
                 if (p.StorageType == StorageType.Integer) return (double)p.AsInteger();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out var v)) return v;
+                if (p.StorageType == StorageType.String) return TryParseNumericText(p.AsString(), name);
                 return null;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
