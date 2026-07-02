@@ -148,7 +148,13 @@ namespace StingTools.Core.Cad.Mep
         }
 
         /// <summary>Read-only detection pass (cached per import). Reuses the shared extraction core.</summary>
-        public MepDetectionResult Detect(ImportInstance import)
+        public MepDetectionResult Detect(ImportInstance import) => Detect(import, null);
+
+        /// <summary>F9(a) — detect over a pre-built extraction. The arch converter
+        /// (CADToModelEngine) already extracted the import once; passing that result in
+        /// avoids a second full geometry read of the same DWG. A null extraction falls
+        /// back to extracting here (standalone MEP commands).</summary>
+        public MepDetectionResult Detect(ImportInstance import, CADExtractionResult extraction)
         {
             if (import == null) return new MepDetectionResult();
             string ik = import.UniqueId ?? "";
@@ -156,7 +162,7 @@ namespace StingTools.Core.Cad.Mep
                 && byImport.TryGetValue(ik, out var hit) && hit != null)
                 return hit;
 
-            var result = DetectCore(import);
+            var result = DetectCore(import, extraction);
             if (!string.IsNullOrEmpty(ik))
             {
                 if (!_cache.TryGetValue(_doc, out byImport)) { byImport = new Dictionary<string, MepDetectionResult>(); _cache.Add(_doc, byImport); }
@@ -165,14 +171,16 @@ namespace StingTools.Core.Cad.Mep
             return result;
         }
 
-        private MepDetectionResult DetectCore(ImportInstance import)
+        private MepDetectionResult DetectCore(ImportInstance import, CADExtractionResult extraction)
         {
             var result = new MepDetectionResult();
             if (import == null) return result;
 
-            CADExtractionResult extraction;
-            try { extraction = new CADToModelEngine(_doc).PreviewImport(import); }
-            catch (Exception ex) { StingLog.Error("MepDetectionEngine.PreviewImport", ex); return result; }
+            if (extraction == null)
+            {
+                try { extraction = new CADToModelEngine(_doc).PreviewImport(import); }
+                catch (Exception ex) { StingLog.Error("MepDetectionEngine.PreviewImport", ex); return result; }
+            }
             if (extraction == null) return result;
 
             result.LayerCounts = extraction.LayerCounts ?? new Dictionary<string, int>();
