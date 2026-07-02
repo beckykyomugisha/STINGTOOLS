@@ -76,6 +76,38 @@ RAD_PROTECTION); `PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT` c8d4f6e2-1518-4d27-8c61-0
 `PRJ_ORG_HEALTH_DESIGN_FREEZE_DT` ba019 (PRJ_INFORMATION) — each registered in all four data
 files.
 
+**Phase 199 follow-up (fixes + edge-case audit, branch `claude/healthcare-deferred`).**
+`StingTools` builds clean (0 errors); no new params.
+- **A-1 (fix)** — `ClinicalCobieBridge` deduped Spare rows by name alone, globally, dropping
+  distinct spares that share a name across type codes (verified: `Door Seal` SEAL-AUTO vs
+  SEAL-MORT-FRG; `HEPA Filter`). Split into a name-keyed Resource-catalog gate and a
+  per-`{typeCode|SpareName|PartNumber}` Spare-sheet gate, so distinct types/parts survive
+  while genuine within-type duplicates still collapse.
+- **A-2 (fix)** — surfaced the standalone `Healthcare_CobieClinical` export as a "Clinical
+  COBie Export" button in a new *FM HANDOVER (COBie)* section of the BCC Healthcare tab
+  (it was dispatchable but had no UI entry; clinical rows already ship via the main COBie
+  export).
+- **A-3 (note)** — recorded in ROADMAP HC-DEF-09 that only `AntiLigatureValidator` currently
+  opts into `FgiAdoptionContext.Escalate`; extending the opt-in is a low-risk follow-up.
+- **Part B (fix)** — `ClinicalCobieBridge` read a phantom `CEQ_IMAGING_STRUCT_LOAD` (never a
+  data param — only the tag-warning `WARN_CEQ_IMAGING_STRUCT_LOAD` exists), so that attribute
+  never emitted; repointed to the real registered `CLN_STRUCT_SIGN_OFF_DT`.
+- **Part B (investigated, NOT bugs):** CSV escaping (`Esc` quotes comma/quote/newline on
+  every value field); `PatternMatches` (no prefix over-match among the real codes); job vs
+  spare dedup (intentionally per-instance vs per-type, consistent); `IsClinical` OR (a
+  YESNO can't express an explicit "exclude" distinct from the default 0, so treating a set
+  `CEQ_CATEGORY_TXT` as clinical is the correct, necessary design); adjacency units (ft→m
+  correct) + `graphUsable` computed once; registries fail-safe on malformed input + the
+  unsaved-doc shared cache key holds only corporate baseline (no overlay collision);
+  **radiation write-back binding — FALSE POSITIVE**: `PARAMETER_REGISTRY.json`
+  `universal_categories` includes Walls/Doors/Windows/Generic Models, so the group-driven
+  binding (RAD_PROTECTION → `coreCats`, InstanceBinding) binds every RAD_* param to the
+  barrier categories at runtime; the existing `RadShieldValidator` reads those exact params
+  off those exact categories, proving the writes land. `CATEGORY_BINDINGS.csv` is the
+  reference artifact, not the binding authority.
+- **Part B (limitation, ROADMAP'd):** `RoomGraphBuilder` scans the active document only —
+  linked-model rooms/doors are ignored and fall back to the centroid path (HC-DEF-04 note).
+
 #### Completed (Phase 198 — Healthcare completeness remediation, branch `claude/healthcare-gap-fixes`)
 
 Seven completeness workstreams from the verified healthcare-pack audit. **Build-verified**:
