@@ -38,6 +38,13 @@ namespace StingTools.Mcp
         private static int          _port    = 5199;
         private static volatile bool _running = false;
 
+        // Shared-secret auth. When non-empty, every POST must carry a matching
+        // X-Sting-Mcp-Token header. Loaded from STING_LLM_CONFIG.json at start.
+        private static string        _authToken   = "";
+        // Curated allowlist of command tags run_command may execute (empty = all
+        // known tags). Loaded from config; consumed by the write suite (Phase 3).
+        private static List<string>  _toolAllowlist = new List<string>();
+
         // ── Lifecycle ────────────────────────────────────────────────────────────
 
         internal static void StartIfConfigured()
@@ -52,6 +59,16 @@ namespace StingTools.Mcp
                 if (!enabled) return;
 
                 int port = cfg["mcp_port"]?.Value<int>() ?? 5199;
+
+                // Load shared-secret + allowlist before binding so the very first
+                // request is already governed by the configured policy.
+                _authToken = cfg["mcp_auth_token"]?.Value<string>()?.Trim() ?? "";
+                _toolAllowlist = (cfg["mcp_tool_allowlist"] as JArray)?
+                    .Select(t => t?.Value<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToList() ?? new List<string>();
+
                 Start(port);
             }
             catch (Exception ex)
@@ -72,6 +89,12 @@ namespace StingTools.Mcp
                 _thread  = new Thread(Listen) { IsBackground = true, Name = "StingMcpServer" };
                 _thread.Start();
                 StingLog.Info($"STING MCP server started — http://localhost:{port}/mcp/");
+                if (string.IsNullOrEmpty(_authToken))
+                    StingLog.Warn("STING MCP server is UNAUTHENTICATED — mcp_auth_token is empty in " +
+                                  "STING_LLM_CONFIG.json. The server is localhost-bound, but any local " +
+                                  "process can call it. Set mcp_auth_token to require the X-Sting-Mcp-Token header.");
+                else
+                    StingLog.Info("STING MCP server auth: X-Sting-Mcp-Token required on POST.");
             }
             catch (HttpListenerException ex)
             {
@@ -130,6 +153,21 @@ namespace StingTools.Mcp
 
                 if (ctx.Request.HttpMethod != "POST")
                 { WriteJson(ctx, 405, new { error = "Method not allowed" }); return; }
+
+                // Shared-secret gate — POST only (GET server-info stays open, localhost
+                // bound). When a token is configured, the X-Sting-Mcp-Token header must
+                // match exactly; otherwise reject with JSON-RPC -32001 before doing any
+                // work. Id is unknown at this point (body not yet read) → null.
+                if (!string.IsNullOrEmpty(_authToken))
+                {
+                    string presented = ctx.Request.Headers["X-Sting-Mcp-Token"];
+                    if (!string.Equals(presented, _authToken, StringComparison.Ordinal))
+                    {
+                        StingLog.Warn("MCP POST rejected: missing/invalid X-Sting-Mcp-Token.");
+                        WriteJson(ctx, 200, RpcError(null, -32001, "unauthorized"));
+                        return;
+                    }
+                }
 
                 string body;
                 using (var sr = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
