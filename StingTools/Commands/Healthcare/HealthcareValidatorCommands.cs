@@ -301,4 +301,14 @@ namespace StingTools.Commands.Healthcare
             catch (Exception ex) { StingLog.Error("Healthcare_RoomClassCode failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
+
+    [Transaction(TransactionMode.ReadOnly)] [Regeneration(RegenerationOption.Manual)]
+    public class HealthcarePharmacyRecertCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
+            try { return HealthcareValidatorReporter.Report("Healthcare — Pharmacy Recertification (USP 797/800)",
+                new PharmacyRecertValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            catch (Exception ex) { StingLog.Error("Healthcare_PharmacyRecert failed", ex); m = ex.Message; return Result.Failed; }
+        }
+    }
 }

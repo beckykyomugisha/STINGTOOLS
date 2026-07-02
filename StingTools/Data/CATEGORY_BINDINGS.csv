@@ -16026,6 +16026,7 @@ CLN_LIGATURE_RES_BOOL,Rooms,Instance,True
 CLN_LIG_RISK_LVL_TXT,Rooms,Instance,True
 CLN_MRI_ZONE_INT,Rooms,Instance,True
 CLN_NOISE_NR_NR,Rooms,Instance,True
+CLN_ENV_CERT_DUE_DT,Rooms,Instance,True
 CLN_NURSECALL_TYPE_TXT,Rooms,Instance,True
 CLN_OCC_VISITOR_INT,Rooms,Instance,True
 CLN_PRESS_DELTA_DESIGN_PA_NR,Rooms,Instance,True

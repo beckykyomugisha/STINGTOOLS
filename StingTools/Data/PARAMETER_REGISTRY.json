@@ -20227,6 +20227,18 @@
       "curated": true
     },
     {
+      "param_name": "CLN_ENV_CERT_DUE_DT",
+      "guid": "c8d4f6e2-a021-4d27-8c61-0e7a3f9b0021",
+      "description": "Environmental certification (USP 797/800 cleanroom) recert due date, ISO 8601 [USP <797>/<800>]",
+      "datatype": "TEXT",
+      "group_id": 28,
+      "group_name": "CLN_CLINICAL",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Clinical (Healthcare)",
+      "curated": true
+    },
+    {
       "param_name": "MGS_GAS_TYPE_TXT",
       "guid": "c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001",
       "description": "Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99]",

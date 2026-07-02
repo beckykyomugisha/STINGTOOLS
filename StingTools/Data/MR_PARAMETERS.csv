@@ -2697,6 +2697,7 @@ Generic Models,CLN_LIGATURE_RES_BOOL,c8d4f6e2-a014-4d27-8c61-0e7a3f9b0014,YESNO,
 Generic Models,CLN_LIG_RISK_LVL_TXT,c8d4f6e2-a015-4d27-8c61-0e7a3f9b0015,TEXT,CLN_CLINICAL,Type,Ligature risk level: LOW / MED / HIGH / VERY-HIGH,False,,,HEALTHCARE,1,0
 Generic Models,CLN_MRI_ZONE_INT,c8d4f6e2-a012-4d27-8c61-0e7a3f9b0012,INTEGER,CLN_CLINICAL,Type,MRI safety zone 1..4 [IEC 60601-2-33],False,,,HEALTHCARE,1,0
 Generic Models,CLN_NOISE_NR_NR,c8d4f6e2-a020-4d27-8c61-0e7a3f9b0020,INTEGER,CLN_CLINICAL,Type,Noise rating NR (when distinct from PER_ACOUSTICS_BACKGROUND_NOISE_DB),False,,,HEALTHCARE,1,0
+Generic Models,CLN_ENV_CERT_DUE_DT,c8d4f6e2-a021-4d27-8c61-0e7a3f9b0021,TEXT,CLN_CLINICAL,Type,Environmental certification (USP 797/800 cleanroom) recert due date ISO 8601 [USP 797/800],False,,,HEALTHCARE,1,0
 Generic Models,CLN_NURSECALL_TYPE_TXT,c8d4f6e2-a018-4d27-8c61-0e7a3f9b0018,TEXT,CLN_CLINICAL,Type,Nurse-call type: STD / EMG / ASSAULT / CARDIAC,False,,,HEALTHCARE,1,0
 Generic Models,CLN_OCC_VISITOR_INT,c8d4f6e2-a010-4d27-8c61-0e7a3f9b0010,INTEGER,CLN_CLINICAL,Type,Visitor headcount (clinical occupancy reuses ASS_DESIGN_OCCUPANCY_INT),False,,,HEALTHCARE,1,0
 Generic Models,CLN_PRESS_DELTA_DESIGN_PA_NR,c8d4f6e2-a007-4d27-8c61-0e7a3f9b0007,NUMBER,CLN_CLINICAL,Type,Required design differential pressure in Pa (field-tested rides MEP_DELTA_PRESS_PA),False,,,HEALTHCARE,1,0

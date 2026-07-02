@@ -1969,6 +1969,7 @@ namespace StingTools.Core
                 case "Healthcare_RtlsCoverage":      return new Commands.Healthcare.HealthcareRtlsCoverageCommand();
                 case "Healthcare_WasteFlow":         return new Commands.Healthcare.HealthcareWasteFlowCommand();
                 case "Healthcare_RoomClassCode":     return new Commands.Healthcare.HealthcareRoomClassCodeCommand();
+                case "Healthcare_PharmacyRecert":    return new Commands.Healthcare.HealthcarePharmacyRecertCommand();
 
                 case "Healthcare_IssueRDS":          return new Commands.Healthcare.IssueRoomDataSheetCommand();
                 case "Healthcare_BatchRDS":          return new Commands.Healthcare.BatchIssueRoomDataSheetsCommand();

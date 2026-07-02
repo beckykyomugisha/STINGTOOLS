@@ -99,5 +99,18 @@ namespace StingTools.Standards.USP797800
 
         // USP <800> recertification cycle — environmental sampling minimum frequency.
         public const int RecertificationCycleMonths = 6;
+
+        // Canonical CLN_ROOM_CLASS_TXT codes that are USP-governed pharmacy
+        // cleanrooms subject to the 6-monthly environmental recertification cycle.
+        // Matches the canonical room-class vocabulary (RoomClassCodes) — sterile
+        // compounding (USP <797>) and hazardous compounding (USP <800>).
+        private static readonly HashSet<string> _cleanroomRoomClasses =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PH-CSP-797", "PH-CSP-800" };
+
+        public static IReadOnlyCollection<string> CleanroomRoomClasses => _cleanroomRoomClasses;
+
+        /// <summary>True when the (canonical) room class is a USP-governed cleanroom.</summary>
+        public static bool IsCleanroomRoomClass(string canonicalRoomClass) =>
+            !string.IsNullOrEmpty(canonicalRoomClass) && _cleanroomRoomClasses.Contains(canonicalRoomClass);
     }
 }
