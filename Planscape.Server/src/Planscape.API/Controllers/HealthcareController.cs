@@ -128,6 +128,25 @@ public class HealthcareController : ControllerBase
         body.ProjectId = projectId;
         _db.Set<HealthcareMgasVerification>().Add(body);
         await _db.SaveChangesAsync();
+
+        // HC-22 — push an MGPS alarm live to subscribed mobile clients when the
+        // verification failed. The hub + broadcast helper already existed; this
+        // is the missing call site (mirrors PostPressureLog's broadcast).
+        if (!body.OverallPass)
+        {
+            await HealthcareHub.BroadcastMgasAlarm(_hub, projectId.ToString(), new MgasAlarmDto
+            {
+                ProjectId = projectId.ToString(),
+                Zone = body.Zone,
+                GasCode = body.GasCode,
+                FailReason = body.FailCount > 0
+                    ? $"{body.FailCount} of {body.PassCount + body.FailCount} NFPA 99 §5.1.12 steps failed"
+                    : "Verification marked fail",
+                Severity = "CRITICAL",
+                TriggeredAt = body.CapturedAt.ToString("O"),
+            });
+        }
+
         return Created($"api/projects/{projectId}/healthcare/mgas-verification/{body.Id}", body);
     }
 
@@ -150,6 +169,23 @@ public class HealthcareController : ControllerBase
         body.ProjectId = projectId;
         _db.Set<HealthcareAntiLigatureAudit>().Add(body);
         await _db.SaveChangesAsync();
+
+        // HC-22 — push an anti-ligature alert live to subscribed mobile clients on
+        // a FAIL finding only (to minimise traffic). Missing call site, now wired.
+        if (!body.Pass)
+        {
+            await HealthcareHub.BroadcastAntiLigatureAlert(_hub, projectId.ToString(), new AntiLigatureAlertDto
+            {
+                ProjectId = projectId.ToString(),
+                RoomBimId = body.RoomBimId,
+                RoomName = body.RoomName,
+                FittingType = body.FittingType,
+                Notes = body.Notes,
+                AuditedBy = body.CapturedBy,
+                AuditedAt = body.CapturedAt.ToString("O"),
+            });
+        }
+
         return Created($"api/projects/{projectId}/healthcare/anti-ligature-audit/{body.Id}", body);
     }
 
