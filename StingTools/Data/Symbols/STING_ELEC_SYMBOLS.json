@@ -4734,15 +4734,17 @@
             "cx": 0,
             "cy": 0.15,
             "r": 0.25,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           },
           {
             "cx": 0,
             "cy": -0.15,
             "r": 0.25,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           }
         ],
         "connectionLines": [
@@ -4834,6 +4836,14 @@
             "y1": -0.4,
             "x2": 0,
             "y2": -0.55
+          }
+        ],
+        "text": [
+          {
+            "x": -0.09,
+            "y": 0.09,
+            "value": "G",
+            "heightMm": 1.8
           }
         ]
       },
