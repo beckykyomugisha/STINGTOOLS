@@ -84,7 +84,8 @@ namespace StingTools.Docs
 
             string now = DateTime.Now.ToString("yyyy-MM-dd");
             var jobsSeen = new HashSet<string>();
-            var sparesSeen = new HashSet<string>();
+            var resourcesSeen = new HashSet<string>();   // Resource sheet is a name-keyed catalog
+            var sparesSeen = new HashSet<string>();       // Spare sheet links Type→spare (per-type)
             int emitted = 0;
 
             foreach (var el in clinical)
@@ -142,11 +143,20 @@ namespace StingTools.Docs
                 foreach (var s in spares)
                 {
                     if (!PatternMatches(s.TypeCodePattern, typeCode)) continue;
-                    if (!sparesSeen.Add(s.SpareName)) continue;
-                    // Resource sheet: Name,CreatedBy,CreatedOn,Category,Description
-                    resLines.Add($"{Esc(s.SpareName)},STING Tools,{now},Spare Part,{Esc(s.Description)}");
-                    // Spare sheet: Name,CreatedBy,CreatedOn,Category,TypeName,Suppliers,Description
-                    spareLines.Add($"{Esc(s.SpareName)},STING Tools,{now},Spare Part,{Esc(typeCode)},{Esc(s.Supplier)},{Esc(s.Description)}");
+
+                    // Resource sheet is a flat catalog keyed by Name (no Type/PartNumber
+                    // column) — dedup globally by name.
+                    if (resourcesSeen.Add(s.SpareName))
+                        // Resource sheet: Name,CreatedBy,CreatedOn,Category,Description
+                        resLines.Add($"{Esc(s.SpareName)},STING Tools,{now},Spare Part,{Esc(s.Description)}");
+
+                    // Spare sheet links each Type to its spare (TypeName + PartNumber), so
+                    // the same spare name under a different type is a distinct, valid row.
+                    // Dedup per {typeCode|SpareName|PartNumber}: genuine duplicates within a
+                    // type still collapse; distinct types / part numbers both survive.
+                    if (sparesSeen.Add($"{typeCode}|{s.SpareName}|{s.PartNumber}"))
+                        // Spare sheet: Name,CreatedBy,CreatedOn,Category,TypeName,Suppliers,Description
+                        spareLines.Add($"{Esc(s.SpareName)},STING Tools,{now},Spare Part,{Esc(typeCode)},{Esc(s.Supplier)},{Esc(s.Description)}");
                 }
             }
 
