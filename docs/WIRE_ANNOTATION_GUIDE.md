@@ -574,6 +574,69 @@ The Family Editor work described here is for **electrical equipment panels** whe
 
 ---
 
+### 🟢 Do I need to build a family? (Short answer: no)
+
+> **If you just want to annotate wires, you do not need to open the Family Editor at all.** STING
+> draws the ticks and the label for you as ordinary detail lines and text — there is *no "wire
+> annotation family"* to author. The only thing a beginner must set up once is a handful of **text
+> types** (below), and that's done with Revit's normal Text tool, not the Family Editor.
+>
+> The heavier sections that follow — **Part B (panel families)** and **Part F (conduit fittings)** —
+> are **advanced and optional**. They're for authoring the electrical *equipment*, not the
+> annotation. In practice those families come from manufacturer content or your Revit library, and
+> are best set up by an experienced Revit user. A beginner can safely skip Parts B and F and still
+> annotate wires successfully.
+
+**What a beginner actually needs, in order of importance:**
+
+| Must you do it? | Task | Where | Difficulty |
+|---|---|---|---|
+| ✅ **Yes** (once) | Create the 3 text types | Part E — *walkthrough just below* | Easy — normal Text tool |
+| ➖ Optional | Create the line styles | [Part D](#part-d--line-styles-for-wire-annotation-graphics) | Easy — Manage → Line Styles |
+| 🔶 Advanced / skip | Author panel families | [Part B](#part-b--electrical-equipment-panel-family-authoring) | Hard — Family Editor |
+| 🔶 Advanced / skip | Author conduit fittings | [Part F](#part-f--conduit-fittings) | Hard — Family Editor |
+
+---
+
+### 🟢 Beginner setup — the only thing you must create (text types)
+
+STING writes each label as an ordinary Revit **text note**. It looks for text types with specific
+names and uses the first one it finds. So the one-time job is to create those named types. **This is
+not the Family Editor** — it's the same Text tool you'd use to type a note on a sheet.
+
+![Three-step text-type setup: click the Text tool on the Annotate ribbon, Edit Type then Duplicate and name it "STING - Wire Annotation", then set Font Arial, Size 2.0 mm, Background Transparent and click OK](images/wire-annotation/text-types-setup.svg)
+
+**Step by step:**
+
+1. On the ribbon, click **Annotate → Text** (the big **A**).
+2. In the Properties palette (or the type dropdown), click **Edit Type**.
+3. Click **Duplicate…**, and name the new type exactly: `STING - Wire Annotation`. Click **OK**.
+4. Set these values, then **OK**:
+
+   | Setting | Value |
+   |---|---|
+   | Font | Arial |
+   | Size | 2.0 mm |
+   | Bold / Italic / Underline | all off |
+   | Background | Transparent |
+   | Show Border | off |
+
+5. Repeat **Duplicate…** twice more to make the other two types (same as above, just different size/colour):
+   - `STING - Wire Annotation Small` — **Size 1.5 mm** (STING uses this for the *Compact* label).
+   - `STING - Arc Flash Warning` — **Size 3.0 mm, Bold on, red text, Background Opaque, Show Border on**.
+
+6. Press **Esc** to put the Text tool away. You never have to place any of these by hand — STING
+   picks them up automatically when it draws labels.
+
+> **That's the whole setup.** If you skip it, STING still works — it just falls back to whatever text
+> type your project already has, so your labels may look bigger or smaller than intended. Creating
+> the three named types is what makes them look right.
+
+The exact settings for all three types are listed again, with the full option list, in
+**[Part E](#part-e--text-types-for-wire-labels)** below.
+
+---
+
 ### Part A — Conduit Type Setup (no Family Editor required)
 
 Conduit is a Revit system family edited through the project, not the Family Editor. Correct setup is essential for STING to read diameter, fill, and routing method.
@@ -615,6 +678,10 @@ Type-level values are inherited by all instances of that type, so setting `ELC_W
 ---
 
 ### Part B — Electrical Equipment (Panel) Family Authoring
+
+> 🔶 **Advanced / optional — not needed just to annotate wires.** This is real Family Editor work
+> (connectors, reference planes, formulas). A beginner should skip it: use a manufacturer or Revit
+> library panel instead. It only matters if you're authoring your own distribution boards.
 
 This is the main Family Editor section. The goal is a panel family that:
 - Has the correct Revit electrical connectors (so `ElectricalSystem` data flows)
@@ -930,6 +997,10 @@ To create these types:
 ---
 
 ### Part F — Conduit Fittings
+
+> 🔶 **Advanced / optional — not needed just to annotate wires.** Conduit fittings normally come
+> from Revit's library and already work. Only author your own if home-run tracing (H-Run) can't
+> cross a custom fitting. A beginner can skip this.
 
 Conduit fittings (bends, tees, couplings) are loadable families in category `OST_ConduitFitting`. STING does not annotate fittings directly — slashes and labels are placed only on conduit run segments. However, fitting families must be configured correctly so that BFS graph traversal (used by HR-Full) can cross them.
 
