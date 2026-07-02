@@ -483,6 +483,7 @@ namespace StingTools.UI
                     case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
 
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
+                    case "Symbols_Preflight":      RunCommand<Commands.Symbols.SymbolPreflightCommand>(app); break;
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
                     case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
                     case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;

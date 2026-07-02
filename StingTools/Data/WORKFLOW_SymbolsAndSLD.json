@@ -1,0 +1,33 @@
+{
+  "name": "Symbols and SLD",
+  "description": "F8 — one-run symbol/SLD pipeline. Preflights the Revit family-template path (stops here with a fix message when unset), builds every symbol catalogue (reporting any empty catalogues), then generates the Single Line Diagram. Chains the silent preconditions so an unset template path can no longer produce '0 families' followed by a blank SLD.",
+  "rollback_on_failure": true,
+  "steps": [
+    {
+      "commandTag": "Symbols_Preflight",
+      "label": "Preflight the Revit family-template path",
+      "_notes": "Returns Failed when the family-template folder / Generic Annotation .rft can't be resolved, so rollback_on_failure stops the workflow BEFORE building 0 families."
+    },
+    {
+      "commandTag": "LoadSharedParams",
+      "label": "Load shared parameters",
+      "optional": true,
+      "_notes": "Binds the STING shared params so built symbols expose CIRCUIT_REF / RATING_A / LABEL etc. Optional — a missing shared-param file must not abort the build."
+    },
+    {
+      "commandTag": "Symbols_CreateAll",
+      "label": "Build all symbol catalogues (reports empty catalogues)",
+      "_notes": "Runs its own template preflight too; its report lists any catalogue that produced 0 families and any degraded fills (F4)."
+    },
+    {
+      "commandTag": "SLD_Generate",
+      "label": "Generate the Single Line Diagram",
+      "optional": true,
+      "_notes": "Optional — a project with no electrical circuits has nothing to draw; the built SLD families now resolve via ContentRoots (P0-1)."
+    }
+  ],
+  "_postNotes": [
+    "Re-runnable. Symbols_CreateAll is idempotent (existing .rfa counted as Existed).",
+    "If preflight fails: set Options -> File Locations -> Family Template Files, then re-run."
+  ]
+}
