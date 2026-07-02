@@ -36,6 +36,12 @@ format (BS 7671, the UK wiring regs).
 **Analogy:** think of it like nutrition labels on food. The food (the cable) already *has* its
 properties; the label just makes them visible so nobody has to guess.
 
+![Anatomy of a STING wire annotation — the conduit line, the tick marks that count the wires, and the text label with its full spec and a red voltage-drop flag](images/wire-annotation/anatomy.svg)
+
+The **tick marks** are the fastest thing to read — one tick per wire in the cable:
+
+![Tick-mark legend — 1 tick is a single wire, 2 ticks is live plus neutral (single phase), 3 ticks is 3-core, 4 ticks is three-phase plus neutral](images/wire-annotation/tick-legend.svg)
+
 ### The 5 ideas you need (jargon, translated)
 
 | Word you'll see | What it actually means |
@@ -67,6 +73,8 @@ Do these once, in order. Each button lives in the STING panel (open it from the 
 
 > **Tip:** every button below works on *either* one conduit you pick, *or* everything in the current
 > view if you select nothing. Start with one conduit while you're learning.
+
+![The happy-path workflow — five steps left to right: W-Stamp reads circuit facts, Csz-Sync picks the cable thickness, VD-Sync works out voltage drop, CPC-Sz sizes the earth wire, and W-Ann/W-Batch finally draws the ticks and label](images/wire-annotation/workflow.svg)
 
 **Step ① — Tell STING what each conduit is: click `W-Stamp`.**
 Pick a conduit. STING copies the circuit facts (phase, number of wires, panel name, load) from
@@ -102,6 +110,8 @@ Say you see this next to a line:
 2 × 4mm² Cu | 1Ø | L1-06 | DB-1 | Meth.C | Ø20mm | Fill 28% | ** VD=3.4%
 ```
 
+![Label decoder — the example label split into eight coloured chunks, each with its plain-English meaning: two 4mm² copper wires, single phase, circuit 6, board DB-1, install method C, 20mm conduit, 28% fill, and a red 3.4% voltage-drop warning](images/wire-annotation/label-decoder.svg)
+
 Piece by piece, in plain words:
 
 | Chunk | Means |
@@ -117,6 +127,10 @@ Piece by piece, in plain words:
 
 The `**` and the red colour are STING waving a flag: *look at this one*. A healthy run simply won't
 show a VD warning at all.
+
+The colour of the ticks and label isn't decoration — it's a status. This is what each one means:
+
+![Auto-colour states — black means normal, red means voltage drop or fill over the limit, orange means a fire-rated cable, blue means an armoured or shielded cable](images/wire-annotation/colour-states.svg)
 
 ### If something looks wrong (plain-English troubleshooting)
 
