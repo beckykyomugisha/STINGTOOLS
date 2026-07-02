@@ -35,9 +35,45 @@ namespace StingTools.Commands.Symbols
             try
             {
                 SymbolStandardResolver.SetProjectStandard(ctx.Doc, pick);
+
+                // F6 — preflight: the swap only restyles when the target-standard families
+                // exist. If none are resolvable (project + content roots) the switch would
+                // silently do nothing, so tell the user to build the library first and
+                // offer to run it now.
+                if (!TargetStandardHasFamilies(ctx.Doc, pick, out int resolvable))
+                {
+                    var guard = new TaskDialog("STING - Standard Switch")
+                    {
+                        MainInstruction = $"No '{pick}' symbol families are built",
+                        MainContent = $"Switching to {pick} would restyle nothing — no {pick} symbol families were "
+                            + "found in the project or the content library. Build the symbol library for this "
+                            + "standard first (Symbols_CreateAll), then switch.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                        AllowCancellation = true
+                    };
+                    guard.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Build the symbol library now", "Runs Symbols_CreateAll (all catalogues), then switches.");
+                    if (guard.Show() != TaskDialogResult.CommandLink1)
+                        return Result.Cancelled;
+
+                    RunFullSymbolBuild(ctx.Doc);
+                    if (!TargetStandardHasFamilies(ctx.Doc, pick, out resolvable))
+                    {
+                        TaskDialog.Show("STING - Standard Switch",
+                            $"Still no {pick} families after the build. The Revit family-template path is the usual "
+                            + "cause — run Symbols_Preflight to check it. Switch aborted.");
+                        return Result.Failed;
+                    }
+                }
+
                 int swapped = SwapAllTags(ctx.Doc, pick, out int modelSwapped, out int modelSkipped);
-                string modelLine = $"\n{modelSwapped} model symbol instance(s) swapped"
-                    + (modelSkipped > 0 ? $", {modelSkipped} skipped (no resolvable/compatible target)." : ".");
+                string modelLine;
+                if (modelSwapped == 0 && modelSkipped > 0)
+                    modelLine = $"\n⚠ 0 model symbol instances swapped, {modelSkipped} skipped — their {pick} "
+                        + "target families are not loaded. Build/load the library for this standard, then re-run.";
+                else
+                    modelLine = $"\n{modelSwapped} model symbol instance(s) swapped"
+                        + (modelSkipped > 0 ? $", {modelSkipped} skipped (no resolvable/compatible target)." : ".");
                 TaskDialog.Show("STING", $"Switched to {pick}. {swapped} tag(s) updated.{modelLine}");
                 return Result.Succeeded;
             }
@@ -46,6 +82,37 @@ namespace StingTools.Commands.Symbols
                 StingLog.Error("SwitchProjectStandardCommand", ex);
                 msg = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>F6 — true when at least one concept resolves a family for
+        /// <paramref name="standard"/> that is actually available (loaded in the project
+        /// or on disk across the content roots).</summary>
+        internal static bool TargetStandardHasFamilies(Document doc, string standard, out int resolvable)
+        {
+            resolvable = 0;
+            try
+            {
+                var available = SymbolOrientationAuditCommand.BuildAvailableFamilySet(doc);
+                foreach (var c in SymbolConceptRegistry.ListConcepts())
+                {
+                    if (c?.ConceptId == null) continue;
+                    string fam = SymbolConceptRegistry.GetFamilyName(c.ConceptId, standard, null, null, null);
+                    if (!string.IsNullOrWhiteSpace(fam) && available.Contains(fam)) resolvable++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TargetStandardHasFamilies: {ex.Message}"); }
+            return resolvable > 0;
+        }
+
+        /// <summary>F6 — runs the full symbol-library build (all catalogues), mirroring
+        /// Symbols_CreateAll, so the user can build the missing standard inline.</summary>
+        private static void RunFullSymbolBuild(Document doc)
+        {
+            foreach (var b in SymbolBatchHelper.AllBatches)
+            {
+                try { SymbolBatchHelper.RunBatch(doc, b.File, b.Folder); }
+                catch (Exception ex) { StingLog.Warn($"RunFullSymbolBuild {b.File}: {ex.Message}"); }
             }
         }
 
