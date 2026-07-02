@@ -2804,6 +2804,10 @@ Generic Models,RAD_OCC_FACTOR_NR,c8d4f6e2-c005-4d27-8c61-0e7a3f9b2005,NUMBER,RAD
 Generic Models,RAD_QE_DT,c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008,TEXT,RAD_PROTECTION,Type,QE sign-off date (ISO 8601),False,,,HEALTHCARE,1,0
 Generic Models,RAD_QE_NAME_TXT,c8d4f6e2-c007-4d27-8c61-0e7a3f9b2007,TEXT,RAD_PROTECTION,Type,Qualified Expert (medical / health physicist) signing off,False,,,HEALTHCARE,1,0
 Generic Models,RAD_DISTANCE_M_NR,c8d4f6e2-c009-4d27-8c61-0e7a3f9b2009,NUMBER,RAD_PROTECTION,Type,Distance from radiation source to occupied point beyond the barrier (m) [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_LEAD_REQ_MM_NR,c8d4f6e2-c010-4d27-8c61-0e7a3f9b2010,NUMBER,RAD_PROTECTION,Type,Computed NCRP 147 required Pb-equivalent thickness (mm) stamped by the shielding write-back [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_SHIELD_STATUS_TXT,c8d4f6e2-c011-4d27-8c61-0e7a3f9b2011,TEXT,RAD_PROTECTION,Type,Shielding write-back status: DRAFT (no QE) / APPROVED (RAD_QE_NAME_TXT on record) [NCRP 147],False,,,HEALTHCARE,1,0
+Generic Models,RAD_COMPUTED_DT,c8d4f6e2-c012-4d27-8c61-0e7a3f9b2012,TEXT,RAD_PROTECTION,Type,Shielding write-back timestamp (ISO 8601),False,,,HEALTHCARE,1,0
+Generic Models,RAD_COMPUTED_BY_TXT,c8d4f6e2-c013-4d27-8c61-0e7a3f9b2013,TEXT,RAD_PROTECTION,Type,Revit user who ran the shielding write-back,False,,,HEALTHCARE,1,0
 Generic Models,RAD_USE_FACTOR_NR,c8d4f6e2-c004-4d27-8c61-0e7a3f9b2004,NUMBER,RAD_PROTECTION,Type,NCRP 147 Use factor U,False,,,HEALTHCARE,1,0
 Generic Models,RAD_WORKLOAD_MAWK_NR,c8d4f6e2-c003-4d27-8c61-0e7a3f9b2003,NUMBER,RAD_PROTECTION,Type,Workload (mA·min/wk) [NCRP 147],False,,,HEALTHCARE,1,0
 Generic Models,STING_AUTHORISED_BY_TXT,862eb92a-b8c6-5429-9330-e43afd73744b,TEXT,PRJ_INFORMATION,Type,"4-eyes authorisation signature — distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 §5.6.2]",False,,,MULTI,1,0

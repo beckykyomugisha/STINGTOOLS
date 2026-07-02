@@ -20491,6 +20491,54 @@
       "curated": true
     },
     {
+      "param_name": "RAD_LEAD_REQ_MM_NR",
+      "guid": "c8d4f6e2-c010-4d27-8c61-0e7a3f9b2010",
+      "description": "Computed NCRP 147 required Pb-equivalent thickness (mm) stamped by the shielding write-back [NCRP 147]",
+      "datatype": "NUMBER",
+      "group_id": 30,
+      "group_name": "RAD_PROTECTION",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Radiation",
+      "curated": true
+    },
+    {
+      "param_name": "RAD_SHIELD_STATUS_TXT",
+      "guid": "c8d4f6e2-c011-4d27-8c61-0e7a3f9b2011",
+      "description": "Shielding write-back status: DRAFT (no QE) / APPROVED (RAD_QE_NAME_TXT on record) [NCRP 147]",
+      "datatype": "TEXT",
+      "group_id": 30,
+      "group_name": "RAD_PROTECTION",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Radiation",
+      "curated": true
+    },
+    {
+      "param_name": "RAD_COMPUTED_DT",
+      "guid": "c8d4f6e2-c012-4d27-8c61-0e7a3f9b2012",
+      "description": "Shielding write-back timestamp (ISO 8601)",
+      "datatype": "TEXT",
+      "group_id": 30,
+      "group_name": "RAD_PROTECTION",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Radiation",
+      "curated": true
+    },
+    {
+      "param_name": "RAD_COMPUTED_BY_TXT",
+      "guid": "c8d4f6e2-c013-4d27-8c61-0e7a3f9b2013",
+      "description": "Revit user who ran the shielding write-back",
+      "datatype": "TEXT",
+      "group_id": 30,
+      "group_name": "RAD_PROTECTION",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Radiation",
+      "curated": true
+    },
+    {
       "param_name": "RAD_QE_DT",
       "guid": "c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008",
       "description": "QE sign-off date (ISO 8601)",

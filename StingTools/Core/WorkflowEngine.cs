@@ -1983,6 +1983,7 @@ namespace StingTools.Core
                 case "Healthcare_RadCalcChest":      return new Commands.Radiation.RadCalcChestRoomCommand();
                 case "Healthcare_RadCalcCt":         return new Commands.Radiation.RadCalcCtRoomCommand();
                 case "Healthcare_RadCalcLinac":      return new Commands.Radiation.RadCalcLinacVaultCommand();
+                case "Healthcare_RadShieldWriteBack": return new Commands.Radiation.RadShieldWriteBackCommand();
                 case "Healthcare_MriZoneAudit":      return new Commands.Radiation.MriZoneAuditCommand();
 
                 case "Healthcare_IoTRegistry":       return new Commands.Twin.IoTRegistryCommand();

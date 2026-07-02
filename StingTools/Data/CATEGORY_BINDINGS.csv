@@ -16116,6 +16116,22 @@ RAD_DISTANCE_M_NR,Walls,Instance,True
 RAD_DISTANCE_M_NR,Doors,Instance,True
 RAD_DISTANCE_M_NR,Windows,Instance,True
 RAD_DISTANCE_M_NR,Generic Models,Instance,True
+RAD_LEAD_REQ_MM_NR,Walls,Instance,True
+RAD_LEAD_REQ_MM_NR,Doors,Instance,True
+RAD_LEAD_REQ_MM_NR,Windows,Instance,True
+RAD_LEAD_REQ_MM_NR,Generic Models,Instance,True
+RAD_SHIELD_STATUS_TXT,Walls,Instance,True
+RAD_SHIELD_STATUS_TXT,Doors,Instance,True
+RAD_SHIELD_STATUS_TXT,Windows,Instance,True
+RAD_SHIELD_STATUS_TXT,Generic Models,Instance,True
+RAD_COMPUTED_DT,Walls,Instance,True
+RAD_COMPUTED_DT,Doors,Instance,True
+RAD_COMPUTED_DT,Windows,Instance,True
+RAD_COMPUTED_DT,Generic Models,Instance,True
+RAD_COMPUTED_BY_TXT,Walls,Instance,True
+RAD_COMPUTED_BY_TXT,Doors,Instance,True
+RAD_COMPUTED_BY_TXT,Windows,Instance,True
+RAD_COMPUTED_BY_TXT,Generic Models,Instance,True
 RAD_USE_FACTOR_NR,Rooms,Instance,True
 RAD_USE_FACTOR_NR,Specialty Equipment,Instance,True
 RAD_WORKLOAD_MAWK_NR,Rooms,Instance,True
