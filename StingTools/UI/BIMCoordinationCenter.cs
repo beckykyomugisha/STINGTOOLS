@@ -9301,6 +9301,13 @@ namespace StingTools.UI
             stack.Children.Add(specWrap);
             stack.Children.Add(new Border { Height = 8 });
 
+            // FM handover (COBie clinical-equipment)
+            stack.Children.Add(MakeSectionHeader("FM HANDOVER (COBie)"));
+            var fmWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            fmWrap.Children.Add(MakeActionButton("Clinical COBie Export", "Healthcare_CobieClinical", Br(Color.FromRgb(0x00, 0x83, 0x8F)), "COBie 2.4 handover incl. clinical-equipment CEQ_* attributes + SFG20 jobs + spares (HC-DEF-10)."));
+            stack.Children.Add(fmWrap);
+            stack.Children.Add(new Border { Height = 8 });
+
             // Workflow presets
             stack.Children.Add(MakeSectionHeader("WORKFLOW PRESETS"));
             var wfWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
