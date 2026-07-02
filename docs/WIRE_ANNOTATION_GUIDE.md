@@ -6,6 +6,148 @@
 
 ---
 
+## 🟢 New to this? Start here — Wire Annotation in Plain English
+
+> **If you have never annotated wires in Revit before, read this section first.** It assumes no
+> electrical background and no STING experience. The rest of the guide (from *Overview of
+> Capabilities* onwards) is the reference manual — come back to it once the ideas below click.
+
+### What is a "wire annotation" and why do I care?
+
+Picture an electrician holding your drawing on site. They see a thin line running from a
+distribution board to a light. That line is a **conduit** — a tube that carries the cable. But the
+line alone doesn't tell them *what cable to pull through it*. How many wires? How thick? Copper or
+aluminium? Which circuit does it belong to?
+
+A **wire annotation** answers all of that, right on the drawing, next to the line. It has two parts:
+
+1. **Tick marks (slashes)** drawn across the line — a visual shorthand for *how many wires* are in
+   the cable. Two ticks = two wires (live + neutral). Four ticks = a three-phase cable + neutral.
+   Electricians read these at a glance, the same way you read "///" without counting.
+2. **A text label** next to the ticks — the full story in words and numbers, e.g.
+   `2 × 4mm² Cu | 1Ø | L1-06 | DB-1`. That reads as: *two four-millimetre copper wires, single
+   phase, circuit 6 on distribution board 1*.
+
+**Why it matters:** without annotations, someone has to hand-write all this on every line, on every
+sheet, and keep it in sync when the design changes. STING reads the information Revit already knows
+about each circuit and writes the annotation for you — consistently, and in a recognised standard
+format (BS 7671, the UK wiring regs).
+
+**Analogy:** think of it like nutrition labels on food. The food (the cable) already *has* its
+properties; the label just makes them visible so nobody has to guess.
+
+### The 5 ideas you need (jargon, translated)
+
+| Word you'll see | What it actually means |
+|---|---|
+| **Conduit** | The tube/line on the drawing that a cable runs through. In STING, annotations attach to conduits. |
+| **Circuit** | One "run" of power from a board to something it feeds (a light, a socket). Revit already knows a conduit's circuit if you connected it. |
+| **CSA** ("4mm²") | *Cross-Sectional Area* — how thick the copper is. Bigger number = thicker wire = carries more current. |
+| **Voltage drop (VD%)** | Electricity "loses steam" over long runs. VD% is how much. Too high = lights dim / gear misbehaves. The regs cap it (roughly 3%). |
+| **CPC / earth** | The safety (earth) wire. Sized separately from the live wires. |
+
+Two more you'll meet later: **ampacity** (how much current a cable can safely carry before it
+overheats) and **home run** (the arrow pointing back to the board that feeds the circuit).
+
+### Before you touch any buttons — the one prerequisite
+
+STING can only annotate conduits that Revit already knows the **circuit** for. So the golden rule is:
+
+> **Draw the conduit → connect it to a panel (create its circuit) → *then* annotate.**
+
+If a conduit isn't connected to a panel, STING has nothing to read, and you'll get a message like
+*"No connected ElectricalSystem found."* That's not a bug — it's telling you to wire it up in Revit
+first (select the conduit → **Systems** tab → create/assign its circuit).
+
+### The happy path — click by click
+
+Do these once, in order. Each button lives in the STING panel (open it from the ribbon:
+**STING Tools → STING Panel**, then the **BIM** tab). The first time, also click
+**CREATE tab → Load Params** once so the parameters exist.
+
+> **Tip:** every button below works on *either* one conduit you pick, *or* everything in the current
+> view if you select nothing. Start with one conduit while you're learning.
+
+**Step ① — Tell STING what each conduit is: click `W-Stamp`.**
+Pick a conduit. STING copies the circuit facts (phase, number of wires, panel name, load) from
+Revit onto the conduit. A little dialog confirms what it found. *Nothing appears on the drawing
+yet — this is just gathering information.* (To do the whole view at once, use `W-Batch♻` instead.)
+
+**Step ② — Let STING choose the cable thickness: click `Csz-Sync`.**
+First, one manual thing: tell STING how the cable is installed by typing a letter into the
+`ELC_WIRE_INSTALL_METHOD_TXT` property (in Revit's **Properties** palette). Common choices: `C`
+(clipped to a surface) or `B1` (in a conduit in a wall). This affects how much current the cable can
+handle. Then click `Csz-Sync` and STING picks the thickness (CSA), the safe current (ampacity), and
+the breaker size, following BS 7671.
+
+**Step ③ — Check the voltage drop: click `VD-Sync`.**
+Now that the cable is sized and the route has a length, STING calculates VD% and stores it. If a run
+is too long/thin, the annotation will later flag it in red.
+
+**Step ④ (optional) — Size the earth wire: click `CPC-Sz`.**
+Sizes the safety/earth conductor from the live-wire size, per the regs.
+
+**Step ⑤ — Draw the annotation: click `W-Ann` (one conduit) or `W-Batch` (whole view).**
+*Now* the ticks and the text label appear on the drawing. Done. To annotate an entire plan in one
+go, use `W-Batch` — it even nudges labels apart so they don't overlap.
+
+That's the core workflow: **Stamp → Size → VD → (Earth) → Annotate.** Everything else in this guide
+(home-run arrows, cable schedules, arc-flash labels) is optional extra polish.
+
+### Reading a finished label
+
+Say you see this next to a line:
+
+```
+2 × 4mm² Cu | 1Ø | L1-06 | DB-1 | Meth.C | Ø20mm | Fill 28% | ** VD=3.4%
+```
+
+Piece by piece, in plain words:
+
+| Chunk | Means |
+|---|---|
+| `2 × 4mm² Cu` | Two copper wires, each 4mm² thick |
+| `1Ø` | Single-phase (ordinary power, not heavy 3-phase) |
+| `L1-06` | Circuit 6 on the board |
+| `DB-1` | Fed from Distribution Board 1 |
+| `Meth.C` | Install method C (clipped to a surface) |
+| `Ø20mm` | The conduit is 20 mm across |
+| `Fill 28%` | The cable fills 28% of the conduit (plenty of room) |
+| `** VD=3.4%` | ⚠ Voltage drop is 3.4% — shown because it's over the 3% alarm. This run may need a thicker cable. |
+
+The `**` and the red colour are STING waving a flag: *look at this one*. A healthy run simply won't
+show a VD warning at all.
+
+### If something looks wrong (plain-English troubleshooting)
+
+| You see… | It means… | Do this |
+|---|---|---|
+| **"No connected ElectricalSystem found"** | The conduit isn't wired to a panel yet | Connect it in Revit (**Systems** tab), then `W-Stamp` again |
+| **`? Wire`** in the label | STING couldn't find the cable size | Run `Csz-Sync` (Step ②) first — you probably annotated before sizing |
+| **No `VD=` shown at all** | STING had no real circuit current to calculate from, so it *deliberately* left it off rather than guess | Make sure the circuit has a load/current in Revit, then `VD-Sync` and `W-Rfsh`. (STING used to guess 16 A here; it no longer prints a made-up number.) |
+| **Ticks are tiny or huge** | The drawing scale vs. tick size | Leave *Scale factor* at 1.0 and STING auto-sizes ticks to the view scale; or nudge *Slash length* in the panel |
+| **Nothing happened when I clicked** | You likely picked empty space, or the view has no conduits | Zoom to a conduit and pick the line itself |
+| **I changed the design and the labels are stale** | Labels don't auto-update | Re-run `Csz-Sync`/`VD-Sync` as needed, then click `W-Rfsh` to refresh every label in the view |
+| **I want them gone** | — | `W-Clr` removes all wire annotations from the view (it does *not* delete the conduits or their data) |
+
+### What the buttons are called (quick map)
+
+| Button | Nickname | Plain job |
+|---|---|---|
+| `W-Stamp` / `W-Batch♻` | Stamp | Read circuit facts onto conduit(s) |
+| `Csz-Sync` | Cable size | Pick the wire thickness |
+| `VD-Sync` | Volt-drop | Work out VD% |
+| `CPC-Sz` | Earth size | Size the earth wire |
+| `W-Ann` / `W-Batch` | Annotate | Draw ticks + label |
+| `W-Rfsh` | Refresh | Update labels after changes |
+| `W-Clr` | Clear | Remove labels from the view |
+| `H-Run` | Home run | Add the arrow pointing to the board |
+
+Once this makes sense, continue to the reference sections below for the full parameter list, style
+controls, standards references, and the Family Editor authoring guide.
+
+---
+
 ## Overview of Capabilities
 
 The STING wire annotation system adds 10 new commands and a set of inline dock-panel controls to the electrical workflow. Together they provide:
@@ -130,6 +272,13 @@ Core count can be overridden manually in the Properties palette (`ELC_WIRE_CORE_
 2. BIM tab → **VD-Sync** (`Electrical_WireVDSync`).
 3. Reads conduit length from `LocationCurve`, applies material resistivity (Cu = 17.2 nΩ·m, Al = 28.3 nΩ·m), writes updated `ELC_WIRE_VD_PCT_NUM`.
 4. VD alarm threshold is set in the wire annotation style (default 3%). Conduits that exceed it display `** VD=X.X%` in the annotation label in red (or the auto-colour override).
+
+> **Note (accuracy):** the annotation engine's on-the-fly VD recompute (used when a stored VD isn't
+> present) now reads the connected circuit's **real current and voltage** from the Revit
+> `ElectricalSystem`. If no real circuit current is available it **omits** the VD figure from the
+> label and logs a warning, rather than assuming a 16 A / 230 V default and printing a
+> confidently-wrong number. So a missing `VD=` on a label means "not enough data to trust a value" —
+> give the circuit a load in Revit and re-run `VD-Sync` + `W-Rfsh`.
 
 ---
 
