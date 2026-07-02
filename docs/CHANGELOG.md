@@ -3,6 +3,79 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199 — Healthcare deferred-items implementation, branch `claude/healthcare-deferred`)
+
+Implemented the deferred healthcare ROADMAP items (HC-DEF-01..10) as real features,
+phased. **Build-verified**: `StingTools` against the Revit 2025 API (**0 errors**) after
+each item; `Planscape.Server` untouched. Overriding guardrail honoured throughout — where
+an item needs authoritative domain data (med-gas diversity, FGI clause↔jurisdiction
+mapping, radiation physics), the **mechanism/seam** ships and the values stay
+project-supplied (corporate baseline + `<project>/_BIM_COORD/` override); no numbers are
+guessed in-repo. One commit per item.
+
+| Item | Status | What |
+|---|---|---|
+| **HC-DEF-10** | **DONE** | Clinical-equipment COBie/SFG20 export consumes the `CEQ_*` cluster |
+| **HC-DEF-08** | **DONE** | HBN adjacency reconciled to canonical room classes; CSV made live |
+| **HC-DEF-01** | **DONE** | QE-gated, audit-trailed radiation shielding write-back |
+| **HC-DEF-04** | **DONE** | AdjacencyValidator door-graph BFS via RoomGraphBuilder |
+| **HC-DEF-01b** | **PARTIAL** | Per-element distance capture ships (write-back); true geometry deferred |
+| **HC-DEF-07** | **SEAM** | Project-supplied med-gas diversity override |
+| **HC-DEF-05** | **SEAM** | Pluggable Twin transport registration (live adapter external) |
+| **HC-DEF-09** | **SEAM** | FGI adoption escalation wired; jurisdiction/freeze/map project-supplied |
+| **HC-DEF-02/03** | **DEFERRED** | No fake certification-grade radiation physics; output stays DRAFT/QE-gated |
+
+**Phase 1 (built fully).**
+- **HC-DEF-10** — the COBIE_*.csv pack already shipped the clinical rows (43 `CEQ-*` type
+  rows, 26 job + 17 spare templates) and the `CEQ_*` cluster was registered, but nothing
+  consumed either. New `ClinicalCobieBridge` (invoked from `COBieHandoverExportCommand`,
+  plus a discoverable `Healthcare_CobieClinical` command) collects clinical elements
+  (Medical/Specialty/Nurse-Call), resolves each to its COBie TypeCode via `COBIE_TYPE_MAP`
+  (`{RevitCategory}|{StingProdCode}`), and appends Attribute rows from the element's `CEQ_*`
+  values + Job/Spare rows from the CSV templates matched by TypeCode pattern (carrying
+  `CEQ_SFG20_REF_TXT`). No new params; all values data-supplied.
+- **HC-DEF-08** — `AdjacencyTargetsRegistry` makes `HEALTHCARE_ADJACENCY_HBN.csv` the live
+  source (corporate + `<project>/_BIM_COORD/adjacency_hbn.csv`, fallback to
+  `HBNStandards.AdjacencyTargets`); `AdjacencyValidator` groups rooms by BOTH canonical
+  code and `RoomClassCodes` department, so a room tagged `IMG-CT` satisfies an `IMAGING`
+  rule. Target values preserved; a room in both buckets never matches itself.
+- **HC-DEF-01** — `RadShieldWriteBackCommand` stamps the computed NCRP-147 design onto a
+  user-selected barrier (Wall/Door/Window/Generic Model), gated through
+  `RadiationSignoffGate`: `RAD_SHIELD_STATUS_TXT` = APPROVED only with a QE on record, else
+  DRAFT; `RAD_LEAD_REQ_MM_NR` carries the computed required Pb; provided `RAD_LEAD_MM_NR`
+  seeded only when empty; `RAD_COMPUTED_DT`/`RAD_COMPUTED_BY_TXT` audit-stamp who/when. 4
+  new `RAD_PROTECTION` params registered across all four data files (GUIDs c010–c013).
+
+**Phase 2.**
+- **HC-DEF-04** — replaced the centroid heuristic (false-flags corridor-connected rooms)
+  with a real door/room-graph BFS via `RoomGraphBuilder` ("N doors apart"): mandatory (2)
+  flags > 1 door, preferred (1, previously ignored) flags Info > 3 doors, forbidden (0)
+  flags ≤ 2 doors; centroid kept as a labelled fallback.
+- **HC-DEF-01b** — PARTIAL: the per-element `RAD_DISTANCE_M_NR` capture ships via the
+  HC-DEF-01 write-back; true 3D source-to-barrier geometry is deferred rather than shipping
+  a fragile guess (spec guardrail).
+
+**Phase 3 (mechanism/seam; authoritative data project-supplied).**
+- **HC-DEF-07** — `MgasDiversityRegistry` + `HEALTHCARE_MGAS_DIVERSITY.json` (empty by
+  design) let a project supply per-gas diversity; `MgasFlowSolver` honours it, else the
+  flagged 1.0 fallback.
+- **HC-DEF-05** — `TwinTransportRegistry` lets a host register a live BACnet/OPC-UA adapter
+  behind `TwinReadbackBase` (discovered by protocol; `Resolve()` never null); the empty
+  built-ins stay default and no 3rd-party stack is linked in.
+- **HC-DEF-09** — `FgiAdoptionContext` reads `PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT` +
+  `PRJ_ORG_HEALTH_DESIGN_FREEZE_DT` (2 new params, GUIDs 1518/1519) and a project-supplied
+  finding→clause map (`HEALTHCARE_FGI_CLAUSE_MAP.json`, empty by default), and escalates
+  Warning→Error via `FgiAdoptionTracker` for adopted clauses; wired into
+  `AntiLigatureValidator`. Unchanged behaviour until a project supplies the data.
+- **HC-DEF-02/03** — DEFERRED: certification-grade LINAC/PET/SPECT/Brachy physics is not
+  faked; the indicative calculators stay DRAFT/QE-gated.
+
+New shared params (6): `RAD_LEAD_REQ_MM_NR` c8d4f6e2-c010-4d27-8c61-0e7a3f9b2010,
+`RAD_SHIELD_STATUS_TXT` c011, `RAD_COMPUTED_DT` c012, `RAD_COMPUTED_BY_TXT` c013 (all
+RAD_PROTECTION); `PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT` c8d4f6e2-1518-4d27-8c61-0e7a3f9ba018,
+`PRJ_ORG_HEALTH_DESIGN_FREEZE_DT` ba019 (PRJ_INFORMATION) — each registered in all four data
+files.
+
 #### Completed (Phase 198 — Healthcare completeness remediation, branch `claude/healthcare-gap-fixes`)
 
 Seven completeness workstreams from the verified healthcare-pack audit. **Build-verified**:
