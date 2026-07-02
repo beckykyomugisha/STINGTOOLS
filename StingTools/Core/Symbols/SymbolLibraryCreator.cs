@@ -45,6 +45,10 @@ namespace StingTools.Core.Symbols
         public List<string> Warnings { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();
+        /// <summary>F4 — symbol ids whose filled regions fell back to an outline
+        /// (no FilledRegionType resolvable/creatable) instead of rendering solid.
+        /// Surfaced so a degraded visual substitution is never silent.</summary>
+        public List<string> DegradedFillSymbols { get; } = new List<string>();
     }
 
     /// <summary>
@@ -918,8 +922,13 @@ namespace StingTools.Core.Symbols
                 // symbol blank — render the boundary outline so the shape is visible.
                 if (frTypeId == null || frTypeId == ElementId.InvalidElementId)
                 {
-                    result.Warnings.Add($"{id}: no FilledRegionType available in template — " +
-                        "rendered boundary outline (solid fill unavailable).");
+                    // F4 — last-resort outline. Never silent: warn to the log AND record
+                    // the symbol id so degraded (hollow-instead-of-solid) symbols are
+                    // traceable and reported to the user.
+                    StingLog.Warn($"{id}: no FilledRegionType resolvable/creatable in template — " +
+                        "filled region rendered as OUTLINE (degraded: solid fill unavailable).");
+                    result.Warnings.Add($"{id}: filled region degraded to outline (no FilledRegionType).");
+                    if (!result.DegradedFillSymbols.Contains(id)) result.DegradedFillSymbols.Add(id);
                     DrawClosedOutline(fdoc, view, sketch, curves, result, id,
                         fr.Subcategory ?? symSubcat, fr.LineWeight, symWeight, fr.FillType);
                     return;

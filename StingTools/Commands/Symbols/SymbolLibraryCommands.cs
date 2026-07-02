@@ -132,6 +132,7 @@ namespace StingTools.Commands.Symbols
             aggregate.Warnings.AddRange(r.Warnings);
             aggregate.Errors.AddRange(r.Errors);
             aggregate.CreatedRfaPaths.AddRange(r.CreatedRfaPaths);
+            aggregate.DegradedFillSymbols.AddRange(r.DegradedFillSymbols);
             return aggregate;
         }
 
@@ -180,6 +181,14 @@ namespace StingTools.Commands.Symbols
                 sb.AppendLine($"Errors ({r.Errors.Count}):");
                 foreach (var e in r.Errors.Take(15)) sb.AppendLine("  ✗ " + e);
                 if (r.Errors.Count > 15) sb.AppendLine($"  … +{r.Errors.Count - 15} more (StingTools.log)");
+            }
+            // F4 — degraded fill symbols (rendered outline instead of solid).
+            if (r.DegradedFillSymbols.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"⚠ Degraded fills ({r.DegradedFillSymbols.Count}) — no FilledRegionType, "
+                    + "rendered as outline not solid:");
+                foreach (var d in r.DegradedFillSymbols.Distinct().Take(20)) sb.AppendLine("  · " + d);
             }
 
             foreach (var w in r.Warnings) StingLog.Warn($"SymbolLibrary: {w}");
