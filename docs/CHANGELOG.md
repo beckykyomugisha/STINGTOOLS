@@ -30,12 +30,20 @@ the rule is `ParameterFilterRuleFactory.CreateEqualsRule(staleParamId, 1)`.
 Wiring: registered in `StingCommandHandler` (panel), `WorkflowEngine.ResolveCommand`
 (so the BCC `ActionDispatcher` → `DispatchCoordAction` → `GetCommandInstance` path
 resolves them), four buttons on the TAGS/QA panel next to the existing `Stale`
-button, and the BIM Coordination Center **STALE** KPI card repointed from
-`RetagStale` to `StaleCountAction` (the dedicated "Retag Stale" buttons elsewhere
-are untouched). Commands are null-`ExternalCommandData` safe (BCC dispatches with
-`null`; `ParameterHelpers.GetContext` falls back to `StingCommandHandler.CurrentApp`).
+button, and **both** BIM Coordination Center **STALE** KPI cards (Overview + Validation)
+repointed from `RetagStale` to `StaleCountAction` (the dedicated "Retag Stale" buttons
+elsewhere are untouched). Commands are null-`ExternalCommandData` safe (BCC dispatches
+with `null`; `ParameterHelpers.GetContext` falls back to `StingCommandHandler.CurrentApp`).
 
-Deferred: staleness never auto-clears on re-tag; no schedule column for the flag.
+Accuracy: `StaleFlagHelper.CollectFlagged` applies the same
+`SharedParamGuids.AllCategoryEnums` multicategory filter `ComplianceScan` uses, so the
+selected/highlighted set equals the dashboard `StaleCount` by construction (and the
+project-wide scan is faster). The closed loop works: the chooser's "Re-tag" delegates to
+`RetagStaleCommand`, which clears `STING_STALE_BOOL` (`Set(0)`), so the count drops and the
+red view-filter override stops matching those elements automatically.
+
+Deferred: the general Auto-Tag pipeline (`RunFullPipeline`) doesn't clear the flag — only
+`RetagStale` does; and there's no Revit schedule column for the flag yet.
 
 #### Completed (STALE-1…STALE-4 — Wire up the dead stale subsystem + wire-annotation VD accuracy, branch `claude/wire-annotation-stale-review`)
 

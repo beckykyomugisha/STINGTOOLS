@@ -35,10 +35,21 @@ namespace StingTools.Select
         internal static List<ElementId> CollectFlagged(Document doc, View viewScope)
         {
             var ids = new List<ElementId>();
-            var collector = viewScope != null
+            var collector = (viewScope != null
                 ? new FilteredElementCollector(doc, viewScope.Id)
-                : new FilteredElementCollector(doc);
-            foreach (Element elem in collector.WhereElementIsNotElementType())
+                : new FilteredElementCollector(doc))
+                .WhereElementIsNotElementType();
+
+            // Mirror ComplianceScan's scan scope exactly (same AllCategoryEnums
+            // multicategory filter) so the set we select/highlight equals the
+            // dashboard's StaleCount by construction — and so we don't read the
+            // flag on every element in the model.
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                collector = collector.WherePasses(
+                    new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+            foreach (Element elem in collector)
             {
                 if (elem?.Category == null) continue;
                 if (ParameterHelpers.GetInt(elem, ParamRegistry.STALE, 0) == 1)

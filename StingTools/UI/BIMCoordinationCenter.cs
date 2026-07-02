@@ -5627,7 +5627,8 @@ namespace StingTools.UI
                 "Token inconsistencies: DISC/SYS mismatch, invalid PROD codes,\ncross-discipline FUNC errors, empty TAG7 narratives"));
             valKpi.Children.Add(MakeKPICard("STALE", _data.StaleCount.ToString(),
                 _data.StaleCount > 0 ? Br(CRed) : Br(CGreen),
-                "Elements moved/changed since last tag — tags no longer match context"));
+                "Elements flagged STING_STALE_BOOL — moved/changed since last tag.\nDouble-click to select, highlight, or re-tag them.",
+                "StaleCountAction"));
             int totalIssues = _data.ValidationErrors.Values.Sum();
             valKpi.Children.Add(MakeKPICard("VALIDATION ERRORS", totalIssues.ToString(),
                 totalIssues > 0 ? Br(CRed) : Br(CGreen),
