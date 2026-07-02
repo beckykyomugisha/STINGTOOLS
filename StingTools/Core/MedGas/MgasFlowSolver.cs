@@ -32,7 +32,11 @@ namespace StingTools.Core.MedGas
 
             foreach (var (gas, nodes) in net.Nodes)
             {
-                var tabulated = NFPA99Standards.GetDiversity(gas);
+                // HC-DEF-07 — project-supplied override (HEALTHCARE_MGAS_DIVERSITY.json +
+                // <project>/_BIM_COORD override) takes precedence over the built-in
+                // NFPA99Standards factors, so a project can supply the authoritative
+                // HTM 02-01 / NFPA 99 diversity for N2/CO2/He/dental without a recompile.
+                var tabulated = MgasDiversityRegistry.Get(doc, gas) ?? NFPA99Standards.GetDiversity(gas);
                 bool assumed = tabulated == null;
                 var diversity = tabulated ?? 1.0;
                 // Surface the silent fallback: 1.0 over-sizes (safe) but must not be

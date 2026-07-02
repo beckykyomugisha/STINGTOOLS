@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1.0,
+  "description": "HC-DEF-07 medical-gas diversity override. Data seam for the authoritative per-gas diversity factors from HTM 02-01 Part A Table 8 / NFPA 99 Table 5.1.13.3.4. Add gas-code -> factor entries under 'factors' (e.g. \"N2\": 0.25) to override or extend the built-in NFPA99Standards factors WITHOUT a recompile. Corporate baseline; override per project at <project>/_BIM_COORD/mgas_diversity.json. Left empty on purpose — STING does not assert diversity factors for N2/CO2/He/dental; supply the value your design authority mandates. Gases with no entry here and none in NFPA99Standards keep the flagged 1.0 fallback (over-sizes, safe).",
+  "factors": {}
+}
