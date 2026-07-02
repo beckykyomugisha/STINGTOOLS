@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Cad.Mep;
 
 namespace StingTools.Model
 {
@@ -189,6 +190,12 @@ namespace StingTools.Model
         public int DoorsCreated { get; set; }
         public int WindowsCreated { get; set; }
         public int ColumnsCreated { get; set; }
+        // P1-3 — MEP-from-DWG placement (routed through the canonical MEP pipeline).
+        public int MepFixturesCreated { get; set; }
+        public int MepFixturesSkippedNoFamily { get; set; }
+        public int MepRunsCreated { get; set; }
+        public int MepRisersCreated { get; set; }
+        public int MepFittingsCreated { get; set; }
         public int TotalEntitiesProcessed { get; set; }
         public int TotalLayersFound { get; set; }
         public List<string> Warnings { get; set; } = new();
@@ -259,7 +266,8 @@ namespace StingTools.Model
             bool createWalls = true,
             bool createFloors = true,
             bool createRooms = true,
-            double defaultWallHeightMm = 2700)
+            double defaultWallHeightMm = 2700,
+            bool createMep = true)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var result = new CADConversionResult();
@@ -311,6 +319,19 @@ namespace StingTools.Model
                     result.RoomsCreated = PlaceRoomsInEnclosures(levelName, result);
                 }
 
+                // Step 5 (P1-3): MEP-from-DWG. Previously the extracted MEP blocks
+                // (ducts / pipes / panels / fixtures) were read then discarded — the
+                // converter produced arch/structure only. Route the same import through
+                // the canonical MepDetectionEngine → MepFixtureBuilder / MepRunBuilder
+                // pipeline (reuse, no fork) so MEP places as STING-resolved families,
+                // rotated from the block transform, skipped-and-counted when no family
+                // is loaded. Created ids are merged so the ISO 19650 auto-tag pass below
+                // covers MEP too.
+                if (createMep)
+                {
+                    PlaceMepFromImport(importInstance, levelName, result);
+                }
+
                 sw.Stop();
                 result.Duration = sw.Elapsed;
                 result.Success = true;
@@ -322,6 +343,10 @@ namespace StingTools.Model
                 if (result.DoorsCreated > 0) parts.Add($"{result.DoorsCreated} doors");
                 if (result.WindowsCreated > 0) parts.Add($"{result.WindowsCreated} windows");
                 if (result.ColumnsCreated > 0) parts.Add($"{result.ColumnsCreated} columns");
+                if (result.MepFixturesCreated > 0) parts.Add($"{result.MepFixturesCreated} MEP fixtures");
+                if (result.MepRunsCreated > 0) parts.Add($"{result.MepRunsCreated} MEP runs");
+                if (result.MepRisersCreated > 0) parts.Add($"{result.MepRisersCreated} MEP risers");
+                if (result.MepFittingsCreated > 0) parts.Add($"{result.MepFittingsCreated} MEP fittings");
 
                 result.Summary = parts.Count > 0
                     ? $"Created {string.Join(", ", parts)} from DWG " +
@@ -914,6 +939,76 @@ namespace StingTools.Model
             }
 
             return count;
+        }
+
+        // ── MEP-from-DWG (P1-3) ───────────────────────────────────────
+
+        /// <summary>
+        /// P1-3 — places MEP content from the DWG import by delegating to the
+        /// canonical MEP pipeline (MepDetectionEngine → MepFixtureBuilder /
+        /// MepRunBuilder / MepFittingBuilder). This unifies the previously
+        /// decoupled arch converter with the MEP path instead of forking a
+        /// second block-resolution route: the fixture map resolves block names →
+        /// families, block transforms carry rotation, and instances with no
+        /// matching family are skipped-and-counted (never silently discarded).
+        /// Created ids are merged into <paramref name="result"/> so the shared
+        /// ISO 19650 auto-tag pass covers the MEP elements too.
+        /// </summary>
+        private void PlaceMepFromImport(ImportInstance importInstance, string levelName,
+            CADConversionResult result)
+        {
+            try
+            {
+                var level = _modelEngine.Resolver.ResolveLevel(levelName)
+                            ?? MepCadShared.ResolveLevel(_doc);
+                if (level == null)
+                {
+                    result.Warnings.Add("MEP-from-DWG skipped: no level could be resolved.");
+                    return;
+                }
+
+                var detection = new MepDetectionEngine(_doc).Detect(importInstance);
+                if (detection == null ||
+                    (detection.Fixtures.Count == 0 && detection.Runs.Count == 0
+                     && detection.Risers.Count == 0))
+                {
+                    // No MEP content recognised on this drawing — a true no-op, not a
+                    // discard. (MEP CAD Preview lists unmatched block names to extend
+                    // _BIM_COORD/dwg_fixture_map.json.)
+                    return;
+                }
+
+                var outcome = MepCadShared.PlaceAll(_doc, detection, level, hostSnap: true);
+
+                result.MepFixturesCreated       = outcome.Fixtures.Placed;
+                result.MepFixturesSkippedNoFamily = outcome.Fixtures.SkippedNoSymbol;
+                result.MepRunsCreated           = outcome.Runs.Created;
+                result.MepRisersCreated         = outcome.Risers.Created;
+                result.MepFittingsCreated       = outcome.Fittings.Created;
+
+                result.CreatedElementIds.AddRange(MepCadShared.AllCreatedIds(outcome));
+
+                // Never a silent block discard — surface the precise skip reason.
+                if (outcome.Fixtures.SkippedNoSymbol > 0)
+                    result.Warnings.Add(
+                        $"{outcome.Fixtures.SkippedNoSymbol} MEP fixture(s) skipped — no matching " +
+                        "family loaded (no geometry synthesised). Load the family / run Symbols_CreateAll, " +
+                        "or use MEP CAD Preview to see the block names.");
+                foreach (var w in outcome.Fixtures.Warnings
+                             .Concat(outcome.Runs.Warnings)
+                             .Concat(outcome.Risers.Warnings).Take(8))
+                    result.Warnings.Add("MEP: " + w);
+
+                StingLog.Info($"CADToModelEngine MEP: {outcome.Fixtures.Placed} fixtures, " +
+                    $"{outcome.Runs.Created} runs, {outcome.Risers.Created} risers, " +
+                    $"{outcome.Fittings.Created} fittings " +
+                    $"({outcome.Fixtures.SkippedNoSymbol} skipped-no-family).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CADToModelEngine MEP step: {ex.Message}");
+                result.Warnings.Add($"MEP-from-DWG step failed: {ex.Message}");
+            }
         }
 
         // ── Utility ───────────────────────────────────────────────────
