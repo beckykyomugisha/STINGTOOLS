@@ -3,6 +3,69 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (STALE-1…STALE-4 — Wire up the dead stale subsystem + wire-annotation VD accuracy, branch `claude/wire-annotation-stale-review`)
+
+Fixes a flagship feature that was wired into the UI/dashboard but never actuated:
+two stale IUpdaters were defined and toggled from the UI but registered nowhere,
+so `ComplianceScan.StaleCount` (and the HVAC load-stale flag) permanently read 0.
+Build 0 errors (Revit 2025 API); the four warnings are pre-existing
+(`Clash/ClashIssueSyncCommand.cs`, deprecated `ElementId(int)`). **Compiles;
+runtime stale-marking must still be verified in Revit** — no Revit host here.
+
+| Item | Status | What |
+|---|---|---|
+| **STALE-1** Dead updaters registered (P0) | **DONE** | `StingStaleMarker` + `HvacEnvelopeStaleUpdater` now `Register()`ed in `OnStartup`, symmetrically `Unregister()`ed in `OnShutdown` |
+| **STALE-2** 20-element silent-drop (P1) | **DONE** | Both stale IUpdaters + the cost stale marker no longer drop the whole bulk batch; first N inline + remainder deferred |
+| **STALE-3** Document-keyed material cache (P1) | **DONE** | `StingStaleMarker._matIdSnapshot`/`_matIdLru` cleared on document close |
+| **STALE-4** Wire-annotation VD accuracy | **DONE** (4.1/4.2); 4.3 deferred | Real circuit voltage; no 16 A guess |
+
+**STALE-1** — `StingToolsApp.OnStartup` now calls
+`StingStaleMarker.Register(application)` and
+`Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Register(application)` next to the
+existing `StingCostStaleMarker.Register` (all take `UIControlledApplication`).
+`OnShutdown` gains `StingStaleMarker.Unregister()` (the HVAC one was already
+unregistered). Both markers are **off by default** — `IsEnabled` starts false,
+and `StingStaleMarker` is restored from `TagConfig.AutoTaggerStaleMarker` on
+document open — so registering them only connects the actuator the existing UI
+toggle already controls; no behaviour changes until a user turns the marker on.
+
+**STALE-2** — the guard `if (count > MaxElementsPerTrigger) { …; return; }` in
+`StingStaleMarker.Execute`, `StingCostStaleMarker.Execute` and (already-correct
+shape in) the HVAC updater dropped the ENTIRE batch on a bulk edit, so bulk edits
+marked ZERO elements stale. `StingStaleMarker` and `StingCostStaleMarker` now
+process the first `MaxElementsPerTrigger` inline and defer the remainder to a
+single `IIdlingJob` (`StaleRemarkJob` / `CostStaleRemarkJob`) enqueued on
+`StingIdlingScheduler`, which re-marks them in its own transaction on the next
+idle tick. **Note:** the review suggested `StingAutoTagger.EnqueueDeferred` for
+the tag stale marker, but that queue drains through the *auto-tag* pipeline
+(`RunFullPipeline`), which never sets stale flags — so it is the wrong facility
+for stale marking. `StingIdlingScheduler` (which the review itself pointed to for
+the cost marker) is used for both, giving genuine deferral rather than a silent
+drop or a semantically-wrong enqueue. The per-element stale detection was
+extracted into `StingStaleMarker.TryMarkElementStale` so the inline and deferred
+paths share one implementation. The overflow job captures the originating
+`Document` and drops (via `ReferenceEquals`) if the user has switched documents
+before the tick fires, so ids never mis-resolve against another model.
+
+**STALE-3** — `StingStaleMarker._matIdSnapshot` was keyed by `ElementId` only, so
+across a session with multiple projects a reused ElementId compared against the
+previous document's material and produced a false-positive "material changed →
+stale". Both `_matIdSnapshot` and its LRU list `_matIdLru` are now cleared inside
+`ClearRoomIndexCache()`, which `StingToolsApp.OnDocumentClosing` already calls —
+matching the existing per-document cache-clear convention.
+
+**STALE-4** — `WireAnnotationEngine.ReadWireData`'s VD-recompute fallback assumed
+16 A when no circuit current was stored and pinned voltage to the nominal UK LV
+pair (400 V 3φ / 230 V 1φ), printing a confidently-wrong VD% on the drawing. It
+now (1) reads the connected circuit's real `Voltage` (falling back to the UK pair
+only when unreadable) and (2) recomputes VD only when a real `ApparentCurrent` is
+available — otherwise it omits VD from the label and logs a rate-limited warning
+rather than assuming 16 A. **Deferred (4.3):** honouring a branch-vs-feeder VD
+alarm threshold from `AutoUpsizeWiresCommand`'s VD-options snapshot (instead of
+the single `VdAlarmPct` default) — that only affects the display alarm colour,
+not the VD magnitude, and threading the snapshot in is out of scope for this
+minimal accuracy pass.
+
 #### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
 
 Closes silent-wrong-ratio, alignment and performance gaps in the parameter-driven
