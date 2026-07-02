@@ -8,8 +8,11 @@ using System.Linq;
 namespace StingTools.Core.Validation.Healthcare
 {
     /// <summary>HBN-derived adjacency targets — flags when mandatory adjacencies
-    /// are violated or forbidden adjacencies appear. Distance heuristic uses room
-    /// centroids since door-graph traversal is part of Phase H-10.</summary>
+    /// are violated or forbidden adjacencies appear. Targets are loaded live from
+    /// HEALTHCARE_ADJACENCY_HBN.csv (HC-DEF-08) and rooms are matched against them
+    /// by BOTH canonical room-class code and RoomClassCodes department, so a room
+    /// tagged e.g. IMG-CT satisfies a rule keyed on the IMAGING department.
+    /// Distance heuristic uses room centroids (door-graph BFS is HC-DEF-04).</summary>
     public class AdjacencyValidator : HealthcareValidatorBase
     {
         public override string Name => "AdjacencyValidator";
@@ -33,33 +36,32 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
-            // Cache-aware: when running inside RunAllHealthcareValidators the
-            // RoomsByClass map is pre-computed (one collector pass instead of N).
-            var ctx = HealthcareValidatorContext.Active;
-            Dictionary<string, List<Element>> byClass;
-            if (ctx != null && ctx.Document == doc)
+            // Group clinical rooms under BOTH their canonical room-class code and
+            // their RoomClassCodes department, so adjacency keys expressed either
+            // way (IMAGING department vs HSDU-P canonical code) both resolve.
+            var table = RoomClassCodes.Get(doc);
+            var byKey = new Dictionary<string, List<Element>>(System.StringComparer.OrdinalIgnoreCase);
+            void AddKey(string key, Element r)
             {
-                byClass = ctx.RoomsByClass;
-                if (byClass.Count < 2) return res;
+                if (string.IsNullOrEmpty(key)) return;
+                if (!byKey.TryGetValue(key, out var list)) { list = new List<Element>(); byKey[key] = list; }
+                if (!list.Contains(r)) list.Add(r);
             }
-            else
+            foreach (var r in GetClinicalRoomsCached(doc))
             {
-                var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType().ToElements()
-                    .Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")))
-                    .ToList();
-                if (rooms.Count < 2) return res;
-                byClass = rooms.GroupBy(r => GetParam(r, "CLN_ROOM_CLASS_TXT"))
-                               .ToDictionary(g => g.Key, g => g.ToList(),
-                                             System.StringComparer.OrdinalIgnoreCase);
+                var canon = GetRoomClassCached(r);          // canonical code
+                if (string.IsNullOrEmpty(canon)) continue;
+                AddKey(canon, r);
+                AddKey(table.DepartmentOf(canon), r);       // department (deduped inside AddKey)
             }
+            if (byKey.Count < 2) return res;
 
-            foreach (var kv in HBNStandards.AdjacencyTargets)
+            foreach (var t in AdjacencyTargetsRegistry.Get(doc))
             {
-                var (a, b) = kv.Key;
-                var target = kv.Value;
-                if (!byClass.TryGetValue(a, out var aRooms)) continue;
-                if (!byClass.TryGetValue(b, out var bRooms)) continue;
+                var a = t.A; var b = t.B;
+                var target = t.Target;
+                if (!byKey.TryGetValue(a, out var aRooms)) continue;
+                if (!byKey.TryGetValue(b, out var bRooms)) continue;
 
                 foreach (var ar in aRooms)
                 {
@@ -68,6 +70,9 @@ namespace StingTools.Core.Validation.Healthcare
                     double minDist = double.MaxValue;
                     foreach (var br in bRooms)
                     {
+                        // A room can sit in both buckets (its canonical code and its
+                        // department); never match it against itself.
+                        if (ReferenceEquals(ar, br)) continue;
                         var bp = (br.Location as LocationPoint)?.Point;
                         if (bp == null) continue;
                         var d = (bp - ap).GetLength() * 0.3048; // ft → m
