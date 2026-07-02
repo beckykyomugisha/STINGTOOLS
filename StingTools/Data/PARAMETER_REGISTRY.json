@@ -20467,6 +20467,18 @@
       "curated": true
     },
     {
+      "param_name": "RAD_DISTANCE_M_NR",
+      "guid": "c8d4f6e2-c009-4d27-8c61-0e7a3f9b2009",
+      "description": "Distance from radiation source to occupied point beyond the barrier (m) [NCRP 147]",
+      "datatype": "NUMBER",
+      "group_id": 30,
+      "group_name": "RAD_PROTECTION",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Radiation",
+      "curated": true
+    },
+    {
       "param_name": "RAD_QE_DT",
       "guid": "c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008",
       "description": "QE sign-off date (ISO 8601)",
@@ -21059,6 +21071,18 @@
       "guid": "c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016",
       "description": "Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default)",
       "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M",
+      "guid": "c8d4f6e2-1517-4d27-8c61-0e7a3f9ba017",
+      "description": "Radiation shielding default source-to-occupant distance (m) when RAD_DISTANCE_M_NR is not modelled; conservative fallback 1.0 m [NCRP 147]",
+      "datatype": "NUMBER",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
       "binding": "project",

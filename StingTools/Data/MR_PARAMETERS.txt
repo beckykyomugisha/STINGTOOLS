@@ -2823,6 +2823,7 @@ PARAM	c8d4f6e2-c005-4d27-8c61-0e7a3f9b2005	RAD_OCC_FACTOR_NR	NUMBER		30	1	NCRP 1
 PARAM	c8d4f6e2-c006-4d27-8c61-0e7a3f9b2006	RAD_DOSE_DESIGN_GOAL_TXT	TEXT		30	1	Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147]	1	0
 PARAM	c8d4f6e2-c007-4d27-8c61-0e7a3f9b2007	RAD_QE_NAME_TXT	TEXT		30	1	Qualified Expert (medical / health physicist) signing off	1	0
 PARAM	c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008	RAD_QE_DT	TEXT		30	1	QE sign-off date (ISO 8601)	1	0
+PARAM	c8d4f6e2-c009-4d27-8c61-0e7a3f9b2009	RAD_DISTANCE_M_NR	NUMBER		30	1	Distance from radiation source to occupied point beyond the barrier (m) [NCRP 147]	1	0
 PARAM	c8d4f6e2-d001-4d27-8c61-0e7a3f9b3001	CEQ_CATEGORY_TXT	TEXT		31	1	Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL	1	0
 PARAM	c8d4f6e2-d002-4d27-8c61-0e7a3f9b3002	CEQ_GMDN_CODE_TXT	TEXT		31	1	Global Medical Device Nomenclature code	1	0
 PARAM	c8d4f6e2-d003-4d27-8c61-0e7a3f9b3003	CEQ_UMDNS_CODE_TXT	TEXT		31	1	ECRI Universal Medical Device Nomenclature System code	1	0
@@ -2872,6 +2873,7 @@ PARAM	c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013	PRJ_ORG_HEALTH_HTM_REGION_TXT	TEXT		1
 PARAM	c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014	PRJ_ORG_HEALTH_IHFG_BOOL	YESNO		13	1	iHFG (International Health Facility Guidelines) authority applies	1	0
 PARAM	c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015	PRJ_ORG_HEALTH_PACK_PROFILE_TXT	TEXT		13	1	Healthcare pack profile (acute / community / mental / standalone) for validator gating	1	0
 PARAM	c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016	PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT	TEXT		13	1	Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default)	1	0
+PARAM	c8d4f6e2-1517-4d27-8c61-0e7a3f9ba017	PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M	NUMBER		13	1	Radiation shielding default source-to-occupant distance (m) when RAD_DISTANCE_M_NR is not modelled; conservative fallback 1.0 m [NCRP 147]	1	0
 PARAM	c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001	CLN_FLOOR_LOAD_KN_M2_NR	NUMBER		28	1	Imposed floor load (kN/m2) for heavy imaging equipment [H-23]	1	0
 PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (_m/s rms VC band) [H-23]	1	0
 PARAM	c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003	CLN_EQUIP_WEIGHT_KG_NR	NUMBER		28	1	Heavy-equipment design weight (kg) [H-23]	1	0

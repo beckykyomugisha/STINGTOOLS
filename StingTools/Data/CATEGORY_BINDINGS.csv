@@ -16085,6 +16085,7 @@ PRJ_ORG_HEALTH_OR_INT,Project Information,Instance,True
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_QE_TXT,Project Information,Instance,True
 PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT,Project Information,Instance,True
+PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M,Project Information,Instance,True
 PRJ_ORG_PHASE_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_ADDRESS_TXT,Project Information,Instance,True
 PRJ_ORG_PROJECT_CODE_TXT,Project Information,Instance,True
@@ -16110,6 +16111,10 @@ RAD_QE_DT,Rooms,Instance,True
 RAD_QE_DT,Specialty Equipment,Instance,True
 RAD_QE_NAME_TXT,Rooms,Instance,True
 RAD_QE_NAME_TXT,Specialty Equipment,Instance,True
+RAD_DISTANCE_M_NR,Walls,Instance,True
+RAD_DISTANCE_M_NR,Doors,Instance,True
+RAD_DISTANCE_M_NR,Windows,Instance,True
+RAD_DISTANCE_M_NR,Generic Models,Instance,True
 RAD_USE_FACTOR_NR,Rooms,Instance,True
 RAD_USE_FACTOR_NR,Specialty Equipment,Instance,True
 RAD_WORKLOAD_MAWK_NR,Rooms,Instance,True

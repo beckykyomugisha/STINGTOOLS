@@ -2786,6 +2786,7 @@ Generic Models,PRJ_ORG_HEALTH_OR_INT,c8d4f6e2-1503-4d27-8c61-0e7a3f9ba003,INTEGE
 Generic Models,PRJ_ORG_HEALTH_PACK_PROFILE_TXT,c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015,TEXT,PRJ_INFORMATION,Type,Healthcare pack profile (acute / community / mental / standalone) for validator gating,False,,,MULTI,1,0
 Generic Models,PRJ_ORG_HEALTH_QE_TXT,c8d4f6e2-1508-4d27-8c61-0e7a3f9ba008,TEXT,PRJ_INFORMATION,Type,Qualified Expert (radiation),False,,,MULTI,1,0
 Generic Models,PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT,c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016,TEXT,PRJ_INFORMATION,Type,Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default),False,,,MULTI,1,0
+Generic Models,PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M,c8d4f6e2-1517-4d27-8c61-0e7a3f9ba017,NUMBER,PRJ_INFORMATION,Type,Radiation shielding default source-to-occupant distance (m) when RAD_DISTANCE_M_NR is not modelled; conservative fallback 1.0 m [NCRP 147],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_ADDRESS_TXT,85e93a80-42bc-535e-a9e3-bcd76b7c07a0,TEXT,PRJ_INFORMATION,Type,Project / site address shown on the title block [STING Phase 171],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_NAME_TXT,33188c51-0a4f-52e7-ad2a-37e68ca7ddda,TEXT,PRJ_INFORMATION,Type,Project name shown on the title block [STING Phase 171],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_PROJECT_NORTH_TXT,783db6dd-fccc-5efa-b126-b724db119f8f,TEXT,PRJ_INFORMATION,Type,"Project north angle relative to true north, e.g. '12.5° E of true north' — for sheet-level coordination + wayfinding [ISO 19650-1:2018]",False,,,MULTI,1,0
@@ -2801,6 +2802,7 @@ Generic Models,RAD_LEAD_MM_NR,c8d4f6e2-c001-4d27-8c61-0e7a3f9b2001,NUMBER,RAD_PR
 Generic Models,RAD_OCC_FACTOR_NR,c8d4f6e2-c005-4d27-8c61-0e7a3f9b2005,NUMBER,RAD_PROTECTION,Type,NCRP 147 Occupancy factor T,False,,,HEALTHCARE,1,0
 Generic Models,RAD_QE_DT,c8d4f6e2-c008-4d27-8c61-0e7a3f9b2008,TEXT,RAD_PROTECTION,Type,QE sign-off date (ISO 8601),False,,,HEALTHCARE,1,0
 Generic Models,RAD_QE_NAME_TXT,c8d4f6e2-c007-4d27-8c61-0e7a3f9b2007,TEXT,RAD_PROTECTION,Type,Qualified Expert (medical / health physicist) signing off,False,,,HEALTHCARE,1,0
+Generic Models,RAD_DISTANCE_M_NR,c8d4f6e2-c009-4d27-8c61-0e7a3f9b2009,NUMBER,RAD_PROTECTION,Type,Distance from radiation source to occupied point beyond the barrier (m) [NCRP 147],False,,,HEALTHCARE,1,0
 Generic Models,RAD_USE_FACTOR_NR,c8d4f6e2-c004-4d27-8c61-0e7a3f9b2004,NUMBER,RAD_PROTECTION,Type,NCRP 147 Use factor U,False,,,HEALTHCARE,1,0
 Generic Models,RAD_WORKLOAD_MAWK_NR,c8d4f6e2-c003-4d27-8c61-0e7a3f9b2003,NUMBER,RAD_PROTECTION,Type,Workload (mA·min/wk) [NCRP 147],False,,,HEALTHCARE,1,0
 Generic Models,STING_AUTHORISED_BY_TXT,862eb92a-b8c6-5429-9330-e43afd73744b,TEXT,PRJ_INFORMATION,Type,"4-eyes authorisation signature — distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 §5.6.2]",False,,,MULTI,1,0
