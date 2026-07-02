@@ -3416,6 +3416,25 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "HEAD_M",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B / BS 1553 (pump = circle + impeller triangle)",
       "geometry": {
         "arcs": [
@@ -3475,6 +3494,25 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "FLOW_LS",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "HEAD_M",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B / BS 1553 (pump on plinth)",
       "geometry": {
         "arcs": [
@@ -3564,6 +3602,19 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 10.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DUTY_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B (boiler = box + flame)",
       "geometry": {
         "lines": [
@@ -3657,6 +3708,19 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 12.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DUTY_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B / ASHRAE (chiller = box + snowflake)",
       "geometry": {
         "lines": [
@@ -3748,6 +3812,19 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 10.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DUTY_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B (cooling tower = trapezoid + splash)",
       "geometry": {
         "lines": [
@@ -3823,6 +3900,19 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DUTY_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "CIBSE Guide B (plate HX = box + zigzag)",
       "geometry": {
         "lines": [
@@ -3920,6 +4010,19 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "SYSTEM_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "VOLUME_L",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7074-1 / CIBSE Guide B (vessel + diaphragm)",
       "geometry": {
         "lines": [

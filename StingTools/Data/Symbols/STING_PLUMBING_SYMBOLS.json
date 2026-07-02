@@ -3459,6 +3459,13 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 6465-2 (shower rose + spray)",
       "geometry": {
         "arcs": [
@@ -3526,6 +3533,19 @@
       "discipline": "Plumbing",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "CAPACITY_L",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 6465 / BS 1566 (HWS cylinder)",
       "geometry": {
         "lines": [
@@ -3588,6 +3608,19 @@
       "discipline": "Plumbing",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "CAPACITY_L",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 6465 / BS 4213 (CWS cistern, open top)",
       "geometry": {
         "lines": [
@@ -3648,6 +3681,15 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        }
+      ],
       "standard": "BS 6465 / BS 1010 (stopcock = valve + handle)",
       "geometry": {
         "lines": [
@@ -3735,6 +3777,15 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        }
+      ],
       "standard": "BS 6465 / BS 1010 (hose union bib tap)",
       "geometry": {
         "lines": [
@@ -3813,6 +3864,20 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        }
+      ],
       "standard": "BS 6465 / BS EN 1111 (TMV: 2 in, 1 out)",
       "geometry": {
         "arcs": [
@@ -3900,6 +3965,20 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "75",
+          "instance": false
+        }
+      ],
       "standard": "BS 8301 / BS EN 1253 (floor gully + grating)",
       "geometry": {
         "lines": [
@@ -3991,6 +4070,20 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "40",
+          "instance": false
+        }
+      ],
       "standard": "BS 8301 / BS EN 274 (P-trap section)",
       "geometry": {
         "lines": [
@@ -4073,6 +4166,20 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "40",
+          "instance": false
+        }
+      ],
       "standard": "BS 8301 / BS EN 274 (S-trap section)",
       "geometry": {
         "lines": [
@@ -4154,6 +4261,20 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "100",
+          "instance": false
+        }
+      ],
       "standard": "BS 8301 / BS EN 1253 (rodding / access eye)",
       "geometry": {
         "arcs": [

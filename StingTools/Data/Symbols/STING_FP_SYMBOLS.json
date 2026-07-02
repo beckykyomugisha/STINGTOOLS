@@ -3331,6 +3331,18 @@
       "discipline": "FireProtection",
       "subcategory": "Detector",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5839-1 (optical beam smoke detector, Tx)",
       "geometry": {
         "lines": [
@@ -3407,6 +3419,18 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5839-1 / BS EN 54-11 (manual call point)",
       "geometry": {
         "lines": [
@@ -3481,6 +3505,18 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5839-1 / BS EN 54-3 (alarm sounder)",
       "geometry": {
         "arcs": [
@@ -3542,6 +3578,18 @@
       "discipline": "FireProtection",
       "subcategory": "Panel",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5839-1 (fire alarm control & indicating panel)",
       "geometry": {
         "lines": [
@@ -3636,6 +3684,20 @@
       "discipline": "FireProtection",
       "subcategory": "Riser",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "150",
+          "instance": false
+        }
+      ],
       "standard": "BS 9990 / BS 5306 (riser breeching inlet)",
       "geometry": {
         "lines": [
@@ -3695,6 +3757,20 @@
       "discipline": "FireProtection",
       "subcategory": "Riser",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "65",
+          "instance": false
+        }
+      ],
       "standard": "BS 9990 / BS 5306 (landing valve)",
       "geometry": {
         "lines": [
@@ -3759,6 +3835,19 @@
       "discipline": "FireProtection",
       "subcategory": "Equipment",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "EXT_TYPE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 5306-8 / ISO 7010 (portable extinguisher)",
       "geometry": {
         "lines": [
@@ -3837,6 +3926,20 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "150",
+          "instance": false
+        }
+      ],
       "standard": "BS EN 12845 / BS 5306 (sprinkler control set)",
       "geometry": {
         "lines": [
@@ -3901,6 +4004,20 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "150",
+          "instance": false
+        }
+      ],
       "standard": "BS EN 12845 (wet alarm / check valve)",
       "geometry": {
         "lines": [
@@ -3964,6 +4081,20 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "150",
+          "instance": false
+        }
+      ],
       "standard": "BS EN 12845 (pre-action / deluge valve)",
       "geometry": {
         "lines": [
@@ -4042,6 +4173,20 @@
       "discipline": "FireProtection",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "ZONE_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "150",
+          "instance": false
+        }
+      ],
       "standard": "BS EN 12845 (fire pump = circle + impeller)",
       "geometry": {
         "arcs": [

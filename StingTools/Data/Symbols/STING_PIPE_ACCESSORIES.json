@@ -1632,6 +1632,26 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "25",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SET_PRESSURE_BAR",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "ISO 14617-8 / BS 1553 (angle relief valve + spring)",
       "geometry": {
         "lines": [
@@ -1728,6 +1748,20 @@
       "discipline": "Mechanical",
       "subcategory": "Fitting",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "25",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-15 / BS 1553 (Y-type strainer)",
       "geometry": {
         "lines": [
@@ -1794,6 +1828,20 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "50",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-8 (pump = circle + impeller triangle)",
       "geometry": {
         "arcs": [
@@ -1871,6 +1919,20 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "25",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-10 / ISA-5.1 (inline flow meter)",
       "geometry": {
         "arcs": [
@@ -1941,6 +2003,20 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-10 / ISA-5.1 (temperature indicator)",
       "geometry": {
         "arcs": [
@@ -1989,6 +2065,20 @@
       "discipline": "Mechanical",
       "subcategory": "Fitting",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-8 / BS 1553 (automatic air vent)",
       "geometry": {
         "arcs": [
@@ -2043,6 +2133,20 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "15",
+          "instance": false
+        },
+        {
+          "name": "SERVICE_LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "ISO 14617-8 / BS 1553 (drain valve + discharge)",
       "geometry": {
         "lines": [

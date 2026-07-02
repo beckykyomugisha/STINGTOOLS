@@ -3488,6 +3488,31 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "M"
+        },
+        {
+          "name": "HP_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-06 (motor = circle, M)",
       "geometry": {
         "arcs": [
@@ -3518,6 +3543,31 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "M"
+        },
+        {
+          "name": "HP_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-06/07 (motor + thermal overload)",
       "geometry": {
         "arcs": [
@@ -3578,6 +3628,31 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "C"
+        },
+        {
+          "name": "KVAR",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-04 (capacitor = two parallel plates)",
       "geometry": {
         "lines": [
@@ -3635,6 +3710,31 @@
       "discipline": "Electrical",
       "subcategory": "Switchgear",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "PFC"
+        },
+        {
+          "name": "KVAR",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-04 (PFC panel: box + capacitor)",
       "geometry": {
         "lines": [
@@ -3707,6 +3807,25 @@
       "discipline": "Electrical",
       "subcategory": "Switchgear",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "DB"
+        }
+      ],
       "standard": "IEC 60617 (distribution board = box + busbar)",
       "geometry": {
         "lines": [
@@ -3777,6 +3896,25 @@
       "discipline": "Electrical",
       "subcategory": "Switchgear",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "MDB"
+        }
+      ],
       "standard": "IEC 60617 (main distribution board = box + double busbar)",
       "geometry": {
         "lines": [
@@ -3860,6 +3998,25 @@
       "discipline": "Electrical",
       "subcategory": "Switchgear",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true,
+          "default": "SDB"
+        }
+      ],
       "standard": "IEC 60617 (sub-distribution board = box + busbar)",
       "geometry": {
         "lines": [
@@ -3930,6 +4087,25 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "20",
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (socket outlet final circuit)",
       "geometry": {
         "arcs": [
@@ -3970,6 +4146,25 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "6",
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (lighting final circuit = lamp)",
       "geometry": {
         "arcs": [
@@ -4016,6 +4211,24 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "LABEL",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617 (general load = triangle)",
       "geometry": {
         "lines": [
