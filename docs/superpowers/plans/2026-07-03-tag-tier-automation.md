@@ -4,7 +4,9 @@
 
 **Goal:** Automatically populate tier rows 2–10 (containers `ASS_TAG_2_TXT … ASS_TAG_10_TXT`) as visible, depth-gated label rows across all 206 tag families, with **zero per-family manual Family-Editor work**, reusing the existing `FamilyLabelAuthor` tier pipeline.
 
-**Architecture:** The heavy lifting already exists — `FamilyLabelAuthor.AuthorLabels/AuthorLabelsMulti` binds tier container params, applies the `if(TAG_PARA_STATE_N_BOOL, PARAM, "")` visibility formulas, and best-effort rebinds the primary label; `TagConfigCsvReader` parses per-family `TierPlan`s from the `STING_TAG_CONFIG_v5_0_*.csv` files; `SetParagraphDepthCommand` drives depth 1–10 via the `TAG_PARA_STATE_N_BOOL` gates. The **only** missing capability is creating the *visible label rows* for tiers 2–10 inside a family that ships with one. STING implements tag labels as **`Dimension` elements with `FamilyLabel`** (`FamilyLabelAuthor.cs:416-427`), and the Revit API **can** copy dimensions. So the primary strategy is: **clone the tier-1 dimension-label N times, offset each vertically, and rebind each copy to its tier container param** — all via the API, retrofitting the existing 206 families in place. If the clone proves unstable (dimensions carry geometric references that may not survive copy), fall back to a bounded set of master template families (~the distinct entries in `CategoryTemplateMap`) authored once with 10 pre-placed rows, then regenerated automatically.
+**Architecture:** The heavy lifting already exists — `FamilyLabelAuthor.AuthorLabelsMulti` binds every content param across **all tag modes**, OR-merges the `and(TAG_PARA_STATE_N_BOOL, HANDOVER_MODE_*_BOOL)` visibility formulas per parameter, and best-effort rebinds the primary label; `TagConfigPlanResolver.LoadAllPerMode(doc)` parses per-family `TierPlan`s per mode from the paired `STING_TAG_CONFIG_v5_0_*` / `*_DesignConstruction` CSVs; `SetParagraphDepthCommand` drives depth 1–10 via the `TAG_PARA_STATE_N_BOOL` gates; `SetPatternMode_*` flips the active mode at runtime. The **only** missing capability is creating the *visible label rows* inside a family that ships with one. STING implements tag labels as **`Dimension` elements with `FamilyLabel`** (`FamilyLabelAuthor.cs:416-427`), and the Revit API **can** copy dimensions. So the primary strategy is: **materialize the physical dimension-rows a family needs (one per merged `TierRow` across all modes), then let `AuthorLabelsMulti` bind params + wire the mode×depth formulas** — all via the API, retrofitting the existing 206 families in place. The cloner creates rows only; it implements **no** mode logic. If the clone proves unstable (dimensions carry geometric references that may not survive copy), fall back to a bounded set of master template families (~the distinct entries in `CategoryTemplateMap`) authored once with the full row set, then regenerated automatically.
+
+**Modes / construction-handover (critical):** A tag is a 2-D grid — **depth (T1–T10) × mode (DC / Handover / Custom)**. Each mode ships its own CSV with *different* T4–T10 content, and a *tier* is a **group of rows** (e.g. Handover T4 = `COMM_STATE_TXT` + `COMM_DATE_TXT` + `COMM_OPERATIVE_TXT`). The number of physical label rows a family needs is therefore the **union of all `TierRow`s across all mode plans**, not 9. Mode selection at runtime is a project/type BOOL flip (`SetPatternMode_*`) that costs no re-author. See `## How modes (construction/handover) are handled` below.
 
 **Tech Stack:** C# / .NET 8 (`net8.0-windows`), Revit API 2025/2026 (`Autodesk.Revit.DB.FamilyManager`, `Dimension.FamilyLabel`, `ElementTransformUtils.CopyElements`), xUnit 2.9.2 for the pure-logic test project (`StingTools.Tags.Tests`, Revit-API-free).
 
@@ -31,6 +33,31 @@ This plan closes exactly one gap (the visible rows) and wires the existing pipel
 
 ---
 
+## How modes (construction/handover) are handled
+
+The mode axis is **already fully automated** — this plan reuses it, it does not rebuild it.
+
+| Piece | Where | Role |
+|---|---|---|
+| `TagMode { DC, Handover, Custom }` | `ParamRegistry.cs:1425` | The three modes. DC = Design & Construction; Handover = FM. |
+| `HANDOVER_MODE_{DC,HANDOVER,CUSTOM}_BOOL` | `ParamRegistry.cs:1001-1011` | Mutually-exclusive mode gates (on ProjectInformation / type). |
+| Paired CSVs `..._ARCH.csv` + `..._ARCH_DesignConstruction.csv` | `Data/` | Different T4–T10 content per mode; same family keys. |
+| `HandoverModeHelper.GetAllTagConfigCsvsForAllModes(doc)` | `HandoverModeHelper.cs:155` | Resolves the CSV set for every mode that ships. |
+| `TagConfigPlanResolver.LoadAllPerMode(doc)` | `TagConfigPlanResolver.cs:82` | `mode → (family → TierPlan)`. |
+| `FamilyLabelAuthor.AuthorLabelsMulti(fdoc, modePlans, opts)` | `FamilyLabelAuthor.cs:115` | Binds params + OR-merges `and(state, modeGate)` formulas per param. |
+| `SetPatternMode_{Handover,DC,Custom}` | `StingCommandHandler.cs:9186` | Runtime mode flip on selected types — no re-author. |
+
+**Formula shape when a slot is dual-wired** (`FamilyLabelAuthor.cs:336-392`):
+
+```
+if( or( and(TAG_PARA_STATE_4_BOOL, HANDOVER_MODE_HANDOVER_BOOL),
+        and(TAG_PARA_STATE_4_BOOL, HANDOVER_MODE_DC_BOOL) ), PARAM, "")
+```
+
+**Consequence for the cloner (Task 4):** it must materialize one physical row per **merged `TierRow`** (union across modes), and it binds/labels rows only — every mode and depth gate is applied afterward by `AuthorLabelsMulti`. The cloner never reads a mode. Empty (wrong-mode / below-depth) rows resolve to `""`; verify in the spike (Task 1) that empty rows collapse rather than leave gaps.
+
+---
+
 ## File Structure
 
 **Create:**
@@ -43,7 +70,7 @@ This plan closes exactly one gap (the visible rows) and wires the existing pipel
 **Modify:**
 - `StingTools/Tags/TierRowCloner.cs` hosts a pure-logic helper `TierRowGeometry` (static, Revit-free) so the geometry math is unit-testable without Revit. (Kept in the same file per "files that change together live together"; the test project compile-links only the Revit-free type — see Task 2.)
 - `StingTools.Tags.Tests/StingTools.Tags.Tests.csproj` — add `<Compile Include>` entries for the Revit-free helper(s).
-- `StingTools/Tags/TagFamilyCreatorCommand.cs:1144` (`CreateTagFamiliesCommand.Execute`) — after `TryRebindLabel`, call `TierRowCloner.EnsureTierRows(...)` so newly generated families get all rows (Task 6).
+- `StingTools/Tags/TagFamilyCreatorCommand.cs:1144` (`CreateTagFamiliesCommand.Execute`) — after the existing `AuthorLabelsMulti` authoring call, call `TierRowCloner.EnsureRows(...)` so newly generated families get all physical rows (Task 6).
 
 **Not touched:** `FamilyLabelAuthor.cs`, `TagConfigCsvReader.cs`, `PerFamilyTierMap.cs`, `ParagraphDepthCommand.cs`, `ParamRegistry.cs` — reused as-is.
 
@@ -95,8 +122,13 @@ namespace StingTools.Tags
                 bool rebound = false;
                 if (copied)
                 {
-                    FamilyParameter t2 = fdoc.FamilyManager.get_Parameter(ParamRegistry.TAG2);
-                    try { copy.FamilyLabel = t2; rebound = t2 != null; } catch (Exception ex) { report = ex.Message; }
+                    // Bind to a real content param that exists in the family (e.g. a
+                    // Handover T4 row). Pick the first family param that is NOT TAG1.
+                    FamilyParameter target = fdoc.FamilyManager.Parameters
+                        .Cast<FamilyParameter>()
+                        .FirstOrDefault(p => p.Definition.Name != ParamRegistry.TAG1
+                                          && p.Definition.Name.EndsWith("_TXT"));
+                    try { copy.FamilyLabel = target; rebound = target != null; } catch (Exception ex) { report = ex.Message; }
                 }
                 report = $"copied={copied} rebound={rebound} newIds={ids.Count}";
                 tx.Commit();
@@ -123,8 +155,11 @@ Expected (success case): `copied=True rebound=True newIds=1`, and a second label
 Edit this plan file, replacing the line below with the observed result:
 
 ```
-SPIKE VERDICT (fill in): [ copied? / rebound? / row visible & repositioned? / references valid on reload? ]
-DECISION: [ CLONE path (Task 2–5) | TEMPLATE fallback (Task 1b then 3–6) ]
+SPIKE VERDICT (fill in):
+  - copied? / rebound to a content param? / row visible & repositioned? / references valid on reload?
+  - does FamilyLabel bind to the content param DIRECTLY, or to a per-row display container? (open Q for Task 4 target)
+  - do wrong-mode / below-depth rows collapse to zero-height (no gaps) once AuthorLabelsMulti formulas are on?
+DECISION: [ CLONE path (Task 2–6) | TEMPLATE fallback (Task 1b then 3–6) ]
 ```
 
 - [ ] **Step 5: Delete the scratch command, commit the verdict**
@@ -163,100 +198,133 @@ Then proceed to Task 3 (the CLONE-specific Tasks 2, 4, 5 are replaced by regener
 
 ---
 
-## Task 2: Pure-logic tier-row geometry (CLONE path) — TDD
+## Task 2: Pure-logic row helpers (Revit-free) — TDD
 
-Extract the offset/label-plan math into a Revit-free static helper so it's unit-testable. The cloner (Task 4) calls it.
+The Revit-free half of `TierRowCloner.cs`: the pitch constant + `OffsetMm`, and the cross-mode param union `RequiredParamsForFamily` (the piece worth pinning — it dedups and orders content params across DC + Handover + Custom plans). Both are Revit-API-free and unit-testable; the Revit-dependent class lives in a separate `TierRowCloner.Revit.cs` (Task 4) that the test project does **not** compile-link.
 
 **Files:**
-- Create: `StingTools/Tags/TierRowCloner.cs` (host file; add only the Revit-free `TierRowGeometry` type in this task)
-- Test: `StingTools.Tags.Tests/TierRowGeometryTests.cs`
+- Create: `StingTools/Tags/TierRowCloner.cs` (Revit-free types only)
+- Test: `StingTools.Tags.Tests/TierRowClonerLogicTests.cs`
 - Modify: `StingTools.Tags.Tests/StingTools.Tags.Tests.csproj`
 
 - [ ] **Step 1: Write the failing test**
 
-`StingTools.Tags.Tests/TierRowGeometryTests.cs`:
+`StingTools.Tags.Tests/TierRowClonerLogicTests.cs`:
 
 ```csharp
+using System.Collections.Generic;
+using StingTools.Core;
 using StingTools.Tags;
 using Xunit;
 
-public class TierRowGeometryTests
+public class TierRowClonerLogicTests
 {
     [Theory]
-    [InlineData(2, -3.0)]   // tier 2 sits 1 pitch (3 mm) below tier 1
-    [InlineData(3, -6.0)]
-    [InlineData(10, -27.0)] // tier 10 is 9 pitches below tier 1
-    public void OffsetMm_is_pitch_times_tier_minus_one(int tier, double expectedMm)
-        => Assert.Equal(expectedMm, TierRowGeometry.OffsetMm(tier, pitchMm: 3.0), 3);
+    [InlineData(2, -3.0)]  // 2nd physical row sits 1 pitch below tier 1
+    [InlineData(10, -27.0)]
+    public void OffsetMm_is_pitch_times_index_minus_one(int rowIndex, double expectedMm)
+        => Assert.Equal(expectedMm, TierRowGeometry.OffsetMm(rowIndex, pitchMm: 3.0), 3);
 
     [Fact]
-    public void TierParamName_maps_tier_to_container()
+    public void RequiredParamsForFamily_unions_modes_dedups_and_preserves_order()
     {
-        Assert.Equal("ASS_TAG_2_TXT", TierRowGeometry.TierParamName(2));
-        Assert.Equal("ASS_TAG_10_TXT", TierRowGeometry.TierParamName(10));
+        var dc = new TierPlan();
+        dc.T4Rows.Add(new TierRow { Parameter = "ASS_DESIGN_OPTION_TXT" });
+        dc.T4Rows.Add(new TierRow { Parameter = "SHARED_TXT" });
+
+        var handover = new TierPlan();
+        handover.T4Rows.Add(new TierRow { Parameter = "COMM_STATE_TXT" });
+        handover.T4Rows.Add(new TierRow { Parameter = "SHARED_TXT" }); // dup across modes
+
+        var perMode = new Dictionary<string, Dictionary<string, TierPlan>>
+        {
+            ["DesignConstruction"] = new() { ["FAM"] = dc },
+            ["Handover"]           = new() { ["FAM"] = handover },
+        };
+
+        List<string> got = TierRowCloner.RequiredParamsForFamily("FAM", perMode);
+
+        Assert.Equal(new[] { "ASS_DESIGN_OPTION_TXT", "SHARED_TXT", "COMM_STATE_TXT" }, got);
     }
 
-    [Theory]
-    [InlineData(1, false)] // tier 1 already exists — never cloned
-    [InlineData(2, true)]
-    [InlineData(10, true)]
-    [InlineData(11, false)] // out of range
-    public void ShouldClone_is_true_only_for_tiers_2_to_10(int tier, bool expected)
-        => Assert.Equal(expected, TierRowGeometry.ShouldClone(tier));
+    [Fact]
+    public void RequiredParamsForFamily_returns_empty_for_unknown_family()
+        => Assert.Empty(TierRowCloner.RequiredParamsForFamily("NOPE",
+            new Dictionary<string, Dictionary<string, TierPlan>>()));
 }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `dotnet test StingTools.Tags.Tests/StingTools.Tags.Tests.csproj --filter TierRowGeometryTests`
-Expected: FAIL — `TierRowGeometry` does not exist / not compiled into the test project.
+Run: `dotnet test StingTools.Tags.Tests/StingTools.Tags.Tests.csproj --filter TierRowClonerLogicTests`
+Expected: FAIL — types not compiled into the test project.
 
 - [ ] **Step 3: Write minimal implementation**
 
-`StingTools/Tags/TierRowCloner.cs`:
+`StingTools/Tags/TierRowCloner.cs` (Revit-free). Note `RequiredParamsForFamily` is defined **here** (not in the `.Revit.cs` file) so it is unit-testable — it uses only `TierPlan`/`TierRow` which are Revit-free (`PerFamilyTierMap.cs`):
 
 ```csharp
-using System.Globalization;
+using System;
+using System.Collections.Generic;
+using StingTools.Core;
 
 namespace StingTools.Tags
 {
-    /// <summary>Revit-free geometry + naming math for tier-row cloning. Unit-tested.</summary>
+    /// <summary>Revit-free geometry constants for stacking cloned rows.</summary>
     public static class TierRowGeometry
     {
-        public const int MinClonedTier = 2;
-        public const int MaxTier = 10;
         public const double DefaultPitchMm = 3.0;
 
-        public static bool ShouldClone(int tier) => tier >= MinClonedTier && tier <= MaxTier;
+        /// <summary>Vertical offset (mm, negative = downward) of the Nth physical row vs. row 1.</summary>
+        public static double OffsetMm(int rowIndex, double pitchMm = DefaultPitchMm)
+            => -(rowIndex - 1) * pitchMm;
+    }
 
-        /// <summary>Vertical offset (mm, negative = downward) of a tier row relative to tier 1.</summary>
-        public static double OffsetMm(int tier, double pitchMm = DefaultPitchMm)
-            => -(tier - 1) * pitchMm;
-
-        public static string TierParamName(int tier)
-            => "ASS_TAG_" + tier.ToString(CultureInfo.InvariantCulture) + "_TXT";
+    public static partial class TierRowCloner
+    {
+        /// <summary>
+        /// Ordered, de-duplicated union of TierRow.Parameter for one family across
+        /// ALL mode plans. perMode = TagConfigPlanResolver.LoadAllPerMode(doc) output.
+        /// </summary>
+        public static List<string> RequiredParamsForFamily(
+            string familyName, Dictionary<string, Dictionary<string, TierPlan>> perMode)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var ordered = new List<string>();
+            if (perMode == null) return ordered;
+            foreach (var modeEntry in perMode)
+            {
+                if (!modeEntry.Value.TryGetValue(familyName, out TierPlan plan)) continue;
+                foreach (var rows in new[] { plan.T4Rows, plan.T5Rows, plan.T6Rows, plan.T7Rows, plan.T8Rows, plan.T9Rows, plan.T10Rows })
+                    foreach (TierRow r in rows)
+                        if (!string.IsNullOrWhiteSpace(r.Parameter) && seen.Add(r.Parameter))
+                            ordered.Add(r.Parameter);
+            }
+            return ordered;
+        }
     }
 }
 ```
 
-Add to `StingTools.Tags.Tests/StingTools.Tags.Tests.csproj` inside the existing `<ItemGroup>` of `<Compile Include>` entries:
+> `TierRowCloner` is declared `partial` so the Revit-dependent `EnsureRows` (Task 4) lives in `TierRowCloner.Revit.cs` under the same class. The test project compile-links only `TierRowCloner.cs` (Revit-free), so `RequiredParamsForFamily` is testable without the Revit API.
+
+Add to `StingTools.Tags.Tests/StingTools.Tags.Tests.csproj` inside the existing `<Compile Include>` `<ItemGroup>` (also add the `TierPlan`/`TierRow` link if Task 3 hasn't yet):
 
 ```xml
 <Compile Include="..\StingTools\Tags\TierRowCloner.cs" Link="Tags\TierRowCloner.cs" />
+<Compile Include="..\StingTools\Core\PerFamilyTierMap.cs" Link="Core\PerFamilyTierMap.cs" />
 ```
-
-> Note: `TierRowCloner.cs` will also contain the Revit-dependent `TierRowCloner` class (Task 4). To keep the test project Revit-free, guard that class with `#if !TESTHOST` or split the Revit-dependent class into a partial in a second file (`TierRowCloner.Revit.cs`) that the test csproj does **not** include. Use the second-file split — cleaner than compile symbols. Create `TierRowCloner.Revit.cs` in Task 4; the test project includes only `TierRowCloner.cs`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `dotnet test StingTools.Tags.Tests/StingTools.Tags.Tests.csproj --filter TierRowGeometryTests`
-Expected: PASS (all 8 cases).
+Run: `dotnet test StingTools.Tags.Tests/StingTools.Tags.Tests.csproj --filter TierRowClonerLogicTests`
+Expected: PASS (4 cases). Confirm `TierRow.Parameter` and `TierPlan.T4Rows..T10Rows` names against `PerFamilyTierMap.cs:22-70` before running; fix the test to match real property names, not the parser.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add StingTools/Tags/TierRowCloner.cs StingTools.Tags.Tests/TierRowGeometryTests.cs StingTools.Tags.Tests/StingTools.Tags.Tests.csproj
-git commit -m "feat: Revit-free tier-row geometry helper + tests"
+git add StingTools/Tags/TierRowCloner.cs StingTools.Tags.Tests/TierRowClonerLogicTests.cs StingTools.Tags.Tests/StingTools.Tags.Tests.csproj
+git commit -m "feat: Revit-free row-union + geometry helpers for tier cloning + tests"
 ```
 
 ---
@@ -342,9 +410,11 @@ git commit -m "test: pin TagConfigCsvReader tier-plan parsing"
 
 ---
 
-## Task 4: TierRowCloner engine (CLONE path)
+## Task 4: TierRowCloner engine (CLONE path) — mode-plan-driven
 
-The Revit-dependent engine: for one family document, clone tier-1's dimension-label into tiers 2–10, offset by `TierRowGeometry.OffsetMm`, and rebind each to `TierRowGeometry.TierParamName(tier)`. Idempotent: skip tiers whose param already has a bound dimension.
+The Revit-dependent engine. **It creates physical rows only** — it does NOT bind params or write formulas (that is `FamilyLabelAuthor.AuthorLabelsMulti`'s job, run immediately after in Task 6). For one family document it: (1) computes the required content-param set = **union of `TierRow.Parameter` across all mode plans** for that family; (2) clones tier-1's dimension once per still-missing param, stacked downward; (3) binds each clone's `FamilyLabel` to its content param. Idempotent: skip params that already have a bound dimension.
+
+> **Depends on the spike verdict.** Task 1 confirms whether a `FamilyLabel` binds to the **content param directly** (assumed here) or to a **per-row display container** that the formula feeds. If the spike shows the latter, the `target` resolution below changes to the display-container name — the clone + offset mechanics are unaffected.
 
 **Files:**
 - Create: `StingTools/Tags/TierRowCloner.Revit.cs` (the Revit-dependent `TierRowCloner` class; NOT compile-linked into the test project)
@@ -363,12 +433,12 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Clones the tier-1 dimension-label into tiers 2..10 and rebinds each copy
-    /// to its ASS_TAG_N_TXT container. Requires the tier params to already be
-    /// bound (FamilyLabelAuthor.BindSharedParameters does this) — this class only
-    /// creates the VISIBLE rows, closing the documented Revit-API gap.
+    /// Materializes one physical dimension-label row per required content param
+    /// (union across ALL tag modes) by cloning the tier-1 dimension and rebinding
+    /// each copy. Creates VISIBLE rows only — mode/depth formulas are applied
+    /// afterward by FamilyLabelAuthor.AuthorLabelsMulti. Closes the Revit-API gap.
     /// </summary>
-    public static class TierRowCloner
+    public static partial class TierRowCloner   // RequiredParamsForFamily lives in TierRowCloner.cs (Task 2)
     {
         public sealed class Result
         {
@@ -378,7 +448,13 @@ namespace StingTools.Tags
             public List<string> Warnings { get; } = new List<string>();
         }
 
-        public static Result EnsureTierRows(Document fdoc, double pitchMm = TierRowGeometry.DefaultPitchMm)
+        /// <param name="requiredParams">
+        /// Ordered, de-duplicated content-param names this family must display,
+        /// = union of TierRow.Parameter across every mode plan for this family.
+        /// Caller builds this from TagConfigPlanResolver.LoadAllPerMode(doc).
+        /// </param>
+        public static Result EnsureRows(Document fdoc, IReadOnlyList<string> requiredParams,
+            double pitchMm = TierRowGeometry.DefaultPitchMm)
         {
             var result = new Result();
             if (!fdoc.IsFamilyDocument)
@@ -390,53 +466,53 @@ namespace StingTools.Tags
             if (tier1 == null)
             { result.Warnings.Add($"No tier-1 dimension bound to {ParamRegistry.TAG1}; cannot clone."); return result; }
 
-            // Which tier params already have a bound dimension?
             var boundParamNames = new HashSet<string>(
                 dims.Select(d => d.FamilyLabel?.Definition?.Name).Where(n => n != null));
 
-            using (var tx = new Transaction(fdoc, "STING Tier Rows — clone 2..10"))
+            using (var tx = new Transaction(fdoc, "STING Tier Rows — clone per content param"))
             {
                 tx.Start();
-                for (int tier = TierRowGeometry.MinClonedTier; tier <= TierRowGeometry.MaxTier; tier++)
+                int rowIndex = 1; // tier-1 occupies slot 1; clones stack below
+                foreach (string paramName in requiredParams)
                 {
-                    string paramName = TierRowGeometry.TierParamName(tier);
+                    if (paramName == ParamRegistry.TAG1) continue;
                     if (boundParamNames.Contains(paramName)) { result.RowsAlreadyPresent++; continue; }
 
                     FamilyParameter fp = fdoc.FamilyManager.get_Parameter(paramName);
-                    if (fp == null) { result.Warnings.Add($"Tier {tier}: param {paramName} not bound; skipped."); result.RowsFailed++; continue; }
+                    if (fp == null) { result.Warnings.Add($"Row {paramName}: param not bound; run AuthorLabelsMulti bind pass first."); result.RowsFailed++; continue; }
 
                     try
                     {
-                        double dz = TierRowGeometry.OffsetMm(tier, pitchMm) / 304.8; // mm→ft
-                        XYZ offset = new XYZ(0, dz, 0);
-                        ICollection<ElementId> ids = ElementTransformUtils.CopyElements(fdoc, new[] { tier1.Id }, offset);
+                        rowIndex++;
+                        double dz = -(rowIndex - 1) * pitchMm / 304.8; // stack downward, mm→ft
+                        ICollection<ElementId> ids = ElementTransformUtils.CopyElements(fdoc, new[] { tier1.Id }, new XYZ(0, dz, 0));
                         Dimension copy = ids.Count == 1 ? fdoc.GetElement(ids.First()) as Dimension : null;
-                        if (copy == null) { result.Warnings.Add($"Tier {tier}: copy did not yield a single dimension."); result.RowsFailed++; continue; }
+                        if (copy == null) { result.Warnings.Add($"Row {paramName}: copy did not yield a single dimension."); result.RowsFailed++; continue; }
                         copy.FamilyLabel = fp;
                         result.RowsCreated++;
                     }
                     catch (Exception ex)
                     {
-                        result.Warnings.Add($"Tier {tier}: {ex.Message}");
+                        result.Warnings.Add($"Row {paramName}: {ex.Message}");
                         result.RowsFailed++;
                     }
                 }
                 tx.Commit();
             }
 
-            StingLog.Info($"TierRowCloner {opts(fdoc)}: created={result.RowsCreated} present={result.RowsAlreadyPresent} failed={result.RowsFailed}");
+            StingLog.Info($"TierRowCloner {fdoc.Title}: created={result.RowsCreated} present={result.RowsAlreadyPresent} failed={result.RowsFailed}");
             return result;
         }
-
-        private static string opts(Document fdoc) => fdoc.Title ?? "(family)";
     }
 }
 ```
 
+> `RequiredParamsForFamily` is the partial-class half defined in the Revit-free `TierRowCloner.cs` (Task 2) — do not redefine it here.
+
 - [ ] **Step 2: Build**
 
 Run: `dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"`
-Expected: PASS (0 errors). Fix any API signature mismatch (`get_Parameter`, `ElementTransformUtils.CopyElements` overload) against the referenced Revit version before continuing.
+Expected: PASS (0 errors). Fix any API signature mismatch (`get_Parameter`, `ElementTransformUtils.CopyElements` overload) against the referenced Revit version before continuing. Confirm `TierPlan.T4Rows..T10Rows` property names against `PerFamilyTierMap.cs:38-70`.
 
 - [ ] **Step 3: Run the pure-logic tests still green**
 
@@ -474,14 +550,19 @@ namespace StingTools.Tags
         public sealed class FamilyCoverage
         {
             public string Family { get; set; }
-            public int TiersWithVisibleRow { get; set; } // dimensions bound to ASS_TAG_1..10_TXT
-            public int TiersWithBoundParam { get; set; } // family params ASS_TAG_1..10_TXT present
-            public List<int> MissingRows { get; } = new List<int>();
+            public int RequiredRows { get; set; }        // union of content params across modes
+            public int RowsWithVisibleLabel { get; set; } // required params that have a bound dimension
+            public int ParamsBound { get; set; }          // required params present on the family
+            public List<string> MissingRows { get; } = new List<string>();
         }
 
-        public static FamilyCoverage Audit(Document fdoc)
+        /// <param name="requiredParams">
+        /// TierRowCloner.RequiredParamsForFamily(family, perMode) — the content
+        /// params this family must display across all modes.
+        /// </param>
+        public static FamilyCoverage Audit(Document fdoc, IReadOnlyList<string> requiredParams)
         {
-            var cov = new FamilyCoverage { Family = fdoc.Title };
+            var cov = new FamilyCoverage { Family = fdoc.Title, RequiredRows = requiredParams.Count };
             if (!fdoc.IsFamilyDocument) return cov;
 
             var boundLabelParams = new HashSet<string>(
@@ -491,12 +572,11 @@ namespace StingTools.Tags
             var famParamNames = new HashSet<string>(
                 fdoc.FamilyManager.Parameters.Cast<FamilyParameter>().Select(p => p.Definition.Name));
 
-            for (int tier = 1; tier <= TierRowGeometry.MaxTier; tier++)
+            foreach (string p in requiredParams)
             {
-                string p = TierRowGeometry.TierParamName(tier);
-                if (famParamNames.Contains(p)) cov.TiersWithBoundParam++;
-                if (boundLabelParams.Contains(p)) cov.TiersWithVisibleRow++;
-                else cov.MissingRows.Add(tier);
+                if (famParamNames.Contains(p)) cov.ParamsBound++;
+                if (boundLabelParams.Contains(p)) cov.RowsWithVisibleLabel++;
+                else cov.MissingRows.Add(p);
             }
             return cov;
         }
@@ -541,32 +621,55 @@ using StingTools.Core;
 
 namespace StingTools.Tags
 {
-    /// <summary>Retrofit tier rows 2..10 into every tag .rfa in a chosen folder.</summary>
+    /// <summary>Retrofit all tier/mode rows into every tag .rfa in a chosen folder.</summary>
     [Transaction(TransactionMode.Manual)]
     public class TierAutomationApplyCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData c, ref string message, ElementSet e)
         {
+            Document projDoc = c.Application.ActiveUIDocument?.Document;
+            if (projDoc == null) { TaskDialog.Show("Tier Automation", "Open the project first (needed to resolve mode plans)."); return Result.Cancelled; }
             var app = c.Application.Application;
             string dir = TagFamilyConfig.GetOutputDirectory();
             if (!Directory.Exists(dir)) { TaskDialog.Show("Tier Automation", $"No family folder: {dir}"); return Result.Cancelled; }
+
+            // Resolve ALL modes once from the project (DC + Handover + Custom).
+            Dictionary<string, Dictionary<string, TierPlan>> perMode = TagConfigPlanResolver.LoadAllPerMode(projDoc);
+            string sharedParamFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
 
             int fams = 0, rows = 0;
             var sb = new StringBuilder();
             foreach (string rfa in Directory.GetFiles(dir, "*.rfa"))
             {
                 Document fdoc = null;
+                string famName = Path.GetFileNameWithoutExtension(rfa);
                 try
                 {
                     fdoc = app.OpenDocumentFile(rfa);
-                    // Ensure tier params are bound first (reuse existing author), then clone rows.
-                    var res = TierRowCloner.EnsureTierRows(fdoc);
+
+                    // 1) Build one ModePlan per mode that carries this family, then
+                    //    bind params + write mode×depth formulas via the existing author.
+                    var modePlans = new List<FamilyLabelAuthor.ModePlan>();
+                    foreach (var m in perMode)
+                        if (m.Value.TryGetValue(famName, out TierPlan plan))
+                            modePlans.Add(new FamilyLabelAuthor.ModePlan {
+                                Mode = m.Key,
+                                GateParam = HandoverModeHelper.ModeSelectorBool.TryGetValue(m.Key, out var g) ? g : null,
+                                Plan = plan });
+
+                    if (modePlans.Count > 0)
+                        FamilyLabelAuthor.AuthorLabelsMulti(fdoc, modePlans,
+                            new FamilyLabelAuthor.Options { App = app, SharedParamFile = sharedParamFile, PreserveHandEdits = true, FamilyName = famName });
+
+                    // 2) Materialize the physical rows (params are now bound).
+                    var required = TierRowCloner.RequiredParamsForFamily(famName, perMode);
+                    var res = TierRowCloner.EnsureRows(fdoc, required);
+
                     fams++; rows += res.RowsCreated;
-                    if (res.RowsCreated > 0)
-                        fdoc.SaveAs(rfa, new SaveAsOptions { OverwriteExistingFile = true });
-                    sb.AppendLine($"{Path.GetFileName(rfa)}: +{res.RowsCreated} (present {res.RowsAlreadyPresent}, failed {res.RowsFailed})");
+                    fdoc.SaveAs(rfa, new SaveAsOptions { OverwriteExistingFile = true });
+                    sb.AppendLine($"{famName}: need {required.Count} rows → +{res.RowsCreated} (present {res.RowsAlreadyPresent}, failed {res.RowsFailed})");
                 }
-                catch (System.Exception ex) { sb.AppendLine($"{Path.GetFileName(rfa)}: ERROR {ex.Message}"); StingLog.Error("TierAutomationApply", ex); }
+                catch (System.Exception ex) { sb.AppendLine($"{famName}: ERROR {ex.Message}"); StingLog.Error("TierAutomationApply", ex); }
                 finally { fdoc?.Close(false); }
             }
             TaskDialog.Show("Tier Automation", $"Families: {fams}  Rows created: {rows}\n\n{sb}");
@@ -579,19 +682,24 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData c, ref string message, ElementSet e)
         {
+            Document projDoc = c.Application.ActiveUIDocument?.Document;
+            if (projDoc == null) { TaskDialog.Show("Tier Coverage Audit", "Open the project first (needed to resolve mode plans)."); return Result.Cancelled; }
             var app = c.Application.Application;
             string dir = TagFamilyConfig.GetOutputDirectory();
+            Dictionary<string, Dictionary<string, TierPlan>> perMode = TagConfigPlanResolver.LoadAllPerMode(projDoc);
             var sb = new StringBuilder();
             foreach (string rfa in Directory.GetFiles(dir, "*.rfa"))
             {
                 Document fdoc = null;
+                string famName = Path.GetFileNameWithoutExtension(rfa);
                 try
                 {
                     fdoc = app.OpenDocumentFile(rfa);
-                    var cov = TierCoverageAuditor.Audit(fdoc);
-                    sb.AppendLine($"{Path.GetFileName(rfa)}: rows {cov.TiersWithVisibleRow}/10, params {cov.TiersWithBoundParam}/10, missing [{string.Join(",", cov.MissingRows)}]");
+                    var required = TierRowCloner.RequiredParamsForFamily(famName, perMode);
+                    var cov = TierCoverageAuditor.Audit(fdoc, required);
+                    sb.AppendLine($"{famName}: rows {cov.RowsWithVisibleLabel}/{cov.RequiredRows}, params {cov.ParamsBound}/{cov.RequiredRows}, missing [{string.Join(",", cov.MissingRows)}]");
                 }
-                catch (System.Exception ex) { sb.AppendLine($"{Path.GetFileName(rfa)}: ERROR {ex.Message}"); }
+                catch (System.Exception ex) { sb.AppendLine($"{famName}: ERROR {ex.Message}"); }
                 finally { fdoc?.Close(false); }
             }
             TaskDialog.Show("Tier Coverage Audit", sb.ToString());
@@ -601,17 +709,25 @@ namespace StingTools.Tags
 }
 ```
 
-> Note the ordering dependency: `TierRowCloner.EnsureTierRows` only creates rows for tier params that are **already bound**. For the retrofit-in-place path over the existing 206, precede the clone with a bind pass. Reuse `FamilyLabelAuthor.AuthorLabels(fdoc, plan, opts)` (which binds params + applies gate formulas) BEFORE `EnsureTierRows`. Wire that call in Step 1's apply loop by resolving the family's `TierPlan` via the same `TagConfigPlanResolver.LoadAll(doc)` path `CreateTagFamiliesCommand` uses (`TagFamilyCreatorCommand.cs:1144+`). If `TagConfigPlanResolver` requires a project `Document` rather than a family doc, load plans once from the active project before the folder loop and index by family name.
+> **Ordering (already encoded in the code above):** `EnsureRows` can only set `FamilyLabel` on params that are bound, so `AuthorLabelsMulti` (bind + mode×depth formulas) runs **first**, then `EnsureRows` materializes the physical rows. `perMode` is resolved once from the active project (`LoadAllPerMode` needs a project `Document`, not a family doc). `HandoverModeHelper.ModeSelectorBool` maps mode name → gate param (`HandoverModeHelper.cs:31`). Confirm the exact `FamilyLabelAuthor.Options` property names against `FamilyLabelAuthor.cs:50-62` before building.
 
 - [ ] **Step 2: Wire generation to auto-clone**
 
-In `StingTools/Tags/TagFamilyCreatorCommand.cs`, inside `CreateTagFamiliesCommand.Execute`, immediately after the existing `TryRebindLabel(famDoc);` call (survey: near the per-family save, ~`:1144`+ region), add:
+`CreateTagFamiliesCommand.Execute` already loads `perMode` (`TagConfigPlanResolver.LoadAllPerMode`, ~`:1160`) and authors via `AuthorLabelsMulti`. Immediately after that authoring call (params now bound + formulas written), add the row materialization so generated families get their physical rows too:
 
 ```csharp
-// Close the visible-row gap: clone tier-1 label into tiers 2..10.
-try { TierRowCloner.EnsureTierRows(famDoc); }
-catch (System.Exception ex) { StingLog.Error("EnsureTierRows during CreateTagFamilies", ex); }
+// Close the visible-row gap: materialize one physical dimension-row per
+// content param this family needs (union across all modes). Params are
+// already bound by AuthorLabelsMulti above.
+try
+{
+    var required = TierRowCloner.RequiredParamsForFamily(famName, perMode);
+    TierRowCloner.EnsureRows(famDoc, required);
+}
+catch (System.Exception ex) { StingLog.Error("EnsureRows during CreateTagFamilies", ex); }
 ```
+
+Use the family-name variable already in scope at that point (the survey shows `TagFamilyConfig.GetFamilyName(bic)` resolves it); match its local name.
 
 - [ ] **Step 3: Register command tags**
 
@@ -641,19 +757,23 @@ Close Revit. Run `dotnet build StingTools/StingTools.csproj -c Release -p:RevitA
 
 - [ ] **Step 2: Baseline audit**
 
-Run `TierAutomation_Audit` against the tag-family folder. Expected: most families report `rows 1/10` (the current single-tier state).
+Run `TierAutomation_Audit` against the tag-family folder. Expected: most families report `rows 1/N` (N = their required content-param count; only tier-1 currently has a visible row).
 
 - [ ] **Step 3: Apply on a 3-family subset**
 
-Copy 3 representative `.rfa`s (a duct tag, a door tag, a generic tag) to a scratch folder, point `GetOutputDirectory` there (or run apply on that folder), run `TierAutomation_Apply`. Expected dialog: `Rows created: 27` (9 per family) and per-family `+9`.
+Copy 3 representative `.rfa`s (a duct tag, a door tag, a generic tag) to a scratch folder, point `GetOutputDirectory` there (or run apply on that folder), run `TierAutomation_Apply`. Expected dialog: each family reports `need N rows → +M` where N = its union of content params across DC + Handover (varies per family — a plumbing/HVAC tag needs more than a door tag). Confirm `failed 0` for each.
 
-- [ ] **Step 4: Load one family into a project and verify depth gating**
+- [ ] **Step 4: Load one family into a project and verify depth + mode gating**
 
-Load an applied family into a test project, place a tag, run `SetParagraphDepthCommand` at depth 1 → only tier 1 shows; depth 5 → tiers 1–5 show; depth 10 → all rows show. Expected: rows appear/disappear per depth, correct container values in each row.
+Load an applied family into a test project, place a tag.
+- **Depth:** run `SetParagraphDepthCommand` at depth 1 → only tier-1 row shows; depth 5 → tiers 1–5 rows show; depth 10 → all rows show.
+- **Mode (construction/handover):** with depth ≥ 5, run `SetPatternMode_DC` → the tag shows the Design/Construction content (Design intent, Performance, Material); run `SetPatternMode_Handover` → the same physical rows now show Commissioning / Cost / Carbon content; wrong-mode rows collapse to empty with no visible gaps.
+
+Expected: rows appear/disappear per depth; content swaps per mode with no re-author; no gaps between visible rows.
 
 - [ ] **Step 5: Re-audit + record result**
 
-Run `TierAutomation_Audit` again. Expected: subset families now `rows 10/10, missing []`. Record any families with `failed` rows and their warnings in this plan under `## Smoke Test Results`.
+Run `TierAutomation_Audit` again. Expected: subset families now report the full row count with `missing []`. Record any families with `failed` rows and their warnings in this plan under `## Smoke Test Results`.
 
 - [ ] **Step 6: Commit the results note**
 
@@ -690,8 +810,10 @@ Per the phase-boundary protocol (memory `feedback-phase-boundary-protocol`): com
 ## Self-Review Notes
 
 - **Spike-gated:** Task 1 decides CLONE vs TEMPLATE before any real code — the plan does not assume the API workaround succeeds.
-- **Idempotency:** `EnsureTierRows` skips tiers whose param already has a bound dimension, so re-running is safe (matches the "self-heal" ethos in `FamilyLabelAuthor`).
+- **Idempotency:** `EnsureRows` skips content params that already have a bound dimension, so re-running is safe (matches the "self-heal" ethos in `FamilyLabelAuthor`).
 - **Reuse over rebuild:** binding + gate formulas + CSV tier content + depth driver are all reused (`FamilyLabelAuthor`, `TagConfigCsvReader`, `SetParagraphDepthCommand`); only the visible-row creation and two commands are new.
 - **Testable surface is honest:** only the Revit-free math + CSV parsing are unit-tested (Tasks 2–3); Revit-runtime behaviour is explicitly `[VERIFY-IN-REVIT]`, not faked.
 - **Open risk to confirm in Task 1:** copied dimensions carry geometric references (reference planes/lines). If a copy's references are invalid or shared such that repositioning distorts tier 1, the CLONE path fails → TEMPLATE fallback (Task 1b). This is the single largest uncertainty and is deliberately resolved first.
 - **Column-index assumption (Task 3):** the CSV column map is from a code survey, not verified line-by-line; Task 3 Step 2 requires confirming indices against `TagConfigCsvReader.cs` before asserting.
+- **Modes are reused, not rebuilt:** construction/handover (DC / Handover / Custom) is handled entirely by the existing `AuthorLabelsMulti` OR-merged formulas + `SetPatternMode_*` runtime flip. The new code only *creates physical rows* sized to the cross-mode param union; it writes no mode logic. Task 7 Step 4 verifies the mode switch end-to-end.
+- **Row-count is per-family, not fixed:** because a tier is a group of rows and modes add distinct content, physical row count varies per family (union across modes). Any place that assumed "9 rows" or "N/10" was corrected to be param-driven.
