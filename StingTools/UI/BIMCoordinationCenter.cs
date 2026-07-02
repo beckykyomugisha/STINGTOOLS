@@ -2119,8 +2119,8 @@ namespace StingTools.UI
                 "AutoFixWarnings"));
             kpiRow.Children.Add(MakeKPICard("STALE", _data.StaleCount.ToString(),
                 _data.StaleCount == 0 ? Br(CGreen) : Br(CRed),
-                "Elements with tags that no longer match context\n(moved level, changed system, changed location)\nDouble-click to retag stale elements",
-                "RetagStale"));
+                "Elements flagged STING_STALE_BOOL — geometry / material / spatial context changed since tagging.\nDouble-click to select, highlight, or re-tag them.",
+                "StaleCountAction"));
             stack.Children.Add(kpiRow);
 
             // ── RAG Summary Bars ──
@@ -10042,6 +10042,7 @@ namespace StingTools.UI
                 "RunDailyQA" => "Run Daily QA workflow: retag stale → validate → audit → dashboard",
                 "RunMorningCheck" => "Morning health check: warnings → tags → templates → issues → revisions",
                 "RetagStale" => "Find elements with stale tags (moved/changed) and re-derive their tags",
+                "StaleCountAction" => "Act on the flagged-stale elements: select, highlight in view, or re-tag",
                 "TagNewOnly" => "Tag only new/untagged elements — skips already-tagged elements",
                 "ExportCOBie" => "Export COBie V2.4 FM handover data (17 worksheets, XLSX)",
                 "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",

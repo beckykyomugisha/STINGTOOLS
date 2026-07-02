@@ -1675,6 +1675,10 @@ namespace StingTools.Core
                 case "AutoPopulate": return new Temp.AutoPopulateCommand();
                 case "CombineParameters": return new Tags.CombineParametersCommand();
                 case "RetagStale": return new Organise.RetagStaleCommand();
+                case "SelectStaleFlagged": return new Select.SelectStaleFlaggedCommand();
+                case "HighlightStale": return new Select.HighlightStaleCommand();
+                case "ClearStaleHighlight": return new Select.ClearStaleHighlightCommand();
+                case "StaleCountAction": return new Select.StaleCountActionCommand();
                 case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
                 case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
                 case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();

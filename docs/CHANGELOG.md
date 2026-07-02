@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (STALE-P2 — Make the dashboard STALE count actionable: Select / Highlight / Clear, branch `claude/stale-select-filter`)
+
+Follow-up to STALE-1…STALE-4. The dashboards show a `ComplianceScan.StaleCount`
+(elements with `STING_STALE_BOOL == 1`) but nothing let you act on *that exact
+set* — the existing `SelectStale` command recomputes staleness live (stored vs
+current LVL/SYS/PROD/FUNC), a related-but-different set. Adds a small trio keyed
+to the persisted flag so select / highlight / count all agree. Build 0 errors
+(Revit 2025 API); the four warnings are pre-existing (`Clash/ClashIssueSyncCommand.cs`).
+**Compiles; not runtime-verified in Revit.**
+
+New file `StingTools/Select/StaleFlagCommands.cs` (4 commands + `StaleFlagHelper`):
+
+| Tag | Command | What |
+|---|---|---|
+| `SelectStaleFlagged` | `SelectStaleFlaggedCommand` | Selects `STING_STALE_BOOL == 1` (honours the project/view scope toggle) — the exact set the dashboard counts |
+| `HighlightStale` | `HighlightStaleCommand` | Finds-or-creates the `STING - Stale Elements` `ParameterFilterElement` (`STING_STALE_BOOL == 1`), adds it to the active view with a red projection + surface override; guards `AreGraphicsOverridesAllowed()` and an unbound stale param |
+| `ClearStaleHighlight` | `ClearStaleHighlightCommand` | Removes the highlight filter from the active view (leaves the reusable filter definition) |
+| `StaleCountAction` | `StaleCountActionCommand` | Dashboard-count entry point: a 3-way chooser (Select project-wide / Highlight / Re-tag) |
+
+Filter idiom mirrors `ViewStylePackApplier` (`GetFilters().Contains` → `AddFilter`
+→ `GetFilterOverrides ?? new` → set colours → `SetFilterOverrides` → `SetFilterVisibility`);
+category set is `SharedParamGuids.AllCategoryEnums` ∩ `ParameterFilterUtilities.GetAllFilterableCategories()`;
+the rule is `ParameterFilterRuleFactory.CreateEqualsRule(staleParamId, 1)`.
+
+Wiring: registered in `StingCommandHandler` (panel), `WorkflowEngine.ResolveCommand`
+(so the BCC `ActionDispatcher` → `DispatchCoordAction` → `GetCommandInstance` path
+resolves them), four buttons on the TAGS/QA panel next to the existing `Stale`
+button, and the BIM Coordination Center **STALE** KPI card repointed from
+`RetagStale` to `StaleCountAction` (the dedicated "Retag Stale" buttons elsewhere
+are untouched). Commands are null-`ExternalCommandData` safe (BCC dispatches with
+`null`; `ParameterHelpers.GetContext` falls back to `StingCommandHandler.CurrentApp`).
+
+Deferred: staleness never auto-clears on re-tag; no schedule column for the flag.
+
 #### Completed (STALE-1…STALE-4 — Wire up the dead stale subsystem + wire-annotation VD accuracy, branch `claude/wire-annotation-stale-review`)
 
 Fixes a flagship feature that was wired into the UI/dashboard but never actuated:
