@@ -1488,6 +1488,9 @@ namespace StingTools.Core
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+                case "Symbols_Preflight":           return new Commands.Symbols.SymbolPreflightCommand();
+                case "Symbols_CreateAll":           return new Commands.Symbols.CreateSymbolLibraryCommand();
+                case "Symbols_OrientationAudit":    return new Commands.Symbols.SymbolOrientationAuditCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();

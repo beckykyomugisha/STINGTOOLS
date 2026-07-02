@@ -206,6 +206,17 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbol Library", "No document open."); return Result.Failed; }
 
+            // F8 — preflight the family-template path BEFORE building. An unset path is
+            // the usual cause of a silent "0 families built"; stop up front with the fix.
+            var pre = SymbolLibraryCreator.Preflight(ctx.Doc.Application);
+            if (!pre.Ok)
+            {
+                TaskDialog.Show("STING - Symbol Library",
+                    "Preflight failed — building would produce 0 families.\n\n"
+                    + string.Join("\n", pre.Notes) + "\n\n" + SymbolBatchHelper.TemplateFixHint);
+                return Result.Cancelled;
+            }
+
             var aggregate = new SymbolCreationResult();
             var emptyBatches = new List<string>();
             foreach (var b in SymbolBatchHelper.AllBatches)
@@ -230,6 +241,41 @@ namespace StingTools.Commands.Symbols
                     + "\n\n" + SymbolBatchHelper.TemplateFixHint;
             }
             TaskDialog.Show("STING - Symbol Library", report);
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>F8 — Symbols_Preflight. Read-only check of the Revit family-template path
+    /// before a build; the SLD chain (template path → Symbols_CreateAll → SLD_Generate)
+    /// otherwise fails silently when the path is unset.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SymbolPreflightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+
+            var pre = SymbolLibraryCreator.Preflight(ctx.Doc.Application);
+            var sb = new StringBuilder();
+            sb.AppendLine($"Template folder found : {(pre.TemplateFolderFound ? "YES" : "NO")}");
+            if (pre.TemplateFolderFound) sb.AppendLine($"  {pre.TemplateFolder}");
+            sb.AppendLine($"Generic Annotation .rft: {(pre.GenericAnnotationOk ? "OK" : "MISSING")}");
+            sb.AppendLine($"Generic Model .rft     : {(pre.GenericModelOk ? "OK" : "MISSING")}");
+            sb.AppendLine();
+            foreach (var n in pre.Notes) sb.AppendLine("  · " + n);
+            if (!pre.Ok) { sb.AppendLine(); sb.AppendLine(SymbolBatchHelper.TemplateFixHint); }
+
+            StingLog.Info($"Symbols_Preflight: folder={pre.TemplateFolderFound} GA={pre.GenericAnnotationOk} GM={pre.GenericModelOk}");
+            new TaskDialog("STING - Symbols Preflight")
+            {
+                MainInstruction = pre.Ok ? "Preflight OK — ready to build" : "Preflight FAILED — fix before building",
+                MainContent = sb.ToString()
+            }.Show();
+            // Return Failed on a bad path so a workflow (rollback_on_failure) stops here
+            // with the fix message instead of running Symbols_CreateAll → 0 families → SLD.
+            if (!pre.Ok) { msg = "Family-template path not configured — see the preflight dialog."; return Result.Failed; }
             return Result.Succeeded;
         }
     }
