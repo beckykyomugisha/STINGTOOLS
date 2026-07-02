@@ -39,7 +39,10 @@ namespace StingTools.Docs
             ("EndoscopeAER",          "CEQ_ENDO_AER_REF_TXT",    "", "Owning automated endoscope reprocessor"),
             ("EndoReprocessCycles",   "CEQ_ENDO_CYCLE_COUNT_INT","", "Endoscope reprocessing cycle count"),
             ("EndoLastReprocessed",   "CEQ_ENDO_LAST_REPRO_DT",  "", "Last reprocessing date (ISO 8601)"),
-            ("ImagingStructuralLoad", "CEQ_IMAGING_STRUCT_LOAD", "", "Imaging equipment structural load"),
+            // Imaging structural verification: there is no CEQ_IMAGING_STRUCT_LOAD data
+            // param (only the tag-warning WARN_CEQ_IMAGING_STRUCT_LOAD); the real signal
+            // is the structural engineer's sign-off date on CLN_STRUCT_SIGN_OFF_DT.
+            ("StructuralSignOff",     "CLN_STRUCT_SIGN_OFF_DT",  "", "Structural engineer sign-off date (heavy imaging load verification)"),
         };
 
         internal static bool IsClinical(Element el) =>
