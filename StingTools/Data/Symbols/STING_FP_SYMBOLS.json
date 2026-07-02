@@ -3735,15 +3735,17 @@
             "cx": -0.15,
             "cy": 0,
             "r": 0.13,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           },
           {
             "cx": 0.15,
             "cy": 0,
             "r": 0.13,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           }
         ]
       },
@@ -3820,8 +3822,9 @@
             "cx": 0,
             "cy": 0.35,
             "r": 0.14,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           }
         ]
       },
@@ -3982,8 +3985,9 @@
             "cx": 0.25,
             "cy": 0,
             "r": 0.15,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           },
           {
             "cx": 0.25,
@@ -4066,8 +4070,9 @@
             "cx": 0,
             "cy": 0.35,
             "r": 0.12,
-            "startDeg": "Main",
-            "endDeg": 360
+            "startDeg": 0,
+            "endDeg": 360,
+            "subcategory": "Main"
           }
         ]
       },
