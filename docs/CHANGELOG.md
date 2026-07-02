@@ -3,6 +3,82 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 197 — Healthcare accuracy remediation, branch `claude/healthcare-gap-fixes`)
+
+Five accuracy fixes from the verified healthcare-pack audit. **Build-verified** against
+the Revit 2025 API (`dotnet build StingTools`, **0 errors**); `Planscape.sln` is
+unaffected. Each workstream is its own commit. The audit's verified false positives
+(infection-class `PE` vs room-class `PE-PROT`; `GetParamDouble` already parsing clean
+TEXT; the NCRP-147 Archer / diversity / TVL / ft→m math) were deliberately left
+untouched.
+
+| WS | Status | What |
+|---|---|---|
+| **1** RDS noise typo (blocking) | **DONE** | Field map → `CLN_NOISE_NR_NR`; `healthcare_rds.docx` regenerated |
+| **2** Canonical room-class vocabulary (systemic) | **DONE** | One `RoomClassCodes` source of truth + resolver + drift validator |
+| **3** TEXT numeric guard | **DONE** | `GetParamDouble` tolerates trailing units + warns |
+| **4** RadShield default distance | **DONE** | Conservative constant + warning; no under-shielding bias |
+| **5** Med-gas diversity visibility | **DONE** | Silent 1.0 fallback logged + audit prints the load table |
+
+**WS-1** — `HEALTHCARE_RDS_FIELDMAP.json` mapped `room.noise.nr` to the non-existent
+`CLN_ROOM_NOISE_NR_NR`, so the Noise Rating NR field rendered blank in every Room Data
+Sheet. Corrected to the registered `CLN_NOISE_NR_NR` and regenerated the template via
+`tools/build_healthcare_rds_docx.py` (self-test passes: 51 flat tokens, 4 loops).
+
+**WS-2 (the main fix)** — `CLN_ROOM_CLASS_TXT` had no canonical value set: the producer
+(`HbnRoomAutoPopulator`) keyed on underscore codes (`CT`, `WARD`, `PE_ROOM`) while every
+consumer (validators, standards tables, specialist audits, clean-dirty flow) keyed on
+hyphenated codes (`IMG-CT`, `WARD-INPT`, `PE-PROT`), so a room populated one way fell
+silently through the other's design / pressure / ACH / acoustic lookups. Established one
+data-driven source of truth:
+- **`Data/HEALTHCARE_ROOM_CLASSES.json`** — 57 canonical codes + aliases + department +
+  HTM/ASHRAE/FGI/iHFG cross-refs, editable without a recompile, with an optional
+  `<project>/_BIM_COORD/room_classes.json` override.
+- **`RoomClassCodes`** (`Core/Validation/Healthcare/RoomClassCodes.cs`) — per-project
+  registry + `Canonicalize()` / `IsRecognised()` resolver, mirroring
+  `OwnerStandardsRegistry` (corporate baseline + project overlay, cached per project dir).
+- **Canonical spelling chosen = the hyphenated form** the validators, RDS and the
+  registered `CLN_ROOM_CLASS_TXT` parameter description already imply (`IMG-CT`,
+  `WARD-INPT`, `PE-PROT`, `OR-ULTRA`, …).
+- `HbnRoomAutoPopulator.RoomDesignTable` **re-keyed** to canonical codes (values
+  unchanged, only re-keyed) and its read canonicalised so legacy tags still resolve.
+- Every room-class-reading validator is covered at **one chokepoint** —
+  `HealthcareValidatorBase.GetRoomClassCached` now returns the canonical code;
+  `CleanDirtyFlowSolver` and the specialist audits (Hybrid-OR, Maternity/NICU, HSDU,
+  Pharmacy-USP, Behavioural) canonicalise their reads.
+- `HEALTHCARE_ACOUSTIC_NR_TARGETS.csv` re-keyed (`MRI`→`IMG-MRI`, `LINAC`→`IMG-LIN`).
+- New **`RoomClassCodeValidator`** flags any `CLN_ROOM_CLASS_TXT` that is neither
+  canonical nor a known alias (drift → warning, not a silent skip); gated through
+  `HealthcareValidatorGate` and registered in RunAll/RunSelected +
+  `HealthcareValidatorCommands` + `WorkflowEngine.ResolveCommand` + `StingCommandHandler`
+  (tag `Healthcare_RoomClassCode`) like its siblings.
+
+Thresholds are unchanged throughout — a spelling/lookup unification, not a re-tuning.
+`AdjacencyValidator`/`HBNStandards` use a coarser department-level vocabulary
+(intentional); its reconciliation to the registry `department` cross-ref is deferred
+(ROADMAP HC-DEF-08).
+
+**WS-3** — several params are registered TEXT (`HVC_AIR_CHANGES_PER_HR`,
+`PER_ACOUSTICS_BACKGROUND_NOISE_DB`, `PER_ACOUSTICS_RT60_S`, `PLM_HOTWTR_TEMP_C`), so
+`GetParamDouble` silently skipped values like `"12 ACH"` / `"45 dB"`. It now parses the
+leading numeric token (InvariantCulture) — `"12"`, `"12 ACH"`, `"0.6 s"`, `"45 dB"` all
+yield their number, empty stays null, and a non-empty non-numeric value logs a warning.
+The shared parameters are **not** re-typed (no schema churn).
+
+**WS-4** — `RadShieldValidator` used a hardcoded 2.0 m default barrier distance; because
+required lead scales with `d²` in `B = P·d²/(W·U·T)`, that optimistic guess could let a
+too-thin barrier pass. Replaced with a named conservative constant (**1.0 m**), an
+optional modelled `RAD_DISTANCE_M_NR` read first, a project override
+(`PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M`), and a `RAD.DIST.ASSUMED` warning whenever the
+distance is assumed. True 3D barrier-distance geometry recorded in ROADMAP HC-DEF-01b.
+
+**WS-5** — `MgasFlowSolver` applies NFPA 99 §5.1.13 diversity correctly, but gases with
+no tabulated factor (`N2`, `CO2`, `HE`, `DENT`) fell back to 1.0 silently. No math change:
+the fallback is now logged (once per gas) and recorded on `GasZoneLoad`, and
+`MgasNetworkAuditCommand` prints the per-gas / per-zone diversified load table (it
+previously computed the loads but only printed a count), marking assumed factors. Closes
+ROADMAP HC-DEF-06; the missing factors themselves are tracked as HC-DEF-07.
+
 #### Completed (Phase 196 — Healthcare gap fixes, branch `claude/healthcare-gap-fixes`)
 
 Four gap-remediation workstreams from the read-only healthcare-pack audit. The
