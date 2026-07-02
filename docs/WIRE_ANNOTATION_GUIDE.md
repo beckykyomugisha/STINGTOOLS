@@ -1,164 +1,152 @@
 # STING Wire Annotation Workflow Guide
 
-**Branch**: `claude/variable-wire-slash-count-Dan9D`  
-**Standard**: BS 7671:2018 / BS 9999:2017 / IEEE 1584-2018  
-**Status**: Gaps 1–15 implemented. ARC-01 (IEEE 1584-2018 polynomial coefficients) pending licensed-standard verification — do not use arc flash output for engineering sign-off until confirmed by a qualified electrical engineer.
+**Standards**: BS 7671:2018 · BS 9999:2017 · IEEE 1584-2018
+
+> **Arc-flash note:** the IEEE 1584-2018 arc-flash calculation is pending verification against the
+> licensed standard. Do not rely on arc-flash output for engineering sign-off until it has been
+> reviewed by a qualified electrical engineer.
 
 ---
 
-## 🟢 New to this? Start here — Wire Annotation in Plain English
+## Introduction to Wire Annotation
 
-> **If you have never annotated wires in Revit before, read this section first.** It assumes no
-> electrical background and no STING experience. The rest of the guide (from *Overview of
-> Capabilities* onwards) is the reference manual — come back to it once the ideas below click.
+This section explains what a wire annotation is, the concepts involved, and the procedure for
+producing one. It requires no prior experience with STING. The reference sections that follow
+document every parameter, control, and authoring task in full.
 
-### What is a "wire annotation" and why do I care?
+### What a wire annotation is
 
-Picture an electrician holding your drawing on site. They see a thin line running from a
-distribution board to a light. That line is a **conduit** — a tube that carries the cable. But the
-line alone doesn't tell them *what cable to pull through it*. How many wires? How thick? Copper or
-aluminium? Which circuit does it belong to?
+On an electrical drawing, a conduit is the line representing the route a cable takes from a
+distribution board to the equipment it serves. The line alone does not record what runs through it —
+the number of conductors, their cross-sectional area, the conductor material, or the circuit
+reference. A wire annotation records that information on the drawing, adjacent to the conduit. It
+comprises two parts:
 
-A **wire annotation** answers all of that, right on the drawing, next to the line. It has two parts:
+1. **Tick marks** drawn across the conduit, indicating the number of conductors in the cable. Two
+   ticks denote two conductors (line and neutral); four ticks denote a three-phase cable with a
+   neutral.
+2. **A text label** beside the ticks giving the full specification, for example
+   `2 × 4mm² Cu | 1Ø | L1-06 | DB-1` — two 4 mm² copper conductors, single phase, circuit 6 on
+   Distribution Board 1.
 
-1. **Tick marks (slashes)** drawn across the line — a visual shorthand for *how many wires* are in
-   the cable. Two ticks = two wires (live + neutral). Four ticks = a three-phase cable + neutral.
-   Electricians read these at a glance, the same way you read "///" without counting.
-2. **A text label** next to the ticks — the full story in words and numbers, e.g.
-   `2 × 4mm² Cu | 1Ø | L1-06 | DB-1`. That reads as: *two four-millimetre copper wires, single
-   phase, circuit 6 on distribution board 1*.
-
-**Why it matters:** without annotations, someone has to hand-write all this on every line, on every
-sheet, and keep it in sync when the design changes. STING reads the information Revit already knows
-about each circuit and writes the annotation for you — consistently, and in a recognised standard
-format (BS 7671, the UK wiring regs).
-
-**Analogy:** think of it like nutrition labels on food. The food (the cable) already *has* its
-properties; the label just makes them visible so nobody has to guess.
+Produced manually, this information must be entered on every conduit and every sheet and kept current
+as the design develops. STING derives it from the circuit data already held in the model and writes
+the annotation automatically, in a consistent BS 7671 format.
 
 ![Anatomy of a STING wire annotation — the conduit line, the tick marks that count the wires, and the text label with its full spec and a red voltage-drop flag](images/wire-annotation/anatomy.svg)
 
-The **tick marks** are the fastest thing to read — one tick per wire in the cable:
+The tick marks are read at a glance — one tick per conductor in the cable:
 
 ![Tick-mark legend — 1 tick is a single wire, 2 ticks is live plus neutral (single phase), 3 ticks is 3-core, 4 ticks is three-phase plus neutral](images/wire-annotation/tick-legend.svg)
 
-### The 5 ideas you need (jargon, translated)
+### Key concepts
 
-| Word you'll see | What it actually means |
+| Term | Meaning |
 |---|---|
-| **Conduit** | The tube/line on the drawing that a cable runs through. In STING, annotations attach to conduits. |
-| **Circuit** | One "run" of power from a board to something it feeds (a light, a socket). Revit already knows a conduit's circuit if you connected it. |
-| **CSA** ("4mm²") | *Cross-Sectional Area* — how thick the copper is. Bigger number = thicker wire = carries more current. |
-| **Voltage drop (VD%)** | Electricity "loses steam" over long runs. VD% is how much. Too high = lights dim / gear misbehaves. The regs cap it (roughly 3%). |
-| **CPC / earth** | The safety (earth) wire. Sized separately from the live wires. |
+| **Conduit** | The line on the drawing representing a cable's route. STING attaches annotations to conduits. |
+| **Circuit** | A run of supply from a board to the equipment it feeds. The model holds a conduit's circuit once it has been connected to a panel. |
+| **CSA** | Cross-sectional area of a conductor (e.g. 4 mm²); a larger area carries more current. |
+| **Voltage drop (VD%)** | The reduction in voltage along a run. BS 7671 limits it — typically 3% for final circuits — as excessive drop impairs performance. |
+| **CPC** | Circuit protective (earth) conductor, sized separately from the live conductors. |
+| **Ampacity** | The current a cable can carry continuously without exceeding its temperature rating. |
+| **Home run** | A directional arrow indicating the conduit's return path to the board supplying the circuit. |
 
-Two more you'll meet later: **ampacity** (how much current a cable can safely carry before it
-overheats) and **home run** (the arrow pointing back to the board that feeds the circuit).
+### Prerequisite: connect the circuit first
 
-### Before you touch any buttons — the one prerequisite
+STING annotates only conduits whose circuit is defined in the model. The sequence is therefore:
 
-STING can only annotate conduits that Revit already knows the **circuit** for. So the golden rule is:
+> Draw the conduit → connect it to a panel to create its circuit → annotate.
 
-> **Draw the conduit → connect it to a panel (create its circuit) → *then* annotate.**
+A conduit that is not connected to a panel carries no circuit data; the stamp command reports that no
+connected circuit was found. Connect it first (select the conduit → **Systems** tab → create or
+assign its circuit), then proceed.
 
-If a conduit isn't connected to a panel, STING has nothing to read, and you'll get a message like
-*"No connected ElectricalSystem found."* That's not a bug — it's telling you to wire it up in Revit
-first (select the conduit → **Systems** tab → create/assign its circuit).
+### Standard workflow
 
-### The happy path — click by click
+Perform these steps in order. The commands are on the **BIM** tab of the STING panel (open it from
+the ribbon: **STING Tools → STING Panel**). Before first use, run **CREATE tab → Load Params** once
+so the shared parameters are present. Each command operates on a selected conduit, or on every
+conduit in the current view if nothing is selected.
 
-Do these once, in order. Each button lives in the STING panel (open it from the ribbon:
-**STING Tools → STING Panel**, then the **BIM** tab). The first time, also click
-**CREATE tab → Load Params** once so the parameters exist.
+![Workflow overview — five steps: W-Stamp copies circuit data, Csz-Sync sizes the cable, VD-Sync calculates voltage drop, CPC-Sz sizes the earth conductor, and W-Ann or W-Batch places the annotation](images/wire-annotation/workflow.svg)
 
-> **Tip:** every button below works on *either* one conduit you pick, *or* everything in the current
-> view if you select nothing. Start with one conduit while you're learning.
+**1. Stamp circuit data — `W-Stamp`.** Select a conduit. STING copies the circuit data (phase,
+conductor count, panel name, demand current) from the model onto the conduit and confirms the values
+read. No annotation is drawn at this stage. Use `W-Batch♻` to process the entire view.
 
-![The happy-path workflow — five steps left to right: W-Stamp reads circuit facts, Csz-Sync picks the cable thickness, VD-Sync works out voltage drop, CPC-Sz sizes the earth wire, and W-Ann/W-Batch finally draws the ticks and label](images/wire-annotation/workflow.svg)
+**2. Size the cable — `Csz-Sync`.** Set the installation method in the `ELC_WIRE_INSTALL_METHOD_TXT`
+property (Properties palette) — for example `C` (clipped direct) or `B1` (enclosed in conduit in a
+wall) — as this governs the cable's current-carrying capacity. Run `Csz-Sync` to derive the
+cross-sectional area, ampacity, and protective-device rating to BS 7671.
 
-**Step ① — Tell STING what each conduit is: click `W-Stamp`.**
-Pick a conduit. STING copies the circuit facts (phase, number of wires, panel name, load) from
-Revit onto the conduit. A little dialog confirms what it found. *Nothing appears on the drawing
-yet — this is just gathering information.* (To do the whole view at once, use `W-Batch♻` instead.)
+**3. Calculate voltage drop — `VD-Sync`.** With the cable sized and the route length known, STING
+calculates the voltage-drop percentage and records it. Runs exceeding the limit are flagged on the
+annotation.
 
-**Step ② — Let STING choose the cable thickness: click `Csz-Sync`.**
-First, one manual thing: tell STING how the cable is installed by typing a letter into the
-`ELC_WIRE_INSTALL_METHOD_TXT` property (in Revit's **Properties** palette). Common choices: `C`
-(clipped to a surface) or `B1` (in a conduit in a wall). This affects how much current the cable can
-handle. Then click `Csz-Sync` and STING picks the thickness (CSA), the safe current (ampacity), and
-the breaker size, following BS 7671.
+**4. Size the protective conductor — `CPC-Sz`** (optional). Derives the earth-conductor size from the
+live-conductor size to BS 7671.
 
-**Step ③ — Check the voltage drop: click `VD-Sync`.**
-Now that the cable is sized and the route has a length, STING calculates VD% and stores it. If a run
-is too long/thin, the annotation will later flag it in red.
+**5. Place the annotation — `W-Ann`** (one conduit) or **`W-Batch`** (whole view). The ticks and
+label are drawn on the drawing; `W-Batch` also offsets overlapping labels automatically.
 
-**Step ④ (optional) — Size the earth wire: click `CPC-Sz`.**
-Sizes the safety/earth conductor from the live-wire size, per the regs.
+In summary: **Stamp → Size → Voltage drop → (Protective conductor) → Annotate.** Home-run arrows,
+cable schedules, and arc-flash labels are additional outputs, covered later.
 
-**Step ⑤ — Draw the annotation: click `W-Ann` (one conduit) or `W-Batch` (whole view).**
-*Now* the ticks and the text label appear on the drawing. Done. To annotate an entire plan in one
-go, use `W-Batch` — it even nudges labels apart so they don't overlap.
+### Reading the label
 
-That's the core workflow: **Stamp → Size → VD → (Earth) → Annotate.** Everything else in this guide
-(home-run arrows, cable schedules, arc-flash labels) is optional extra polish.
-
-### Reading a finished label
-
-Say you see this next to a line:
+For the example label:
 
 ```
 2 × 4mm² Cu | 1Ø | L1-06 | DB-1 | Meth.C | Ø20mm | Fill 28% | ** VD=3.4%
 ```
 
-![Label decoder — the example label split into eight coloured chunks, each with its plain-English meaning: two 4mm² copper wires, single phase, circuit 6, board DB-1, install method C, 20mm conduit, 28% fill, and a red 3.4% voltage-drop warning](images/wire-annotation/label-decoder.svg)
+![Label decoder — the example label divided into eight coloured segments, each with its meaning: two 4mm² copper conductors, single phase, circuit 6, board DB-1, installation method C, 20mm conduit, 28% fill, and a 3.4% voltage-drop flag](images/wire-annotation/label-decoder.svg)
 
-Piece by piece, in plain words:
+Segment by segment:
 
-| Chunk | Means |
+| Segment | Meaning |
 |---|---|
-| `2 × 4mm² Cu` | Two copper wires, each 4mm² thick |
-| `1Ø` | Single-phase (ordinary power, not heavy 3-phase) |
+| `2 × 4mm² Cu` | Two copper conductors, each 4 mm² |
+| `1Ø` | Single phase |
 | `L1-06` | Circuit 6 on the board |
-| `DB-1` | Fed from Distribution Board 1 |
-| `Meth.C` | Install method C (clipped to a surface) |
-| `Ø20mm` | The conduit is 20 mm across |
-| `Fill 28%` | The cable fills 28% of the conduit (plenty of room) |
-| `** VD=3.4%` | ⚠ Voltage drop is 3.4% — shown because it's over the 3% alarm. This run may need a thicker cable. |
+| `DB-1` | Supplied from Distribution Board 1 |
+| `Meth.C` | Installation method C (clipped direct) |
+| `Ø20mm` | 20 mm conduit |
+| `Fill 28%` | Cable occupies 28% of the conduit |
+| `** VD=3.4%` | Voltage drop 3.4% — displayed because it exceeds the 3% limit; the run may require a larger conductor |
 
-The `**` and the red colour are STING waving a flag: *look at this one*. A healthy run simply won't
-show a VD warning at all.
-
-The colour of the ticks and label isn't decoration — it's a status. This is what each one means:
+The `**` prefix and red colour indicate a value requiring attention; a compliant run displays no
+voltage-drop warning. Annotation colour conveys status:
 
 ![Auto-colour states — black means normal, red means voltage drop or fill over the limit, orange means a fire-rated cable, blue means an armoured or shielded cable](images/wire-annotation/colour-states.svg)
 
-### If something looks wrong (plain-English troubleshooting)
+### Troubleshooting
 
-| You see… | It means… | Do this |
+| Symptom | Cause | Action |
 |---|---|---|
-| **"No connected ElectricalSystem found"** | The conduit isn't wired to a panel yet | Connect it in Revit (**Systems** tab), then `W-Stamp` again |
-| **`? Wire`** in the label | STING couldn't find the cable size | Run `Csz-Sync` (Step ②) first — you probably annotated before sizing |
-| **No `VD=` shown at all** | STING had no real circuit current to calculate from, so it *deliberately* left it off rather than guess | Make sure the circuit has a load/current in Revit, then `VD-Sync` and `W-Rfsh`. (STING used to guess 16 A here; it no longer prints a made-up number.) |
-| **Ticks are tiny or huge** | The drawing scale vs. tick size | Leave *Scale factor* at 1.0 and STING auto-sizes ticks to the view scale; or nudge *Slash length* in the panel |
-| **Nothing happened when I clicked** | You likely picked empty space, or the view has no conduits | Zoom to a conduit and pick the line itself |
-| **I changed the design and the labels are stale** | Labels don't auto-update | Re-run `Csz-Sync`/`VD-Sync` as needed, then click `W-Rfsh` to refresh every label in the view |
-| **I want them gone** | — | `W-Clr` removes all wire annotations from the view (it does *not* delete the conduits or their data) |
+| No connected circuit reported by `W-Stamp` | The conduit is not connected to a panel | Connect it (**Systems** tab), then run `W-Stamp` |
+| `? Wire` in the label | The cable size has not been determined | Run `Csz-Sync` before annotating |
+| No `VD=` value shown | No circuit current was available, so the value was omitted rather than estimated | Assign a load to the circuit, then run `VD-Sync` and `W-Rfsh` |
+| Ticks appear too small or too large | Tick size relative to the view scale | Keep *Scale factor* at 1.0 (STING scales ticks to the view), or adjust *Slash length* |
+| A command produces no result | Nothing was selected, or the view contains no conduits | Select a conduit and repeat |
+| Labels no longer match the design | Annotations do not update automatically | Re-run `Csz-Sync` / `VD-Sync` as required, then `W-Rfsh` |
+| Removing annotations | — | `W-Clr` removes all wire annotations from the view; conduit data is retained |
 
-### What the buttons are called (quick map)
+### Command quick reference
 
-| Button | Nickname | Plain job |
-|---|---|---|
-| `W-Stamp` / `W-Batch♻` | Stamp | Read circuit facts onto conduit(s) |
-| `Csz-Sync` | Cable size | Pick the wire thickness |
-| `VD-Sync` | Volt-drop | Work out VD% |
-| `CPC-Sz` | Earth size | Size the earth wire |
-| `W-Ann` / `W-Batch` | Annotate | Draw ticks + label |
-| `W-Rfsh` | Refresh | Update labels after changes |
-| `W-Clr` | Clear | Remove labels from the view |
-| `H-Run` | Home run | Add the arrow pointing to the board |
+| Command | Function |
+|---|---|
+| `W-Stamp` / `W-Batch♻` | Copy circuit data onto conduits |
+| `Csz-Sync` | Determine cable size |
+| `VD-Sync` | Calculate voltage drop |
+| `CPC-Sz` | Size the protective (earth) conductor |
+| `W-Ann` / `W-Batch` | Place ticks and label |
+| `W-Rfsh` | Update labels after changes |
+| `W-Clr` | Remove labels from the view |
+| `H-Run` | Place the home-run arrow |
 
-Once this makes sense, continue to the reference sections below for the full parameter list, style
-controls, standards references, and the Family Editor authoring guide.
+The reference sections below document the full parameter set, style controls, standards references,
+and family authoring.
 
 ---
 
@@ -168,14 +156,14 @@ The STING wire annotation system adds 10 new commands and a set of inline dock-p
 
 | Area | What STING does |
 |---|---|
-| **Parameter stamping** | Copies circuit data (phase, cores, panel name, demand current) from Revit's native ElectricalSystem to STING shared parameters on conduit elements |
+| **Parameter stamping** | Copies circuit data (phase, cores, panel name, demand current) from the model's electrical circuits to STING shared parameters on conduit elements |
 | **Cable sizing** | Runs BS 7671 Appendix 4 derating against install method and derives CSA, ampacity, and circuit-breaker rating |
 | **Voltage drop** | Calculates VD% from conduit length × CSA × conductor material; flags exceedances in the annotation label |
 | **CPC / earth sizing** | Applies BS 7671 Table 54.7 to compute minimum protective conductor CSA |
 | **Variable slash annotations** | Places 1–4 oblique slash marks on each conduit in the active view; slash count driven by `ELC_WIRE_CORE_COUNT_INT` (clamped 0–4) |
 | **Full label** | Appends a human-readable text label: cores × CSA, material, FR/SWA/SCR flags, phase, circuit number, panel, type, install method, conduit OD, fill%, Iz/Ib, and VD alarm suffix |
 | **Style control** | 3-layer style hierarchy: project JSON → per-conduit parameter overrides → view-scale auto-factor; all major dimensions editable via inline dock-panel controls |
-| **Home-run arrows** | BFS traversal of the full conduit run to place a directional arrow at the panel-side endpoint |
+| **Home-run arrows** | Traces the full conduit run to place a directional arrow at the panel-side end |
 | **Routing validation** | Checks BS 9999 fire-segregation and BS 7671 SWA armour rules; produces a structured issues list with standard references |
 | **Cable schedule** | Generates `cable_schedule.csv` and a Revit `ViewSchedule` named "STING Cable Schedule" |
 | **Selective coordination stamp** | Reads TCC data and stamps `ELC_SEL_COORD_OK` on panels |
@@ -205,7 +193,7 @@ These four parameters must be bound before the new commands will write successfu
 | `Electrical_WireVDSync` | `WireVDSyncCommand` | 3 — VD calculate + write back |
 | `Electrical_WireCableSizerSync` | `WireCableSizerSyncCommand` | 4 — cable size + write back |
 | `Electrical_CableScheduleBuild` | `CableScheduleBuilderCommand` | 5 — schedule view + CSV |
-| `Electrical_HomeRunFull` | `WireHomeRunFullCommand` | 9 — BFS home-run arrow |
+| `Electrical_HomeRunFull` | `WireHomeRunFullCommand` | 9 — full-run home-run arrow |
 | `Electrical_WireSaveStyle` | `HandleWireSaveStyleFromPanel` | 7 — save inline style to project JSON |
 | `Electrical_WireCpcSizer` | `WireCpcSizerCommand` | 11 — CPC / earth sizing |
 | `Electrical_WireRoutingValidation` | `WireRoutingValidationCommand` | 12 — routing rule validation |
@@ -220,7 +208,7 @@ Existing commands retained: `Electrical_WireAnnotate` (W-Ann), `Electrical_WireA
 ### Prerequisites
 
 1. Open your Revit project (`.rvt`).
-2. Ensure conduits are routed and circuit-connected: drawn with the Conduit tool and attached to panels via Revit's ElectricalSystem (Modify → Create Circuit or similar).
+2. Ensure conduits are routed and circuit-connected: drawn with the Conduit tool and attached to panels as circuits (Modify → Create Circuit or similar).
 3. Open the STING dock panel: ribbon → **STING Tools** → **STING Panel**.
 4. Bind shared parameters: **CREATE tab → Load Params**. Confirm "Bound N parameter(s)". Re-run after adding the four new parameters above.
 
@@ -228,13 +216,13 @@ Existing commands retained: `Electrical_WireAnnotate` (W-Ann), `Electrical_WireA
 
 ### Step 1 — Stamp circuit data onto conduits
 
-**Purpose**: Populate `ELC_WIRE_PHASE_TXT`, `ELC_WIRE_CORE_COUNT_INT`, `ELC_CIRCUIT_NR_TXT`, `ELC_PNL_NAME_TXT`, `ELC_WIRE_CIRCUIT_TYPE_TXT`, `ELC_WIRE_COND_MAT_TXT`, and `ELC_WIRE_MAX_DEMAND_A` from the connected ElectricalSystem.
+**Purpose**: Populate `ELC_WIRE_PHASE_TXT`, `ELC_WIRE_CORE_COUNT_INT`, `ELC_CIRCUIT_NR_TXT`, `ELC_PNL_NAME_TXT`, `ELC_WIRE_CIRCUIT_TYPE_TXT`, `ELC_WIRE_COND_MAT_TXT`, and `ELC_WIRE_MAX_DEMAND_A` from the connected circuit.
 
 **Single conduit (W-Stamp):**
 1. BIM tab → **W-Stamp** (`Electrical_WireParamStamp`).
 2. Pick one conduit in the active view.
 3. TaskDialog confirms: circuit, panel, phase (1Ø / 3Ø), core count, demand current.
-4. If "No connected ElectricalSystem found": the conduit is not circuit-connected. Attach it to a panel via Revit's Systems tab first.
+4. If the command reports that no connected circuit was found, the conduit is not circuit-connected. Attach it to a panel via the Systems tab first.
 
 **Batch (W-Batch♻):**
 1. Optionally pre-select conduits. If none selected, all conduits in the active view are processed.
@@ -242,7 +230,7 @@ Existing commands retained: `Electrical_WireAnnotate` (W-Ann), `Electrical_WireA
 3. A progress dialog shows with cancel (Escape) support.
 4. Result: "Stamped: N / Skipped (no circuit): M."
 
-**Phase detection logic** (implemented via `ElectricalSystem.SystemType`):
+**Phase detection** (from the circuit's system type):
 
 | SystemType | Phase written | Cores |
 |---|---|---|
@@ -284,12 +272,12 @@ Core count can be overridden manually in the Properties palette (`ELC_WIRE_CORE_
 **VD sync (VD-Sync):**
 1. Optionally select conduits; if none selected, all in active view are processed.
 2. BIM tab → **VD-Sync** (`Electrical_WireVDSync`).
-3. Reads conduit length from `LocationCurve`, applies material resistivity (Cu = 17.2 nΩ·m, Al = 28.3 nΩ·m), writes updated `ELC_WIRE_VD_PCT_NUM`.
+3. Reads the conduit length, applies material resistivity (Cu = 17.2 nΩ·m, Al = 28.3 nΩ·m), and writes the updated `ELC_WIRE_VD_PCT_NUM`.
 4. VD alarm threshold is set in the wire annotation style (default 3%). Conduits that exceed it display `** VD=X.X%` in the annotation label in red (or the auto-colour override).
 
 > **Note (accuracy):** the annotation engine's on-the-fly VD recompute (used when a stored VD isn't
-> present) now reads the connected circuit's **real current and voltage** from the Revit
-> `ElectricalSystem`. If no real circuit current is available it **omits** the VD figure from the
+> present) now reads the connected circuit's **real current and voltage**. If no real circuit current is
+> available it **omits** the VD figure from the
 > label and logs a warning, rather than assuming a 16 A / 230 V default and printing a
 > confidently-wrong number. So a missing `VD=` on a label means "not enough data to trust a value" —
 > give the circuit a load in Revit and re-run `VD-Sync` + `W-Rfsh`.
@@ -370,9 +358,9 @@ In the BIM/Electrical section of the dock panel:
 | Line weight | `tbWireLineWeight` | 3 | 1–16 (Revit line-weight index) |
 | Label offset | `tbWireLabelOffset` | 600 mm | Perpendicular distance from conduit centreline to text label |
 | Colour code | `cbWireColorCode` | 0 (auto) | 0=auto / 1=red / 2=blue / 3=orange / 4=green |
-| Show VD | `chkWireShowVD` | ✓ | Show `** VD=X.X%` suffix when VD exceeds alarm |
-| Show fill | `chkWireShowFill` | ✓ | Show `Fill X.X%` and ⚠ when conduit fill exceeds alarm |
-| Compact | `chkWireCompact` | ☐ | Omit panel name, circuit type, install method from label |
+| Show VD | `chkWireShowVD` | On | Show `** VD=X.X%` suffix when VD exceeds alarm |
+| Show fill | `chkWireShowFill` | On | Show `Fill X.X%` and a warning mark when conduit fill exceeds alarm |
+| Compact | `chkWireCompact` | Off | Omit panel name, circuit type, install method from label |
 
 **Auto-colour logic** (colour code = 0):
 - VD > alarm threshold **or** fill > alarm → red
@@ -400,12 +388,12 @@ In the BIM/Electrical section of the dock panel:
 **Full run (HR-Full):**
 1. BIM tab → **HR-Full** (`Electrical_HomeRunFull`).
 2. Pick any conduit segment in the run.
-3. The engine performs BFS through the connector graph (using `(owner.Id, conn.Id)` tuples as visited keys to avoid looping) to collect all connected conduit segments, then identifies the panel-side endpoint by finding the end connected to `OST_ElectricalEquipment`.
+3. STING traces the connected conduit run through its fittings, collecting all connected segments, then identifies the panel-side end as the one connected to electrical equipment.
 4. A detail-line arrow (shaft 150 mm, arrowhead 30 mm) is placed at that endpoint. Lines are tagged comment "STING_HOME_RUN" for later identification / cleanup.
-5. If no panel endpoint found: verify the conduit run is circuit-connected and the panel is categorised as `OST_ElectricalEquipment`.
+5. If no panel end is found: verify the conduit run is circuit-connected and the panel is in the Electrical Equipment category.
 
 **Simple (H-Run):**
-- **H-Run** (`Electrical_WireHomeRun`) — places an arrow from the selected end of a single picked conduit segment, without BFS traversal.
+- **H-Run** (`Electrical_WireHomeRun`) — places an arrow from the selected end of a single picked conduit segment, without tracing the wider run.
 
 ---
 
@@ -464,7 +452,7 @@ Note: the schedule is recreated from scratch on each run (delete + recreate patt
 
 **Prerequisites:**
 - Place `STING_TCC_DATABASE.json` in the project data folder.
-- Set `ELC_PANEL_MAIN_BREAKER_TXT` on each `OST_ElectricalEquipment` element via Properties palette (e.g. `"250A 65kA MCCB"`).
+- Set `ELC_PANEL_MAIN_BREAKER_TXT` on each panel (Electrical Equipment) via the Properties palette (e.g. `"250A 65kA MCCB"`).
 
 **Stamp (Crd-Stmp):**
 1. BIM tab → **Crd-Stmp** (`Electrical_WireCoordStamp`).
@@ -486,7 +474,7 @@ TCC interpolation uses log-log linear interpolation: `ln(y0) + t·(ln(y1)−ln(y
 
 **Inputs** (set in Properties palette on the panel element):
 - `ELC_FAULT_KA_NUM` — available fault current (kA)
-- System voltage (read from connected ElectricalSystem)
+- System voltage (read from the connected circuit)
 - Clearing time (ms) — from connected protective device parameters
 
 **Engine parameters** (`ArcFlashEngine.IncidentEnergy_CalCm2`):
@@ -494,7 +482,7 @@ TCC interpolation uses log-log linear interpolation: `ln(y0) + t·(ln(y1)−ln(y
 - `workingDistMm`: NFPA 70E Table 130.5(C) — ≤600 V → 455 mm; ≤15 kV → 910 mm
 - `gapMm`: electrode gap — typical 25 mm (LV DB), 32 mm (HV switchgear)
 
-**Label format** (placed as TextNote adjacent to the panel):
+**Label format** (placed as text adjacent to the panel):
 ```
 ⚠ ARC FLASH HAZARD
 Panel: [name]
@@ -533,7 +521,7 @@ Load Params → W-Batch♻ → Csz-Sync → VD-Sync → CPC-Sz → Rt-Val → W-
 | Step | Command | What it does |
 |---|---|---|
 | 1 | Load Params | Bind ELC_WIRE_* shared parameters to conduit elements |
-| 2 | W-Batch♻ | Stamp circuit data (phase, cores, panel, demand) from ElectricalSystems |
+| 2 | W-Batch♻ | Stamp circuit data (phase, cores, panel, demand) from circuits |
 | 3 | Csz-Sync | Size cables per BS 7671 derating; write CSA and ampacity |
 | 4 | VD-Sync | Calculate VD% from actual conduit lengths |
 | 5 | CPC-Sz | Size protective conductors per BS 7671 Table 54.7 |
@@ -552,7 +540,7 @@ After any parameter changes (re-routing, circuit changes, load updates): re-run 
 2. **SYNC-12 (deferred)** — W-Rfsh is not triggered automatically after Csz-Sync / VD-Sync / CPC-Sz. Run W-Rfsh manually after any parameter update to refresh visible annotations.
 3. **CPC adiabatic check** — `S_min = √(I²t) / k` must be performed manually. k = 143 for Cu/70°C PVC earth, 115 for Al.
 4. **TCC database** — `STING_TCC_DATABASE.json` is not shipped; populate from manufacturer data sheets.
-5. **Arc flash** — panel families must be category `OST_ElectricalEquipment` and circuit-connected for fault current to be readable.
+5. **Arc flash** — panel families must be in the Electrical Equipment category and circuit-connected for fault current to be readable.
 6. **SWA bonding** — SWA-2 rule flags any SWA cable in metallic containment (method A1/A2). Set `ELC_WIRE_ARMOUR_CONT_OK_BOOL = 1` after confirming both-end bonding and continuity test.
 7. **View-scale auto-factor** — applies only when no per-conduit `ELC_WIRE_ANNOT_SCALE_FACTOR` override is present and the project JSON `ScaleFactor = 1.0`. Setting a non-1.0 project default disables the auto-factor globally.
 
@@ -564,9 +552,9 @@ This section covers how to author the Revit families that the STING wire annotat
 
 | Family type | Category | Used for |
 |---|---|---|
-| **Conduit** (system family) | `OST_Conduit` | The element STING reads/writes all ELC_WIRE_* parameters on |
-| **Conduit fitting** (system family) | `OST_ConduitFitting` | Bends, tees, unions — inherits conduit parameters automatically |
-| **Electrical equipment** (loadable) | `OST_ElectricalEquipment` | Distribution panels, MCCs — STING reads circuit data and writes `ELC_SEL_COORD_OK`, arc flash labels |
+| **Conduit** (system family) | Conduit | The element STING reads and writes all ELC_WIRE_* parameters on |
+| **Conduit fitting** (system family) | Conduit Fitting | Bends, tees, unions — inherits conduit parameters automatically |
+| **Electrical equipment** (loadable) | Electrical Equipment | Distribution panels, MCCs — STING reads circuit data and writes `ELC_SEL_COORD_OK` and arc-flash labels |
 
 STING places annotations as native Revit elements (detail lines + text notes with the STING_WIRE_ANN comment marker) directly in the project view. It does **not** use tag families for wire annotations. However, if you want to display ELC_WIRE_* parameters in schedules or independent tags, you need shared parameters bound to the conduit category, which is handled by **Load Params** — no Family Editor work required for conduits.
 
@@ -574,66 +562,60 @@ The Family Editor work described here is for **electrical equipment panels** whe
 
 ---
 
-### 🟢 Do I need to build a family? (Short answer: no)
+### Family requirements
 
-> **If you just want to annotate wires, you do not need to open the Family Editor at all.** STING
-> draws the ticks and the label for you as ordinary detail lines and text — there is *no "wire
-> annotation family"* to author. The only thing a beginner must set up once is a handful of **text
-> types** (below), and that's done with Revit's normal Text tool, not the Family Editor.
->
-> The heavier sections that follow — **Part B (panel families)** and **Part F (conduit fittings)** —
-> are **advanced and optional**. They're for authoring the electrical *equipment*, not the
-> annotation. In practice those families come from manufacturer content or your Revit library, and
-> are best set up by an experienced Revit user. A beginner can safely skip Parts B and F and still
-> annotate wires successfully.
+Producing wire annotations does not require any Family Editor work. STING draws the ticks and the
+label as detail lines and text; there is no dedicated annotation family to author. The only one-time
+setup a project needs is a small set of named **text types**, created with Revit's standard Text tool
+(covered immediately below).
 
-**What a beginner actually needs, in order of importance:**
+The remaining Parts author the electrical *equipment* — distribution panels (Part B) and conduit
+fittings (Part F). These are full Family Editor tasks. In most projects the equipment is provided by
+manufacturer content or the Revit library and no authoring is required; the procedures are given in
+full, step by step, for teams that build their own. They are not a prerequisite for annotating wires.
 
-| Must you do it? | Task | Where | Difficulty |
-|---|---|---|---|
-| ✅ **Yes** (once) | Create the 3 text types | Part E — *walkthrough just below* | Easy — normal Text tool |
-| ➖ Optional | Create the line styles | [Part D](#part-d--line-styles-for-wire-annotation-graphics) | Easy — Manage → Line Styles |
-| 🔶 Advanced / skip | Author panel families | [Part B](#part-b--electrical-equipment-panel-family-authoring) | Hard — Family Editor |
-| 🔶 Advanced / skip | Author conduit fittings | [Part F](#part-f--conduit-fittings) | Hard — Family Editor |
+| Task | Section | When required |
+|---|---|---|
+| Create the label text types | *below*, and Part E | Every project (one-time) |
+| Create the annotation line styles | [Part D](#part-d--line-styles-for-wire-annotation-graphics) | Optional |
+| Author distribution-panel families | [Part B](#part-b--electrical-equipment-panel-family-authoring) | Only when building bespoke panels |
+| Author conduit-fitting families | [Part F](#part-f--conduit-fittings) | Only when a custom fitting is needed |
 
 ---
 
-### 🟢 Beginner setup — the only thing you must create (text types)
+### Setting up the label text types
 
-STING writes each label as an ordinary Revit **text note**. It looks for text types with specific
-names and uses the first one it finds. So the one-time job is to create those named types. **This is
-not the Family Editor** — it's the same Text tool you'd use to type a note on a sheet.
+STING writes each label as a Revit text note, selecting a text type by name. The one-time task is to
+create the named types so that labels render at the intended size and style. This uses the standard
+Text tool, not the Family Editor.
 
-![Three-step text-type setup: click the Text tool on the Annotate ribbon, Edit Type then Duplicate and name it "STING - Wire Annotation", then set Font Arial, Size 2.0 mm, Background Transparent and click OK](images/wire-annotation/text-types-setup.svg)
+![Three-step text-type setup: select the Text tool on the Annotate ribbon; use Edit Type then Duplicate and name the type "STING - Wire Annotation"; set Font Arial, Size 2.0 mm and Background Transparent, then OK](images/wire-annotation/text-types-setup.svg)
 
-**Step by step:**
+**Procedure:**
 
-1. On the ribbon, click **Annotate → Text** (the big **A**).
-2. In the Properties palette (or the type dropdown), click **Edit Type**.
-3. Click **Duplicate…**, and name the new type exactly: `STING - Wire Annotation`. Click **OK**.
-4. Set these values, then **OK**:
+1. On the ribbon, select **Annotate → Text**.
+2. In the Properties palette (or the type selector), click **Edit Type**.
+3. Click **Duplicate…** and name the new type exactly `STING - Wire Annotation`. Click **OK**.
+4. Set the following, then click **OK**:
 
    | Setting | Value |
    |---|---|
    | Font | Arial |
    | Size | 2.0 mm |
-   | Bold / Italic / Underline | all off |
+   | Bold / Italic / Underline | Off |
    | Background | Transparent |
-   | Show Border | off |
+   | Show Border | Off |
 
-5. Repeat **Duplicate…** twice more to make the other two types (same as above, just different size/colour):
-   - `STING - Wire Annotation Small` — **Size 1.5 mm** (STING uses this for the *Compact* label).
-   - `STING - Arc Flash Warning` — **Size 3.0 mm, Bold on, red text, Background Opaque, Show Border on**.
+5. Repeat **Duplicate…** to create the two remaining types, which differ only in size and colour:
+   - `STING - Wire Annotation Small` — Size 1.5 mm (used for the compact label).
+   - `STING - Arc Flash Warning` — Size 3.0 mm, Bold on, red text, Background opaque, Show Border on.
 
-6. Press **Esc** to put the Text tool away. You never have to place any of these by hand — STING
-   picks them up automatically when it draws labels.
+6. Press **Esc** to exit the Text tool. The types are not placed by hand; STING applies them when it
+   draws labels.
 
-> **That's the whole setup.** If you skip it, STING still works — it just falls back to whatever text
-> type your project already has, so your labels may look bigger or smaller than intended. Creating
-> the three named types is what makes them look right.
-
-The exact settings for all three types are listed again, with the full option list, in
-**[Part E](#part-e--text-types-for-wire-labels)** below.
+If these types are absent, STING falls back to the project's default text type, so labels remain
+functional but may not match the intended size. The full option list for all three types is given in
+Part E.
 
 ---
 
@@ -679,12 +661,12 @@ Type-level values are inherited by all instances of that type, so setting `ELC_W
 
 ### Part B — Electrical Equipment (Panel) Family Authoring
 
-> 🔶 **Advanced / optional — not needed just to annotate wires.** This is real Family Editor work
-> (connectors, reference planes, formulas). A beginner should skip it: use a manufacturer or Revit
-> library panel instead. It only matters if you're authoring your own distribution boards.
+> This section covers authoring a distribution-panel family in the Family Editor. It is required only
+> when building bespoke panels; where manufacturer or Revit-library content is used, no authoring is
+> needed. The full procedure follows, step by step.
 
-This is the main Family Editor section. The goal is a panel family that:
-- Has the correct Revit electrical connectors (so `ElectricalSystem` data flows)
+The goal is a panel family that:
+- Has the correct Revit electrical connectors, so circuit data flows
 - Exposes the STING ELC_WIRE_* and ELC_PANEL_* shared parameters
 - Has correct geometry dimensions for visual representation and annotation clearance
 - Uses correct line styles and subcategory colours for drawings
@@ -695,17 +677,17 @@ This is the main Family Editor section. The goal is a panel family that:
 2. Template: select **`Metric Electrical Equipment.rft`** (located in `ProgramData\Autodesk\RVT 202x\Family Templates\English_I\`).
 3. This template sets category to `Electrical Equipment` and creates a default electrical connector.
 
-Do **not** use a generic model template — STING uses `FilteredElementCollector` on `OST_ElectricalEquipment` and the family must be in that category for circuit-connection and coordination stamp to work.
+Do **not** use a generic model template. STING identifies panels by the Electrical Equipment category; the family must be in that category for circuit connection and the coordination stamp to work.
 
 #### B2 — Set family category and subcategory
 
 1. **Family Category and Parameters** (Manage tab → Family Category and Parameters):
-   - Category: **Electrical Equipment** ✓ (already set by template)
+   - Category: **Electrical Equipment** — already set by the template
    - Part Type: **None** (panels are not parts)
-   - Shared: ☐ (do not make the family shared unless it will be nested)
-   - Room Calculation Point: ☑ (ensures panels register in the correct room for spatial tagging)
-   - Work Plane-Based: ☐ (panels mount to walls, not work planes)
-   - Always Vertical: ☑
+   - Shared: Off (do not make the family shared unless it will be nested)
+   - Room Calculation Point: On (ensures panels register in the correct room for spatial tagging)
+   - Work Plane-Based: Off (panels mount to walls, not work planes)
+   - Always Vertical: On
 
 2. Add subcategories (Manage → **Object Styles → Model Objects tab → New**):
 
@@ -779,7 +761,7 @@ All geometry is created in the **Front** view (elevation) using **Extrusion** or
 
 #### B5 — Electrical connector
 
-The connector defines what Revit's ElectricalSystem can connect to. STING reads circuit data from the system, so the connector must match the actual supply.
+The connector defines what the circuit can connect to. STING reads circuit data from it, so the connector must match the actual supply.
 
 1. **Annotate → Electrical Connector** (only available in the Family Editor for electrical families).
 2. Place on the `Depth R` reference plane (rear face, where conduits enter).
@@ -795,7 +777,7 @@ The connector defines what Revit's ElectricalSystem can connect to. STING reads 
 | Max Current | Formula: `RatedCurrentA` | In amperes |
 | Number of Poles | `3` (3Ø) or `1` (1Ø) | |
 | Power Factor | `0.85` | |
-| Balanced Load | ☑ | For balanced 3-phase loads |
+| Balanced Load | On | For balanced 3-phase loads |
 
 4. Create family parameters to drive the connector:
 
@@ -813,7 +795,7 @@ This is how STING reads and writes data on the panel family instances in the pro
 Shared parameters are added at the **project** level (Manage → Shared Parameters), not in the Family Editor. However, the parameters must also be accessible from the family's **instance** properties so that the Properties palette shows them in context. The correct approach:
 
 1. In the Family Editor → **Create → Family Types** (or Manage → Project Parameters within family context):
-   - Do **not** add STING shared parameters here. Adding them inside the family creates family-local parameters that are not accessible via Revit API `LookupParameter` by GUID on project instances.
+   - Do **not** add STING shared parameters here. Adding them inside the family creates family-local parameters that are not accessible on project instances the way project-bound shared parameters are.
 2. Close and load the family into the project.
 3. In the **project**, bind shared parameters: **Manage → Shared Parameters** → load `MR_PARAMETERS.txt` → select the ELC_PNL_* and ELC_WIRE_* parameters → bind to **Electrical Equipment** category.
 4. All instances of the loaded panel family will now show those parameters in Properties.
@@ -840,7 +822,7 @@ For panel families that display their designation label in 2D views:
 |---|---|
 | Font | Arial (or corporate standard) |
 | Size | 2.5 mm (visible in 1:50 views) |
-| Bold | ✓ (for panel designations) |
+| Bold | On (for panel designations) |
 | Colour | Black (RGB 0,0,0) |
 
 4. Visibility: tick **Plan/RCP** and **Front/Back** — the label should be visible in plan and elevation but hidden in section and 3D.
@@ -848,7 +830,7 @@ For panel families that display their designation label in 2D views:
 
 #### B8 — Text type for arc flash labels
 
-STING places arc flash labels as project-level `TextNote` elements (not family geometry). The text type used is resolved by name — STING looks for a type named `STING - Arc Flash Warning`. If not found it falls back to the first available text type.
+STING places arc-flash labels as project-level text (not family geometry). The text type is resolved by name — STING looks for a type named `STING - Arc Flash Warning`, falling back to the first available text type if it is absent.
 
 To create the correct type:
 
@@ -860,10 +842,10 @@ To create the correct type:
 |---|---|---|
 | Font | Arial | Universally available |
 | Text Size | 3.0 mm | Legible at 1:50; large enough for safety labels |
-| Bold | ✓ | Warning label convention |
+| Bold | On | Warning label convention |
 | Colour | RGB 200,0,0 | Red — safety warning |
 | Background | Opaque | Ensures the label is readable over geometry |
-| Show Border | ✓ | Box around arc flash label |
+| Show Border | On | Box around arc flash label |
 | Leader Arrowhead | Arrow Filled 15° | |
 | Tab Size | 10 mm | |
 
@@ -895,11 +877,11 @@ The following table lists every shared parameter that the wire annotation system
 |---|---|---|---|---|
 | `ELC_WIRE_PHASE_TXT` | TEXT | W | W-Stamp | Phase: "1Ø" or "3Ø" |
 | `ELC_WIRE_CORE_COUNT_INT` | INTEGER | W | W-Stamp | Number of cores / slash count (0–4) |
-| `ELC_CIRCUIT_NR_TXT` | TEXT | W | W-Stamp | Circuit number from ElectricalSystem |
+| `ELC_CIRCUIT_NR_TXT` | TEXT | W | W-Stamp | Circuit number from the circuit |
 | `ELC_PNL_NAME_TXT` | TEXT | W | W-Stamp | Source panel name |
 | `ELC_WIRE_CIRCUIT_TYPE_TXT` | TEXT | W | W-Stamp | "Power" / "Lighting" / "UPS" |
 | `ELC_WIRE_COND_MAT_TXT` | TEXT | W | W-Stamp | "Cu" or "Al" (defaults to "Cu") |
-| `ELC_WIRE_MAX_DEMAND_A` | NUMBER | W | W-Stamp | Apparent current from ElectricalSystem (A) |
+| `ELC_WIRE_MAX_DEMAND_A` | NUMBER | W | W-Stamp | Apparent current from the circuit (A) |
 | `ELC_WIRE_INSTALL_METHOD_TXT` | TEXT | R | Manual | IEC 60364-5-52 method: A1/A2/B1/B2/C/E/F |
 | `ELC_WIRE_CSA_MM2_NUM` | NUMBER | W | Csz-Sync | Selected cable cross-section area (mm²) |
 | `ELC_WIRE_AMPACITY_A` | NUMBER | W | Csz-Sync | Derated current rating (A) |
@@ -941,7 +923,7 @@ Conduit outer diameter is read from the Revit built-in `BuiltInParameter.RBS_CON
 
 ### Part D — Line Styles for Wire Annotation Graphics
 
-STING creates slash marks and home-run arrows as **DetailCurve** elements using Revit's graphic override API (`OverrideGraphicSettings`). The line style of the detail curve is overridden in the view so you do not need custom line styles. However, having the correct project line styles improves visual consistency when annotation is exported to PDF or printed.
+STING creates slash marks and home-run arrows as detail lines, and sets their colour and weight through Revit's view graphic overrides. Because the appearance is overridden in the view, custom line styles are not required. However, defining the project line styles below improves visual consistency when annotations are exported to PDF or printed.
 
 Recommended line styles (create via Manage → Additional Settings → Line Styles → New):
 
@@ -954,15 +936,15 @@ Recommended line styles (create via Manage → Additional Settings → Line Styl
 | `STING-Wire-HomeRun` | RGB 0,0,0 | 2 | Solid | Home-run arrow shaft |
 | `STING-Wire-HomeRun-Head` | RGB 0,0,0 | 3 | Solid | Home-run arrowhead |
 
-Note: STING currently drives colour via `OverrideGraphicSettings.SetProjectionLineColor` applied directly to the `DetailCurve` element, so the line style colour is overridden in view. The line styles above are useful for schedules and filters that target slash elements by line style, or if you export to DWG and need correct layer assignment.
+Note: STING applies colour as a view override directly on each detail line, so the line-style colour is overridden in the view. The line styles above remain useful for schedules and filters that target the slash elements by line style, and for correct layer assignment when exporting to DWG.
 
 ---
 
 ### Part E — Text Types for Wire Labels
 
-STING creates wire annotation labels as `TextNote` elements. It resolves the text type by looking for types with the following names (first match wins, then falls back to the first available type):
+STING creates wire annotation labels as text notes, selecting the text type by name (first match wins, otherwise the first available type):
 
-| TextNote type name | Used for |
+| Text type name | Used for |
 |---|---|
 | `STING - Wire Annotation` | Standard circuit label |
 | `STING - Wire Annotation Small` | Compact label in congested areas |
@@ -977,36 +959,36 @@ To create these types:
 |---|---|
 | Font | Arial |
 | Size | 2.0 mm (at 1:100) |
-| Bold | ☐ |
-| Italic | ☐ |
-| Underline | ☐ |
+| Bold | Off |
+| Italic | Off |
+| Underline | Off |
 | Width Factor | 1.0 |
 | Color | Black |
 | Background | Transparent |
-| Show Border | ☐ |
+| Show Border | Off |
 | Leader Arrowhead | Arrow Filled 30° |
 
 3. Settings for `STING - Wire Annotation Small`:
    - Same as above except Size = 1.5 mm. Used automatically by STING when `CompactLabel = true`.
 
 4. Settings for `STING - Arc Flash Warning`:
-   - Font: Arial, Size: 3.0 mm, Bold: ✓, Color: RGB 200,0,0, Background: Opaque, Show Border: ✓.
+   - Font: Arial, Size: 3.0 mm, Bold: On, Colour: RGB 200,0,0, Background: Opaque, Show Border: On.
 
-**View-scale relationship**: TextNote sizes are in paper-space mm. A 2.0 mm note in a 1:100 view represents a 200 mm-tall label in model space. STING's slash marks are in model space (mm) and are scaled by `ScaleFactor` and the view-scale auto-factor. The label offset (`LabelOffsetMm`, default 600 mm model space) keeps the text a fixed model-space distance from the conduit centreline — this means the label position relative to the conduit stays constant regardless of view scale, which is the correct behaviour.
+**View-scale relationship**: text sizes are in paper-space mm. A 2.0 mm note in a 1:100 view represents a 200 mm-tall label in model space. STING's slash marks are in model space (mm) and are scaled by `ScaleFactor` and the view-scale auto-factor. The label offset (`LabelOffsetMm`, default 600 mm model space) keeps the text a fixed model-space distance from the conduit centreline — this means the label position relative to the conduit stays constant regardless of view scale, which is the correct behaviour.
 
 ---
 
 ### Part F — Conduit Fittings
 
-> 🔶 **Advanced / optional — not needed just to annotate wires.** Conduit fittings normally come
-> from Revit's library and already work. Only author your own if home-run tracing (H-Run) can't
-> cross a custom fitting. A beginner can skip this.
+> This section covers authoring a conduit-fitting family. Conduit fittings are normally provided by
+> the Revit library and require no authoring; author a custom fitting only where home-run tracing
+> (`H-Run`) must pass through a non-standard fitting.
 
-Conduit fittings (bends, tees, couplings) are loadable families in category `OST_ConduitFitting`. STING does not annotate fittings directly — slashes and labels are placed only on conduit run segments. However, fitting families must be configured correctly so that BFS graph traversal (used by HR-Full) can cross them.
+Conduit fittings (bends, tees, couplings) are loadable families in the Conduit Fitting category. STING does not annotate fittings directly — ticks and labels are placed only on conduit run segments. However, fitting families must be configured correctly so that the home-run tracing used by `H-Run` can pass through them.
 
-#### F1 — Connector requirements for BFS traversal
+#### F1 — Connector requirements for home-run tracing
 
-The BFS in `WireHomeRunFullCommand` and `ConduitCircuitIndex` traverses `ConnectorManager.Connectors` on each element and follows `Connector.AllRefs` to reach connected elements. For fittings to be traversable:
+Home-run tracing follows the connectors on each element from one piece of conduit to the next along the run. For a fitting to be traceable:
 
 1. Each fitting must have exactly the right number of connectors: 2 for bend/coupling, 3 for tee, 4 for cross.
 2. Connector type: **Conduit**.
@@ -1030,7 +1012,7 @@ Use this checklist before loading a new panel or conduit fitting family into a p
 
 **Panel family:**
 - [ ] Category = `Electrical Equipment`
-- [ ] Room Calculation Point = ✓
+- [ ] Room Calculation Point = On
 - [ ] Electrical connector present with correct System Type, Phase, and Voltage
 - [ ] `LoadKva` and `RatedCurrentA` parameters linked to connector
 - [ ] Geometry assigned to subcategories (`Enclosure`, `Door`, `Breakers`, `Busbar`)
@@ -1038,7 +1020,7 @@ Use this checklist before loading a new panel or conduit fitting family into a p
 - [ ] `ShowClearances` visibility parameter wired to clearance planes
 - [ ] Family loaded into project and shared parameters bound at project level
 - [ ] `ELC_PNL_NAME_TXT`, `ELC_PANEL_MAIN_BREAKER_TXT`, `ELC_FAULT_KA_NUM` visible in Properties palette after loading
-- [ ] Verify: W-Stamp picks up `ElectricalSystem.BaseEquipment.Name` = panel name
+- [ ] Verify: W-Stamp reads the panel name from the connected circuit's source equipment
 
 **Conduit type:**
 - [ ] Nominal Diameter set correctly (STING reads `RBS_CONDUIT_DIAMETER_PARAM`)
