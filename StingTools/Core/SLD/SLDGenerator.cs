@@ -27,6 +27,7 @@ using System.Linq;
 using System.IO;
 using Autodesk.Revit.DB;
 using StingTools.Core.Symbols;
+using StingTools.Core.Content;
 using StingTools.Commands.Electrical.Coordination;
 using StingTools.Core.Drawing;
 
@@ -355,10 +356,10 @@ namespace StingTools.Core.SLD
                         else
                         {
                             StingLog.Warn($"PlaceSymbols: family '{fam}' not found for concept " +
-                                $"'{node.ConceptId}' (standard '{standard}'). " +
-                                "Run Seeds_Build to create and load SLD symbol families.");
+                                $"'{node.ConceptId}' (standard '{standard}'). Run Symbols_CreateAll " +
+                                "to build+load SLD symbol families into _BIM_COORD/Families/Symbols/SLD/.");
                             result.Warnings.Add($"Symbol family '{fam}' not loaded — " +
-                                "run Seeds_Build workflow step.");
+                                "run Symbols_CreateAll (writes _BIM_COORD/Families/Symbols/SLD/…).");
                         }
                     }
                 }
@@ -370,50 +371,83 @@ namespace StingTools.Core.SLD
         }
 
         /// <summary>
-        /// Finds a FamilySymbol by name in the document. When not found, attempts
-        /// to load the matching .rfa from the project's _BIM_COORD/symbols/ folder
-        /// (created by BuildSeedFamiliesCommand). Returns null when unavailable.
+        /// Finds a FamilySymbol by name in the document. When not found, scans the
+        /// shared content roots recursively (project _BIM_COORD/Families/Symbols/**,
+        /// firm-wide STING_CONTENT_LIB / STING_SYMBOL_LIB, deployed baseline) and
+        /// loads the matching .rfa — the same resolution the rest of the symbol
+        /// system uses (ContentRoots / MepSymbolEngine.ResolveFamilySymbol), so SLD
+        /// no longer diverges onto a bespoke flat "_BIM_COORD/symbols" folder that
+        /// SymbolLibraryCreator never writes to. Caller owns the transaction.
+        /// Returns null when unavailable.
         /// </summary>
         private static FamilySymbol FindOrLoadFamilySymbol(Document doc, string symbolName)
         {
-            // Fast path — already loaded.
-            var sym = new FilteredElementCollector(doc)
+            if (doc == null || string.IsNullOrEmpty(symbolName)) return null;
+
+            // Fast path — already loaded (match on type name, then family name:
+            // SymbolLibraryCreator names the .rfa after the family; the type name
+            // may differ).
+            var loadedSymbols = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
-                .FirstOrDefault(s => string.Equals(s.Name, symbolName,
-                    StringComparison.OrdinalIgnoreCase));
+                .ToList();
+            var sym = loadedSymbols.FirstOrDefault(s => string.Equals(s.Name, symbolName,
+                          StringComparison.OrdinalIgnoreCase))
+                   ?? loadedSymbols.FirstOrDefault(s => string.Equals(s.FamilyName, symbolName,
+                          StringComparison.OrdinalIgnoreCase));
             if (sym != null) return sym;
 
-            // Fallback — try to load from _BIM_COORD/symbols/ alongside the .rvt.
+            // Fallback — recursive scan across ContentRoots (honours the firm-wide
+            // shared root so a single build serves every project with no per-project
+            // copy) and load the first matching .rfa.
             try
             {
-                if (string.IsNullOrEmpty(doc.PathName)) return null;
-                string symbolsDir = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName),
-                    "_BIM_COORD", "symbols");
-                if (!System.IO.Directory.Exists(symbolsDir)) return null;
-
-                // Try exact match first, then case-insensitive.
-                string rfaPath = System.IO.Path.Combine(symbolsDir, symbolName + ".rfa");
-                if (!System.IO.File.Exists(rfaPath))
+                foreach (var root in ContentRoots.Resolve(doc))
                 {
-                    rfaPath = System.IO.Directory.EnumerateFiles(symbolsDir, "*.rfa")
-                        .FirstOrDefault(f => string.Equals(
-                            System.IO.Path.GetFileNameWithoutExtension(f),
-                            symbolName, StringComparison.OrdinalIgnoreCase));
-                }
-                if (rfaPath == null || !System.IO.File.Exists(rfaPath)) return null;
+                    if (string.IsNullOrEmpty(root) || !System.IO.Directory.Exists(root))
+                        continue;
 
-                if (doc.LoadFamily(rfaPath, out Family loaded))
-                {
-                    StingLog.Info($"PlaceSymbols: auto-loaded '{rfaPath}'");
-                    return loaded?.GetFamilySymbolIds()
-                        .Select(id => doc.GetElement(id) as FamilySymbol)
-                        .FirstOrDefault(s => s != null &&
-                            string.Equals(s.Name, symbolName, StringComparison.OrdinalIgnoreCase))
-                        ?? loaded?.GetFamilySymbolIds()
+                    string rfaPath;
+                    try
+                    {
+                        rfaPath = System.IO.Directory
+                            .EnumerateFiles(root, symbolName + ".rfa", SearchOption.AllDirectories)
+                            .FirstOrDefault()
+                            ?? System.IO.Directory
+                                .EnumerateFiles(root, "*.rfa", SearchOption.AllDirectories)
+                                .FirstOrDefault(f => string.Equals(
+                                    System.IO.Path.GetFileNameWithoutExtension(f),
+                                    symbolName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"FindOrLoadFamilySymbol scan '{root}': {ex.Message}");
+                        continue;
+                    }
+                    if (string.IsNullOrEmpty(rfaPath)) continue;
+
+                    if (doc.LoadFamily(rfaPath, out Family loaded) && loaded != null)
+                    {
+                        StingLog.Info($"PlaceSymbols: auto-loaded '{rfaPath}'");
+                        return loaded.GetFamilySymbolIds()
                             .Select(id => doc.GetElement(id) as FamilySymbol)
-                            .FirstOrDefault(s => s != null);
+                            .FirstOrDefault(s => s != null &&
+                                string.Equals(s.Name, symbolName, StringComparison.OrdinalIgnoreCase))
+                            ?? loaded.GetFamilySymbolIds()
+                                .Select(id => doc.GetElement(id) as FamilySymbol)
+                                .FirstOrDefault(s => s != null);
+                    }
+
+                    // LoadFamily returned false — the family is already present under
+                    // a different type name; resolve it by family (file) name.
+                    var fn = System.IO.Path.GetFileNameWithoutExtension(rfaPath);
+                    var existing = loadedSymbols.FirstOrDefault(s =>
+                        string.Equals(s.FamilyName, fn, StringComparison.OrdinalIgnoreCase))
+                        ?? new FilteredElementCollector(doc)
+                            .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                            .FirstOrDefault(s => string.Equals(s.FamilyName, fn,
+                                StringComparison.OrdinalIgnoreCase));
+                    if (existing != null) return existing;
                 }
             }
             catch (Exception ex)
