@@ -2127,6 +2127,7 @@ namespace StingTools.UI
 
                     // Phase 188 — sibling-panel toggles so dialogs / quick-action buttons can fire them.
                     case "ToggleHvacPanel":        RunCommand<Core.ToggleHvacPanelCommand>(app); break;
+                    case "ToggleMcpServer":        RunCommand<Core.ToggleMcpServerCommand>(app); break;
                     case "ToggleMaterialHub":      RunCommand<Core.ToggleMaterialHubCommand>(app); break;
                     case "ToggleElectricalPanel":  RunCommand<Core.ToggleElectricalPanelCommand>(app); break;
                     case "TogglePlumbingPanel":    RunCommand<Core.TogglePlumbingPanelCommand>(app); break;

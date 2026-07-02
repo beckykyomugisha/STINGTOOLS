@@ -2261,7 +2261,9 @@ namespace StingTools.Core
                     "Show/hide the STING Lightning Protection Center dockable panel.");
                 AddButton(panel, "btnPanelSustain",     "STING\nSustain",     asm, typeof(ToggleSustainabilityPanelCommand).FullName,
                     "Show/hide the STING Sustainability Center (EDGE / LEED) dockable panel.");
-                StingLog.Info("STING Panels ribbon group populated (7 dockable-panel toggles).");
+                AddButton(panel, "btnMcpServer",        "MCP\nServer",        asm, typeof(ToggleMcpServerCommand).FullName,
+                    "Start/stop the STING MCP server — exposes STING to AI assistants (Claude Code / Desktop).");
+                StingLog.Info("STING Panels ribbon group populated (7 dockable-panel toggles + MCP server).");
             }
             catch (Exception ex)
             {
@@ -2591,6 +2593,71 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle Sustainability panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// One-click MCP server toggle. Sibling to <see cref="ToggleHvacPanelCommand"/>
+    /// (ribbon "STING Panels" group + "ToggleMcpServer" dispatch tag). Starts/stops
+    /// the in-process MCP server live, auto-generates + persists an auth token on
+    /// first enable, and offers a copy-to-clipboard Claude Code config. No modal UI
+    /// runs inside the server itself — this command is the human-facing surface.
+    /// Blocked when unlicensed by the OnStartup license gate (panels/buttons are only
+    /// registered for a licensed install) and by StingCommandHandler's tag hard-lock.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleMcpServerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                if (StingTools.Mcp.StingMcpServer.IsRunning)
+                {
+                    StingTools.Mcp.StingMcpServer.StopAndPersist();
+                    TaskDialog.Show("STING MCP Server", "MCP server stopped.");
+                    return Result.Succeeded;
+                }
+
+                if (!StingTools.Mcp.StingMcpServer.StartAndPersist(out string err))
+                {
+                    TaskDialog.Show("STING MCP Server",
+                        "Could not start the MCP server.\n\n" +
+                        (string.IsNullOrEmpty(err) ? "Unknown error — see StingTools.log." : err));
+                    return Result.Failed;
+                }
+
+                var info = StingTools.Mcp.StingMcpServer.GetConnectionInfo();
+
+                var td = new TaskDialog("STING MCP Server")
+                {
+                    MainInstruction = "MCP server started.",
+                    MainContent =
+                        "STING is now exposed to AI assistants (Claude Code / Claude Desktop) over HTTP.\n\n" +
+                        "URL:  " + info.Url + "\n" +
+                        "Auth token:  " + info.Token + "\n\n" +
+                        "Claude Code must send this token in the X-Sting-Mcp-Token header on every " +
+                        "request. Use 'Copy Claude config' to put a ready-to-paste .mcp.json on your clipboard.",
+                    CommonButtons = TaskDialogCommonButtons.Close,
+                    DefaultButton = TaskDialogResult.Close,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Copy Claude config to clipboard");
+
+                if (td.Show() == TaskDialogResult.CommandLink1)
+                {
+                    try { System.Windows.Clipboard.SetText(info.ClaudeConfig); }
+                    catch (Exception cbEx) { StingLog.Warn("MCP config clipboard copy failed: " + cbEx.Message); }
+                }
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle MCP server failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

@@ -93,10 +93,13 @@ namespace StingTools.Mcp
                     "Revit did not accept the request (raise failed). Retry shortly.");
             }
 
-            if (raised != ExternalEventRequest.Accepted)
+            if (raised != ExternalEventRequest.Accepted &&
+                raised != ExternalEventRequest.Pending)
             {
-                // Not accepted → don't block. Mark abandoned so the drain loop skips it
-                // if a coalesced Execute later reaches it.
+                // Accepted and Pending both mean the request IS registered and will be
+                // honoured — the pending Execute drains the whole queue, so the job still
+                // runs. Only a truly non-accepted result (Denied) becomes revit_busy;
+                // abandoning Pending would spuriously fail concurrent/pipelined calls.
                 unit.Abandoned = true;
                 return McpJobResult.Error("revit_busy",
                     "Revit is in a modal dialog / transaction / sync — retry shortly.");

@@ -47,6 +47,13 @@ namespace StingTools.Mcp
         // known tags). Loaded from config; consumed by the write suite (Phase 3).
         private static List<string>  _toolAllowlist = new List<string>();
 
+        // Reason the last Start() failed to bind (null when the last start succeeded).
+        // Surfaced by StartAndPersist() so the toggle dialog can show why.
+        private static string        _lastStartError;
+
+        /// <summary>True while the HTTP listener is bound and serving.</summary>
+        internal static bool IsRunning => _running;
+
         // ── Lifecycle ────────────────────────────────────────────────────────────
 
         internal static void StartIfConfigured()
@@ -88,6 +95,7 @@ namespace StingTools.Mcp
             {
                 _listener.Start();
                 _running = true;
+                _lastStartError = null;
                 _thread  = new Thread(Listen) { IsBackground = true, Name = "StingMcpServer" };
                 _thread.Start();
                 StingLog.Info($"STING MCP server started — http://localhost:{port}/mcp/");
@@ -100,8 +108,9 @@ namespace StingTools.Mcp
             }
             catch (HttpListenerException ex)
             {
-                StingLog.Warn($"MCP server could not bind to port {port}: {ex.Message}. " +
-                              "Try a different mcp_port in STING_LLM_CONFIG.json.");
+                _lastStartError = $"Could not bind to port {port}: {ex.Message}. " +
+                                  "Try a different mcp_port in STING_LLM_CONFIG.json.";
+                StingLog.Warn("MCP server " + _lastStartError);
             }
         }
 
@@ -110,6 +119,109 @@ namespace StingTools.Mcp
             _running = false;
             try { _listener?.Stop(); } catch { }
             StingLog.Info("STING MCP server stopped");
+        }
+
+        // ── One-click toggle surface (used by ToggleMcpServerCommand) ─────────────
+
+        /// <summary>
+        /// Start the server live and persist the enable flag + auth token to
+        /// STING_LLM_CONFIG.json (all other keys preserved). Generates a token on
+        /// first enable when none is configured. Reuses <see cref="Start"/> — does
+        /// NOT duplicate listener logic. Returns false (with <paramref name="error"/>
+        /// populated from the bind reason) and does NOT persist mcp_enabled=true when
+        /// the port cannot be bound.
+        /// </summary>
+        internal static bool StartAndPersist(out string error)
+        {
+            error = null;
+            if (_running) return true;
+
+            try
+            {
+                string cfgPath = Path.Combine(StingToolsApp.DataPath, "STING_LLM_CONFIG.json");
+                JObject cfg = File.Exists(cfgPath)
+                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                    : new JObject();
+
+                // Auto-generate a shared secret on first enable.
+                string token = cfg["mcp_auth_token"]?.Value<string>()?.Trim() ?? "";
+                if (string.IsNullOrEmpty(token))
+                    token = Guid.NewGuid().ToString("N");
+
+                int port = cfg["mcp_port"]?.Value<int>() ?? _port;
+
+                // Load token + allowlist into memory BEFORE Start so the first
+                // request is already governed by the configured policy.
+                _authToken = token;
+                _toolAllowlist = (cfg["mcp_tool_allowlist"] as JArray)?
+                    .Select(t => t?.Value<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToList() ?? new List<string>();
+
+                Start(port);
+
+                if (!_running)
+                {
+                    // Bind failed — surface the reason, persist nothing.
+                    error = _lastStartError ?? $"MCP server failed to start on port {port}.";
+                    return false;
+                }
+
+                // Persist only after a confirmed successful start.
+                cfg["mcp_enabled"]    = true;
+                cfg["mcp_auth_token"] = token;
+                if (cfg["mcp_port"] == null) cfg["mcp_port"] = port;
+                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                StingLog.Info("MCP server enabled + persisted via toggle.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MCP StartAndPersist failed", ex);
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Stop the server and persist mcp_enabled=false. The auth token is KEPT so
+        /// re-enabling reuses the same secret (no client reconfiguration needed).
+        /// </summary>
+        internal static void StopAndPersist()
+        {
+            Stop();
+            try
+            {
+                string cfgPath = Path.Combine(StingToolsApp.DataPath, "STING_LLM_CONFIG.json");
+                if (!File.Exists(cfgPath)) return;
+                JObject cfg = JObject.Parse(File.ReadAllText(cfgPath));
+                cfg["mcp_enabled"] = false;   // keep mcp_auth_token
+                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                StingLog.Info("MCP server disabled + persisted via toggle (token retained).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MCP StopAndPersist config write failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Current URL + token + a ready-to-paste Claude Code .mcp.json snippet.</summary>
+        internal static McpConnectionInfo GetConnectionInfo()
+        {
+            string url = $"http://localhost:{_port}/mcp/";
+            var snippet = new JObject(
+                new JProperty("mcpServers", new JObject(
+                    new JProperty("stingtools", new JObject(
+                        new JProperty("url", url),
+                        new JProperty("headers", new JObject(
+                            new JProperty("X-Sting-Mcp-Token", _authToken))))))));
+            return new McpConnectionInfo
+            {
+                Url          = url,
+                Token        = _authToken,
+                ClaudeConfig = snippet.ToString(Formatting.Indented),
+            };
         }
 
         // ── HTTP listener loop ───────────────────────────────────────────────────
