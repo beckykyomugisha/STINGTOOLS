@@ -344,6 +344,25 @@ namespace StingTools.Mcp
                 case "get_status":    result = ToolGetStatus();        break;
                 case "ask_bim":       result = ToolAskBim(args);       break;
                 case "get_model_info": result = ToolGetModelInfo();    break;
+
+                // ── Phase 2 — Tier 1 generic read tools ─────────────────────────
+                case "query_elements":    result = McpQueryTools.QueryElements(args);   break;
+                case "get_element":       result = McpQueryTools.GetElement(args);      break;
+                case "get_parameter":     result = McpQueryTools.GetParameter(args);    break;
+                case "get_selection":     result = McpQueryTools.GetSelection();        break;
+                case "set_selection":     result = McpQueryTools.SetSelection(args);    break;
+                case "list_views":        result = McpQueryTools.ListViews(args);       break;
+                case "list_sheets":       result = McpQueryTools.ListSheets(args);      break;
+                case "get_schedule_data": result = McpQueryTools.GetScheduleData(args); break;
+                case "get_compliance":    result = McpQueryTools.GetCompliance(args);   break;
+                case "get_tag_status":    result = McpQueryTools.GetTagStatus(args);    break;
+                case "run_validator":     result = McpQueryTools.RunValidator(args);    break;
+
+                // ── Phase 2 — Tier 3 read-only discovery meta-tools ─────────────
+                case "search_capabilities":   result = McpDiscoveryTools.SearchCapabilities(args);  break;
+                case "describe_capability":   result = McpDiscoveryTools.DescribeCapability(args);   break;
+                case "invoke_capability":     result = McpDiscoveryTools.InvokeCapability(args);     break;
+
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");
                     break;
