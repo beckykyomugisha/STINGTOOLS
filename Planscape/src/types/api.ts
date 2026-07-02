@@ -275,7 +275,9 @@ export interface OfflineAction {
     | 'HC_PRESSURE_LOG'
     | 'HC_ANTI_LIGATURE_AUDIT'
     // HC-21 — HTM 04-01 sentinel-flush capture, queued when offline.
-    | 'HC_WATER_FLUSH';
+    | 'HC_WATER_FLUSH'
+    // Penetration firestop sign-off, queued when offline (mirrors the HC screens).
+    | 'PENETRATION_SIGNOFF';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;

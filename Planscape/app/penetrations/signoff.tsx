@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useProjectStore } from '@/stores/projectStore';
 import { putPenetrationSignoff, PenetrationSignoff } from '@/api/endpoints';
+import { enqueue } from '@/utils/offlineQueue';
 
 const STATUSES = ['INSTALLED', 'INSPECTED', 'SIGNED-OFF', 'REWORK'];
 
@@ -101,7 +102,11 @@ export default function PenetrationSignoffScreen() {
       Alert.alert('Sign-off saved', `${controlNumber} status = ${status}.`);
       router.back();
     } catch (e: any) {
-      Alert.alert('Saved offline', `Submit failed: ${e?.message ?? 'unknown'}. The offline queue will retry.`);
+      // Enqueue for automatic replay on reconnect (mirrors the healthcare
+      // screens). Carries controlNumber alongside projectId + body because the
+      // PUT replay needs three args.
+      await enqueue('PENETRATION_SIGNOFF', { projectId: activeProject.id, controlNumber, body });
+      Alert.alert('Saved offline', `${controlNumber} queued — the offline queue will retry on reconnect.`);
       router.back();
     } finally { setBusy(false); }
   };

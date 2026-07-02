@@ -379,6 +379,15 @@ async function replayAction(action: OfflineAction): Promise<void> {
       );
       break;
     }
+    case 'PENETRATION_SIGNOFF': {
+      const { putPenetrationSignoff } = await import('@/api/endpoints');
+      await putPenetrationSignoff(
+        p.projectId as string,
+        p.controlNumber as string,
+        p.body as Parameters<typeof putPenetrationSignoff>[2],
+      );
+      break;
+    }
   }
 }
 
