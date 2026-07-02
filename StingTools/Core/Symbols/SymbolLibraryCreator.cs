@@ -169,6 +169,11 @@ namespace StingTools.Core.Symbols
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
 
+            // F2/F7 — prime the data-driven line-weight registry (corporate JSON +
+            // this project's override) so curve weights resolve from data, not a
+            // hardcoded table, and edits are picked up without a recompile.
+            LineWeightRegistry.Load(hostDoc);
+
             foreach (var def in lib.Symbols)
             {
                 if (string.IsNullOrWhiteSpace(def?.Id))
@@ -1108,43 +1113,18 @@ namespace StingTools.Core.Symbols
 
         // ── P1-1 — curve line-weight via family subcategories ────────────────
 
-        /// <summary>IEC 60617 / BS EN 60617-grounded default projection line weights
-        /// keyed by (lower-cased) subcategory name. Main conductors / busbars plot
-        /// heavier than enclosures / outlines / auxiliary construction lines.</summary>
-        private static readonly Dictionary<string, int> _subcatWeights =
-            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "outline", 1 }, { "construction", 1 }, { "hidden", 1 },
-            { "annotation", 1 }, { "dimension", 1 }, { "text", 1 },
-            { "auxiliary", 2 }, { "aux", 2 }, { "wiring", 2 }, { "control", 2 },
-            { "earth", 2 }, { "earthing", 2 }, { "bonding", 2 }, { "enclosure", 2 },
-            { "protection", 3 }, { "switching", 3 }, { "equipment", 3 },
-            { "valve", 3 }, { "fitting", 3 }, { "accessory", 3 }, { "device", 3 },
-            { "power", 4 }, { "feeder", 4 }, { "riser", 4 }, { "main", 4 },
-            { "conductor", 4 }, { "cable", 4 }, { "pipe", 4 }, { "duct", 4 },
-            { "busbar", 5 }, { "bus", 5 }, { "hv", 5 },
-        };
-
-        /// <summary>Maps the legacy line-style hint ("Wide/Medium/Thin Lines") to a weight.</summary>
-        private static int StyleWeight(string style)
-        {
-            if (string.IsNullOrWhiteSpace(style)) return 0;
-            string s = style.Trim().ToLowerInvariant();
-            if (s.Contains("wide")) return 5;
-            if (s.Contains("medium")) return 3;
-            if (s.Contains("thin")) return 1;
-            return 0;
-        }
-
-        /// <summary>Resolves the effective projection line weight (1–16), else 0 (unset →
-        /// template default). Precedence: explicit per-curve weight → subcategory table →
-        /// style hint → symbol-level default.</summary>
+        /// <summary>F2/F7 — resolves the effective projection line weight (1–16), else 0
+        /// (unset → template default). Precedence: explicit per-curve weight → data-driven
+        /// subcategory registry (robust normalise + alias + longest-substring match) →
+        /// style hint → symbol-level default. The registry is loaded from
+        /// STING_LINE_WEIGHTS.json (+ project override) in CreateAllFromFile.</summary>
         private static int ResolveLineWeight(string subcat, string style, int curveWeight, int symWeight)
         {
             if (curveWeight >= 1 && curveWeight <= 16) return curveWeight;
-            if (!string.IsNullOrWhiteSpace(subcat) &&
-                _subcatWeights.TryGetValue(subcat.Trim(), out var w)) return w;
-            int sw = StyleWeight(style);
+            var reg = LineWeightRegistry.Active;
+            int w = reg.Resolve(subcat);
+            if (w >= 1 && w <= 16) return w;
+            int sw = reg.StyleWeight(style);
             if (sw > 0) return sw;
             if (symWeight >= 1 && symWeight <= 16) return symWeight;
             return 0;
