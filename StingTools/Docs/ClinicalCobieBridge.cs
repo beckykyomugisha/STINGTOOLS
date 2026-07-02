@@ -39,9 +39,13 @@ namespace StingTools.Docs
             ("EndoscopeAER",          "CEQ_ENDO_AER_REF_TXT",    "", "Owning automated endoscope reprocessor"),
             ("EndoReprocessCycles",   "CEQ_ENDO_CYCLE_COUNT_INT","", "Endoscope reprocessing cycle count"),
             ("EndoLastReprocessed",   "CEQ_ENDO_LAST_REPRO_DT",  "", "Last reprocessing date (ISO 8601)"),
-            // Imaging structural verification: there is no CEQ_IMAGING_STRUCT_LOAD data
-            // param (only the tag-warning WARN_CEQ_IMAGING_STRUCT_LOAD); the real signal
-            // is the structural engineer's sign-off date on CLN_STRUCT_SIGN_OFF_DT.
+            // Imaging structural requirements for heavy equipment. There is no
+            // CEQ_IMAGING_STRUCT_LOAD data param (only the tag-warning
+            // WARN_CEQ_IMAGING_STRUCT_LOAD); the real load data lives on the H-23
+            // CLN_* structural params, which are the primary FM-handover datum, with
+            // the structural engineer's sign-off date as provenance.
+            ("ImposedFloorLoad",      "CLN_FLOOR_LOAD_KN_M2_NR", "kN/m2", "Imposed floor load for heavy imaging equipment"),
+            ("EquipmentWeight",       "CLN_EQUIP_WEIGHT_KG_NR",  "kg",    "Heavy-equipment design weight"),
             ("StructuralSignOff",     "CLN_STRUCT_SIGN_OFF_DT",  "", "Structural engineer sign-off date (heavy imaging load verification)"),
         };
 
