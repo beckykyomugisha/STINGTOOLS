@@ -383,6 +383,10 @@ namespace StingTools.Mcp
                 case "tag_scheme_render": result = McpWriteTools.TagSchemeRender(args); break;
                 case "export_boq":        result = McpWriteTools.ExportBoq(args);       break;
 
+                // ── Dialog→engine: cable sizing ─────────────────────────────────
+                case "size_cable_calc":   result = McpQueryTools.SizeCableCalc(args);   break;
+                case "size_cables":       result = McpWriteTools.SizeCables(args);      break;
+
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");
                     break;

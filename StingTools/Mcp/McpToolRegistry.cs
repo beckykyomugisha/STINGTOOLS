@@ -438,6 +438,64 @@ namespace StingTools.Mcp
                     ""properties"": { ""format"": { ""type"": ""string"", ""description"": ""csv (xlsx not yet supported dialog-free)"" } }
                 }"),
             },
+
+            // ── Dialog→engine: cable sizing ─────────────────────────────────────
+            new McpTool
+            {
+                Name = "size_cable_calc",
+                Description =
+                    "READ-ONLY. Pure BS 7671 / NEC cable-sizing calculator — no Revit model needed. Given a " +
+                    "single circuit's electrical inputs, returns the recommended conductor size, design current, " +
+                    "voltage drop %, VD compliance, and the next standard breaker. loadKW and lengthM are " +
+                    "required. Numeric inputs are in engineering units (kW, V, m, °C, mm²). " +
+                    "Example: {loadKW:7.2, voltageV:230, lengthM:35, phases:1, standard:'BS7671'}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""loadKW"":         { ""type"": ""number"",  ""description"": ""Load in kW (required)"" },
+                        ""voltageV"":       { ""type"": ""number"",  ""description"": ""System voltage (default 230)"" },
+                        ""powerFactor"":    { ""type"": ""number"",  ""description"": ""Power factor (default 0.85)"" },
+                        ""lengthM"":        { ""type"": ""number"",  ""description"": ""Run length in metres (required)"" },
+                        ""installMethod"":  { ""type"": ""string"",  ""description"": ""BS 7671 method A1/B1/C/E/F… (default C)"" },
+                        ""material"":       { ""type"": ""string"",  ""description"": ""Cu | Al (default Cu)"" },
+                        ""insulation"":     { ""type"": ""string"",  ""description"": ""PVC70 | XLPE90 | LSOH90 | THWN90 (default XLPE90)"" },
+                        ""vdLimitPct"":     { ""type"": ""number"",  ""description"": ""Max voltage drop % (default 3)"" },
+                        ""standard"":       { ""type"": ""string"",  ""description"": ""BS7671 | NEC | IEC60364 (default BS7671)"" },
+                        ""phases"":         { ""type"": ""integer"", ""description"": ""1 or 3 (default 1)"" },
+                        ""ambientTempC"":   { ""type"": ""number"",  ""description"": ""Ambient °C (default 30)"" },
+                        ""continuousLoad"": { ""type"": ""boolean"", ""description"": ""NEC continuous-load flag (default false)"" }
+                    },
+                    ""required"": [""loadKW"", ""lengthM""]
+                }"),
+            },
+            new McpTool
+            {
+                Name = "size_cables",
+                Description =
+                    "WRITE. Size cables for the model's electrical power circuits and write the results back " +
+                    "(ELC_WIRE_CSA_MM2, ELC_CBL_SZ_MM, ELC_VOLT_DROP_PCT) via CableSizerApplyEngine. Inputs are " +
+                    "read from each circuit (apparent load, voltage, poles, length); install method / material / " +
+                    "insulation / standard / VD limit are design ASSUMPTIONS you may pass (BS7671 / C / Cu / XLPE90 " +
+                    "defaults). Circuits missing load or length are skipped (reported). scope: 'selection' " +
+                    "(selected circuits or equipment→their circuits) or 'view' run synchronously; 'project' runs " +
+                    "asynchronously (returns {jobId} — poll get_job_status). dryRun:true returns a per-circuit plan " +
+                    "and mutates nothing. confirm:true is REQUIRED for scope=project or >25 circuits. " +
+                    "Example: {scope:'view', standard:'BS7671', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":         { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""installMethod"": { ""type"": ""string"",  ""description"": ""Design assumption (default C)"" },
+                        ""material"":      { ""type"": ""string"",  ""description"": ""Cu | Al (default Cu)"" },
+                        ""insulation"":    { ""type"": ""string"",  ""description"": ""Default XLPE90"" },
+                        ""vdLimitPct"":    { ""type"": ""number"",  ""description"": ""Max VD % (default 3)"" },
+                        ""standard"":      { ""type"": ""string"",  ""description"": ""BS7671 | NEC | IEC60364 (default BS7671)"" },
+                        ""ambientTempC"":  { ""type"": ""number"",  ""description"": ""Ambient °C (default 30)"" },
+                        ""dryRun"":        { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"":       { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 circuits"" }
+                    }
+                }"),
+            },
         };
     }
 }
