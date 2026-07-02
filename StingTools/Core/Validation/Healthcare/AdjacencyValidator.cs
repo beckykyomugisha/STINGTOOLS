@@ -13,23 +13,21 @@ namespace StingTools.Core.Validation.Healthcare
     /// HEALTHCARE_ADJACENCY_HBN.csv (HC-DEF-08) and rooms are matched against them
     /// by BOTH canonical room-class code and RoomClassCodes department, so a room
     /// tagged e.g. IMG-CT satisfies a rule keyed on the IMAGING department.
-    /// Distance heuristic uses room centroids (door-graph BFS is HC-DEF-04).</summary>
+    /// Proximity is measured by a door/room-graph BFS ("N doors apart", HC-DEF-04)
+    /// via RoomGraphBuilder, falling back to a labelled room-centroid distance where
+    /// no usable door graph exists.</summary>
     public class AdjacencyValidator : HealthcareValidatorBase
     {
         public override string Name => "AdjacencyValidator";
         private const string Tag = "AdjacencyValidator";
 
-        // Threshold (m) under which two rooms are considered "directly accessible".
-        // Hc.AdjacencyDepth (1..4) maps to ×10 m here as a stand-in until door-graph
-        // BFS lands in Phase H-10. Wrapping command sets these from HcOptions.
+        // Centroid-fallback thresholds (m), used only when no usable door graph
+        // exists for a room. Wrapping command sets these from HcOptions.AdjacencyDepth.
         public double MaxMandatoryDistanceM { get; set; } = 30.0;
-        // Threshold (m) over which forbidden adjacency is satisfied.
         public double MinForbiddenDistanceM { get; set; } = 30.0;
 
-        // Forward-prep for Phase H-10. The wrapping command always sets this
-        // from HcOptions.AdjacencyDepth so that when door-graph BFS lands the
-        // calling sites need no further changes — only the implementation of
-        // Validate() switches over from centroid distance to BFS hop count.
+        // Door-graph BFS hop cap (HC-DEF-04). Bounds the NearestHops search; the
+        // wrapping command sets it from HcOptions.AdjacencyDepth.
         public int BfsDepth { get; set; } = 3;
 
         public override List<ValidationResult> Validate(Document doc)
