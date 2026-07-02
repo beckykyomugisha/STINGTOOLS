@@ -379,6 +379,10 @@ namespace StingTools.Mcp
                 case "auto_tag":        result = McpWriteTools.AutoTag(args);       break;
                 case "get_job_status":  result = McpWriteTools.GetJobStatus(args);  break;
 
+                // ── Phase 3b — remaining engine-backed write verbs ──────────────
+                case "tag_scheme_render": result = McpWriteTools.TagSchemeRender(args); break;
+                case "export_boq":        result = McpWriteTools.ExportBoq(args);       break;
+
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");
                     break;

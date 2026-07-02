@@ -392,13 +392,50 @@ namespace StingTools.Mcp
             {
                 Name = "get_job_status",
                 Description =
-                    "Poll an asynchronous MCP job (e.g. a project-scope auto_tag). Returns the completed " +
-                    "read-back once done, {status:'running'} while in progress, or 'not_found' for an unknown/" +
-                    "expired jobId. Example: {jobId:'a1b2c3…'}.",
+                    "Poll an asynchronous MCP job (e.g. a project-scope auto_tag, tag_scheme_render, or " +
+                    "export_boq). Returns the completed read-back once done, {status:'running'} while in " +
+                    "progress, or 'not_found' for an unknown/expired jobId. Example: {jobId:'a1b2c3…'}.",
                 InputSchema = JObject.Parse(@"{
                     ""type"": ""object"",
                     ""properties"": { ""jobId"": { ""type"": ""string"", ""description"": ""jobId returned by an async write"" } },
                     ""required"": [""jobId""]
+                }"),
+            },
+
+            // ── Phase 3b — remaining engine-backed WRITE verbs ──────────────────
+            new McpTool
+            {
+                Name = "tag_scheme_render",
+                Description =
+                    "WRITE. Render the project's enabled tag schemes onto elements, writing each scheme's " +
+                    "string to its target parameter (TagSchemeEngine). scope: 'selection' or 'view' run " +
+                    "synchronously and return {changed, skipped, errors, sampleIds}; 'project' runs " +
+                    "asynchronously and returns {jobId, status:'running'} — poll get_job_status. dryRun:true " +
+                    "returns a would-change plan and mutates nothing. confirm:true is REQUIRED for scope=project " +
+                    "or any scoped run affecting more than 25 elements. No enabled schemes → reports 0 changes. " +
+                    "All mutation runs inside a rolled-back transaction. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 elements"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
+                Name = "export_boq",
+                Description =
+                    "Produce a Bill of Quantities export FILE from the live model (does not modify the model). " +
+                    "format:'csv' builds the BOQ (BOQCostManager) and writes a flat cost CSV, returning the " +
+                    "output file path. This runs asynchronously (BOQ builds can be heavy) and returns " +
+                    "{jobId, status:'running'} — poll get_job_status for {path, lines, format}. " +
+                    "format:'xlsx' is not yet available dialog-free (returns no_engine_path). " +
+                    "Requires an active document and licence. Example: {format:'csv'}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": { ""format"": { ""type"": ""string"", ""description"": ""csv (xlsx not yet supported dialog-free)"" } }
                 }"),
             },
         };

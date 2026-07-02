@@ -13,10 +13,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
+using StingTools.BOQ;
 using StingTools.Core;
 
 namespace StingTools.Mcp
@@ -61,6 +63,70 @@ namespace StingTools.Mcp
             // Named Tier-2 verbs bypass the allowlist — dispatch straight through the
             // shared engine registry (guardrails: dry-run, confirm, tx-group, sync/async).
             return McpEngineRegistry.DispatchWrite("AutoTag", callArgs).ToCallResult();
+        }
+
+        // ── tag_scheme_render ────────────────────────────────────────────────────
+
+        public static McpCallResult TagSchemeRender(JObject args)
+        {
+            args = args ?? new JObject();
+            string scope = args["scope"]?.Value<string>()?.Trim().ToLowerInvariant() ?? "view";
+            if (scope != "selection" && scope != "view" && scope != "project")
+                return McpJobResult.Error("bad_args", "scope must be one of: selection, view, project.").ToCallResult();
+
+            var callArgs = (JObject)args.DeepClone();
+            callArgs["scope"] = scope;
+            return McpEngineRegistry.DispatchWrite("TagScheme_Render", callArgs).ToCallResult();
+        }
+
+        // ── export_boq ───────────────────────────────────────────────────────────
+        //
+        // File output (not model mutation), so it does NOT go through the engine
+        // registry / TransactionGroup. Still license+document gated. BOQ builds can be
+        // heavy on large models → run async (Submit) and poll get_job_status. Uses the
+        // verified dialog-free path:
+        //   BOQCostManager.BuildBOQDocument(doc)  +  BoqErpExporter.ExportCsv(boq, path)
+
+        public static McpCallResult ExportBoq(JObject args)
+        {
+            args = args ?? new JObject();
+            string format = args["format"]?.Value<string>()?.Trim().ToLowerInvariant() ?? "csv";
+            if (format != "csv" && format != "xlsx")
+                return McpJobResult.Error("bad_args", "format must be 'csv' or 'xlsx'.").ToCallResult();
+            if (format == "xlsx")
+                return McpJobResult.Error("no_engine_path",
+                    "xlsx BOQ export has no dialog-free path yet (the workbook builder is UI-bound). " +
+                    "Use format:'csv'. xlsx is on the dialog→engine backlog.").ToCallResult();
+
+            string jobId = McpJobBridge.Submit(uiApp =>
+            {
+                var lic = McpSafety.RequireLicense();
+                if (lic != null) return lic;
+                var de = McpSafety.RequireDocument(uiApp);
+                if (de != null) return de;
+                Document doc = uiApp.ActiveUIDocument.Document;
+
+                try
+                {
+                    BOQDocument boq = BOQCostManager.BuildBOQDocument(doc);
+                    string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_BOQ", ".csv");
+                    BoqErpExporter.ExportCsv(boq, path);
+
+                    int lines = boq?.AllItems?.Count ?? 0;
+                    StingLog.Info($"MCP export_boq: {lines} line(s) → {path}");
+                    return McpJobResult.Success(
+                        $"BOQ exported ({lines} line(s)) to {Path.GetFileName(path)}.",
+                        new Dictionary<string, object> { ["path"] = path, ["lines"] = lines, ["format"] = "csv" });
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("MCP export_boq failed", ex);
+                    return McpJobResult.Error("exception", ex.Message);
+                }
+            });
+
+            return McpJobResult.Success("BOQ export started. Poll get_job_status with this jobId.",
+                new Dictionary<string, object> { ["jobId"] = jobId, ["status"] = "running" }).ToCallResult();
         }
 
         // ── set_parameter ────────────────────────────────────────────────────────

@@ -41,8 +41,9 @@ namespace StingTools.Mcp
         private static readonly Dictionary<string, EngineHandler> _handlers =
             new Dictionary<string, EngineHandler>(StringComparer.OrdinalIgnoreCase)
             {
-                ["AutoTag"]  = AutoTagHandler,   // view-scope tagging
-                ["BatchTag"] = AutoTagHandler,   // project-scope tagging
+                ["AutoTag"]          = AutoTagHandler,          // view-scope tagging
+                ["BatchTag"]         = AutoTagHandler,          // project-scope tagging
+                ["TagScheme_Render"] = TagSchemeRenderHandler,  // render project tag schemes
             };
 
         public static bool IsEngineBacked(string tag) => tag != null && _handlers.ContainsKey(tag);
@@ -221,6 +222,97 @@ namespace StingTools.Mcp
             rb["collisions"]   = stats.TotalCollisions;
             return McpJobResult.Success(
                 $"Tagged {changed} element(s); skipped {stats.TotalSkipped}; {stats.Warnings.Count} warning(s).", rb);
+        }
+
+        // ── TagScheme_Render engine handler ──────────────────────────────────────
+        //
+        // Drives TagSchemeRenderer.RenderAll — the verified dialog-free per-element scheme
+        // renderer ("Must be called inside an open transaction"), quoted:
+        //   public static int RenderAll(Document doc, Element el, string[] tokenVals)
+        // TagSchemeRenderer.Render(...) is the read-only sibling used for the dry-run plan.
+
+        private static McpJobResult TagSchemeRenderHandler(Document doc, JObject args, bool dryRun)
+        {
+            var schemes = TagSchemeRegistry.EnabledSchemes(doc);
+            if (schemes == null || schemes.Count == 0)
+                return McpJobResult.Success("No enabled tag schemes in this project — nothing to render.",
+                    McpSafety.WriteResult(0, 0, null, null));
+
+            List<Element> targets = CollectTaggableTargets(doc, args);
+            if (targets.Count == 0)
+                return McpJobResult.Success("No taggable elements in scope.",
+                    McpSafety.WriteResult(0, 0, null, null));
+
+            // Read-only would-change scan (Render writes nothing) for the plan + confirm gate.
+            var wouldChange = new List<Element>();
+            foreach (Element el in targets)
+            {
+                try
+                {
+                    foreach (var s in schemes)
+                    {
+                        string rendered = TagSchemeRenderer.Render(doc, el, s, null);
+                        if (string.IsNullOrEmpty(rendered)) continue;
+                        if (!string.Equals(rendered, ParameterHelpers.GetString(el, s.TargetParam), StringComparison.Ordinal))
+                        { wouldChange.Add(el); break; }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"TagScheme dry-scan {el?.Id}: {ex.Message}"); }
+            }
+            var sampleIds = wouldChange.Take(25).Select(e => e.Id.Value).ToList();
+
+            if (dryRun)
+            {
+                var plan = new Dictionary<string, object>
+                {
+                    ["status"]         = "dry_run",
+                    ["enabledSchemes"] = schemes.Count,
+                    ["totalTargets"]   = targets.Count,
+                    ["plannedChanges"] = wouldChange.Count,
+                    ["sampleIds"]      = sampleIds,
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would update scheme tags on {wouldChange.Count} of {targets.Count} element(s) " +
+                    $"({schemes.Count} enabled scheme(s)); nothing mutated.", plan);
+            }
+
+            bool isProject = (args["scope"]?.Value<string>()?.ToLowerInvariant() ?? "") == "project";
+            var confirmErr = McpSafety.RequireConfirmation(wouldChange.Count, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            int changed = 0, tokensWritten = 0;
+            var errors = new List<string>();
+
+            McpSafety.RunInTransactionGroup(doc, "STING MCP TagScheme_Render", () =>
+            {
+                using (var tx = new Transaction(doc, "STING MCP TagScheme_Render"))
+                {
+                    tx.Start();
+                    foreach (Element el in targets)
+                    {
+                        try
+                        {
+                            int written = TagSchemeRenderer.RenderAll(doc, el, null);
+                            if (written > 0) { changed++; tokensWritten += written; }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"{el?.Id?.Value}: {ex.Message}");
+                            StingLog.Warn($"MCP TagScheme_Render {el?.Id}: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+            });
+
+            StingLog.Info($"MCP TagScheme_Render[{(isProject ? "project" : "scoped")}]: {targets.Count} targets → " +
+                          $"{changed} element(s) updated, {tokensWritten} scheme string(s) written, {errors.Count} error(s).");
+
+            var rb = McpSafety.WriteResult(changed, targets.Count - changed, errors, sampleIds);
+            rb["enabledSchemes"] = schemes.Count;
+            rb["tokensWritten"]  = tokensWritten;
+            return McpJobResult.Success(
+                $"Rendered scheme tags on {changed} element(s); {tokensWritten} scheme string(s) written; {errors.Count} error(s).", rb);
         }
 
         /// <summary>Collect taggable targets for the requested scope (selection ids /
