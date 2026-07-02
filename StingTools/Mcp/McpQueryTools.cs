@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
+using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Core;
 using StingTools.Core.Validation;
 
@@ -22,6 +23,52 @@ namespace StingTools.Mcp
 {
     internal static class McpQueryTools
     {
+        // ── size_cable_calc (pure BS 7671 / NEC calc; no Revit model) ────────────
+
+        public static McpCallResult SizeCableCalc(JObject args)
+        {
+            var lic = McpSafety.RequireLicense();
+            if (lic != null) return lic.ToCallResult();
+
+            args = args ?? new JObject();
+            var input = new CableSizeInput
+            {
+                LoadKW         = args["loadKW"]?.Value<double?>() ?? 0,
+                VoltageV       = args["voltageV"]?.Value<double?>() ?? 230.0,
+                PowerFactor    = args["powerFactor"]?.Value<double?>() ?? 0.85,
+                LengthM        = args["lengthM"]?.Value<double?>() ?? 0,
+                InstallMethod  = args["installMethod"]?.Value<string>() ?? "C",
+                Material       = args["material"]?.Value<string>() ?? "Cu",
+                Insulation     = args["insulation"]?.Value<string>() ?? "XLPE90",
+                VDLimitPct     = args["vdLimitPct"]?.Value<double?>() ?? 3.0,
+                Standard       = args["standard"]?.Value<string>() ?? "BS7671",
+                Phases         = args["phases"]?.Value<int?>() ?? 1,
+                AmbientTempC   = args["ambientTempC"]?.Value<double?>() ?? 30.0,
+                ContinuousLoad = args["continuousLoad"]?.Value<bool?>() ?? false,
+            };
+
+            if (input.LoadKW <= 0 || input.LengthM <= 0)
+                return McpJobResult.Error("bad_args",
+                    "loadKW and lengthM are required and must be > 0.").ToCallResult();
+
+            CableSizeResult r = CableSizerEngine.Calculate(input);
+            var data = new Dictionary<string, object>
+            {
+                ["designCurrentA"]    = Math.Round(r.DesignCurrentA, 1),
+                ["recommendedCsaMm2"] = r.RecommendedCsaMm2,
+                ["csaLabel"]          = r.CsaLabel,
+                ["actualVoltDropPct"] = Math.Round(r.ActualVoltDropPct, 2),
+                ["vdCompliant"]       = r.VDCompliant,
+                ["proposedBreakerA"]  = r.ProposedBreakerA,
+                ["warning"]           = r.Warning ?? "",
+                ["derivationNote"]    = r.DerivationNote ?? "",
+            };
+            string summary = string.IsNullOrEmpty(r.Warning)
+                ? $"{r.CsaLabel} — Ib {r.DesignCurrentA:F1} A, VD {r.ActualVoltDropPct:F2}% ({(r.VDCompliant ? "OK" : "over")}), breaker {r.ProposedBreakerA} A."
+                : $"Cable calc warning: {r.Warning}";
+            return McpJobResult.Success(summary, data).ToCallResult();
+        }
+
         // ── Pagination helper (reused by every large reader) ─────────────────────
 
         /// <summary>

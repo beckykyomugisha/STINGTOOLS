@@ -28,7 +28,9 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
+using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Core;
+using StingTools.Core.Electrical;
 using StingTools.Tags;
 
 namespace StingTools.Mcp
@@ -44,6 +46,7 @@ namespace StingTools.Mcp
                 ["AutoTag"]          = AutoTagHandler,          // view-scope tagging
                 ["BatchTag"]         = AutoTagHandler,          // project-scope tagging
                 ["TagScheme_Render"] = TagSchemeRenderHandler,  // render project tag schemes
+                ["ElecCableSize"]    = ElecSizeCablesApplyHandler, // BS 7671 cable sizing apply
             };
 
         public static bool IsEngineBacked(string tag) => tag != null && _handlers.ContainsKey(tag);
@@ -314,6 +317,102 @@ namespace StingTools.Mcp
             return McpJobResult.Success(
                 $"Rendered scheme tags on {changed} element(s); {tokensWritten} scheme string(s) written; {errors.Count} error(s).", rb);
         }
+
+        // ── ElecCableSize engine handler (delegates to CableSizerApplyEngine) ─────
+        //
+        // The dialog→engine extraction wired into MCP: the pure CableSizerEngine.Calculate
+        // stays the single source of sizing math; CableSizerApplyEngine.Apply(doc, scope,
+        // assumptions, dryRun) is the single source of model application. This handler only
+        // adapts args → scope/assumptions and applies the Phase-3a guardrails.
+
+        private static McpJobResult ElecSizeCablesApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            CableSizeInput assumptions = ReadCableAssumptions(args);
+            CableSizingScope scope = ResolveCableScope(doc, args);
+
+            // Plan pass (writes nothing) — also yields the count for the confirm gate.
+            var plan = CableSizerApplyEngine.Apply(doc, scope, assumptions, dryRun: true);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]         = "dry_run",
+                    ["inspected"]      = plan.Inspected,
+                    ["plannedChanges"] = plan.Planned,
+                    ["skipped"]        = plan.Skipped.Count,
+                    ["skippedDetail"]  = plan.Skipped.Take(25).ToList(),
+                    ["sampleChanges"]  = plan.SampleChanges.Select(SampleToDict).ToList(),
+                    ["assumptions"]    = AssumptionsToDict(assumptions),
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would size {plan.Planned} of {plan.Inspected} power circuit(s); " +
+                    $"{plan.Skipped.Count} skipped; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == CableSizingScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            CableSizingApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP ElecCableSize", () =>
+            {
+                applied = CableSizerApplyEngine.Apply(doc, scope, assumptions, dryRun: false);
+            });
+
+            StingLog.Info($"MCP ElecCableSize[{(isProject ? "project" : "scoped")}]: " +
+                          $"sized {applied.Sized}, skipped {applied.Skipped.Count}, errors {applied.Errors.Count}.");
+
+            var rb = McpSafety.WriteResult(applied.Sized, applied.Skipped.Count, applied.Errors,
+                applied.SampleChanges.Select(c => c.ElementId));
+            rb["inspected"]     = applied.Inspected;
+            rb["sampleChanges"] = applied.SampleChanges.Select(SampleToDict).ToList();
+            return McpJobResult.Success(
+                $"Sized {applied.Sized} circuit(s); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).", rb);
+        }
+
+        private static CableSizeInput ReadCableAssumptions(JObject args)
+        {
+            JObject a = (args?["assumptions"] as JObject) ?? args ?? new JObject();
+            return new CableSizeInput
+            {
+                InstallMethod  = a["installMethod"]?.Value<string>() ?? "C",
+                Material       = a["material"]?.Value<string>() ?? "Cu",
+                Insulation     = a["insulation"]?.Value<string>() ?? "XLPE90",
+                VDLimitPct     = a["vdLimitPct"]?.Value<double?>() ?? 3.0,
+                Standard       = a["standard"]?.Value<string>() ?? "BS7671",
+                AmbientTempC   = a["ambientTempC"]?.Value<double?>() ?? 30.0,
+                ContinuousLoad = a["continuousLoad"]?.Value<bool?>() ?? false,
+                VoltageV       = a["voltageV"]?.Value<double?>() ?? 230.0,   // fallback only
+            };
+        }
+
+        private static CableSizingScope ResolveCableScope(Document doc, JObject args)
+        {
+            string scope = args?["scope"]?.Value<string>()?.ToLowerInvariant() ?? "view";
+            if (scope == "selection")
+            {
+                var ids = new List<ElementId>();
+                if (args["_elementIds"] is JArray arr)
+                    foreach (var t in arr) { long v = t?.Value<long?>() ?? -1; if (v >= 0) ids.Add(new ElementId(v)); }
+                return CableSizingScope.ForIds(ids);
+            }
+            if (scope == "project") return CableSizingScope.Project();
+            return CableSizingScope.ActiveView();
+        }
+
+        private static Dictionary<string, object> SampleToDict(CableSizingChange c) => new Dictionary<string, object>
+        {
+            ["id"] = c.ElementId, ["circuit"] = c.Circuit, ["designCurrentA"] = c.DesignCurrentA,
+            ["csaMm2"] = c.CsaMm2, ["csaLabel"] = c.CsaLabel, ["voltDropPct"] = c.VoltDropPct, ["breakerA"] = c.BreakerA,
+        };
+
+        private static Dictionary<string, object> AssumptionsToDict(CableSizeInput a) => new Dictionary<string, object>
+        {
+            ["installMethod"] = a.InstallMethod, ["material"] = a.Material, ["insulation"] = a.Insulation,
+            ["standard"] = a.Standard, ["vdLimitPct"] = a.VDLimitPct, ["ambientTempC"] = a.AmbientTempC,
+            ["continuousLoad"] = a.ContinuousLoad,
+        };
 
         /// <summary>Collect taggable targets for the requested scope (selection ids /
         /// active view / project), filtered to STING-taggable + editable + not demolished.</summary>
