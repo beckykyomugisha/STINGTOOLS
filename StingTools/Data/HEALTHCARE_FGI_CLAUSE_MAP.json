@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1.0,
+  "description": "HC-DEF-09 FGI adoption escalation map. Data seam that maps a validator finding CODE to the FGI 2026 clause it corresponds to (e.g. \"LIG.RISK.UNSET\": \"FGI-2.1-8.2\"). When the project sets PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT + PRJ_ORG_HEALTH_DESIGN_FREEZE_DT and a mapped clause has been ADOPTED by that jurisdiction on/before the freeze date (per FgiAdoptionTracker), the finding escalates Warning->Error. Left empty on purpose — STING does not assert which finding maps to which FGI clause for a given jurisdiction; supply the mapping your design authority mandates. Corporate baseline; override per project at <project>/_BIM_COORD/fgi_clause_map.json. With no mapping / jurisdiction / freeze date, behaviour is unchanged.",
+  "mappings": {}
+}

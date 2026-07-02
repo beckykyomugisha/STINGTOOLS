@@ -21139,6 +21139,30 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT",
+      "guid": "c8d4f6e2-1518-4d27-8c61-0e7a3f9ba018",
+      "description": "US jurisdiction code (state/authority) for FGI 2026 adoption escalation, e.g. TX/NY/CA/FL/WA [FGI]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_HEALTH_DESIGN_FREEZE_DT",
+      "guid": "c8d4f6e2-1519-4d27-8c61-0e7a3f9ba019",
+      "description": "Project design-freeze date (ISO 8601); FGI clauses adopted by this date escalate Warning->Error [FGI]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M",
       "guid": "c8d4f6e2-1517-4d27-8c61-0e7a3f9ba017",
       "description": "Radiation shielding default source-to-occupant distance (m) when RAD_DISTANCE_M_NR is not modelled; conservative fallback 1.0 m [NCRP 147]",

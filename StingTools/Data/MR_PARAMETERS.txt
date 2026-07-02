@@ -2879,6 +2879,8 @@ PARAM	c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014	PRJ_ORG_HEALTH_IHFG_BOOL	YESNO		13	1	
 PARAM	c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015	PRJ_ORG_HEALTH_PACK_PROFILE_TXT	TEXT		13	1	Healthcare pack profile (acute / community / mental / standalone) for validator gating	1	0
 PARAM	c8d4f6e2-1516-4d27-8c61-0e7a3f9ba016	PRJ_ORG_HEALTH_RAD_QE_ENFORCE_TXT	TEXT		13	1	Radiation QE sign-off enforcement: BLOCKING = hard gate (unsigned output blocked / validators error); empty or other = advisory DRAFT (default)	1	0
 PARAM	c8d4f6e2-1517-4d27-8c61-0e7a3f9ba017	PRJ_ORG_HEALTH_RAD_DEFAULT_DIST_M	NUMBER		13	1	Radiation shielding default source-to-occupant distance (m) when RAD_DISTANCE_M_NR is not modelled; conservative fallback 1.0 m [NCRP 147]	1	0
+PARAM	c8d4f6e2-1518-4d27-8c61-0e7a3f9ba018	PRJ_ORG_HEALTH_FGI_JURISDICTION_TXT	TEXT		13	1	US jurisdiction code (state/authority) for FGI 2026 adoption escalation, e.g. TX/NY/CA/FL/WA [FGI]	1	0
+PARAM	c8d4f6e2-1519-4d27-8c61-0e7a3f9ba019	PRJ_ORG_HEALTH_DESIGN_FREEZE_DT	TEXT		13	1	Project design-freeze date (ISO 8601); FGI clauses adopted by this date escalate Warning->Error [FGI]	1	0
 PARAM	c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001	CLN_FLOOR_LOAD_KN_M2_NR	NUMBER		28	1	Imposed floor load (kN/m2) for heavy imaging equipment [H-23]	1	0
 PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (_m/s rms VC band) [H-23]	1	0
 PARAM	c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003	CLN_EQUIP_WEIGHT_KG_NR	NUMBER		28	1	Heavy-equipment design weight (kg) [H-23]	1	0

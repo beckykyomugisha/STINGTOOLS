@@ -46,7 +46,8 @@ namespace StingTools.Core.Validation.Healthcare
 
                 if (string.IsNullOrEmpty(GetParam(el, "LIG_PRODUCT_RATING_TXT")))
                 {
-                    res.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
+                    res.Add(new ValidationResult(el.Id,
+                        FgiAdoptionContext.Escalate(doc, "LIG.RATING.MISSING", ValidationSeverity.Error),
                         "LIG.RATING.MISSING",
                         $"{el.Name} in ligature-resistant room {room.Name} missing LIG_PRODUCT_RATING_TXT",
                         Tag));
@@ -58,7 +59,10 @@ namespace StingTools.Core.Validation.Healthcare
             {
                 var risk = GetParam(r, "CLN_LIG_RISK_LVL_TXT");
                 if (string.IsNullOrEmpty(risk))
-                    res.Add(new ValidationResult(r.Id, ValidationSeverity.Warning,
+                    res.Add(new ValidationResult(r.Id,
+                        // HC-DEF-09 — escalates Warning→Error where the project jurisdiction has
+                        // adopted the mapped FGI clause by the design-freeze date (else unchanged).
+                        FgiAdoptionContext.Escalate(doc, "LIG.RISK.UNSET", ValidationSeverity.Warning),
                         "LIG.RISK.UNSET",
                         $"Ligature-resistant room {r.Name} has no risk level (CLN_LIG_RISK_LVL_TXT)",
                         Tag));
