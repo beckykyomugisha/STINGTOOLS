@@ -40,31 +40,36 @@
             "x1": -0.2,
             "y1": -0.3,
             "x2": 0.2,
-            "y2": -0.3
+            "y2": -0.3,
+            "subcategory": "Outline"
           },
           {
             "x1": 0.2,
             "y1": -0.3,
             "x2": 0.2,
-            "y2": 0.3
+            "y2": 0.3,
+            "subcategory": "Outline"
           },
           {
             "x1": 0.2,
             "y1": 0.3,
             "x2": -0.2,
-            "y2": 0.3
+            "y2": 0.3,
+            "subcategory": "Outline"
           },
           {
             "x1": -0.2,
             "y1": 0.3,
             "x2": -0.2,
-            "y2": -0.3
+            "y2": -0.3,
+            "subcategory": "Outline"
           },
           {
             "x1": -0.2,
             "y1": -0.3,
             "x2": 0.2,
-            "y2": 0.3
+            "y2": 0.3,
+            "subcategory": "Main"
           }
         ],
         "connectionLines": [
@@ -72,13 +77,15 @@
             "x1": 0,
             "y1": -0.3,
             "x2": 0,
-            "y2": -0.6
+            "y2": -0.6,
+            "subcategory": "Conductor"
           },
           {
             "x1": 0,
             "y1": 0.3,
             "x2": 0,
-            "y2": 0.6
+            "y2": 0.6,
+            "subcategory": "Conductor"
           }
         ]
       },
