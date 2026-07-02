@@ -3991,6 +3991,1093 @@
       },
       "standard": "IEC 60617",
       "status": "draft"
+    },
+    {
+      "id": "ELEC_SOCKET_UNSWITCHED",
+      "name": "Unswitched Socket Outlet",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Socket",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 / BS EN 60617 (unswitched socket)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 180,
+            "subcategory": "Main"
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": 0,
+            "x2": 0.4,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.4,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 85,
+        "depthMm": 35,
+        "heightMm": 85
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SOCKET_WEATHERPROOF",
+      "name": "Weatherproof Socket Outlet",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Socket",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 (weatherproof socket, IP-rated)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180,
+            "subcategory": "Main"
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": 0.3,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": 0.35,
+            "x2": -0.45,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.35,
+            "x2": -0.45,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 100,
+        "depthMm": 50,
+        "heightMm": 100
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_SOCKET_ISOLATOR",
+      "name": "Cooker Isolator Switch",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 (cooker control / isolator, 45A)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.35,
+            "x2": 0.4,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.35,
+            "x2": 0.4,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.35,
+            "x2": -0.4,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.35,
+            "x2": -0.4,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": 0.2,
+            "y2": 0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.28,
+            "y2": -0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.22,
+            "cy": -0.2,
+            "r": 0.06,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_PANEL_BOARD",
+      "name": "Panel Board / DB",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS 7671 (distribution board / panel board)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.3,
+            "x2": 0.5,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.3,
+            "x2": -0.4,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.28,
+            "y1": -0.3,
+            "x2": -0.28,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.16,
+            "y1": -0.3,
+            "x2": -0.16,
+            "y2": 0.18,
+            "subcategory": "Main"
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": 0.2,
+                "y": -0.2
+              },
+              {
+                "x": 0.45,
+                "y": -0.2
+              },
+              {
+                "x": 0.45,
+                "y": 0.05
+              },
+              {
+                "x": 0.2,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 800,
+        "depthMm": 150,
+        "heightMm": 600
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_MOTOR_STARTER",
+      "name": "Motor Starter / MCC Starter",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "standard": "BS 7671 (motor starter / MCC bucket)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.35,
+            "x2": -0.35,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": -0.35,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.22,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.35,
+            "x2": 0,
+            "y2": 0.5
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_DATA_SOCKET",
+      "name": "Data Socket Outlet (RJ45)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Data",
+      "symbolSize": 4.0,
+      "standard": "BS EN 50173 (structured cabling data outlet)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0.3,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_TELEPHONE_SOCKET",
+      "name": "Telephone Socket",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Data",
+      "symbolSize": 4.0,
+      "standard": "BS EN 50173 (telephone outlet)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": -0.25,
+                "y": 0.1
+              },
+              {
+                "x": 0.25,
+                "y": 0.1
+              },
+              {
+                "x": 0,
+                "y": -0.2
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_ADDRESSABLE_INTERFACE",
+      "name": "Addressable Interface Module",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Control",
+      "symbolSize": 4.0,
+      "standard": "BS 5839-1 (addressable I/O interface module)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.18,
+            "x2": 0.12,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_ISOLATOR_MAIN",
+      "name": "Main Isolator / Switch Disconnector",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 6.0,
+      "standard": "BS 7671 / BS EN 60617 (switch disconnector)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.45,
+            "x2": 0,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.45,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0.28,
+            "y2": 0.22,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.2,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.45,
+            "x2": 0,
+            "y2": 0.6
+          },
+          {
+            "x1": 0,
+            "y1": -0.45,
+            "x2": 0,
+            "y2": -0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_TRANSFORMER",
+      "name": "Transformer (step-down/isolation)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS EN 60617 (two-winding transformer)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.15,
+            "r": 0.25,
+            "startDeg": "Main",
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.15,
+            "r": 0.25,
+            "startDeg": "Main",
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.4,
+            "x2": 0,
+            "y2": 0.55
+          },
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": -0.55
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 800,
+        "depthMm": 600,
+        "heightMm": 900
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_GENERATOR",
+      "name": "Emergency Generator",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS 7671 / BS EN 60617 (generator = circle + AC)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": -0.13,
+            "cy": 0,
+            "r": 0.13,
+            "startDeg": 180,
+            "endDeg": 360,
+            "subcategory": "Main"
+          },
+          {
+            "cx": 0.13,
+            "cy": 0,
+            "r": 0.13,
+            "startDeg": 0,
+            "endDeg": 180,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.4,
+            "x2": 0,
+            "y2": 0.55
+          },
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": -0.55
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 2000,
+        "depthMm": 900,
+        "heightMm": 1200
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_UPS",
+      "name": "UPS Unit",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS 7671 / BS EN 62040 (UPS)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.3,
+            "x2": 0.5,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.3,
+            "x2": -0.5,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.25,
+            "x2": -0.15,
+            "y2": 0.25,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.15,
+            "x2": 0.15,
+            "y2": 0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": -0.35,
+            "y2": 0
+          },
+          {
+            "x1": 0.15,
+            "y1": 0,
+            "x2": 0.35,
+            "y2": 0
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 700,
+        "depthMm": 800,
+        "heightMm": 1400
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_ATS",
+      "name": "Automatic Transfer Switch (ATS)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 6.0,
+      "standard": "BS 7671 / BS EN 60947-6-1 (automatic transfer switch)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.35,
+            "y1": -0.4,
+            "x2": 0.35,
+            "y2": -0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.4,
+            "x2": 0.35,
+            "y2": 0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.4,
+            "x2": -0.35,
+            "y2": 0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.4,
+            "x2": -0.35,
+            "y2": -0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.35,
+            "x2": -0.15,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.35,
+            "x2": 0.15,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": -0.35,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.1,
+            "r": 0.04,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.15,
+            "y1": 0.4,
+            "x2": -0.15,
+            "y2": 0.55
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.4,
+            "x2": 0.15,
+            "y2": 0.55
+          },
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": -0.55
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_CONTAINMENT_TRAY",
+      "name": "Cable Tray (plan symbol)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Containment",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 / BS EN 61537 (cable tray run)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.6,
+            "y1": 0.15,
+            "x2": 0.6,
+            "y2": 0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.6,
+            "y1": -0.15,
+            "x2": 0.6,
+            "y2": -0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.6,
+            "y1": 0.15,
+            "x2": -0.55,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.6,
+            "y1": -0.15,
+            "x2": -0.55,
+            "y2": -0.05
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_CONTAINMENT_LADDER",
+      "name": "Cable Ladder (plan symbol)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Containment",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 / BS EN 61537 (cable ladder run)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.6,
+            "y1": 0.18,
+            "x2": 0.6,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.6,
+            "y1": -0.18,
+            "x2": 0.6,
+            "y2": -0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.18,
+            "x2": -0.4,
+            "y2": 0.18
+          },
+          {
+            "x1": -0.13,
+            "y1": -0.18,
+            "x2": -0.13,
+            "y2": 0.18
+          },
+          {
+            "x1": 0.13,
+            "y1": -0.18,
+            "x2": 0.13,
+            "y2": 0.18
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.18,
+            "x2": 0.4,
+            "y2": 0.18
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_CONTAINMENT_TRUNKING",
+      "name": "Cable Trunking (plan symbol)",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Containment",
+      "symbolSize": 4.0,
+      "standard": "BS 7671 / BS EN 50085 (cable trunking run)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.6,
+            "y1": -0.14,
+            "x2": 0.6,
+            "y2": -0.14,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.6,
+            "y1": -0.14,
+            "x2": 0.6,
+            "y2": 0.14,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.6,
+            "y1": 0.14,
+            "x2": -0.6,
+            "y2": 0.14,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.6,
+            "y1": 0.14,
+            "x2": -0.6,
+            "y2": -0.14,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.14,
+            "x2": -0.4,
+            "y2": 0.14
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.14,
+            "x2": 0.4,
+            "y2": 0.14
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "ELEC_CONDUIT_POINT",
+      "name": "Conduit Junction Point",
+      "category": "Electrical",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Containment",
+      "symbolSize": 3.0,
+      "standard": "BS 7671 / BS EN 61386 (conduit junction / draw point)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.18,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.18,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.18,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.18,
+            "x2": 0,
+            "y2": 0.5,
+            "subcategory": "Main"
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": -0.1,
+                "y": -0.1
+              },
+              {
+                "x": 0.1,
+                "y": -0.1
+              },
+              {
+                "x": 0.1,
+                "y": 0.1
+              },
+              {
+                "x": -0.1,
+                "y": 0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
     }
   ]
 }

@@ -1642,6 +1642,585 @@
         "heightMm": 50
       },
       "status": "draft"
+    },
+    {
+      "id": "LTG_EMERGENCY_NON_MAINTAINED",
+      "name": "Emergency Luminaire (Non-Maintained)",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-11 / BS 5266 (non-maintained emergency luminaire)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.2,
+            "x2": 0.45,
+            "y2": -0.2,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.2,
+            "x2": 0.45,
+            "y2": 0.2,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": 0.2,
+            "x2": -0.45,
+            "y2": 0.2,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.2,
+            "x2": -0.45,
+            "y2": -0.2,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0,
+            "y1": -0.2,
+            "x2": 0,
+            "y2": 0.2,
+            "subcategory": "Main"
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": 0.02,
+                "y": -0.18
+              },
+              {
+                "x": 0.43,
+                "y": -0.18
+              },
+              {
+                "x": 0.43,
+                "y": 0.18
+              },
+              {
+                "x": 0.02,
+                "y": 0.18
+              }
+            ]
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 350,
+        "depthMm": 100,
+        "heightMm": 80
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_WALL_WASHER",
+      "name": "Wall Washer Luminaire",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-11 / CIBSE LG (wall washer)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.15,
+            "r": 0.3,
+            "startDeg": 180,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.15,
+            "x2": 0.3,
+            "y2": 0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": 0,
+            "x2": -0.28,
+            "y2": -0.28
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.32
+          },
+          {
+            "x1": 0.2,
+            "y1": 0,
+            "x2": 0.28,
+            "y2": -0.28
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_EXTERIOR_BOLLARD",
+      "name": "Exterior Bollard Light",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-11 (bollard luminaire)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": -0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": 0.15,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_EXTERIOR_COLUMN",
+      "name": "Exterior Column / Street Light",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Lighting",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-11 (column-mounted street luminaire)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.28,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.5,
+            "x2": 0,
+            "y2": 0.08,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.5,
+            "x2": 0.12,
+            "y2": -0.5
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.28,
+            "x2": 0.2,
+            "y2": 0.28,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_SWITCH_1G",
+      "name": "1-Gang Light Switch",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 / BS EN 60617 (1-gang switch)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.15,
+            "cy": -0.15,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.25,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": -0.4,
+            "y2": -0.4
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_SWITCH_2G",
+      "name": "2-Gang Light Switch",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (2-gang switch)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": -0.15,
+            "r": 0.07,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.32,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.42,
+            "y2": -0.4
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_SWITCH_2WAY",
+      "name": "2-Way Switch",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (two-way / intermediate switch)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.2,
+            "cy": -0.15,
+            "r": 0.07,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.28,
+            "y2": 0.05,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.15,
+            "x2": -0.42,
+            "y2": -0.4
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_DIMMER",
+      "name": "Dimmer Switch",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (dimmer switch)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.15,
+            "cy": -0.15,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.25,
+            "y2": 0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": -0.4,
+            "y2": -0.4
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": 0.1,
+                "y": -0.35
+              },
+              {
+                "x": 0.4,
+                "y": -0.35
+              },
+              {
+                "x": 0.4,
+                "y": -0.1
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_OCCUPANCY_SENSOR",
+      "name": "Occupancy / PIR Sensor",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Sensor",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (PIR presence detector)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": -0.05,
+            "r": 0.16,
+            "startDeg": 20,
+            "endDeg": 160,
+            "subcategory": "Main"
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": 0.05,
+            "x2": 0.15,
+            "y2": 0.05
+          },
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": -0.1,
+            "y2": 0.15
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.1,
+            "x2": 0.1,
+            "y2": 0.15
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_EMERGENCY_TEST",
+      "name": "Emergency Test Key Switch",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Switch",
+      "symbolSize": 4.0,
+      "standard": "BS 5266 (emergency test key switch)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": -0.15,
+            "cy": -0.15,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.28,
+            "cy": 0.28,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.1,
+            "y1": -0.1,
+            "x2": 0.22,
+            "y2": 0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.15,
+            "x2": -0.4,
+            "y2": -0.4
+          },
+          {
+            "x1": 0.28,
+            "y1": 0.2,
+            "x2": 0.28,
+            "y2": 0.42
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "LTG_LUMINAIRE_CONTROL",
+      "name": "DALI Luminaire Controller",
+      "category": "Lighting",
+      "familyType": "MEPEquipment",
+      "discipline": "Electrical",
+      "subcategory": "Control",
+      "symbolSize": 4.0,
+      "standard": "IEC 62386 (DALI luminaire controller)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.25,
+            "x2": 0.3,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.25,
+            "x2": 0.3,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.25,
+            "x2": -0.3,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.25,
+            "x2": -0.3,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.12,
+            "x2": -0.15,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.12,
+            "x2": 0.05,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0,
+            "x2": 0.02,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.1,
+            "y1": -0.12,
+            "x2": 0.1,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.12,
+            "x2": 0.28,
+            "y2": 0.12
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.12,
+            "x2": 0.28,
+            "y2": -0.12
+          }
+        ]
+      },
+      "status": "draft"
     }
   ]
 }
