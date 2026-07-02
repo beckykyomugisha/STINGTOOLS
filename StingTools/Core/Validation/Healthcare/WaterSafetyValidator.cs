@@ -21,6 +21,17 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
+            // Regional HTM code base — SHTM raises the TMV upper limit to 43 °C and
+            // the sentinel-flush minimum to 180 s; England/unset is unchanged.
+            var region = HtmRegionContext.Resolve(doc);
+            double tmvMaxC = HTMStandards.GetTmvOutletMaxC(region);
+            if (region != HtmRegion.England && doc.ProjectInformation != null)
+                res.Add(new ValidationResult(doc.ProjectInformation.Id, ValidationSeverity.Info,
+                    "PLM.HTM.REGION",
+                    $"Water-safety thresholds applied per {HtmRegionContext.Label(region)}: " +
+                    $"TMV window {HTMStandards.TmvOutletMinC}–{tmvMaxC:F0} °C, sentinel flush ≥ {HTMStandards.GetLegionellaFlushS(region)} s",
+                    Tag));
+
             var cats = new[] {
                 BuiltInCategory.OST_PlumbingFixtures,
                 BuiltInCategory.OST_PipeCurves,
@@ -57,11 +68,11 @@ namespace StingTools.Core.Validation.Healthcare
                 var hot = GetParamDouble(el, "PLM_HOTWTR_TEMP_C");
                 var tmv = GetParam(el, "PLM_TMV_TYPE_TXT");
                 if (!string.IsNullOrEmpty(tmv) && tmv != "NONE" && hot.HasValue &&
-                    (hot.Value < HTMStandards.TmvOutletMinC || hot.Value > HTMStandards.TmvOutletMaxC))
+                    (hot.Value < HTMStandards.TmvOutletMinC || hot.Value > tmvMaxC))
                 {
                     res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
                         "PLM.TMV.OUTLET_TEMP",
-                        $"{el.Name} TMV outlet {hot:F1} °C outside HTM 04-01 window {HTMStandards.TmvOutletMinC}–{HTMStandards.TmvOutletMaxC} °C",
+                        $"{el.Name} TMV outlet {hot:F1} °C outside HTM 04-01 window {HTMStandards.TmvOutletMinC}–{tmvMaxC:F0} °C",
                         Tag));
                 }
 

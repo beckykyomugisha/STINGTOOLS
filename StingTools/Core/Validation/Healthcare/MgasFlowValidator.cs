@@ -1,6 +1,7 @@
 using StingTools.Core.Validation;
 using System;
 using Autodesk.Revit.DB;
+using StingTools.Standards.HTM;
 using StingTools.Standards.NFPA99;
 using System.Collections.Generic;
 
@@ -16,6 +17,17 @@ namespace StingTools.Core.Validation.Healthcare
         {
             var res = new List<ValidationResult>();
             if (doc == null) return res;
+
+            // Regional HTM code base — WHTM (Wales) mandates Class-2 phosphorus-
+            // deoxidised copper pipework over the HTM 02-01 baseline. Surface it so
+            // the specifier sees the regional pipework requirement.
+            var region = HtmRegionContext.Resolve(doc);
+            var regionalPipeClass = HTMStandards.GetMgpsPipeClass(region);
+            if (!string.IsNullOrEmpty(regionalPipeClass) && doc.ProjectInformation != null)
+                res.Add(new ValidationResult(doc.ProjectInformation.Id, ValidationSeverity.Info,
+                    "MGS.HTM.REGION",
+                    $"{HtmRegionContext.Label(region)} mandates MGPS pipework: {regionalPipeClass} [HTM 02-01 regional variant]",
+                    Tag));
 
             var cats = new[] {
                 BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_PipeFitting,

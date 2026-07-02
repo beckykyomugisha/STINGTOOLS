@@ -131,6 +131,74 @@ namespace StingTools.Standards.HTM
 
         public static IEnumerable<string> KnownRoomClasses() => MinAchByRoomClass.Keys;
 
+        // ── Regional HTM variant gating (WHTM/SHTM/HBN-NI) ──────────────────
+        // The lookups above are the NHS-England baseline. The region-aware
+        // overloads below apply the deltas encoded in HtmRegionalVariants when a
+        // project sets PRJ_ORG_HEALTH_HTM_REGION_TXT (resolved once by the caller
+        // via HtmRegionContext). England / unset returns the baseline VERBATIM, so
+        // existing projects are byte-for-byte unchanged. A regional value is only
+        // ever applied as an UPLIFT (Math.Max) so a coarser regional table that
+        // simply "defers to HTM" can never LOWER an England threshold — it only
+        // raises it where the region genuinely mandates more.
+
+        // Maps a room class to the HtmRegionalVariants ACH key that governs it.
+        // OR classes are intentionally NOT mapped: the regional OR_ACH key and the
+        // per-variant OR-CONV/OR-ULTRA/OR-HYBRID baselines use different encodings,
+        // so routing them would misstate the threshold (see HtmRegionalVariants).
+        private static string RegionalAchKey(string roomClass) =>
+            (roomClass ?? "").ToUpperInvariant() switch
+            {
+                "AIIR" or "PE-PROT" or "ANTERM" => "HTM_03_01_ISO_ACH",
+                "WARD-INPT"                     => "HTM_03_01_WARD_ACH",
+                _                               => null,
+            };
+
+        /// <summary>Region-aware minimum ACH. England/unset == GetMinAch(roomClass).
+        /// Other regions uplift to the HtmRegionalVariants minimum where one applies.</summary>
+        public static int? GetMinAch(string roomClass, HtmRegion region)
+        {
+            var baseAch = GetMinAch(roomClass);
+            if (region == HtmRegion.England || string.IsNullOrEmpty(roomClass)) return baseAch;
+            var key = RegionalAchKey(roomClass);
+            if (key == null) return baseAch;
+            var tbl = HtmRegionalVariants.GetForRegion(region);
+            if (tbl.TryGetValue(key, out var v) && int.TryParse(v.Value, out var regional))
+                return baseAch.HasValue ? System.Math.Max(baseAch.Value, regional) : regional;
+            return baseAch;
+        }
+
+        /// <summary>Region-aware TMV outlet upper temperature (°C). England 41;
+        /// SHTM (Scotland) 43. Falls back to the England constant.</summary>
+        public static double GetTmvOutletMaxC(HtmRegion region)
+        {
+            var tbl = HtmRegionalVariants.GetForRegion(region);
+            if (tbl.TryGetValue("HTM_04_01_HOT_DELIVERY_C", out var v) &&
+                double.TryParse(v.Value, out var c)) return c;
+            return TmvOutletMaxC;
+        }
+
+        // HTM 04-01 sentinel-flush minimum duration (s) — England baseline.
+        public const int LegionellaFlushSecEngland = 120;
+
+        /// <summary>Region-aware sentinel-flush minimum duration (s). England 120;
+        /// SHTM (Scotland) 180.</summary>
+        public static int GetLegionellaFlushS(HtmRegion region)
+        {
+            var tbl = HtmRegionalVariants.GetForRegion(region);
+            if (tbl.TryGetValue("HTM_04_01_LEGIONELLA_FLUSH_S", out var v) &&
+                int.TryParse(v.Value, out var s)) return s;
+            return LegionellaFlushSecEngland;
+        }
+
+        /// <summary>Region-aware MGPS pipework class mandate, when the region imposes
+        /// one over the HTM 02-01 baseline (empty when none — e.g. England). WHTM
+        /// (Wales) mandates Class-2 phosphorus-deoxidised copper.</summary>
+        public static string GetMgpsPipeClass(HtmRegion region)
+        {
+            var tbl = HtmRegionalVariants.GetForRegion(region);
+            return tbl.TryGetValue("HTM_02_01_PIPE_CLASS", out var v) ? v.Value : "";
+        }
+
         // ── HTM 08-01 (Acoustics) ───────────────────────────────────────────
 
         // HTM 08-01 — indoor ambient noise NR target excerpts per room class.

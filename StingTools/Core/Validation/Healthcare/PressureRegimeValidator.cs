@@ -32,6 +32,15 @@ namespace StingTools.Core.Validation.Healthcare
             var res = new List<ValidationResult>();
             if (doc == null) return res;
 
+            // Resolve the regional HTM code base once; region-adjusted lookups below
+            // fall back to NHS-England verbatim when unset.
+            var region = HtmRegionContext.Resolve(doc);
+            if (region != HtmRegion.England && doc.ProjectInformation != null)
+                res.Add(new ValidationResult(doc.ProjectInformation.Id, ValidationSeverity.Info,
+                    "CLN.HTM.REGION",
+                    $"Ventilation thresholds applied per {HtmRegionContext.Label(region)} [PRJ_ORG_HEALTH_HTM_REGION_TXT]",
+                    Tag));
+
             // Cache-aware: pulls from HealthcareValidatorContext when running
             // inside RunAllHealthcareValidators; falls back to its own collector otherwise.
             foreach (var r in GetClinicalRoomsCached(doc))
@@ -62,8 +71,8 @@ namespace StingTools.Core.Validation.Healthcare
                         Tag));
                 }
 
-                // 3. ACH minimum.
-                var achMin = HTMStandards.GetMinAch(rc);
+                // 3. ACH minimum (region-adjusted; England == baseline).
+                var achMin = HTMStandards.GetMinAch(rc, region);
                 var achActual = GetParamDouble(r, "HVC_AIR_CHANGES_PER_HR");
                 if (achMin.HasValue && achActual.HasValue && achActual.Value < achMin.Value - 0.5)
                 {
