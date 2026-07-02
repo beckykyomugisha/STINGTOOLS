@@ -1651,6 +1651,26 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "EMERGENCY",
+          "type": "YesNo",
+          "shared": true,
+          "default": "Yes",
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-11 / BS 5266 (non-maintained emergency luminaire)",
       "geometry": {
         "lines": [
@@ -1729,6 +1749,19 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-11 / CIBSE LG (wall washer)",
       "geometry": {
         "arcs": [
@@ -1778,6 +1811,19 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-11 (bollard luminaire)",
       "geometry": {
         "arcs": [
@@ -1823,6 +1869,19 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 5.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WATTAGE",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 60617-11 (column-mounted street luminaire)",
       "geometry": {
         "arcs": [
@@ -1867,6 +1926,13 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 / BS EN 60617 (1-gang switch)",
       "geometry": {
         "arcs": [
@@ -1904,6 +1970,13 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (2-gang switch)",
       "geometry": {
         "arcs": [
@@ -1948,6 +2021,13 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (two-way / intermediate switch)",
       "geometry": {
         "arcs": [
@@ -1992,6 +2072,13 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (dimmer switch)",
       "geometry": {
         "arcs": [
@@ -2047,6 +2134,13 @@
       "discipline": "Electrical",
       "subcategory": "Sensor",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "IEC 60617-11 (PIR presence detector)",
       "geometry": {
         "arcs": [
@@ -2097,6 +2191,13 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5266 (emergency test key switch)",
       "geometry": {
         "arcs": [
@@ -2147,6 +2248,19 @@
       "discipline": "Electrical",
       "subcategory": "Control",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DALI_ADDRESS",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "IEC 62386 (DALI luminaire controller)",
       "geometry": {
         "lines": [

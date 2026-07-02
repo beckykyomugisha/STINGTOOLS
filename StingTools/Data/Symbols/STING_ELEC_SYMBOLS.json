@@ -4000,6 +4000,20 @@
       "discipline": "Electrical",
       "subcategory": "Socket",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "13",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 60617 (unswitched socket)",
       "geometry": {
         "arcs": [
@@ -4045,6 +4059,20 @@
       "discipline": "Electrical",
       "subcategory": "Socket",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "13",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 (weatherproof socket, IP-rated)",
       "geometry": {
         "arcs": [
@@ -4118,6 +4146,20 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "default": "45",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 (cooker control / isolator, 45A)",
       "geometry": {
         "lines": [
@@ -4183,6 +4225,20 @@
       "discipline": "Electrical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "DB_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "WAYS",
+          "type": "Integer",
+          "shared": true,
+          "default": "12",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 (distribution board / panel board)",
       "geometry": {
         "lines": [
@@ -4282,6 +4338,25 @@
       "discipline": "Electrical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "HP_KW",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 (motor starter / MCC bucket)",
       "geometry": {
         "lines": [
@@ -4342,6 +4417,18 @@
       "discipline": "Electrical",
       "subcategory": "Data",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS EN 50173 (structured cabling data outlet)",
       "geometry": {
         "lines": [
@@ -4406,6 +4493,13 @@
       "discipline": "Electrical",
       "subcategory": "Data",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS EN 50173 (telephone outlet)",
       "geometry": {
         "lines": [
@@ -4467,6 +4561,18 @@
       "discipline": "Electrical",
       "subcategory": "Control",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "DEVICE_ADDRESS",
+          "type": "Text",
+          "shared": true
+        }
+      ],
       "standard": "BS 5839-1 (addressable I/O interface module)",
       "geometry": {
         "lines": [
@@ -4523,6 +4629,19 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "CIRCUIT_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 60617 (switch disconnector)",
       "geometry": {
         "lines": [
@@ -4589,6 +4708,25 @@
       "discipline": "Electrical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "DB_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "KVA",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "RATIO",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS EN 60617 (two-winding transformer)",
       "geometry": {
         "arcs": [
@@ -4638,6 +4776,25 @@
       "discipline": "Electrical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "DB_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "KVA",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 60617 (generator = circle + AC)",
       "geometry": {
         "arcs": [
@@ -4696,6 +4853,25 @@
       "discipline": "Electrical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
+      "parameters": [
+        {
+          "name": "DB_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        },
+        {
+          "name": "KVA",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 62040 (UPS)",
       "geometry": {
         "lines": [
@@ -4771,6 +4947,19 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "DB_REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "RATING_A",
+          "type": "Text",
+          "shared": true,
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 60947-6-1 (automatic transfer switch)",
       "geometry": {
         "lines": [
@@ -4871,6 +5060,20 @@
       "discipline": "Electrical",
       "subcategory": "Containment",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "300",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 61537 (cable tray run)",
       "geometry": {
         "lines": [
@@ -4912,6 +5115,20 @@
       "discipline": "Electrical",
       "subcategory": "Containment",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "300",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 61537 (cable ladder run)",
       "geometry": {
         "lines": [
@@ -4965,6 +5182,20 @@
       "discipline": "Electrical",
       "subcategory": "Containment",
       "symbolSize": 4.0,
+      "parameters": [
+        {
+          "name": "REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "100",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 50085 (cable trunking run)",
       "geometry": {
         "lines": [
@@ -5020,6 +5251,20 @@
       "discipline": "Electrical",
       "subcategory": "Containment",
       "symbolSize": 3.0,
+      "parameters": [
+        {
+          "name": "REF",
+          "type": "Text",
+          "shared": true
+        },
+        {
+          "name": "SIZE_MM",
+          "type": "Text",
+          "shared": true,
+          "default": "25",
+          "instance": false
+        }
+      ],
       "standard": "BS 7671 / BS EN 61386 (conduit junction / draw point)",
       "geometry": {
         "arcs": [
