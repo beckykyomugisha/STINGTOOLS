@@ -55,6 +55,17 @@ namespace StingTools.Core.Symbols
                     var found = FindFamilySymbol(doc, cand);
                     if (found != null) { sym = found; famName = cand; break; }
                 }
+
+                // F5(b) — one-line trace when an orientation variant was requested but is
+                // unavailable and we fell back to the base family (last candidate).
+                if (!string.IsNullOrEmpty(orientKey) && candidates.Count > 1
+                    && !string.IsNullOrEmpty(famName)
+                    && string.Equals(famName, candidates[candidates.Count - 1], StringComparison.OrdinalIgnoreCase))
+                {
+                    StingTools.Core.StingLog.Info(
+                        $"PlaceSymbolOverlay: orientation variant unavailable for {conceptId} " +
+                        $"[{orientState}] — used base '{famName}' (run Symbols_OrientationAudit for the gap list).");
+                }
                 if (sym == null)
                 {
                     StingTools.Core.StingLog.Warn(
