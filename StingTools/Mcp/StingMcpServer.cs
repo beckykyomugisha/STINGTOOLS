@@ -23,6 +23,8 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
@@ -229,6 +231,7 @@ namespace StingTools.Mcp
                 case "list_commands": result = ToolListCommands(args); break;
                 case "get_status":    result = ToolGetStatus();        break;
                 case "ask_bim":       result = ToolAskBim(args);       break;
+                case "get_model_info": result = ToolGetModelInfo();    break;
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");
                     break;
@@ -357,6 +360,100 @@ namespace StingTools.Mcp
             return Ok("No local match found. Try asking about: ISO 19650, COBie, IFC, BEP, " +
                       "CDE, MIDP, TIDP, RIBA stages, suitability codes, TAG7, DrawingType, " +
                       "ViewStylePack, NLPEngine, or any of the 63 entries in the BIM KB.");
+        }
+
+        // ── Tool: get_model_info (read-back via the job bridge) ───────────────────
+
+        private static McpCallResult ToolGetModelInfo()
+        {
+            // Marshal onto the Revit API thread and read synchronously. The job
+            // re-checks the license gate + open document (McpSafety) and opens no
+            // modal UI, so it cannot deadlock the waiting HTTP thread.
+            McpJobResult r = McpJobBridge.Run(uiApp =>
+            {
+                var lic = McpSafety.RequireLicense();
+                if (lic != null) return lic;
+                var docErr = McpSafety.RequireDocument(uiApp);
+                if (docErr != null) return docErr;
+
+                Document doc = uiApp.ActiveUIDocument.Document;
+                ProjectInfo pi = doc.ProjectInformation;
+
+                string path = string.IsNullOrEmpty(doc.PathName) ? "(unsaved)" : doc.PathName;
+
+                var projectInfo = new Dictionary<string, string>
+                {
+                    ["name"]         = SafeStr(() => pi?.Name),
+                    ["number"]       = SafeStr(() => pi?.Number),
+                    ["client"]       = SafeStr(() => pi?.ClientName),
+                    ["buildingName"] = SafeStr(() => pi?.BuildingName),
+                    ["status"]       = SafeStr(() => pi?.Status),
+                    ["organization"] = SafeStr(() => pi?.OrganizationName),
+                };
+
+                object activeView = null;
+                string viewName = "(none)";
+                View v = uiApp.ActiveUIDocument.ActiveView;
+                if (v != null)
+                {
+                    viewName = v.Name ?? "(unnamed)";
+                    activeView = new Dictionary<string, string>
+                    {
+                        ["name"]        = viewName,
+                        ["type"]        = v.ViewType.ToString(),
+                        ["discipline"]  = ResolveDiscipline(v),
+                        ["scale"]       = SafeStr(() => v.Scale.ToString()),
+                        ["detailLevel"] = SafeStr(() => v.DetailLevel.ToString()),
+                    };
+                }
+
+                var data = new Dictionary<string, object>
+                {
+                    ["title"]        = doc.Title,
+                    ["path"]         = path,
+                    ["isWorkshared"] = doc.IsWorkshared,
+                    ["projectInfo"]  = projectInfo,
+                    ["activeView"]   = activeView,
+                };
+
+                string summary = $"Model '{doc.Title}' — active view '{viewName}'.";
+                return McpJobResult.Success(summary, data);
+            });
+
+            return r.ToCallResult();
+        }
+
+        /// <summary>Read a possibly-throwing string getter, returning "" on any failure.</summary>
+        private static string SafeStr(Func<string> getter)
+        {
+            try { return getter() ?? string.Empty; }
+            catch { return string.Empty; }
+        }
+
+        /// <summary>
+        /// Resolve the active view's discipline from the VIEW_DISCIPLINE built-in
+        /// parameter (a ViewDiscipline bitmask). Returns a human label or "" when
+        /// the view carries no discipline (drafting views, schedules, etc.).
+        /// </summary>
+        private static string ResolveDiscipline(View v)
+        {
+            try
+            {
+                Parameter p = v.get_Parameter(BuiltInParameter.VIEW_DISCIPLINE);
+                if (p == null || !p.HasValue) return string.Empty;
+                int d = p.AsInteger();
+                switch (d)
+                {
+                    case 1:  return "Architectural";
+                    case 2:  return "Structural";
+                    case 4:  return "Mechanical";
+                    case 8:  return "Electrical";
+                    case 16: return "Plumbing";
+                    case 4095: return "Coordination";
+                    default: return d > 0 ? "Multiple" : string.Empty;
+                }
+            }
+            catch { return string.Empty; }
         }
 
         // ── Response helpers ─────────────────────────────────────────────────────

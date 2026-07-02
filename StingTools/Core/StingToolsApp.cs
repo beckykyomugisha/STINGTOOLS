@@ -308,6 +308,13 @@ namespace StingTools.Core
                 }
                 catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
 
+                // MCP v2 — create the dedicated read-back job bridge ExternalEvent
+                // BEFORE the server starts serving, so no request can hit a null event.
+                // ExternalEvent.Create requires this API context (the MCP ThreadPool
+                // thread cannot create it), hence startup registration.
+                try { StingTools.Mcp.McpJobBridge.Initialise(); }
+                catch (Exception mcpEx) { StingLog.Error("McpJobBridge.Initialise", mcpEx); }
+
                 StingMcpServer.StartIfConfigured();
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;

@@ -98,6 +98,21 @@ namespace StingTools.Mcp
                     ""required"": [""question""]
                 }"),
             },
+
+            new McpTool
+            {
+                Name = "get_model_info",
+                Description =
+                    "Read structured information about the currently open Revit model, " +
+                    "synchronously from the Revit API thread. Returns the document title and " +
+                    "path, whether it is workshared, key Project Information fields " +
+                    "(name, number, client, building, status, organization), and the active " +
+                    "view (name, type, discipline, scale, detail level). " +
+                    "Requires an active document and a valid STING licence; returns a typed " +
+                    "error (no_document / not_licensed / revit_busy / timeout) otherwise. " +
+                    "Takes no arguments.",
+                InputSchema = JObject.Parse(@"{""type"": ""object"", ""properties"": {}}"),
+            },
         };
     }
 }
