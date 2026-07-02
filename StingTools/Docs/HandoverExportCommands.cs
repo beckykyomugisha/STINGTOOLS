@@ -400,6 +400,13 @@ namespace StingTools.Docs
                     spareLines.Add($"{Esc(spare)},STING Tools,{DateTime.Now:yyyy-MM-dd},Spare Part,,{Esc(spare)},{Esc(spare)}");
                 }
 
+                // ── Clinical equipment (HC-DEF-10) — CEQ_* cluster → COBie Attribute/Job/Spare.
+                // Consumes the ships-already CEQ-* rows in COBIE_JOB_TEMPLATES/SPARE_PARTS/
+                // TYPE_MAP and the per-element CEQ_* params; appends to the sheets above.
+                int clinicalCount = ClinicalCobieBridge.Emit(doc, attrLines, jobLines, resLines, spareLines);
+                if (clinicalCount > 0)
+                    StingLog.Info($"COBie: emitted clinical-equipment rows for {clinicalCount} element(s) from the CEQ_* cluster.");
+
                 var impactLines = new List<string>();
                 impactLines.Add("Name,CreatedBy,CreatedOn,ImpactType,ImpactStage,SheetName,RowName,Value,ImpactUnit,Description");
                 // Environmental impact — CA-3: source the embodied carbon from

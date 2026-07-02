@@ -297,6 +297,7 @@ namespace StingTools.UI
                     case "Healthcare_WasteFlow":         RunCommand<Commands.Healthcare.HealthcareWasteFlowCommand>(app); break;
                     case "Healthcare_RoomClassCode":     RunCommand<Commands.Healthcare.HealthcareRoomClassCodeCommand>(app); break;
                     case "Healthcare_PharmacyRecert":    RunCommand<Commands.Healthcare.HealthcarePharmacyRecertCommand>(app); break;
+                    case "Healthcare_CobieClinical":     RunCommand<Commands.Healthcare.HealthcareCobieClinicalExportCommand>(app); break;
                     case "Healthcare_IssueRDS":          RunCommand<Commands.Healthcare.IssueRoomDataSheetCommand>(app); break;
                     case "Healthcare_BatchRDS":          RunCommand<Commands.Healthcare.BatchIssueRoomDataSheetsCommand>(app); break;
                     case "Healthcare_MgasAudit":         RunCommand<Commands.MedGas.MgasNetworkAuditCommand>(app); break;
