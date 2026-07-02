@@ -545,3 +545,29 @@ remain deliberately out of scope and are flagged here so their status is explici
 | ~~HC-DEF-06~~ | ~~**`MgasNetworkAuditCommand`** computes diversified per-zone loads but does not display the per-gas / per-zone breakdown.~~ | **CLOSED (Phase 197)** — the audit now prints the per-gas / per-zone diversified load table and marks gases whose diversity defaults to 1.0. |
 | HC-DEF-07 | **Med-gas diversity factors for N₂ / CO₂ / He / dental** are not tabulated in `NFPA99Standards` and fall back to 1.0 (over-sizes, safe, and now flagged — Phase 197). | Real factors need HTM 02-01 Pt A Table 8 / NFPA 99 Table 5.1.13.3.4 values asserted with confidence; left to the design engineer rather than guessed. |
 | HC-DEF-08 | **HBN adjacency vocabulary is department-level.** `AdjacencyValidator` / `HBNStandards.AdjacencyTargets` and the (currently unused) `HEALTHCARE_ADJACENCY_HBN.csv` key on coarse department codes (OR, WARD, IMAGING, PHARMACY) rather than the canonical room-class codes unified in Phase 197. | Intentional coarser granularity; reconciling it to the new `RoomClassCodes` `department` cross-ref (group rooms by department before matching) is a follow-up so canonicalising room reads does not misalign the adjacency keys. |
+| HC-DEF-09 | **`FgiAdoptionTracker.ResolveSeverity` has zero callers.** The FGI-2026 US-jurisdiction adoption table (Warning→Error escalation once a state adopts a clause) is fully built but no validator invokes it. | Wiring it is NOT a modest change: it needs a project US-jurisdiction parameter, a per-finding FGI clause-code mapping, and a design-freeze date on ProjectInformation — none exist today. Deferred from Phase 198 WS-7 as a scoped US-escalation feature rather than guessing a mapping. |
+| HC-DEF-10 | **Clinical-equipment COBie / SFG20 handover export not built.** The `CEQ_CLINICAL` cluster carries clinical-equipment decontamination, endoscope reprocessing (AER ref / cycle count / last-repro date / scope id), GMDN + UMDNS nomenclature, SFG20 maintenance ref and infection tier, but no export consumes them (only `CEQ_CATEGORY_TXT` is read — by `HboAuditCommand`). | The full clinical-equipment COBie handover export is a scoped future feature (explicitly out of scope for Phase 198). It is the blocking consumer for the orphaned `CEQ_*` data fields listed below. |
+
+#### Healthcare — data-model-ahead-of-logic (Phase 198 WS-7 audit)
+
+Shared parameters that ship registered but are **genuinely unconsumed** by both `.cs`
+code and the JSON-driven consumers (`HEALTHCARE_RDS_FIELDMAP.json`, COBie CSVs) —
+verified by grep. Listed so specifiers do not populate fields no logic reads, each with
+the feature it waits on:
+
+- **`CEQ_CLINICAL` cluster** (`CEQ_DECON_METHOD_TXT`, `CEQ_ENDO_AER_REF_TXT`,
+  `CEQ_ENDO_CYCLE_COUNT_INT`, `CEQ_ENDO_LAST_REPRO_DT`, `CEQ_ENDO_SCOPE_ID_TXT`,
+  `CEQ_GMDN_CODE_TXT`, `CEQ_UMDNS_CODE_TXT`, `CEQ_SFG20_REF_TXT`, `CEQ_INFECT_TIER_TXT`,
+  `CEQ_IMAGING_STRUCT_LOAD`, `CEQ_CLINICAL_BOOL`, `CEQ_EQP_TAG`, `CEQ_TAG_7_PARA_TXT`) →
+  waits on the clinical-equipment COBie/SFG20 handover export (HC-DEF-10). `CEQ_CATEGORY_TXT`
+  is **not** orphaned — `HboAuditCommand` reads it.
+- **`CLN_OCC_VISITOR_INT`**, **`CLN_RT60_TARGET_S_NR`** → no reader; RT60 targets are
+  currently served by `HTMStandards.Rt60TargetByRoomClass` (the CLN param is a would-be
+  per-room override with no consumer yet).
+- **`FgiAdoptionTracker`** table → waits on the US-jurisdiction FGI escalation gate (HC-DEF-09).
+
+**Not dead (RDS-surfaced — verified against the field map, the grep trap):**
+`PRJ_ORG_HEALTH_AE_VENT/MGAS/WATER/ELEC_TXT` (assigned-engineer metadata) are rendered by
+the RDS via `HEALTHCARE_RDS_FIELDMAP.json` `prj.ae_*` tokens; likewise
+`CLN_NURSECALL_TYPE_TXT`, `CLN_HOIST_TRACK_BOOL`, `CLN_BARI_DESIGN_KG_NR`, `CLN_FGI_REF_TXT`.
+These must not be re-flagged as orphaned.

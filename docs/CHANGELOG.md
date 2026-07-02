@@ -3,6 +3,77 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 198 — Healthcare completeness remediation, branch `claude/healthcare-gap-fixes`)
+
+Seven completeness workstreams from the verified healthcare-pack audit. **Build-verified**:
+`StingTools` against the Revit 2025 API (**0 errors**) and `Planscape.API` (**0 errors**);
+the mobile TypeScript edits mirror the existing pressure-log slice exactly (no
+`node_modules` present to run `tsc`). The verified false positives were respected — the
+`CATEGORY_BINDINGS.csv` "unbound-read → failure" claim (binding is group-driven via the
+broad `coreCats` set; the healthcare groups are not narrowed) and the validator wiring /
+room-class canonicalisation / QE gate / NCRP-147 + diversity math were left untouched.
+
+| WS | Status | What |
+|---|---|---|
+| **1** SignalR broadcasts | **DONE** | MGPS-fail + anti-ligature-fail now reach mobile in real time |
+| **2** Doc alignment | **DONE** | CLAUDE.md caveat #6 (BCC Healthcare tab is built) corrected |
+| **3** Water-flush end-to-end | **DONE** | Entity + migration + endpoints + API client + offline queue + screen |
+| **4** Regional HTM gating | **DONE** | One region resolver → region-aware HTMStandards lookups |
+| **5** USP 797/800 recert | **DONE** | `PharmacyRecertValidator` + new `CLN_ENV_CERT_DUE_DT` param |
+| **6** Penetration offline queue | **DONE** | `PENETRATION_SIGNOFF` offline action + replay |
+| **7** Information hygiene | **DONE** | Orphans verified vs `.cs` **and** RDS fieldmap; ROADMAP'd |
+
+**WS-1** — `HealthcareController` only ever called `BroadcastPressureReading`; the
+`BroadcastMgasAlarm` / `BroadcastAntiLigatureAlert` hub helpers existed but had no call
+site, so MGPS-fail and anti-ligature-fail never pushed to mobile. Wired both to fire on
+FAIL (`OverallPass == false` / `Pass == false`), mirroring the pressure broadcast.
+
+**WS-2** — CLAUDE.md caveat #6 ("No dedicated Healthcare tab in the dock panel") was
+stale: the Healthcare tab is built into the BIM Coordination Centre
+(`BuildHealthcareTab()`, gated on `PRJ_ORG_HEALTH_FACILITY_TYPE_TXT`, live off the server
+dashboard endpoint). Rewrote it; caveat #5 updated for the fifth healthcare table.
+
+**WS-3** — `water-flush.tsx` was display-only (local state, no API, no queue), so HTM
+04-01 sentinel-flush data was lost on restart. Added the full round-trip mirroring the
+pressure-log slice: `HealthcareWaterLog` entity + `DbSet` + model config (composite
+indexes), documentation-DDL migration `20260627000000_HealthcareWaterLog` + snapshot
+entry, `POST`/`GET .../healthcare/water-log` endpoints, a `WaterLogCount` on the dashboard
+DTO, and mobile `postWaterFlush()`/`listWaterFlush()` + `HealthcareWaterFlush` type +
+`HC_WATER_FLUSH` offline action + replay handler + the screen wired to POST-with-enqueue.
+
+**WS-4** — no validator read `PRJ_ORG_HEALTH_HTM_REGION_TXT`, so non-England projects
+silently got NHS-England thresholds. Added `HtmRegionContext` as the single resolution
+point and region-aware `HTMStandards` overloads (`GetMinAch(rc, region)` uplift-only,
+`GetTmvOutletMaxC`, `GetLegionellaFlushS`, `GetMgpsPipeClass`) that apply the
+`HtmRegionalVariants` deltas; England/unset is byte-for-byte unchanged. `PressureRegime`
+(ACH), `WaterSafety` (SHTM 43 °C TMV / 180 s flush) and `MgasFlow` (WHTM Class-2 pipework)
+consume the region and surface the applied code base as an Info finding.
+
+**WS-5** — the promised USP 797/800 recert escalation was never implemented. Added
+`PharmacyRecertValidator`: for every canonical pharmacy cleanroom (`PH-CSP-797` /
+`PH-CSP-800`, matched through the `RoomClassCodes` resolver) it reads `CLN_ENV_CERT_DUE_DT`
+and emits Info > 30 days out, Warning within 30 days, Error overdue/missing. Registered the
+new `CLN_ENV_CERT_DUE_DT` shared parameter across all four data files (GUID
+`c8d4f6e2-a021-4d27-8c61-0e7a3f9b0021`, group `CLN_CLINICAL`, bound to Rooms) and wired the
+validator through the gate + RunAll/RunSelected + command + `WorkflowEngine` +
+`StingCommandHandler`.
+
+**WS-6** — `penetrations/signoff.tsx` PUT directly and its catch falsely claimed the
+offline queue would retry without enqueuing. Added a `PENETRATION_SIGNOFF` offline action
+(carrying `projectId` + `controlNumber` + `body` for the three-arg PUT replay) + replay
+handler, enqueued on failure with the same "saved offline" affordance.
+
+**WS-7** — verified each "dead param" candidate against **both** `.cs` and the RDS field
+map / COBie CSVs before declaring it orphaned. The RDS-fieldmap trap was real:
+`PRJ_ORG_HEALTH_AE_*` and `CLN_NURSECALL/HOIST/BARI/FGI_REF` are RDS-surfaced (not dead),
+and `CEQ_CATEGORY_TXT` is read by `HboAuditCommand`. Genuinely-orphaned items (the rest of
+the `CEQ_CLINICAL` cluster, `CLN_OCC_VISITOR_INT`, `CLN_RT60_TARGET_S_NR`,
+`FgiAdoptionTracker`) are now listed in `docs/ROADMAP.md` under "data-model-ahead-of-logic"
+with the feature each waits on (HC-DEF-09 US-jurisdiction FGI gate, HC-DEF-10 clinical-
+equipment COBie export). `FgiAdoptionTracker` was **not** wired (it needs a new jurisdiction
+param + clause-code mapping + freeze date — not a modest change); the full COBie export was
+not built this pass, per scope.
+
 #### Completed (Phase 197 — Healthcare accuracy remediation, branch `claude/healthcare-gap-fixes`)
 
 Five accuracy fixes from the verified healthcare-pack audit. **Build-verified** against
