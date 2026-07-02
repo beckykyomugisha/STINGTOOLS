@@ -54,6 +54,17 @@ namespace StingTools.Mcp
         /// <summary>True while the HTTP listener is bound and serving.</summary>
         internal static bool IsRunning => _running;
 
+        /// <summary>
+        /// True when a command tag may be executed via invoke_capability: the allowlist is
+        /// empty (all known tags permitted) or explicitly contains the tag. Named Tier-2
+        /// write verbs bypass this entirely.
+        /// </summary>
+        internal static bool IsToolAllowed(string tag)
+        {
+            if (_toolAllowlist == null || _toolAllowlist.Count == 0) return true;
+            return _toolAllowlist.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
+        }
+
         // ── Lifecycle ────────────────────────────────────────────────────────────
 
         internal static void StartIfConfigured()
@@ -362,6 +373,11 @@ namespace StingTools.Mcp
                 case "search_capabilities":   result = McpDiscoveryTools.SearchCapabilities(args);  break;
                 case "describe_capability":   result = McpDiscoveryTools.DescribeCapability(args);   break;
                 case "invoke_capability":     result = McpDiscoveryTools.InvokeCapability(args);     break;
+
+                // ── Phase 3a — guarded write verbs + async job polling ──────────
+                case "set_parameter":   result = McpWriteTools.SetParameter(args);  break;
+                case "auto_tag":        result = McpWriteTools.AutoTag(args);       break;
+                case "get_job_status":  result = McpWriteTools.GetJobStatus(args);  break;
 
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");

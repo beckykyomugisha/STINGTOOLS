@@ -97,19 +97,31 @@ namespace StingTools.Mcp
 
             bool dryRun = McpSafety.IsDryRun(args);
 
-            // UI commands are never fired by Phase 2 — surface opens_ui without dispatching,
+            // UI commands are never fired — surface opens_ui without dispatching,
             // regardless of readOnly (a wizard may be a write command).
             if (cap.OpensUI)
                 return McpJobResult.Error("opens_ui",
-                    $"'{tag}' opens a dialog/wizard. Phase 2 does not fire UI commands; drive it from Revit, " +
-                    "or wait for a dialog-free engine path (Phase 3).").ToCallResult();
+                    $"'{tag}' opens a dialog/wizard. MCP does not fire UI commands; drive it from Revit, " +
+                    "or wait for a dialog-free engine path.").ToCallResult();
 
-            // Permit only read-only tags, or any tag in dry-run.
-            bool permitted = cap.ReadOnly == true || dryRun;
-            if (!permitted)
-                return McpJobResult.Error("not_allowed",
-                    "write invocation lands in Phase 3; call with dryRun:true or use a read tool").ToCallResult();
+            // Engine-backed → route through the SINGLE engine registry, which applies the
+            // full guardrail set (dry-run plan, confirm gate, TransactionGroup rollback,
+            // sync/async by scope). invoke_capability writes ALSO respect mcp_tool_allowlist.
+            if (cap.EngineBacked)
+            {
+                var allow = McpSafety.CheckAllowlist(tag);
+                if (allow != null) return allow.ToCallResult();
 
+                JObject inner = args["args"] as JObject;
+                var callArgs = inner != null ? (JObject)inner.DeepClone() : new JObject();
+                if (args["dryRun"] != null) callArgs["dryRun"] = args["dryRun"];
+                if (args["confirm"] != null) callArgs["confirm"] = args["confirm"];
+                if (args["scope"] != null && callArgs["scope"] == null) callArgs["scope"] = args["scope"];
+
+                return McpEngineRegistry.DispatchWrite(tag, callArgs).ToCallResult();
+            }
+
+            // Not engine-backed. A dry-run still returns a generic, non-executing plan note.
             if (dryRun)
             {
                 var plan = new Dictionary<string, object>
@@ -120,33 +132,31 @@ namespace StingTools.Mcp
                     ["opensUI"]       = cap.OpensUI,
                     ["engineBacked"]  = cap.EngineBacked,
                     ["inputContract"] = cap.InputContract,
-                    ["note"]          = "Phase 2 dry-run: nothing was executed. Real write invocation lands in Phase 3.",
+                    ["note"]          = "Dry-run: nothing executed. This tag has no engine handler, so a real " +
+                                        "invocation is not available (see status no_engine_path / not_allowed).",
                 };
-                return McpJobResult.Success($"Dry run for '{cap.Tag}' — no execution.", plan).ToCallResult();
+                return McpJobResult.Success($"Dry run for '{cap.Tag}' — no execution (not engine-backed).", plan).ToCallResult();
             }
 
-            // Permitted read-only tag, non-UI. Structured read-back only exists once a
-            // dialog-free engine path is wired (engineBacked). None are wired in Phase 2,
-            // so we do not blind-dispatch an arbitrary command (it may open a modal report
-            // and deadlock the waiting HTTP thread). Report honestly.
-            if (!cap.EngineBacked)
+            // Read-only but not engine-backed: do not blind-dispatch (it may open a modal
+            // report and deadlock the API thread). Honest status; use the Tier 1 read tools.
+            if (cap.ReadOnly == true)
             {
                 var data = new Dictionary<string, object>
                 {
                     ["status"] = "no_engine_path",
                     ["tag"]    = cap.Tag,
-                    ["note"]   = "Read-only command has no dialog-free engine entry yet, so Phase 2 will not " +
-                                 "dispatch it (avoids a possible modal deadlock). It becomes cleanly invokable " +
-                                 "with structured read-back when engineBacked in Phase 3. For model reads now, " +
-                                 "use the Tier 1 tools (query_elements, get_element, get_compliance, run_validator …).",
+                    ["note"]   = "Read-only command has no dialog-free engine entry yet, so it is not dispatched. " +
+                                 "For model reads use the Tier 1 tools (query_elements, get_element, get_compliance, run_validator …).",
                 };
-                return McpJobResult.Success($"'{cap.Tag}' is read-only but not yet engine-backed — not dispatched.", data)
+                return McpJobResult.Success($"'{cap.Tag}' is read-only but not engine-backed — not dispatched.", data)
                     .ToCallResult();
             }
 
-            // (Reserved) engine-backed read execution — no tags qualify in Phase 2.
-            return McpJobResult.Error("no_engine_path",
-                $"'{cap.Tag}' is flagged engineBacked but no engine handler is wired.").ToCallResult();
+            // Write tag with no engine handler: refuse honestly.
+            return McpJobResult.Error("not_allowed",
+                $"'{tag}' is a write command with no dialog-free engine handler yet. Use a Tier-2 verb, " +
+                "call with dryRun:true, or wait for it to become engine-backed.").ToCallResult();
         }
     }
 }

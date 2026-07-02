@@ -143,7 +143,9 @@ namespace StingTools.Mcp
                         Description = p.Description,
                         Category    = string.IsNullOrWhiteSpace(p.Intent) ? "General" : p.Intent,
                         OpensUI     = ResolveOpensUi(p.CommandTag, p.Description),
-                        EngineBacked = false,
+                        // Single source of truth — a tag is engine-backed iff the engine
+                        // registry has a handler for it. Do not hand-maintain a second list.
+                        EngineBacked = McpEngineRegistry.IsEngineBacked(p.CommandTag),
                     };
                     cap.ReadOnly = ResolveReadOnly(p.CommandTag);
                     map[p.CommandTag] = cap;

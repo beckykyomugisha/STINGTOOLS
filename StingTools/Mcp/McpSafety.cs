@@ -12,6 +12,8 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -88,5 +90,51 @@ namespace StingTools.Mcp
 
         /// <summary>True when the caller explicitly confirmed a bulk/destructive op (confirm:true).</summary>
         public static bool IsConfirmed(JObject args) => ReadBool(args, "confirm", false);
+
+        // ── Write guardrails (Phase 3) ───────────────────────────────────────────
+
+        /// <summary>Operations touching more than this many elements require confirm:true.</summary>
+        public const int BulkThreshold = 25;
+
+        /// <summary>
+        /// Confirm gate. Returns a typed needs_confirmation error (carrying the projected
+        /// count) when the op affects &gt; <see cref="BulkThreshold"/> elements OR is
+        /// project-scope AND confirm was not passed; else null.
+        /// </summary>
+        public static McpJobResult RequireConfirmation(int affectedCount, bool isProjectScope, bool confirmed)
+        {
+            bool needs = affectedCount > BulkThreshold || isProjectScope;
+            if (needs && !confirmed)
+                return McpJobResult.Error("needs_confirmation",
+                    $"This operation affects {affectedCount} element(s)" +
+                    (isProjectScope ? " (project scope)" : "") +
+                    $". Re-call with confirm:true to proceed. Data preview: run again with dryRun:true.");
+            return null;
+        }
+
+        /// <summary>
+        /// Allowlist check for invoke_capability writes. When mcp_tool_allowlist is
+        /// non-empty and the tag is absent, returns a typed not_allowed error; else null.
+        /// Named Tier-2 verbs bypass this (they are always allowed).
+        /// </summary>
+        public static McpJobResult CheckAllowlist(string tag)
+        {
+            if (StingMcpServer.IsToolAllowed(tag)) return null;
+            return McpJobResult.Error("not_allowed",
+                $"'{tag}' is not in mcp_tool_allowlist. Add it to STING_LLM_CONFIG.json to permit invocation.");
+        }
+
+        /// <summary>Standard structured write read-back envelope. Errors + sampleIds capped at 25.</summary>
+        public static Dictionary<string, object> WriteResult(
+            int changed, int skipped, IEnumerable<string> errors, IEnumerable<long> sampleIds)
+        {
+            return new Dictionary<string, object>
+            {
+                ["changed"]   = changed,
+                ["skipped"]   = skipped,
+                ["errors"]    = errors?.Take(25).ToList() ?? new List<string>(),
+                ["sampleIds"] = sampleIds?.Take(25).ToList() ?? new List<long>(),
+            };
+        }
     }
 }

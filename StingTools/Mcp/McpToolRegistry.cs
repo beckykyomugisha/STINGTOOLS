@@ -323,19 +323,82 @@ namespace StingTools.Mcp
             {
                 Name = "invoke_capability",
                 Description =
-                    "Invoke a discovered command by tag — PHASE-2-LIMITED. Permits only read-only tags " +
-                    "or dry-runs; a write tag without dryRun returns the typed code 'not_allowed' " +
-                    "(write execution lands in Phase 3). A dialog/wizard tag returns 'opens_ui' without " +
-                    "dispatching (Phase 2 never fires UI commands). dryRun:true returns a plan and runs " +
-                    "nothing. Example: {tag: 'PreTagAudit', dryRun: true}.",
+                    "Invoke a discovered command by tag. Engine-backed tags (see describe_capability " +
+                    "engineBacked:true — currently AutoTag/BatchTag) EXECUTE with full guardrails: dryRun " +
+                    "returns a real plan; a real run mutates inside a rolled-back TransactionGroup with " +
+                    "confirm required for bulk/project scope; project scope runs async (returns a jobId — " +
+                    "poll get_job_status). Non-engine-backed write tags return 'not_allowed'; dialog/wizard " +
+                    "tags return 'opens_ui' (never dispatched). Engine-backed writes also respect " +
+                    "mcp_tool_allowlist. Put command args under 'args'. " +
+                    "Example: {tag:'AutoTag', args:{scope:'view'}, dryRun:true}.",
                 InputSchema = JObject.Parse(@"{
                     ""type"": ""object"",
                     ""properties"": {
-                        ""tag"":    { ""type"": ""string"",  ""description"": ""Command tag to invoke"" },
-                        ""args"":   { ""type"": ""object"",  ""description"": ""Reserved for engine-backed tags (Phase 3)"" },
-                        ""dryRun"": { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" }
+                        ""tag"":     { ""type"": ""string"",  ""description"": ""Command tag to invoke"" },
+                        ""args"":    { ""type"": ""object"",  ""description"": ""Engine args (e.g. scope, mode) for engine-backed tags"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for bulk (>25) / project-scope writes"" }
                     },
                     ""required"": [""tag""]
+                }"),
+            },
+
+            // ── Phase 3a — guarded WRITE verbs + async job polling ──────────────
+            new McpTool
+            {
+                Name = "set_parameter",
+                Description =
+                    "WRITE. Set one parameter to one value on a set of elements. Storage-type aware " +
+                    "(String/Integer/Yes-No/Double/ElementId); numeric (Double) values are interpreted in " +
+                    "PROJECT DISPLAY UNITS (e.g. '100' on a mm length = 100 mm). Read-only params, missing " +
+                    "params, and elements locked by other users are skipped and reported. dryRun:true returns " +
+                    "a plan and mutates nothing. confirm:true is REQUIRED when ids has more than 25 entries. " +
+                    "All changes run inside a rolled-back transaction; returns {changed, skipped, errors, sampleIds}. " +
+                    "Example: {ids:[348122,348130], name:'Comments', value:'MCP set', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""ids"":     { ""type"": ""array"", ""items"": { ""type"": ""integer"" }, ""description"": ""Element ids to write"" },
+                        ""name"":    { ""type"": ""string"",  ""description"": ""Parameter name"" },
+                        ""value"":   { ""description"": ""New value (string/number/bool); Double values are in project display units"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required when ids.length > 25"" }
+                    },
+                    ""required"": [""ids"", ""name"", ""value""]
+                }"),
+            },
+            new McpTool
+            {
+                Name = "auto_tag",
+                Description =
+                    "WRITE. Run the STING ISO 19650 tagging pipeline over a scope. scope: 'selection' or " +
+                    "'view' run synchronously and return read-back {changed, skipped, errors, sampleIds}; " +
+                    "'project' runs asynchronously and returns {jobId, status:'running'} — poll get_job_status. " +
+                    "mode: 'skip' (default, tag untagged only), 'overwrite', or 'increment'. dryRun:true returns " +
+                    "a plan (would-change counts + sample ids) and mutates nothing. confirm:true is REQUIRED for " +
+                    "scope=project and for any scoped run affecting more than 25 elements. All mutation runs " +
+                    "inside a rolled-back transaction. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""mode"":    { ""type"": ""string"",  ""description"": ""skip (default) | overwrite | increment"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 elements"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
+                Name = "get_job_status",
+                Description =
+                    "Poll an asynchronous MCP job (e.g. a project-scope auto_tag). Returns the completed " +
+                    "read-back once done, {status:'running'} while in progress, or 'not_found' for an unknown/" +
+                    "expired jobId. Example: {jobId:'a1b2c3…'}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": { ""jobId"": { ""type"": ""string"", ""description"": ""jobId returned by an async write"" } },
+                    ""required"": [""jobId""]
                 }"),
             },
         };
