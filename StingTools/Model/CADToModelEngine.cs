@@ -329,7 +329,8 @@ namespace StingTools.Model
                 // covers MEP too.
                 if (createMep)
                 {
-                    PlaceMepFromImport(importInstance, levelName, result);
+                    // F9(a) — reuse the Step-1 extraction (no second read of the import).
+                    PlaceMepFromImport(importInstance, levelName, result, extraction);
                 }
 
                 sw.Stop();
@@ -792,9 +793,11 @@ namespace StingTools.Model
                     {
                         if (wall.LengthFt < MinWallLengthFt) continue;
 
-                        // Resolve wall type by thickness
+                        // F9(b) — resolve wall type by the DWG layer name first (name/keyword
+                        // aware), falling back to closest-by-thickness when the layer names
+                        // no matching type.
                         var thicknessMm = wall.ThicknessFt * Units.FeetToMm;
-                        var typeResult = resolver.ResolveWallType(null, thicknessMm);
+                        var typeResult = resolver.ResolveWallType(wall.LayerName, thicknessMm);
                         if (!typeResult.Success) continue;
 
                         try
@@ -955,7 +958,7 @@ namespace StingTools.Model
         /// ISO 19650 auto-tag pass covers the MEP elements too.
         /// </summary>
         private void PlaceMepFromImport(ImportInstance importInstance, string levelName,
-            CADConversionResult result)
+            CADConversionResult result, CADExtractionResult extraction = null)
         {
             try
             {
@@ -967,7 +970,8 @@ namespace StingTools.Model
                     return;
                 }
 
-                var detection = new MepDetectionEngine(_doc).Detect(importInstance);
+                // F9(a) — feed the already-extracted geometry so the import is read once.
+                var detection = new MepDetectionEngine(_doc).Detect(importInstance, extraction);
                 if (detection == null ||
                     (detection.Fixtures.Count == 0 && detection.Runs.Count == 0
                      && detection.Risers.Count == 0))
