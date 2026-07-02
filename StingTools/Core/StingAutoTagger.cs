@@ -1469,6 +1469,16 @@ namespace StingTools.Core
                 _cachedProjectLocDocKey = null;
                 _projectLocCacheTime = DateTime.MinValue;
             }
+            // N+3 — the material snapshot is keyed by ElementId only, so across
+            // a session with multiple projects an ElementId reused in the next
+            // document would compare against the previous document's material and
+            // produce a false-positive "material changed → stale". Clear it (and
+            // its LRU list) on document close alongside the room-index cache.
+            lock (_matIdLock)
+            {
+                _matIdSnapshot.Clear();
+                _matIdLru.Clear();
+            }
             // A-2: also nudge the shared SpatialAutoDetect cache so a stale
             // index from a closed document never resurfaces.
             try { SpatialAutoDetect.InvalidateRoomIndex(); }
@@ -1486,14 +1496,25 @@ namespace StingTools.Core
 
                 var modifiedIds = data.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
+
+                // Overflow handling. A bulk edit can touch far more than the
+                // per-trigger throttle. Previously the ENTIRE batch was dropped
+                // (marking ZERO elements stale, not "the first N"). Now process
+                // the first MaxElementsPerTrigger inline and defer the remainder
+                // to a single idle job — so the expensive per-element spatial /
+                // material detection doesn't run synchronously inside Revit's
+                // regeneration for a huge batch, while still flagging every
+                // changed element stale.
+                ICollection<ElementId> idsToProcess = modifiedIds;
                 if (modifiedIds.Count > MaxElementsPerTrigger)
                 {
-                    // Log when dropping elements due to batch limit so users
-                    // know stale detection was skipped (previously silently returned)
-                    StingLog.Info($"StingStaleMarker: skipping batch of {modifiedIds.Count} " +
-                        $"elements (exceeds limit of {MaxElementsPerTrigger}). " +
-                        "Run 'Retag Stale' manually after bulk operations.");
-                    return;
+                    var all = modifiedIds as IList<ElementId> ?? modifiedIds.ToList();
+                    idsToProcess = all.Take(MaxElementsPerTrigger).ToList();
+                    var overflow = all.Skip(MaxElementsPerTrigger).ToList();
+                    try { StingIdlingScheduler.Enqueue(new StaleRemarkJob(doc, overflow)); }
+                    catch (Exception schEx) { StingLog.Warn($"StaleMarker enqueue overflow job: {schEx.Message}"); }
+                    StingLog.Info($"StingStaleMarker: batch of {modifiedIds.Count} elements — " +
+                        $"processing {idsToProcess.Count} inline, deferred {overflow.Count} to idle re-mark.");
                 }
 
                 // A-2: defer to the shared SpatialAutoDetect.BuildRoomIndex
@@ -1535,127 +1556,10 @@ namespace StingTools.Core
                 // so we can decide whether to schedule a stale-warning promotion job.
                 int staleMarkedThisBatch = 0;
 
-                foreach (ElementId id in modifiedIds)
+                foreach (ElementId id in idsToProcess)
                 {
-                    try
-                    {
-                        Element el = doc.GetElement(id);
-                        if (el == null || !el.IsValidObject) continue;
-
-                        // Only mark elements that already have a tag
-                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.AllTokenParams[0]);
-                        if (string.IsNullOrEmpty(tag1)) continue;
-
-                        // Check if spatial context changed (LVL, LOC, ZONE)
-                        bool isStale = false;
-
-                        string currentLvl = ParameterHelpers.GetLevelCode(doc, el);
-                        string storedLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                        if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
-                            isStale = true;
-
-                        // Detect LOC/ZONE changes using pre-built roomIndex
-                        if (!isStale && roomIndex != null)
-                        {
-                            try
-                            {
-                                string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                                if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
-                                {
-                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                                    if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
-                                        isStale = true;
-                                }
-
-                                if (!isStale)
-                                {
-                                    string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                                    if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
-                                    {
-                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                                        if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
-                                            && currentZone != "ZZ" && currentZone != storedZone)
-                                            isStale = true;
-                                    }
-                                }
-                            }
-                            // Rate-limited: this catch lives inside an IUpdater that fires
-                            // on every element change. An ungated Warn here could emit
-                            // hundreds of lines per save.
-                            catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
-                        }
-
-                        // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
-                        if (!isStale)
-                        {
-                            try
-                            {
-                                string categoryName = ParameterHelpers.GetCategoryName(el);
-                                if (IsMepCategory(categoryName))
-                                {
-                                    string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                                    if (!string.IsNullOrEmpty(storedSys) && storedSys != "GEN" && storedSys != "XX")
-                                    {
-                                        string currentSys = TagConfig.GetMepSystemAwareSysCode(el, categoryName);
-                                        if (!string.IsNullOrEmpty(currentSys) && currentSys != storedSys)
-                                        {
-                                            isStale = true;
-                                            StingLog.Info($"StaleMarker: MEP system change on {id.Value} — stored SYS={storedSys}, current={currentSys}");
-                                        }
-                                    }
-                                }
-                            }
-                            // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
-                            catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
-                        }
-
-                        // N+3 — Material-change detection. Compare current primary material
-                        // id against the last-seen snapshot (per-element static cache). First
-                        // encounter populates; subsequent encounters with a different id flip
-                        // stale. Closes D2 — material swap invalidates the existing tag's
-                        // PROD code (now material-aware via MaterialProdOverrideRegistry).
-                        bool materialChanged = false;
-                        try
-                        {
-                            long current = ReadPrimaryMaterialId(el);
-                            long prev    = GetCachedMaterialId(id.Value);
-                            if (prev > 0 && current != prev)
-                            {
-                                materialChanged = true;
-                                isStale = true;
-                                StingLog.Info($"StaleMarker: material change on {id.Value} — was {prev}, now {current}");
-                            }
-                            SetCachedMaterialId(id.Value, current);
-                        }
-                        catch (Exception matEx)
-                        { StingLog.WarnRateLimited("StaleMarker.MaterialDetect", $"StaleMarker material detection: {matEx.Message}"); }
-
-                        if (isStale)
-                        {
-                            Parameter p = el.LookupParameter(ParamRegistry.STALE);
-                            if (p != null && !p.IsReadOnly)
-                                p.Set(1);
-                            // N+3 — Also flip the BOQ stale marker so the cost manager
-                            // picks up the change on the next dashboard load. Material swap
-                            // directly affects the row's cost / carbon (factors come from
-                            // MaterialLookupCsv). ASS_CST_STALE_BOOL is TEXT storage per
-                            // MR_PARAMETERS — "1" / "0" written as strings.
-                            try
-                            {
-                                Parameter cstP = el.LookupParameter("ASS_CST_STALE_BOOL");
-                                if (cstP != null && !cstP.IsReadOnly && cstP.StorageType == StorageType.String)
-                                    cstP.Set("1");
-                            }
-                            catch (Exception csEx)
-                            { StingLog.WarnRateLimited("StaleMarker.BoqStale", $"StaleMarker BOQ stale: {csEx.Message}"); }
-                            staleMarkedThisBatch++;
-                            if (materialChanged) StingMaterialUpdaterStaleHook.OnMaterialChanged(doc, id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"StingStaleMarker element {id.Value}: {ex.Message}");
-                    }
+                    if (TryMarkElementStale(doc, id, roomIndex, projectLoc))
+                        staleMarkedThisBatch++;
                 }
 
                 // When this batch flags any element stale, schedule a
@@ -1690,6 +1594,218 @@ namespace StingTools.Core
                    categoryName == "Cable Trays" || categoryName == "Conduits" ||
                    categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures" ||
                    categoryName == "Fire Protection";
+        }
+
+        /// <summary>Detect whether one tagged element has gone stale (level /
+        /// LOC / ZONE / MEP-system / material change) and, if so, stamp
+        /// STING_STALE_BOOL plus the BOQ stale mirror. Must be called inside an
+        /// open transaction. Returns true when the element was newly flagged
+        /// stale. Shared by Execute (inline batch) and RemarkOverflow (deferred
+        /// idle re-mark of a bulk edit's overflow).</summary>
+        private static bool TryMarkElementStale(Document doc, ElementId id,
+            Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex, string projectLoc)
+        {
+            try
+            {
+                Element el = doc.GetElement(id);
+                if (el == null || !el.IsValidObject) return false;
+
+                // Only mark elements that already have a tag
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.AllTokenParams[0]);
+                if (string.IsNullOrEmpty(tag1)) return false;
+
+                // Check if spatial context changed (LVL, LOC, ZONE)
+                bool isStale = false;
+
+                string currentLvl = ParameterHelpers.GetLevelCode(doc, el);
+                string storedLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
+                    isStale = true;
+
+                // Detect LOC/ZONE changes using pre-built roomIndex
+                if (!isStale && roomIndex != null)
+                {
+                    try
+                    {
+                        string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                        if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
+                        {
+                            string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
+                                isStale = true;
+                        }
+
+                        if (!isStale)
+                        {
+                            string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                            if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
+                            {
+                                string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                                if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
+                                    && currentZone != "ZZ" && currentZone != storedZone)
+                                    isStale = true;
+                            }
+                        }
+                    }
+                    // Rate-limited: this catch lives inside an IUpdater that fires
+                    // on every element change. An ungated Warn here could emit
+                    // hundreds of lines per save.
+                    catch (Exception spEx) { StingLog.WarnRateLimited("StaleMarker.SpatialDetect", $"StaleMarker spatial detection: {spEx.Message}"); }
+                }
+
+                // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
+                if (!isStale)
+                {
+                    try
+                    {
+                        string categoryName = ParameterHelpers.GetCategoryName(el);
+                        if (IsMepCategory(categoryName))
+                        {
+                            string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (!string.IsNullOrEmpty(storedSys) && storedSys != "GEN" && storedSys != "XX")
+                            {
+                                string currentSys = TagConfig.GetMepSystemAwareSysCode(el, categoryName);
+                                if (!string.IsNullOrEmpty(currentSys) && currentSys != storedSys)
+                                {
+                                    isStale = true;
+                                    StingLog.Info($"StaleMarker: MEP system change on {id.Value} — stored SYS={storedSys}, current={currentSys}");
+                                }
+                            }
+                        }
+                    }
+                    // Rate-limited: see SpatialDetect catch above. IUpdater hot path.
+                    catch (Exception mepEx) { StingLog.WarnRateLimited("StaleMarker.MepDetect", $"StaleMarker MEP detection: {mepEx.Message}"); }
+                }
+
+                // N+3 — Material-change detection. Compare current primary material
+                // id against the last-seen snapshot (per-element static cache). First
+                // encounter populates; subsequent encounters with a different id flip
+                // stale. Closes D2 — material swap invalidates the existing tag's
+                // PROD code (now material-aware via MaterialProdOverrideRegistry).
+                bool materialChanged = false;
+                try
+                {
+                    long current = ReadPrimaryMaterialId(el);
+                    long prev    = GetCachedMaterialId(id.Value);
+                    if (prev > 0 && current != prev)
+                    {
+                        materialChanged = true;
+                        isStale = true;
+                        StingLog.Info($"StaleMarker: material change on {id.Value} — was {prev}, now {current}");
+                    }
+                    SetCachedMaterialId(id.Value, current);
+                }
+                catch (Exception matEx)
+                { StingLog.WarnRateLimited("StaleMarker.MaterialDetect", $"StaleMarker material detection: {matEx.Message}"); }
+
+                if (isStale)
+                {
+                    Parameter p = el.LookupParameter(ParamRegistry.STALE);
+                    if (p != null && !p.IsReadOnly)
+                        p.Set(1);
+                    // N+3 — Also flip the BOQ stale marker so the cost manager
+                    // picks up the change on the next dashboard load. Material swap
+                    // directly affects the row's cost / carbon (factors come from
+                    // MaterialLookupCsv). ASS_CST_STALE_BOOL is TEXT storage per
+                    // MR_PARAMETERS — "1" / "0" written as strings.
+                    try
+                    {
+                        Parameter cstP = el.LookupParameter("ASS_CST_STALE_BOOL");
+                        if (cstP != null && !cstP.IsReadOnly && cstP.StorageType == StorageType.String)
+                            cstP.Set("1");
+                    }
+                    catch (Exception csEx)
+                    { StingLog.WarnRateLimited("StaleMarker.BoqStale", $"StaleMarker BOQ stale: {csEx.Message}"); }
+                    if (materialChanged) StingMaterialUpdaterStaleHook.OnMaterialChanged(doc, id);
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StingStaleMarker element {id?.Value}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Re-run stale detection on the overflow elements deferred from
+        /// a bulk edit, inside a dedicated short transaction. Called from
+        /// <see cref="StaleRemarkJob"/> on the next idle tick — after the
+        /// triggering transaction has committed, so a fresh transaction is
+        /// required to write the stale flags.</summary>
+        public static void RemarkOverflow(Document doc, IList<ElementId> ids)
+        {
+            if (!_enabled) return;
+            if (doc == null || !doc.IsValidObject || ids == null || ids.Count == 0) return;
+            try
+            {
+                Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
+                string projectLoc = null;
+                try
+                {
+                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+                    projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                }
+                catch (Exception riEx) { StingLog.Warn($"StaleMarker overflow room index: {riEx.Message}"); }
+
+                int marked = 0;
+                using (var tx = new Transaction(doc, "STING Stale Re-mark (deferred)"))
+                {
+                    tx.Start();
+                    foreach (var id in ids)
+                        if (TryMarkElementStale(doc, id, roomIndex, projectLoc)) marked++;
+                    tx.Commit();
+                }
+
+                if (marked > 0)
+                {
+                    try { ComplianceScan.InvalidateCache(); } catch (Exception ciEx) { StingLog.Warn($"StaleMarker overflow invalidate cache: {ciEx.Message}"); }
+                    if (TagConfig.StaleWarningThreshold > 0)
+                    {
+                        try { StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob()); }
+                        catch (Exception schEx) { StingLog.Warn($"StaleMarker overflow enqueue stale-warning job: {schEx.Message}"); }
+                    }
+                }
+                StingLog.Info($"StingStaleMarker: deferred re-mark processed {ids.Count} overflow elements, flagged {marked} stale.");
+            }
+            catch (Exception ex) { StingLog.Warn($"StingStaleMarker.RemarkOverflow: {ex.Message}"); }
+        }
+    }
+
+    /// <summary>Single-shot idle job that re-marks a bulk edit's overflow
+    /// elements stale outside the triggering transaction (see
+    /// <see cref="StingStaleMarker.RemarkOverflow"/>). Element ids are only
+    /// meaningful in their originating document, so if the user has switched
+    /// documents by the time the tick fires the ids are dropped rather than
+    /// mis-resolved against another model.</summary>
+    internal class StaleRemarkJob : IIdlingJob
+    {
+        private readonly Document _doc;
+        private readonly IList<ElementId> _ids;
+
+        public StaleRemarkJob(Document doc, IList<ElementId> ids)
+        {
+            _doc = doc;
+            _ids = ids;
+        }
+
+        public string Name => "StaleRemark";
+        public int Priority => 4;
+        public int BudgetMs => 40;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var active = uiApp?.ActiveUIDocument?.Document;
+                // ReferenceEquals is safe even if _doc was since closed (returns
+                // false → we drop). Never dereference the captured document.
+                if (active == null || !active.IsValidObject || !ReferenceEquals(active, _doc))
+                    return true;
+                StingStaleMarker.RemarkOverflow(active, _ids);
+            }
+            catch (Exception ex) { StingLog.Warn($"StaleRemarkJob: {ex.Message}"); }
+            return true; // one-shot
         }
     }
 }
