@@ -5,7 +5,7 @@
 //   CLN_DESIGN_PRESSURE_DELTA_PA_INT  (Pa relative pressure to corridor)
 //   CLN_DESIGN_TEMP_C_DBL         (°C dry-bulb set-point)
 //   CLN_DESIGN_RH_PCT_INT         (% relative humidity)
-//   CLN_NOISE_NR_TXT              (NR noise-rating target, e.g. NR-35)
+//   CLN_NOISE_NR_NR              (NR noise-rating target as an integer, e.g. 35)
 //
 // Values sourced from ASHRAE 170-2021, HTM 03-01, HBN facility-type chapters,
 // and FGI 2022 (used where HBN is silent). The iHFG fallback table
@@ -19,6 +19,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Validation.Healthcare;   // RoomClassCodes (canonical vocabulary)
 
 namespace StingTools.Commands.Healthcare
 {
@@ -27,78 +28,72 @@ namespace StingTools.Commands.Healthcare
     public class HbnRoomAutoPopulatorCommand : IExternalCommand
     {
         // ── HTM 03-01 / ASHRAE 170 design parameter table ──────────────────────
-        // Key: CLN_ROOM_CLASS_TXT value (case-insensitive)
+        // Key: CANONICAL CLN_ROOM_CLASS_TXT code (see HEALTHCARE_ROOM_CLASSES.json).
+        // The lookup canonicalises the room's raw value first, so legacy spellings
+        // (CT, WARD, PE_ROOM, …) resolve here via their aliases. Values are the
+        // exact per-class design targets that previously keyed on the legacy codes
+        // — unchanged, only re-keyed to the canonical vocabulary.
         // Value: (ACH, DeltaPa, TempC, RhPct, NR)
         private static readonly Dictionary<string, (int Ach, int DeltaPa, double TempC, int RhPct, string Nr)>
             RoomDesignTable = new Dictionary<string, (int, int, double, int, string)>(StringComparer.OrdinalIgnoreCase)
         {
             // Operating rooms
-            { "OR",              (20, 10, 18, 50, "NR-25") },
-            { "OPERATING_THEATRE", (20, 10, 18, 50, "NR-25") },
+            { "OR-CONV",         (20, 10, 18, 50, "NR-25") },   // ← OR, OPERATING_THEATRE
+            { "OR-ULTRA",        (20, 10, 18, 50, "NR-25") },   // ← OR-ORTHO (ultraclean)
             { "OR-HYBRID",       (25, 15, 18, 50, "NR-25") },
-            { "OR-ORTHO",        (20, 10, 18, 50, "NR-25") },
             // ICU / Critical care
-            { "ICU",             (12, 0,  22, 50, "NR-35") },
-            { "ICU_BED_BAY",     (12, 0,  22, 50, "NR-35") },
+            { "ICU",             (12, 0,  22, 50, "NR-35") },   // ← ICU_BED_BAY
             { "NICU",            (12, 0,  24, 50, "NR-35") },
             { "HDU",             (10, 0,  22, 50, "NR-35") },
             // Isolation / Infection Control
-            { "AIIR",            (12, -8, 22, 50, "NR-40") },
-            { "ISOLATION",       (12, -8, 22, 50, "NR-40") },
-            { "PE_ROOM",         (12, 10, 22, 50, "NR-40") },   // Protective environment
+            { "AIIR",            (12, -8, 22, 50, "NR-40") },   // ← ISOLATION
+            { "PE-PROT",         (12, 10, 22, 50, "NR-40") },   // ← PE_ROOM (protective environment)
             { "BMTU",            (12, 10, 22, 50, "NR-35") },
             // General ward
-            { "WARD",            (6,  0,  22, 50, "NR-40") },
-            { "WARD_ROOM",       (6,  0,  22, 50, "NR-40") },
-            { "SIDE_ROOM",       (6,  0,  22, 50, "NR-40") },
+            { "WARD-INPT",       (6,  0,  22, 50, "NR-40") },   // ← WARD, WARD_ROOM, SIDE_ROOM
             // Outpatient / Consulting
-            { "OPD",             (6,  0,  22, 55, "NR-40") },
-            { "CONSULTING",      (6,  0,  22, 55, "NR-40") },
-            { "EXAMINATION",     (6,  0,  22, 55, "NR-45") },
+            { "CONS",            (6,  0,  22, 55, "NR-40") },   // ← OPD, CONSULTING
+            { "EXAM",            (6,  0,  22, 55, "NR-45") },   // ← EXAMINATION
             // Emergency Department
             { "ED",              (10, 0,  22, 50, "NR-40") },
             { "RESUS",           (15, 5,  22, 50, "NR-35") },
             { "TRIAGE",          (10, 0,  22, 55, "NR-45") },
             // Imaging
-            { "CT",              (10, 0,  20, 50, "NR-40") },
-            { "MRI",             (10, 0,  20, 50, "NR-35") },
-            { "XRAY",            (10, 0,  20, 50, "NR-40") },
-            { "FLUORO",          (10, 0,  20, 50, "NR-40") },
-            { "IMAGING",         (10, 0,  20, 50, "NR-40") },
-            { "NUCLEAR_MED",     (12, -8, 20, 50, "NR-40") },
-            { "PET_CT",          (12, -8, 20, 50, "NR-40") },
+            { "IMG-CT",          (10, 0,  20, 50, "NR-40") },   // ← CT
+            { "IMG-MRI",         (10, 0,  20, 50, "NR-35") },   // ← MRI
+            { "IMG-XR",          (10, 0,  20, 50, "NR-40") },   // ← XRAY
+            { "IMG-FL",          (10, 0,  20, 50, "NR-40") },   // ← FLUORO
+            { "IMG-GEN",         (10, 0,  20, 50, "NR-40") },   // ← IMAGING
+            { "IMG-NM",          (12, -8, 20, 50, "NR-40") },   // ← NUCLEAR_MED
+            { "IMG-PET",         (12, -8, 20, 50, "NR-40") },   // ← PET_CT
             // Pharmacy / Clean rooms
-            { "PHARMACY_ISO5",   (100, 10, 20, 50, "NR-45") },  // ISO 5 cleanroom
-            { "PHARMACY_ISO7",   (30,  5,  20, 50, "NR-45") },
-            { "PHARMACY_ISO8",   (20,  0,  20, 50, "NR-45") },
+            { "PH-ISO5",         (100, 10, 20, 50, "NR-45") },  // ← PHARMACY_ISO5 (ISO 5 PEC)
+            { "PH-CSP-797",      (30,  5,  20, 50, "NR-45") },  // ← PHARMACY_ISO7 (USP 797 buffer)
+            { "PH-ISO8",         (20,  0,  20, 50, "NR-45") },  // ← PHARMACY_ISO8
             // HSDU / Decon
-            { "HSDU_DIRTY",      (10, -5, 20, 50, "NR-50") },
-            { "HSDU_CLEAN",      (10,  5, 20, 50, "NR-50") },
-            { "HSDU_STERILE",    (20, 10, 20, 50, "NR-50") },
-            { "DECONTAMINATION", (10, -5, 18, 50, "NR-50") },
+            { "HSDU-W",          (10, -5, 20, 50, "NR-50") },   // ← HSDU_DIRTY
+            { "HSDU-P",          (10,  5, 20, 50, "NR-50") },   // ← HSDU_CLEAN
+            { "HSDU-S",          (20, 10, 20, 50, "NR-50") },   // ← HSDU_STERILE
+            { "DECON-D",         (10, -5, 18, 50, "NR-50") },   // ← DECONTAMINATION
             // Maternity
-            { "LDR",             (6,  0,  24, 55, "NR-35") },  // Labour, Delivery, Recovery
-            { "LDRP",            (6,  0,  24, 55, "NR-35") },
+            { "MAT-LDR",         (6,  0,  24, 55, "NR-35") },   // ← LDR, LDRP
             { "MATERNITY",       (6,  0,  24, 55, "NR-40") },
             // Mental health
-            { "PSY_BED",         (6,  0,  22, 55, "NR-40") },
-            { "MENTAL_HEALTH",   (6,  0,  22, 55, "NR-40") },
-            { "PSYCHIATRIC",     (6,  0,  22, 55, "NR-40") },
+            { "PSY-BED",         (6,  0,  22, 55, "NR-40") },   // ← PSY_BED, MENTAL_HEALTH, PSYCHIATRIC
             // Mortuary
-            { "MORTUARY",        (10, -5, 15, 50, "NR-55") },
-            { "POST_MORTEM",     (10, -5, 15, 50, "NR-55") },
+            { "MORT",            (10, -5, 15, 50, "NR-55") },   // ← MORTUARY
+            { "POST",            (10, -5, 15, 50, "NR-55") },   // ← POST_MORTEM
             // Dialysis
-            { "DIALYSIS",        (6,  0,  22, 55, "NR-40") },
-            { "RENAL",           (6,  0,  22, 55, "NR-40") },
+            { "DIAL",            (6,  0,  22, 55, "NR-40") },   // ← DIALYSIS, RENAL
             // Endoscopy
             { "ENDOSCOPY",       (10, 0,  20, 50, "NR-40") },
             { "BRONCHOSCOPY",    (12, -8, 20, 50, "NR-40") },
             // Corridors / Support
-            { "CORRIDOR_CLINICAL", (4, 0, 22, 60, "NR-50") },
-            { "CLEAN_UTILITY",   (10, 5,  22, 55, "NR-50") },
-            { "DIRTY_UTILITY",   (10,-5,  22, 55, "NR-55") },
+            { "CORRIDOR-CLIN",   (4, 0, 22, 60, "NR-50") },     // ← CORRIDOR_CLINICAL
+            { "CLEAN-UTIL",      (10, 5,  22, 55, "NR-50") },   // ← CLEAN_UTILITY
+            { "DIRTY-UTIL",      (10,-5,  22, 55, "NR-55") },   // ← DIRTY_UTILITY
             { "SLUICE",          (10,-5,  22, 60, "NR-55") },
-            { "TREATMENT_ROOM",  (6,  0,  22, 55, "NR-45") },
+            { "TREAT",           (6,  0,  22, 55, "NR-45") },   // ← TREATMENT_ROOM
         };
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -129,13 +124,17 @@ namespace StingTools.Commands.Healthcare
                             skipped++;
                             continue;
                         }
-                        string roomClass = ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")?.Trim();
-                        if (string.IsNullOrEmpty(roomClass))
+                        string rawClass = ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")?.Trim();
+                        if (string.IsNullOrEmpty(rawClass))
                         {
                             StingLog.Warn($"HbnAutoPopulate: Room '{room.Name}' has no CLN_ROOM_CLASS_TXT — skipping.");
                             skipped++;
                             continue;
                         }
+                        // Resolve legacy / cross-standard spellings to the canonical code so
+                        // the design table (keyed canonical) is reached regardless of how the
+                        // room was tagged.
+                        string roomClass = RoomClassCodes.Canonicalize(rawClass, doc);
 
                         // Look up primary HTM/HBN table, fall back to iHFG stub if not found.
                         if (!RoomDesignTable.TryGetValue(roomClass, out var design))
@@ -191,7 +190,7 @@ namespace StingTools.Commands.Healthcare
                     $"Populated {populated} room(s) with HTM/HBN/ASHRAE 170 design parameters.\n" +
                     (skipped > 0 ? $"{skipped} element(s) skipped (not a Room, or no CLN_ROOM_CLASS_TXT).\n" : "") +
                     "\nParameters written: CLN_DESIGN_ACH_INT, CLN_DESIGN_PRESSURE_DELTA_PA_INT, " +
-                    "CLN_DESIGN_TEMP_C_DBL, CLN_DESIGN_RH_PCT_INT, CLN_NOISE_NR_TXT.");
+                    "CLN_DESIGN_TEMP_C_DBL, CLN_DESIGN_RH_PCT_INT, CLN_NOISE_NR_NR.");
 
                 return populated > 0 ? Result.Succeeded : Result.Failed;
             }

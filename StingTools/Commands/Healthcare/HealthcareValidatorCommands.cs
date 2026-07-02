@@ -291,4 +291,14 @@ namespace StingTools.Commands.Healthcare
             catch (Exception ex) { StingLog.Error("Healthcare_WasteFlow failed", ex); m = ex.Message; return Result.Failed; }
         }
     }
+
+    [Transaction(TransactionMode.ReadOnly)] [Regeneration(RegenerationOption.Manual)]
+    public class HealthcareRoomClassCodeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string m, ElementSet e) {
+            try { return HealthcareValidatorReporter.Report("Healthcare — Room-Class Vocabulary",
+                new RoomClassCodeValidator().Validate(cd.Application.ActiveUIDocument.Document)); }
+            catch (Exception ex) { StingLog.Error("Healthcare_RoomClassCode failed", ex); m = ex.Message; return Result.Failed; }
+        }
+    }
 }

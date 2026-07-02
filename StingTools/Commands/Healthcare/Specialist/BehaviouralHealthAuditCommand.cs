@@ -3,6 +3,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Validation.Healthcare;   // RoomClassCodes (canonical vocabulary)
 using StingTools.Standards.FGI;
 using System;
 using System.Linq;
@@ -62,10 +63,13 @@ namespace StingTools.Commands.Healthcare.Specialist
         }
         private static string Get(Element el, string n) {
             try { var p = el.LookupParameter(n);
-                  if (p == null || !p.HasValue) return "";
-                  if (p.StorageType==StorageType.String) return p.AsString() ?? "";
-                  if (p.StorageType==StorageType.Integer) return p.AsInteger().ToString();
-                  return p.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+                  string s;
+                  if (p == null || !p.HasValue) s = "";
+                  else if (p.StorageType==StorageType.String) s = p.AsString() ?? "";
+                  else if (p.StorageType==StorageType.Integer) s = p.AsInteger().ToString();
+                  else s = p.AsValueString() ?? "";
+                  return n == "CLN_ROOM_CLASS_TXT" ? RoomClassCodes.Canonicalize(s, el.Document) : s;
+                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
     }
 }

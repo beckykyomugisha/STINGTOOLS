@@ -74,6 +74,7 @@ namespace StingTools.Core.Validation.Healthcare
                 RunIfPicked("RtlsCoverage",      new RtlsCoverageValidator());
                 RunIfPicked("WasteFlow",         new WasteFlowValidator());
                 RunIfPicked("IoTStaleness",      new IoTStalenessValidator());
+                RunIfPicked("RoomClassCode",     new RoomClassCodeValidator());
 
                 if (cancelled) HcOptions.ClearCancel();
                 return all;

@@ -12,8 +12,8 @@ MAT-LDR,35,0.6,45,
 NICU-COUPLET,35,0.5,50,
 PH-CSP-797,40,0.7,40,Cleanroom NC
 PH-CSP-800,40,0.7,40,
-MRI,45,0.7,55,High STC for quench acoustics
-LINAC,45,0.7,55,
+IMG-MRI,45,0.7,55,High STC for quench acoustics
+IMG-LIN,45,0.7,55,
 MORT,45,0.8,40,
 HSDU-W,50,0.8,40,Plant noise tolerated
 HSDU-P,40,0.7,45,

@@ -124,14 +124,17 @@ namespace StingTools.Core.Validation.Healthcare
         }
 
         /// <summary>Reads CLN_ROOM_CLASS_TXT from cache (single dictionary lookup) or
-        /// directly from the room element when no context is active.</summary>
+        /// directly from the room element when no context is active, and resolves it
+        /// to the canonical room-class code so every validator compares canonical vs
+        /// canonical regardless of how the room was tagged (see RoomClassCodes).</summary>
         protected static string GetRoomClassCached(Element room)
         {
             if (room == null) return "";
             var ctx = HealthcareValidatorContext.Active;
-            if (ctx != null && ctx.RoomById.TryGetValue(room.Id.Value, out var t))
-                return t.roomClass ?? "";
-            return GetParam(room, "CLN_ROOM_CLASS_TXT");
+            string raw = (ctx != null && ctx.RoomById.TryGetValue(room.Id.Value, out var t))
+                ? (t.roomClass ?? "")
+                : GetParam(room, "CLN_ROOM_CLASS_TXT");
+            return RoomClassCodes.Canonicalize(raw, room.Document);
         }
 
         /// <summary>Returns Medical Equipment + Nurse Call Devices + Specialty

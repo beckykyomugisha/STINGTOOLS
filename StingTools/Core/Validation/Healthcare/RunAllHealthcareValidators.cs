@@ -68,6 +68,7 @@ namespace StingTools.Core.Validation.Healthcare
                 Run(new EesResilienceValidator());
                 Run(new RtlsCoverageValidator());
                 Run(new WasteFlowValidator());
+                Run(new RoomClassCodeValidator());
                 if (cancelled) HcOptions.ClearCancel();
                 return all;
             }

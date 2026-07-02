@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
 using StingTools.Core;
+using StingTools.Core.Validation.Healthcare;   // RoomClassCodes (canonical vocabulary)
 
 namespace StingTools.Core.Adjacency
 {
@@ -37,7 +38,8 @@ namespace StingTools.Core.Adjacency
             if (doc == null) return findings;
             var g = RoomGraphBuilder.Build(doc);
 
-            string ClassOf(long rid) => g.Rooms.TryGetValue(rid, out var r) ? GetParam(r, "CLN_ROOM_CLASS_TXT") : "";
+            string ClassOf(long rid) => g.Rooms.TryGetValue(rid, out var r)
+                ? RoomClassCodes.Canonicalize(GetParam(r, "CLN_ROOM_CLASS_TXT"), doc) : "";
 
             foreach (var (rid, room) in g.Rooms)
             {

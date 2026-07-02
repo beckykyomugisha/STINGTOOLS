@@ -27,7 +27,7 @@ namespace StingTools.Core.Validation.Healthcare
                 "AntiLigatureValidator","RdsCompletenessValidator","IoTStalenessValidator",
                 "StructuralLoadValidator","AcousticValidator","AdvancedRadShieldValidator",
                 "EndoscopeTraceValidator","EesResilienceValidator","WasteFlowValidator",
-                "RtlsCoverageValidator"
+                "RtlsCoverageValidator","RoomClassCodeValidator"
             };
 
         public static HashSet<string> AllowedValidators(Document doc)
