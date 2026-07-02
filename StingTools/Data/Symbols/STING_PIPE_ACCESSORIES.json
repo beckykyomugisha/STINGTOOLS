@@ -1623,6 +1623,495 @@
         }
       ],
       "status": "draft"
+    },
+    {
+      "id": "PIPE_SAFETY_RELIEF",
+      "name": "Safety Relief Valve",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Valve",
+      "symbolSize": 5.0,
+      "standard": "ISO 14617-8 / BS 1553 (angle relief valve + spring)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.22,
+            "x2": 0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.22,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.28,
+            "x2": 0.08,
+            "y2": 0.34
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.34,
+            "x2": 0.08,
+            "y2": 0.4
+          },
+          {
+            "x1": 0,
+            "y1": 0,
+            "x2": 0.35,
+            "y2": 0
+          },
+          {
+            "x1": 0.35,
+            "y1": 0,
+            "x2": 0.35,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.22,
+            "x2": 0.45,
+            "y2": 0.22
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_STRAINER_Y",
+      "name": "Y-Strainer / Filter",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Fitting",
+      "symbolSize": 5.0,
+      "standard": "ISO 14617-15 / BS 1553 (Y-type strainer)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.1,
+            "y1": 0,
+            "x2": 0.15,
+            "y2": -0.35,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.0,
+            "y1": -0.12,
+            "x2": 0.22,
+            "y2": -0.28
+          },
+          {
+            "x1": 0.08,
+            "y1": -0.02,
+            "x2": 0.26,
+            "y2": -0.18
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_PUMP_INLINE",
+      "name": "Inline Circulating Pump",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "standard": "ISO 14617-8 (pump = circle + impeller triangle)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": -0.2,
+            "x2": 0.36,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.2,
+            "x2": 0.36,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.2,
+            "x2": -0.25,
+            "y2": 0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.4,
+            "y2": 0
+          },
+          {
+            "x1": 0.4,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 50,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_METER",
+      "name": "Flow Meter (general)",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Instrument",
+      "symbolSize": 5.0,
+      "standard": "ISO 14617-10 / ISA-5.1 (inline flow meter)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.35,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.35,
+            "y2": 0
+          },
+          {
+            "x1": 0.35,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.12,
+            "x2": 0.18,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.12,
+            "x2": 0.18,
+            "y2": 0,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_THERMOMETER",
+      "name": "Thermometer",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Instrument",
+      "symbolSize": 4.0,
+      "standard": "ISO 14617-10 / ISA-5.1 (temperature indicator)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.28,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.08,
+            "x2": 0,
+            "y2": -0.4,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.06,
+            "y1": -0.4,
+            "x2": 0.06,
+            "y2": -0.4
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-Z",
+          "offsetY": -0.4
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_AIR_VENT",
+      "name": "Automatic Air Vent",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Fitting",
+      "symbolSize": 4.0,
+      "standard": "ISO 14617-8 / BS 1553 (automatic air vent)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.28,
+            "r": 0.18,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.22,
+            "x2": 0.08,
+            "y2": 0.34
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.34,
+            "x2": 0.08,
+            "y2": 0.22
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-Z",
+          "offsetY": -0.4
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PIPE_DRAIN",
+      "name": "Drain / Blowdown Valve",
+      "category": "PipeAccessory",
+      "familyType": "MEPAccessory",
+      "discipline": "Mechanical",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "standard": "ISO 14617-8 / BS 1553 (drain valve + discharge)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.4,
+            "x2": 0,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.22,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": -0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.12,
+            "x2": 0.22,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.22,
+            "y1": 0.1,
+            "x2": 0.22,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.12,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.3,
+            "x2": 0.12,
+            "y2": -0.3
+          },
+          {
+            "x1": -0.08,
+            "y1": -0.42,
+            "x2": 0,
+            "y2": -0.3
+          },
+          {
+            "x1": 0.08,
+            "y1": -0.42,
+            "x2": 0,
+            "y2": -0.3
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "+Z",
+          "offsetY": 0.4
+        }
+      ],
+      "status": "draft"
     }
   ]
 }

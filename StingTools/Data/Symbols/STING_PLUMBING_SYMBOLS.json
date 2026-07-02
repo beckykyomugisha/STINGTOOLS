@@ -3450,6 +3450,757 @@
       },
       "standard": "CIBSE Guide",
       "status": "draft"
+    },
+    {
+      "id": "PLM_SHOWER_HEAD",
+      "name": "Shower Head / Rose",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Sanitary",
+      "symbolSize": 5.0,
+      "standard": "BS 6465-2 (shower rose + spray)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.2,
+            "r": 0.28,
+            "startDeg": 180,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.28,
+            "y1": 0.2,
+            "x2": 0.28,
+            "y2": 0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.48,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.1,
+            "x2": -0.22,
+            "y2": -0.32
+          },
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.18,
+            "y1": -0.1,
+            "x2": 0.22,
+            "y2": -0.32
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHotWater",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "+Z",
+          "offsetY": 0.48
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_HOT_WATER_CYLINDER",
+      "name": "Hot Water Storage Cylinder",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS 6465 / BS 1566 (HWS cylinder)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.45,
+            "x2": 0.3,
+            "y2": -0.45
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.45,
+            "x2": -0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.45,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.35,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": -0.65,
+            "x2": 0,
+            "y2": -0.45
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 450,
+        "heightMm": 1500
+      },
+      "status": "draft"
+    },
+    {
+      "id": "PLM_COLD_WATER_CISTERN",
+      "name": "Cold Water Storage Cistern",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS 6465 / BS 4213 (CWS cistern, open top)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": 0.3,
+            "x2": -0.45,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": -0.35
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.12,
+            "x2": 0.45,
+            "y2": 0.12,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.45,
+            "y1": -0.2,
+            "x2": -0.6,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": -0.5
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 900,
+        "depthMm": 600,
+        "heightMm": 600
+      },
+      "status": "draft"
+    },
+    {
+      "id": "PLM_STOPCOCK",
+      "name": "Stopcock / Isolation Valve",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 5.0,
+      "standard": "BS 6465 / BS 1010 (stopcock = valve + handle)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.22,
+            "x2": 0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.22,
+            "x2": 0,
+            "y2": 0.4
+          },
+          {
+            "x1": -0.14,
+            "y1": 0.4,
+            "x2": 0.14,
+            "y2": 0.4
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Hydronic",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_HOSE_UNION",
+      "name": "Hose Union Tap",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 4.0,
+      "standard": "BS 6465 / BS 1010 (hose union bib tap)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": -0.4,
+            "x2": 0,
+            "y2": -0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.12,
+            "x2": 0.2,
+            "y2": -0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.1,
+            "x2": 0.2,
+            "y2": -0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.12,
+            "x2": 0,
+            "y2": 0.3
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.3,
+            "x2": 0.12,
+            "y2": 0.3
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.1,
+            "x2": 0.42,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.42,
+            "y1": -0.18,
+            "x2": 0.42,
+            "y2": -0.02
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "DomesticColdWater",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-Z",
+          "offsetY": -0.4
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_THERMOSTATIC_MV",
+      "name": "Thermostatic Mixing Valve (TMV)",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Valve",
+      "symbolSize": 5.0,
+      "standard": "BS 6465 / BS EN 1111 (TMV: 2 in, 1 out)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.28,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0.15,
+            "x2": -0.28,
+            "y2": 0.1
+          },
+          {
+            "x1": -0.5,
+            "y1": -0.15,
+            "x2": -0.28,
+            "y2": -0.1
+          },
+          {
+            "x1": 0.28,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.14,
+            "y1": -0.14,
+            "x2": 0.14,
+            "y2": 0.14,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.14,
+            "y1": 0.14,
+            "x2": 0.14,
+            "y2": -0.14,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "DomesticColdWater",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5,
+          "offsetY": 0.15
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHotWater",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5,
+          "offsetY": -0.15
+        },
+        {
+          "domain": "Piping",
+          "systemType": "DomesticHotWater",
+          "shape": "Round",
+          "sizeMm": 15,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_FLOOR_DRAIN",
+      "name": "Floor Drain / Gully",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 5.0,
+      "standard": "BS 8301 / BS EN 1253 (floor gully + grating)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": -0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.4,
+            "x2": 0.4,
+            "y2": 0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": 0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.4,
+            "x2": -0.4,
+            "y2": -0.4,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.4,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.4,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.4,
+            "y1": -0.2,
+            "x2": 0.4,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.2,
+            "x2": 0.4,
+            "y2": 0.2,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.15,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 75,
+          "direction": "Out",
+          "facing": "-Z",
+          "offsetZ": -0.1
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_TRAP_P",
+      "name": "P-Trap",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "standard": "BS 8301 / BS EN 274 (P-trap section)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.5,
+            "x2": 0.15,
+            "y2": -0.05,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.2,
+            "x2": 0.5,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.05,
+            "x2": 0.5,
+            "y2": -0.05,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.175,
+            "cy": -0.2,
+            "r": 0.175,
+            "startDeg": 180,
+            "endDeg": 360,
+            "subcategory": "Main"
+          },
+          {
+            "cx": 0.175,
+            "cy": -0.05,
+            "r": 0.025,
+            "startDeg": 180,
+            "endDeg": 360,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 40,
+          "direction": "In",
+          "facing": "+Z",
+          "offsetY": 0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 40,
+          "direction": "Out",
+          "facing": "+X",
+          "offsetX": 0.5,
+          "offsetY": -0.12
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_TRAP_S",
+      "name": "S-Trap",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "standard": "BS 8301 / BS EN 274 (S-trap section)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": 0,
+            "y1": 0.5,
+            "x2": 0,
+            "y2": -0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.28,
+            "x2": 0.15,
+            "y2": -0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.05,
+            "x2": 0.15,
+            "y2": -0.5,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.05,
+            "x2": 0,
+            "y2": -0.5,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.075,
+            "cy": -0.15,
+            "r": 0.075,
+            "startDeg": 180,
+            "endDeg": 360,
+            "subcategory": "Main"
+          },
+          {
+            "cx": 0.075,
+            "cy": 0.05,
+            "r": 0.075,
+            "startDeg": 0,
+            "endDeg": 180,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 40,
+          "direction": "In",
+          "facing": "+Z",
+          "offsetY": 0.5
+        },
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 40,
+          "direction": "Out",
+          "facing": "-Z",
+          "offsetY": -0.5
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "PLM_ACCESS_EYE",
+      "name": "Rodding Eye / Access Eye",
+      "category": "Plumbing",
+      "familyType": "MEPEquipment",
+      "discipline": "Plumbing",
+      "subcategory": "Drainage",
+      "symbolSize": 4.0,
+      "standard": "BS 8301 / BS EN 1253 (rodding / access eye)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.21,
+            "y1": -0.21,
+            "x2": 0.21,
+            "y2": 0.21,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.21,
+            "y1": 0.21,
+            "x2": 0.21,
+            "y2": -0.21,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "connectors": [
+        {
+          "domain": "Piping",
+          "systemType": "Sanitary",
+          "shape": "Round",
+          "sizeMm": 100,
+          "direction": "In",
+          "facing": "-X",
+          "offsetX": -0.5
+        }
+      ],
+      "status": "draft"
     }
   ]
 }

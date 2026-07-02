@@ -3479,6 +3479,578 @@
         ]
       },
       "status": "draft"
+    },
+    {
+      "id": "SLD_MOTOR",
+      "name": "Motor (M)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-06 (motor = circle, M)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.35,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.35,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_MOTOR_OVERCURRENT",
+      "name": "Motor with Overcurrent Protection",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-06/07 (motor + thermal overload)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.12,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.15,
+            "y1": -0.1,
+            "x2": 0.15,
+            "y2": -0.1,
+            "subcategory": "Protection"
+          },
+          {
+            "x1": 0.15,
+            "y1": -0.1,
+            "x2": 0.15,
+            "y2": 0.1,
+            "subcategory": "Protection"
+          },
+          {
+            "x1": 0.15,
+            "y1": 0.1,
+            "x2": -0.15,
+            "y2": 0.1,
+            "subcategory": "Protection"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.1,
+            "x2": -0.15,
+            "y2": -0.1,
+            "subcategory": "Protection"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.1,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_CAPACITOR_BANK",
+      "name": "PFC Capacitor Bank",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617-04 (capacitor = two parallel plates)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.06,
+            "x2": 0.3,
+            "y2": 0.06,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.06,
+            "x2": 0.3,
+            "y2": -0.06,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.18,
+            "x2": 0.15,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.3,
+            "x2": 0.15,
+            "y2": 0.3,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.6
+          },
+          {
+            "x1": 0,
+            "y1": -0.06,
+            "x2": 0,
+            "y2": -0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_PFC_PANEL",
+      "name": "Power Factor Correction Panel",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switchgear",
+      "symbolSize": 6.0,
+      "standard": "IEC 60617-04 (PFC panel: box + capacitor)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.3,
+            "x2": 0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.3,
+            "x2": -0.3,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.05,
+            "x2": 0.15,
+            "y2": -0.05,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": -0.17,
+            "x2": 0.15,
+            "y2": -0.17,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": -0.05,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.3,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_DISTRIBUTION_BOARD",
+      "name": "Distribution Board (DB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switchgear",
+      "symbolSize": 6.0,
+      "standard": "IEC 60617 (distribution board = box + busbar)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.4,
+            "y1": -0.25,
+            "x2": 0.4,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": -0.25,
+            "x2": 0.4,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.4,
+            "y1": 0.25,
+            "x2": -0.4,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.4,
+            "y1": 0.25,
+            "x2": -0.4,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.12,
+            "x2": 0.35,
+            "y2": 0.12,
+            "subcategory": "Busbar"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0,
+            "y2": 0.6
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.25,
+            "x2": -0.2,
+            "y2": -0.6
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.25,
+            "x2": 0.2,
+            "y2": -0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_MDB",
+      "name": "Main Distribution Board (MDB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switchgear",
+      "symbolSize": 6.0,
+      "standard": "IEC 60617 (main distribution board = box + double busbar)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.25,
+            "x2": 0.5,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.25,
+            "x2": 0.5,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.25,
+            "x2": -0.5,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.25,
+            "x2": -0.5,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.14,
+            "x2": 0.45,
+            "y2": 0.14,
+            "subcategory": "Busbar"
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.06,
+            "x2": 0.45,
+            "y2": 0.06,
+            "subcategory": "Busbar"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.25,
+            "x2": 0,
+            "y2": 0.6
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.25,
+            "x2": -0.3,
+            "y2": -0.6
+          },
+          {
+            "x1": 0,
+            "y1": -0.25,
+            "x2": 0,
+            "y2": -0.6
+          },
+          {
+            "x1": 0.3,
+            "y1": -0.25,
+            "x2": 0.3,
+            "y2": -0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_SDB",
+      "name": "Sub-Distribution Board (SDB)",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Switchgear",
+      "symbolSize": 5.0,
+      "standard": "IEC 60617 (sub-distribution board = box + busbar)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.35,
+            "y1": -0.225,
+            "x2": 0.35,
+            "y2": -0.225,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.225,
+            "x2": 0.35,
+            "y2": 0.225,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.225,
+            "x2": -0.35,
+            "y2": 0.225,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.225,
+            "x2": -0.35,
+            "y2": -0.225,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.1,
+            "x2": 0.3,
+            "y2": 0.1,
+            "subcategory": "Busbar"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.225,
+            "x2": 0,
+            "y2": 0.6
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.225,
+            "x2": -0.2,
+            "y2": -0.6
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.225,
+            "x2": 0.2,
+            "y2": -0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_SOCKET_FINAL_CIRCUIT",
+      "name": "Socket Final Circuit",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (socket outlet final circuit)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.1,
+            "r": 0.28,
+            "startDeg": 0,
+            "endDeg": 180,
+            "subcategory": "Main"
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.28,
+            "y1": -0.1,
+            "x2": 0.28,
+            "y2": -0.1,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": -0.1,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_LIGHTING_FINAL_CIRCUIT",
+      "name": "Lighting Final Circuit",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617-11 (lighting final circuit = lamp)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.1,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.18,
+            "y1": -0.28,
+            "x2": 0.18,
+            "y2": 0.08,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.08,
+            "x2": 0.18,
+            "y2": -0.28,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.15,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "SLD_LOAD_GENERAL",
+      "name": "General Load",
+      "category": "SLD",
+      "familyType": "GenericAnnotation",
+      "discipline": "Electrical",
+      "subcategory": "Load",
+      "symbolSize": 4.0,
+      "standard": "IEC 60617 (general load = triangle)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0.3,
+            "y2": 0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": -0.3,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": -0.3,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": 0.2,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "status": "draft"
     }
   ]
 }

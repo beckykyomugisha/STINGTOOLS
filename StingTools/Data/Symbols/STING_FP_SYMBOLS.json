@@ -3322,6 +3322,804 @@
       },
       "standard": "NFPA 170 / BS 5839",
       "status": "draft"
+    },
+    {
+      "id": "FP_BEAM_DETECTOR",
+      "name": "Beam Detector (Tx)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Detector",
+      "symbolSize": 4.0,
+      "standard": "BS 5839-1 (optical beam smoke detector, Tx)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.25,
+            "x2": -0.25,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.25,
+            "x2": -0.25,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.6,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.06,
+            "x2": 0.6,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.06,
+            "x2": 0.6,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.12,
+            "x2": 0.12,
+            "y2": 0.12
+          },
+          {
+            "x1": -0.12,
+            "y1": 0.12,
+            "x2": 0.12,
+            "y2": -0.12
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_CALL_POINT",
+      "name": "Manual Call Point (Break Glass)",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 4.0,
+      "standard": "BS 5839-1 / BS EN 54-11 (manual call point)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.35,
+            "x2": -0.35,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.35,
+            "x2": -0.35,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": -0.12,
+                "y": -0.12
+              },
+              {
+                "x": 0.12,
+                "y": -0.12
+              },
+              {
+                "x": 0.12,
+                "y": 0.12
+              },
+              {
+                "x": -0.12,
+                "y": 0.12
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_ALARM_SOUNDER",
+      "name": "Alarm Sounder",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Alarm",
+      "symbolSize": 4.0,
+      "standard": "BS 5839-1 / BS EN 54-3 (alarm sounder)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.25,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0.28,
+            "cy": 0,
+            "r": 0.18,
+            "startDeg": -50,
+            "endDeg": 50,
+            "subcategory": "Main"
+          },
+          {
+            "cx": 0.28,
+            "cy": 0,
+            "r": 0.32,
+            "startDeg": -50,
+            "endDeg": 50,
+            "subcategory": "Main"
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": -0.15,
+            "x2": -0.45,
+            "y2": -0.28,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.15,
+            "x2": -0.45,
+            "y2": 0.28,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.25,
+            "y1": -0.18,
+            "x2": -0.25,
+            "y2": 0.18,
+            "subcategory": "Main"
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_FACP",
+      "name": "Fire Alarm Control Panel",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Panel",
+      "symbolSize": 8.0,
+      "standard": "BS 5839-1 (fire alarm control & indicating panel)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.35,
+            "x2": 0.5,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.35,
+            "x2": 0.5,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.35,
+            "x2": -0.5,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.35,
+            "x2": -0.5,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.25,
+            "x2": 0.5,
+            "y2": 0.25,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.3,
+            "cy": -0.05,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": -0.05,
+            "cy": -0.05,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": 0.15,
+                "y": -0.15
+              },
+              {
+                "x": 0.4,
+                "y": -0.15
+              },
+              {
+                "x": 0.4,
+                "y": 0.05
+              },
+              {
+                "x": 0.15,
+                "y": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 600,
+        "depthMm": 150,
+        "heightMm": 400
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_RISER_INLET",
+      "name": "Dry/Wet Riser Inlet",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Riser",
+      "symbolSize": 5.0,
+      "standard": "BS 9990 / BS 5306 (riser breeching inlet)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.35,
+            "y1": -0.25,
+            "x2": 0.35,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.25,
+            "x2": 0.35,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.35,
+            "y1": 0.25,
+            "x2": -0.35,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": 0.25,
+            "x2": -0.35,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.15,
+            "cy": 0,
+            "r": 0.13,
+            "startDeg": "Main",
+            "endDeg": 360
+          },
+          {
+            "cx": 0.15,
+            "cy": 0,
+            "r": 0.13,
+            "startDeg": "Main",
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_LANDING_VALVE",
+      "name": "Dry/Wet Riser Landing Valve",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Riser",
+      "symbolSize": 5.0,
+      "standard": "BS 9990 / BS 5306 (landing valve)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": 0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": 0.22,
+            "x2": 0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0,
+            "y2": -0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.22,
+            "x2": -0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.45,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.35,
+            "r": 0.14,
+            "startDeg": "Main",
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_FIRE_EXTINGUISHER",
+      "name": "Fire Extinguisher",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Equipment",
+      "symbolSize": 4.0,
+      "standard": "BS 5306-8 / ISO 7010 (portable extinguisher)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.4,
+            "x2": -0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.2,
+            "y1": -0.4,
+            "x2": 0.2,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.25,
+            "x2": -0.1,
+            "y2": 0.42
+          },
+          {
+            "x1": 0.1,
+            "y1": 0.25,
+            "x2": 0.1,
+            "y2": 0.42
+          },
+          {
+            "x1": -0.1,
+            "y1": 0.42,
+            "x2": 0.1,
+            "y2": 0.42
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.25,
+            "r": 0.2,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ],
+        "filledRegions": [
+          {
+            "boundary": [
+              {
+                "x": -0.12,
+                "y": -0.28
+              },
+              {
+                "x": 0.12,
+                "y": -0.28
+              },
+              {
+                "x": 0,
+                "y": 0.0
+              }
+            ]
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_SPRINKLER_CONTROL_SET",
+      "name": "Sprinkler Control Valve Set",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 8.0,
+      "standard": "BS EN 12845 / BS 5306 (sprinkler control set)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.6,
+            "y1": 0,
+            "x2": -0.3,
+            "y2": 0
+          },
+          {
+            "x1": -0.3,
+            "y1": 0,
+            "x2": -0.08,
+            "y2": 0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.08,
+            "y1": 0.2,
+            "x2": -0.08,
+            "y2": -0.2,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.08,
+            "y1": -0.2,
+            "x2": -0.3,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.08,
+            "y1": 0,
+            "x2": 0.6,
+            "y2": 0
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0.25,
+            "cy": 0,
+            "r": 0.15,
+            "startDeg": "Main",
+            "endDeg": 360
+          },
+          {
+            "cx": 0.25,
+            "cy": 0.28,
+            "r": 0.1,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_ALARM_VALVE",
+      "name": "Alarm Valve / Alarm Check Valve",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 6.0,
+      "standard": "BS EN 12845 (wet alarm / check valve)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.22,
+            "y2": 0
+          },
+          {
+            "x1": -0.22,
+            "y1": -0.22,
+            "x2": -0.22,
+            "y2": 0.22,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.22,
+            "y1": -0.22,
+            "x2": 0.22,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.22,
+            "y1": 0.22,
+            "x2": 0.22,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.22,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": 0.22,
+            "y1": -0.15,
+            "x2": 0.22,
+            "y2": 0.15
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.35,
+            "r": 0.12,
+            "startDeg": "Main",
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_PREACTION_VALVE",
+      "name": "Pre-Action / Deluge Valve",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Valve",
+      "symbolSize": 6.0,
+      "standard": "BS EN 12845 (pre-action / deluge valve)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.25,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.25,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.25,
+            "x2": -0.25,
+            "y2": 0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.25,
+            "y1": 0.25,
+            "x2": -0.25,
+            "y2": -0.25,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0,
+            "x2": -0.25,
+            "y2": 0
+          },
+          {
+            "x1": 0.25,
+            "y1": 0,
+            "x2": 0.5,
+            "y2": 0
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.18,
+            "x2": 0.18,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.18,
+            "x2": 0.18,
+            "y2": -0.18,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.38,
+            "r": 0.12,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "FP_FIRE_PUMP",
+      "name": "Fire Pump Set",
+      "category": "FireProtection",
+      "familyType": "MEPEquipment",
+      "discipline": "FireProtection",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "BS EN 12845 (fire pump = circle + impeller)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.1,
+            "r": 0.32,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": 0.28,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.25,
+            "x2": 0.28,
+            "y2": 0.1,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.05,
+            "x2": -0.2,
+            "y2": 0.25,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.4,
+            "x2": 0.45,
+            "y2": -0.4
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.4,
+            "x2": -0.45,
+            "y2": -0.25
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.4,
+            "x2": 0.45,
+            "y2": -0.25
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.25,
+            "x2": 0.45,
+            "y2": -0.25
+          },
+          {
+            "x1": -0.32,
+            "y1": 0.1,
+            "x2": -0.5,
+            "y2": 0.1
+          },
+          {
+            "x1": 0.32,
+            "y1": 0.1,
+            "x2": 0.5,
+            "y2": 0.1
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 600,
+        "heightMm": 500
+      },
+      "status": "draft"
     }
   ]
 }

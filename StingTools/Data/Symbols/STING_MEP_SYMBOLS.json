@@ -3407,6 +3407,573 @@
       },
       "standard": "CIBSE Guide",
       "status": "draft"
+    },
+    {
+      "id": "HVAC_PUMP_INLINE",
+      "name": "Inline Circulating Pump",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "standard": "CIBSE Guide B / BS 1553 (pump = circle + impeller triangle)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.45,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.28,
+            "y1": -0.22,
+            "x2": 0.4,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.28,
+            "y1": 0.22,
+            "x2": 0.4,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.28,
+            "y1": -0.22,
+            "x2": -0.28,
+            "y2": 0.22,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.45,
+            "y1": 0,
+            "x2": -0.6,
+            "y2": 0
+          },
+          {
+            "x1": 0.45,
+            "y1": 0,
+            "x2": 0.6,
+            "y2": 0
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_PUMP_BASE",
+      "name": "End-Suction Base-Mounted Pump",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "CIBSE Guide B / BS 1553 (pump on plinth)",
+      "geometry": {
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.12,
+            "r": 0.32,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "lines": [
+          {
+            "x1": -0.2,
+            "y1": -0.02,
+            "x2": 0.28,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": 0.26,
+            "x2": 0.28,
+            "y2": 0.12,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.2,
+            "y1": -0.02,
+            "x2": -0.2,
+            "y2": 0.26,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": -0.45,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": -0.2
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.2,
+            "x2": 0.45,
+            "y2": -0.2
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.32,
+            "y1": 0.12,
+            "x2": -0.5,
+            "y2": 0.12
+          },
+          {
+            "x1": 0,
+            "y1": 0.44,
+            "x2": 0,
+            "y2": 0.6
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 300,
+        "depthMm": 200,
+        "heightMm": 250
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_BOILER",
+      "name": "Boiler (schematic)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 10.0,
+      "standard": "CIBSE Guide B (boiler = box + flame)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.45,
+            "x2": 0.5,
+            "y2": -0.45,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.45,
+            "x2": 0.5,
+            "y2": 0.45,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.45,
+            "x2": -0.5,
+            "y2": 0.45,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.45,
+            "x2": -0.5,
+            "y2": -0.45,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.12,
+            "y1": -0.35,
+            "x2": 0,
+            "y2": -0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.12,
+            "y1": -0.35,
+            "x2": 0,
+            "y2": -0.15,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.15,
+            "x2": 0,
+            "y2": -0.02,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": 0.18,
+            "r": 0.12,
+            "startDeg": 0,
+            "endDeg": 360
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.2,
+            "y1": 0.45,
+            "x2": -0.2,
+            "y2": 0.6
+          },
+          {
+            "x1": 0.2,
+            "y1": 0.45,
+            "x2": 0.2,
+            "y2": 0.6
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 900,
+        "depthMm": 700,
+        "heightMm": 1200
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_CHILLER",
+      "name": "Chiller (schematic)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 12.0,
+      "standard": "CIBSE Guide B / ASHRAE (chiller = box + snowflake)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.5,
+            "y1": -0.35,
+            "x2": 0.5,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": -0.35,
+            "x2": 0.5,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.5,
+            "y1": 0.35,
+            "x2": -0.5,
+            "y2": 0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.5,
+            "y1": 0.35,
+            "x2": -0.5,
+            "y2": -0.35,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.25,
+            "y1": 0,
+            "x2": 0.25,
+            "y2": 0,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": -0.18,
+            "x2": 0.18,
+            "y2": 0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.18,
+            "y1": 0.18,
+            "x2": 0.18,
+            "y2": -0.18,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0,
+            "y1": -0.25,
+            "x2": 0,
+            "y2": 0.25,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": -0.3,
+            "y2": 0.5
+          },
+          {
+            "x1": 0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": 0.5
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 2000,
+        "depthMm": 900,
+        "heightMm": 1200
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_COOLING_TOWER",
+      "name": "Cooling Tower (schematic)",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 10.0,
+      "standard": "CIBSE Guide B (cooling tower = trapezoid + splash)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": 0.45,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.35,
+            "x2": -0.3,
+            "y2": 0.25
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": 0.25
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.25,
+            "x2": 0.3,
+            "y2": 0.25
+          }
+        ],
+        "arcs": [
+          {
+            "cx": -0.12,
+            "cy": 0.4,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 180
+          },
+          {
+            "cx": 0.12,
+            "cy": 0.4,
+            "r": 0.08,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.35,
+            "y1": -0.35,
+            "x2": -0.35,
+            "y2": -0.5
+          },
+          {
+            "x1": 0.35,
+            "y1": -0.35,
+            "x2": 0.35,
+            "y2": -0.5
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 1200,
+        "depthMm": 1200,
+        "heightMm": 1500
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_HEAT_EXCHANGER",
+      "name": "Plate Heat Exchanger",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 8.0,
+      "standard": "CIBSE Guide B (plate HX = box + zigzag)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.3,
+            "x2": 0.45,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": 0.45,
+            "y1": 0.3,
+            "x2": -0.45,
+            "y2": 0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.45,
+            "y1": 0.3,
+            "x2": -0.45,
+            "y2": -0.3,
+            "subcategory": "Outline"
+          },
+          {
+            "x1": -0.35,
+            "y1": -0.25,
+            "x2": -0.15,
+            "y2": 0.25,
+            "subcategory": "Main"
+          },
+          {
+            "x1": -0.15,
+            "y1": 0.25,
+            "x2": 0.05,
+            "y2": -0.25,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.05,
+            "y1": -0.25,
+            "x2": 0.25,
+            "y2": 0.25,
+            "subcategory": "Main"
+          },
+          {
+            "x1": 0.25,
+            "y1": 0.25,
+            "x2": 0.35,
+            "y2": -0.25,
+            "subcategory": "Main"
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": -0.45,
+            "y1": 0.2,
+            "x2": -0.6,
+            "y2": 0.2
+          },
+          {
+            "x1": 0.45,
+            "y1": 0.2,
+            "x2": 0.6,
+            "y2": 0.2
+          },
+          {
+            "x1": -0.45,
+            "y1": -0.2,
+            "x2": -0.6,
+            "y2": -0.2
+          },
+          {
+            "x1": 0.45,
+            "y1": -0.2,
+            "x2": 0.6,
+            "y2": -0.2
+          }
+        ]
+      },
+      "status": "draft"
+    },
+    {
+      "id": "HVAC_EXPANSION_VESSEL",
+      "name": "Expansion Vessel",
+      "category": "HVAC",
+      "familyType": "MEPEquipment",
+      "discipline": "Mechanical",
+      "subcategory": "Equipment",
+      "symbolSize": 6.0,
+      "standard": "BS 7074-1 / CIBSE Guide B (vessel + diaphragm)",
+      "geometry": {
+        "lines": [
+          {
+            "x1": -0.3,
+            "y1": -0.35,
+            "x2": 0.3,
+            "y2": -0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": 0.35,
+            "x2": 0.3,
+            "y2": 0.35
+          },
+          {
+            "x1": -0.3,
+            "y1": -0.28,
+            "x2": 0.3,
+            "y2": -0.28,
+            "subcategory": "Main"
+          }
+        ],
+        "arcs": [
+          {
+            "cx": 0,
+            "cy": -0.35,
+            "r": 0.3,
+            "startDeg": 180,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0.35,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 180
+          }
+        ],
+        "connectionLines": [
+          {
+            "x1": 0,
+            "y1": -0.65,
+            "x2": 0,
+            "y2": -0.5
+          }
+        ]
+      },
+      "solid3D": {
+        "type": "Cylinder",
+        "diameterMm": 450,
+        "heightMm": 700
+      },
+      "status": "draft"
     }
   ]
 }
