@@ -443,7 +443,7 @@ namespace StingTools.Core.Symbols
                     }
                     catch (Exception ccx) { result.Warnings.Add($"{def.Id}: could not set category '{def.Category}' — {ccx.Message}"); }
 
-                    DrawGeometry(fdoc, def, std, result);
+                    DrawGeometry(fdoc, def, std, result, app, templateFolder);
                     AddParameters(app, fdoc, def, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
@@ -549,7 +549,8 @@ namespace StingTools.Core.Symbols
         }
 
         private static void DrawGeometry(Document fdoc, SymbolDefinition def,
-            StandardDefinition std, SymbolCreationResult result)
+            StandardDefinition std, SymbolCreationResult result,
+            Application app = null, string templateFolder = null)
         {
             var geo = def.Geometry;
             if (geo == null) return;
@@ -586,9 +587,16 @@ namespace StingTools.Core.Symbols
                 foreach (var a in geo.Arcs)
                     DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
 
-            if (geo.FilledRegions != null)
+            if (geo.FilledRegions != null && geo.FilledRegions.Count > 0)
+            {
+                // P2-1 — resolve a solid FilledRegionType ONCE for this family doc.
+                // Templates that ship none (model / MEP-fixture .rft) previously left
+                // fill-only symbols blank; resolve/create a solid-black type here.
+                ElementId frTypeId = ResolveSolidFilledRegionType(
+                    fdoc, app, templateFolder, def.Id, result);
                 foreach (var fr in geo.FilledRegions)
-                    DrawFilledRegion(fdoc, planView, fr, s, result, def.Id);
+                    DrawFilledRegion(fdoc, planView, sketch, fr, s, frTypeId, result, def.Id);
+            }
 
             if (geo.Text != null)
                 foreach (var t in geo.Text)
@@ -855,8 +863,9 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawFilledRegion(Document fdoc, View view,
-            FilledRegionDefinition fr, double symMm, SymbolCreationResult result, string id)
+        private static void DrawFilledRegion(Document fdoc, View view, SketchPlane sketch,
+            FilledRegionDefinition fr, double symMm, ElementId frTypeId,
+            SymbolCreationResult result, string id)
         {
             try
             {
@@ -889,21 +898,190 @@ namespace StingTools.Core.Symbols
                 }
                 if (curves.Count < 3) return;
 
-                var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(FilledRegionType))
-                    .FirstElementId();
-                if (frTypeId == ElementId.InvalidElementId)
+                // P2-1 — frTypeId is resolved once per family doc by
+                // ResolveSolidFilledRegionType (solid-black; imported cross-doc when
+                // the template ships none). If still unresolved, don't leave the
+                // symbol blank — render the boundary outline so the shape is visible.
+                if (frTypeId == null || frTypeId == ElementId.InvalidElementId)
                 {
-                    result.Warnings.Add($"{id}: no FilledRegionType in template.");
+                    result.Warnings.Add($"{id}: no FilledRegionType available in template — " +
+                        "rendered boundary outline (solid fill unavailable).");
+                    DrawClosedOutline(fdoc, view, sketch, curves, result, id);
                     return;
                 }
+
+                var loop = CurveLoop.Create(curves);
                 FilledRegion.Create(fdoc, frTypeId, view.Id, new List<CurveLoop> { loop });
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"{id}: filled region failed — {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// P2-1 — resolves a solid-black FilledRegionType for a family document.
+        /// Prefers an existing solid, non-masking type; otherwise duplicates one and
+        /// makes it solid black. When the template ships NO FilledRegionType (model /
+        /// MEP-fixture .rft), imports one from a transient Generic Annotation family
+        /// via cross-document copy. Returns InvalidElementId when none can be resolved
+        /// (caller falls back to a boundary outline). Caller owns the fdoc transaction.
+        /// </summary>
+        private static ElementId ResolveSolidFilledRegionType(Document fdoc, Application app,
+            string templateFolder, string id, SymbolCreationResult result)
+        {
+            try
+            {
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().ToList();
+
+                var solidPat = FindSolidFill(fdoc);
+                if (existing.Count > 0)
+                {
+                    // Reuse an existing solid, non-masking type when present.
+                    if (solidPat != null)
+                    {
+                        var already = existing.FirstOrDefault(t =>
+                        {
+                            try { return !t.IsMasking && t.ForegroundPatternId == solidPat.Id; }
+                            catch { return false; }
+                        });
+                        if (already != null) return already.Id;
+                    }
+                    var made = MakeSolidBlack(fdoc, existing[0], solidPat, result, id);
+                    return made != ElementId.InvalidElementId ? made : existing[0].Id;
+                }
+
+                // Zero types — import one from a transient Generic Annotation family
+                // (which ships a FilledRegionType + a solid fill pattern), then solidify.
+                return ImportFilledRegionType(fdoc, app, templateFolder, result, id);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: FilledRegionType resolve failed — {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>Duplicates a FilledRegionType and sets it solid black (non-masking),
+        /// or reuses a prior "STING Solid Black" in the same doc. Null solid pattern ⇒ no-op.</summary>
+        private static ElementId MakeSolidBlack(Document fdoc, FilledRegionType src,
+            FillPatternElement solidPat, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (src == null || solidPat == null) return ElementId.InvalidElementId;
+                const string name = "STING Solid Black";
+                var prior = new FilteredElementCollector(fdoc).OfClass(typeof(FilledRegionType))
+                    .Cast<FilledRegionType>()
+                    .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+                FilledRegionType t = prior ?? src.Duplicate(name) as FilledRegionType;
+                if (t == null) return ElementId.InvalidElementId;
+                try { if (t.ForegroundPatternId != solidPat.Id) t.ForegroundPatternId = solidPat.Id; }
+                catch (Exception ex) { StingLog.Warn($"{id} FR fg pattern: {ex.Message}"); }
+                try { t.ForegroundPatternColor = new Color(0, 0, 0); }
+                catch (Exception ex) { StingLog.Warn($"{id} FR fg colour: {ex.Message}"); }
+                try { t.IsMasking = false; } catch (Exception ex) { StingLog.Warn($"{id} FR masking: {ex.Message}"); }
+                return t.Id;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: could not create solid FilledRegionType — {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>Imports a FilledRegionType into <paramref name="fdoc"/> from a
+        /// transient Generic Annotation family (which always ships one + a solid fill
+        /// pattern) and makes it solid black. Transient source doc is closed afterwards.</summary>
+        private static ElementId ImportFilledRegionType(Document fdoc, Application app,
+            string templateFolder, SymbolCreationResult result, string id)
+        {
+            Document src = null;
+            try
+            {
+                if (app == null || string.IsNullOrEmpty(templateFolder))
+                    return ElementId.InvalidElementId;
+
+                var fakeDef = new SymbolDefinition
+                {
+                    FamilyType = "GenericAnnotation", Discipline = "General", SymbolSize = 3.0
+                };
+                string tmpl = ResolveTemplateFile(fakeDef, templateFolder, result);
+                if (string.IsNullOrEmpty(tmpl)) return ElementId.InvalidElementId;
+
+                src = app.NewFamilyDocument(tmpl);
+                if (src == null) return ElementId.InvalidElementId;
+
+                var srcType = new FilteredElementCollector(src)
+                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().FirstOrDefault();
+                if (srcType == null) return ElementId.InvalidElementId;
+
+                var copied = ElementTransformUtils.CopyElements(src,
+                    new List<ElementId> { srcType.Id }, fdoc, Transform.Identity, new CopyPasteOptions());
+                var newId = copied?.FirstOrDefault() ?? ElementId.InvalidElementId;
+                if (newId == ElementId.InvalidElementId) return ElementId.InvalidElementId;
+
+                // fdoc now carries the annotation's fill patterns — solidify the copy.
+                var solidPat = FindSolidFill(fdoc);
+                if (fdoc.GetElement(newId) is FilledRegionType t2 && solidPat != null)
+                {
+                    var solid = MakeSolidBlack(fdoc, t2, solidPat, result, id);
+                    if (solid != ElementId.InvalidElementId) return solid;
+                }
+                return newId;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: FilledRegionType import failed — {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+            finally
+            {
+                try { src?.Close(false); } catch { /* transient */ }
+            }
+        }
+
+        /// <summary>Finds a solid FillPatternElement directly in the given document
+        /// (no cross-doc cache — unsaved family docs share an empty PathName key).</summary>
+        private static FillPatternElement FindSolidFill(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp =>
+                    {
+                        try { return fp.GetFillPattern()?.IsSolidFill == true; }
+                        catch { return false; }
+                    });
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Last-resort fill fallback: draw the region boundary as a closed
+        /// outline (same curve primitive DrawLine uses) so a fill-only symbol renders
+        /// its shape instead of coming out blank when no FilledRegionType is available.</summary>
+        private static void DrawClosedOutline(Document fdoc, View view, SketchPlane sketch,
+            List<Curve> curves, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                bool ann = fdoc.IsFamilyDocument && IsAnnotationFamily(fdoc, null);
+                foreach (var c in curves)
+                {
+                    if (fdoc.IsFamilyDocument)
+                    {
+                        if (ann) fdoc.FamilyCreate.NewSymbolicCurve(c, sketch);
+                        else if (sketch != null) fdoc.FamilyCreate.NewModelCurve(c, sketch);
+                    }
+                    else
+                    {
+                        fdoc.Create.NewDetailCurve(view, c);
+                    }
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"{id}: outline fallback failed — {ex.Message}"); }
         }
 
         /// <summary>
