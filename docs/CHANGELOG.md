@@ -19,9 +19,10 @@ room-class canonicalisation / QE gate / NCRP-147 + diversity math were left unto
 | **2** Doc alignment | **DONE** | CLAUDE.md caveat #6 (BCC Healthcare tab is built) corrected |
 | **3** Water-flush end-to-end | **DONE** | Entity + migration + endpoints + API client + offline queue + screen |
 | **4** Regional HTM gating | **DONE** | One region resolver → region-aware HTMStandards lookups |
-| **5** USP 797/800 recert | **DONE** | `PharmacyRecertValidator` + new `CLN_ENV_CERT_DUE_DT` param |
+| **5** USP 797/800 recert | **DONE** | `PharmacyRecertValidator` + new `CLN_ENV_CERT_DUE_DT` param (ran under FULL on landing; sub-profile reachability completed in WS-8) |
 | **6** Penetration offline queue | **DONE** | `PENETRATION_SIGNOFF` offline action + replay |
 | **7** Information hygiene | **DONE** | Orphans verified vs `.cs` **and** RDS fieldmap; ROADMAP'd |
+| **8** Profile coverage (follow-up) | **DONE** | New validators reached under the five sub-profiles; phase pointer 196→198 |
 
 **WS-1** — `HealthcareController` only ever called `BroadcastPressureReading`; the
 `BroadcastMgasAlarm` / `BroadcastAntiLigatureAlert` hub helpers existed but had no call
@@ -74,6 +75,17 @@ equipment COBie export). `FgiAdoptionTracker` was **not** wired (it needs a new 
 param + clause-code mapping + freeze date — not a modest change); the full COBie export was
 not built this pass, per scope.
 
+**WS-8 (follow-up, commit `44b888634`)** — `RoomClassCodeValidator` (Phase 197) and
+`PharmacyRecertValidator` (WS-5 above) were present in the gate's `_allValidators` set — so
+they ran under the **FULL** profile — but were missing from
+`StingTools/Data/HEALTHCARE_PACK_PROFILES.json`, so `HealthcareValidatorGate.AllowedValidators`
+silently excluded them under the five named sub-profiles (ACUTE / COMMUNITY / DENTAL /
+IMAGING-ONLY / MENTAL-HEALTH). Fix: added `RoomClassCodeValidator` to **all five** sub-profiles
+(facility-agnostic room-class drift hygiene) and `PharmacyRecertValidator` to **ACUTE +
+COMMUNITY** only (the pharmacy-cleanroom-bearing profiles) — DENTAL / IMAGING-ONLY /
+MENTAL-HEALTH correctly still skip the USP recert check. **FULL** is unchanged (`["all"]`).
+Also bumped the `CLAUDE.md` phase pointer 196 → 198.
+
 #### Completed (Phase 197 — Healthcare accuracy remediation, branch `claude/healthcare-gap-fixes`)
 
 Five accuracy fixes from the verified healthcare-pack audit. **Build-verified** against
@@ -122,7 +134,9 @@ data-driven source of truth:
   canonical nor a known alias (drift → warning, not a silent skip); gated through
   `HealthcareValidatorGate` and registered in RunAll/RunSelected +
   `HealthcareValidatorCommands` + `WorkflowEngine.ResolveCommand` + `StingCommandHandler`
-  (tag `Healthcare_RoomClassCode`) like its siblings.
+  (tag `Healthcare_RoomClassCode`) like its siblings. (It ran under the **FULL** profile on
+  landing; its `HEALTHCARE_PACK_PROFILES.json` sub-profile reachability was added later in
+  Phase 198 WS-8.)
 
 Thresholds are unchanged throughout — a spelling/lookup unification, not a re-tuning.
 `AdjacencyValidator`/`HBNStandards` use a coarser department-level vocabulary
