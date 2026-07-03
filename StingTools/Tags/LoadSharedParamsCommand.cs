@@ -615,12 +615,10 @@ namespace StingTools.Tags
             BuiltInCategory.OST_NurseCallDevices,
             BuiltInCategory.OST_SecurityDevices,
             BuiltInCategory.OST_TelephoneDevices,
-            // Electrical Circuits (ElectricalSystem) — the per-circuit home for cable-sizing
-            // results (ELC_WIRE_CSA_MM2_NUM / ELC_WIRE_VD_PCT_NUM, both in the ELC_PWR group).
-            // Bound Instance-level here (all bindings use NewInstanceBinding); circuits have no
-            // type, so Instance is the only valid scope. TryInsert's AllowsBoundParameters guard
-            // safely skips it if a Revit version disallows binding to this category.
-            BuiltInCategory.OST_ElectricalCircuit,
+            // NOTE: OST_ElectricalCircuit is intentionally NOT in this shared array — it is
+            // added to the ELC_PWR group ONLY, via a dedicated CategorySet in
+            // BuildGroupCategoryOverrides. Putting it here would bind circuits to all six MEP
+            // groups (HVAC/plumbing/fire/lighting/generic) and the fallback core set.
         };
 
         // Clash rec-3: Categories watched by LiveClashUpdater. CLASH_COORDINATION
@@ -687,12 +685,21 @@ namespace StingTools.Tags
             var mepCats = BuildCatSet(doc, MepCategories);
             if (mepCats.Size > 0)
             {
-                overrides["ELC_PWR"] = mepCats;
-                overrides["HVC_SYSTEMS"] = mepCats;
-                overrides["PLM_DRN"] = mepCats;
-                overrides["LTG_CONTROLS"] = mepCats;
-                overrides["FLS_LIFE_SFTY"] = mepCats;
-                overrides["MEP_GENERIC"] = mepCats;
+                // ELC_PWR gets its OWN CategorySet = base MEP cats + Electrical Circuits, so
+                // the cable-sizing params (ELC_WIRE_CSA_MM2_NUM / ELC_WIRE_VD_PCT_NUM) reach
+                // circuits Instance-level. BuildCatSet returns a FRESH CategorySet instance,
+                // so inserting circuits here cannot leak into the shared mepCats used by the
+                // other five groups. TryInsert's AllowsBoundParameters guard safely skips the
+                // category on a Revit version that disallows binding to it.
+                CategorySet elcPwrCats = BuildCatSet(doc, MepCategories);
+                TryInsert(doc, elcPwrCats, BuiltInCategory.OST_ElectricalCircuit);
+
+                overrides["ELC_PWR"] = elcPwrCats;      // base MEP cats + Electrical Circuits
+                overrides["HVC_SYSTEMS"] = mepCats;     // base MEP cats only (no circuits)
+                overrides["PLM_DRN"] = mepCats;         // base MEP cats only
+                overrides["LTG_CONTROLS"] = mepCats;    // base MEP cats only
+                overrides["FLS_LIFE_SFTY"] = mepCats;   // base MEP cats only
+                overrides["MEP_GENERIC"] = mepCats;     // base MEP cats only
             }
 
             var bleCats = BuildCatSet(doc, BleCategories);
