@@ -58,6 +58,23 @@ if( or( and(TAG_PARA_STATE_4_BOOL, HANDOVER_MODE_HANDOVER_BOOL),
 
 ---
 
+## CHOSEN PATH — Route B (Template families, styled)
+
+**Spike verdict (Task 1, run 2026-07-03):** real STING tag families contain **one API-opaque annotation Label (`TextElement`), zero Dimensions**. The Revit API cannot create, read-bind, rebind, or copy-retarget a Label. Therefore in-place row automation is impossible; the clone tasks below (Task 2, Task 4) are **SUPERSEDED**. We take **Route B**: author the label geometry **once per tag shape** in the Family Editor, then let the already-built pipeline bind params + write mode×depth formulas + regenerate all 206.
+
+**Per-tier styling implication:** a single Label element carries **one** text style. Because tiers need different bold/italic/colour/size (`TierRow.Style/Color/Size`), each styled row is its **own** stacked Label element, formula-gated to `""` when inactive (empty labels collapse, leaving no gap). So a template's authoring cost = one Label element per required content row (union across modes).
+
+### Route B task spine
+
+- **B1 — Template inventory + authoring spec (automatable):** from `CategoryTemplateMap` (`TagFamilyCreatorCommand.cs:46`) enumerate the distinct tag shapes; from the per-mode CSVs compute, per shape, the ordered union of content rows with each row's param + style + colour + size + prefix/suffix. Emit a printable spec (`docs/.../tag-tier-authoring-spec.md`) so the manual authoring is mechanical, not guesswork. *(This is the next deliverable — generated from real CSV data.)*
+- **B2 — [MANUAL-IN-REVIT] Author master templates:** for each shape, in the Family Editor, stack one Label element per spec row at the given style/colour/size/position, bind each to its content param. Save to the template source folder. One-time; ~N templates, not 206.
+- **B3 — Regeneration (mostly built):** `CreateTagFamiliesCommand` already opens template → `AddSharedParameters` → `AuthorLabelsMulti` (binds + mode×depth formulas) → saves per family. Point it at the new templates; regenerate the 206. No per-family label work.
+- **B4 — Audit + smoke test:** `TierAutomation_Audit` (Task 5, adapt to count Label elements per required row) → in-Revit depth + mode switch verification (Task 7).
+
+Tasks 3 (CSV parsing tests) and 8 (rollout/changelog) carry over unchanged. Tasks 2 and 4 (clone engine) are retained below only as a record of the rejected approach — **do not implement them**.
+
+---
+
 ## File Structure
 
 **Create:**
@@ -155,11 +172,18 @@ Expected (success case): `copied=True rebound=True newIds=1`, and a second label
 Edit this plan file, replacing the line below with the observed result:
 
 ```
-SPIKE VERDICT (fill in):
-  - copied? / rebound to a content param? / row visible & repositioned? / references valid on reload?
-  - does FamilyLabel bind to the content param DIRECTLY, or to a per-row display container? (open Q for Task 4 target)
-  - do wrong-mode / below-depth rows collapse to zero-height (no gaps) once AuthorLabelsMulti formulas are on?
-DECISION: [ CLONE path (Task 2–6) | TEMPLATE fallback (Task 1b then 3–6) ]
+SPIKE VERDICT (2026-07-03, run in Revit 2025 on a real STING tag family):
+  - Family has 266 params; ASS_TAG_1_TXT present (all tier/content params ARE bound).
+  - Annotation elements: 1x TextElement (the Label). ZERO Dimension, ZERO TextNote.
+  - The visible label is an API-opaque annotation Label — cannot be read/created/rebound/retargeted.
+  - Conclusion: CLONE path IMPOSSIBLE. STING's dimension-based TryRebindPrimaryLabel is a no-op on real families.
+DECISION: neither original branch. Choose between:
+  - Route A (COMBINED-STRING): assemble the full depth×mode multi-line tag into the ONE existing
+    label's parameter at tag-write time (project-side). Zero family edits, works on all 206 as-is.
+    Trade-off: single text style for the whole tag (no per-tier bold/colour/size). Needs its own
+    spike: does a Label render a TEXT param value containing line breaks as multiple lines?
+  - Route B (TEMPLATE): author N master template families (one per CategoryTemplateMap shape) by hand
+    with a proper multi-parameter Label, regenerate the 206. Keeps per-tier styling. Manual once.
 ```
 
 - [ ] **Step 5: Delete the scratch command, commit the verdict**
@@ -198,7 +222,7 @@ Then proceed to Task 3 (the CLONE-specific Tasks 2, 4, 5 are replaced by regener
 
 ---
 
-## Task 2: Pure-logic row helpers (Revit-free) — TDD
+## Task 2: Pure-logic row helpers (Revit-free) — TDD  ⚠️ SUPERSEDED (clone path rejected by spike; kept for record)
 
 The Revit-free half of `TierRowCloner.cs`: the pitch constant + `OffsetMm`, and the cross-mode param union `RequiredParamsForFamily` (the piece worth pinning — it dedups and orders content params across DC + Handover + Custom plans). Both are Revit-API-free and unit-testable; the Revit-dependent class lives in a separate `TierRowCloner.Revit.cs` (Task 4) that the test project does **not** compile-link.
 
@@ -410,7 +434,7 @@ git commit -m "test: pin TagConfigCsvReader tier-plan parsing"
 
 ---
 
-## Task 4: TierRowCloner engine (CLONE path) — mode-plan-driven
+## Task 4: TierRowCloner engine (CLONE path) — mode-plan-driven  ⚠️ SUPERSEDED (labels are API-opaque `TextElement`s; do not implement)
 
 The Revit-dependent engine. **It creates physical rows only** — it does NOT bind params or write formulas (that is `FamilyLabelAuthor.AuthorLabelsMulti`'s job, run immediately after in Task 6). For one family document it: (1) computes the required content-param set = **union of `TierRow.Parameter` across all mode plans** for that family; (2) clones tier-1's dimension once per still-missing param, stacked downward; (3) binds each clone's `FamilyLabel` to its content param. Idempotent: skip params that already have a bound dimension.
 
