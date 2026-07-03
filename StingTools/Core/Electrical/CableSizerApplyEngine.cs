@@ -18,11 +18,26 @@
 //   InstallMethod / Material / Insulation / VDLimitPct / Standard / AmbientTempC /
 //   ContinuousLoad ← design ASSUMPTIONS (not carried by the model) from the caller.
 //
-// Result → parameters written (only when bound on the element; else skipped):
-//   ELC_WIRE_CSA_MM2 (Number) ← RecommendedCsaMm2
-//   ELC_CBL_SZ_MM    (Text)   ← CsaLabel     (canonical "cable size" text param;
-//                                the brief's "ELC_CABLE_SIZE_TXT" does not exist)
-//   ELC_VOLT_DROP_PCT(Number) ← ActualVoltDropPct
+// WRITE TARGET (corrected — evidence in CATEGORY_BINDINGS.csv):
+//   The result params are NOT bound to Electrical Circuits; they are bound to the
+//   circuit's connected physical elements (Electrical Equipment / Electrical Fixtures
+//   / Lighting Fixtures …) at TYPE level. So the circuit stays the READ source and the
+//   results are written to its connected elements (ElectricalSystem.Elements), each
+//   param resolved through ParamRegistry (never a hand-typed literal):
+//     ParamRegistry.ELC_CKT_CSA_MM2 → "ELC_CBL_SZ_MM"    (Text) ← CsaLabel
+//     ParamRegistry.ELC_CKT_VD_PCT  → "ELC_VLT_DROP_PCT" (Text) ← ActualVoltDropPct
+//   Bound to Electrical Equipment (CATEGORY_BINDINGS.csv:8222) + Electrical Fixtures
+//   (8121) + Lighting/Comms/etc., all Type-level (True). A Type-bound param is written
+//   on the element's type when the instance does not expose it.
+//
+// REQUIRED-BINDING GAPS (params exist but are bound to NO writable target — reported,
+// never silently no-oped): the numeric ELC_WIRE_CSA_MM2_NUM (MR_PARAMETERS.txt:2994)
+// and ELC_WIRE_VD_PCT_NUM (2996) have no CATEGORY_BINDINGS rows, so numeric CSA/VD
+// cannot be persisted until they are bound to Electrical Equipment/Fixtures.
+//
+// ANTI-HOLLOW: the result reports Computed (Calculate succeeded) AND Written (a param
+// was actually Set on a real element), plus PerParamWritten; a real run with
+// Computed>0 && Written==0 logs a loud warning and sets NoWritesPersisted.
 //
 // Transaction: the engine opens its OWN Transaction for a real run (standalone-safe).
 // It never opens a TransactionGroup, so it nests cleanly when a caller (MCP) wraps it
@@ -67,9 +82,19 @@ namespace StingTools.Core.Electrical
     public sealed class CableSizingApplyResult
     {
         public int Inspected { get; set; }
-        public int Sized { get; set; }
+        /// <summary>Circuits for which Calculate produced a valid size (independent of writing).</summary>
+        public int Computed { get; set; }
+        /// <summary>Circuits for which at least one result param was actually Set on a real element.</summary>
+        public int Written { get; set; }
         /// <summary>Dry-run: how many circuits WOULD be sized.</summary>
         public int Planned { get; set; }
+        /// <summary>Per-param successful-write counts.</summary>
+        public int WroteCsaTxt { get; set; }
+        public int WroteVdPct { get; set; }
+        /// <summary>True on a real run when Computed &gt; 0 but Written == 0 (silent-no-op guard).</summary>
+        public bool NoWritesPersisted { get; set; }
+        /// <summary>Params that exist but are bound to no writable target — surfaced, never dropped.</summary>
+        public List<string> RequiredBindingGaps { get; } = new List<string>();
         public List<string> Skipped { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();
         public List<CableSizingChange> SampleChanges { get; } = new List<CableSizingChange>();
@@ -77,10 +102,14 @@ namespace StingTools.Core.Electrical
 
     public static class CableSizerApplyEngine
     {
-        // Result parameter names (shared params — written only when bound on the element).
-        private const string P_CSA_NUM = "ELC_WIRE_CSA_MM2";   // Number, mm²
-        private const string P_CSA_TXT = "ELC_CBL_SZ_MM";      // Text, human label
-        private const string P_VD_PCT  = "ELC_VOLT_DROP_PCT";  // Number, %
+        // Result params resolved THROUGH ParamRegistry (never hand-typed). Both are TEXT,
+        // bound to the circuit's connected Electrical Equipment / Fixtures (Type-level).
+        private static string P_CSA_TXT => ParamRegistry.ELC_CKT_CSA_MM2;   // → ELC_CBL_SZ_MM  (Text)
+        private static string P_VD_TXT  => ParamRegistry.ELC_CKT_VD_PCT;    // → ELC_VLT_DROP_PCT (Text)
+
+        // Numeric CSA/VD params exist (MR_PARAMETERS) but are bound to no writable target.
+        private const string GAP_CSA_NUM = "ELC_WIRE_CSA_MM2_NUM";
+        private const string GAP_VD_NUM  = "ELC_WIRE_VD_PCT_NUM";
 
         /// <summary>
         /// Size cables for the in-scope power circuits. dryRun computes and returns the
@@ -122,6 +151,13 @@ namespace StingTools.Core.Electrical
             foreach (var (id, r, label) in proposals.Take(25))
                 result.SampleChanges.Add(ToChange(id, r, label));
 
+            result.Computed = proposals.Count;
+
+            // Numeric CSA/VD params exist but are bound to no writable category — always
+            // surface as required-binding gaps (never silently dropped).
+            result.RequiredBindingGaps.Add($"{GAP_CSA_NUM} (numeric conductor CSA — bind to Electrical Equipment/Fixtures to persist)");
+            result.RequiredBindingGaps.Add($"{GAP_VD_NUM} (numeric voltage-drop % — bind to Electrical Equipment/Fixtures to persist)");
+
             if (dryRun)
             {
                 result.Planned = proposals.Count;
@@ -129,6 +165,8 @@ namespace StingTools.Core.Electrical
             }
 
             // Real run — engine owns its Transaction (nests under a caller's group).
+            // Write the result to each circuit's connected elements (Equipment/Fixtures),
+            // resolving param names via ParamRegistry.
             using (var tx = new Transaction(doc, "STING Cable Sizing"))
             {
                 tx.Start();
@@ -136,19 +174,47 @@ namespace StingTools.Core.Electrical
                 {
                     try
                     {
-                        Element el = doc.GetElement(id);
-                        if (el == null) { result.Skipped.Add($"{id.Value}: element vanished"); continue; }
-                        if (WriteResult(el, r)) result.Sized++;
-                        else result.Skipped.Add($"{id.Value}: no result parameter bound (ELC_WIRE_CSA_MM2 / ELC_CBL_SZ_MM / ELC_VOLT_DROP_PCT)");
+                        Element circuit = doc.GetElement(id);
+                        var targets = ConnectedTargets(doc, circuit as ElectricalSystem);
+                        if (targets.Count == 0)
+                        {
+                            result.Skipped.Add($"{id.Value}: circuit has no connected equipment/fixtures to write to");
+                            continue;
+                        }
+
+                        bool csaAny = false, vdAny = false;
+                        foreach (Element t in targets)
+                        {
+                            if (SetOnElementOrType(doc, t, P_CSA_TXT, r.CsaLabel ?? "")) csaAny = true;
+                            if (SetOnElementOrType(doc, t, P_VD_TXT,
+                                    r.ActualVoltDropPct.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))) vdAny = true;
+                        }
+
+                        if (csaAny) result.WroteCsaTxt++;
+                        if (vdAny)  result.WroteVdPct++;
+                        if (csaAny || vdAny) result.Written++;
+                        else result.Skipped.Add($"{id.Value}: result params not bound on connected elements " +
+                                                $"({P_CSA_TXT} / {P_VD_TXT})");
                     }
                     catch (Exception ex) { result.Errors.Add($"{id.Value}: {ex.Message}"); }
                 }
                 tx.Commit();
             }
 
-            StingLog.Info($"CableSizerApplyEngine: inspected {result.Inspected}, sized {result.Sized}, " +
-                          $"skipped {result.Skipped.Count}, errors {result.Errors.Count} " +
-                          $"(std={assumptions.Standard}, method={assumptions.InstallMethod}, {assumptions.Material}/{assumptions.Insulation}).");
+            // Anti-hollow guard: computed but persisted nothing → loud, not silent.
+            if (result.Computed > 0 && result.Written == 0)
+            {
+                result.NoWritesPersisted = true;
+                StingLog.Warn($"CableSizerApplyEngine: cable sizing computed {result.Computed} but persisted 0 — " +
+                              $"result params unresolved/unbound on connected elements: {P_CSA_TXT} / {P_VD_TXT}. " +
+                              "Bind these to Electrical Equipment/Fixtures (or the circuit's connected category).");
+            }
+
+            StingLog.Info($"CableSizerApplyEngine: inspected {result.Inspected}, computed {result.Computed}, " +
+                          $"written {result.Written} (csa {result.WroteCsaTxt} / vd {result.WroteVdPct}), " +
+                          $"skipped {result.Skipped.Count}, errors {result.Errors.Count}" +
+                          (result.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") +
+                          $" (std={assumptions.Standard}, method={assumptions.InstallMethod}, {assumptions.Material}/{assumptions.Insulation}).");
             return result;
         }
 
@@ -189,25 +255,43 @@ namespace StingTools.Core.Electrical
             };
         }
 
-        // ── result → parameters (only when bound + writable) ─────────────────────
+        // ── result → parameters (connected elements; instance or type) ───────────
 
-        private static bool WriteResult(Element el, CableSizeResult r)
+        /// <summary>The circuit's connected elements (Equipment/Fixtures/…) — the bound
+        /// write targets. The circuit itself is the read source only.</summary>
+        private static List<Element> ConnectedTargets(Document doc, ElectricalSystem sys)
         {
-            bool wrote = false;
+            var list = new List<Element>();
+            if (sys == null) return list;
+            try
+            {
+                if (sys.Elements != null)
+                    foreach (Element e in sys.Elements) if (e != null) list.Add(e);
+            }
+            catch (Exception ex) { StingLog.Warn($"ConnectedTargets {sys?.Id}: {ex.Message}"); }
+            return list;
+        }
 
-            Parameter csaNum = el.LookupParameter(P_CSA_NUM);
-            if (csaNum != null && !csaNum.IsReadOnly && csaNum.StorageType == StorageType.Double)
-                wrote |= csaNum.Set(r.RecommendedCsaMm2);
+        /// <summary>Set a TEXT shared param on the element, or on its type when the param
+        /// is Type-bound (not exposed on the instance). Returns true only if a Set landed.</summary>
+        private static bool SetOnElementOrType(Document doc, Element el, string paramName, string value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
 
-            Parameter csaTxt = el.LookupParameter(P_CSA_TXT);
-            if (csaTxt != null && !csaTxt.IsReadOnly && csaTxt.StorageType == StorageType.String)
-                wrote |= csaTxt.Set(r.CsaLabel ?? "");
+            Parameter p = el.LookupParameter(paramName);
+            if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                return p.Set(value ?? "");
 
-            Parameter vd = el.LookupParameter(P_VD_PCT);
-            if (vd != null && !vd.IsReadOnly && vd.StorageType == StorageType.Double)
-                wrote |= vd.Set(r.ActualVoltDropPct);
-
-            return wrote;
+            // Type-bound param → write on the element's type.
+            ElementId typeId = el.GetTypeId();
+            if (typeId != null && typeId != ElementId.InvalidElementId)
+            {
+                Element te = doc.GetElement(typeId);
+                Parameter tp = te?.LookupParameter(paramName);
+                if (tp != null && !tp.IsReadOnly && tp.StorageType == StorageType.String)
+                    return tp.Set(value ?? "");
+            }
+            return false;
         }
 
         // ── scope collection ─────────────────────────────────────────────────────

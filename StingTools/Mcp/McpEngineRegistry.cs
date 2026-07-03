@@ -337,13 +337,15 @@ namespace StingTools.Mcp
             {
                 var planData = new Dictionary<string, object>
                 {
-                    ["status"]         = "dry_run",
-                    ["inspected"]      = plan.Inspected,
-                    ["plannedChanges"] = plan.Planned,
-                    ["skipped"]        = plan.Skipped.Count,
-                    ["skippedDetail"]  = plan.Skipped.Take(25).ToList(),
-                    ["sampleChanges"]  = plan.SampleChanges.Select(SampleToDict).ToList(),
-                    ["assumptions"]    = AssumptionsToDict(assumptions),
+                    ["status"]              = "dry_run",
+                    ["inspected"]           = plan.Inspected,
+                    ["computed"]            = plan.Computed,
+                    ["plannedChanges"]      = plan.Planned,
+                    ["skipped"]             = plan.Skipped.Count,
+                    ["skippedDetail"]       = plan.Skipped.Take(25).ToList(),
+                    ["sampleChanges"]       = plan.SampleChanges.Select(SampleToDict).ToList(),
+                    ["assumptions"]         = AssumptionsToDict(assumptions),
+                    ["requiredBindingGaps"] = plan.RequiredBindingGaps,
                 };
                 return McpJobResult.Success(
                     $"Dry run: would size {plan.Planned} of {plan.Inspected} power circuit(s); " +
@@ -361,14 +363,26 @@ namespace StingTools.Mcp
             });
 
             StingLog.Info($"MCP ElecCableSize[{(isProject ? "project" : "scoped")}]: " +
-                          $"sized {applied.Sized}, skipped {applied.Skipped.Count}, errors {applied.Errors.Count}.");
+                          $"computed {applied.Computed}, written {applied.Written}, " +
+                          $"skipped {applied.Skipped.Count}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") + ".");
 
-            var rb = McpSafety.WriteResult(applied.Sized, applied.Skipped.Count, applied.Errors,
+            // Read-back "changed" == elements actually written (not merely computed).
+            var rb = McpSafety.WriteResult(applied.Written, applied.Skipped.Count, applied.Errors,
                 applied.SampleChanges.Select(c => c.ElementId));
-            rb["inspected"]     = applied.Inspected;
-            rb["sampleChanges"] = applied.SampleChanges.Select(SampleToDict).ToList();
-            return McpJobResult.Success(
-                $"Sized {applied.Sized} circuit(s); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).", rb);
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["written"]             = applied.Written;
+            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaTxt"] = applied.WroteCsaTxt, ["vdPct"] = applied.WroteVdPct };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(SampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ Computed {applied.Computed} cable size(s) but PERSISTED 0 — result params unbound on connected " +
+                  $"elements. {applied.Skipped.Count} skipped. See requiredBindingGaps."
+                : $"Sized {applied.Written} circuit(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).";
+            return McpJobResult.Success(summary, rb);
         }
 
         private static CableSizeInput ReadCableAssumptions(JObject args)
