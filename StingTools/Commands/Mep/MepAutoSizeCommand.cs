@@ -98,160 +98,58 @@ namespace StingTools.Commands.Mep
     [Regeneration(RegenerationOption.Manual)]
     public class MepAutoSizePipeCommand : IExternalCommand
     {
-        private const double MmToFt = 1.0 / 304.8;
-        private const double PipeMaxVelMsFallback = 2.5;
-
+        // Phase (dialog→engine) — thin UI wrapper over PipeSizingApplyEngine (the single
+        // source of pipe-sizing truth, dialog-free). Button behaviour is unchanged.
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Phase 181 / 183 — pull velocity target + bore table from
-            // STING_MEP_SIZING_RULES.json. Phase 183 (gap A2) detects the
-            // pipe's service per-element via MEPSystem abbreviation →
-            // STING_MEP_SERVICE_MAP.json and reads the velocity from the
-            // matched PipeService entry rather than always using "chw".
-            double[] boreTable = MepSizeTables.PipeStandardBoreMm;
-            MepSizingRules rules = null;
-            try
+            // Header scope radio (Phase 182 gap D3) → engine scope PARAMETER. Selection is
+            // resolved to element ids here (the command owns the UIDocument).
+            string scopeName = "Project";
+            try { scopeName = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+
+            StingTools.Core.Mep.MepSizingScope scope;
+            if (scopeName == "Selection")
             {
-                rules = MepSizingRegistry.Get(doc);
-                boreTable = MepSizeTables.PipeBoresFor(doc);
+                var ids = ctx.UIDoc?.Selection?.GetElementIds() ?? new List<ElementId>();
+                scope = StingTools.Core.Mep.MepSizingScope.ForIds(ids);
             }
-            catch (Exception ex) { StingLog.Warn($"PipeSize registry fallback: {ex.Message}"); }
+            else if (scopeName == "ActiveView") scope = StingTools.Core.Mep.MepSizingScope.ActiveView();
+            else scope = StingTools.Core.Mep.MepSizingScope.Project();
 
-            // Phase 182 — scope (gap D3).
-            string scope = "Project";
-            try { scope = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
-
-            var res = new MepSizeResult { Discipline = "Pipe" };
-            List<Element> pipes;
+            StingTools.Core.Mep.PipeSizingApplyResult applied;
             try
             {
-                if (scope == "Selection")
-                {
-                    var ids = ctx.UIDoc?.Selection?.GetElementIds();
-                    pipes = (ids == null) ? new List<Element>() : ids
-                        .Select(id => doc.GetElement(id))
-                        .Where(e => e != null && e.Category != null
-                                 && (BuiltInCategory)e.Category.Id.Value == BuiltInCategory.OST_PipeCurves)
-                        .ToList();
-                }
-                else if (scope == "ActiveView" && doc.ActiveView != null)
-                {
-                    pipes = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .OfCategory(BuiltInCategory.OST_PipeCurves)
-                        .WhereElementIsNotElementType().ToList();
-                }
-                else
-                {
-                    pipes = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_PipeCurves)
-                        .WhereElementIsNotElementType().ToList();
-                }
+                applied = StingTools.Core.Mep.PipeSizingApplyEngine.Apply(doc, scope, dryRun: false);
             }
             catch (Exception ex) { message = ex.Message; return Result.Failed; }
-            res.Inspected = pipes.Count;
 
-            using (var tx = new Transaction(doc, "STING Auto-size pipes"))
+            var res = new MepSizeResult
             {
-                try { tx.Start(); } catch (Exception ex2) { res.Warnings.Add($"tx: {ex2.Message}"); goto Done; }
-                try
-                {
-                    foreach (var p in pipes)
-                    {
-                        try
-                        {
-                            // Per-pipe service lookup (Phase 183, gap A2).
-                            string serviceId = StingTools.Core.Mep.PipeServiceDetector
-                                .DetectServiceId(doc, p);
-                            double maxVelMs = PipeMaxVelMsFallback;
-                            string svcLabel = serviceId;
-                            if (rules != null)
-                            {
-                                var svc = rules.GetPipeService(serviceId);
-                                if (svc != null && svc.MaxVelocityMs > 0)
-                                {
-                                    maxVelMs = svc.MaxVelocityMs;
-                                    svcLabel = string.IsNullOrEmpty(svc.Label) ? serviceId : svc.Label;
-                                }
-                            }
+                Discipline = "Pipe",
+                Inspected = applied.Inspected,
+                Resized = applied.Written,
+                Skipped = applied.Skipped.Count,
+            };
+            foreach (var e in applied.Errors) res.Warnings.Add(e);
+            foreach (var g in applied.RequiredBindingGaps) res.Warnings.Add(g);
+            if (applied.NoWritesPersisted)
+                res.Warnings.Add("Computed bores but persisted 0 — every in-scope pipe's Diameter was read-only/absent.");
 
-                            double flowLs = ReadDouble(p, "PLM_FLOW_LS");
-                            if (flowLs <= 0) { res.Skipped++; continue; }
-                            double flowM3s = flowLs * 1e-3;
-                            // A = q / v → d = sqrt(4A/π)
-                            double area = flowM3s / maxVelMs;
-                            double diaMm = Math.Sqrt(4.0 * area / Math.PI) * 1000.0;
-                            double standard = MepSizeTables.RoundUpTo(diaMm, boreTable);
-
-                            // Audit (Phase 183) — stamp the detected service so
-                            // the panel + drift detector can see what rule fired.
-                            try
-                            {
-                                ParameterHelpers.SetString(p, ParamRegistry.HVC_PIPE_SERVICE_TXT,
-                                    serviceId, overwrite: true);
-                            }
-                            catch (Exception exP) { StingLog.Warn($"HVC_PIPE_SERVICE stamp {p.Id}: {exP.Message}"); }
-
-                            if (WriteSize(p, "Diameter", standard)) res.Resized++;
-                            else res.Skipped++;
-                        }
-                        catch (Exception ex3)
-                        {
-                            res.Skipped++;
-                            res.Warnings.Add($"size {p.Id}: {ex3.Message}");
-                        }
-                    }
-                    tx.Commit();
-                }
-                catch (Exception ex3)
-                {
-                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    res.Warnings.Add($"Pipe sizing fatal: {ex3.Message}");
-                }
-            }
-        Done:
-            ShowResult(res, $"Pipe · scope={scope} · per-service velocity (chw/hws/dcw/dhw/refrig/steam/gas) · {boreTable.Length} sizes");
+            var sample = applied.SampleChanges.FirstOrDefault();
+            string svcBit = sample != null ? $"last service={sample.ServiceId} (≤ {sample.MaxVelMs:F1} m/s)" : "no in-scope pipes sized";
+            ShowResult(res, $"Pipe · scope={scopeName} · {svcBit}");
             try
             {
                 StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
-                    $"Auto-size Pipe ({scope})",
+                    $"Auto-size Pipe ({scopeName})",
                     res.Resized > 0 ? "⬤" : (res.Skipped > 0 ? "⬡" : "✗"));
             }
             catch (Exception ex) { StingLog.Warn($"HvacPanel push: {ex.Message}"); }
             return Result.Succeeded;
-        }
-
-        private static double ReadDouble(Element el, string param)
-        {
-            try
-            {
-                var p = el?.LookupParameter(param);
-                if (p == null) return 0;
-                if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                if (p.StorageType == StorageType.String &&
-                    double.TryParse(p.AsString(),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out double v)) return v;
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0;
-        }
-
-        private static bool WriteSize(Element el, string param, double mm)
-        {
-            try
-            {
-                var p = el.LookupParameter(param);
-                if (p == null || p.IsReadOnly) return false;
-                if (p.StorageType != StorageType.Double) return false;
-                p.Set(mm * MmToFt);
-                return true;
-            }
-            catch (Exception ex) { StingLog.Warn($"WriteSize {param}={mm}: {ex.Message}"); return false; }
         }
 
         private static void ShowResult(MepSizeResult r, string subtitle)

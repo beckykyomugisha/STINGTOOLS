@@ -496,6 +496,30 @@ namespace StingTools.Mcp
             },
             new McpTool
             {
+                Name = "size_pipes",
+                Description =
+                    "WRITE. Auto-size the model's pipes to a per-service target velocity (PipeSizingApplyEngine, " +
+                    "CIBSE Guide C ≤ 2.5 m/s fallback). Flow is READ from each pipe (PLM_FLOW_LS); the pipe's " +
+                    "service (chw/hws/dcw/dhw/refrig/steam/gas) is detected from its MEPSystem and drives the target " +
+                    "velocity from STING_MEP_SIZING_RULES.json; the result is WRITTEN to the pipe's NATIVE Diameter " +
+                    "instance param (always instance-scoped, no shared-param binding needed). A best-effort " +
+                    "HVC_PIPE_SERVICE_TXT audit stamp records the detected service when bound. Pipes with no flow, or " +
+                    "a read-only Diameter, are skipped (reported). scope: 'selection'/'view' run synchronously; " +
+                    "'project' runs asynchronously (returns {jobId} — poll get_job_status). Read-back reports " +
+                    "computed vs written + perParamWritten{diameter,service} + noWritesPersisted (computed>0 but " +
+                    "persisted 0). dryRun:true returns a per-pipe plan and mutates nothing. confirm:true is REQUIRED " +
+                    "for scope=project or >25 pipes. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 pipes"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
                 Name = "size_cables",
                 Description =
                     "WRITE. Size cables for the model's electrical power circuits (CableSizerApplyEngine). Inputs " +
