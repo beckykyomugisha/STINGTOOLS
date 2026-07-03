@@ -103,6 +103,7 @@ namespace StingTools.Core
                 RegisterHvacPanel(application);
                 RegisterLpsPanel(application);
                 RegisterSustainabilityPanel(application);
+                RegisterCopilotPanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -2037,6 +2038,30 @@ namespace StingTools.Core
             }
         }
 
+        // ── STING Copilot registration ───────────────────────────────────
+        // Sibling to RegisterHvacPanel. The Copilot is a chat panel that drives
+        // StingTools through the EXISTING MCP tools (shared McpToolDispatcher);
+        // model-touching tools marshal onto the Revit API thread inside the
+        // dispatcher via McpJobBridge, so this panel needs no command handler
+        // of its own — just the dockable pane.
+        private void RegisterCopilotPanel(UIControlledApplication application)
+        {
+            try
+            {
+                var provider = new StingTools.UI.StingCopilotPanelProvider();
+                application.RegisterDockablePane(
+                    StingTools.UI.StingCopilotPanelProvider.PaneId,
+                    "STING Copilot",
+                    provider);
+                StingLog.Info($"RegisterCopilotPanel: dockable pane registered " +
+                    $"(GUID={StingTools.UI.StingCopilotPanelProvider.PaneGuid})");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register Copilot dockable panel", ex);
+            }
+        }
+
         // ── STING Lightning Protection Center registration ───────────────
         // Sibling to RegisterHvacPanel / RegisterElectricalPanel / RegisterPlumbingPanel.
         // Surfaces the 20 LPS commands + 3 net-new panel commands (risk inline,
@@ -2261,9 +2286,11 @@ namespace StingTools.Core
                     "Show/hide the STING Lightning Protection Center dockable panel.");
                 AddButton(panel, "btnPanelSustain",     "STING\nSustain",     asm, typeof(ToggleSustainabilityPanelCommand).FullName,
                     "Show/hide the STING Sustainability Center (EDGE / LEED) dockable panel.");
+                AddButton(panel, "btnPanelCopilot",     "STING\nCopilot",     asm, typeof(ToggleCopilotPanelCommand).FullName,
+                    "Show/hide the STING Copilot AI chat panel.");
                 AddButton(panel, "btnMcpServer",        "MCP\nServer",        asm, typeof(ToggleMcpServerCommand).FullName,
                     "Start/stop the STING MCP server — exposes STING to AI assistants (Claude Code / Desktop).");
-                StingLog.Info("STING Panels ribbon group populated (7 dockable-panel toggles + MCP server).");
+                StingLog.Info("STING Panels ribbon group populated (8 dockable-panel toggles + MCP server).");
             }
             catch (Exception ex)
             {
@@ -2561,6 +2588,38 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("Toggle HVAC panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Toggle the STING Copilot AI chat dockable panel.
+    /// Sibling to <see cref="ToggleHvacPanelCommand"/>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ToggleCopilotPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingTools.UI.StingCopilotPanelProvider.PaneId);
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Copilot",
+                        "Copilot panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+                if (pane.IsShown()) pane.Hide(); else pane.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle Copilot panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
