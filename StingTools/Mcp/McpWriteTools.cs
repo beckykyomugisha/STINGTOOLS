@@ -127,6 +127,23 @@ namespace StingTools.Mcp
             return McpEngineRegistry.DispatchWrite("Mep_AutoSizePipe", callArgs).ToCallResult();
         }
 
+        // ── build_panel_schedules ──────────────────────────────────────────────────
+
+        public static McpCallResult BuildPanelSchedules(JObject args)
+        {
+            args = args ?? new JObject();
+            // Defaults to PROJECT scope to match the STING button (whole-model batch).
+            string scope = args["scope"]?.Value<string>()?.Trim().ToLowerInvariant() ?? "project";
+            if (scope != "selection" && scope != "view" && scope != "project")
+                return McpJobResult.Error("bad_args", "scope must be one of: selection, view, project.").ToCallResult();
+
+            var callArgs = (JObject)args.DeepClone();
+            callArgs["scope"] = scope;
+            // Named Tier-2 verb → straight through the shared engine registry
+            // (delegates to PanelScheduleApplyEngine with dry-run/confirm/tx/sync-async).
+            return McpEngineRegistry.DispatchWrite("Panel_BatchSchedules", callArgs).ToCallResult();
+        }
+
         // ── export_boq ───────────────────────────────────────────────────────────
         //
         // File output (not model mutation), so it does NOT go through the engine

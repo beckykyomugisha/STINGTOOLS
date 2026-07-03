@@ -32,6 +32,7 @@ using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Core;
 using StingTools.Core.Electrical;
 using StingTools.Core.Mep;
+using StingTools.Core.Panels;
 using StingTools.Tags;
 
 namespace StingTools.Mcp
@@ -50,6 +51,7 @@ namespace StingTools.Mcp
                 ["ElecCableSize"]    = ElecSizeCablesApplyHandler, // BS 7671 cable sizing apply
                 ["Mep_AutoSizeDuct"] = MepSizeDuctsApplyHandler,   // CIBSE B3 duct auto-size apply
                 ["Mep_AutoSizePipe"] = MepSizePipesApplyHandler,   // per-service pipe auto-size apply
+                ["Panel_BatchSchedules"] = PanelBatchSchedulesApplyHandler, // rule-based panel schedule create
             };
 
         public static bool IsEngineBacked(string tag) => tag != null && _handlers.ContainsKey(tag);
@@ -593,6 +595,97 @@ namespace StingTools.Mcp
         {
             ["id"] = c.ElementId, ["service"] = c.ServiceId, ["serviceLabel"] = c.ServiceLabel,
             ["flowLs"] = c.FlowLs, ["maxVelMs"] = c.MaxVelMs, ["diameterMm"] = c.DiameterMm, ["sizeLabel"] = c.SizeLabel,
+        };
+
+        // ── Panel_BatchSchedules engine handler (delegates to PanelScheduleApplyEngine) ──
+        //
+        // Same dialog→engine shape: the rule-based schedule-creation logic stays in
+        // PanelScheduleApplyEngine (single source of truth); this handler only adapts
+        // args → scope and applies the Phase-3a guardrails. The PRIMARY output is element
+        // creation (PanelScheduleView), so the read-back reports created vs computed
+        // (would-create) + noWritesPersisted when computed>0 but created==0.
+
+        private static McpJobResult PanelBatchSchedulesApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            PanelScheduleScope scope = ResolvePanelScope(doc, args);
+
+            var plan = PanelScheduleApplyEngine.Apply(doc, scope, dryRun: true);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]          = "dry_run",
+                    ["inspected"]       = plan.Inspected,
+                    ["computed"]        = plan.Computed,
+                    ["plannedChanges"]  = plan.Planned,
+                    ["skippedExisting"] = plan.SkippedExisting,
+                    ["skippedPattern"]  = plan.SkippedPattern,
+                    ["noTemplate"]      = plan.NoTemplate,
+                    ["failures"]        = plan.Failures.Take(25).ToList(),
+                    ["sampleChanges"]   = plan.SampleChanges.Select(PanelSampleToDict).ToList(),
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would create {plan.Planned} panel schedule(s) of {plan.Inspected} panel(s); " +
+                    $"{plan.SkippedExisting} already have one; {plan.NoTemplate} lack a template; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == PanelScheduleScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            PanelScheduleApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP Panel_BatchSchedules", () =>
+            {
+                applied = PanelScheduleApplyEngine.Apply(doc, scope, dryRun: false);
+            });
+
+            StingLog.Info($"MCP Panel_BatchSchedules[{(isProject ? "project" : "scoped")}]: " +
+                          $"created {applied.Created}, computed {applied.Computed}, existing {applied.SkippedExisting}, " +
+                          $"failed {applied.Failed}, noTemplate {applied.NoTemplate}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO SCHEDULES CREATED" : "") + ".");
+
+            var rb = McpSafety.WriteResult(applied.Created, applied.SkippedPattern + applied.SkippedExisting,
+                applied.Errors.Concat(applied.Failures).ToList(),
+                applied.SampleChanges.Select(c => c.PanelId));
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["created"]             = applied.Created;
+            rb["skippedExisting"]     = applied.SkippedExisting;
+            rb["skippedPattern"]      = applied.SkippedPattern;
+            rb["failed"]              = applied.Failed;
+            rb["noTemplate"]          = applied.NoTemplate;
+            rb["integration"]         = new Dictionary<string, object>
+                { ["drawingTypeStamped"] = applied.DrawingTypeStamped, ["paramsStamped"] = applied.ParamsStamped, ["circuitRefsStamped"] = applied.CircuitRefsStamped };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["perTemplate"]         = applied.PerTemplate;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(PanelSampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ {applied.Computed} panel(s) needed a schedule but 0 were created — every candidate PanelScheduleTemplate was rejected."
+                : $"Created {applied.Created} panel schedule(s) (of {applied.Computed} needing one); " +
+                  $"{applied.SkippedExisting} already had one; {applied.Failed + applied.NoTemplate} failed.";
+            return McpJobResult.Success(summary, rb);
+        }
+
+        private static PanelScheduleScope ResolvePanelScope(Document doc, JObject args)
+        {
+            string scope = args?["scope"]?.Value<string>()?.ToLowerInvariant() ?? "project";
+            if (scope == "selection")
+            {
+                var ids = new List<ElementId>();
+                if (args["_elementIds"] is JArray arr)
+                    foreach (var t in arr) { long v = t?.Value<long?>() ?? -1; if (v >= 0) ids.Add(new ElementId(v)); }
+                return PanelScheduleScope.ForIds(ids);
+            }
+            if (scope == "view") return PanelScheduleScope.ActiveView();
+            return PanelScheduleScope.Project();
+        }
+
+        private static Dictionary<string, object> PanelSampleToDict(PanelScheduleChange c) => new Dictionary<string, object>
+        {
+            ["panelId"] = c.PanelId, ["panelName"] = c.PanelName, ["scheduleName"] = c.ScheduleName,
+            ["template"] = c.Template, ["wasExisting"] = c.WasExisting,
         };
 
         /// <summary>Collect taggable targets for the requested scope (selection ids /

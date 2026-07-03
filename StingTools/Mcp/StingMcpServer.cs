@@ -388,6 +388,7 @@ namespace StingTools.Mcp
                 case "size_cables":       result = McpWriteTools.SizeCables(args);      break;
                 case "size_ducts":        result = McpWriteTools.SizeDucts(args);       break;
                 case "size_pipes":        result = McpWriteTools.SizePipes(args);       break;
+                case "build_panel_schedules": result = McpWriteTools.BuildPanelSchedules(args); break;
 
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");

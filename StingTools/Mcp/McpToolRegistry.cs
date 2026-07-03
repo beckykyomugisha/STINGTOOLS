@@ -496,6 +496,31 @@ namespace StingTools.Mcp
             },
             new McpTool
             {
+                Name = "build_panel_schedules",
+                Description =
+                    "WRITE. Batch-create one PanelScheduleView per electrical panel using the rule-based template " +
+                    "registry (PanelScheduleApplyEngine). For each in-scope panel it picks a PanelScheduleTemplate " +
+                    "(with fallback), calls PanelScheduleView.CreateInstanceView, stamps the elec-panel-schedule-A3 " +
+                    "Drawing Type, backfills ELC_PNL_* panel params (SetIfEmpty), and writes ELC_PANEL_SCHEDULE_REF_TXT " +
+                    "on every feeding circuit. The PRIMARY output is element creation (schedules) — read-back reports " +
+                    "created vs computed (panels needing one) + noWritesPersisted (computed>0 but created==0, e.g. all " +
+                    "candidate templates rejected) + skippedExisting / skippedPattern / noTemplate / failed + " +
+                    "integration{drawingTypeStamped,paramsStamped,circuitRefsStamped}. Panels that already have a " +
+                    "schedule are re-wired (idempotent) not recreated. scope defaults to 'project' (whole model, runs " +
+                    "asynchronously → {jobId}, poll get_job_status); 'view'/'selection' run synchronously. dryRun:true " +
+                    "classifies panels and creates nothing. confirm:true is REQUIRED for scope=project or >25 panels. " +
+                    "Example: {scope:'project', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project (default project)"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; create nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 panels"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
                 Name = "size_pipes",
                 Description =
                     "WRITE. Auto-size the model's pipes to a per-service target velocity (PipeSizingApplyEngine, " +
