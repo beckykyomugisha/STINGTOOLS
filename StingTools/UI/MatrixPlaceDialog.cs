@@ -187,7 +187,7 @@ namespace StingTools.UI
                 SelectionMode = DataGridSelectionMode.Extended, SelectionUnit = DataGridSelectionUnit.FullRow
             };
             _colGrid.Columns.Add(ComboColumn("Category", nameof(ColVm.Category), _categories, 150));
-            _colGrid.Columns.Add(new DataGridTextColumn { Header = "Variant", Binding = Tw(nameof(ColVm.Variant)), Width = 90 });
+            _colGrid.Columns.Add(VariantColumn(110));
             _colGrid.Columns.Add(ComboColumn("Anchor", nameof(ColVm.Anchor), MatrixDefaults.Anchors, 120));
             _colGrid.Columns.Add(HeightColumn("Height", 130));
             _colGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Grid", Binding = Tw(nameof(ColVm.AutoGrid)), Width = 40 });
@@ -250,6 +250,35 @@ namespace StingTools.UI
                 CellTemplate = new DataTemplate { VisualTree = factory } };
         }
 
+        // Per-row editable variant combo: ItemsSource is the ROW's own AvailableVariants (populated
+        // from the category's seed variants), so each element-type row offers its category's variants;
+        // editable so a bespoke type can still be typed. Non-reverting (always-live in the cell).
+        private DataGridTemplateColumn VariantColumn(double width)
+        {
+            var factory = new System.Windows.FrameworkElementFactory(typeof(ComboBox));
+            factory.SetValue(ComboBox.IsEditableProperty, true);
+            factory.SetValue(ComboBox.MarginProperty, new Thickness(1));
+            factory.SetBinding(ComboBox.ItemsSourceProperty, new System.Windows.Data.Binding(nameof(ColVm.AvailableVariants)));
+            factory.SetBinding(ComboBox.TextProperty, new System.Windows.Data.Binding(nameof(ColVm.Variant))
+            { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            return new DataGridTemplateColumn { Header = "Variant", Width = new DataGridLength(width),
+                CellTemplate = new DataTemplate { VisualTree = factory } };
+        }
+
+        // Fill a column's AvailableVariants from its category's seed variants. resetSelection=true
+        // (a user category change) defaults the variant to the first; on load it keeps a saved value.
+        private void PopulateVariants(ColVm vm, bool resetSelection)
+        {
+            if (vm == null) return;
+            var vs = MatrixVariants.ForCategory(_doc, vm.Category);
+            vm.AvailableVariants.Clear();
+            foreach (var v in vs) vm.AvailableVariants.Add(v);
+            if (resetSelection || string.IsNullOrWhiteSpace(vm.Variant))
+                vm.Variant = vs.FirstOrDefault() ?? (vm.Variant ?? "");
+        }
+
+        private void OnColumnCategoryChanged(ColVm vm) => PopulateVariants(vm, resetSelection: true);
+
         private DataGridTemplateColumn HeightColumn(string header, double width)
         {
             var factory = new System.Windows.FrameworkElementFactory(typeof(ComboBox));
@@ -277,7 +306,11 @@ namespace StingTools.UI
         {
             _cols.Clear();
             foreach (var c in _matrix.Columns ?? new List<MatrixColumnDef>())
-                _cols.Add(new ColVm(c, OnCellOrColChanged));
+            {
+                var vm = new ColVm(c, OnCellOrColChanged, OnColumnCategoryChanged);
+                PopulateVariants(vm, resetSelection: false);   // keep the saved variant
+                _cols.Add(vm);
+            }
             if (_matrixGrid != null) RebuildMatrixColumns();
         }
 
@@ -391,7 +424,8 @@ namespace StingTools.UI
             var cat = _categories.FirstOrDefault() ?? "Lighting Fixtures";
             var def = new MatrixColumnDef { Id = _matrix.NextColumnId(), Category = cat, Anchor = MatrixDefaults.DefaultAnchor(cat, true), AutoGrid = true };
             _matrix.Columns.Add(def);
-            var vm = new ColVm(def, OnCellOrColChanged);
+            var vm = new ColVm(def, OnCellOrColChanged, OnColumnCategoryChanged);
+            PopulateVariants(vm, resetSelection: true);   // default a new column to its first seed variant
             _cols.Add(vm);
             foreach (var row in _rows) row.Cells.Add(new CellVm(0, row.OnCellChanged));
             RebuildMatrixColumns();
@@ -701,18 +735,22 @@ namespace StingTools.UI
         internal sealed class ColVm : INotifyPropertyChanged
         {
             private readonly Action _onChanged;
-            public ColVm(MatrixColumnDef def, Action onChanged)
+            private readonly Action<ColVm> _onCategoryChanged;
+            public ColVm(MatrixColumnDef def, Action onChanged, Action<ColVm> onCategoryChanged)
             {
                 _onChanged = onChanged;
-                Id = def.Id; _category = def.Category; Variant = def.Variant; _anchor = def.Anchor;
+                _onCategoryChanged = onCategoryChanged;
+                Id = def.Id; _category = def.Category; _variant = def.Variant; _anchor = def.Anchor;
                 MountingHeightMm = def.MountingHeightMm; HeightStandard = def.HeightStandard;
                 AutoGrid = def.AutoGrid; LoadVaOverride = def.LoadVaOverride; Label = def.Label;
             }
             public string Id { get; }
             public string Label { get; set; }
             private string _category;
-            public string Category { get => _category; set { _category = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayLabel))); _onChanged?.Invoke(); } }
-            public string Variant { get; set; } = "";
+            public string Category { get => _category; set { _category = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayLabel))); _onCategoryChanged?.Invoke(this); _onChanged?.Invoke(); } }
+            public ObservableCollection<string> AvailableVariants { get; } = new ObservableCollection<string>();
+            private string _variant = "";
+            public string Variant { get => _variant; set { if (_variant != value) { _variant = value ?? ""; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Variant))); PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayLabel))); } } }
             private string _anchor;
             public string Anchor { get => _anchor; set { _anchor = value; } }
             public double MountingHeightMm { get; set; }

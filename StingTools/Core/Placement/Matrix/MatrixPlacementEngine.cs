@@ -195,6 +195,13 @@ namespace StingTools.Core.Placement.Matrix
             if (!string.IsNullOrEmpty(dist.Note)) oc.Note = dist.Note;
             if (dist.Points.Count == 0) { if (string.IsNullOrEmpty(oc.Note)) oc.Note = "no placeable points"; return; }
 
+            // Rotate ceiling/grid fixtures to the room's dominant axis so linear/rectangular
+            // luminaires run parallel to the walls. Wall devices orient to their host wall via
+            // PlacementHostPreflight, so they take no extra rotation. PlacementHostPreflight does
+            // NOT consume rule.RotationDeg (only FixturePlacementEngine.OrientPlacedInstance does),
+            // so we rotate each placed instance directly below (mirrors OrientPlacedInstance).
+            double rotDeg = ceilingLike ? dist.AngleDeg : 0.0;
+
             var rule = new PlacementRule
             {
                 RuleId = $"matrix:{col.Id}:{col.Category}",
@@ -219,6 +226,7 @@ namespace StingTools.Core.Placement.Matrix
                         res.PlacedIds.Add(placed.Placed.Id);
                         string uid = SafeUid(placed.Placed);
                         if (!string.IsNullOrEmpty(uid)) oc.PlacedUniqueIds.Add(uid);
+                        if (Math.Abs(rotDeg) > 0.001) RotateInstance(doc, placed.Placed, p, rotDeg);
                         if (heightMm > 0) TrySetMntHgt(placed.Placed, heightMm);
                         try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
                             $"col:{col.Id}|{col.Category}|var:{col.Variant}|room:{room.UniqueId}"); } catch { }
@@ -310,6 +318,20 @@ namespace StingTools.Core.Placement.Matrix
                 return levelZ + 2700.0 * MmToFt;        // fallback ceiling height
             }
             return levelZ + Math.Max(0, heightMm) * MmToFt;   // FFL + mounting height (wall / equipment)
+        }
+
+        // Rotate a placed instance about the vertical axis through its location point (mirrors
+        // FixturePlacementEngine.OrientPlacedInstance step 1). Best-effort — never throws.
+        private static void RotateInstance(Document doc, FamilyInstance fi, XYZ fallbackPoint, double deg)
+        {
+            try
+            {
+                XYZ origin = (fi.Location as LocationPoint)?.Point ?? fallbackPoint;
+                if (origin == null) return;
+                var axis = Line.CreateBound(origin, origin + XYZ.BasisZ);
+                ElementTransformUtils.RotateElement(doc, fi.Id, axis, deg * Math.PI / 180.0);
+            }
+            catch (Exception ex) { StingLog.Warn($"MatrixPlacementEngine.RotateInstance {fi?.Id}: {ex.Message}"); }
         }
 
         private static void TrySetMntHgt(Element el, double valueMm)

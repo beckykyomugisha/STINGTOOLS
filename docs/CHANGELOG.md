@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
+
+Branch `claude/placement-matrix`. Build clean `-c Release` (0/0). **Model-modifying — verify placement
+in Revit before merge (sandbox cannot open Revit).** Two Revit-reported fixes.
+
+- **F1 — grid now orients to the room's shape + fixtures rotate to match.** `MatrixGridDistributor.EvenGrid`
+  previously gridded the axis-aligned bounding box (project X/Y) and never rotated the fittings, so a
+  rotated room got a skewed grid and an L-shaped room under-filled. It now builds the grid in the room's
+  ORIENTED frame: `ComputeFrame` derives the dominant axis from the longest wall-backed boundary segment
+  (else longest boundary segment), forces U to be the long axis, and computes the oriented bounding-box
+  extents; `LayOrientedGrid` lays the exact-N rows×cols grid in that frame and transforms each point back
+  to world (`C + a·U + b·V`). For a convex room the aligned grid is used verbatim (identical output for
+  axis-aligned rooms — no regression); for a concave/L-shaped room where that grid would clip and leave a
+  gap, it densifies and `FarthestPointSelect`s exactly N inside the actual outline so the real area fills
+  evenly. `DistributionResult.AngleDeg` carries the dominant-axis angle; **`MatrixPlacementEngine` applies
+  it post-placement via `ElementTransformUtils.RotateElement`** (mirrors `OrientPlacedInstance`) because
+  `PlacementHostPreflight.Place` does NOT consume `PlacementRule.RotationDeg` — only
+  `FixturePlacementEngine.OrientPlacedInstance` does, and the matrix places through `PlacementHostPreflight`.
+  Wall devices take no extra rotation (their host wall orients them). Exact-N + min-spacing shortfall
+  reporting preserved.
+- **F2 — Variant is a per-row dropdown, not free text.** New `MatrixVariants.ForCategory(doc, category)`
+  resolves category → seedId (`CategoryToSeedRegistry`) → `Data/Seeds/<seedId>.json`
+  (`SymbolLibrary.Symbols[].TypeVariants[].Name`) ∪ the loaded seed family's type names, cached per doc.
+  The dialog's Variant column is now an editable `ComboBox` whose `ItemsSource` binds to the ROW's own
+  `AvailableVariants` (so a Lighting row offers Recessed/Surface/Pendant/Emergency/External, an Electrical
+  row offers its socket variants, etc.), `Text` TwoWay/`PropertyChanged` to `Variant` (non-reverting,
+  editable fallback for a bespoke type). Changing the category refreshes the list and defaults to the
+  seed's first variant; loading a saved column keeps its stored variant. Persisted + used at placement.
+
+Judgment calls: room axis = longest wall-backed segment (robust, reuses `WallBackedSegments`);
+`RotationDeg` was NOT consumed by `PlacementHostPreflight`, so post-placement `RotateElement` was needed;
+variant source = seed spec `TypeVariants` ∪ loaded seed family type names. Files:
+`Core/Placement/Matrix/{MatrixGridDistributor,MatrixPlacementEngine,MatrixVariants}.cs`, `UI/MatrixPlaceDialog.cs`.
+
 #### Completed (Matrix Place — room×element grid, exact-count placement, Excel/DIALux round-trip, grid-circuiting, typical-floor repeat, load estimate)
 
 Branch `claude/placement-matrix` (off `claude/placement-library-dwg`, not `main`). Build clean
