@@ -58,6 +58,22 @@ if( or( and(TAG_PARA_STATE_4_BOOL, HANDOVER_MODE_HANDOVER_BOOL),
 
 ---
 
+## Data-source reconciliation (2026-07-03) — corrects an earlier wrong assumption
+
+An earlier note in this plan called the repo's `STING_TAG_CONFIG_v5_0_*.csv` "stale v5.0" versus the user's `STING_TAG_BUNDLES_v7_8` xlsx. **That was wrong.** Investigation found:
+
+- **True source:** `StingTools/Data/LABEL_DEFINITIONS.json` is **version 5.12**. The v5.0 CSV header cites `SYNC=LABEL_DEFINITIONS.json_v5.12 … CONSOL=dfd7b4d` — CSV and source were generated at the **same commit**. The CSVs are **in sync**, not stale.
+- **The v7.8 xlsx is a lossy derived export** of the same source: fewer rows (Duct T5 = 4 vs 9), **raw** params (`CST_UG_PRICE_UGX`) instead of the CSV's **display** params (`CST_UG_PRICE_UGX_DISP_TXT`), and no Suffix/units/Style/Color/Size.
+- **Therefore: do NOT import xlsx → CSV** — it would delete rows, swap display params for raw numbers, and strip styling. The CSVs remain the authoritative tier-content source for this plan.
+- **Real drift to reconcile separately:** MEP CSV = 61 family blocks vs xlsx = 62 (1-family difference). HEALTH CSV uses the `TAG_FAMILY,<name>` row form (0 `Tag Family #` blocks) by design.
+
+**Consequences for Route B below:**
+1. The **206 families to modify are the v7.8 bundle `.rfa`** (`C:\Dev\TAGS 210626\STING_TAG_BUNDLES_v7_8\…`), worked **in place** — never regenerated from code `.rft` templates (that would discard curation and use nothing newer than the CSVs anyway).
+2. **Tier content + per-tier styling come from the current CSVs** (`tier_style_defaults` in LABEL_DEFINITIONS.json + the per-tier Style/Color/Size defaults already in the CSV rows, e.g. T4 = BOLD/BLUE, T5 = NOM/PURPLE). "Styling" is therefore largely **per-tier defaults already defined**, not bespoke per-row authoring.
+3. The immovable manual wall (creating the visible label rows) is unchanged.
+
+---
+
 ## CHOSEN PATH — Route B (Template families, styled)
 
 **Spike verdict (Task 1, run 2026-07-03):** real STING tag families contain **one API-opaque annotation Label (`TextElement`), zero Dimensions**. The Revit API cannot create, read-bind, rebind, or copy-retarget a Label. Therefore in-place row automation is impossible; the clone tasks below (Task 2, Task 4) are **SUPERSEDED**. We take **Route B**: author the label geometry **once per tag shape** in the Family Editor, then let the already-built pipeline bind params + write mode×depth formulas + regenerate all 206.
