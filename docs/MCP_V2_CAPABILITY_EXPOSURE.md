@@ -172,11 +172,33 @@ already pure → exposed as `size_cable_calc` (license-gated, no job bridge, no 
   results back to bound params only (skip missing/read-only, record the reason).
 - **No `TaskDialog`/`MessageBox` anywhere in the engine.** `dryRun` computes + returns the
   plan (per-item proposal + ≤25 samples) and writes nothing.
-- Return a structured `{ inspected, sized/planned, skipped[reasons], errors[], sampleChanges[] }`.
+- Return a structured result that separates **computed** (calc succeeded) from **written**
+  (a param was actually `Set` on a real element): `{ inspected, computed, written,
+  perParamWritten{…}, noWritesPersisted, requiredBindingGaps[], skipped[reasons], errors[],
+  sampleChanges[] }`. `sized`≈`written`.
 - The engine opens **its own `Transaction`** (standalone-safe) — never a `TransactionGroup`,
   so it nests cleanly when MCP wraps it in `McpSafety.RunInTransactionGroup` (no double group).
 - Define the **skipped contract** for inputs the model doesn't carry (e.g. cable run length
   from an undrawn circuit path → `skipped: missing circuit length`).
+
+**Step 2a — Verify every write-target param BEFORE wiring the verb (MANDATORY — this is
+what caught the hollow cable-write bug).**
+For each result param the engine will write, confirm all three, or the write is a silent
+no-op that builds green and reports fake success:
+- **(a) Exists by EXACT name** in `ParamRegistry` / `Data/MR_PARAMETERS.txt` (grep it — a
+  wrong suffix is a dead literal: `ELC_WIRE_CSA_MM2` does not exist, `ELC_WIRE_CSA_MM2_NUM`
+  does; `ELC_VOLT_DROP_PCT` does not exist, `ELC_VLT_DROP_PCT` does).
+- **(b) Is bound to the EXACT category of the element being written** (`Data/CATEGORY_BINDINGS.csv`)
+  at the right Instance/Type level. A param bound to Conduits/Equipment is dead on Electrical
+  Circuits. If the natural target element isn't bound, either write to the element that IS
+  bound (e.g. the circuit's connected equipment) or record a **required-binding gap** — never
+  silently no-op.
+- **(c) Is resolved in code via `ParamRegistry`** (add an accessor if missing) — **never a
+  hand-typed shared-param literal** in engine code.
+- The engine **must report computed-vs-written** and **`StingLog.Warn` loudly + set
+  `noWritesPersisted`** when `computed > 0 && written == 0`; the MCP read-back must surface it.
+- **A verb is not "done" until one real write is proven** on a representative element
+  (dryRun-plan matching, then a live write landing on the model).
 
 **Step 3 — Refactor the existing UI writer to DELEGATE (single source of truth).**
 If a command already writes those params, change it to call `Apply(...)` and render its
@@ -194,6 +216,21 @@ for the confirm count, applies the Phase-3a guardrails (confirm on bulk/project,
 (`size_cables`) that routes through `DispatchWrite(tag, args)`. Because `engineBacked`
 derives from the registry, `invoke_capability` picks it up automatically — one handler,
 both surfaces.
+
+**Corrected cable-sizing mapping (the worked example).** Read source = `ElectricalSystem`
+power circuits (apparent load / voltage / poles / length). Write target = each circuit's
+**connected equipment/fixtures** (`ElectricalSystem.Elements`) — because the result params
+are bound there, not to Electrical Circuits:
+- `ParamRegistry.ELC_CKT_CSA_MM2` → `ELC_CBL_SZ_MM` (Text, cable size) — bound to Electrical
+  Equipment (`CATEGORY_BINDINGS.csv:8222`) / Fixtures (`8121`), Type-level.
+- `ParamRegistry.ELC_CKT_VD_PCT` → `ELC_VLT_DROP_PCT` (Text, voltage-drop %) — bound to the
+  same categories.
+- **Required-binding gaps:** the numeric `ELC_WIRE_CSA_MM2_NUM` / `ELC_WIRE_VD_PCT_NUM`
+  (`MR_PARAMETERS.txt:2994/2996`) are bound to no writable target → reported, not written.
+Type-bound params are written on the element's **type** when the instance doesn't expose
+them. The original engine hand-typed `ELC_WIRE_CSA_MM2` / `ELC_CBL_SZ_MM` (on the circuit) /
+`ELC_VOLT_DROP_PCT` — all three dead → every write silently no-oped with a green build. Step
+2a exists to make that impossible.
 
 **Backlog remaining (same recipe):** `size_ducts` / `size_pipes` (extract `Apply` from the
 inline `MepAutoSize*Command.Execute` + drop the `StingHvacCommandHandler.CurrentScope`
