@@ -615,6 +615,10 @@ namespace StingTools.Tags
             BuiltInCategory.OST_NurseCallDevices,
             BuiltInCategory.OST_SecurityDevices,
             BuiltInCategory.OST_TelephoneDevices,
+            // NOTE: OST_ElectricalCircuit is intentionally NOT in this shared array — it is
+            // added to the ELC_PWR group ONLY, via a dedicated CategorySet in
+            // BuildGroupCategoryOverrides. Putting it here would bind circuits to all six MEP
+            // groups (HVAC/plumbing/fire/lighting/generic) and the fallback core set.
         };
 
         // Clash rec-3: Categories watched by LiveClashUpdater. CLASH_COORDINATION
@@ -632,6 +636,17 @@ namespace StingTools.Tags
             BuiltInCategory.OST_Ceilings,
             BuiltInCategory.OST_StructuralFraming,
             BuiltInCategory.OST_StructuralColumns,
+        };
+
+        // Detail / annotation / generic-symbol categories that the ISO + MEP
+        // symbol placers drop elements into. STING_PLACER group binds only to
+        // these so the idempotency stamps don't pollute every model element.
+        private static readonly BuiltInCategory[] PlacerCategories = new[]
+        {
+            BuiltInCategory.OST_DetailComponents,
+            BuiltInCategory.OST_GenericAnnotation,
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_Lines,
         };
 
         private static readonly BuiltInCategory[] BleCategories = new[]
@@ -670,12 +685,21 @@ namespace StingTools.Tags
             var mepCats = BuildCatSet(doc, MepCategories);
             if (mepCats.Size > 0)
             {
-                overrides["ELC_PWR"] = mepCats;
-                overrides["HVC_SYSTEMS"] = mepCats;
-                overrides["PLM_DRN"] = mepCats;
-                overrides["LTG_CONTROLS"] = mepCats;
-                overrides["FLS_LIFE_SFTY"] = mepCats;
-                overrides["MEP_GENERIC"] = mepCats;
+                // ELC_PWR gets its OWN CategorySet = base MEP cats + Electrical Circuits, so
+                // the cable-sizing params (ELC_WIRE_CSA_MM2_NUM / ELC_WIRE_VD_PCT_NUM) reach
+                // circuits Instance-level. BuildCatSet returns a FRESH CategorySet instance,
+                // so inserting circuits here cannot leak into the shared mepCats used by the
+                // other five groups. TryInsert's AllowsBoundParameters guard safely skips the
+                // category on a Revit version that disallows binding to it.
+                CategorySet elcPwrCats = BuildCatSet(doc, MepCategories);
+                TryInsert(doc, elcPwrCats, BuiltInCategory.OST_ElectricalCircuit);
+
+                overrides["ELC_PWR"] = elcPwrCats;      // base MEP cats + Electrical Circuits
+                overrides["HVC_SYSTEMS"] = mepCats;     // base MEP cats only (no circuits)
+                overrides["PLM_DRN"] = mepCats;         // base MEP cats only
+                overrides["LTG_CONTROLS"] = mepCats;    // base MEP cats only
+                overrides["FLS_LIFE_SFTY"] = mepCats;   // base MEP cats only
+                overrides["MEP_GENERIC"] = mepCats;     // base MEP cats only
             }
 
             var bleCats = BuildCatSet(doc, BleCategories);
@@ -694,6 +718,35 @@ namespace StingTools.Tags
             {
                 overrides["CLASH_COORDINATION"] = clashCats;
             }
+
+            // STING_VIEWPARAMS group (group 36) holds view-scoped params such as
+            // STING_VIEW_TOKEN_MASK_TXT (per-view tag-token visibility mask).
+            // These must bind to OST_Views, which is NOT in the universal element
+            // category set, so without this override the param would never bind
+            // and the per-view mask read would silently no-op.
+            try
+            {
+                var viewCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Views);
+                if (viewCat != null && viewCat.AllowsBoundParameters)
+                {
+                    var viewSet = new CategorySet();
+                    viewSet.Insert(viewCat);
+                    overrides["STING_VIEWPARAMS"] = viewSet;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides STING_VIEWPARAMS: {ex.Message}"); }
+
+            // STING_PLACER group (group 37) holds the symbol-placement idempotency
+            // stamps (STING_PLACED_BY_SYMBOL_PLACER_BOOL + STING_PLACER_*). The
+            // ISO / MEP symbol placers drop detail components, generic annotations,
+            // generic-model symbols, and detail/symbolic curves into views and
+            // stamp the placed element so re-runs skip it. Bind to those
+            // detail/annotation/generic categories (none are in the universal
+            // element set). TryInsert silently skips any category that does not
+            // allow bound parameters.
+            var placerCats = BuildCatSet(doc, PlacerCategories);
+            if (placerCats.Size > 0)
+                overrides["STING_PLACER"] = placerCats;
 
             // BOQ Cost Manager (Phase 91) — project-level parameters bind to ProjectInformation only
             // so the budget, variance, coverage % and last-costed timestamp sit on the ProjectInfo
@@ -775,6 +828,16 @@ namespace StingTools.Tags
 
             // Composite material tags
             if (paramName.StartsWith("COMP_MAT_", StringComparison.Ordinal)) return true;
+
+            // Sustainability / Material-Manager params authored under the STING_
+            // prefix that nonetheless live on Material elements (embodied carbon,
+            // EPD source/date, lifecycle state). These are read via
+            // mat.LookupParameter in StingMaterialUpdater / MaterialRow /
+            // IfcMaterialPsetWriter, so they must carry OST_Materials binding.
+            // (The MAT_COST_* / MAT_VAT_* cost-split params already match the
+            //  "MAT_" prefix above.)
+            if (paramName.StartsWith("STING_MAT_", StringComparison.Ordinal)) return true;
+            if (paramName == "STING_EMB_CARBON_NR") return true;
 
             return false;
         }

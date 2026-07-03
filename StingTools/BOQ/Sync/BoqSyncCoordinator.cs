@@ -85,13 +85,25 @@ namespace StingTools.BOQ.Sync
                 }
 
                 // 1. Create the baseline shell.
+                // CA-5 — push the full BoqMarkupBreakdown so the server stores the
+                // works value AND the contract sum (not works-only). Currency
+                // defaults to UGX (the project base), never GBP. The server ignores
+                // any field it doesn't yet persist (additive, back-compat).
+                var mk = boq.Markup;
                 var baselinePayload = new
                 {
                     name = string.IsNullOrEmpty(snapshotLabel) ? boq.SnapshotLabel : snapshotLabel,
                     kind = MapSnapshotTypeToBaselineKind(boq.SnapshotType),
                     currency = boq.Currency ?? "UGX",
                     description = $"Auto-pushed by STING plugin on {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}",
-                    checksum = checksum
+                    checksum = checksum,
+                    worksValue   = Math.Round(mk.Works, 0),
+                    preliminaries = Math.Round(mk.Prelims, 0),
+                    overhead     = Math.Round(mk.Overhead, 0),
+                    contingency  = Math.Round(mk.Contingency, 0),
+                    netExVat     = Math.Round(mk.NetExVat, 0),   // CA-2 lifecycle basis
+                    vat          = Math.Round(mk.Vat, 0),
+                    contractSum  = Math.Round(mk.GrandTotal, 0)  // VAT-inclusive presentation
                 };
 
                 Guid? baselineId = await CreateBaselineAsync(client, projectId, baselinePayload);
@@ -218,16 +230,55 @@ namespace StingTools.BOQ.Sync
                 level = item.Level ?? "",
                 zone = item.Location ?? "",
                 unit = item.Unit ?? "each",
+                // WP-FIX — payload contract that CANNOT under- or over-report
+                // against any server, updated or not. `netQuantity` is the FINAL
+                // measured quantity (deductions + waste already in it) and the
+                // gross-up-driving `wastePercent` is 0 — so a server that grosses
+                // up (`net × (1 + waste/100)`) and a server that treats netQuantity
+                // as final both store the correct total. The real wastage split
+                // rides as METADATA (`measuredWastePercent` + `grossQuantity` +
+                // `deductionQuantity`); a v2-aware server records it without
+                // re-grossing. `payloadSchemaVersion` + `quantityIsFinal` let a
+                // new server opt into honouring the split.
+                payloadSchemaVersion = 2,
+                quantityIsFinal = true,
                 netQuantity = Math.Round(item.Quantity, 6),
-                wastePercent = 0,           // P0 reserves; honoured once ES schema v2 lands
+                wastePercent = 0,
+                measuredWastePercent = Math.Round(WastePercent(item), 4),
+                grossQuantity = Math.Round(item.GrossQuantity, 6),
+                deductionQuantity = Math.Round(item.DeductionQuantity, 6),
                 unitRate = Math.Round(item.RateUGX, 2),
                 currency = "UGX",
                 lineKind = MapSourceToLineKind(item.Source),
                 pricingBasis = "Remeasure",
+                // Carbon: ship the authoritative engine TOTAL (`embodiedCarbonKg`)
+                // AND a per-unit value derived from it against the FINAL quantity,
+                // so the current server (which stores perUnit × netQuantity) still
+                // reconstructs the right total now that netQuantity is final.
+                embodiedCarbonKg = Math.Round(item.EmbodiedCarbonKg, 3),
                 embodiedCarbonPerUnit = item.Quantity > 0
-                    ? Math.Round(item.EmbodiedCarbonKg / item.Quantity, 4)
+                    ? Math.Round(item.EmbodiedCarbonKg / item.Quantity, 6)
                     : 0
             };
+        }
+
+        /// <summary>WP1 — the cost/measured quantity BEFORE the wastage step
+        /// (gross − deductions). Equals item.Quantity for rows that carry no
+        /// measurement audit trail (manual / PS / pre-2A snapshots).</summary>
+        private static double WastePreBase(BOQLineItem item)
+        {
+            if (item.GrossQuantity > 0 && item.WastageQuantity != 0)
+                return item.Quantity - item.WastageQuantity;
+            return item.Quantity;
+        }
+
+        /// <summary>WP1 — the real wastage % implied by the measurement trail,
+        /// so server-side base × (1 + %/100) reproduces the net quantity.</summary>
+        private static double WastePercent(BOQLineItem item)
+        {
+            double basis = WastePreBase(item);
+            if (basis <= 0 || item.WastageQuantity == 0) return 0;
+            return item.WastageQuantity / basis * 100.0;
         }
 
         private static string MapSourceToLineKind(BOQRowSource source)

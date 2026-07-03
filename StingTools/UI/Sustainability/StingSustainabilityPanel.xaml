@@ -220,7 +220,11 @@
                     <StackPanel>
                         <WrapPanel Margin="2,4">
                             <Button Content="Run dashboard" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_Dashboard" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="Readiness check" Style="{StaticResource SusActionBtn}" Tag="Sustain_ReadinessCheck" Click="Cmd_Click" Margin="2"
+                                    ToolTip="Is the model ready for a project-specific assessment (location + use set, occupancy, fixtures)? Honest pre-warn."/>
                             <Button Content="Set baseline" Style="{StaticResource SusActionBtn}" Tag="Sustain_SetBaseline" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="EDGE / WLC report" Style="{StaticResource SusActionBtn}" Tag="Sustain_Report" Click="Cmd_Click" Margin="2"
+                                    ToolTip="One-click shareable HTML report (savings, gates, WBLCA A1-A3 prerequisite, design measures, honesty caveats)."/>
                             <Button Content="Publish to server" Style="{StaticResource SusActionBtn}" Tag="Sustain_PublishToServer" Click="Cmd_Click" Margin="2"
                                     ToolTip="Push the latest dashboard snapshot to Planscape Server (disabled for offline projects). Run the dashboard first."/>
                         </WrapPanel>
@@ -311,6 +315,12 @@
                                    TextWrapping="Wrap" FontSize="10" Margin="2,2" Foreground="{DynamicResource PanelFg}"/>
                         <WrapPanel Margin="2,8">
                             <Button Content="LCC benefit" Style="{StaticResource SusPrimaryBtn}" Tag="Sustain_LccBenefit" Click="Cmd_Click" Margin="2"/>
+                            <Button Content="Target seeker" Style="{StaticResource SusActionBtn}" Tag="Sustain_TargetSeeker" Click="Cmd_Click" Margin="2"
+                                    ToolTip="Least-cost route to the next EDGE level - the improve loop."/>
+                            <Button Content="Compare options" Style="{StaticResource SusActionBtn}" Tag="Sustain_CompareOptions" Click="Cmd_Click" Margin="2"
+                                    ToolTip="Side-by-side measure packages with NPV payback."/>
+                            <Button Content="Generate deliverable" Style="{StaticResource SusActionBtn}" Tag="Sustain_GenerateDeliverable" Click="Cmd_Click" Margin="2"
+                                    ToolTip="Produce the sustainability deliverable document."/>
                         </WrapPanel>
                         <DataGrid x:Name="LccGrid" Style="{StaticResource SusGrid}" Height="200" Margin="2,2">
                             <DataGrid.Columns>

@@ -38,6 +38,13 @@ namespace StingTools.BOQ
         private static UpdaterId _updaterId;
         private static bool _enabled;
 
+        /// <summary>WP6 — monotonically increasing model-edit epoch. Bumped each
+        /// time this updater records a cost-relevant change, so downstream caches
+        /// (e.g. <see cref="BOQBccBridge"/>) can detect an in-place edit that
+        /// leaves the document path unchanged and rebuild instead of serving
+        /// stale rates into the 4D/5D cash-flow.</summary>
+        public static long ChangeEpoch;
+
         // Above this many changed elements in one transaction, force a full
         // rebuild rather than classify each id.
         private const int BulkForceFullThreshold = 500;
@@ -131,7 +138,8 @@ namespace StingTools.BOQ
                     foreach (var id in ids)
                     {
                         Element el;
-                        try { el = doc.GetElement(id); } catch { continue; }
+                        try { el = doc.GetElement(id); }
+                        catch (Exception ex) { StingLog.WarnRateLimited("CostDirty.GetEl", $"GetElement({id}): {ex.Message}"); continue; }
                         if (el == null) continue;
                         // A type / level / grid / material edit is broad-impact.
                         if (el is ElementType || el is Level || el is Grid || el is Material)
@@ -144,6 +152,12 @@ namespace StingTools.BOQ
 
                 if (forceFull) BOQCostManager.ForceHostFull(doc);
                 else if (dirty.Count > 0) BOQCostManager.MarkHostDirty(doc, dirty);
+
+                // WP6 — bump the model-edit epoch so caches keyed off it (e.g.
+                // BOQBccBridge, which feeds 4D/5D cash-flow) rebuild instead of
+                // serving stale rates after an in-place geometry/type edit.
+                if (forceFull || dirty.Count > 0)
+                    System.Threading.Interlocked.Increment(ref ChangeEpoch);
             }
             catch (Exception ex) { StingLog.WarnRateLimited("CostDirtyExec", $"StingCostDirtyMarker.Execute: {ex.Message}"); }
         }

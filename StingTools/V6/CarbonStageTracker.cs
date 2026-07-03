@@ -51,7 +51,8 @@ namespace StingTools.V6
         // ICE database v3.0 building-industry averages.
         public const double A4TransportFactorKgPerKmTonne = 0.105;
         public const double A5InstallFactorKgPerHr        = 6.2;
-        public const double B6OperationalKwhFactor         = 0.233;
+        // PM-1 — B6 is no longer a hard-coded 0.233 kgCO2e/kWh (UK grid); it comes
+        // from GridCarbonRegistry per project country (Uganda 0.05). See ResolveGridFactor.
         public const double C1DeconstructKgPerM3          = 3.1;
         public const double C2TransportFactorKgPerKm       = 0.085;
         public const double C3C4DisposalKgPerKg            = 0.04;
@@ -62,22 +63,35 @@ namespace StingTools.V6
             if (doc == null) return res;
 
             var byDisc = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            // PM-1 — B6 operational factor from GridCarbonRegistry (Uganda 0.05),
+            // not the hard-coded 0.233 (≈5× too high for Uganda's hydro grid).
+            double gridFactor = ResolveGridFactor(doc);
 
             try
             {
                 TransactionHelper.RunInScope(doc, "STING carbon stage tracker", t =>
                 {
+                    // SUS-2 — walk the SAME WBLCA take-off scope the EDGE dashboard uses
+                    // (was SharedParamGuids.AllCategoryEnums, which made the two whole-life
+                    // numbers disagree). One shared category list ends that drift.
                     var col = new FilteredElementCollector(doc)
-                        .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                        .WherePasses(new ElementMulticategoryFilter(
+                            StingTools.Core.Sustainability.SustainabilityEngine.WblcaCategories))
                         .WhereElementIsNotElementType();
                     foreach (var el in col)
                     {
-                        // A1-A3: reuse existing CarbonTrackingCommands
-                        // embodied value if previously computed;
-                        // otherwise estimate from volume × material.
-                        double a1a3 = ReadDouble(el, "CBN_EMBODIED_KG_CO2E");
+                        // CA-3 — CST_EMBODIED_CARBON_KG is the ONE embodied-carbon
+                        // store and its canonical value is the BOQ's A1-A3 FOSSIL
+                        // headline. Prefer it so the EN 15978 tracker and the BOQ are
+                        // single-valued REGARDLESS of pass order; fall back to the
+                        // prior CBN store, then the shared fossil resolver estimate
+                        // (EstimateA1A3 → BOQCostManager.ComputeElementCarbonKg).
+                        double a1a3 = ReadDouble(el, "CST_EMBODIED_CARBON_KG");
+                        if (a1a3 <= 0) a1a3 = ReadDouble(el, "CBN_EMBODIED_KG_CO2E");
                         if (a1a3 <= 0) a1a3 = EstimateA1A3(el);
                         WriteDouble(el, ParamRegistry.CBN_A1_A3_KG_CO2E, a1a3);
+                        // Idempotent when the BOQ already stamped the fossil figure.
+                        WriteDouble(el, "CST_EMBODIED_CARBON_KG", a1a3);
                         res.TotalA1A3 += a1a3;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                         if (!string.IsNullOrEmpty(disc))
@@ -100,7 +114,7 @@ namespace StingTools.V6
                         // B6 operational (only MEP equipment). Uses
                         // RGL_ENERGY_KWH_YR (existing) if present.
                         double kwh = ReadDouble(el, "RGL_ENERGY_KWH_YR");
-                        double b6  = kwh * B6OperationalKwhFactor;
+                        double b6  = kwh * gridFactor;   // PM-1 — region grid factor
                         WriteDouble(el, ParamRegistry.CBN_B6_KG_CO2E_YR, b6);
                         res.TotalB6AnnualKgYr += b6;
 
@@ -131,15 +145,68 @@ namespace StingTools.V6
             }
 
             res.ByDisciplineA1A3 = byDisc;
+
+            // SUS-2 — surface the SAME A1–A3 the EDGE dashboard reports. The per-element
+            // loop above (scope-aligned to WblcaCategories) stamps the param store + the
+            // discipline split; the headline A1–A3 is then reconciled to the EDGE engine's
+            // canonical WBLCA take-off (per-material aggregation of the same elements +
+            // shared resolver) so CarbonStageTracker.TotalA1A3 == res.Materials.TotalCarbonKg.
+            // The discipline split is rescaled to stay consistent with the reconciled total.
+            try
+            {
+                double edgeA1A3 = StingTools.Core.Sustainability.SustainabilityEngine.WblcaA1A3Kg(doc);
+                if (edgeA1A3 > 0)
+                {
+                    if (res.TotalA1A3 > 0)
+                    {
+                        double k = edgeA1A3 / res.TotalA1A3;
+                        foreach (var key in byDisc.Keys.ToList()) byDisc[key] *= k;
+                    }
+                    res.TotalA1A3 = edgeA1A3;
+                    res.ByDisciplineA1A3 = byDisc;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CarbonStageTracker SUS-2 reconcile: {ex.Message}"); }
+
             res.ExportPath       = ExportIsoReport(doc, res);
             return res;
         }
 
         private static double EstimateA1A3(Element el)
         {
-            double volCuFt = ReadDouble(el, "MAT_VOLUME_CUFT");
-            // Placeholder: 350 kgCO2e/m3 (concrete proxy).
-            return volCuFt * 0.0283168 * 350.0;
+            // WP0 — delegate to the ONE canonical per-element carbon resolver
+            // (BOQCostManager → CarbonFactorResolver: EPD → material param →
+            // lookup CSV → legacy) instead of the flat 350 kgCO₂e/m³ concrete
+            // proxy that diverged from the BOQ figure for every other material.
+            double volM3 = ReadDouble(el, "MAT_VOLUME_CUFT") * 0.0283168;
+            if (volM3 <= 0)
+            {
+                try
+                {
+                    var p = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                    if (p != null && p.HasValue) volM3 = p.AsDouble() * 0.0283168;
+                }
+                catch (Exception ex) { StingLog.Warn($"CarbonStageTracker.EstimateA1A3 vol: {ex.Message}"); }
+            }
+            return StingTools.BOQ.BOQCostManager.ComputeElementCarbonKg(el, volM3);
+        }
+
+        /// <summary>PM-1 — the operational (B6) grid carbon factor (kgCO2e/kWh) for
+        /// the project country via GridCarbonRegistry (corporate seed + project
+        /// override). Country from PRJ_COUNTRY config, defaulting to Uganda ("UG")
+        /// for the East-Africa deployment. Falls back to 0.05 (Uganda hydro grid)
+        /// only if the registry can't be read.</summary>
+        private static double ResolveGridFactor(Document doc)
+        {
+            try
+            {
+                string country = TagConfig.GetConfigValue("PRJ_COUNTRY");
+                if (string.IsNullOrWhiteSpace(country)) country = "UG";
+                var reg = StingTools.Core.Sustainability.SustainabilityRegistries.GridCarbon(doc);
+                var res = reg?.Resolve(country);
+                return (res != null && res.Factor > 0) ? res.Factor : 0.05;
+            }
+            catch (Exception ex) { StingLog.Warn($"CarbonStageTracker.ResolveGridFactor: {ex.Message}"); return 0.05; }
         }
 
         private static double ReadDouble(Element el, string paramName)
@@ -184,9 +251,13 @@ namespace StingTools.V6
                 sb.AppendLine($"C3-C4 Disposal,{r.TotalC3C4:F2}");
                 sb.AppendLine($"TOTAL (60y lifecycle),{r.TotalLifecycleOver60y():F2}");
                 sb.AppendLine();
-                sb.AppendLine("Benchmark,KgCO2e/m2,Status");
-                sb.AppendLine("LETI 2030 new-build target,625,*placeholder until GIFA read*");
-                sb.AppendLine("RIBA 2030 Challenge net zero,300,*placeholder until GIFA read*");
+                // PM-1/PM-5 — benchmarks come from the SAME project/region config the
+                // BOQ panel RAG uses (one source of truth), not hard-coded UK LETI/RIBA.
+                double greenKgM2 = TagConfig.GetConfigDouble("COST_CARBON_RAG_GREEN_KGM2", 400.0);
+                double amberKgM2 = TagConfig.GetConfigDouble("COST_CARBON_RAG_AMBER_KGM2", 700.0);
+                sb.AppendLine("Benchmark,KgCO2e/m2,Source");
+                sb.AppendLine($"Carbon-intensity green band,{greenKgM2:F0},project/region (COST_CARBON_RAG_GREEN_KGM2)");
+                sb.AppendLine($"Carbon-intensity amber band,{amberKgM2:F0},project/region (COST_CARBON_RAG_AMBER_KGM2)");
                 File.WriteAllText(path, sb.ToString());
                 return path;
             }

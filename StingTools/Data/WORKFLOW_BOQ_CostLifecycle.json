@@ -1,0 +1,39 @@
+{
+  "name": "BOQ — Cost lifecycle (refresh → validate → snapshot → drift → route)",
+  "description": "WP-A — one action runs the whole manual cost sequence: reload rules, rebuild the bill from the model, run the cost validators + uncosted/export gate, freeze a snapshot (checksum + server push), drift-check the live bill against the latest snapshot, then route/export the priced bill. Halts on validation failure so a broken or unpriced model never ships.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "Cost_ReloadRules",
+      "label": "Reload take-off rules + rate provider caches",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQRefresh",
+      "label": "Rebuild the bill from the model (incremental when the dirty marker is on)",
+      "optional": false,
+      "timeoutSeconds": 600
+    },
+    {
+      "commandTag": "Cost_ValidateAll",
+      "label": "Run the cost validators + uncosted / at-risk rollup (export gate input)",
+      "optional": false
+    },
+    {
+      "commandTag": "BOQSnapshotSave",
+      "label": "Freeze a snapshot (checksum + server push)",
+      "optional": false
+    },
+    {
+      "commandTag": "BOQ_DriftCheck",
+      "label": "Drift-check the live bill against the latest snapshot",
+      "optional": true
+    },
+    {
+      "commandTag": "BOQ_ExportErp",
+      "label": "Route / export the priced bill (ERP-ready CSV + P6 XML)",
+      "optional": true
+    }
+  ]
+}

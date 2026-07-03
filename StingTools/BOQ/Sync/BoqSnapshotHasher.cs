@@ -37,7 +37,11 @@ namespace StingTools.BOQ.Sync
         {
             Formatting = Formatting.None,
             NullValueHandling = NullValueHandling.Ignore,
-            DefaultValueHandling = DefaultValueHandling.Ignore,
+            // PM-1 — DO NOT drop default/zero values. An unmeasured (qty 0) or
+            // zero-rate row was invisible to the checksum, so a model change that
+            // only zeroed a line slipped past dedupe/drift detection. Zeros are
+            // now part of the canonical projection.
+            DefaultValueHandling = DefaultValueHandling.Include,
             Culture = CultureInfo.InvariantCulture
         };
 
@@ -81,6 +85,15 @@ namespace StingTools.BOQ.Sync
                 prelim = Round(boq.PrelimPct, 2),
                 contingency = Round(boq.ContingencyPct, 2),
                 overhead = Round(boq.OverheadPct, 2),
+                vat = Round(boq.VatPct, 2),            // WP1 — VAT now part of the canonical total → must be hashed
+                // CA-5 — an itemised-preliminaries edit or a measurement-standard
+                // change alters the contract sum / net quantities but left the flat
+                // prelim% / category lines untouched, so the old hash missed it.
+                // Hash the itemised flag, the RESOLVED prelim total, and the active
+                // measurement standard so these edits are detected as drift.
+                prelimsItemised = boq.PrelimsItemised,
+                prelimResolved = Round(boq.PrelimContributionUGX, 0),
+                measStd = boq.MeasurementStandardId ?? "nrm2",
                 currency = boq.Currency ?? "UGX",
                 fx = Round(boq.ExchangeRateUgxPerUsd, 4),
                 sections = boq.Sections

@@ -30,6 +30,10 @@ namespace StingTools.Core.Sustainability
         public double[] MeanRhPct    { get; set; } = new double[12];
         public double[] GhiKwhM2Day  { get; set; } = new double[12];
         public double   AnnualGhiKwhM2Yr { get; set; }
+        /// <summary>SUS-3 — site latitude (deg, +N / -S). Drives the hemisphere-correct
+        /// vertical-solar transposition (equator-facing façade is south in the N hemisphere,
+        /// north in the S hemisphere). Carried from the design-day site / JSON; 0 if unknown.</summary>
+        public double   LatitudeDeg { get; set; }
         public double[] RainfallMm   { get; set; } = new double[12];
         public double   GridCarbonKgco2eKwh { get; set; } = 0.45;
         public string   Source      { get; set; } = "";
@@ -97,6 +101,7 @@ namespace StingTools.Core.Sustainability
                 AnnualGhiKwhM2Yr = (double?)s["annualGhiKwhM2Yr"] ?? 0,
                 RainfallMm   = Arr12(s["rainfallMm"]),
                 GridCarbonKgco2eKwh = (double?)s["gridCarbonKgco2eKwh"] ?? 0.45,
+                LatitudeDeg  = (double?)(s["lat"] ?? s["latitude"]) ?? 0,   // SUS-3
                 Source       = (string)s["source"] ?? ""
             };
         }

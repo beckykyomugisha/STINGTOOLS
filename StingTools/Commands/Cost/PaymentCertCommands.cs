@@ -55,6 +55,12 @@ namespace StingTools.Commands.Cost
                 // ASS_PMT_PCT_COMPLETE_NR weighted by ContractValue.
                 AggregatePercentComplete(doc, sov);
 
+                // PM-2 — fold AGREED variations into the SOV as an "Adjustments /
+                // Variations" tail (after the %-aggregation so their 100% stands),
+                // so an approved VO flows straight into this cert's gross valuation.
+                int voLines = PaymentCertEngine.AppendAgreedVariations(sov, doc, contractRef);
+                if (voLines > 0) StingLog.Info($"Cert SOV: appended {voLines} agreed variation line(s).");
+
                 // Pick contract form. P0.3 — inline-form gate: when the BOQ panel
                 // supplied the CertContractForm ExtraParam, skip the picker (no popup).
                 // Falls back to the modal picker for ribbon / other callers.
@@ -111,7 +117,11 @@ namespace StingTools.Commands.Cost
                 // For each SOV line (= NRM2 section), sum ASS_PMT_PCT_COMPLETE_NR
                 // weighted by element TotalUGX so the line-level % matches the
                 // £-weighted average completion across all elements in the section.
-                var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                // PM-6 — scope the sweep to STING-tracked categories (was unfiltered
+                // whole-model), the same fix applied to WeightedPctComplete.
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(StingTools.Core.SharedParamGuids.AllCategoryEnums))
+                    .WhereElementIsNotElementType();
                 var weighted = new Dictionary<string, (double weightSum, double valueSum)>(
                     StringComparer.OrdinalIgnoreCase);
 

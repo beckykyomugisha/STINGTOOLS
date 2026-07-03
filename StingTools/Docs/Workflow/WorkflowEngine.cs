@@ -125,7 +125,15 @@ namespace Planscape.Docs.Workflow
             foreach (var inst in store.Where(i => !i.Closed))
             {
                 if (string.IsNullOrEmpty(inst.SlaDeadline)) continue;
-                if (!DateTime.TryParse(inst.SlaDeadline, out var deadline)) continue;
+                // PM-1 — the deadline is an ISO "…Z" UTC string. Parse it as
+                // universal (AssumeUniversal | AdjustToUniversal) and compare to
+                // DateTime.UtcNow; without this it parsed as Local, so in Kampala
+                // (UTC+3) every breach fired 3 hours early. (AuditLog.cs does it
+                // correctly — this matches it.)
+                if (!DateTime.TryParse(inst.SlaDeadline,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                        out var deadline)) continue;
                 if (deadline > now) continue;
 
                 var wf = reg.Get(inst.WorkflowId);

@@ -23,6 +23,8 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
@@ -38,6 +40,31 @@ namespace StingTools.Mcp
         private static int          _port    = 5199;
         private static volatile bool _running = false;
 
+        // Shared-secret auth. When non-empty, every POST must carry a matching
+        // X-Sting-Mcp-Token header. Loaded from STING_LLM_CONFIG.json at start.
+        private static string        _authToken   = "";
+        // Curated allowlist of command tags run_command may execute (empty = all
+        // known tags). Loaded from config; consumed by the write suite (Phase 3).
+        private static List<string>  _toolAllowlist = new List<string>();
+
+        // Reason the last Start() failed to bind (null when the last start succeeded).
+        // Surfaced by StartAndPersist() so the toggle dialog can show why.
+        private static string        _lastStartError;
+
+        /// <summary>True while the HTTP listener is bound and serving.</summary>
+        internal static bool IsRunning => _running;
+
+        /// <summary>
+        /// True when a command tag may be executed via invoke_capability: the allowlist is
+        /// empty (all known tags permitted) or explicitly contains the tag. Named Tier-2
+        /// write verbs bypass this entirely.
+        /// </summary>
+        internal static bool IsToolAllowed(string tag)
+        {
+            if (_toolAllowlist == null || _toolAllowlist.Count == 0) return true;
+            return _toolAllowlist.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
+        }
+
         // ── Lifecycle ────────────────────────────────────────────────────────────
 
         internal static void StartIfConfigured()
@@ -52,6 +79,16 @@ namespace StingTools.Mcp
                 if (!enabled) return;
 
                 int port = cfg["mcp_port"]?.Value<int>() ?? 5199;
+
+                // Load shared-secret + allowlist before binding so the very first
+                // request is already governed by the configured policy.
+                _authToken = cfg["mcp_auth_token"]?.Value<string>()?.Trim() ?? "";
+                _toolAllowlist = (cfg["mcp_tool_allowlist"] as JArray)?
+                    .Select(t => t?.Value<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToList() ?? new List<string>();
+
                 Start(port);
             }
             catch (Exception ex)
@@ -69,14 +106,22 @@ namespace StingTools.Mcp
             {
                 _listener.Start();
                 _running = true;
+                _lastStartError = null;
                 _thread  = new Thread(Listen) { IsBackground = true, Name = "StingMcpServer" };
                 _thread.Start();
                 StingLog.Info($"STING MCP server started — http://localhost:{port}/mcp/");
+                if (string.IsNullOrEmpty(_authToken))
+                    StingLog.Warn("STING MCP server is UNAUTHENTICATED — mcp_auth_token is empty in " +
+                                  "STING_LLM_CONFIG.json. The server is localhost-bound, but any local " +
+                                  "process can call it. Set mcp_auth_token to require the X-Sting-Mcp-Token header.");
+                else
+                    StingLog.Info("STING MCP server auth: X-Sting-Mcp-Token required on POST.");
             }
             catch (HttpListenerException ex)
             {
-                StingLog.Warn($"MCP server could not bind to port {port}: {ex.Message}. " +
-                              "Try a different mcp_port in STING_LLM_CONFIG.json.");
+                _lastStartError = $"Could not bind to port {port}: {ex.Message}. " +
+                                  "Try a different mcp_port in STING_LLM_CONFIG.json.";
+                StingLog.Warn("MCP server " + _lastStartError);
             }
         }
 
@@ -85,6 +130,109 @@ namespace StingTools.Mcp
             _running = false;
             try { _listener?.Stop(); } catch { }
             StingLog.Info("STING MCP server stopped");
+        }
+
+        // ── One-click toggle surface (used by ToggleMcpServerCommand) ─────────────
+
+        /// <summary>
+        /// Start the server live and persist the enable flag + auth token to
+        /// STING_LLM_CONFIG.json (all other keys preserved). Generates a token on
+        /// first enable when none is configured. Reuses <see cref="Start"/> — does
+        /// NOT duplicate listener logic. Returns false (with <paramref name="error"/>
+        /// populated from the bind reason) and does NOT persist mcp_enabled=true when
+        /// the port cannot be bound.
+        /// </summary>
+        internal static bool StartAndPersist(out string error)
+        {
+            error = null;
+            if (_running) return true;
+
+            try
+            {
+                string cfgPath = Path.Combine(StingToolsApp.DataPath, "STING_LLM_CONFIG.json");
+                JObject cfg = File.Exists(cfgPath)
+                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                    : new JObject();
+
+                // Auto-generate a shared secret on first enable.
+                string token = cfg["mcp_auth_token"]?.Value<string>()?.Trim() ?? "";
+                if (string.IsNullOrEmpty(token))
+                    token = Guid.NewGuid().ToString("N");
+
+                int port = cfg["mcp_port"]?.Value<int>() ?? _port;
+
+                // Load token + allowlist into memory BEFORE Start so the first
+                // request is already governed by the configured policy.
+                _authToken = token;
+                _toolAllowlist = (cfg["mcp_tool_allowlist"] as JArray)?
+                    .Select(t => t?.Value<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToList() ?? new List<string>();
+
+                Start(port);
+
+                if (!_running)
+                {
+                    // Bind failed — surface the reason, persist nothing.
+                    error = _lastStartError ?? $"MCP server failed to start on port {port}.";
+                    return false;
+                }
+
+                // Persist only after a confirmed successful start.
+                cfg["mcp_enabled"]    = true;
+                cfg["mcp_auth_token"] = token;
+                if (cfg["mcp_port"] == null) cfg["mcp_port"] = port;
+                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                StingLog.Info("MCP server enabled + persisted via toggle.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MCP StartAndPersist failed", ex);
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Stop the server and persist mcp_enabled=false. The auth token is KEPT so
+        /// re-enabling reuses the same secret (no client reconfiguration needed).
+        /// </summary>
+        internal static void StopAndPersist()
+        {
+            Stop();
+            try
+            {
+                string cfgPath = Path.Combine(StingToolsApp.DataPath, "STING_LLM_CONFIG.json");
+                if (!File.Exists(cfgPath)) return;
+                JObject cfg = JObject.Parse(File.ReadAllText(cfgPath));
+                cfg["mcp_enabled"] = false;   // keep mcp_auth_token
+                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                StingLog.Info("MCP server disabled + persisted via toggle (token retained).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MCP StopAndPersist config write failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Current URL + token + a ready-to-paste Claude Code .mcp.json snippet.</summary>
+        internal static McpConnectionInfo GetConnectionInfo()
+        {
+            string url = $"http://localhost:{_port}/mcp/";
+            var snippet = new JObject(
+                new JProperty("mcpServers", new JObject(
+                    new JProperty("stingtools", new JObject(
+                        new JProperty("url", url),
+                        new JProperty("headers", new JObject(
+                            new JProperty("X-Sting-Mcp-Token", _authToken))))))));
+            return new McpConnectionInfo
+            {
+                Url          = url,
+                Token        = _authToken,
+                ClaudeConfig = snippet.ToString(Formatting.Indented),
+            };
         }
 
         // ── HTTP listener loop ───────────────────────────────────────────────────
@@ -130,6 +278,21 @@ namespace StingTools.Mcp
 
                 if (ctx.Request.HttpMethod != "POST")
                 { WriteJson(ctx, 405, new { error = "Method not allowed" }); return; }
+
+                // Shared-secret gate — POST only (GET server-info stays open, localhost
+                // bound). When a token is configured, the X-Sting-Mcp-Token header must
+                // match exactly; otherwise reject with JSON-RPC -32001 before doing any
+                // work. Id is unknown at this point (body not yet read) → null.
+                if (!string.IsNullOrEmpty(_authToken))
+                {
+                    string presented = ctx.Request.Headers["X-Sting-Mcp-Token"];
+                    if (!string.Equals(presented, _authToken, StringComparison.Ordinal))
+                    {
+                        StingLog.Warn("MCP POST rejected: missing/invalid X-Sting-Mcp-Token.");
+                        WriteJson(ctx, 200, RpcError(null, -32001, "unauthorized"));
+                        return;
+                    }
+                }
 
                 string body;
                 using (var sr = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
@@ -191,6 +354,39 @@ namespace StingTools.Mcp
                 case "list_commands": result = ToolListCommands(args); break;
                 case "get_status":    result = ToolGetStatus();        break;
                 case "ask_bim":       result = ToolAskBim(args);       break;
+                case "get_model_info": result = ToolGetModelInfo();    break;
+
+                // ── Phase 2 — Tier 1 generic read tools ─────────────────────────
+                case "query_elements":    result = McpQueryTools.QueryElements(args);   break;
+                case "get_element":       result = McpQueryTools.GetElement(args);      break;
+                case "get_parameter":     result = McpQueryTools.GetParameter(args);    break;
+                case "get_selection":     result = McpQueryTools.GetSelection();        break;
+                case "set_selection":     result = McpQueryTools.SetSelection(args);    break;
+                case "list_views":        result = McpQueryTools.ListViews(args);       break;
+                case "list_sheets":       result = McpQueryTools.ListSheets(args);      break;
+                case "get_schedule_data": result = McpQueryTools.GetScheduleData(args); break;
+                case "get_compliance":    result = McpQueryTools.GetCompliance(args);   break;
+                case "get_tag_status":    result = McpQueryTools.GetTagStatus(args);    break;
+                case "run_validator":     result = McpQueryTools.RunValidator(args);    break;
+
+                // ── Phase 2 — Tier 3 read-only discovery meta-tools ─────────────
+                case "search_capabilities":   result = McpDiscoveryTools.SearchCapabilities(args);  break;
+                case "describe_capability":   result = McpDiscoveryTools.DescribeCapability(args);   break;
+                case "invoke_capability":     result = McpDiscoveryTools.InvokeCapability(args);     break;
+
+                // ── Phase 3a — guarded write verbs + async job polling ──────────
+                case "set_parameter":   result = McpWriteTools.SetParameter(args);  break;
+                case "auto_tag":        result = McpWriteTools.AutoTag(args);       break;
+                case "get_job_status":  result = McpWriteTools.GetJobStatus(args);  break;
+
+                // ── Phase 3b — remaining engine-backed write verbs ──────────────
+                case "tag_scheme_render": result = McpWriteTools.TagSchemeRender(args); break;
+                case "export_boq":        result = McpWriteTools.ExportBoq(args);       break;
+
+                // ── Dialog→engine: cable sizing ─────────────────────────────────
+                case "size_cable_calc":   result = McpQueryTools.SizeCableCalc(args);   break;
+                case "size_cables":       result = McpWriteTools.SizeCables(args);      break;
+
                 default:
                     result = Err($"Unknown tool: {name}. Call tools/list to see available tools.");
                     break;
@@ -319,6 +515,100 @@ namespace StingTools.Mcp
             return Ok("No local match found. Try asking about: ISO 19650, COBie, IFC, BEP, " +
                       "CDE, MIDP, TIDP, RIBA stages, suitability codes, TAG7, DrawingType, " +
                       "ViewStylePack, NLPEngine, or any of the 63 entries in the BIM KB.");
+        }
+
+        // ── Tool: get_model_info (read-back via the job bridge) ───────────────────
+
+        private static McpCallResult ToolGetModelInfo()
+        {
+            // Marshal onto the Revit API thread and read synchronously. The job
+            // re-checks the license gate + open document (McpSafety) and opens no
+            // modal UI, so it cannot deadlock the waiting HTTP thread.
+            McpJobResult r = McpJobBridge.Run(uiApp =>
+            {
+                var lic = McpSafety.RequireLicense();
+                if (lic != null) return lic;
+                var docErr = McpSafety.RequireDocument(uiApp);
+                if (docErr != null) return docErr;
+
+                Document doc = uiApp.ActiveUIDocument.Document;
+                ProjectInfo pi = doc.ProjectInformation;
+
+                string path = string.IsNullOrEmpty(doc.PathName) ? "(unsaved)" : doc.PathName;
+
+                var projectInfo = new Dictionary<string, string>
+                {
+                    ["name"]         = SafeStr(() => pi?.Name),
+                    ["number"]       = SafeStr(() => pi?.Number),
+                    ["client"]       = SafeStr(() => pi?.ClientName),
+                    ["buildingName"] = SafeStr(() => pi?.BuildingName),
+                    ["status"]       = SafeStr(() => pi?.Status),
+                    ["organization"] = SafeStr(() => pi?.OrganizationName),
+                };
+
+                object activeView = null;
+                string viewName = "(none)";
+                View v = uiApp.ActiveUIDocument.ActiveView;
+                if (v != null)
+                {
+                    viewName = v.Name ?? "(unnamed)";
+                    activeView = new Dictionary<string, string>
+                    {
+                        ["name"]        = viewName,
+                        ["type"]        = v.ViewType.ToString(),
+                        ["discipline"]  = ResolveDiscipline(v),
+                        ["scale"]       = SafeStr(() => v.Scale.ToString()),
+                        ["detailLevel"] = SafeStr(() => v.DetailLevel.ToString()),
+                    };
+                }
+
+                var data = new Dictionary<string, object>
+                {
+                    ["title"]        = doc.Title,
+                    ["path"]         = path,
+                    ["isWorkshared"] = doc.IsWorkshared,
+                    ["projectInfo"]  = projectInfo,
+                    ["activeView"]   = activeView,
+                };
+
+                string summary = $"Model '{doc.Title}' — active view '{viewName}'.";
+                return McpJobResult.Success(summary, data);
+            });
+
+            return r.ToCallResult();
+        }
+
+        /// <summary>Read a possibly-throwing string getter, returning "" on any failure.</summary>
+        private static string SafeStr(Func<string> getter)
+        {
+            try { return getter() ?? string.Empty; }
+            catch { return string.Empty; }
+        }
+
+        /// <summary>
+        /// Resolve the active view's discipline from the VIEW_DISCIPLINE built-in
+        /// parameter (a ViewDiscipline bitmask). Returns a human label or "" when
+        /// the view carries no discipline (drafting views, schedules, etc.).
+        /// </summary>
+        private static string ResolveDiscipline(View v)
+        {
+            try
+            {
+                Parameter p = v.get_Parameter(BuiltInParameter.VIEW_DISCIPLINE);
+                if (p == null || !p.HasValue) return string.Empty;
+                int d = p.AsInteger();
+                switch (d)
+                {
+                    case 1:  return "Architectural";
+                    case 2:  return "Structural";
+                    case 4:  return "Mechanical";
+                    case 8:  return "Electrical";
+                    case 16: return "Plumbing";
+                    case 4095: return "Coordination";
+                    default: return d > 0 ? "Multiple" : string.Empty;
+                }
+            }
+            catch { return string.Empty; }
         }
 
         // ── Response helpers ─────────────────────────────────────────────────────

@@ -252,6 +252,16 @@ namespace StingTools.UI
         // hook) via DispatchGuardReset, so it covers footer/schedule dispatches
         // that don't register a PendingActionResolve.
         internal static volatile bool CommandRunning;
+
+        // WP-A — debounced auto-refresh. A 1 s DispatcherTimer (UI thread) watches
+        // StingCostDirtyMarker.ChangeEpoch; when it advances (an in-place edit) the
+        // debounce window restarts, and once the model has been quiet for
+        // COST_AUTO_REFRESH_QUIET_MS the bill re-runs an INCREMENTAL RefreshAsync
+        // (dirty elements only). No model-thread work happens here — the tick only
+        // reads a long and, when due, calls the same RefreshAsync a button uses.
+        private System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
+        private long _lastSeenEpoch;
+        private DateTime _lastEpochChangeAt = DateTime.MinValue;
         // Re-enable hook the static completion path fires on the live instance to
         // un-grey buttons. Set in the ctor, cleared on Unloaded.
         internal static Action DispatchGuardReset;
@@ -332,7 +342,48 @@ namespace StingTools.UI
             // first build is always full (state defaults to force-full).
             try { StingTools.BOQ.StingCostDirtyMarker.SetEnabled(true); }
             catch (Exception ex) { StingLog.Warn($"BOQ enable dirty marker: {ex.Message}"); }
+            StartAutoRefresh();
             RefreshAsync();
+        }
+
+        // ── WP-A — debounced auto-refresh ──────────────────────────────────
+        private void StartAutoRefresh()
+        {
+            try
+            {
+                if (TagConfig.GetConfigDouble("COST_AUTO_REFRESH", 1.0) <= 0) return;   // opt-out
+                _lastSeenEpoch = StingTools.BOQ.StingCostDirtyMarker.ChangeEpoch;
+                _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer
+                { Interval = TimeSpan.FromMilliseconds(1000) };
+                _autoRefreshTimer.Tick += AutoRefreshTick;
+                _autoRefreshTimer.Start();
+                Unloaded += (s, e) => { try { _autoRefreshTimer?.Stop(); } catch { } };
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ StartAutoRefresh: {ex.Message}"); }
+        }
+
+        private void AutoRefreshTick(object sender, EventArgs e)
+        {
+            try
+            {
+                long epoch = StingTools.BOQ.StingCostDirtyMarker.ChangeEpoch;
+                if (epoch != _lastSeenEpoch)
+                {
+                    // A cost-relevant edit happened — (re)start the quiet window.
+                    _lastSeenEpoch = epoch;
+                    _lastEpochChangeAt = DateTime.Now;
+                    return;
+                }
+                if (_lastEpochChangeAt == DateTime.MinValue) return;        // nothing pending
+                if (CommandRunning) return;                                 // a command is mid-flight
+                double quietMs = TagConfig.GetConfigDouble("COST_AUTO_REFRESH_QUIET_MS", 1500.0);
+                if ((DateTime.Now - _lastEpochChangeAt).TotalMilliseconds < quietMs) return;
+
+                // Quiet long enough — re-run the INCREMENTAL bill (dirty set only).
+                _lastEpochChangeAt = DateTime.MinValue;
+                RefreshAsync(false);
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("BOQ.AutoRefresh", $"AutoRefreshTick: {ex.Message}"); }
         }
 
         // ── Theming ────────────────────────────────────────────────────────
@@ -688,13 +739,13 @@ namespace StingTools.UI
 
             // Phase 108b: 7 cards now — carbon added after health
             var cards = new UniformGrid { Columns = 7 };
-            _budgetValue      = MakeMetric(cards, "Project budget",       "UGX 0", NavyBrush);
+            _budgetValue      = MakeMetric(cards, "Project budget (incl. VAT)", "UGX 0", NavyBrush);
             _modeledValue     = MakeMetric(cards, "Modeled cost",         "UGX 0", GreenBrush);
             _provisionalValue = MakeMetric(cards, "Provisional / manual", "UGX 0", AmberBrush);
             _varianceValue    = MakeMetric(cards, "Variance",             "UGX 0", NavyBrush);
             _coverageValue    = MakeMetric(cards, "Coverage",             "0%",    NavyBrush);
             _healthValue      = MakeMetric(cards, "BOQ Health",           "—",     GreenBrush);
-            _carbonValue      = MakeMetric(cards, "Embodied carbon",      "0 kgCO₂e", GreenBrush);
+            _carbonValue      = MakeMetric(cards, "Embodied carbon (A1-A3)", "0 kgCO₂e", GreenBrush);
             sp.Children.Add(cards);
 
             _budgetBar = new ProgressBar
@@ -1053,13 +1104,13 @@ namespace StingTools.UI
             });
             sp.Children.Add(new TextBlock
             {
-                Text = "Every cost workflow (P0 → P8) in one place. " +
+                Text = "Every cost workflow in one place. " +
                        "Hover for a tooltip describing each action.",
                 FontSize = 11, Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 0, 0, 14)
             });
 
-            sp.Children.Add(BuildActionGroup("QS ROUND-TRIP (P3)",
+            sp.Children.Add(BuildActionGroup("QS Round-Trip (Excel)",
                 "Hand the bill to a Quantity Surveyor in Excel and bring priced rates back. " +
                 "Rows carry a stable hidden key so rates land on the right rows after a rebuild.",
                 new[]
@@ -1076,9 +1127,16 @@ namespace StingTools.UI
                     ("Add Manual / PS / Daywork", "BOQAddManualRow",
                      "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
                      "Survives a model rebuild.", false),
+                    ("Adjudicate Tenders", "Tender_Adjudicate",
+                     "Import N priced QS-Bill returns (one .xlsx per bidder), build a per-line × bidder comparison " +
+                     "matrix, flag arithmetic errors / unpriced rows / rate outliers / front-loading, rank by corrected " +
+                     "total and recommend the most advantageous. Award stamps the winner's rates as the contract baseline.", false),
+                    ("Prep for Export", "BOQPrepForExport",
+                     "Normalise the bill before export — resolve outstanding NRM2 paragraphs, fill missing line refs and " +
+                     "tidy descriptions — so the exported workbook is clean. Read-only preview.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("AUTOMATION (P2)",
+            sp.Children.Add(BuildActionGroup("Automation",
                 "Run workflows, validate the model and toggle the stale-cost detector.",
                 new[]
                 {
@@ -1098,7 +1156,7 @@ namespace StingTools.UI
                      "Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / lock)", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("RATE FEEDS (Phase 2B)",
+            sp.Children.Add(BuildActionGroup("Live Rate Feeds",
                 "Configure live rate feeds (BCIS / Planscape) and pull candidate rates onto the bill.",
                 new[]
                 {
@@ -1106,9 +1164,11 @@ namespace StingTools.UI
                      "Configure the BCIS feed (base URL · API key · TTL) and the Planscape feed on/off. Saved to the project file only — the API key is never committed.", false),
                     ("★ Fetch live rates", "BOQ_FetchLiveRates",
                      "Pull candidate rates for the current bill from every configured feed, side-by-side with the current rate + confidence. Accept the best live rate per line or in bulk. Manual overrides are protected.", true),
+                    ("Rate-source heatmap", "BOQRateHeatMap",
+                     "Colour the model by each element's rate provenance (rate-book / CSV / override / live feed / unpriced) so you can see at a glance where the bill's prices come from. Read-only.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("DRIFT (Phase 2C)",
+            sp.Children.Add(BuildActionGroup("Change Detection",
                 "Detect when the bill has moved from the last saved snapshot and re-price what changed.",
                 new[]
                 {
@@ -1116,7 +1176,7 @@ namespace StingTools.UI
                      "Compare the live bill against the last saved snapshot — what changed (qty moved / new / removed / rate revised), element-linked. Then re-price the changed lines via the rate chain (incl. live feeds). Overrides protected.", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("WBS / CBS + ERP (Phase 2E)",
+            sp.Children.Add(BuildActionGroup("Cost Breakdown & ERP Export",
                 "File the bill by a client breakdown structure and export it import-ready for an ERP.",
                 new[]
                 {
@@ -1126,7 +1186,7 @@ namespace StingTools.UI
                      "Write a flat, import-ready CSV (WBS · CBS · cost code · qty · rate · total · level · location · source · IfcGuid) — the union most ERP / accounting importers accept — plus an optional Primavera P6 activity-cost XML. Opens inline.", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("COST PLAN — NRM1 (P4)",
+            sp.Children.Add(BuildActionGroup("Cost Plan (NRM1)",
                 "Elemental cost planning for RIBA 1-3 — £/m² GIFA benchmarks per building type.",
                 new[]
                 {
@@ -1138,7 +1198,7 @@ namespace StingTools.UI
                      "Export the active cost plan to xlsx (full NRM1 breakdown + totals)", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("PAYMENT CERTS (P5.1)",
+            sp.Children.Add(BuildActionGroup("Payment Certificates",
                 "Monthly interim certificates per JCT 2024 / NEC4 / FIDIC 2017.",
                 new[]
                 {
@@ -1152,9 +1212,11 @@ namespace StingTools.UI
                      "Advance the cert state machine — Draft → Issued or Issued → Agreed", false),
                     ("Cert Register",    "PaymentCert_Register",
                      "Export CSV register of every cert (gross / retention / payable / signers / cumulative)", false),
+                    ("Release Retention","Retention_Release",
+                     "Release a retention moiety — first half at Practical Completion, the balance at the end of the Defects Liability Period. Surfaces the live retention balance.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("VARIATIONS + STAR RATES (P5.2)",
+            sp.Children.Add(BuildActionGroup("Variations & Star Rates",
                 "Change-order tracking with auto-mint from snapshot diffs and first-principles star rates.",
                 new[]
                 {
@@ -1165,10 +1227,30 @@ namespace StingTools.UI
                     ("VO Register",          "Variation_ExportRegister",
                      "Export all variations to CSV (number / status / value / signers)", false),
                     ("Reclassify Legacy",    "Variation_ReclassifyLegacy",
-                     "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker (Phase 184p)", false),
+                     "Walk legacy variations still on default Other / Employer and set their reason + liability via multi-select picker", false),
+                    ("Approve",              "Variation_Approve",
+                     "Advance a Draft/Submitted/Reviewed variation to Approved (records you + date). Agreed variations flow into the Final Account.", false),
+                    ("Reject",               "Variation_Reject",
+                     "Mark a Draft/Submitted/Reviewed variation Rejected — it then drops out of the agreed totals.", false),
+                    ("Incorporate",          "Variation_Incorporate",
+                     "Advance an Approved variation to Incorporated (folded into the contract).", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("EARNED VALUE MGMT (P5.3)",
+            sp.Children.Add(BuildActionGroup("Programme & Cash-Flow (CPM)",
+                "Converged programme import, critical-path/float, model-driven % complete and the schedule-driven cash-flow S-curve that feeds EVM Planned Value.",
+                new[]
+                {
+                    ("Import Programme", "Sched_Import",
+                     "Import an MS Project .xml or Primavera .xer/.xml through the one converged parser — predecessors read, % complete normalised, dates seconds-tolerant — into the unified _BIM_COORD/schedule.json.", false),
+                    ("★ Critical Path", "Sched_Cpm",
+                     "Run the CPM forward/backward pass over the unified schedule — critical path, total & free float — on the Uganda working calendar (override at _BIM_COORD/working_calendar.json). CSV out.", true),
+                    ("Model % Complete", "Sched_ModelPercent",
+                     "Derive each task's % complete from model state — element-linked tasks from ASS_PMT_PCT_COMPLETE_NR, phase-named tasks from a phase-reached proxy — and write it back to feed EVM + the S-curve.", false),
+                    ("★ Cash-Flow S-Curve", "Sched_SCurve",
+                     "Time-phase each task's value over its own start/finish into a monthly cash-flow S-curve. This becomes the REAL EVM Planned Value (EVM reads PV off it). CSV out.", true),
+                }));
+
+            sp.Children.Add(BuildActionGroup("Earned Value Management",
                 "PMI EVM metrics — BCWS / BCWP / ACWP, CPI, SPI, EAC, ETC, VAC, TCPI.",
                 new[]
                 {
@@ -1180,12 +1262,19 @@ namespace StingTools.UI
                      "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("COST REPORT (P4.4)",
+            sp.Children.Add(BuildActionGroup("Cost Report",
                 "Anticipated final cost — where the project is heading vs budget.",
                 new[]
                 {
                     ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
+                    ("Set Contract Sum", "Cost_SetContractSum",
+                     "Freeze the contract sum at award (writes COST_CONTRACT_SUM_UGX + an Award snapshot) so the Final Account and AFC use a frozen baseline instead of guessing from a snapshot name.", false),
+                    ("Fluctuations", "Fluctuations_Compute",
+                     "Compute index-linked fluctuations (NEDO/BCIS formula or UBOS CPI) from a basket edited at " +
+                     "_BIM_COORD/fluctuations.json; writes COST_FLUCTUATIONS_UGX into the AFC + Final Account waterfalls.", false),
+                    ("Final Account", "FinalAccount_Reconcile",
+                     "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures; persists to _BIM_COORD/final_account.json.", false),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
                      "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
                     ("Preliminaries schedule", "BOQ_Prelims",
@@ -1196,7 +1285,33 @@ namespace StingTools.UI
                      "List materials whose embodied-carbon factor is missing or only database-grade (not an EPD), the carbon at stake, and a CSV worklist to drive EPD sourcing. Read-only.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("MEASUREMENT STANDARD (P6)",
+            sp.Children.Add(BuildActionGroup("Cost-Value & Commitments",
+                "Contractor CVR, line-level cost-to-complete, commitments register and loss-&-expense valuation.",
+                new[]
+                {
+                    ("★ CVR Report", "Cvr_Report",
+                     "Cost-Value Reconciliation at today's cut-off — value of work done vs cost vs certified: gross margin, margin %, WIP (under/over-claim) and the forecast out-turn margin. On screen + CSV.", true),
+                    ("Cost-to-Complete (lines)", "CostToComplete_Lines",
+                     "Per-BOQ-line cost-to-complete: each line's remaining cost from its budget × remaining %, with a CPI-implied productivity factor where actuals exist, plus forecast-final and variance. CSV.", false),
+                    ("Commitments Register", "Commitments_Report",
+                     "Roll PO / sub-contract commitments (QS-authored in <BIM manager>/commitments.json) up against budget by NRM2 section — committed / outstanding / uncommitted balance + over-commitment flags. CSV.", false),
+                    ("Loss & Expense", "LossExpense_Value",
+                     "Value a prolongation claim off the EOT days already captured on agreed variations: weeks × weekly prelims + head-office OHP + disruption + finance. Raise a CompensationEvent VO for the result.", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("Delivery & Risk (ISO 19650)",
+                "Project risk register and MIDP/TIDP delivery-drift detection.",
+                new[]
+                {
+                    ("Raise Risk", "Risk_Raise",
+                     "Raise a risk against the selected element/zone (or project-level) — pick category + 5×5 likelihood/impact. Persists to risks.json and the tamper-evident audit log.", false),
+                    ("★ Risk Register", "Risk_Report",
+                     "Roll the risk register up — RAG counts on the residual (post-mitigation) score, open-red exposure and the top risks. CSV out.", true),
+                    ("MIDP Drift", "Midp_DriftReport",
+                     "Load a MIDP/TIDP CSV (Code, Title, Discipline, Milestone, PlannedDate, RequiredSuitability), join it to the live deliverables lifecycle and classify each as on-track / at-risk / overdue / suitability-short. CSV out.", false),
+                }));
+
+            sp.Children.Add(BuildActionGroup("Measurement Standard",
                 "Switch the active standard. Affects how rows are classified and described.",
                 new[]
                 {
@@ -1208,7 +1323,7 @@ namespace StingTools.UI
                      "Per-line gross → net derivation: gross geometry, openings/voids deducted (NRM2/CESMM4 rules), wastage step, net measured quantity. Read-only.", false),
                 }));
 
-            sp.Children.Add(BuildActionGroup("IFC + ICMS3 (P8)",
+            sp.Children.Add(BuildActionGroup("IFC & ICMS3 Export",
                 "External tool round-trip and cost-plus-carbon ledger.",
                 new[]
                 {
@@ -1218,7 +1333,7 @@ namespace StingTools.UI
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
 
-            sp.Children.Add(BuildActionGroup("QS SIGN-OFF (G9)",
+            sp.Children.Add(BuildActionGroup("QS Sign-Off",
                 "Record a Quantity Surveyor's verification. Until signed, every export is marked DRAFT.",
                 new[]
                 {
@@ -2241,8 +2356,14 @@ namespace StingTools.UI
                 });
 
                 var p6Cb = new CheckBox { Content = "Also write Primavera P6 activity-cost XML", IsChecked = false,
-                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) };
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4) };
                 sp.Children.Add(p6Cb);
+                var iifCb = new CheckBox { Content = "Also write QuickBooks IIF (general journal)", IsChecked = false,
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 4) };
+                sp.Children.Add(iifCb);
+                var sageCb = new CheckBox { Content = "Also write Sage 50 nominal-journal CSV", IsChecked = false,
+                    FontSize = 12, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) };
+                sp.Children.Add(sageCb);
 
                 var runBtn = new Button { Content = "Export", FontSize = 12, FontWeight = FontWeights.Bold,
                     Height = 28, MinWidth = 120, Background = GreenBrush, Foreground = Brushes.White,
@@ -2263,6 +2384,18 @@ namespace StingTools.UI
                             p6Path = System.IO.Path.Combine(dir, $"boq_p6_{stamp}.xml");
                             StingTools.BOQ.BoqErpExporter.ExportP6Xml(_boq, p6Path);
                         }
+                        string iifPath = null;
+                        if (iifCb.IsChecked == true)
+                        {
+                            iifPath = System.IO.Path.Combine(dir, $"boq_quickbooks_{stamp}.iif");
+                            StingTools.BOQ.BoqErpExporter.ExportIif(_boq, iifPath, DateTime.Now);
+                        }
+                        string sagePath = null;
+                        if (sageCb.IsChecked == true)
+                        {
+                            sagePath = System.IO.Path.Combine(dir, $"boq_sage_{stamp}.csv");
+                            StingTools.BOQ.BoqErpExporter.ExportSageCsv(_boq, sagePath, DateTime.Now);
+                        }
 
                         int withWbs = _boq.AllItems.Count(i => !string.IsNullOrEmpty(i.WbsCode));
                         var b = StingResultPanel.Create("Export to ERP");
@@ -2273,6 +2406,12 @@ namespace StingTools.UI
                          .Metric("Grand total", $"UGX {_boq.GrandTotalUGX:N0}");
                         if (p6Path != null)
                             b.AddSection("PRIMAVERA P6").Text($"P6 activity-cost XML: {p6Path}");
+                        if (iifPath != null || sagePath != null)
+                        {
+                            var acc = b.AddSection("ACCOUNTING");
+                            if (iifPath != null) acc.Text($"QuickBooks IIF: {iifPath}");
+                            if (sagePath != null) acc.Text($"Sage CSV: {sagePath}");
+                        }
                         b.SetCsvPath(csvPath);   // renders an inline "Open file" button
                         ShowInlineResult(b);
                     }
@@ -2688,6 +2827,20 @@ namespace StingTools.UI
                 }
             }
             return false;
+        }
+
+        /// <summary>WP-C — the GIFA (m²) used to normalise the carbon-intensity RAG:
+        /// the tender-config GIA_M2 if set, else the model Room.Area sum, else 0
+        /// (RAG falls back to the absolute label with no benchmark).</summary>
+        private double ResolveCarbonGifaM2()
+        {
+            try
+            {
+                double g = TagConfig.GetConfigDouble("BOQ_TENDER_GIA_M2", 0.0);
+                if (g > 0) return g;
+                return SuggestGifaM2();
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCarbonGifaM2: {ex.Message}"); return 0; }
         }
 
         /// <summary>P0.3 — sum of model Room.Area (ft² → m²) as a GIFA default for the
@@ -3853,7 +4006,9 @@ namespace StingTools.UI
                 : _boq.BudgetCoveragePct >= 60 && _boq.BudgetCoveragePct <= 130 ? AmberBrush : RedBrush;
             _grandTotalValue.Text = fmt(toDisplay(grandUgx));
 
-            _budgetBar.Value = budgetUgx > 0 ? Math.Min(100, _boq.SubtotalUGX / budgetUgx * 100.0) : 0;
+            // WP-FIX — coverage bar on the VAT-inclusive GrandTotal, the same
+            // basis as the budget (captured incl. VAT) and the variance.
+            _budgetBar.Value = budgetUgx > 0 ? Math.Min(100, grandUgx / budgetUgx * 100.0) : 0;
             _budgetBar.Foreground = _budgetBar.Value <= 100 ? GreenBrush : RedBrush;
 
             _healthValue.Text = _health != null ? $"{_health.OverallScore:F0} / 100" : "—";
@@ -3861,16 +4016,31 @@ namespace StingTools.UI
                 : _health.OverallScore >= 85 ? GreenBrush
                 : _health.OverallScore >= 50 ? AmberBrush : RedBrush;
 
-            double carbonKg = _boq.TotalCarbonKg;
-            _carbonValue.Text = carbonKg >= 1000
-                ? $"{carbonKg / 1000:F1} tCO₂e"
-                : $"{carbonKg:N0} kgCO₂e";
-            _carbonValue.Foreground = carbonKg < 300000 ? GreenBrush
-                : carbonKg < 800000 ? AmberBrush : RedBrush;
+            // WP-C — carbon headline is A1-A3 FOSSIL; biogenic reported separately.
+            // RAG on kgCO₂e/m² GIFA intensity (RIBA 2030 / LETI upfront bands),
+            // not absolute kg — absolute kept as a secondary label.
+            double carbonKg = _boq.TotalCarbonKg;         // A1-A3 fossil
+            double biogenicKg = _boq.TotalBiogenicKg;     // A1-A3 biogenic (≤0)
+            string absLabel = carbonKg >= 1000 ? $"{carbonKg / 1000:F1} tCO₂e" : $"{carbonKg:N0} kgCO₂e";
+            double gifaM2 = ResolveCarbonGifaM2();
+            if (gifaM2 > 0)
+            {
+                double intensity = carbonKg / gifaM2;
+                double green = TagConfig.GetConfigDouble("COST_CARBON_RAG_GREEN_KGM2", 400.0); // A1-A3 fossil band, indicative vs RIBA 2030/LETI
+                double amber = TagConfig.GetConfigDouble("COST_CARBON_RAG_AMBER_KGM2", 700.0);
+                _carbonValue.Text = $"{intensity:N0} kgCO₂e/m²  ({absLabel} A1-A3)";
+                _carbonValue.Foreground = intensity < green ? GreenBrush : intensity < amber ? AmberBrush : RedBrush;
+            }
+            else
+            {
+                _carbonValue.Text = $"{absLabel} A1-A3  (set GIFA for intensity RAG)";
+                _carbonValue.Foreground = NavyBrush;
+            }
 
             _defaultCoverageText = $"Description coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
                 + $"| Avg rate confidence {_boq.AverageRateConfidence:F0} "
-                + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
+                + $"| A1-A3 fossil {carbonKg / 1000.0:F2} tCO₂e"
+                + (Math.Abs(biogenicKg) >= 1 ? $" (biogenic {biogenicKg / 1000.0:F2} tCO₂e, separate)" : "");
             // G2 — show provisional-sum movement (Σ actual − original) when reconciled.
             try
             {
@@ -3888,8 +4058,13 @@ namespace StingTools.UI
                 if (carbonRows.Count > 0)
                 {
                     int epd = carbonRows.Count(i => string.Equals(i.CarbonQuality, "Verified-EPD", StringComparison.OrdinalIgnoreCase));
-                    int miss = carbonRows.Count(i => i.EmbodiedCarbonKg <= 0
-                        || string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase));
+                    // WP3 — "missing" is a property of the carbon FACTOR provenance,
+                    // not of the computed total. A row with a resolved factor but
+                    // zero geometry (EmbodiedCarbonKg == 0) is NOT a missing factor.
+                    int miss = carbonRows.Count(i =>
+                        string.Equals(i.CarbonQuality, "Missing", StringComparison.OrdinalIgnoreCase)
+                        || string.IsNullOrEmpty(i.CarbonSource)
+                        || string.Equals(i.CarbonSource, "none", StringComparison.OrdinalIgnoreCase));
                     double epdPct = 100.0 * epd / carbonRows.Count;
                     double missPct = 100.0 * miss / carbonRows.Count;
                     _defaultCoverageText += $" | Carbon EPD-verified {epdPct:F0}% · missing {missPct:F0}%";
@@ -4023,8 +4198,12 @@ namespace StingTools.UI
             string secKey = SectionKey(sec);
             bool isExpanded = _openSections.Contains(secKey);
             double totalShownUgx = vms.Sum(v => v.Underlying.TotalUGX);
+            // WP6 — derive the USD summary from the UGX summary ÷ the one project
+            // FX rate, not by summing pre-rounded per-line TotalUSD (which drifts
+            // by cents × line-count in a dual-currency tender).
+            double fxUgxPerUsd = (_boq != null && _boq.ExchangeRateUgxPerUsd > 0) ? _boq.ExchangeRateUgxPerUsd : 0;
             string displayTotal = _displayCurrency == "USD"
-                ? $"$ {vms.Sum(v => v.Underlying.TotalUSD):N2}"
+                ? $"$ {(fxUgxPerUsd > 0 ? totalShownUgx / fxUgxPerUsd : 0):N2}"
                 : $"UGX {totalShownUgx:N0}";
 
             var headerGrid = new Grid { Background = SectionHeaderBrush(sec.Discipline) };
@@ -5856,7 +6035,7 @@ namespace StingTools.UI
                     .FirstOrDefault();
                 if (cert == null)
                 {
-                    FlashHint(null, "No issued payment certificate found — issue a cert first (PAYMENT CERTS P5.1).");
+                    FlashHint(null, "No issued payment certificate found — issue a cert first (Payment Certificates).");
                     return;
                 }
                 double pct = Math.Round(cert.OverallPercentComplete, 1);
@@ -6015,8 +6194,12 @@ namespace StingTools.UI
             try
             {
                 _scheduleActualToDate = ParseActualsBox();
+                // CA-2 — ONE BASIS: BAC is NET of VAT (actuals are net), matching
+                // ContractSumResolver. Using the VAT-inclusive GrandTotal biased
+                // CPI ~1.18× low. The frozen-sum + variations refinement lives in
+                // the command-side EvmCalculateCommand (it has the Document).
                 double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX
-                           : (_boq?.GrandTotalUGX ?? 0);
+                           : (_boq?.NetTotalExVatUGX ?? 0);
 
                 // Planned cost per phase = BAC × duration share.
                 double totalDays = _schedulePhases.Sum(p => Math.Max(1, (p.End - p.Start).TotalDays));
@@ -6378,7 +6561,8 @@ namespace StingTools.UI
                 SaveSchedule();
                 RecalcSchedule();
                 var asOf = ParseAsOf();
-                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.GrandTotalUGX ?? 0);
+                // CA-2 — BAC net of VAT (see RecalcSchedule), matching ContractSumResolver.
+                double bac = (_boq != null && _boq.ProjectBudgetUGX > 0) ? _boq.ProjectBudgetUGX : (_boq?.NetTotalExVatUGX ?? 0);
                 // G6 — mirror the period-aware EVM used on screen.
                 double bcws = 0, bcwp, acwp;
                 var lastPeriod = _schedulePeriods.OrderBy(p => p.Date).LastOrDefault();

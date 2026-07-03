@@ -193,10 +193,7 @@ namespace StingTools.BOQ
             {
                 var items = new List<BOQLineItem>(currentElements.Count);
                 foreach (var el in currentElements)
-                {
-                    var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
-                    if (line != null) items.Add(line);
-                }
+                    items.AddRange(BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd));
                 StoreHostCache(key, items, st);
                 return items;
             }
@@ -231,13 +228,33 @@ namespace StingTools.BOQ
             foreach (var id in reTakeoff)
             {
                 if (!currentById.TryGetValue(id, out var el) || el == null) continue;
-                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
-                if (line != null) { result.Add(line); rebuilt++; }
+                var lines = BuildLinesForElement(doc, el, csvRates, cobieCostCodes, measStd);
+                if (lines.Count > 0) { result.AddRange(lines); rebuilt++; }
             }
             StingLog.Info($"BOQ incremental host take-off: re-took-off {rebuilt} of {currentIds.Count} element(s) " +
                           $"(cache had {cachedById.Count}).");
             StoreHostCache(key, result, st);
             return result;
+        }
+
+        /// <summary>
+        /// MAT-3 — the per-element line producer. In COMPOUND mode
+        /// (COST_COMPOUND_TAKEOFF on) a masonry/RC wall or RC slab emits its
+        /// measured CONSTITUENT lines (blockwork + plaster×faces + mortar (+
+        /// formwork); concrete net + rebar + formwork); otherwise the single
+        /// composite-rate line. Default off → legacy bills unchanged.
+        /// </summary>
+        private static List<BOQLineItem> BuildLinesForElement(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes, IMeasurementStandard measStd)
+        {
+            if (Takeoff.CompoundTakeoffBuilder.Enabled())
+            {
+                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(doc, el, csvRates, cobieCostCodes, measStd);
+                if (compound != null && compound.Count > 0) return compound;
+            }
+            var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+            return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
         }
 
         private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
@@ -471,10 +488,19 @@ namespace StingTools.BOQ
             };
 
             // ── STEP 1: Load config ──────────────────────────────────────
-            boq.PrelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
-            boq.ContingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
-            boq.OverheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
-            boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            // WP1 — markup % come from the tender-config store (BOQ_TENDER_*),
+            // the SAME keys BOQProfessionalExportCommand reads, so the panel KPI
+            // and the professional workbook's Contract Sum reconcile to one
+            // number. The legacy COST_* keys remain as a back-compat fallback.
+            boq.PrelimPct = TagConfig.GetConfigDouble("BOQ_TENDER_PRELIMINARIES_PCT",
+                              TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0));
+            boq.ContingencyPct = TagConfig.GetConfigDouble("BOQ_TENDER_CONTINGENCY_PCT",
+                              TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0));
+            boq.OverheadPct = TagConfig.GetConfigDouble("BOQ_TENDER_OHP_PCT",
+                              TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0));
+            boq.VatPct = TagConfig.GetConfigDouble("BOQ_TENDER_VAT_PCT", 18.0);
+            boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("BOQ_TENDER_UGX_PER_USD",
+                              TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0));
             boq.ProjectBudgetUGX = ReadProjectBudget(doc);
 
             // Phase 2A — active measurement standard (project_config.json key set
@@ -668,23 +694,36 @@ namespace StingTools.BOQ
                 grossQty = quantity;
             }
 
-            // (b) Currency
+            // (b) Currency — CA-1: RateUSD is derived from the SAME doc-scoped FX
+            // (UGX_PER_USD) the rate registry used to rebase, via the one converter,
+            // so the UGX and USD figures on a row are never inconsistent.
             double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
             double rateUgx = picked.rate;
-            double rateUsd = exchangeRate > 0 ? Math.Round(rateUgx / exchangeRate, 2) : 0;
+            double rateUsd = Math.Round(
+                StingTools.BOQ.Rates.RateCurrency.FromUgx(rateUgx, "USD", exchangeRate, ugxPerGbp), 2);
 
             // (c) NRM2 paragraph — prefer the previously-resolved value on the element,
             //      then a template resolution, then a safe fallback.
             string paragraph = ResolveNrm2Paragraph(doc, el, catName);
 
-            // (d) Embodied carbon (+ G5 data-quality + source + material)
-            double carbonKg = ComputeElementCarbon(el, quantity, unit,
-                out string carbonSource, out string carbonQuality, out string carbonMaterial);
+            // (d) Embodied carbon — WP-C: A1-A3 FOSSIL headline + separate biogenic
+            // line (RICS WLCA) + estimated flag (+ G5 data-quality + source + material)
+            double carbonKg = ComputeElementCarbonSplit(el, quantity, unit,
+                out string carbonSource, out string carbonQuality, out string carbonMaterial,
+                out double biogenicKg, out bool carbonEstimated);
 
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
+            // CA-4 — TRUE whole-life cost: fold the monetised embodied carbon
+            // (carbon price × A1-A3) into the LCC. Operational carbon is
+            // building-level (added by the EDGE LCC), so 0 here. Zero-impact
+            // until COST_CARBON_PRICE_UGX_PER_KG is set.
+            double lifecycleInclCarbonUgx = StingTools.Core.Sustainability.CarbonLcc
+                .LifecycleCostInclCarbonUgx(lifecycleUgx, carbonKg, 0,
+                    CarbonPriceUgxPerKg(), LifecycleYears, LifecycleDiscountRate * 100.0);
 
-            string disc = DisciplineForCategory(catName);
+            string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
@@ -706,7 +745,10 @@ namespace StingTools.BOQ
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
+                BiogenicKg = biogenicKg,
+                CarbonEstimated = carbonEstimated,
                 LifecycleCostUGX = lifecycleUgx,
+                LifecycleCostInclCarbonUGX = lifecycleInclCarbonUgx,
                 ResolvedNRM2Paragraph = paragraph,
                 Note = "",
                 Source = BOQRowSource.Model,
@@ -734,6 +776,84 @@ namespace StingTools.BOQ
             return line;
         }
 
+        // ── Published per-element cost seam (P0-7) ─────────────────────────
+        //
+        // Other subsystems (4D/5D cash-flow, BIMManager 5D export, COBie
+        // replacement-cost fallback) must NOT run their own take-off + qty×rate.
+        // They acquire an ElementCostContext once, then call CostElement per
+        // element to get a BOQLineItem costed by the EXACT canonical procedure
+        // (ResolveRate → MeasureQuantity → carbon). This is the single source of
+        // truth the consolidation-invariant tests pin.
+
+        /// <summary>
+        /// Per-document costing context: the rate tables + active measurement
+        /// standard, loaded once. Mirrors the STEP 1-3 setup BuildBOQDocument
+        /// performs so a per-element cost matches a whole-bill cost exactly.
+        /// </summary>
+        internal sealed class ElementCostContext
+        {
+            public Dictionary<string, (double rate, string unit)> CsvRates;
+            public Dictionary<string, string> CobieCostCodes;
+            public IMeasurementStandard Std;
+
+            public static ElementCostContext Build(Document doc)
+            {
+                string stdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+                if (string.IsNullOrWhiteSpace(stdId)) stdId = "nrm2";
+                // Same load + cache-prime as BuildBOQDocumentCore so carbon /
+                // deductions resolve identically on the per-element path.
+                MeasurementDeductionEngine.ResetCaches();
+                CarbonTrackingEngine.EnsureLoaded();
+                try { BoqEpdStore.Invalidate(doc); } catch (Exception ex) { StingLog.Warn($"ElementCostContext EPD: {ex.Message}"); }
+                return new ElementCostContext
+                {
+                    CsvRates = LoadCsvRates(),
+                    CobieCostCodes = LoadCobieCostCodes(),
+                    Std = MeasurementStandardRegistry.Get(stdId)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cost a single element through the canonical procedure. Returns null
+        /// for elements that carry no cost (no category / phase-demolished).
+        /// Identical to the per-element row BuildBOQDocument produces (pre
+        /// aggregation), so consumers can read line.TotalUGX / Quantity / Unit
+        /// without re-implementing a take-off.
+        /// </summary>
+        internal static BOQLineItem CostElement(Document doc, Element el, ElementCostContext ctx)
+        {
+            if (doc == null || el == null) return null;
+            var c = ctx ?? ElementCostContext.Build(doc);
+            return BuildLineItemFromElement(doc, el, c.CsvRates, c.CobieCostCodes, c.Std);
+        }
+
+        /// <summary>
+        /// Project a built BOQDocument's modelled + manual + PS line items into
+        /// the Document-free <see cref="Boq5DRow"/> rows the 5D estimate
+        /// assembler consumes. The canonical per-line total (TotalUGX) flows
+        /// through verbatim — no qty×rate is recomputed downstream.
+        /// </summary>
+        internal static List<Boq5DRow> ProjectTo5DRows(BOQDocument boq)
+        {
+            var rows = new List<Boq5DRow>();
+            if (boq == null) return rows;
+            foreach (var it in boq.AllItems)
+            {
+                rows.Add(new Boq5DRow
+                {
+                    Category = it.Category ?? "",
+                    Discipline = it.Discipline ?? "",
+                    Quantity = it.Quantity,
+                    Unit = it.Unit,
+                    RateUgx = it.RateUGX,
+                    LineTotalUgx = it.TotalUGX,
+                    Description = string.IsNullOrEmpty(it.ItemName) ? it.Category : it.ItemName
+                });
+            }
+            return rows;
+        }
+
         // ── Rate resolution ────────────────────────────────────────────────
 
         private static (double rate, string unit, string description) ResolveRate(
@@ -756,9 +876,10 @@ namespace StingTools.BOQ
             var req = new RateRequest
             {
                 CategoryName = catName ?? "",
-                Discipline = DisciplineForCategory(catName),
+                Discipline = ResolveDiscipline(el, catName),
                 ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
                 MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                SystemType = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",   // RC-2
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
                 CurrencyCode = "UGX",
                 AsOf = DateTime.UtcNow,
@@ -787,45 +908,23 @@ namespace StingTools.BOQ
         // Normalises unit strings so a CSV "m²" matches a rule's "m2".
         // Returns true when the units denote the same quantity dimension.
         private static bool UnitsAlign(string ruleUnit, string callerUnit)
-        {
-            string a = NormaliseUnit(ruleUnit);
-            string b = NormaliseUnit(callerUnit);
-            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
-            return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-        }
+            => BoqUnits.Align(ruleUnit, callerUnit);   // RC-2 — one source (incl. tonne↔kg)
+
+        /// <summary>RC-2 — tonne↔kg scale (1 elsewhere). Delegates to BoqUnits.</summary>
+        internal static double MassFactor(string fromUnit, string toUnit)
+            => BoqUnits.MassFactor(fromUnit, toUnit);
 
         // internal so IfcQuantitySetWriter (same assembly) can canonicalise
         // units against the same table — avoids the m²/m2 glyph mismatch that
         // silently zeroed every exported Qto (P0-1).
-        internal static string NormaliseUnit(string u)
-        {
-            if (string.IsNullOrEmpty(u)) return "";
-            string s = u.Trim().ToLowerInvariant();
-            switch (s)
-            {
-                case "m²": case "sqm": case "m2": return "m2";
-                case "m³": case "cum": case "m3": return "m3";
-                case "lm": case "lin-m": case "linear-m": case "m": return "m";
-                case "tonne": case "tonnes": case "t": case "kg": return "kg";
-                case "no": case "nr": case "item": case "each": case "ea": return "each";
-                default: return s;
-            }
-        }
+        // RC-2 — one canonicalisation source (BoqUnits, Document-free + tested).
+        internal static string NormaliseUnit(string u) => BoqUnits.Normalise(u);
 
-        // Legacy RateSource labels — preserved so heat-maps and schedules
-        // built against the old shape keep working.
+        // Legacy RateSource labels — preserved so heat-maps and schedules built
+        // against the old shape keep working. PM-7: delegates to the one shared
+        // map (Rates.RateSourceLabels) so CostStamp can't drift from this.
         private static string MapProviderIdToLegacySource(string providerId)
-        {
-            switch (providerId ?? "")
-            {
-                case "param-override": return "Override";
-                case "es-override":    return "Override";
-                case "csv-default":    return "CSV";
-                case "cobie-typemap":  return "COBie";
-                case "default-baseline": return "Default";
-                default:               return providerId ?? "None";
-            }
-        }
+            => StingTools.BOQ.Rates.RateSourceLabels.ToLegacy(providerId);
 
         // ── Quantity derivation ────────────────────────────────────────────
         // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity
@@ -845,7 +944,7 @@ namespace StingTools.BOQ
                 if (doc != null)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    string disc = DisciplineForCategory(catName);
+                    string disc = ResolveDiscipline(el, catName);
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
@@ -855,7 +954,9 @@ namespace StingTools.BOQ
                         // pipeline lands in P5.2 once star-rates use it).
                         if (rule.WastePercent > 0)
                             q *= 1.0 + rule.WastePercent / 100.0;
-                        return q;
+                        // RC-2 — convert the rule's quantity into the caller/rate
+                        // unit across tonne↔kg (1× otherwise).
+                        return q * MassFactor(rule.Unit, unit);
                     }
                 }
             }
@@ -878,8 +979,13 @@ namespace StingTools.BOQ
                 double overrideWaste = 0;
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
-                double wastePct = WasteFactor.ResolveWastePercent(
-                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+                // PM-5 — per-material/category waste table: override wins, else the
+                // NRM2-typical allowance for this category (rebar 2.5 / timber 10 /
+                // tiling 10 …), else the project default knob. Same table the carbon
+                // path resolves through, so quantity is grossed up identically.
+                double wastePct = WasteTable.ResolveWastePercent(
+                    null, el.Category?.Name, overrideWaste,
+                    TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
                 // general waste above. NRM2: rebar laps are a measured addition to
@@ -900,7 +1006,7 @@ namespace StingTools.BOQ
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
                         if (areaP != null && areaP.HasValue)
                             return WasteFactor.Apply(areaP.AsDouble() * 0.092903, unit, wastePct); // ft² → m²
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "m³":
                     case "m3":
                     case "cum":
@@ -908,7 +1014,7 @@ namespace StingTools.BOQ
                         if (volP != null && volP.HasValue)
                             // waste + (opt-in) concrete over-order buffer, once.
                             return MeasuredAddition.GrossUp(volP.AsDouble() * 0.0283168, unit, wastePct, concreteBuffer); // ft³ → m³
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "m":
                         if (el.Location is LocationCurve lc)
                             return WasteFactor.Apply(lc.Curve.Length * 0.3048, unit, wastePct); // ft → m
@@ -916,7 +1022,7 @@ namespace StingTools.BOQ
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         if (lenP != null && lenP.HasValue)
                             return WasteFactor.Apply(lenP.AsDouble() * 0.3048, unit, wastePct);
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     case "kg":
                     case "tonne":
                     case "tonnes":
@@ -924,12 +1030,27 @@ namespace StingTools.BOQ
                         if (massP != null && massP.HasValue)
                             // waste + (opt-in) rebar lap allowance, once.
                             return MeasuredAddition.GrossUp(massP.AsDouble(), unit, wastePct, rebarLap);
-                        return 1.0;
+                        return MeasuredFallback(unit);
                     default:
-                        return 1.0;
+                        return MeasuredFallback(unit);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
+            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return MeasuredFallback(unit); }
+        }
+
+        /// <summary>
+        /// WP2 — the "could not measure" fallback. MEASURED units (m/m²/m³/kg)
+        /// return 0 (a visible sentinel the uncosted-at-risk rollup catches and
+        /// the build down-grades to low confidence) instead of a fake 1.0; count
+        /// units ('each'/'item'/'nr') legitimately stay 1.
+        /// </summary>
+        private static double MeasuredFallback(string unit)
+        {
+            switch ((unit ?? "").Trim().ToLowerInvariant())
+            {
+                case "each": case "item": case "nr": case "no": case "": return 1.0;
+                default: return 0.0;
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -1000,11 +1121,11 @@ namespace StingTools.BOQ
                 if (doc != null)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    string disc = DisciplineForCategory(catName);
+                    string disc = ResolveDiscipline(el, catName);
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
-                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule) * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
@@ -1016,23 +1137,27 @@ namespace StingTools.BOQ
                 {
                     case "m²": case "m2": case "sqm":
                         Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
-                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : 1.0;
+                        return (areaP != null && areaP.HasValue) ? areaP.AsDouble() * 0.092903 : MeasuredFallback(unit);
                     case "m³": case "m3": case "cum":
                         Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
-                        return (volP != null && volP.HasValue) ? volP.AsDouble() * 0.0283168 : 1.0;
+                        if (volP != null && volP.HasValue && volP.AsDouble() > 0) return volP.AsDouble() * 0.0283168;
+                        // WP2 — host volume is often empty on framing/columns; fall
+                        // back to true solid geometry (m³) before the sentinel.
+                        double geomM3 = ReadGeometryVolumeM3(el);
+                        return geomM3 > 0 ? geomM3 : MeasuredFallback(unit);
                     case "m":
                         if (el.Location is LocationCurve lc) return lc.Curve.Length * 0.3048;
                         Parameter lenP = el.LookupParameter("Length")
                             ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : 1.0;
+                        return (lenP != null && lenP.HasValue) ? lenP.AsDouble() * 0.3048 : MeasuredFallback(unit);
                     case "kg": case "tonne": case "tonnes":
                         Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
-                        return (massP != null && massP.HasValue) ? massP.AsDouble() : 1.0;
+                        return (massP != null && massP.HasValue) ? massP.AsDouble() : MeasuredFallback(unit);
                     default:
-                        return 1.0;
+                        return MeasuredFallback(unit);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return 1.0; }
+            catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity({unit}): {ex.Message}"); return MeasuredFallback(unit); }
         }
 
         /// <summary>
@@ -1047,7 +1172,7 @@ namespace StingTools.BOQ
             try
             {
                 Document doc = el?.Document;
-                string disc = DisciplineForCategory(catName);
+                string disc = ResolveDiscipline(el, catName);
 
                 // 1. Measurement-rule per-category wastage wins when pinned (>= 0).
                 if (doc != null && std != null)
@@ -1074,8 +1199,10 @@ namespace StingTools.BOQ
                 double overrideWaste = 0;
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
-                double wastePct = WasteFactor.ResolveWastePercent(
-                    overrideWaste, TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
+                // PM-5 — per-material/category waste table (catName is in scope).
+                double wastePct = WasteTable.ResolveWastePercent(
+                    null, catName, overrideWaste,
+                    TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 string nu = (unit ?? "").ToLowerInvariant();
                 if (nu == "kg" || nu == "tonne" || nu == "tonnes")
@@ -1165,9 +1292,9 @@ namespace StingTools.BOQ
                 matName = GetPrimaryMaterialName(el);
                 if (!string.IsNullOrEmpty(matName) && doc != null)
                 {
-                    var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .FirstOrDefault(m => string.Equals(m.Name, matName, StringComparison.OrdinalIgnoreCase));
+                    // WP6 — O(1) per-document name→Material cache instead of a
+                    // fresh FilteredElementCollector(Material) for every BOQ row.
+                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, matName);
                     matClass = mat?.MaterialClass;
                 }
             }
@@ -1182,15 +1309,12 @@ namespace StingTools.BOQ
                     string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
                     if (!string.IsNullOrEmpty(resolved))
                     {
-                        // Prepend material qualifier when we have one and the
-                        // template doesn't already mention it.
+                        // Prepend the material class as a qualifier when the
+                        // template doesn't already mention it. WP6 — was a tangled
+                        // triple-negation (`!IndexOf(...).Equals(-1) is false`) that
+                        // evaluated to "not found", so the class was NEVER prepended.
                         if (!string.IsNullOrEmpty(matClass) &&
-                            !resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase).Equals(-1) is false)
-                        {
-                            // resolved already mentions the class — leave as-is
-                        }
-                        else if (!string.IsNullOrEmpty(matClass) &&
-                                 resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
+                            resolved.IndexOf(matClass, StringComparison.OrdinalIgnoreCase) < 0)
                         {
                             resolved = $"{matClass}: {resolved}";
                         }
@@ -1210,46 +1334,253 @@ namespace StingTools.BOQ
 
         // ── Carbon + lifecycle ─────────────────────────────────────────────
 
+        /// <summary>
+        /// RC-2 — fold the element's BLE_STRUCT_CONCRETE_GRADE_TXT into the
+        /// material name so the grade-keyed carbon/density row resolves. The grade
+        /// is PREPENDED (and CONCRETE ensured present) so ResolveConcreteGradeKey
+        /// picks the param's grade over any grade already in the material name.
+        /// Returns the material name unchanged when the param is empty.
+        /// </summary>
+        private static string ApplyConcreteGrade(Element el, string material)
+        {
+            try
+            {
+                string grade = ParameterHelpers.GetString(el, "BLE_STRUCT_CONCRETE_GRADE_TXT");
+                if (string.IsNullOrWhiteSpace(grade)) return material;
+                grade = grade.Trim();
+                string m = material ?? "";
+                // Ensure the concrete keyword is present so grade parsing engages.
+                if (m.IndexOf("concrete", StringComparison.OrdinalIgnoreCase) < 0 &&
+                    !System.Text.RegularExpressions.Regex.IsMatch(m, @"\bRC\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    m = "Concrete " + m;
+                return $"{grade} {m}".Trim();
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ApplyGrade", $"ApplyConcreteGrade: {ex.Message}"); return material; }
+        }
+
         private static double ComputeElementCarbon(Element el, double quantity, string unit)
             => ComputeElementCarbon(el, quantity, unit, out _, out _, out _);
+
+        /// <summary>
+        /// WP0 — the ONE per-element embodied-carbon (A1–A3) entry point shared
+        /// across the plugin. Routes through <see cref="CarbonFactorResolver"/>
+        /// (EPD → material param → lookup CSV → legacy) with correct per-m³ /
+        /// per-kg unit handling, so the BOQ build, the design-option roll-up
+        /// (<c>OptionCostCarbonCalculator</c>) and the EN 15978 stage tracker
+        /// (<c>CarbonStageTracker</c>) all compute the SAME number from the SAME
+        /// source instead of three divergent dictionaries. <paramref name="volM3"/>
+        /// is the element volume in m³; pass ≤0 to skip (returns 0).
+        /// </summary>
+        internal static double ComputeElementCarbonKg(Element el, double volM3)
+            => (el == null || volM3 <= 0) ? 0 : ComputeElementCarbon(el, volM3, "m³");
 
         // G5 — detailed overload: also reports the carbon factor SOURCE, the
         // data-quality band (Verified-EPD / Database / Missing) and the primary
         // material so the BOQ row can carry a carbon-confidence indicator and the
         // carbon-gap report can list weak/missing factors.
+        // WP-C — back-compat overload: returns the A1-A3 FOSSIL headline only.
         private static double ComputeElementCarbon(Element el, double quantity, string unit,
             out string carbonSource, out string carbonQuality, out string carbonMaterial)
+            => ComputeElementCarbonSplit(el, quantity, unit,
+                   out carbonSource, out carbonQuality, out carbonMaterial, out _, out _);
+
+        /// <summary>
+        /// WP-C — the ONE carbon computation, RICS WLCA convention: returns the
+        /// A1-A3 FOSSIL headline and reports the separate A1-A3 BIOGENIC term
+        /// (≤ 0, timber only) + whether the volume was geometry-real or estimated.
+        /// Splits per-material (each material its own fossil/biogenic factor) off
+        /// REAL per-material / solid volumes, with the SAME per-element WasteFactor
+        /// the cost uses — so cost and carbon waste agree and the fossil/biogenic
+        /// split is identical regardless of which resolver tier fires.
+        /// </summary>
+        private static double ComputeElementCarbonSplit(Element el, double quantity, string unit,
+            out string carbonSource, out string carbonQuality, out string carbonMaterial,
+            out double biogenicKg, out bool estimated)
         {
             carbonSource = "none"; carbonQuality = BoqEpdStore.QualityMissing; carbonMaterial = "";
+            biogenicKg = 0; estimated = false;
             try
             {
-                // R-1 — Carbon factor source-aware unit treatment.
-                // STING_EMB_CARBON_NR + MaterialLookupCsv ship kgCO₂e PER m³ (volumetric);
-                // the legacy CARBON_FACTORS.csv dictionary ships kgCO₂e PER kg.
-                // Multiplying a volumetric factor by element MASS is the 1000× wrong-answer
-                // bug the LCA audit flagged. Route through CarbonFactorResolver so the
-                // calling convention is explicit.
+                if (el == null) return 0;
+                double wastePct = ResolveElementWastePct(el);
+
+                // Multi-material split — real per-material volumes.
+                var ids = el.GetMaterialIds(false);
+                if (ids != null && ids.Count >= 2)
+                {
+                    double fossil = 0, bio = 0, dominantVol = -1; string domMat = "", domSrc = "none"; bool any = false;
+                    double rawSumM3 = 0;        // MAT-1 — un-wasted Σ of measured layer volumes
+                    foreach (var mid in ids)
+                    {
+                        double volFt3;
+                        try { volFt3 = el.GetMaterialVolume(mid); } catch { volFt3 = 0; }
+                        if (volFt3 <= 0) continue;
+                        double rawM3 = volFt3 * 0.0283168;
+                        rawSumM3 += rawM3;
+                        double mVolM3 = WasteFactor.Apply(rawM3, "m3", wastePct);
+                        string mName = (el.Document.GetElement(mid) as Material)?.Name ?? "";
+                        if (string.IsNullOrEmpty(mName)) continue;
+
+                        var res = CarbonFactorResolver.Resolve(el.Document, mName);
+                        if (res.Factor > 0)
+                        {
+                            any = true;
+                            AddMaterialCarbon(el.Document, mName, mVolM3, ref fossil, ref bio);
+                        }
+                        if (mVolM3 > dominantVol)
+                        {
+                            dominantVol = mVolM3; domMat = mName;
+                            domSrc = string.IsNullOrEmpty(res.Source) ? "none" : res.Source;
+                        }
+                    }
+                    if (any && (fossil != 0 || bio != 0))
+                    {
+                        // MAT-1 — compound-element carbon under-count: Revit returns 0
+                        // GetMaterialVolume for some layers (paint, cavity, unmodelled
+                        // finishes), so Σ layer volume can be materially LESS than the
+                        // element's gross HOST_VOLUME_COMPUTED. Rather than silently
+                        // drop that concrete/block carbon, attribute the shortfall to
+                        // the dominant material and flag the row estimated.
+                        double grossM3 = ReadElementVolumeM3(el);
+                        if (grossM3 > 0 && rawSumM3 > 0 && rawSumM3 < 0.9 * grossM3 && !string.IsNullOrEmpty(domMat))
+                        {
+                            double missing = WasteFactor.Apply(grossM3 - rawSumM3, "m3", wastePct);
+                            AddMaterialCarbon(el.Document, domMat, missing, ref fossil, ref bio);
+                            estimated = true;
+                            StingLog.WarnRateLimited("CompoundCarbonFill",
+                                $"Compound element {el.Id}: Σ material volume {rawSumM3:F3} m³ < gross {grossM3:F3} m³ — " +
+                                $"attributed {grossM3 - rawSumM3:F3} m³ shortfall to '{domMat}' (was silently dropped).");
+                        }
+                        carbonSource = domSrc; carbonQuality = BoqEpdStore.QualityForSource(domSrc); carbonMaterial = domMat;
+                        if (estimated && carbonQuality != BoqEpdStore.QualityMissing
+                            && !carbonQuality.StartsWith("Verified", StringComparison.OrdinalIgnoreCase))
+                            carbonQuality = "Estimated";
+                        biogenicKg = Math.Round(bio, 2);
+                        return Math.Round(fossil, 2);
+                    }
+                }
+
+                // Single-material.
                 string material = GetPrimaryMaterialName(el);
                 carbonMaterial = material ?? "";
                 if (string.IsNullOrEmpty(material)) return 0;
-
-                var resolved = CarbonFactorResolver.Resolve(el.Document, material);
+                // RC-2 — concrete grade: read BLE_STRUCT_CONCRETE_GRADE_TXT FIRST
+                // (the CSV's declared source) and fold it into the lookup name so
+                // the grade-specific carbon/density row is reachable even when the
+                // material name is generic ("Concrete"); name-parsing remains the
+                // fallback when the param is unset.
+                string lookupMaterial = ApplyConcreteGrade(el, material);
+                var resolved = CarbonFactorResolver.Resolve(el.Document, lookupMaterial);
                 carbonSource = string.IsNullOrEmpty(resolved.Source) ? "none" : resolved.Source;
                 carbonQuality = BoqEpdStore.QualityForSource(carbonSource);
                 if (resolved.Factor <= 0) { carbonQuality = BoqEpdStore.QualityMissing; return 0; }
 
-                if (resolved.PerUnit == CarbonFactorUnit.KgCo2ePerKg)
-                {
-                    // Legacy mass-based factor — multiply by mass.
-                    double kg = EstimateMassKg(el, quantity, unit);
-                    return Math.Round(kg * resolved.Factor, 2);
-                }
-                // Default + STING / lookup tiers are kgCO₂e per m³ — multiply by volume.
-                // R-4 — Surface elements use area × thickness; linear use length × cross-section.
-                double volM3 = EstimateVolumeM3(el, quantity, unit, material);
-                return Math.Round(volM3 * resolved.Factor, 2);
+                // WP-C — drive off REAL geometry; estimate only when absent.
+                double volM3 = RealOrEstimatedVolumeM3(el, quantity, unit, lookupMaterial, out estimated);
+                // MAT-1 — net a void slab (hollow-pot / rib / waffle / trough) by its
+                // solid fraction so embodied carbon is net of the pot/rib voids.
+                volM3 = ApplySlabVoidFactor(el, volM3);
+                volM3 = WasteFactor.Apply(volM3, "m3", wastePct);
+
+                double fos = 0, bg = 0;
+                AddMaterialCarbon(el.Document, material, volM3, ref fos, ref bg);
+                biogenicKg = Math.Round(bg, 2);
+                if (estimated && carbonQuality != BoqEpdStore.QualityMissing
+                    && !carbonQuality.StartsWith("Verified", StringComparison.OrdinalIgnoreCase))
+                    carbonQuality = "Estimated";
+                return Math.Round(fos, 2);
             }
-            catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+            catch (Exception ex) { StingLog.Warn($"ComputeElementCarbonSplit: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>WP-C — accumulate one material's A1-A3 fossil + biogenic carbon
+        /// from a volume (m³). Fossil is the headline; biogenic (≤ 0) is the RICS
+        /// WLCA separate line. Resolution: an explicit material/library fossil &
+        /// biogenic split wins; else timber uses the ICE <see cref="BiogenicCarbon"/>
+        /// fossil/biogenic factors (tier-independent); else a non-bio material's net
+        /// factor IS its fossil (biogenic 0).</summary>
+        private static void AddMaterialCarbon(Document doc, string mName, double volM3,
+            ref double fossil, ref double biogenic)
+        {
+            if (string.IsNullOrEmpty(mName) || volM3 <= 0) return;
+            var res = CarbonFactorResolver.Resolve(doc, mName);
+            if (res.Factor <= 0) return;
+            double density = EstimateDensityKgPerM3(mName);
+            double netPerM3 = res.PerUnit == CarbonFactorUnit.KgCo2ePerKg ? res.Factor * density : res.Factor;
+
+            double fossilPerM3 = CarbonFactorResolver.GetCarbonFossilPerM3(doc, mName);
+            double bioPerM3 = CarbonFactorResolver.GetCarbonBiogenicPerM3(doc, mName);
+            if (fossilPerM3 <= 0 && bioPerM3 == 0)
+            {
+                if (BiogenicCarbon.IsBiogenic(mName) && density > 0)
+                {
+                    fossilPerM3 = BiogenicCarbon.TimberFossilPerKg * density;
+                    bioPerM3 = BiogenicCarbon.TimberBiogenicPerKg * density;
+                }
+                else { fossilPerM3 = netPerM3; bioPerM3 = 0; }
+            }
+            else if (fossilPerM3 <= 0)
+            {
+                fossilPerM3 = netPerM3;   // biogenic split present, fossil missing → net proxy
+            }
+            fossil += volM3 * fossilPerM3;
+            biogenic += volM3 * bioPerM3;
+        }
+
+        /// <summary>WP-C — the carbon volume from REAL geometry where possible.
+        /// m³-measured rows use the (deducted, wasted) measured quantity; otherwise
+        /// the element's real solid volume; only a genuine no-geometry element falls
+        /// back to the guessed thickness / cross-section estimate (estimated = true).</summary>
+        /// <summary>
+        /// MAT-1 — net a slab's gross concrete volume by its void-system solid
+        /// fraction (hollow-pot / rib / waffle / trough, data-driven via
+        /// SlabSystemRegistry + STING_SLAB_SYSTEMS.json). Returns the volume
+        /// unchanged for solid slabs and non-floors. Applied to the carbon volume
+        /// and the m³ quantity so a clay-pot slab is measured net of its voids.
+        /// </summary>
+        internal static double ApplySlabVoidFactor(Element el, double grossVolM3)
+        {
+            if (el == null || grossVolM3 <= 0) return grossVolM3;
+            try
+            {
+                if (el.Category?.Id == null ||
+                    el.Category.Id.Value != (long)BuiltInCategory.OST_Floors)
+                    return grossVolM3;
+                // MAT-4 — parameter-driven calculator (or real geometry) is the
+                // default; the flat solid-fraction is the last-resort fallback.
+                double areaM2 = 0;
+                var ap = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                if (ap != null && ap.HasValue) areaM2 = ap.AsDouble() * 0.092903;
+                var net = Core.Materials.SlabSystemLoader.ResolveNetConcrete(el.Document, el, grossVolM3, areaM2);
+                return net.NetConcreteM3;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("SlabVoid", $"ApplySlabVoidFactor: {ex.Message}");
+                return grossVolM3;
+            }
+        }
+
+        private static double RealOrEstimatedVolumeM3(Element el, double quantity, string unit, string material, out bool estimated)
+        {
+            estimated = false;
+            string u = (unit ?? "").Trim().ToLowerInvariant();
+            if (u == "m³" || u == "m3" || u == "cum") return quantity;   // measured volume is authoritative
+            double real = ReadGeometryVolumeM3(el);
+            if (real <= 0) real = ReadElementVolumeM3(el);
+            if (real > 0) return real;
+            estimated = true;
+            return EstimateVolumeM3(el, quantity, unit, material);
+        }
+
+        private static double ResolveElementWastePct(Element el)
+        {
+            double overrideWaste = 0;
+            try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
+            catch (Exception ex) { StingLog.WarnRateLimited("Carbon.OvrWaste", $"override waste read: {ex.Message}"); }
+            // PM-5 — carbon path resolves the SAME per-material/category waste table.
+            return WasteTable.ResolveWastePercent(null, el.Category?.Name, overrideWaste,
+                TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
         /// <summary>
@@ -1399,7 +1730,9 @@ namespace StingTools.BOQ
         {
             try
             {
-                var opt = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, DetailLevel = ViewDetailLevel.Coarse };
+                // WP-M — Fine to match TakeoffRule.ReadSolidVolumeFt3, so the same
+                // element measures identically whichever solid reader the path uses.
+                var opt = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, DetailLevel = ViewDetailLevel.Fine };
                 GeometryElement ge = el.get_Geometry(opt);
                 if (ge == null) return 0;
                 double ft3 = SumSolidVolumeFt3(ge);
@@ -1430,6 +1763,12 @@ namespace StingTools.BOQ
         /// column when present (falls back to 2%/y for hard assets, 0.5%/y for shell).
         /// Discount rate = 3.5% (UK Treasury Green Book).
         /// </summary>
+        /// <summary>CA-4 — the project carbon price (UGX per kgCO₂e) from
+        /// project_config.json (COST_CARBON_PRICE_UGX_PER_KG). 0 = carbon not
+        /// priced, so the carbon-inclusive LCC equals the plain LCC.</summary>
+        internal static double CarbonPriceUgxPerKg()
+            => TagConfig.GetConfigDouble(StingTools.Core.Sustainability.CarbonLcc.CarbonPriceConfigKey, 0.0);
+
         private static double ComputeLifecycleCost(double capitalUgx, string catName)
         {
             if (capitalUgx <= 0) return 0;
@@ -1513,6 +1852,14 @@ namespace StingTools.BOQ
         {
             if (items == null) return 0;
             int written = 0;
+            // WP-M — aggregated constituents re-measure through the SAME MeasureQuantity
+            // path the bill uses (NRM2/CESMM opening/void deductions + waste), so the
+            // stamped CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX matches the net bill row
+            // instead of the legacy DeriveQuantity (which skipped deductions and could
+            // over-stamp a row above its net bill quantity).
+            string aggStdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+            if (string.IsNullOrWhiteSpace(aggStdId)) aggStdId = "nrm2";
+            var aggStd = MeasurementStandard.MeasurementStandardRegistry.Get(aggStdId);
             foreach (var item in items)
             {
                 // P1.2 — aggregated rows stamp EVERY constituent element. Shared
@@ -1535,7 +1882,11 @@ namespace StingTools.BOQ
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (el == null) continue;
 
-                    double qty = aggregated ? DeriveQuantity(el, item.Unit) : item.Quantity;
+                    double qty = aggregated
+                        ? MeasureQuantity(el, item.Unit,
+                            string.IsNullOrEmpty(item.Category) ? ParameterHelpers.GetCategoryName(el) : item.Category,
+                            aggStd, out _, out _, out _, out _)
+                        : item.Quantity;
                     double totalUgx = Math.Round(qty * item.RateUGX, 0);
                     double carbonKg = aggregated
                         ? ComputeElementCarbon(el, qty, item.Unit) : item.EmbodiedCarbonKg;
@@ -1548,7 +1899,16 @@ namespace StingTools.BOQ
                     WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
                     WriteIfChanged(el, "CST_QTY_MEASURED", $"{qty:F3} {item.Unit}", ref written);
 
-                    // Computed total — stored as NUMBER parameter
+                    // Computed total — stored as NUMBER parameter.
+                    // CA-5 — ADDITIVITY: CST_MODELED_TOTAL_UGX is per-ELEMENT
+                    // (qty × this element's resolved rate). Σ over modelled
+                    // elements reconstructs the modelled-works subtotal and is the
+                    // correct weighting base for EVM/SOV %-completion. It is NOT
+                    // expected to equal an AGGREGATED bill row's TotalUGX
+                    // line-by-line: the bill may collapse mixed-rate near-identical
+                    // elements into one row at a representative rate, so per-element
+                    // Σ and the aggregated bill agree at the subtotal level, not row
+                    // by row. Both now resolve rates from the SAME provider chain.
                     TrySetNumber(el, "CST_MODELED_TOTAL_UGX", totalUgx, ref written);
 
                     WriteIfChanged(el, "CST_RATE_SOURCE", item.RateSource ?? "", ref written);
@@ -1853,6 +2213,7 @@ namespace StingTools.BOQ
                             DateTimeStyles.None, out DateTime dt);
 
                         double total = 0;
+                        double netExVat = 0;   // CA-2 — net-of-VAT basis for the lifecycle
                         try
                         {
                             // Only parse the single top-level property we need.
@@ -1874,10 +2235,32 @@ namespace StingTools.BOQ
                                             }
                                         }
                                     }
-                                    double pre = 12.0, con = 10.0, oh = 8.0;
-                                    double.TryParse(jo.Value<string>("PrelimPct") ?? "", NumberStyles.Any,
-                                        CultureInfo.InvariantCulture, out pre);
-                                    total = Math.Round(total * (1 + pre / 100 + con / 100 + oh / 100), 0);
+                                    // WP1 — read the snapshot's ACTUAL markup %
+                                    // (incl. VAT + itemised prelims) and apply the
+                                    // ONE canonical waterfall so the dropdown total
+                                    // equals what BuildBOQDocument computed. Old
+                                    // snapshots lacking a field fall back to the
+                                    // tender defaults.
+                                    double works = total;
+                                    double pre = jo.Value<double?>("PrelimPct") ?? 12.0;
+                                    double con = jo.Value<double?>("ContingencyPct") ?? 10.0;
+                                    double oh  = jo.Value<double?>("OverheadPct") ?? 8.0;
+                                    double vat = jo.Value<double?>("VatPct") ?? 18.0;
+                                    bool prelimsItemised = jo.Value<bool?>("PrelimsItemised") ?? false;
+                                    double prelimsAbs = works * pre / 100.0;
+                                    if (prelimsItemised && jo["PrelimLines"] is JArray plArr)
+                                    {
+                                        try
+                                        {
+                                            var plLines = plArr.ToObject<List<BoqPrelimLine>>();
+                                            if (plLines != null && plLines.Count > 0)
+                                                prelimsAbs = plLines.Sum(l => l.AmountFor(works));
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"ListSnapshots prelimLines {Path.GetFileName(f)}: {ex.Message}"); }
+                                    }
+                                    var mk = BoqTotals.Compute(works, prelimsAbs, oh, con, vat);
+                                    total = mk.GrandTotal;
+                                    netExVat = mk.NetExVat;   // CA-2 — net-of-VAT contract-sum basis
                                 }
                             }
                         }
@@ -1906,6 +2289,7 @@ namespace StingTools.BOQ
                         list.Add(new BOQSnapshotMeta
                         {
                             Path = f, Label = label, Type = type, Date = dt, GrandTotalUGX = total,
+                            NetExVatUGX = netExVat,
                             Checksum = checksum,
                             ServerBaselineId = serverBaselineId,
                             SyncState = syncState
@@ -2072,7 +2456,8 @@ namespace StingTools.BOQ
                 foreach (long id in elementIds.Distinct())
                 {
                     Element el;
-                    try { el = doc.GetElement(new ElementId(id)); } catch { continue; }
+                    try { el = doc.GetElement(new ElementId(id)); }
+                    catch (Exception ex) { StingLog.WarnRateLimited("Reprice.GetEl", $"GetElement({id}): {ex.Message}"); continue; }
                     if (el == null) continue;
                     outcome.Considered++;
 
@@ -2472,6 +2857,74 @@ namespace StingTools.BOQ
         //  card in both the BOQ panel and the BIM Coordination Center.
         // ══════════════════════════════════════════════════════════════════
 
+        // WP2 — categories that legitimately carry no measured cost.
+        private static readonly HashSet<string> _freeCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Rooms", "Spaces", "Areas", "Zones", "HVAC Zones" };
+
+        private static bool IsFreeCategoryForCost(string cat)
+            => !string.IsNullOrEmpty(cat) && _freeCategoryNames.Contains(cat.Trim());
+
+        private static bool IsMeasuredUnit(string unit)
+        {
+            switch ((unit ?? "").Trim().ToLowerInvariant())
+            {
+                case "each": case "item": case "nr": case "no": case "": return false;
+                default: return true;
+            }
+        }
+
+        /// <summary>
+        /// WP2 — the document-level uncosted / at-risk rollup. The export confidence
+        /// floor comes from COST_MIN_RATE_CONFIDENCE_EXPORT (default 60).
+        /// </summary>
+        internal static BoqUncostedRollup ComputeUncostedRollup(BOQDocument boq, double minConfidence)
+        {
+            var r = new BoqUncostedRollup();
+            if (boq == null) return r;
+            var model = boq.AllItems.Where(i => i.Source == BOQRowSource.Model).ToList();
+            if (model.Count == 0) return r;
+
+            // Proxy unit rates (median of priced rows) for the value-at-risk figure.
+            var byUnit = model.Where(i => i.RateUGX > 0 && !string.IsNullOrEmpty(i.Unit))
+                .GroupBy(i => i.Unit.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => Median(g.Select(i => i.RateUGX)));
+            double overallMedian = Median(model.Where(i => i.RateUGX > 0).Select(i => i.RateUGX));
+
+            foreach (var i in model)
+            {
+                if (IsFreeCategoryForCost(i.Category)) continue;
+                bool measured = IsMeasuredUnit(i.Unit);
+                if (measured && i.Quantity <= 0.0001) r.CouldNotMeasureCount++;
+
+                bool zeroRate = i.RateUGX <= 0 ||
+                    string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);
+                if (zeroRate)
+                {
+                    r.ZeroRateCount++;
+                    double q = Math.Max(i.Quantity, 0);
+                    r.QtyAtRisk += q;
+                    double proxy = byUnit.TryGetValue((i.Unit ?? "").Trim().ToLowerInvariant(), out var m) ? m : overallMedian;
+                    r.ValueAtRiskUGX += q * proxy;
+                }
+                else if (i.RateConfidence < minConfidence)
+                {
+                    r.LowConfidenceCount++;
+                }
+            }
+            return r;
+        }
+
+        private static double Median(IEnumerable<double> values)
+        {
+            var list = values?.Where(v => v > 0).OrderBy(v => v).ToList();
+            if (list == null || list.Count == 0) return 0;
+            int mid = list.Count / 2;
+            return list.Count % 2 == 1 ? list[mid] : (list[mid - 1] + list[mid]) / 2.0;
+        }
+
+        internal static double MinRateConfidenceForExport()
+            => TagConfig.GetConfigDouble("COST_MIN_RATE_CONFIDENCE_EXPORT", 60.0);
+
         internal static BOQHealthScore ComputeBOQHealth(BOQDocument boq)
         {
             var score = new BOQHealthScore();
@@ -2518,6 +2971,24 @@ namespace StingTools.BOQ
                 score.TokenCompletenessScore + score.LineRefScore +
                 score.BudgetScore + score.PSDescriptionScore + score.CarbonScore, 0);
 
+            // WP2 — uncosted / could-not-measure rows are a correctness problem,
+            // not a cosmetic one: penalise (capped) so a bill with invisible
+            // zero-value lines can't read "Excellent", and surface the exposure.
+            var uncosted = ComputeUncostedRollup(boq, MinRateConfidenceForExport());
+            if (uncosted.ZeroRateCount > 0)
+            {
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(15, uncosted.ZeroRateCount));
+                score.Issues.Add($"{uncosted.ZeroRateCount} measured row(s) have NO rate — ≈ UGX {uncosted.ValueAtRiskUGX:N0} at risk (proxy median rates).");
+                score.Recommendations.Add("Price the unrated rows (QS round-trip or rate library) before tender/professional export.");
+            }
+            if (uncosted.CouldNotMeasureCount > 0)
+            {
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(8, uncosted.CouldNotMeasureCount));
+                score.Issues.Add($"{uncosted.CouldNotMeasureCount} measured row(s) could not be measured (quantity 0) — check geometry / takeoff rule unit.");
+            }
+            if (uncosted.LowConfidenceCount > 0)
+                score.Recommendations.Add($"{uncosted.LowConfidenceCount} row(s) priced below the export confidence floor ({MinRateConfidenceForExport():F0}).");
+
             score.Grade = score.OverallScore >= 85 ? "Excellent"
                 : score.OverallScore >= 70 ? "Good"
                 : score.OverallScore >= 50 ? "Fair" : "Poor";
@@ -2546,7 +3017,41 @@ namespace StingTools.BOQ
 
         // Internal so PlumbingBOQEnricher (and future supplemental builders)
         // can reuse the canonical CSV reader instead of duplicating it.
+        // RC-3 — memoise the corporate CSV loaders by (path, last-write-time) so a
+        // full BOQ build (M elements) parses each table ONCE instead of per element.
+        // Invalidated by Cost_ReloadRules → InvalidateRateTables().
+        private static (string path, long ticks, int count, object data)? _csvRatesMemo;
+        private static (string path, long ticks, int count, object data)? _cobieMemo;
+        private static readonly object _rateMemoLock = new object();
+
+        internal static void InvalidateRateTables()
+        {
+            lock (_rateMemoLock) { _csvRatesMemo = null; _cobieMemo = null; }
+        }
+
         internal static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+        {
+            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
+            string path = StingToolsApp.FindDataFile(costFile);
+            long ticks = SafeWriteTicks(path);
+            lock (_rateMemoLock)
+            {
+                if (_csvRatesMemo is { } m && m.path == path && m.ticks == ticks
+                    && m.data is Dictionary<string, (double rate, string unit)> cached)
+                    return cached;
+            }
+            var loaded = LoadCsvRatesUncached();
+            lock (_rateMemoLock) { _csvRatesMemo = (path, ticks, loaded.Count, loaded); }
+            return loaded;
+        }
+
+        private static long SafeWriteTicks(string path)
+        {
+            try { return (!string.IsNullOrEmpty(path) && File.Exists(path)) ? File.GetLastWriteTimeUtc(path).Ticks : 0; }
+            catch { return 0; }
+        }
+
+        private static Dictionary<string, (double rate, string unit)> LoadCsvRatesUncached()
         {
             var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
             string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
@@ -2559,6 +3064,25 @@ namespace StingTools.BOQ
                 string header = lines[0].ToLowerInvariant();
                 bool is7Col = header.Contains("mat_code");
 
+                // CA-1 — explicit one-wins de-duplication. The first row for a key
+                // wins (top of file is authoritative); a later duplicate is skipped
+                // and logged, so a QS sees the collision instead of a silent
+                // last-row-wins overwrite. Applies to category, MAT_CODE keys alike.
+                int dupes = 0;
+                void Put(string key, double rate, string unit)
+                {
+                    if (string.IsNullOrEmpty(key)) return;
+                    string k = key.Trim();
+                    if (rates.ContainsKey(k))
+                    {
+                        dupes++;
+                        StingLog.WarnRateLimited("LoadCsvRates.Dupe",
+                            $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
+                        return;
+                    }
+                    rates[k] = (rate, string.IsNullOrEmpty(unit) ? "each" : unit);
+                }
+
                 for (int i = 1; i < lines.Length; i++)
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
@@ -2568,22 +3092,38 @@ namespace StingTools.BOQ
                         // Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
                         if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
                         {
-                            rates[cols[0].Trim()] = (rateUgx, cols[5].Trim());
-                            if (!string.IsNullOrEmpty(cols[1]))
-                                rates[cols[1].Trim()] = (rateUgx, cols[5].Trim());
+                            Put(cols[0], rateUgx, cols[5].Trim());
+                            Put(cols[1], rateUgx, cols[5].Trim());
                         }
                     }
                     else if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate3))
                     {
-                        rates[cols[0].Trim()] = (rate3, cols.Length > 2 ? cols[2].Trim() : "each");
+                        Put(cols[0], rate3, cols.Length > 2 ? cols[2].Trim() : "each");
                     }
                 }
+                if (dupes > 0)
+                    StingLog.Warn($"LoadCsvRates: {dupes} duplicate rate key(s) in {costFile} skipped (first-wins).");
             }
             catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
             return rates;
         }
 
-        private static Dictionary<string, string> LoadCobieCostCodes()
+        internal static Dictionary<string, string> LoadCobieCostCodes()
+        {
+            string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
+            long ticks = SafeWriteTicks(path);
+            lock (_rateMemoLock)
+            {
+                if (_cobieMemo is { } m && m.path == path && m.ticks == ticks
+                    && m.data is Dictionary<string, string> cached)
+                    return cached;
+            }
+            var loaded = LoadCobieCostCodesUncached();
+            lock (_rateMemoLock) { _cobieMemo = (path, ticks, loaded.Count, loaded); }
+            return loaded;
+        }
+
+        private static Dictionary<string, string> LoadCobieCostCodesUncached()
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
@@ -2771,6 +3311,7 @@ namespace StingTools.BOQ
                     {
                         li.Quantity *= instCount;                 // TotalUGX/USD derive from Quantity
                         li.EmbodiedCarbonKg *= instCount;         // stored field — scale explicitly
+                        li.BiogenicKg *= instCount;               // WP-C — biogenic scales with the count too
                     }
                     li.Note = string.IsNullOrEmpty(li.Note) ? tag : $"{li.Note} {tag}";
                 }
@@ -2785,7 +3326,11 @@ namespace StingTools.BOQ
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0;
+            int excluded = 0, optionAlternates = 0;
+            // WP2 — bill the MAIN model + each set's PRIMARY design option only;
+            // never the alternates (which multiply quantities by the option count).
+            // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
+            bool primaryOptionOnly = GetConfigBool("COST_BILL_PRIMARY_OPTION_ONLY", true);
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             var catEnums = SharedParamGuids.AllCategoryEnums;
             if (catEnums != null && catEnums.Length > 0)
@@ -2794,6 +3339,17 @@ namespace StingTools.BOQ
             {
                 // P1.1 — CAD imports carry no measurable model quantity.
                 if (el is ImportInstance) { excluded++; continue; }
+
+                // WP2 — design-option double-count guard.
+                if (primaryOptionOnly)
+                {
+                    try
+                    {
+                        var dopt = el.DesignOption;
+                        if (dopt != null && !dopt.IsPrimary) { optionAlternates++; continue; }
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("BOQ.DesignOpt", $"DesignOption read: {ex.Message}"); }
+                }
 
                 // P1.1 — reject 2D / annotation / link categories.
                 Category cObj = el.Category;
@@ -2817,6 +3373,9 @@ namespace StingTools.BOQ
             if (excluded > 0)
                 StingLog.Info($"BOQ takeoff: excluded {excluded} non-measurable element(s) " +
                               "(2D content / annotation / CAD imports).");
+            if (optionAlternates > 0)
+                StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
+                              "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");
             return list;
         }
 
@@ -2923,7 +3482,9 @@ namespace StingTools.BOQ
                 if (agg.GrossQuantity > 0)
                     agg.MeasurementNote = BuildAggregateMeasurementNote(agg, rows.Count);
                 agg.EmbodiedCarbonKg = rows.Sum(r => r.EmbodiedCarbonKg);
+                agg.BiogenicKg = rows.Sum(r => r.BiogenicKg);   // WP-C — biogenic aggregates with fossil
                 agg.LifecycleCostUGX = rows.Sum(r => r.LifecycleCostUGX);
+                agg.LifecycleCostInclCarbonUGX = rows.Sum(r => r.LifecycleCostInclCarbonUGX); // CA-4
                 agg.RateConfidence = rows.Min(r => r.RateConfidence);
                 agg.ConstituentElementIds = rows
                     .Where(r => r.RevitElementId >= 0)
@@ -3156,12 +3717,26 @@ namespace StingTools.BOQ
                 string prefix = string.IsNullOrWhiteSpace(section.NRM2Section)
                     ? secOrdinal.ToString(CultureInfo.InvariantCulture)
                     : section.NRM2Section;
-                int rowIndex = 1;
-                string sectionIndex = "1";
+                // PM-1 — the middle segment was a hard-coded "1" (every ref
+                // {prefix}.1.{n}), so the promised hierarchy was dead and the wrong
+                // ref was stamped onto elements. It now increments per sub-section
+                // group (by Category) within the work section, with the row index
+                // reset per group → a real NRM2-style {section}.{sub}.{item} ref.
+                var subIndexByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var rowBySub = new Dictionary<int, int>();
+                int nextSub = 0;
                 foreach (var item in section.Items)
                 {
-                    item.BOQLineRef = $"{prefix}.{sectionIndex}.{rowIndex}";
-                    rowIndex++;
+                    string subKey = item.Category ?? "";
+                    if (!subIndexByKey.TryGetValue(subKey, out int sub))
+                    {
+                        sub = ++nextSub;
+                        subIndexByKey[subKey] = sub;
+                    }
+                    rowBySub.TryGetValue(sub, out int row);
+                    row++;
+                    rowBySub[sub] = row;
+                    item.BOQLineRef = $"{prefix}.{sub}.{row}";
                 }
             }
         }
@@ -3211,6 +3786,23 @@ namespace StingTools.BOQ
             if (string.IsNullOrEmpty(catName)) return "X";
             if (TagConfig.DiscMap != null && TagConfig.DiscMap.TryGetValue(catName, out string disc)) return disc;
             return "X";
+        }
+
+        /// <summary>
+        /// WP2 — prefer the element's own ISO-19650 discipline token
+        /// (ASS_DISCIPLINE_COD_TXT) over the category default, so a service
+        /// modelled on a dual-use or mis-mapped category classifies + matches
+        /// take-off rules by its real discipline. Falls back to the category map.
+        /// </summary>
+        private static string ResolveDiscipline(Element el, string catName)
+        {
+            try
+            {
+                string d = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (!string.IsNullOrWhiteSpace(d)) return d.Trim();
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("ResolveDisc", $"ResolveDiscipline: {ex.Message}"); }
+            return DisciplineForCategory(catName);
         }
 
         private static string MakeSafeFileName(string s)
@@ -3294,7 +3886,18 @@ namespace StingTools.BOQ
                 var ids = el.GetMaterialIds(false);
                 if (ids != null && ids.Count > 0)
                 {
-                    Material m = el.Document.GetElement(ids.First()) as Material;
+                    // WP2 — deterministic: the DOMINANT material by volume, not the
+                    // non-deterministic .First(), so a compound assembly's density /
+                    // carbon / description don't flip between sessions.
+                    ElementId best = ids.First();
+                    double bestVol = -1;
+                    foreach (var id in ids)
+                    {
+                        double v;
+                        try { v = el.GetMaterialVolume(id); } catch { v = 0; }
+                        if (v > bestVol) { bestVol = v; best = id; }
+                    }
+                    Material m = el.Document.GetElement(best) as Material;
                     if (m != null) return m.Name ?? "";
                 }
             }

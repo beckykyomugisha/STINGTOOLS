@@ -76,7 +76,8 @@ namespace StingTools.UI.Modules
             registry.Register("ValidateTemplate",          app => StingCommandHandler.RunCommandPublic<Temp.ValidateTemplateCommand>(app));
             registry.Register("DynamicBindings",           app => StingCommandHandler.RunCommandPublic<Temp.DynamicBindingsCommand>(app));
             registry.Register("SchemaValidate",            app => StingCommandHandler.RunCommandPublic<Temp.SchemaValidateCommand>(app));
-            registry.Register("BOQExportLegacy",           app => StingCommandHandler.RunCommandPublic<Temp.BOQExportCommand>(app));
+            // P0-7 — legacy Temp BOQ exporter retired; tag routes to canonical.
+            registry.Register("BOQExportLegacy",           app => StingCommandHandler.RunCommandPublic<BOQ.BOQExportCommand>(app));
             registry.Register("IFCExport",                 app => StingCommandHandler.RunCommandPublic<Temp.IFCExportCommand>(app));
             registry.Register("CrossValidateRegistry",     app => StingCommandHandler.RunCommandPublic<Temp.CrossValidateRegistryCommand>(app));
             registry.Register("DataIntegrityCheck",        app => StingCommandHandler.RunCommandPublic<Temp.DataIntegrityCheckCommand>(app));
