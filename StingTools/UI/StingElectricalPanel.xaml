@@ -836,6 +836,53 @@
                             </Grid>
                         </Expander>
 
+                        <Expander Header="WIRE ANNOTATION (BS 7671)" Style="{StaticResource ElecExpander}" IsExpanded="True">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Label conduit runs (and Revit wires) with cable spec — ticks + text. Work left→right; each step operates on a picked element or the whole active view."
+                                           FontSize="9" Opacity="0.75" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <TextBlock Text="1 · STAMP circuit data onto conduit" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Stamp"       Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireParamStamp"          Click="Cmd_Click" ToolTip="Copy circuit data (phase, cores, panel, demand) from the connected circuit onto a picked conduit"/>
+                                    <Button Content="Stamp all"   Style="{StaticResource ElecActionBtn}" Tag="Electrical_BatchWireParamPopulate"  Click="Cmd_Click" ToolTip="Batch-stamp every conduit in the active view (or current selection)"/>
+                                    <Button Content="Reconcile"   Style="{StaticResource ElecActionBtn}" Tag="Electrical_PanelWireReconcile"      Click="Cmd_Click" ToolTip="Reconcile conduit wire params against the panel schedule"/>
+                                </WrapPanel>
+
+                                <TextBlock Text="2 · SIZE &amp; check (BS 7671)" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Cable size"    Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireCableSizerSync"    Click="Cmd_Click" ToolTip="Size the cable (CSA + ampacity + protective device) per BS 7671 derating; writes back to the conduit"/>
+                                    <Button Content="Voltage drop"  Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireVDSync"            Click="Cmd_Click" ToolTip="Calculate voltage-drop % from the run length and write it back"/>
+                                    <Button Content="CPC size"      Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireCpcSizer"          Click="Cmd_Click" ToolTip="Size the protective (earth) conductor per BS 7671 Table 54.7"/>
+                                    <Button Content="Route validate" Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireRoutingValidation" Click="Cmd_Click" ToolTip="Validate fire-rated / armoured routing rules (BS 9999 / BS 7671)"/>
+                                </WrapPanel>
+
+                                <TextBlock Text="3 · ANNOTATE" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Conduit"      Style="{StaticResource ElecPrimaryBtn}" Tag="Electrical_WireAnnotate"            Click="Cmd_Click" ToolTip="Place the tick marks + label on a picked conduit"/>
+                                    <Button Content="Conduit all"  Style="{StaticResource ElecActionBtn}"  Tag="Electrical_WireAnnotateBatch"       Click="Cmd_Click" ToolTip="Annotate every conduit in the active view (with collision avoidance)"/>
+                                    <Button Content="Wire elem"    Style="{StaticResource ElecActionBtn}"  Tag="Electrical_WireElementAnnotate"     Click="Cmd_Click" ToolTip="Place the annotation on a picked Revit WIRE element (circuit-sourced, compute-on-place) — for drawings without modelled conduit"/>
+                                    <Button Content="Wire elem all" Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireElementAnnotateBatch" Click="Cmd_Click" ToolTip="Annotate every Revit Wire element in the active view"/>
+                                </WrapPanel>
+
+                                <TextBlock Text="4 · HOME RUN" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Content="Home run"     Style="{StaticResource ElecActionBtn}" Tag="Electrical_HomeRunArrow"      Click="Cmd_Click" ToolTip="Place a home-run arrow on a picked conduit, pointing toward the panel"/>
+                                    <Button Content="Home all"     Style="{StaticResource ElecActionBtn}" Tag="Electrical_HomeRunArrowBatch" Click="Cmd_Click" ToolTip="Place home-run arrows on all annotated conduits in the active view"/>
+                                    <Button Content="Home (full)"  Style="{StaticResource ElecActionBtn}" Tag="Electrical_HomeRunFull"       Click="Cmd_Click" ToolTip="Full-run home-run: traverse the connected conduit run to the panel-side end"/>
+                                </WrapPanel>
+
+                                <TextBlock Text="5 · MANAGE &amp; OUTPUT" Style="{StaticResource ElecLabel}"/>
+                                <WrapPanel>
+                                    <Button Content="Refresh"      Style="{StaticResource ElecActionBtn}" Tag="Electrical_RefreshWireAnnotations"     Click="Cmd_Click" ToolTip="Detect and refresh stale wire annotations after parameter changes"/>
+                                    <Button Content="Clear"        Style="{StaticResource ElecActionBtn}" Tag="Electrical_ClearWireAnnotations"       Click="Cmd_Click" ToolTip="Remove all STING wire annotations (conduit + wire) from the active view; element data is retained"/>
+                                    <Button Content="Style"        Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireAnnotationStyle"        Click="Cmd_Click" ToolTip="View the current annotation style (slash geometry, colours, label content)"/>
+                                    <Button Content="Refresh style" Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireAnnotationRefreshStyle" Click="Cmd_Click" ToolTip="Re-apply colour + line weight to existing slash marks without replacing labels"/>
+                                    <Button Content="Cable schedule" Style="{StaticResource ElecActionBtn}" Tag="Electrical_CableScheduleBuild"        Click="Cmd_Click" ToolTip="Generate the cable schedule (Revit schedule view + CSV)"/>
+                                    <Button Content="Coord stamp"  Style="{StaticResource ElecActionBtn}" Tag="Electrical_WireCoordStamp"             Click="Cmd_Click" ToolTip="Stamp selective-coordination result (ELC_SEL_COORD_OK) on panels"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Expander>
+
                         <Expander Header="WIRE SIZE REFERENCE TABLE" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
                                 <Grid>
