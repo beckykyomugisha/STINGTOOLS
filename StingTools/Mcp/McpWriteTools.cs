@@ -95,6 +95,22 @@ namespace StingTools.Mcp
             return McpEngineRegistry.DispatchWrite("ElecCableSize", callArgs).ToCallResult();
         }
 
+        // ── size_ducts ─────────────────────────────────────────────────────────────
+
+        public static McpCallResult SizeDucts(JObject args)
+        {
+            args = args ?? new JObject();
+            string scope = args["scope"]?.Value<string>()?.Trim().ToLowerInvariant() ?? "view";
+            if (scope != "selection" && scope != "view" && scope != "project")
+                return McpJobResult.Error("bad_args", "scope must be one of: selection, view, project.").ToCallResult();
+
+            var callArgs = (JObject)args.DeepClone();
+            callArgs["scope"] = scope;
+            // Named Tier-2 verb → straight through the shared engine registry
+            // (delegates to DuctSizingApplyEngine with dry-run/confirm/tx/sync-async).
+            return McpEngineRegistry.DispatchWrite("Mep_AutoSizeDuct", callArgs).ToCallResult();
+        }
+
         // ── export_boq ───────────────────────────────────────────────────────────
         //
         // File output (not model mutation), so it does NOT go through the engine

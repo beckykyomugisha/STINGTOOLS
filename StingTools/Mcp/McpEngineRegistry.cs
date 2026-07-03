@@ -31,6 +31,7 @@ using Newtonsoft.Json.Linq;
 using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Core;
 using StingTools.Core.Electrical;
+using StingTools.Core.Mep;
 using StingTools.Tags;
 
 namespace StingTools.Mcp
@@ -47,6 +48,7 @@ namespace StingTools.Mcp
                 ["BatchTag"]         = AutoTagHandler,          // project-scope tagging
                 ["TagScheme_Render"] = TagSchemeRenderHandler,  // render project tag schemes
                 ["ElecCableSize"]    = ElecSizeCablesApplyHandler, // BS 7671 cable sizing apply
+                ["Mep_AutoSizeDuct"] = MepSizeDuctsApplyHandler,   // CIBSE B3 duct auto-size apply
             };
 
         public static bool IsEngineBacked(string tag) => tag != null && _handlers.ContainsKey(tag);
@@ -428,6 +430,98 @@ namespace StingTools.Mcp
             ["installMethod"] = a.InstallMethod, ["material"] = a.Material, ["insulation"] = a.Insulation,
             ["standard"] = a.Standard, ["vdLimitPct"] = a.VDLimitPct, ["ambientTempC"] = a.AmbientTempC,
             ["continuousLoad"] = a.ContinuousLoad,
+        };
+
+        // ── Mep_AutoSizeDuct engine handler (delegates to DuctSizingApplyEngine) ──
+        //
+        // Same dialog→engine shape as ElecCableSize: the CIBSE B3 sizing math stays in
+        // DuctSizingApplyEngine (single source of duct-sizing truth); this handler only
+        // adapts args → scope/pressureClass and applies the Phase-3a guardrails. The
+        // engine writes native geometry (Width/Height/Diameter) + best-effort HVC_* audit
+        // stamps and reports computed-vs-written.
+
+        private static McpJobResult MepSizeDuctsApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            string pclass = args?["pressureClass"]?.Value<string>() ?? "low";
+            MepSizingScope scope = ResolveMepScope(doc, args);
+
+            // Plan pass (writes nothing) — also yields the count for the confirm gate.
+            var plan = DuctSizingApplyEngine.Apply(doc, scope, dryRun: true, pressureClassId: pclass);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]              = "dry_run",
+                    ["inspected"]           = plan.Inspected,
+                    ["computed"]            = plan.Computed,
+                    ["plannedChanges"]      = plan.Planned,
+                    ["skipped"]             = plan.Skipped.Count,
+                    ["skippedDetail"]       = plan.Skipped.Take(25).ToList(),
+                    ["sampleChanges"]       = plan.SampleChanges.Select(DuctSampleToDict).ToList(),
+                    ["pressureClass"]       = pclass,
+                    ["requiredBindingGaps"] = plan.RequiredBindingGaps,
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would size {plan.Planned} of {plan.Inspected} duct(s); " +
+                    $"{plan.Skipped.Count} skipped; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == MepSizingScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            DuctSizingApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP Mep_AutoSizeDuct", () =>
+            {
+                applied = DuctSizingApplyEngine.Apply(doc, scope, dryRun: false, pressureClassId: pclass);
+            });
+
+            StingLog.Info($"MCP Mep_AutoSizeDuct[{(isProject ? "project" : "scoped")}]: " +
+                          $"computed {applied.Computed}, written {applied.Written}, " +
+                          $"skipped {applied.Skipped.Count}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") + ".");
+
+            var rb = McpSafety.WriteResult(applied.Written, applied.Skipped.Count, applied.Errors,
+                applied.SampleChanges.Select(c => c.ElementId));
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["written"]             = applied.Written;
+            rb["perParamWritten"]     = new Dictionary<string, object>
+                { ["width"] = applied.WroteWidth, ["height"] = applied.WroteHeight, ["diameter"] = applied.WroteDiameter };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["typeScopeWrites"]     = applied.TypeScopeWrites;
+            rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(DuctSampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ Computed {applied.Computed} duct size(s) but PERSISTED 0 — every in-scope duct's geometry size " +
+                  "param was read-only (fitting-driven?)."
+                : $"Sized {applied.Written} duct(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).";
+            return McpJobResult.Success(summary, rb);
+        }
+
+        /// <summary>Resolve MCP args → duct/pipe engine scope. 'selection' expands the
+        /// caller-resolved _elementIds; 'project' → whole model; else active view.</summary>
+        private static MepSizingScope ResolveMepScope(Document doc, JObject args)
+        {
+            string scope = args?["scope"]?.Value<string>()?.ToLowerInvariant() ?? "view";
+            if (scope == "selection")
+            {
+                var ids = new List<ElementId>();
+                if (args["_elementIds"] is JArray arr)
+                    foreach (var t in arr) { long v = t?.Value<long?>() ?? -1; if (v >= 0) ids.Add(new ElementId(v)); }
+                return MepSizingScope.ForIds(ids);
+            }
+            if (scope == "project") return MepSizingScope.Project();
+            return MepSizingScope.ActiveView();
+        }
+
+        private static Dictionary<string, object> DuctSampleToDict(DuctSizingChange c) => new Dictionary<string, object>
+        {
+            ["id"] = c.ElementId, ["role"] = c.RoleId, ["roleSource"] = c.RoleSource, ["flowLs"] = c.FlowLs,
+            ["widthMm"] = c.WidthMm, ["heightMm"] = c.HeightMm, ["diameterMm"] = c.DiameterMm,
+            ["isRound"] = c.IsRound, ["sizeLabel"] = c.SizeLabel, ["prevSize"] = c.PrevSize,
         };
 
         /// <summary>Collect taggable targets for the requested scope (selection ids /

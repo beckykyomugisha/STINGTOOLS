@@ -279,256 +279,70 @@ namespace StingTools.Commands.Mep
     [Regeneration(RegenerationOption.Manual)]
     public class MepAutoSizeDuctCommand : IExternalCommand
     {
-        private const double MmToFt = 1.0 / 304.8;
-        private const double DuctMaxVelMsFallback = 6.0;
-        private const double MaxAspectFallback = 3.0;
-        private const double DefaultAspectFallback = 1.5;
-
+        // Phase (dialog→engine) — this command is now a THIN UI wrapper over
+        // DuctSizingApplyEngine (the single source of duct-sizing truth, dialog-free).
+        // Button behaviour is unchanged: resolve scope + pressure class from the HVAC
+        // panel header, call Apply(dryRun:false), then render the SAME StingResultPanel
+        // and push the SAME HVAC-panel workflow row — all built FROM the engine result.
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Phase 181/182 — read targets from STING_MEP_SIZING_RULES.json
-            // and resolve role per-element via HvacSegmentRoleDetector.
-            // The role registry carries main / branch / runout / OA / exhaust /
-            // kitchen / smoke; we detect each duct's role on first encounter,
-            // cache it back on HVC_SEGMENT_ROLE_TXT, and pick targets per duct.
-            double[] sizeTable    = MepSizeTables.DuctStandardMm;
-            double defaultAspect  = DefaultAspectFallback;
-            MepSizingRules rules  = null;
+            // Header scope radio (Phase 182 gap D3) → engine scope PARAMETER. Selection is
+            // resolved to element ids here (the command owns the UIDocument); the engine
+            // stays Document-only. Unknown/empty → Project (historic behaviour).
+            string scopeName = "Project";
+            try { scopeName = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
+
+            StingTools.Core.Mep.MepSizingScope scope;
+            if (scopeName == "Selection")
+            {
+                var ids = ctx.UIDoc?.Selection?.GetElementIds() ?? new List<ElementId>();
+                scope = StingTools.Core.Mep.MepSizingScope.ForIds(ids);
+            }
+            else if (scopeName == "ActiveView") scope = StingTools.Core.Mep.MepSizingScope.ActiveView();
+            else scope = StingTools.Core.Mep.MepSizingScope.Project();
+
+            // Pressure class (Phase 183 gap A3/D10) → engine PARAMETER (never read inside
+            // the engine from the static UI field).
+            string pclass = "low";
+            try { pclass = StingTools.UI.StingHvacCommandHandler.CurrentPressureClassId ?? "low"; } catch { }
+
+            StingTools.Core.Mep.DuctSizingApplyResult applied;
             try
             {
-                rules = MepSizingRegistry.Get(doc);
-                if (rules.DuctDefaultAspect > 0) defaultAspect = rules.DuctDefaultAspect;
-                sizeTable = MepSizeTables.DuctSizesFor(doc);
+                applied = StingTools.Core.Mep.DuctSizingApplyEngine.Apply(doc, scope, dryRun: false, pressureClassId: pclass);
             }
-            catch (Exception ex) { StingLog.Warn($"DuctSize registry fallback: {ex.Message}"); }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
 
-            // Phase 182 — scope enforcement (gap D3). Header radio drives:
-            //   "Selection"   → currently-selected duct ids only
-            //   "ActiveView"  → ducts owned by ctx.UIDoc.ActiveView
-            //   "Project"     → everything (historic behaviour)
-            string scope = "Project";
-            try { scope = StingTools.UI.StingHvacCommandHandler.CurrentScope ?? "Project"; } catch { }
-
-            var res = new MepSizeResult { Discipline = "Duct" };
-            List<Element> ducts;
-            try
+            // Render the SAME result panel + HVAC-panel row, built from the engine result.
+            var res = new MepSizeResult
             {
-                if (scope == "Selection")
-                {
-                    var ids = ctx.UIDoc?.Selection?.GetElementIds();
-                    ducts = (ids == null) ? new List<Element>() : ids
-                        .Select(id => doc.GetElement(id))
-                        .Where(e => e != null && e.Category != null
-                                 && (BuiltInCategory)e.Category.Id.Value == BuiltInCategory.OST_DuctCurves)
-                        .ToList();
-                }
-                else if (scope == "ActiveView" && doc.ActiveView != null)
-                {
-                    ducts = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .OfCategory(BuiltInCategory.OST_DuctCurves)
-                        .WhereElementIsNotElementType().ToList();
-                }
-                else
-                {
-                    ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
-                        .WhereElementIsNotElementType().ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"DuctSize scope filter ({scope}) fallback to Project: {ex.Message}");
-                ducts = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_DuctCurves)
-                    .WhereElementIsNotElementType().ToList();
-            }
-            res.Inspected = ducts.Count;
+                Discipline = "Duct",
+                Inspected = applied.Inspected,
+                Resized = applied.Written,
+                Skipped = applied.Skipped.Count,
+            };
+            foreach (var e in applied.Errors) res.Warnings.Add(e);
+            foreach (var g in applied.RequiredBindingGaps) res.Warnings.Add(g);
+            if (applied.NoWritesPersisted)
+                res.Warnings.Add("Computed sizes but persisted 0 — every in-scope duct's size param was read-only (fitting-driven?).");
 
-            // For the result panel — most-recent role lookup keeps the
-            // subtitle informative without enumerating every role.
-            string lastRoleId = "branch";
-            string lastRoleSrc = "registry";
-            double lastMaxVel = DuctMaxVelMsFallback;
-            double lastMaxAsp = MaxAspectFallback;
-
-            using (var tx = new Transaction(doc, "STING Auto-size ducts"))
-            {
-                try { tx.Start(); } catch (Exception ex) { res.Warnings.Add($"tx: {ex.Message}"); goto Done; }
-                // Pre-walk every duct's role in one pass (Phase 182 gap D5 batch
-                // path). On a 500-duct view fed by ~10 AHUs this collapses
-                // 500 connector-graph traversals down to ~10 walks.
-                Dictionary<ElementId, string> roleMap = null;
-                try { roleMap = StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRolesBatch(doc, ducts); }
-                catch (Exception ex) { StingLog.Warn($"DetectRolesBatch: {ex.Message}"); }
-
-                try
-                {
-                    foreach (var d in ducts)
-                    {
-                        try
-                        {
-                            // Per-element role lookup (Phase 182, gap D5).
-                            string roleId = roleMap != null && roleMap.TryGetValue(d.Id, out var rid)
-                                ? rid
-                                : StingTools.Core.Mep.HvacSegmentRoleDetector.DetectRole(doc, d);
-                            double maxVelMs  = DuctMaxVelMsFallback;
-                            double maxAspect = MaxAspectFallback;
-                            string roleSrc   = "fallback";
-                            if (rules != null)
-                            {
-                                var role = rules.GetDuctRole(roleId);
-                                if (role != null && role.MaxVelocityMs > 0)
-                                {
-                                    maxVelMs  = role.MaxVelocityMs;
-                                    maxAspect = role.AspectMax > 0 ? role.AspectMax : MaxAspectFallback;
-                                    roleSrc   = string.IsNullOrEmpty(role.Source) ? "registry" : role.Source;
-                                }
-                            }
-                            lastRoleId = roleId; lastRoleSrc = roleSrc;
-                            lastMaxVel = maxVelMs; lastMaxAsp = maxAspect;
-
-                            // HVC_FLOW_LS preferred v4 param; both readers below
-                            // honour the parameter's actual spec (AirFlow vs
-                            // Number) via MepUnits.ReadAirFlowLs.
-                            double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
-                            if (flowLs <= 0)
-                                flowLs = MepUnits.ReadBuiltInFlowLs(d, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                            if (flowLs <= 0) { res.Skipped++; continue; }
-                            double flowM3s = flowLs * 1e-3;
-
-                            // Area = q / v
-                            double area = flowM3s / maxVelMs;
-
-                            // Round-duct equivalent:
-                            double diaMm = Math.Sqrt(4.0 * area / Math.PI) * 1000.0;
-                            // Rectangular with configured aspect default
-                            double widthMm = Math.Sqrt(area * defaultAspect) * 1000.0;
-                            double heightMm = widthMm / defaultAspect;
-                            // Clamp aspect
-                            if (widthMm / heightMm > maxAspect)
-                            {
-                                heightMm = widthMm / maxAspect;
-                            }
-                            widthMm  = MepSizeTables.RoundUpTo(widthMm,  sizeTable);
-                            heightMm = MepSizeTables.RoundUpTo(heightMm, sizeTable);
-
-                            // Audit trail (Phase 182, gap D4) — capture previous
-                            // dims before write so the panel + drift detector
-                            // can show what changed.
-                            string prevSize = SnapshotDuctSize(d);
-
-                            bool wrote = false;
-                            if (WriteSize(d, "Width",  widthMm))  wrote = true;
-                            if (WriteSize(d, "Height", heightMm)) wrote = true;
-                            if (!wrote && WriteSize(d, "Diameter",
-                                MepSizeTables.RoundUpTo(diaMm, sizeTable))) wrote = true;
-                            if (wrote)
-                            {
-                                res.Resized++;
-                                StampSizingAudit(d, prevSize, $"{widthMm:F0}x{heightMm:F0}", roleId, roleSrc);
-
-                                // Phase 183 (gap A3/D10) — stamp the active
-                                // pressure class so the audit command can
-                                // re-verify each duct against its design class.
-                                try
-                                {
-                                    string pclass = StingTools.UI.StingHvacCommandHandler.CurrentPressureClassId
-                                                    ?? "low";
-                                    ParameterHelpers.SetString(d, ParamRegistry.HVC_PRESSURE_CLASS_TXT,
-                                        pclass, overwrite: true);
-                                }
-                                catch (Exception exPc) { StingLog.Warn($"PressureClass stamp {d.Id}: {exPc.Message}"); }
-                            }
-                            else res.Skipped++;
-                        }
-                        catch (Exception ex2)
-                        {
-                            res.Skipped++;
-                            res.Warnings.Add($"size {d.Id}: {ex2.Message}");
-                        }
-                    }
-                    tx.Commit();
-                }
-                catch (Exception ex)
-                {
-                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    res.Warnings.Add($"Duct sizing fatal: {ex.Message}");
-                }
-            }
-        Done:
-            ShowResult(res, $"Duct · scope={scope} · last role={lastRoleId} (≤ {lastMaxVel:F1} m/s, aspect ≤ {lastMaxAsp:F1}:1) · {sizeTable.Length} sizes · {lastRoleSrc}");
-            // Phase 182 — push a workflow row to the HVAC panel (gap D9).
+            var sample = applied.SampleChanges.FirstOrDefault();
+            string roleBit = sample != null ? $"last role={sample.RoleId} ({sample.RoleSource})" : "no in-scope ducts sized";
+            ShowResult(res, $"Duct · scope={scopeName} · pclass={pclass} · {roleBit}");
             try
             {
                 StingTools.UI.StingHvacPanel.Instance?.PushRunRow(
-                    $"Auto-size Duct ({scope})",
+                    $"Auto-size Duct ({scopeName})",
                     res.Resized > 0 ? "⬤" : (res.Skipped > 0 ? "⬡" : "✗"));
             }
             catch (Exception ex) { StingLog.Warn($"HvacPanel push: {ex.Message}"); }
             return Result.Succeeded;
         }
 
-        // ── Phase 182 audit-trail helpers (gap D4) ──────────────────────
-        // Best-effort: shared parameter bindings may not exist on every
-        // project. SetString is no-op if read-only / unbound, so callers
-        // never fail because of missing params.
-
-        private static string SnapshotDuctSize(Element d)
-        {
-            try
-            {
-                double w   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Width"),    UnitTypeId.Millimeters);
-                double h   = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Height"),   UnitTypeId.Millimeters);
-                double dia = UnitUtils.ConvertFromInternalUnits(ReadDouble(d, "Diameter"), UnitTypeId.Millimeters);
-                if (w > 0 && h > 0) return $"{w:F0}x{h:F0}";
-                if (dia > 0)        return $"Ø{dia:F0}";
-            }
-            catch (Exception ex) { StingLog.Warn($"SnapshotDuctSize {d.Id}: {ex.Message}"); }
-            return "";
-        }
-
-        private static void StampSizingAudit(Element el, string previous, string current, string roleId, string ruleSrc)
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(previous))
-                    ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_PREV_TXT, previous, overwrite: true);
-                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_MODIFIED_DT,
-                    DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
-                ParameterHelpers.SetString(el, ParamRegistry.HVC_SIZE_RULE_ID_TXT,
-                    string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}", overwrite: true);
-            }
-            catch (Exception ex) { StingLog.Warn($"StampSizingAudit {el.Id}: {ex.Message}"); }
-        }
-
-        private static double ReadDouble(Element el, string param)
-        {
-            try { var p = el?.LookupParameter(param);
-                  if (p == null) return 0;
-                  if (p.StorageType == StorageType.Double) return p.AsDouble();
-                  if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                  if (p.StorageType == StorageType.String &&
-                      double.TryParse(p.AsString(),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out double v)) return v; }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0;
-        }
-        private static bool WriteSize(Element el, string param, double mm)
-        {
-            try
-            {
-                var p = el.LookupParameter(param);
-                if (p == null || p.IsReadOnly) return false;
-                if (p.StorageType != StorageType.Double) return false;
-                p.Set(mm * MmToFt);
-                return true;
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
-        }
         private static void ShowResult(MepSizeResult r, string subtitle)
         {
             var panel = StingResultPanel.Create($"MEP Auto-size — {r.Discipline}");

@@ -470,6 +470,32 @@ namespace StingTools.Mcp
             },
             new McpTool
             {
+                Name = "size_ducts",
+                Description =
+                    "WRITE. Auto-size the model's ducts to CIBSE Guide B3 (DuctSizingApplyEngine). Flow is READ from " +
+                    "each duct (HVC_FLOW_LS or the built-in duct flow); the per-element segment role (main/branch/" +
+                    "runout…) drives the target velocity + aspect ratio from STING_MEP_SIZING_RULES.json; the result " +
+                    "is WRITTEN to the duct's NATIVE geometry instance params (Width+Height rectangular, else Diameter) " +
+                    "— always instance-scoped, no shared-param binding needed. Best-effort HVC_* audit stamps (prev " +
+                    "size / modified date / rule id / pressure class) are written when bound. Ducts with no flow, or " +
+                    "whose size is fitting-driven (read-only geometry), are skipped (reported). pressureClass (default " +
+                    "'low') is stamped for audit. scope: 'selection'/'view' run synchronously; 'project' runs " +
+                    "asynchronously (returns {jobId} — poll get_job_status). Read-back reports computed vs written + " +
+                    "perParamWritten{width,height,diameter} + noWritesPersisted (computed>0 but persisted 0). " +
+                    "dryRun:true returns a per-duct plan and mutates nothing. confirm:true is REQUIRED for scope=" +
+                    "project or >25 ducts. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":         { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""pressureClass"": { ""type"": ""string"",  ""description"": ""DW/144 class stamped for audit: low | med | high | extra (default low)"" },
+                        ""dryRun"":        { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"":       { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 ducts"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
                 Name = "size_cables",
                 Description =
                     "WRITE. Size cables for the model's electrical power circuits (CableSizerApplyEngine). Inputs " +
