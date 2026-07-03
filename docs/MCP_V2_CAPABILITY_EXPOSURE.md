@@ -188,17 +188,29 @@ no-op that builds green and reports fake success:
 - **(a) Exists by EXACT name** in `ParamRegistry` / `Data/MR_PARAMETERS.txt` (grep it — a
   wrong suffix is a dead literal: `ELC_WIRE_CSA_MM2` does not exist, `ELC_WIRE_CSA_MM2_NUM`
   does; `ELC_VOLT_DROP_PCT` does not exist, `ELC_VLT_DROP_PCT` does).
-- **(b) Is bound to the EXACT category of the element being written** (`Data/CATEGORY_BINDINGS.csv`)
-  at the right Instance/Type level. A param bound to Conduits/Equipment is dead on Electrical
-  Circuits. If the natural target element isn't bound, either write to the element that IS
-  bound (e.g. the circuit's connected equipment) or record a **required-binding gap** — never
-  silently no-op.
+- **(b) Is bound to the EXACT category of the element being written, in the AUTHORITATIVE
+  source.** `Data/CATEGORY_BINDINGS.csv` is **decorative** — it is only read by
+  `SharedParamGuids.ValidateBindingsFromCsv` (audit/log). The runtime "Load Shared
+  Parameters" bind is driven by `Data/MR_PARAMETERS.txt` (defines the param + its GROUP) →
+  `LoadSharedParamsCommand.BuildGroupCategoryOverrides` / `MepCategories` + the universal set
+  from `PARAMETER_REGISTRY.json`. Editing a decorative CSV leaves the write dead (the trap we
+  hit twice). Add the binding to the category set for the param's GROUP in the loader.
+- **(b2) Is Instance-bound when writing per-element data.** All STING bindings use
+  `NewInstanceBinding`, but confirm the **scope**: a **Type-bound** param receiving a
+  per-element/per-circuit value cross-contaminates every instance of that type
+  (last-writer-wins). For objects with no type (e.g. `ElectricalSystem` circuits) Instance is
+  the ONLY valid scope. The engine **must** detect scope (`IsInstanceBound(doc, param,
+  category)` over `doc.ParameterBindings`) and, on a per-element value hitting a Type-bound
+  param, record it in `typeScopeWrites` + `StingLog.Warn` — such a write must NOT count as a
+  clean persist.
 - **(c) Is resolved in code via `ParamRegistry`** (add an accessor if missing) — **never a
   hand-typed shared-param literal** in engine code.
 - The engine **must report computed-vs-written** and **`StingLog.Warn` loudly + set
-  `noWritesPersisted`** when `computed > 0 && written == 0`; the MCP read-back must surface it.
-- **A verb is not "done" until one real write is proven** on a representative element
-  (dryRun-plan matching, then a live write landing on the model).
+  `noWritesPersisted`** when `computed > 0 && written == 0`; the MCP read-back must surface it
+  (plus `typeScopeWrites` / `requiredBindingGaps`).
+- **A verb is not "done" until one real INSTANCE-level write is proven** on a representative
+  element (dryRun-plan matching, then a live write landing on the model — after
+  `LoadSharedParams` binds the target param).
 
 **Step 3 — Refactor the existing UI writer to DELEGATE (single source of truth).**
 If a command already writes those params, change it to call `Apply(...)` and render its
@@ -217,20 +229,23 @@ for the confirm count, applies the Phase-3a guardrails (confirm on bulk/project,
 derives from the registry, `invoke_capability` picks it up automatically — one handler,
 both surfaces.
 
-**Corrected cable-sizing mapping (the worked example).** Read source = `ElectricalSystem`
-power circuits (apparent load / voltage / poles / length). Write target = each circuit's
-**connected equipment/fixtures** (`ElectricalSystem.Elements`) — because the result params
-are bound there, not to Electrical Circuits:
-- `ParamRegistry.ELC_CKT_CSA_MM2` → `ELC_CBL_SZ_MM` (Text, cable size) — bound to Electrical
-  Equipment (`CATEGORY_BINDINGS.csv:8222`) / Fixtures (`8121`), Type-level.
-- `ParamRegistry.ELC_CKT_VD_PCT` → `ELC_VLT_DROP_PCT` (Text, voltage-drop %) — bound to the
-  same categories.
-- **Required-binding gaps:** the numeric `ELC_WIRE_CSA_MM2_NUM` / `ELC_WIRE_VD_PCT_NUM`
-  (`MR_PARAMETERS.txt:2994/2996`) are bound to no writable target → reported, not written.
-Type-bound params are written on the element's **type** when the instance doesn't expose
-them. The original engine hand-typed `ELC_WIRE_CSA_MM2` / `ELC_CBL_SZ_MM` (on the circuit) /
-`ELC_VOLT_DROP_PCT` — all three dead → every write silently no-oped with a green build. Step
-2a exists to make that impossible.
+**Corrected cable-sizing mapping (the worked example — Option C, per-circuit Instance).**
+Read source = `ElectricalSystem` power circuits (apparent load / voltage / poles / length).
+Write target = the **circuit instance itself** — the correct per-circuit home — as NUMBER
+params (schedulable / filterable), resolved via `ParamRegistry`:
+- `ParamRegistry.ELC_WIRE_CSA_MM2_NUM` (Number, mm²) ← `RecommendedCsaMm2`
+- `ParamRegistry.ELC_WIRE_VD_PCT_NUM` (Number, %) ← `ActualVoltDropPct`
+Both live in `MR_PARAMETERS.txt` group **ELC_PWR** (group 4). The authoritative binding fix
+adds `BuiltInCategory.OST_ElectricalCircuit` to `LoadSharedParamsCommand.MepCategories` (the
+ELC_PWR group override), so they bind **Instance-level** to Electrical Circuits when the user
+runs Load Shared Parameters. Circuits have no type → Instance is the only valid scope.
+
+Two earlier wrong turns this pattern now prevents: (1) hand-typed dead literals
+(`ELC_WIRE_CSA_MM2` / `ELC_VOLT_DROP_PCT` — neither exists) writing to the circuit → all
+no-oped, green build; (2) writing the real text params (`ELC_CBL_SZ_MM` / `ELC_VLT_DROP_PCT`)
+to the circuit's **connected equipment/fixtures**, where they are **Type-bound** → per-circuit
+values contaminated shared types. Both are caught by Step 2a's binding-source + Instance-scope
+checks and the engine's `typeScopeWrites` / `noWritesPersisted` guards.
 
 **Backlog remaining (same recipe):** `size_ducts` / `size_pipes` (extract `Apply` from the
 inline `MepAutoSize*Command.Execute` + drop the `StingHvacCommandHandler.CurrentScope`

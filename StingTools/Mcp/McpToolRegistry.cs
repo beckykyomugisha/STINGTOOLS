@@ -474,16 +474,16 @@ namespace StingTools.Mcp
                 Description =
                     "WRITE. Size cables for the model's electrical power circuits (CableSizerApplyEngine). Inputs " +
                     "are READ from each circuit (apparent load, voltage, poles, length); results are WRITTEN to the " +
-                    "circuit's connected equipment/fixtures as ELC_CBL_SZ_MM (cable size text) and ELC_VLT_DROP_PCT " +
-                    "(voltage-drop % text) — the params actually bound to those categories. Numeric CSA/VD params " +
-                    "(ELC_WIRE_CSA_MM2_NUM / ELC_WIRE_VD_PCT_NUM) are bound to no writable target and are reported " +
-                    "as requiredBindingGaps, not written. install method / material / insulation / standard / VD " +
-                    "limit are design ASSUMPTIONS you may pass (BS7671 / C / Cu / XLPE90 defaults). Circuits missing " +
-                    "load or length are skipped (reported). scope: 'selection' (selected circuits or equipment→their " +
-                    "circuits) or 'view' run synchronously; 'project' runs asynchronously (returns {jobId} — poll " +
-                    "get_job_status). Read-back reports computed vs written + perParamWritten; if computed>0 but " +
-                    "written==0 it flags noWritesPersisted (never a silent success). dryRun:true returns a per-circuit " +
-                    "plan and mutates nothing. confirm:true is REQUIRED for scope=project or >25 circuits. " +
+                    "circuit (ElectricalSystem) INSTANCE itself as NUMBER params ELC_WIRE_CSA_MM2_NUM (conductor CSA " +
+                    "mm²) and ELC_WIRE_VD_PCT_NUM (voltage drop %) — schedulable/filterable. These bind Instance-level " +
+                    "to Electrical Circuits only after STING → Load Shared Parameters is run; until then the read-back " +
+                    "reports noWritesPersisted + requiredBindingGaps (never a silent success). install method / material " +
+                    "/ insulation / standard / VD limit are design ASSUMPTIONS you may pass (BS7671 / C / Cu / XLPE90 " +
+                    "defaults). Circuits missing load or length are skipped (reported). scope: 'selection' (selected " +
+                    "circuits or equipment→their circuits) or 'view' run synchronously; 'project' runs asynchronously " +
+                    "(returns {jobId} — poll get_job_status). Read-back reports computed vs written + perParamWritten " +
+                    "+ typeScopeWrites (per-circuit values blocked from Type-scoped params). dryRun:true returns a " +
+                    "per-circuit plan and mutates nothing. confirm:true is REQUIRED for scope=project or >25 circuits. " +
                     "Example: {scope:'view', standard:'BS7671', dryRun:true}.",
                 InputSchema = JObject.Parse(@"{
                     ""type"": ""object"",

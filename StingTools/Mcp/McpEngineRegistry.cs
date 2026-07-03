@@ -373,15 +373,17 @@ namespace StingTools.Mcp
             rb["inspected"]           = applied.Inspected;
             rb["computed"]            = applied.Computed;
             rb["written"]             = applied.Written;
-            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaTxt"] = applied.WroteCsaTxt, ["vdPct"] = applied.WroteVdPct };
+            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaNum"] = applied.WroteCsaNum, ["vdNum"] = applied.WroteVdNum };
             rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["typeScopeWrites"]     = applied.TypeScopeWrites;
             rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
             rb["sampleChanges"]       = applied.SampleChanges.Select(SampleToDict).ToList();
 
             string summary = applied.NoWritesPersisted
-                ? $"⚠ Computed {applied.Computed} cable size(s) but PERSISTED 0 — result params unbound on connected " +
-                  $"elements. {applied.Skipped.Count} skipped. See requiredBindingGaps."
-                : $"Sized {applied.Written} circuit(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).";
+                ? $"⚠ Computed {applied.Computed} cable size(s) but PERSISTED 0 — numeric params not yet bound to " +
+                  $"Electrical Circuits (run Load Shared Parameters). {applied.Skipped.Count} skipped. See requiredBindingGaps."
+                : $"Sized {applied.Written} circuit(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s)" +
+                  (applied.TypeScopeWrites.Count > 0 ? $"; {applied.TypeScopeWrites.Count} type-scope write(s) blocked" : "") + ".";
             return McpJobResult.Success(summary, rb);
         }
 

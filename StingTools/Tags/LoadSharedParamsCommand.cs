@@ -615,6 +615,12 @@ namespace StingTools.Tags
             BuiltInCategory.OST_NurseCallDevices,
             BuiltInCategory.OST_SecurityDevices,
             BuiltInCategory.OST_TelephoneDevices,
+            // Electrical Circuits (ElectricalSystem) — the per-circuit home for cable-sizing
+            // results (ELC_WIRE_CSA_MM2_NUM / ELC_WIRE_VD_PCT_NUM, both in the ELC_PWR group).
+            // Bound Instance-level here (all bindings use NewInstanceBinding); circuits have no
+            // type, so Instance is the only valid scope. TryInsert's AllowsBoundParameters guard
+            // safely skips it if a Revit version disallows binding to this category.
+            BuiltInCategory.OST_ElectricalCircuit,
         };
 
         // Clash rec-3: Categories watched by LiveClashUpdater. CLASH_COORDINATION

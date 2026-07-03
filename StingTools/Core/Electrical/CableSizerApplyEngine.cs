@@ -18,26 +18,26 @@
 //   InstallMethod / Material / Insulation / VDLimitPct / Standard / AmbientTempC /
 //   ContinuousLoad ← design ASSUMPTIONS (not carried by the model) from the caller.
 //
-// WRITE TARGET (corrected — evidence in CATEGORY_BINDINGS.csv):
-//   The result params are NOT bound to Electrical Circuits; they are bound to the
-//   circuit's connected physical elements (Electrical Equipment / Electrical Fixtures
-//   / Lighting Fixtures …) at TYPE level. So the circuit stays the READ source and the
-//   results are written to its connected elements (ElectricalSystem.Elements), each
-//   param resolved through ParamRegistry (never a hand-typed literal):
-//     ParamRegistry.ELC_CKT_CSA_MM2 → "ELC_CBL_SZ_MM"    (Text) ← CsaLabel
-//     ParamRegistry.ELC_CKT_VD_PCT  → "ELC_VLT_DROP_PCT" (Text) ← ActualVoltDropPct
-//   Bound to Electrical Equipment (CATEGORY_BINDINGS.csv:8222) + Electrical Fixtures
-//   (8121) + Lighting/Comms/etc., all Type-level (True). A Type-bound param is written
-//   on the element's type when the instance does not expose it.
+// WRITE TARGET (Option C — per-circuit, Instance-bound):
+//   Results are written to the ElectricalSystem (circuit) INSTANCE itself — the correct
+//   per-circuit home — as proper NUMBER params (schedulable / filterable), resolved
+//   through ParamRegistry (never a hand-typed literal):
+//     ParamRegistry.ELC_WIRE_CSA_MM2_NUM (Number, mm²) ← RecommendedCsaMm2
+//     ParamRegistry.ELC_WIRE_VD_PCT_NUM  (Number, %)   ← ActualVoltDropPct
+//   These are bound Instance-level to Electrical Circuits by LoadSharedParamsCommand:
+//   both live in MR_PARAMETERS.txt group ELC_PWR (group 4), whose category override
+//   (MepCategories) now includes OST_ElectricalCircuit. All STING bindings use
+//   NewInstanceBinding; circuits have no type, so Instance is the only valid scope.
+//   The prior Type-bound text write to connected equipment/fixtures (ELC_CBL_SZ_MM /
+//   ELC_VLT_DROP_PCT) was REMOVED — it contaminated shared types (last-writer-wins).
+//   NOTE: bindings take effect only after the user runs Load Shared Parameters in a
+//   project; until then the anti-hollow guard reports noWritesPersisted.
 //
-// REQUIRED-BINDING GAPS (params exist but are bound to NO writable target — reported,
-// never silently no-oped): the numeric ELC_WIRE_CSA_MM2_NUM (MR_PARAMETERS.txt:2994)
-// and ELC_WIRE_VD_PCT_NUM (2996) have no CATEGORY_BINDINGS rows, so numeric CSA/VD
-// cannot be persisted until they are bound to Electrical Equipment/Fixtures.
-//
-// ANTI-HOLLOW: the result reports Computed (Calculate succeeded) AND Written (a param
-// was actually Set on a real element), plus PerParamWritten; a real run with
-// Computed>0 && Written==0 logs a loud warning and sets NoWritesPersisted.
+// ANTI-HOLLOW + SCOPE GUARD: the result reports Computed (Calculate succeeded) AND
+// Written (a Number param was actually Set on the circuit instance) + per-param counts;
+// Computed>0 && Written==0 → loud warning + NoWritesPersisted. IsInstanceBound detects a
+// TYPE-scoped binding; a per-circuit value hitting a Type-bound param is recorded in
+// TypeScopeWrites and does NOT count as a clean persist.
 //
 // Transaction: the engine opens its OWN Transaction for a real run (standalone-safe).
 // It never opens a TransactionGroup, so it nests cleanly when a caller (MCP) wraps it
@@ -88,11 +88,14 @@ namespace StingTools.Core.Electrical
         public int Written { get; set; }
         /// <summary>Dry-run: how many circuits WOULD be sized.</summary>
         public int Planned { get; set; }
-        /// <summary>Per-param successful-write counts.</summary>
-        public int WroteCsaTxt { get; set; }
-        public int WroteVdPct { get; set; }
+        /// <summary>Per-param successful-write counts (numeric, on the circuit instance).</summary>
+        public int WroteCsaNum { get; set; }
+        public int WroteVdNum { get; set; }
         /// <summary>True on a real run when Computed &gt; 0 but Written == 0 (silent-no-op guard).</summary>
         public bool NoWritesPersisted { get; set; }
+        /// <summary>Per-element/per-circuit values written to a TYPE-scoped param (shared across
+        /// all instances of that type — contamination). Such writes do NOT count as a clean persist.</summary>
+        public List<string> TypeScopeWrites { get; } = new List<string>();
         /// <summary>Params that exist but are bound to no writable target — surfaced, never dropped.</summary>
         public List<string> RequiredBindingGaps { get; } = new List<string>();
         public List<string> Skipped { get; } = new List<string>();
@@ -102,14 +105,12 @@ namespace StingTools.Core.Electrical
 
     public static class CableSizerApplyEngine
     {
-        // Result params resolved THROUGH ParamRegistry (never hand-typed). Both are TEXT,
-        // bound to the circuit's connected Electrical Equipment / Fixtures (Type-level).
-        private static string P_CSA_TXT => ParamRegistry.ELC_CKT_CSA_MM2;   // → ELC_CBL_SZ_MM  (Text)
-        private static string P_VD_TXT  => ParamRegistry.ELC_CKT_VD_PCT;    // → ELC_VLT_DROP_PCT (Text)
-
-        // Numeric CSA/VD params exist (MR_PARAMETERS) but are bound to no writable target.
-        private const string GAP_CSA_NUM = "ELC_WIRE_CSA_MM2_NUM";
-        private const string GAP_VD_NUM  = "ELC_WIRE_VD_PCT_NUM";
+        // Result params resolved THROUGH ParamRegistry (never hand-typed). Both are NUMBER,
+        // bound Instance-level to Electrical Circuits (ELC_PWR group; LoadSharedParams).
+        // The per-circuit object is the sole write target — the prior Type-bound text write
+        // to connected equipment/fixtures contaminated shared types and has been removed.
+        private static string P_CSA_NUM => ParamRegistry.ELC_WIRE_CSA_MM2_NUM;  // Number, mm²
+        private static string P_VD_NUM  => ParamRegistry.ELC_WIRE_VD_PCT_NUM;   // Number, %
 
         /// <summary>
         /// Size cables for the in-scope power circuits. dryRun computes and returns the
@@ -153,20 +154,24 @@ namespace StingTools.Core.Electrical
 
             result.Computed = proposals.Count;
 
-            // Numeric CSA/VD params exist but are bound to no writable category — always
-            // surface as required-binding gaps (never silently dropped).
-            result.RequiredBindingGaps.Add($"{GAP_CSA_NUM} (numeric conductor CSA — bind to Electrical Equipment/Fixtures to persist)");
-            result.RequiredBindingGaps.Add($"{GAP_VD_NUM} (numeric voltage-drop % — bind to Electrical Equipment/Fixtures to persist)");
-
             if (dryRun)
             {
                 result.Planned = proposals.Count;
                 return result;
             }
 
+            // Binding-scope pre-check on the Electrical Circuits category: these numeric
+            // params must be Instance-bound (circuits have no type). null = not yet bound
+            // (LoadSharedParams not run) → surface as a required-binding gap, not silent.
+            bool? csaScope = IsInstanceBound(doc, P_CSA_NUM, BuiltInCategory.OST_ElectricalCircuit);
+            bool? vdScope  = IsInstanceBound(doc, P_VD_NUM, BuiltInCategory.OST_ElectricalCircuit);
+            if (csaScope == null)
+                result.RequiredBindingGaps.Add($"{P_CSA_NUM} not bound to Electrical Circuits — run STING → Load Shared Parameters");
+            if (vdScope == null)
+                result.RequiredBindingGaps.Add($"{P_VD_NUM} not bound to Electrical Circuits — run STING → Load Shared Parameters");
+
             // Real run — engine owns its Transaction (nests under a caller's group).
-            // Write the result to each circuit's connected elements (Equipment/Fixtures),
-            // resolving param names via ParamRegistry.
+            // Write numeric results to the CIRCUIT instance itself, resolving names via ParamRegistry.
             using (var tx = new Transaction(doc, "STING Cable Sizing"))
             {
                 tx.Start();
@@ -174,27 +179,19 @@ namespace StingTools.Core.Electrical
                 {
                     try
                     {
-                        Element circuit = doc.GetElement(id);
-                        var targets = ConnectedTargets(doc, circuit as ElectricalSystem);
-                        if (targets.Count == 0)
-                        {
-                            result.Skipped.Add($"{id.Value}: circuit has no connected equipment/fixtures to write to");
-                            continue;
-                        }
+                        if (!(doc.GetElement(id) is ElectricalSystem circuit))
+                        { result.Skipped.Add($"{id.Value}: circuit vanished"); continue; }
 
-                        bool csaAny = false, vdAny = false;
-                        foreach (Element t in targets)
-                        {
-                            if (SetOnElementOrType(doc, t, P_CSA_TXT, r.CsaLabel ?? "")) csaAny = true;
-                            if (SetOnElementOrType(doc, t, P_VD_TXT,
-                                    r.ActualVoltDropPct.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))) vdAny = true;
-                        }
+                        bool csa = SetNumberOnInstance(circuit, P_CSA_NUM, r.RecommendedCsaMm2,
+                            csaScope, "conductor CSA", result);
+                        bool vd = SetNumberOnInstance(circuit, P_VD_NUM, r.ActualVoltDropPct,
+                            vdScope, "voltage drop %", result);
 
-                        if (csaAny) result.WroteCsaTxt++;
-                        if (vdAny)  result.WroteVdPct++;
-                        if (csaAny || vdAny) result.Written++;
-                        else result.Skipped.Add($"{id.Value}: result params not bound on connected elements " +
-                                                $"({P_CSA_TXT} / {P_VD_TXT})");
+                        if (csa) result.WroteCsaNum++;
+                        if (vd)  result.WroteVdNum++;
+                        if (csa || vd) result.Written++;
+                        else result.Skipped.Add($"{id.Value}: result params not bound on the circuit " +
+                                                $"({P_CSA_NUM} / {P_VD_NUM}) — run Load Shared Parameters");
                     }
                     catch (Exception ex) { result.Errors.Add($"{id.Value}: {ex.Message}"); }
                 }
@@ -206,13 +203,16 @@ namespace StingTools.Core.Electrical
             {
                 result.NoWritesPersisted = true;
                 StingLog.Warn($"CableSizerApplyEngine: cable sizing computed {result.Computed} but persisted 0 — " +
-                              $"result params unresolved/unbound on connected elements: {P_CSA_TXT} / {P_VD_TXT}. " +
-                              "Bind these to Electrical Equipment/Fixtures (or the circuit's connected category).");
+                              $"result params unresolved/unbound on Electrical Circuits: {P_CSA_NUM} / {P_VD_NUM}. " +
+                              "Run STING → Load Shared Parameters (binds them Instance-level to Electrical Circuits).");
             }
+            if (result.TypeScopeWrites.Count > 0)
+                StingLog.Warn($"CableSizerApplyEngine: {result.TypeScopeWrites.Count} per-circuit value(s) written to a " +
+                              "TYPE-scoped param (shared across instances) — see typeScopeWrites; these are NOT clean per-circuit persists.");
 
             StingLog.Info($"CableSizerApplyEngine: inspected {result.Inspected}, computed {result.Computed}, " +
-                          $"written {result.Written} (csa {result.WroteCsaTxt} / vd {result.WroteVdPct}), " +
-                          $"skipped {result.Skipped.Count}, errors {result.Errors.Count}" +
+                          $"written {result.Written} (csa {result.WroteCsaNum} / vd {result.WroteVdNum}), " +
+                          $"typeScope {result.TypeScopeWrites.Count}, skipped {result.Skipped.Count}, errors {result.Errors.Count}" +
                           (result.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") +
                           $" (std={assumptions.Standard}, method={assumptions.InstallMethod}, {assumptions.Material}/{assumptions.Insulation}).");
             return result;
@@ -255,43 +255,66 @@ namespace StingTools.Core.Electrical
             };
         }
 
-        // ── result → parameters (connected elements; instance or type) ───────────
+        // ── result → parameter (numeric, on the CIRCUIT instance) ────────────────
 
-        /// <summary>The circuit's connected elements (Equipment/Fixtures/…) — the bound
-        /// write targets. The circuit itself is the read source only.</summary>
-        private static List<Element> ConnectedTargets(Document doc, ElectricalSystem sys)
+        /// <summary>Set a NUMBER shared param on the circuit instance. Guards on
+        /// LookupParameter != null &amp;&amp; !IsReadOnly &amp;&amp; StorageType==Double. When the resolved
+        /// binding is TYPE-scoped (per-circuit value on a shared type), records it in
+        /// TypeScopeWrites and does NOT count it as a clean persist (returns false).</summary>
+        private static bool SetNumberOnInstance(Element circuit, string paramName, double value,
+            bool? instanceBound, string label, CableSizingApplyResult result)
         {
-            var list = new List<Element>();
-            if (sys == null) return list;
-            try
+            if (circuit == null || string.IsNullOrEmpty(paramName)) return false;
+
+            Parameter p = circuit.LookupParameter(paramName);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Double) return false;
+
+            // Type-scope contamination guard: a per-circuit value must not land on a
+            // Type-bound param (shared across every instance of the type).
+            if (instanceBound == false)
             {
-                if (sys.Elements != null)
-                    foreach (Element e in sys.Elements) if (e != null) list.Add(e);
+                result.TypeScopeWrites.Add($"{circuit.Id.Value}: {paramName} ({label}) is TYPE-bound — per-circuit value would be shared; not persisted");
+                return false;
             }
-            catch (Exception ex) { StingLog.Warn($"ConnectedTargets {sys?.Id}: {ex.Message}"); }
-            return list;
+
+            return p.Set(value);
         }
 
-        /// <summary>Set a TEXT shared param on the element, or on its type when the param
-        /// is Type-bound (not exposed on the instance). Returns true only if a Set landed.</summary>
-        private static bool SetOnElementOrType(Document doc, Element el, string paramName, string value)
+        /// <summary>
+        /// Inspect doc.ParameterBindings for <paramref name="paramName"/> on
+        /// <paramref name="category"/>: returns true when the binding is an
+        /// InstanceBinding, false when it is a TypeBinding, and null when the param is
+        /// not bound to that category at all (or not found).
+        /// </summary>
+        internal static bool? IsInstanceBound(Document doc, string paramName, BuiltInCategory category)
         {
-            if (el == null || string.IsNullOrEmpty(paramName)) return false;
-
-            Parameter p = el.LookupParameter(paramName);
-            if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
-                return p.Set(value ?? "");
-
-            // Type-bound param → write on the element's type.
-            ElementId typeId = el.GetTypeId();
-            if (typeId != null && typeId != ElementId.InvalidElementId)
+            try
             {
-                Element te = doc.GetElement(typeId);
-                Parameter tp = te?.LookupParameter(paramName);
-                if (tp != null && !tp.IsReadOnly && tp.StorageType == StorageType.String)
-                    return tp.Set(value ?? "");
+                Category cat = doc.Settings.Categories.get_Item(category);
+                if (cat == null) return null;
+                long catId = cat.Id.Value;
+
+                DefinitionBindingMapIterator it = doc.ParameterBindings.ForwardIterator();
+                while (it.MoveNext())
+                {
+                    Definition def = it.Key;
+                    if (def == null || !string.Equals(def.Name, paramName, StringComparison.Ordinal)) continue;
+
+                    // Match the category, then report the binding kind.
+                    if (it.Current is InstanceBinding ib)
+                    {
+                        foreach (Category c in ib.Categories) if (c.Id.Value == catId) return true;
+                        return null;   // param bound Instance, but not to this category
+                    }
+                    if (it.Current is TypeBinding tb)
+                    {
+                        foreach (Category c in tb.Categories) if (c.Id.Value == catId) return false;
+                        return null;
+                    }
+                }
             }
-            return false;
+            catch (Exception ex) { StingLog.Warn($"IsInstanceBound {paramName}/{category}: {ex.Message}"); }
+            return null;
         }
 
         // ── scope collection ─────────────────────────────────────────────────────

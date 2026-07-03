@@ -765,6 +765,10 @@ namespace StingTools.Core
         public static string ELC_FEEDER_RATING_A   => Ext("ELC_FEEDER_RATING_A");   // → ELC_FEEDER_RATING_A (new)
         public static string ELC_CKT_VD_PCT        => Ext("ELC_CKT_VD_PCT");        // → ELC_VLT_DROP_PCT (existing)
         public static string ELC_CKT_CSA_MM2       => Ext("ELC_CKT_CSA_MM2");       // → ELC_CBL_SZ_MM (existing)
+        // Per-circuit NUMBER cable-sizing results (bound Instance-level to Electrical
+        // Circuits via the ELC_PWR group; see LoadSharedParamsCommand.MepCategories).
+        public static string ELC_WIRE_CSA_MM2_NUM  => Ext("ELC_WIRE_CSA_MM2_NUM");  // Number, conductor CSA mm² [BS 7671 Table 4D1A]
+        public static string ELC_WIRE_VD_PCT_NUM   => Ext("ELC_WIRE_VD_PCT_NUM");   // Number, voltage drop % [BS 7671 App 12]
         public static string ELC_CONDUIT_FILL_PCT  => Ext("ELC_CONDUIT_FILL_PCT");  // → ELC_CDT_CBL_FILL_PCT (existing)
         public static string ELC_CDT_BEND_ANGLE_DEG => Ext("ELC_CDT_BEND_ANGLE_DEG"); // BS 7671 §522.8 bend angle on conduit fittings
         public static string ELC_CDT_BEND_COUNT_NR  => Ext("ELC_CDT_BEND_COUNT_NR");  // BS 7671 §522.8.5 — max 3 between draw-in points
@@ -2547,6 +2551,8 @@ namespace StingTools.Core
             _extendedParams["ELC_FEEDER_RATING_A"]   = "ELC_FEEDER_RATING_A";
             _extendedParams["ELC_CKT_VD_PCT"]        = "ELC_VLT_DROP_PCT";
             _extendedParams["ELC_CKT_CSA_MM2"]       = "ELC_CBL_SZ_MM";
+            _extendedParams["ELC_WIRE_CSA_MM2_NUM"]  = "ELC_WIRE_CSA_MM2_NUM";   // per-circuit numeric CSA
+            _extendedParams["ELC_WIRE_VD_PCT_NUM"]   = "ELC_WIRE_VD_PCT_NUM";    // per-circuit numeric VD %
             _extendedParams["ELC_CONDUIT_FILL_PCT"]  = "ELC_CDT_CBL_FILL_PCT";
             _extendedParams["ELC_CDT_BEND_ANGLE_DEG"] = "ELC_CDT_BEND_ANGLE_DEG";
             _extendedParams["ELC_CDT_BEND_COUNT_NR"]  = "ELC_CDT_BEND_COUNT_NR";
