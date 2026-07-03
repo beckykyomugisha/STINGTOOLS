@@ -185,22 +185,34 @@ namespace StingTools.Core.Placement.Matrix
                 if (string.IsNullOrWhiteSpace(cat)) continue;
                 if (allowed.Count > 0 && !allowed.Contains(cat))
                 { res.ColumnsUnmatched++; res.UnmatchedColumns.Add(cat + " (not in allowlist)"); continue; }
+
                 string id = SafeStr(cs.Cell(r, 1));
-                if (string.IsNullOrWhiteSpace(id) || into.Column(id) != null) id = into.NextColumnId();
-                var def = new MatrixColumnDef
+                string variant = SafeStr(cs.Cell(r, 4));
+                // Reconcile, don't blindly append: match an existing column by id (the dialog loads
+                // the on-disk matrix before Import, so a re-import of an exported sheet carries the
+                // same ids), else by (category, variant). Update it in place; only add when new.
+                var target = !string.IsNullOrWhiteSpace(id) ? into.Column(id) : null;
+                if (target == null)
+                    target = into.Columns.FirstOrDefault(c =>
+                        string.Equals(c.Category, cat, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(c.Variant ?? "", variant, StringComparison.OrdinalIgnoreCase));
+                if (target == null)
                 {
-                    Id = id,
-                    Label = SafeStr(cs.Cell(r, 2)),
-                    Category = cat,
-                    Variant = SafeStr(cs.Cell(r, 4)),
-                    Anchor = SafeStr(cs.Cell(r, 5)),
-                    MountingHeightMm = SafeDouble(cs.Cell(r, 6)),
-                    HeightStandard = SafeStr(cs.Cell(r, 7)),
-                    AutoGrid = SafeBool(cs.Cell(r, 8), true),
-                    LoadVaOverride = SafeDouble(cs.Cell(r, 9))
-                };
-                if (string.IsNullOrWhiteSpace(def.Anchor)) def.Anchor = MatrixDefaults.DefaultAnchor(cat, def.AutoGrid);
-                into.Columns.Add(def);
+                    string newId = (!string.IsNullOrWhiteSpace(id) && into.Column(id) == null) ? id : into.NextColumnId();
+                    target = new MatrixColumnDef { Id = newId };
+                    into.Columns.Add(target);
+                }
+
+                target.Label = SafeStr(cs.Cell(r, 2));
+                target.Category = cat;
+                target.Variant = variant;
+                target.Anchor = SafeStr(cs.Cell(r, 5));
+                target.MountingHeightMm = SafeDouble(cs.Cell(r, 6));
+                target.HeightStandard = SafeStr(cs.Cell(r, 7));
+                target.AutoGrid = SafeBool(cs.Cell(r, 8), true);
+                target.LoadVaOverride = SafeDouble(cs.Cell(r, 9));
+                if (string.IsNullOrWhiteSpace(target.Anchor))
+                    target.Anchor = MatrixDefaults.DefaultAnchor(cat, target.AutoGrid);
                 res.ColumnsMatched++;
             }
         }
@@ -214,7 +226,9 @@ namespace StingTools.Core.Placement.Matrix
                 string.Equals(c.DisplayLabel(), header, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(c.Label, header, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(c.Category, header, StringComparison.OrdinalIgnoreCase));
-            if (existing != null) { res.ColumnsMatched++; return existing.Id; }
+            // Existing columns were already counted (Columns sheet or a prior header) — matching one
+            // here must NOT re-count, else the import summary inflates ~2x.
+            if (existing != null) return existing.Id;
 
             string cat = ResolveCategory(header, allowed);
             if (cat == null) { res.ColumnsUnmatched++; res.UnmatchedColumns.Add(header); return null; }

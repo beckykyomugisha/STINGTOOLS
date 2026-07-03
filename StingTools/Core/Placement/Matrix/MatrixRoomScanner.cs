@@ -83,12 +83,14 @@ namespace StingTools.Core.Placement.Matrix
             res.HostRoomCount = rooms.Count;
             res.AllRooms.AddRange(rooms);
 
-            // ── Host spaces (MEP models). Always collected; the prompt calls out "read Spaces
-            //    if the doc is an MEP model with no Rooms" — we include them additively so a
-            //    mixed model gets both, deduped later only implicitly (rooms/spaces are distinct). ──
+            // ── Host spaces — a FALLBACK for MEP models "with no Rooms" (per the prompt). When
+            //    Rooms exist, adding same-named Spaces would DOUBLE-place: a room + a space that
+            //    share a name collapse to one TypeKey but keep distinct UniqueIds (distinct ledger
+            //    keys), so both members get placed (N in the room, N stacked in the space). So only
+            //    use spaces when the model has no host rooms. ──
             var spaces = CollectSpatial(doc, BuiltInCategory.OST_MEPSpaces, isSpace: true, isLinked: false);
             res.HostSpaceCount = spaces.Count;
-            if (res.HostRoomCount == 0 || spaces.Count > 0)
+            if (res.HostRoomCount == 0)
                 res.AllRooms.AddRange(spaces);
 
             // ── Linked rooms (display-only). ──

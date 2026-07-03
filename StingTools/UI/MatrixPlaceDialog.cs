@@ -55,6 +55,10 @@ namespace StingTools.UI
         private TextBlock _totalLoad;
         private CheckBox _perRoom;
         private CheckBox _replace;
+        // The mode the CURRENTLY displayed rows are in — set by RebuildRows. SyncToMatrix must use
+        // this (not _perRoom.IsChecked), because on a toggle the checkbox has already flipped to the
+        // NEW mode while the rows on screen are still in the OLD one.
+        private bool _viewIsPerRoom;
 
         public MatrixPlaceDialog(UIApplication uiapp)
         {
@@ -100,8 +104,10 @@ namespace StingTools.UI
             });
             header.Children.Add(Btn("Re-scan rooms", OnRescan));
             _perRoom = new CheckBox { Content = "Per-room overrides", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
-            _perRoom.Checked += (s, e) => RebuildRows();
-            _perRoom.Unchecked += (s, e) => RebuildRows();
+            // Persist edits (in the OLD mode) before rebuilding rows in the NEW mode, else typed
+            // counts vanish on toggle.
+            _perRoom.Checked += (s, e) => { SyncToMatrix(); RebuildRows(); };
+            _perRoom.Unchecked += (s, e) => { SyncToMatrix(); RebuildRows(); };
             header.Children.Add(_perRoom);
             Grid.SetRow(header, 0); root.Children.Add(header);
 
@@ -279,6 +285,7 @@ namespace StingTools.UI
         {
             _rows.Clear();
             bool perRoom = _perRoom?.IsChecked == true;
+            _viewIsPerRoom = perRoom;
             if (_scan?.Types == null) return;
 
             if (!perRoom)
@@ -322,7 +329,8 @@ namespace StingTools.UI
             _matrix.Columns = _cols.Select(c => c.ToDef()).ToList();
 
             // Counts — group-by-type view writes type.Cells; per-room view writes overrides.
-            bool perRoom = _perRoom?.IsChecked == true;
+            // Use the mode the DISPLAYED rows are in (not the checkbox, which may have just flipped).
+            bool perRoom = _viewIsPerRoom;
             if (!perRoom)
             {
                 foreach (var row in _rows)

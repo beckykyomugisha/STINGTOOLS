@@ -67,19 +67,23 @@ namespace StingTools.Core.Placement.Matrix
                 .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Category)).ToList();
             if (columns.Count == 0) { res.Messages.Add("No element-type columns defined."); return res; }
 
-            // ── 1) Ensure seeds for all columns' categories — OUTSIDE any transaction. ──
+            // ── 1) Ensure seeds for all columns' categories — OUTSIDE any transaction.
+            //    Skipped on a dry run so the preview is genuinely read-only (no family loads). ──
             var categories = columns.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            try
+            if (!dryRun)
             {
-                var se = SeedEnsurer.EnsureSeedsForCategories(doc, categories);
-                res.SeedsBuiltOrLoaded = se?.SeedsBuiltOrLoaded ?? 0;
-                res.Messages.Add($"Seeds ensured: {res.SeedsBuiltOrLoaded} built/loaded for {categories.Count} categor(ies).");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("MatrixPlacementEngine.EnsureSeeds", ex);
-                res.Messages.Add($"Seed build failed: {ex.Message}");
-                return res;
+                try
+                {
+                    var se = SeedEnsurer.EnsureSeedsForCategories(doc, categories);
+                    res.SeedsBuiltOrLoaded = se?.SeedsBuiltOrLoaded ?? 0;
+                    res.Messages.Add($"Seeds ensured: {res.SeedsBuiltOrLoaded} built/loaded for {categories.Count} categor(ies).");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("MatrixPlacementEngine.EnsureSeeds", ex);
+                    res.Messages.Add($"Seed build failed: {ex.Message}");
+                    return res;
+                }
             }
 
             // ── 2) Build the work list (read-only): per column, per placeable member room. ──
@@ -252,7 +256,11 @@ namespace StingTools.Core.Placement.Matrix
                 List<FamilySymbol> candidates = pool.Where(s => IsSeed(s, seedId)).ToList();
                 if (candidates.Count == 0 && !string.IsNullOrEmpty(seedId))
                     candidates = pool.Where(s => string.Equals(s.Family?.Name, seedId, StringComparison.OrdinalIgnoreCase)).ToList();
-                if (candidates.Count == 0) candidates = pool;
+                // Fall back to in-category families ONLY when the category actually resolved to a
+                // BuiltInCategory (so 'pool' is category-scoped). When bic is INVALID, pool is EVERY
+                // symbol in the doc — refuse rather than place a wrong-category family (matches
+                // DwgFixtureBridge.ResolveSeedSymbol, which returns null in the same situation).
+                if (candidates.Count == 0 && bic != BuiltInCategory.INVALID) candidates = pool;
                 if (candidates.Count == 0) { cache[key] = null; return null; }
 
                 if (!string.IsNullOrWhiteSpace(variant))
