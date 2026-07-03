@@ -591,6 +591,11 @@ namespace StingTools.UI
                         RunCommand<Commands.Electrical.WireAnnotateCommand>(app); break;
                     case "Electrical_WireAnnotateBatch":
                         RunCommand<Commands.Electrical.WireAnnotateBatchCommand>(app); break;
+                    // ── Wire ELEMENT annotation (OST_Wire, compute-on-place) ──
+                    case "Electrical_WireElementAnnotate":
+                        RunCommand<Commands.Electrical.WireElementAnnotateCommand>(app); break;
+                    case "Electrical_WireElementAnnotateBatch":
+                        RunCommand<Commands.Electrical.WireElementAnnotateBatchCommand>(app); break;
                     case "Electrical_HomeRunArrow":
                         RunCommand<Commands.Electrical.HomeRunArrowCommand>(app); break;
                     case "Electrical_ClearWireAnnotations":

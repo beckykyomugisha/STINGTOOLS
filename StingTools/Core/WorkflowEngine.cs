@@ -1488,6 +1488,8 @@ namespace StingTools.Core
                 case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
                 case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
+                case "Electrical_WireElementAnnotate":      return new Commands.Electrical.WireElementAnnotateCommand();
+                case "Electrical_WireElementAnnotateBatch": return new Commands.Electrical.WireElementAnnotateBatchCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();

@@ -452,7 +452,19 @@ namespace StingTools.UI
                 case "Circuit_ClearHomeRuns":    RunCommand<StingTools.Commands.Electrical.ClearHomeRunAnnotationsCommand>(app); break;
 
                 default:
-                    StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}'");
+                    // Forward unknown tags (e.g. the full wire-annotation command
+                    // set, which lives in the main handler) to StingCommandHandler.
+                    // DispatchCommandSync runs on this API thread and creates the
+                    // handler on first use even if the main dock panel was never
+                    // opened, so the Electrical panel is self-sufficient.
+                    try
+                    {
+                        bool ok = StingDockPanel.DispatchCommandSync(app, tag);
+                        if (!ok)
+                            StingLog.Info($"ElectricalCommandHandler: unknown tag '{tag}' (main handler did not handle it)");
+                    }
+                    catch (Exception ex)
+                    { StingLog.Warn($"ElectricalCommandHandler fallback '{tag}': {ex.Message}"); }
                     break;
             }
         }

@@ -3,6 +3,58 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Wire Element Annotation — Phase 1, branch `claude/wire-element-annotation`)
+
+Extends STING's wire annotation so the cable-spec annotation (conductor tick
+marks + BS 7671 label) can be placed directly on Revit **Wire** elements
+(`Autodesk.Revit.DB.Electrical.Wire`, `OST_Wire`) — the 2-D schematic lines drawn
+between devices where no conduit is modelled — not just on modelled conduit.
+Implements **Phase 1 (compute-on-place) ONLY** per
+[`WIRE_ELEMENT_ANNOTATION_SCOPE.md`](WIRE_ELEMENT_ANNOTATION_SCOPE.md); Phase 2
+(persistence/refresh) is deferred pending the `OST_Wire` param-binding question.
+**Additive** — the conduit annotation path is unchanged. Build against Revit 2025:
+0 errors (4 pre-existing `Clash/ClashIssueSyncCommand.cs` obsolete-`ElementId`
+warnings only). Compiles; not runtime-verified in Revit.
+
+**STEP 0 — Revit 2025 API verification (all gates passed, confirmed by metadata reflection):**
+- **Circuit from wire**: `Wire : MEPCurve`; `Wire.MEPSystem` → `MEPSystem` (cast to
+  `ElectricalSystem`), plus `Wire.GetMEPSystems()` → `IList<ElementId>` fallback. On
+  the circuit: `PolesNumber` (int; fallback `RBS_ELEC_NUMBER_OF_POLES`),
+  `ApparentCurrent`, `Voltage`, `PanelName`, `BaseEquipment`, `CircuitNumber`.
+- **Wire geometry**: `Wire.NumberOfVertices` + `Wire.GetVertex(int)` give the drawn
+  polyline; ticks + label placed on the **longest vertex-to-vertex segment** (multi-
+  segment handled; arc/chamfer wires use the chord of the longest span).
+- **Circuit length for VD**: `ElectricalSystem.Length` (ft) — the circuit run length,
+  never the wire's schematic drawn length. When unavailable, VD is **omitted** (warned,
+  rate-limited) and CSA is sized on ampacity only — never a guessed length/current.
+
+**New file** `Commands/Electrical/WireElementAnnotationCommands.cs`:
+`WireElementAnnotateCommand` (`Electrical_WireElementAnnotate`, single pick) +
+`WireElementAnnotateBatchCommand` (`Electrical_WireElementAnnotateBatch`, all wires
+in view) + `WireElementAnnotationEngine` + `WireElementSelectionFilter`. Per wire:
+resolve circuit → phase→cores (1Ø→2, 3Ø→4) → size via `CableSizerEngine.Calculate`
+(load back-derived from apparent current at PF 1) and VD via the same engine using
+circuit length → place ticks/label reusing the conduit engine's public helpers
+(`ResolveColor`, `RotateInPlane`, `ViewScaleFactor`, `BuildAnnotationText`) and the
+shared `AnnotationMarkerRegistry` (markers keyed on the wire `UniqueId` using the
+**same** `STING_WIRE_ANNOT` / `STING_WIRE_TICK` prefixes as conduit).
+
+**Label-mode flag** (the only edit to the conduit file, additive/default-off):
+`WireAnnotationEngine.BuildAnnotationText` gains an optional
+`bool suppressContainmentFields = false`; when true it drops the conduit-only Ø
+diameter and fill% fields. Existing conduit callers pass nothing → unchanged.
+
+**Clear behaviour** — no new clear command, no edit to the existing one. The existing
+`ClearWireAnnotationsCommand` (`Electrical_ClearWireAnnotations`, "Wire clear") matches
+by marker **prefix**, owner-agnostic, so it removes wire-owned annotations for free.
+Verified safe against interference: the conduit drift detector
+(`WireAnnotationDriftDetector.Detect`) enumerates `OST_Conduit` only and keys
+`FindByOwner` on each conduit's `UniqueId`, so it never touches wire-owned markers.
+
+**Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
+`StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
+`StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+
 #### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
 
 Closes silent-wrong-ratio, alignment and performance gaps in the parameter-driven
