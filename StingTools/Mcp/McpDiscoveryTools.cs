@@ -31,12 +31,15 @@ namespace StingTools.Mcp
             var results = McpCapabilityCatalogue.Search(query, limit);
             var rows = results.Select(c => (object)new Dictionary<string, object>
             {
-                ["tag"]         = c.Tag,
-                ["description"] = c.Description,
-                ["category"]    = c.Category,
-                ["triggers"]    = c.Triggers,
-                ["readOnly"]    = c.ReadOnly,     // may be null when the command class did not resolve
-                ["opensUI"]     = c.OpensUI,
+                ["tag"]          = c.Tag,
+                ["typeName"]     = c.TypeName,
+                ["description"]  = c.Description,
+                ["category"]     = c.Category,
+                ["triggers"]     = c.Triggers,
+                ["readOnly"]     = c.ReadOnly,     // may be null when the command class did not resolve
+                ["opensUI"]      = c.OpensUI,
+                ["dispatchable"] = c.Dispatchable, // true → invoke_capability can actually run it
+                ["engineBacked"] = c.EngineBacked, // true → a guarded dialog-free write path exists
             }).ToList();
 
             var data = new Dictionary<string, object>
@@ -68,12 +71,17 @@ namespace StingTools.Mcp
             var data = new Dictionary<string, object>
             {
                 ["tag"]           = cap.Tag,
+                ["typeName"]      = cap.TypeName,
+                ["typeFullName"]  = cap.TypeFullName,
                 ["description"]   = cap.Description,
+                ["synthesized"]   = cap.Synthesized,
                 ["category"]      = cap.Category,
+                ["intent"]        = cap.Intent,
                 ["triggers"]      = cap.Triggers,
                 ["readOnly"]      = cap.ReadOnly,
                 ["opensUI"]       = cap.OpensUI,
                 ["engineBacked"]  = cap.EngineBacked,
+                ["dispatchable"]  = cap.Dispatchable,
                 ["inputContract"] = cap.InputContract,
             };
             return McpJobResult.Success($"Capability '{cap.Tag}' — {cap.Description}", data).ToCallResult();
@@ -103,6 +111,16 @@ namespace StingTools.Mcp
                 return McpJobResult.Error("opens_ui",
                     $"'{tag}' opens a dialog/wizard. MCP does not fire UI commands; drive it from Revit, " +
                     "or wait for a dialog-free engine path.").ToCallResult();
+
+            // Discover-only: the capability is known (searchable/describable) but has no
+            // dispatch tag exposed to MCP, so there is no clean run path. Do NOT attempt to
+            // blind-instantiate a reflected command — Execute needs ExternalCommandData and
+            // may open modal UI. Report honestly instead.
+            if (!cap.Dispatchable)
+                return McpJobResult.Error("discoverable_only",
+                    $"'{tag}' is a known command but has no dispatch/engine path exposed to MCP yet — " +
+                    "it can be described but not run. Drive it from Revit, or it becomes runnable when " +
+                    "engine-backed.").ToCallResult();
 
             // Engine-backed → route through the SINGLE engine registry, which applies the
             // full guardrail set (dry-run plan, confirm gate, TransactionGroup rollback,
