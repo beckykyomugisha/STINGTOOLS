@@ -1,0 +1,32 @@
+{
+  "version": "v1",
+  "description": "Per-STING-category indicative electrical load (VA per placed unit) + a density hint (1 per N m2) for the Matrix Place feature. Drives (a) the live estimated-load column shown BEFORE placement (M7) and (b) the area-based cell auto-suggest (M1). These are SEED / indicative values for a place-first-calculate-later workflow, NOT a substitute for the real per-panel load calc: after placement the matrix chains to ElecLoadSummary / LightingPowerDensity / DemandFactorReport which read the actual placed families' connector loads. Override per project at <project>/_BIM_COORD/category_load_defaults.json (same shape; entries layer over this baseline by category name).",
+  "notes": [
+    "loadVaPerUnit: indicative apparent power (VA) per placed instance, used only for the pre-placement estimate column. 0 = non-electrical / source (panels, sprinklers, sanitaryware).",
+    "loadType: 'lighting' rolls into the lighting sub-total (and the LPD cross-check); 'power' into small-power; 'mech' into mechanical; 'none' excluded.",
+    "suggestPerAreaM2: area density hint (1 fixture per N m2) used to pre-fill a cell as an editable starting point. 0 = no auto-suggest (user types the count).",
+    "Values are engineering seeds (BS 7671 small-power diversity, EN 12464 lighting density, typical LED panel wattage) — tune per project."
+  ],
+  "categoryLoadDefaults": {
+    "Lighting Fixtures":        { "loadVaPerUnit": 40.0,  "loadType": "lighting", "suggestPerAreaM2": 4.0 },
+    "Lighting Devices":         { "loadVaPerUnit": 8.0,   "loadType": "lighting", "suggestPerAreaM2": 15.0 },
+    "Electrical Fixtures":      { "loadVaPerUnit": 180.0, "loadType": "power",    "suggestPerAreaM2": 10.0 },
+    "Electrical Equipment":     { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 0.0 },
+    "Junction Boxes":           { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 0.0 },
+    "Communication Devices":    { "loadVaPerUnit": 15.0,  "loadType": "power",    "suggestPerAreaM2": 100.0 },
+    "Data Devices":             { "loadVaPerUnit": 5.0,   "loadType": "power",    "suggestPerAreaM2": 10.0 },
+    "Telephone Devices":        { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 20.0 },
+    "Security Devices":         { "loadVaPerUnit": 10.0,  "loadType": "power",    "suggestPerAreaM2": 40.0 },
+    "Nurse Call Devices":       { "loadVaPerUnit": 8.0,   "loadType": "power",    "suggestPerAreaM2": 0.0 },
+    "Fire Alarm Devices":       { "loadVaPerUnit": 5.0,   "loadType": "power",    "suggestPerAreaM2": 25.0 },
+    "Fire Protection":          { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 0.0 },
+    "Sprinklers":               { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 12.0 },
+    "Air Terminals":            { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 10.0 },
+    "Mechanical Equipment":     { "loadVaPerUnit": 250.0, "loadType": "mech",     "suggestPerAreaM2": 0.0 },
+    "Mechanical Control Devices": { "loadVaPerUnit": 5.0, "loadType": "power",    "suggestPerAreaM2": 0.0 },
+    "Duct Accessories":         { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 0.0 },
+    "Plumbing Fixtures":        { "loadVaPerUnit": 0.0,   "loadType": "none",     "suggestPerAreaM2": 0.0 },
+    "Plumbing Equipment":       { "loadVaPerUnit": 300.0, "loadType": "power",    "suggestPerAreaM2": 0.0 },
+    "Specialty Equipment":      { "loadVaPerUnit": 100.0, "loadType": "power",    "suggestPerAreaM2": 0.0 }
+  }
+}

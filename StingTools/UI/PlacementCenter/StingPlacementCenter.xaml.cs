@@ -2910,6 +2910,26 @@ namespace StingTools.UI.PlacementCenter
         /// pre-filled from the auto-detector, and save ByLayer rules to the project
         /// override. The dialog shows on the API thread (like the MEP wizard); the next
         /// Place run honours the mappings. No JSON hand-editing.</summary>
+        private void OnMatrixPlace_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Matrix Place", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                if (doc == null)
+                    return StingResultPanel.Create("STING — Matrix Place")
+                        .AddSection("RESULT").Text("No active document.");
+                // Modal from the API thread — the dialog owns all Revit work (scan/place/save).
+                var dlg = new StingTools.UI.MatrixPlaceDialog(app) { Owner = System.Windows.Window.GetWindow(this) };
+                dlg.ShowDialog();
+                return StingResultPanel.Create("STING — Matrix Place")
+                    .SetSubtitle("Room x element-type grid — place-first, calculate-later.")
+                    .AddSection("RESULT")
+                    .Text("Matrix Place closed. Counts + placements persist in _BIM_COORD/placement_matrix.json; " +
+                          "re-open Matrix Place to continue, or run Circuit / DIALux / load calc from inside it.");
+            });
+        }
+
         private void OnLibMapLayers_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null) { Toast("No document open."); return; }

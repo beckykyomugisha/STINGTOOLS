@@ -1309,6 +1309,15 @@
                     </WrapPanel>
                 </GroupBox>
 
+                <GroupBox Header="4. Matrix Place - declare what/how-many per room, place, then calc load" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="180" Height="30" Margin="4,3"
+                                Click="OnMatrixPlace_Click"
+                                Content="Matrix Place..."
+                                ToolTip="Open the room x element-type grid. Reads the drawing's rooms (grouped by type), lets you declare counts per room-type (area auto-suggested), then places exactly N per room (even ceiling grid / wall spacing), hosted + tagged. Round-trips to Excel, repeats on typical floors, circuits from the grid, updates lighting from DIALux, and estimates load. Persists to _BIM_COORD/placement_matrix.json. Model-modifying."/>
+                    </WrapPanel>
+                </GroupBox>
+
             </StackPanel>
         </ScrollViewer>
         </TabItem>

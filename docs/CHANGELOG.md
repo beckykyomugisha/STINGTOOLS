@@ -3,6 +3,87 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Matrix Place — room×element grid, exact-count placement, Excel/DIALux round-trip, grid-circuiting, typical-floor repeat, load estimate)
+
+Branch `claude/placement-matrix` (off `claude/placement-library-dwg`, not `main`). Build clean
+`-c Release` (0 errors / 0 warnings). **Model-modifying + UI-heavy — the sandbox cannot open Revit,
+so placement / circuiting / typical-floor copy / DIALux ingest are verified by build + logic review
+only; confirm in Revit before merge.** New folder `Core/Placement/Matrix/` (8 files) + `UI/MatrixPlaceDialog.cs`
++ `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json`; Placement Centre Library tab gains a
+**"Matrix Place…"** button (section 4).
+
+**Concept — the reverse of rule-based placement.** The user declares, in an Excel-like grid, WHAT +
+HOW MANY elements go in WHICH rooms; STING places them, and power/load is calculated afterward. The
+grid is the control surface; placement/hosting/height/tagging/circuiting/load all REUSE the existing
+engines — no forks.
+
+- **M1 — read → grid → place → persist (backbone).** `MatrixRoomScanner` collects host Rooms +
+  host MEP Spaces (+ linked rooms, read-only) and groups them into room-TYPES by normalised name
+  ("Office 1/2" → "Office") with member count + median area. `MatrixPlacementEngine` composes
+  `SeedEnsurer` (seeds built/loaded outside the tx) + a synthetic `PlacementRule` per (room, column)
+  + `PlacementHostPreflight.Place` at engine-computed points + `StingProvenanceSchema.Stamp` — the
+  same proven composition as `DwgFixtureBridge`, not a fork of `FixturePlacementEngine`. One
+  `Transaction` = one undo. **Idempotent + versioned:** every placed instance's UniqueId is recorded
+  in the matrix ledger keyed (roomUid → colId); a re-run SKIPS already-populated cells unless
+  "Replace existing" deletes+replaces them. Persisted to `<project>/_BIM_COORD/placement_matrix.json`.
+  Area auto-suggest pre-fills blank cells from `PerAreaM2` density (data file, else loaded
+  `PlacementRule`s) as an editable starting point.
+- **M2 — exact-count + even distribution.** New `MatrixGridDistributor`: `EvenGrid` emits exactly N
+  points as an aspect-aware rows×cols grid (classic n-luminaire layout, e.g. 5 → 2+3), clipped to the
+  room polygon via `FixturePlacementEngine.PointInSpatial`; `WallRun` spaces N points along the room's
+  wall-backed boundary (from `GetBoundarySegments`), nudged inward so the nearest-wall host search
+  hosts them. Both cap N at what fits at `MinSpacing` and REPORT the shortfall ("placed 3 of 4 (min
+  spacing)") rather than silently dropping. Fills the gap that `LightingGridCalculator` (lumen-derived,
+  overshoots) and `CoverageGridGenerator` (spacing-driven) left open.
+- **M3 — Excel round-trip.** `MatrixExcel` (ClosedXML): Export writes a `Matrix` sheet (room-types ×
+  counts + Est-Load) plus a companion `Columns` sheet that fully describes each element-type column, so
+  export→import round-trips losslessly. Import tolerantly maps header cells → categories (label, then
+  allowlist fuzzy) and rows → room-types (name, then normalised), reports unmatched rows/columns.
+- **M4 — typical-floor repeat.** `MatrixTypicalFloors.Replicate` copies a source floor's matrix-placed
+  instances onto selected levels via `ElementTransformUtils.CopyElements` at the inter-level Z offset,
+  in a `TransactionGroup`. Reports per-floor counts + the honest host-retention caveat.
+- **M5 — grid circuiting.** `MatrixCircuiting` gathers the placed electrical devices (those with an
+  electrical connector) from the ledger, groups them (per room / per column / fill-to-breaker using the
+  M7 load estimate), and creates power circuits assigned to a chosen panel by REUSING
+  `MepCircuitBuilder.CreateFromSelection` (panel auto-detected from the selection collection).
+- **M6 — DIALux feedback.** `MatrixDialux` reads a DIALux/ElumTools/Relux IFC via the existing
+  `IfcResults.IfcSimpleParser`, extracts a per-space luminaire count (common PSet aliases), matches
+  spaces to room-types, and shows a diff (grid N → DIALux M) before applying to the lighting columns.
+- **M7 — reverse-engineer load.** New `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json` (corporate +
+  `_BIM_COORD/category_load_defaults.json` override) drives a live per-room estimated-VA column shown
+  BEFORE placement; after placement "Run load calc" chains the real
+  `ElecLoadSummary` / `LightingPowerDensity` / `DemandFactorReport` commands on the placed set.
+
+**UI.** `MatrixPlaceDialog` is programmatic WPF (no XAML) modelled on `DwgLayerMapDialog`:
+`DataGridTemplateColumn` + always-live combos/textboxes so edits commit without reverting;
+`SelectionMode=Extended` for multi-select; the editable named-standard-or-free-mm height combo reuses
+the OneWay-Text + parse pattern. Left grid edits the element-type columns (category ∩ fixture allowlist
+∩ seed-mappable, variant, anchor, height, auto-grid, load VA); centre grid holds room-types × integer
+counts + a live Est-VA column; a "Per-room overrides" toggle switches to per-room rows. Opened modally
+from the Placement Centre's `RunInlineAction` lambda (already on the API thread).
+
+**Judgment calls / functional-minimal boundaries (honest):**
+1. **Placement path** goes through `PlacementHostPreflight` (the `DwgFixtureBridge` composition) rather
+   than `FixturePlacementEngine.PlaceFixturesInScope`, because that gives deterministic exactly-N control
+   + even distribution + precise per-cell PlacedIds for the ledger — while still reusing every building
+   block (SeedEnsurer / PlacementRule / PlacementHostPreflight / CategoryToSeed / CategoryHeightDefaults).
+2. **Linked rooms** are collected + shown read-only but excluded from placement — the engine's per-room
+   roomId scoping is host-doc only. Host Rooms + host MEP Spaces are fully placeable. (Follow-up.)
+3. **M4 per-floor circuiting** is left to a re-scan + Circuit… per floor (the ledger tracks source-floor
+   ids only); the copy itself is complete.
+4. **M6** depends on the DIALux export carrying a per-space luminaire-count property — `IfcSimpleParser`
+   exposes per-space numerics but not space→fixture containment or positions; rooms without a count are
+   reported, not guessed. Repositioning to DIALux coordinates is not done (no positions in the parser).
+5. **MEP (pipe/duct) connection** from the grid was assessed and deferred: unlike electrical, valid MEP
+   connections need matched connector directions + a routing solve. M5 is electrical-only and says so.
+6. **Load/wattage defaults** are engineering seeds (BS 7671 small-power diversity, EN 12464 lighting
+   density, typical LED panel wattage) for the place-first estimate only — the real calc is the chained
+   load commands reading actual connector loads.
+
+Files: `Core/Placement/Matrix/{MatrixModel,MatrixRoomScanner,MatrixDefaults,MatrixGridDistributor,MatrixPlacementEngine,MatrixExcel,MatrixCircuiting,MatrixTypicalFloors,MatrixDialux}.cs`,
+`UI/MatrixPlaceDialog.cs`, `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json`,
+`UI/PlacementCenter/StingPlacementCenter.xaml(.cs)`.
+
 #### Completed (DWG bridge — editable custom mounting height in the Map-DWG-Layers dialog)
 
 Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings). GOLD
