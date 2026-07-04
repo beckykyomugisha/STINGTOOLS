@@ -1953,6 +1953,56 @@ non-STING family and confirm positions + values survive.**
    STING target is empty). Swapping to a STING-naive family now preserves
    positions + values. Result panel + audit report families stamped.
 
+#### Completed (Phase 198 — Sleeve method review follow-ups + non-interactive workflow wiring, branch `claude/conduit-auto-routing`)
+
+Closes the two-reviewer follow-ups on PR #386 and adds the queued unattended sleeve path.
+
+**Fix 1 — per-fixture idempotency (was a dense-fixture bug).** `SleeveConnectorEngine`'s
+idempotency probe previously treated *any* conduit end connector within 50 mm of a terminal
+as "already sleeved", so two connector-less fixtures on one back-box / adjacent floor-box
+modules (~30 mm apart) shared a stub — the second got none. The `STING_SLEEVE_STUB` marker
+was written but never read. Now the marker carries the fixture id
+(`STING_SLEEVE_STUB:<ElementId>`); `AlreadySleeved` matches a stub to its fixture by that
+stamp (any spacing) with a tightened 10 mm coincidence fallback for when the marker param is
+unbound. Two fixtures 30 mm apart each get their own stub; a genuine re-run still places
+nothing.
+
+**Fix 2 — offset-reader divergence.** `AutoConduitDrop.FindSleeveStub` inlined a Double-only
+`FIXTURE_DROP_OFFSET_Z_MM` read that diverged from the canonical `DropEngineBase.ReadDropOffsetMm`
+(Double feet + String mm) the sleeve engine uses. Replaced with the inherited reader, and the
+marker match switched to `StartsWith` (the marker now carries the id suffix).
+
+**Fix 3 — floor-box stub direction.** Stubs always rose +Z. `ResolveStubDirZ` now drops −Z for
+floor-mounted devices (`ELE_FIX_MOUNT_HEIGHT_MM ≈ 0`, `ELE_FIX_TYPE_TXT`/name containing
+"FLOOR", or a `Floor` host); wall/ceiling boxes still rise +Z.
+
+**Fix 4 — unit contract documented.** `FIXTURE_DROP_OFFSET_Z_MM` Double values are internal
+feet (bind as a **Length** spec) — a plain Number binding is a 304.8× error. Documented on both
+readers (code) and here (String params carry raw mm).
+
+**Fix 5 — pre-flight scope annotated.** `AutoDropCommand`'s whole-model → filter-to-selection
+pre-flight is intentional (the validator has no per-element overload; a project-wide electrical
+scan is cheap vs routing); annotated in place.
+
+**Feature — non-interactive sleeve command + workflow wiring.** New
+`Routing_PlaceSleeveConnectorsAuto` (`PlaceSleeveConnectorsAutoCommand`) runs the engine live
+with NO dialog, logs a `StingLog` summary, and returns `Succeeded` (clean no-op when nothing to
+sleeve) — safe headless. Registered in `WorkflowEngine.ResolveCommand` and `StingCommandHandler`.
+`WORKFLOW_ElectricalRoughIn.json` gains a sleeve step between `Placement_PlaceFixtures` and
+`Routing_AutoDrop`, so the electrical rough-in runs end-to-end with no modal prompt and authors
+conduit terminals on connector-less/swapped fixtures before the drop. The interactive
+`Routing_PlaceSleeveConnectors` remains for ad-hoc use (also now wired into `StingCommandHandler`).
+
+**Verify status.** `dotnet build` on Revit 2025: **0 errors, 4 pre-existing warnings**; zero new
+warnings. Workflow JSON parses; all five step `commandTag`s resolve in `ResolveCommand`.
+**Live-Revit smoke test still PENDING** — Revit was open with the prior build loaded during this
+work, so the new DLL could not be deployed or exercised. Manual gate (scratch `.rvt` with rooms
++ a cable tray above): `Seeds_Build` → run `WORKFLOW_ElectricalRoughIn` (select rooms first) →
+swap some fixtures to a manufacturer family with no conduit connector → confirm each
+connector-less fixture gets a free, correctly-oriented `CableTrayConduit` terminal (re-run =
+no-op) → `Routing_AutoDrop` creates bonded conduit (`Connector.IsConnected`) → `Validation_RunAll`
+shows zero `CONN.OPEN` on routed fixtures and `SIZE.MISMATCH` only where expected.
+
 #### Completed (Phase 196 — Electrical conduit auto-routing after placement)
 
 Closes the gap that every market conduit plugin (ricaun EasyConduit, ConduiTool,

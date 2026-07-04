@@ -13,6 +13,11 @@
       "_notes": "FixturePlacementEngine reads STING_PLACEMENT_RULES.electrical / .mk-electrical / .conduiting-phase + room types. Sockets / switches / FCUs / isolators / data outlets land per BS 7671 / BS 8300. On live placement PlaceFixturesCommand calls Selection.SetElementIds(placedIds) so the next step sees them selected."
     },
     {
+      "commandTag": "Routing_PlaceSleeveConnectorsAuto",
+      "label": "Author conduit terminals on connector-less fixtures (sleeve method)",
+      "_notes": "Non-interactive sleeve pass (no dialog) so the workflow runs unattended. For fixtures that lack a free CableTrayConduit connector — chiefly manufacturer families after Seeds_SwapToManufacturer — SleeveConnectorEngine authors a short conduit stub carrying a real conduit terminal (rise +Z for wall/ceiling, drop -Z for floor boxes). Idempotent: seed fixtures that already carry the seed's conduit connector are skipped, and a re-run places nothing new. Reads the same selection PlaceFixturesCommand left behind. The next step (Routing_AutoDrop) extends these stubs to containment via AutoConduitDrop.ResolveRoutingSource instead of duplicating a drop from the LocationPoint."
+    },
+    {
       "commandTag": "Routing_AutoDrop",
       "label": "Auto-drop conduit to containment",
       "_notes": "AutoDropCommand groups the selection by discipline; Electrical fixtures dispatch to AutoConduitDrop, which starts at each fixture's conduit connector and routes a rising conduit to the nearest cable tray / conduit within the search radius, wiring both ends via Connector.ConnectTo. Also runs the Slab/Wall/Beam penetration detectors + FrpPenetrationPlacer sweep."
