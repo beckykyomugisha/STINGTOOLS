@@ -105,7 +105,7 @@
       "connectors": [
         {
           "domain": "Piping",
-          "systemType": "DomesticCold",
+          "systemType": "DomesticColdWater",
           "shape": "Round",
           "sizeMm": 15,
           "direction": "In",
@@ -116,7 +116,7 @@
         },
         {
           "domain": "Piping",
-          "systemType": "DomesticHot",
+          "systemType": "DomesticHotWater",
           "shape": "Round",
           "sizeMm": 15,
           "direction": "In",
@@ -616,7 +616,7 @@
       "connectors": [
         {
           "domain": "Piping",
-          "systemType": "DomesticCold",
+          "systemType": "DomesticColdWater",
           "shape": "Round",
           "sizeMm": 25,
           "direction": "In",
@@ -627,7 +627,7 @@
         },
         {
           "domain": "Piping",
-          "systemType": "DomesticHot",
+          "systemType": "DomesticHotWater",
           "shape": "Round",
           "sizeMm": 25,
           "direction": "In",
@@ -649,7 +649,7 @@
         },
         {
           "domain": "Piping",
-          "systemType": "DomesticHot",
+          "systemType": "DomesticHotWater",
           "shape": "Round",
           "sizeMm": 20,
           "direction": "In",
@@ -661,7 +661,7 @@
         },
         {
           "domain": "Piping",
-          "systemType": "DomesticHot",
+          "systemType": "DomesticHotWater",
           "shape": "Round",
           "sizeMm": 20,
           "direction": "Out",
