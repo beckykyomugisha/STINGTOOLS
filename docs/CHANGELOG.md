@@ -407,6 +407,39 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+#### Completed (Symbol Library pipe systemType fixes, branch `claude/symbol-fixes-4`)
+
+Clears the 19 pre-existing `bad-systemType` connector defects the round-3 validator
+surfaced. Built against Revit 2025: **0 errors** (4 pre-existing warnings). Connector
+system-type assignment was NOT exercised in Revit — compile- and data-verified only.
+
+Root cause: `SymbolLibraryCreator.AddConnectorList` calls `ResolvePipeSystemType`;
+any string the switch doesn't recognise returns `UndefinedSystemType`, and because
+the factory rejects Undefined the round-1 code falls back to `SupplyHydronic` — so
+unrecognised pipe systemTypes were silently built as domestic heating water.
+
+- **(Task A) Renamed 13 unrecognised pipe systemTypes to recognised strings** across
+  4 seeds (values only; offsets/facing/direction/shape/size and connector counts
+  unchanged): `DomesticCold`→`DomesticColdWater`, `DomesticHot`→`DomesticHotWater`
+  (PlumbingFixture, PlumbingEquipment, LabFixture), `FireProtectWet`→`FireProtectionWet`
+  (Sprinkler), and the ambiguous PlumbingEquipment hydronic pair
+  `SupplyHydronic`→`HotWaterSupply` / `ReturnHydronic`→`HotWaterReturn`. **Hot vs
+  chilled:** chose HotWater — the seed is calorifier/DHW-cylinder/water-heater
+  equipment (standard BS 8558/BS 6700/HSG 274; variants `CALORIFIER`, `DHW_CYLINDER_*`,
+  `WATER_HEATER_ELECTRIC`), a domestic-hot-water/LTHW context with no chilled water;
+  the 28 mm hydronic pair is the primary heating coil. This also fixes conn[3], which
+  was unrecognised and built as *SupplyHydronic* (a return wrongly built as supply).
+- **(Task B) `OtherPipe` made a first-class type** (MedGasOutlet ×4, LabFixture ×2 —
+  med-gas/lab-gas has no native domestic Revit pipe type; intentional, not a typo).
+  Confirmed `PipeSystemType.OtherPipe` exists in the Revit 2025 API (in RevitAPI.dll;
+  compiles), added `case "OtherPipe"` to `ResolvePipeSystemType`, kept the data as
+  `OtherPipe`, and added `OtherPipe` to the validator's recognised Piping set (verified
+  byte-identical to the resolver switch). Also added a visible `StingLog.Warn` in
+  `AddConnectorList` when a pipe connector still resolves to Undefined (names seed id +
+  systemType) so future mis-types surface instead of silently shipping as heating water;
+  the SupplyHydronic fallback is retained (factory rejects Undefined).
+- **Result:** `Symbols_Validate` connector defects across all shipped seeds **19 → 0**.
+
 #### Completed (Symbol Library malformed-connector repair, branch `claude/symbol-fixes-3`)
 
 Fixes a defect the round-2 validator could not catch, plus hardens the validator so
