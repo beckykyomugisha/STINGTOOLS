@@ -1502,6 +1502,7 @@ namespace StingTools.Core
                 // AutoDropCommand then reads to route (electrical → AutoConduitDrop).
                 case "Placement_PlaceFixtures":  return new Commands.Placement.PlaceFixturesCommand();
                 case "Routing_AutoDrop":         return new Commands.Routing.AutoDropCommand();
+                case "Routing_PlaceSleeveConnectors": return new Commands.Routing.PlaceSleeveConnectorsCommand();
                 case "Validation_RunAll":        return new Commands.Validation.RunAllValidatorsCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();

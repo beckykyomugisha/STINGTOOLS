@@ -252,23 +252,32 @@ namespace StingTools.Core.Routing
                     {
                         try
                         {
+                            // Sleeve-aware source resolution (Task B convergence):
+                            // when the fixture has no free conduit connector but a
+                            // STING sleeve stub was authored at its terminal, route
+                            // that stub's free connector instead of falling back to
+                            // the fixture LocationPoint — otherwise the drop would
+                            // duplicate the stub. One origin contract: connector →
+                            // sleeve stub → LocationPoint.
+                            Element src = ResolveRoutingSource(fx, result);
+
                             // Gap 1 fix — try cable tray first; fall back to conduit
                             // when the fixture is not beneath any tray.
                             bool dropped = TryDropFromFixture(
-                                fx, BuiltInCategory.OST_CableTray, SearchRadiusMm, result);
+                                src, BuiltInCategory.OST_CableTray, SearchRadiusMm, result);
 
                             if (!dropped && SearchFallbackToConduit)
                             {
                                 // Remove the "no tray found" warning from the first pass
                                 // so the caller sees only the conduit-pass result.
                                 var removable = result.Warnings.FindAll(
-                                    w => w.Contains("CableTray") && w.Contains(fx?.Id.Value.ToString() ?? ""));
+                                    w => w.Contains("CableTray") && w.Contains(src?.Id.Value.ToString() ?? ""));
                                 foreach (var w in removable) result.Warnings.Remove(w);
                                 // Reset the skip/fail counts so the fallback can re-score.
                                 result.SkippedCount = Math.Max(0, result.SkippedCount - 1);
 
                                 TryDropFromFixture(
-                                    fx, BuiltInCategory.OST_Conduit, SearchRadiusMm, result);
+                                    src, BuiltInCategory.OST_Conduit, SearchRadiusMm, result);
                             }
                         }
                         catch (Exception ex3)
@@ -287,6 +296,87 @@ namespace StingTools.Core.Routing
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// One origin contract for the drop: prefer the fixture itself when it
+        /// exposes a free conduit connector; otherwise, when a STING sleeve stub
+        /// (authored by <see cref="StingTools.Core.Mep.SleeveConnectorEngine"/>)
+        /// sits at the fixture terminal, route the stub so the drop extends the
+        /// authored terminal instead of duplicating it from the LocationPoint.
+        /// Falls back to the fixture (LocationPoint) when neither is present.
+        /// </summary>
+        private Element ResolveRoutingSource(Element fx, DropResult result)
+        {
+            if (fx == null) return null;
+            if (HasFreeConduitConnector(fx)) return fx;
+
+            var stub = FindSleeveStub(fx);
+            if (stub != null)
+            {
+                result.Warnings.Add($"Fixture {fx.Id}: no conduit connector — extending STING sleeve stub {stub.Id}.");
+                return stub;
+            }
+            return fx; // LocationPoint fallback inside TryDropFromFixture
+        }
+
+        private static bool HasFreeConduitConnector(Element el)
+        {
+            foreach (var c in GetAllConnectors(el))
+            {
+                bool connected;
+                try { connected = c.IsConnected; } catch { continue; }
+                if (connected) continue;
+                Domain d;
+                try { d = c.Domain; } catch { continue; }
+                if (d == Domain.DomainCableTrayConduit) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Locate the STING sleeve stub authored for this fixture: an
+        /// OST_Conduit marked ELC_CDT_INSTALL_METHOD_TXT == SleeveMarker whose
+        /// nearest end connector is within ~150 mm of the fixture terminal.
+        /// </summary>
+        private Element FindSleeveStub(Element fx)
+        {
+            var lp = fx.Location as LocationPoint;
+            if (lp?.Point == null) return null;
+            XYZ p = lp.Point;
+            try
+            {
+                var off = fx.LookupParameter("FIXTURE_DROP_OFFSET_Z_MM");
+                if (off != null && off.HasValue && off.StorageType == StorageType.Double)
+                    p = new XYZ(p.X, p.Y, p.Z + off.AsDouble());
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoConduitDrop: read FIXTURE_DROP_OFFSET_Z_MM failed: {ex.Message}"); }
+
+            double tolFt = 150.0 * MmToFt; // near the fixture face + stub length reach
+            Element best = null; double bestD = double.MaxValue;
+            try
+            {
+                var col = new FilteredElementCollector(Doc)
+                    .OfCategory(BuiltInCategory.OST_Conduit)
+                    .WhereElementIsNotElementType();
+                foreach (var el in col)
+                {
+                    string method = null;
+                    try { method = el.LookupParameter("ELC_CDT_INSTALL_METHOD_TXT")?.AsString(); } catch { }
+                    if (!string.Equals(method, StingTools.Core.Mep.SleeveConnectorEngine.SleeveMarker, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    var mgr = (el as MEPCurve)?.ConnectorManager;
+                    if (mgr == null) continue;
+                    foreach (Connector c in mgr.Connectors)
+                    {
+                        if (c?.Origin == null) continue;
+                        double d = c.Origin.DistanceTo(p);
+                        if (d < bestD) { bestD = d; best = el; }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoConduitDrop: FindSleeveStub failed: {ex.Message}"); }
+            return bestD <= tolFt ? best : null;
         }
 
         private void ResolveConduitType(DropResult result)
