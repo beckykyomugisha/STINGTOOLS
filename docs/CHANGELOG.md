@@ -3,6 +3,55 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Symbol Library second-pass fixes, branch `claude/symbol-fixes-2`)
+
+Eight review findings on top of the round-1 fixes. Built against Revit 2025:
+**0 errors** (4 pre-existing warnings only). Data-file + compile checks verified
+locally; Revit-runtime family authoring / connector insertion / section rendering
+not exercised. Findings verified against current code first — P5 no longer held and
+was skipped.
+
+- **(P1) `Symbols_Validate` extended** (`Commands/Symbols/SymbolValidateCommand.cs`)
+  with four guards: (1a) catalogue blind spots — symbol libs on disk not in
+  `SymbolBatchHelper.AllBatches` (0 today); (1b) concept→family reference integrity —
+  799 refs, 276 dangling grouped by cause (0 prefix-fixable after P8b / 218
+  view-context / 58 absent, 53 unique); (1c) connector completeness — 12 MEP-category
+  seeds with 0 connectors; (1d) geometry coords |value| > 2.0 (0 today, silently
+  dropped at build).
+- **(P2) Section geometry double-draw** (`Core/Symbols/SymbolLibraryCreator.cs`) — the
+  section `DrawLine` overload authored each curve then fell through a redundant switch
+  that drew it again (overlapping curves, warnings swallowed). Removed the switch;
+  curve authored once.
+- **(P3) Length-spec unit trap** — `TrySetDefault`/`SetVariantParam` set Double
+  parameters straight from JSON; a Length param stores feet, so "600" (mm) → 600 ft.
+  Added `ConvertJsonDoubleForSpec` (mm→ft for Length; other Double specs unchanged).
+  Latent today; no data changed.
+- **(P4) SLD phase heuristic** (`Commands/Symbols/SldAnnotationCommands.cs`) — replaced
+  `Contains("400"/"415"/"3"/"kV")` (misclassified "0.4 kV" and any stray "3") with a
+  numeric voltage parser (V/kV → volts; line-to-line ≥ 300 V → 3-phase; unparseable →
+  single-phase, logged).
+- **(P5) SKIPPED — no longer holds.** The finding described `EnsureStamp` re-opening the
+  destination family per instance; current `EnsureStampFamilies` already groups by
+  `fam.Id` and does one `EditFamily`+reload per distinct family (and the `AutoAuthor`
+  path dedupes via `seen.Add(fam.Id)`). No per-instance re-open exists.
+- **(P6) ParamRegistry alignment** — `SymbolAnnotationEngine.BuildLabel` now routes the
+  circuit param names through `ParamRegistry.CIRCUIT_*` constants (exact matches).
+  `SldAnnotationCommands` `ELC_CIR_*` names have no registry constant, so kept as
+  literals but added a rename-visibility warning when a view has candidate elements
+  but none carry any SLD param.
+- **(P7) Seed connectors** — added two opposed in/out connectors to
+  `STING_SEED_DuctAccessory` (HVAC / SupplyAir) and `STING_SEED_PipeAccessory`
+  (Piping / Hydronic) using the correct `offsetX/offsetY/offsetZ`+`facing` bindable
+  fields. Remaining 12 connector-less MEP seeds recorded as ROADMAP GAP-SYM-08.
+- **(P8) Dangling concept→family refs** — (8b) repointed 11 prefix/name-mismatched
+  concept refs to the ids the catalogue actually defines (8 IEC prefix-strips + 3 IEEE
+  → `IEEE_SLD_TRANSFORMER`/`IEEE_SLD_MOTOR`); prefix-fixable dangling 11→0. (8a) added
+  an optional `Document` to `SymbolConceptRegistry.GetFamilyName`/`ResolveFromMapping`
+  so a viewContext/scale override that isn't loaded degrades to the base family
+  (`IsFamilyLoaded`); wired doc through the four placement callers, left the drift
+  detector unchanged. The ~50 genuinely-absent specialty symbols recorded as ROADMAP
+  GAP-SYM-09 (not authored).
+
 #### Completed (Symbol Library defect fixes, branch `claude/symbol-fixes`)
 
 Fixes six review findings across the Symbol Library subsystem
