@@ -407,6 +407,54 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+#### Completed (Symbol Library defect fixes, branch `claude/symbol-fixes`)
+
+Fixes six review findings across the Symbol Library subsystem
+(`Core/Symbols/`, `Commands/Symbols/`, `Data/Symbols/`, `Data/Seeds/`). Built
+against Revit 2025: **0 errors** (4 pre-existing warnings only). Data-file and
+compile checks verified locally; Revit-runtime family authoring not exercised.
+
+- **(P1) SLD BS/CIBSE/NFPA catalogues never loaded** — `STING_SLD_SYMBOLS_BS.json`
+  (52), `_CIBSE.json` (36) and `_NFPA.json` (47) used top-level key
+  `symbolDefinitions`, but `SymbolLibrary.Symbols` binds to
+  `[JsonProperty("symbols")]`; all three deserialized to an empty list so
+  `CreateAllFromFile` returned "No symbols in library." and ~135 authored symbols
+  never generated (despite the commands being wired). Renamed the key to `symbols`
+  to match the working IEC/IEEE files; all three now parse into non-empty lists.
+- **(P1) Wrong connector system type** — `AddConnectorList` hardcoded
+  `DuctSystemType.SupplyAir` / `PipeSystemType.SupplyHydronic` in the factory calls
+  and tried to patch the type post-hoc via a read-only param (no-op). Now passes the
+  already-present-but-never-called `ResolveDuctSystemType` / `ResolvePipeSystemType`
+  into `CreateDuctConnector` / `CreatePipeConnector`, falling back to the old default
+  only when the declaration is `Undefined`. Return/exhaust/CHW/sanitary/DCW
+  connectors now build with the correct system type.
+- **(P2) Variant connector leak** — `AddConnectors` unioned every `TypeVariant`'s
+  connectors onto the single family document (a WC would sprout basin/shower
+  connectors). No seed currently declares variant-level connectors, so it was
+  latent, but the design is wrong; now authors only the base connectors and warns
+  (log + result) if a variant declares its own set.
+- **(P2) Cosmetic scale-tier types** — `AddScaleTierTypes` minted a family type per
+  tier and set `STING_SYMBOL_SIZE_MM`, but `DrawGeometry` scales at author-time and
+  never associates geometry to that parameter, so every tier type rendered
+  identically. Chose option (b): stop minting the misleading types; retain
+  `STING_SYMBOL_SIZE_MM` as single-value metadata on the default type and log that
+  scale tiers are metadata-only (view-time tier selection is handled separately by
+  `SymbolScaleEngine`/`SymbolStandardRegistry`).
+- **(P2) Dead swap-registry override** — `SwapToManufacturerCommand.LoadRegistry`
+  computed a project dir then did nothing. Now loads
+  `<project>/_BIM_COORD/family_swap_registry.json` and merges it over the corporate
+  baseline by `seedId` (project wins), mirroring `SwapParameterBridge.LoadAliasMap`.
+- **(P3) Hygiene** — `CloneWithId` now copies the fields it previously dropped
+  (`Hosting`, `IsSeed`, `FormulaBindings`, `TypeVariants`, `ProtectExisting`,
+  `Status`, `SourceFamilyPath`, `SwapCandidates`); `ValidateGeometryCoord`'s warning
+  text now matches the actual `[-2,2]`/skip behaviour (was `[-1,1]`/"Clamping").
+- **New `Symbols_Validate` read-only command** (`Commands/Symbols/SymbolValidateCommand.cs`,
+  wired into `StingCommandHandler` + `WorkflowEngine`) — would have caught the P1 key
+  mismatch: checks every `Data/Symbols` catalogue + `Data/Seeds` seed deserializes to
+  a non-empty `Symbols` list, that `STING_SYMBOL_STANDARDS.json` fallback targets
+  resolve to defined standards, and that `STING_SYMBOL_ALIASES.json` targets resolve
+  to defined concepts. Passes clean (0 issues) on current data.
+
 #### Completed (Wire Element Annotation — Phase 1, branch `claude/wire-element-annotation`)
 
 Extends STING's wire annotation so the cable-spec annotation (conductor tick
