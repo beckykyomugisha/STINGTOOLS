@@ -344,13 +344,11 @@ namespace StingTools.Core.Routing
             var lp = fx.Location as LocationPoint;
             if (lp?.Point == null) return null;
             XYZ p = lp.Point;
-            try
-            {
-                var off = fx.LookupParameter("FIXTURE_DROP_OFFSET_Z_MM");
-                if (off != null && off.HasValue && off.StorageType == StorageType.Double)
-                    p = new XYZ(p.X, p.Y, p.Z + off.AsDouble());
-            }
-            catch (Exception ex) { StingLog.Warn($"AutoConduitDrop: read FIXTURE_DROP_OFFSET_Z_MM failed: {ex.Message}"); }
+            // Use the canonical offset reader (Double = internal feet, String = mm)
+            // inherited from DropEngineBase — the inlined Double-only read here
+            // diverged from the reader SleeveConnectorEngine used to place the stub.
+            double offMm = ReadDropOffsetMm(fx);
+            if (Math.Abs(offMm) > 1e-6) p = new XYZ(p.X, p.Y, p.Z + offMm * MmToFt);
 
             double tolFt = 150.0 * MmToFt; // near the fixture face + stub length reach
             Element best = null; double bestD = double.MaxValue;
@@ -363,7 +361,9 @@ namespace StingTools.Core.Routing
                 {
                     string method = null;
                     try { method = el.LookupParameter("ELC_CDT_INSTALL_METHOD_TXT")?.AsString(); } catch { }
-                    if (!string.Equals(method, StingTools.Core.Mep.SleeveConnectorEngine.SleeveMarker, StringComparison.OrdinalIgnoreCase))
+                    // Marker now carries "STING_SLEEVE_STUB:<fixtureId>" — match by prefix.
+                    if (method == null ||
+                        !method.StartsWith(StingTools.Core.Mep.SleeveConnectorEngine.SleeveMarker, StringComparison.OrdinalIgnoreCase))
                         continue;
                     var mgr = (el as MEPCurve)?.ConnectorManager;
                     if (mgr == null) continue;

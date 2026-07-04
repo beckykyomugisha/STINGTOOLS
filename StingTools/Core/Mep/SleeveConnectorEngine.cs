@@ -53,6 +53,9 @@ namespace StingTools.Core.Mep
         public XYZ TerminalFt { get; set; }
         public double StubSizeMm { get; set; }
         public double StubLengthMm { get; set; }
+        /// <summary>+1 = stub rises (+Z, wall/ceiling box); -1 = stub drops
+        /// (-Z, floor box). Resolved from mount height / type at plan time.</summary>
+        public double DirZ { get; set; } = 1.0;
         public ElementId StubId { get; set; } = ElementId.InvalidElementId;
     }
 
@@ -93,9 +96,15 @@ namespace StingTools.Core.Mep
         public double StubSizeMm { get; set; }
         /// <summary>Stub length (mm). Seeded from MepSizingRegistry; overridable.</summary>
         public double StubLengthMm { get; set; }
-        /// <summary>Idempotency / connector-coincidence tolerance (mm). 50 mm ≈ a
-        /// conduit entry stub with locknut + bushing.</summary>
-        public double ProximityTolMm { get; set; } = 50.0;
+        /// <summary>Coincidence tolerance (mm) for matching a fixture to its OWN
+        /// stub during the idempotency probe. Tightened from 50 → 10 mm so two
+        /// distinct connector-less fixtures on one back-box / adjacent floor-box
+        /// modules (~30 mm apart) do NOT share a stub — each is treated
+        /// independently. The primary idempotency key is the fixture ElementId
+        /// stamped into the stub marker; this tolerance is the fallback when the
+        /// marker param is unbound and only catches a stub whose end connector is
+        /// essentially on the terminal.</summary>
+        public double ProximityTolMm { get; set; } = 10.0;
         /// <summary>Conduit type used for stubs. Auto-resolved when unset.</summary>
         public ElementId ConduitTypeId { get; set; } = ElementId.InvalidElementId;
 
@@ -148,9 +157,12 @@ namespace StingTools.Core.Mep
                         continue;
                     }
 
-                    if (HasConduitConnectorNear(terminal))
+                    if (AlreadySleeved(fx, terminal))
                     {
-                        // A real conduit terminal or a prior STING stub is already here.
+                        // This fixture already carries its own STING stub (matched
+                        // by ElementId stamp, or an end connector coincident with
+                        // its terminal). Per-fixture — an adjacent fixture's stub
+                        // does NOT count.
                         result.AlreadySleeved++;
                         continue;
                     }
@@ -162,6 +174,7 @@ namespace StingTools.Core.Mep
                         TerminalFt   = terminal,
                         StubSizeMm   = StubSizeMm,
                         StubLengthMm = StubLengthMm,
+                        DirZ         = ResolveStubDirZ(fx),
                     });
                 }
                 catch (Exception ex)
@@ -236,6 +249,11 @@ namespace StingTools.Core.Mep
             return p;
         }
 
+        // UNIT CONTRACT for FIXTURE_DROP_OFFSET_Z_MM: a Double value is Revit
+        // internal FEET (bind the family param as a Length spec) and is converted
+        // here; a String value is plain millimetres. A family that binds this as a
+        // plain Number (not Length) would be misread by 304.8×. Same reader shape
+        // as DropEngineBase.ReadDropOffsetMm — keep the two in step.
         private static double ReadDropOffsetMm(Element fx)
         {
             try
@@ -250,6 +268,39 @@ namespace StingTools.Core.Mep
             catch (Exception ex) { StingLog.Warn($"SleeveConnectorEngine: read {DropOffsetParam} failed: {ex.Message}"); }
             return 0.0;
         }
+
+        /// <summary>Resolve the stub direction: floor-mounted devices drop -Z
+        /// (conduit exits the box downward into the slab void); everything else
+        /// rises +Z toward containment above. Floor is signalled by
+        /// ELE_FIX_MOUNT_HEIGHT_MM ≈ 0, ELE_FIX_TYPE_TXT / name containing
+        /// "FLOOR", or a Floor host.</summary>
+        private double ResolveStubDirZ(Element fx)
+        {
+            try
+            {
+                var mh = fx.LookupParameter("ELE_FIX_MOUNT_HEIGHT_MM");
+                if (mh != null && mh.HasValue)
+                {
+                    double hMm = double.NaN;
+                    if (mh.StorageType == StorageType.String && double.TryParse(mh.AsString(), out double s)) hMm = s;
+                    else if (mh.StorageType == StorageType.Double) hMm = mh.AsDouble() / MmToFt;
+                    if (!double.IsNaN(hMm) && hMm <= 1.0) return -1.0; // floor box
+                }
+
+                string type = null;
+                try { type = fx.LookupParameter("ELE_FIX_TYPE_TXT")?.AsString(); } catch { }
+                string name = SafeName(fx);
+                if (Contains(type, "FLOOR") || Contains(name, "FLOOR")) return -1.0;
+
+                if (fx is FamilyInstance fi && fi.Host is Floor) return -1.0;
+            }
+            catch (Exception ex) { StingLog.Warn($"SleeveConnectorEngine: ResolveStubDirZ failed: {ex.Message}"); }
+            return 1.0; // default: rise up
+        }
+
+        private static bool Contains(string haystack, string needle)
+            => !string.IsNullOrEmpty(haystack) &&
+               haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
 
         /// <summary>True when the element already exposes a FREE
         /// Domain.DomainCableTrayConduit connector — routing is already
@@ -268,11 +319,21 @@ namespace StingTools.Core.Mep
             return false;
         }
 
-        /// <summary>Idempotency probe — is there already a conduit connector
-        /// (real terminal or prior STING stub) within ProximityTolMm of the
-        /// terminal point?</summary>
-        private bool HasConduitConnectorNear(XYZ terminal)
+        /// <summary>
+        /// Per-fixture idempotency probe. True when THIS fixture already carries
+        /// its own STING sleeve stub. Matched two ways, so a re-run is a no-op but
+        /// two distinct connector-less fixtures 30 mm apart each still get a stub:
+        ///   1. Primary — a STING stub (ELC_CDT_INSTALL_METHOD_TXT starting with
+        ///      SleeveMarker) whose stamped fixture ElementId == this fixture's.
+        ///      Works at any spacing, independent of geometry.
+        ///   2. Fallback — a conduit end connector coincident (≤ ProximityTolMm,
+        ///      default 10 mm) with this fixture's terminal, for when the marker
+        ///      param is unbound / the id can't be parsed. 10 mm cleanly separates
+        ///      a re-run's own stub (0 mm) from an adjacent fixture (~30 mm).
+        /// </summary>
+        private bool AlreadySleeved(Element fx, XYZ terminal)
         {
+            long fxId = fx.Id.Value;
             double tolFt = ProximityTolMm * MmToFt;
             try
             {
@@ -281,6 +342,16 @@ namespace StingTools.Core.Mep
                     .WhereElementIsNotElementType();
                 foreach (var el in col)
                 {
+                    string method = null;
+                    try { method = el.LookupParameter(InstallMethodParam)?.AsString(); } catch { }
+                    bool isStingStub = method != null &&
+                        method.StartsWith(SleeveMarker, StringComparison.OrdinalIgnoreCase);
+
+                    // 1. Precise: our stub for THIS fixture (id stamped in marker).
+                    if (isStingStub && TryParseStubFixtureId(method, out long stampId) && stampId == fxId)
+                        return true;
+
+                    // 2. Fallback: an end connector essentially on this terminal.
                     var mgr = (el as MEPCurve)?.ConnectorManager;
                     if (mgr == null) continue;
                     foreach (Connector c in mgr.Connectors)
@@ -299,12 +370,25 @@ namespace StingTools.Core.Mep
             return false;
         }
 
+        /// <summary>Parse the fixture ElementId stamped into a stub marker of the
+        /// form "STING_SLEEVE_STUB:&lt;idValue&gt;". Returns false for the legacy
+        /// bare marker (no id).</summary>
+        private static bool TryParseStubFixtureId(string method, out long id)
+        {
+            id = 0;
+            if (string.IsNullOrEmpty(method)) return false;
+            int colon = method.IndexOf(':');
+            if (colon < 0 || colon + 1 >= method.Length) return false;
+            return long.TryParse(method.Substring(colon + 1).Trim(), out id);
+        }
+
         // ---- placement ----------------------------------------------------------
 
         private ElementId PlaceStub(SleeveConnectorItem item, SleeveConnectorResult result)
         {
             XYZ from = item.TerminalFt;
-            XYZ to   = new XYZ(from.X, from.Y, from.Z + StubLengthMm * MmToFt); // rise +Z
+            double dz = (item.DirZ < 0 ? -1.0 : 1.0) * StubLengthMm * MmToFt; // +Z rise / -Z floor-box drop
+            XYZ to   = new XYZ(from.X, from.Y, from.Z + dz);
 
             ElementId levelId = ResolveLevel(from, result);
             if (levelId == ElementId.InvalidElementId)
@@ -325,7 +409,9 @@ namespace StingTools.Core.Mep
             }
             catch (Exception ex) { result.Warnings.Add($"Fixture {item.FixtureId}: set stub diameter failed — {ex.Message}"); }
 
-            TrySetString(cdt, InstallMethodParam, SleeveMarker);
+            // Stamp the marker WITH the fixture ElementId so the idempotency probe
+            // can match a stub to its fixture at any spacing (dense back-boxes).
+            TrySetString(cdt, InstallMethodParam, $"{SleeveMarker}:{item.FixtureId.Value}");
             TrySetString(cdt, FabMethodParam, "SITE");
             return cdt.Id;
         }

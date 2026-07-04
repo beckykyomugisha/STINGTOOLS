@@ -561,7 +561,11 @@ namespace StingTools.Core.Routing
 
         /// <summary>Read the optional FIXTURE_DROP_OFFSET_Z_MM per-family hint
         /// (mm). Double-typed params are stored in internal feet and converted;
-        /// string-typed params are read as plain mm. Returns 0 when absent.</summary>
+        /// string-typed params are read as plain mm. Returns 0 when absent.
+        /// UNIT CONTRACT: a family that exposes this as a Double MUST bind it as a
+        /// Length spec (value is internal feet). Binding it as a plain Number is a
+        /// 304.8× error — use a String param if you want to type raw millimetres.
+        /// Canonical reader; SleeveConnectorEngine.ReadDropOffsetMm mirrors it.</summary>
         protected static double ReadDropOffsetMm(Element el)
         {
             if (el == null) return 0.0;

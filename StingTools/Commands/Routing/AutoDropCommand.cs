@@ -96,6 +96,12 @@ namespace StingTools.Commands.Routing
             {
                 try
                 {
+                    // Scope note: RoutingPreflightValidator scans the whole model
+                    // (one FilteredElementCollector over the electrical categories)
+                    // then we filter its findings to the routed selection below.
+                    // Intentional — the validator has no per-element overload and
+                    // a project-wide electrical scan is cheap relative to routing;
+                    // the same instance backs RunAllValidatorsCommand.
                     var pf = new StingTools.Core.Validation.RoutingPreflightValidator().Validate(doc);
                     var elecIds = new HashSet<long>();
                     foreach (var e in byDisc["Electrical"]) elecIds.Add(e.Id.Value);
