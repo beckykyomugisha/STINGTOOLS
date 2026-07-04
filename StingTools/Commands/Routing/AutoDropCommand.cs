@@ -87,6 +87,25 @@ namespace StingTools.Commands.Routing
                 return Result.Cancelled;
             }
 
+            // Task D — routing pre-flight. Report off-list conduit connector
+            // sizes (phantom-reducer risk) and electrical devices with no
+            // conduit connector (sleeve targets) BEFORE routing, so failures
+            // are surfaced as findings rather than discovered as failed drops.
+            var preflightWarnings = new List<string>();
+            if (AutoDropOptions.IncludeElectrical && byDisc["Electrical"].Count > 0)
+            {
+                try
+                {
+                    var pf = new StingTools.Core.Validation.RoutingPreflightValidator().Validate(doc);
+                    var elecIds = new HashSet<long>();
+                    foreach (var e in byDisc["Electrical"]) elecIds.Add(e.Id.Value);
+                    foreach (var r in pf)
+                        if (r.ElementId != null && elecIds.Contains(r.ElementId.Value))
+                            preflightWarnings.Add($"Pre-flight {r.Code}: element {r.ElementId.Value} — {r.Message}");
+                }
+                catch (Exception pex) { StingLog.Warn($"AutoDrop pre-flight: {pex.Message}"); }
+            }
+
             var allResults = new List<DropResult>();
             try
             {
@@ -99,7 +118,11 @@ namespace StingTools.Commands.Routing
                         SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
                         InstallMethod      = AutoDropOptions.ConduitInstallMethod,
                     };
-                    allResults.Add(eng.Execute(byDisc["Electrical"]));
+                    var elecResult = eng.Execute(byDisc["Electrical"]);
+                    // Surface pre-flight findings ahead of the drop warnings.
+                    if (preflightWarnings.Count > 0)
+                        elecResult.Warnings.InsertRange(0, preflightWarnings);
+                    allResults.Add(elecResult);
                 }
                 if (AutoDropOptions.IncludePlumbing && byDisc["Plumbing"].Count > 0)
                 {

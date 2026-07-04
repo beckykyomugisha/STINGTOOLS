@@ -1993,6 +1993,63 @@ succeeds on Revit 2025 (0 errors). Not yet exercised in a live Revit model.
    be built. `AutoConduitDrop`'s `LocationPoint` fallback partially covers connector-less
    fixtures in the interim.
 
+#### Completed (Phase 197 — Sleeve method + routing convergence, branch `claude/conduit-auto-routing`)
+
+Closes all three Phase 196 follow-ups and adds the sleeve-connector engine that lets
+manufacturer families route even after they lose the seed's conduit connector on swap.
+Owning connector authorship is the differentiator — market tools require a conduit
+connector and none author one.
+
+**Task A — revive two runtime-dead data files.**
+- `WORKFLOW_PlumbingRoughIn.json` used `command`/`name`/`skipIfFamilyLoaded` keys that do
+  not bind to the `WorkflowStep` POCO (`[JsonProperty] commandTag/label`). Rewrote all 8
+  steps to `commandTag`/`label`; every tag now resolves in `WorkflowEngine.ResolveCommand`
+  (`Seeds_Build` replaces the nonexistent `BuildSeedFamilies`).
+- `STING_SEED_JunctionBox.json` + `STING_SEED_ElectricalEquipment.json` seed connectors
+  used `x/y/z/direction` keys (unbound — the creator reads `offsetX/offsetY/offsetZ` +
+  `facing`), so every connector collapsed to `(0,0,0)` facing `-X`. Converted to the
+  bindable schema. Junction-box connectors switched `Electrical → Conduit` (a JB is a
+  physical conduit junction) so `AutoConduitDrop` bonds to them; equipment keeps its two
+  power connectors (now `systemType:"Power"` → `PowerCircuit`, was rejected as
+  `UndefinedSystemType`) and gains one added `Conduit` terminal so panels/DBs also become
+  conduit anchors.
+
+**Task B — sleeve-connector engine (`Core/Mep/SleeveConnectorEngine.cs` + command).**
+For each fixture lacking a free `Domain.DomainCableTrayConduit` connector, authors a short
+conduit stub (`Conduit.Create` on a 20/25 mm type) rising out of the fixture face; the
+outward end is a real, free conduit terminal for `AutoConduitDrop` to extend. Idempotent
+(geometric end-connector proximity + `ELC_CDT_INSTALL_METHOD_TXT == STING_SLEEVE_STUB`
+marker) and dry-run capable (`Run(fixtures, dryRun:true)` plans without a transaction or
+geometry — required, since it can't be Revit-tested from the dev box). Command
+`Routing_PlaceSleeveConnectors` (selection → else active-view electrical fixtures) always
+offers Preview-only vs Place, wired into `ResolveCommand`. Stub size/length tunable via
+`conduit.sleeveStubSizeMm`/`sleeveStubLengthMm` in the `MepSizingRegistry` project
+override. `AutoConduitDrop.ResolveRoutingSource` extends an authored stub instead of
+duplicating a drop from the LocationPoint.
+
+**Task C — converge the third routing silo.** New `Core/Routing/RoutingOriginResolver` —
+one origin contract (free conduit connector → any free connector → any connector →
+LocationPoint). `ConduitAutoRouteCommand` (cable-manifest router) now resolves its
+start/end through it instead of reading `LocationPoint` directly, so conduit runs begin
+at the placed-fixture connectors `AutoConduitDrop` already honours.
+
+**Task D — pre-flight hardening.** New `Core/Validation/RoutingPreflightValidator` gates
+routing: `SIZE.MISMATCH` when a conduit connector's Ø is not in the project Conduit
+Standards size list (`ConduitSizeSettings`) — the phantom-reducer / "no auto-route
+solution" cause — and `CONN.DOMAIN.NOCONDUIT` (Info) for electrical devices with MEP
+connectors but no conduit connector (sleeve targets). Registered in
+`RunAllValidatorsCommand` and run as a pre-flight inside `AutoDropCommand`'s electrical
+group so problems surface before drops. `DropEngineBase` (+ the sleeve engine) now honour
+a `FIXTURE_DROP_OFFSET_Z_MM` per-family hint on the LocationPoint fallback for legacy
+connector-less families.
+
+**Verified**: `dotnet build` succeeds on Revit 2025 (0 errors, 4 pre-existing warnings)
+after every task. All JSON keys diffed against the target `[JsonProperty]` names. `ConduitSizeSettings` / `ConduitSize.NominalDiameter` confirmed present in the Revit 2025 API.
+**Not Revit-verified** (no live model on this box): the full sleeve→drop pipeline and
+`CONN.OPEN` accounting are model-specific; the sleeve engine's core promise (a free,
+correctly-oriented conduit terminal per connector-less fixture; idempotent; dry-run) holds
+by construction.
+
 #### Completed (Phase 195 — EDGE/LEED Sustainability Module)
 
 Built to the approved design spec

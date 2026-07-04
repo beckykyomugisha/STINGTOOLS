@@ -434,7 +434,17 @@ namespace StingTools.Core.Routing
                 try { origin = fxConn.Origin; } catch { origin = null; }
             }
             if (origin == null && fixtureEl.Location is LocationPoint lp && lp.Point != null)
+            {
+                // Task D — legacy connector-less family path. When no connector
+                // supplied the origin, start from the LocationPoint raised by the
+                // family's FIXTURE_DROP_OFFSET_Z_MM hint (if present) so the drop
+                // begins at back-box / terminal height rather than the insertion
+                // point. Same param SleeveConnectorEngine honours.
                 origin = lp.Point;
+                double offMm = ReadDropOffsetMm(fixtureEl);
+                if (Math.Abs(offMm) > 1e-6)
+                    origin = new XYZ(origin.X, origin.Y, origin.Z + offMm * MmToFt);
+            }
             if (origin == null)
             {
                 result.Warnings.Add($"Fixture {fixtureEl.Id} has no connector or LocationPoint; cannot drop");
@@ -548,6 +558,23 @@ namespace StingTools.Core.Routing
         }
 
         // ---- parameter helpers --------------------------------------------------
+
+        /// <summary>Read the optional FIXTURE_DROP_OFFSET_Z_MM per-family hint
+        /// (mm). Double-typed params are stored in internal feet and converted;
+        /// string-typed params are read as plain mm. Returns 0 when absent.</summary>
+        protected static double ReadDropOffsetMm(Element el)
+        {
+            if (el == null) return 0.0;
+            try
+            {
+                var p = el.LookupParameter("FIXTURE_DROP_OFFSET_Z_MM");
+                if (p == null || !p.HasValue) return 0.0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble() / MmToFt;
+                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s)) return s;
+            }
+            catch (Exception ex) { StingLog.Warn($"DropEngineBase: read FIXTURE_DROP_OFFSET_Z_MM failed: {ex.Message}"); }
+            return 0.0;
+        }
 
         protected void TrySetString(Element el, string paramName, string value)
         {
