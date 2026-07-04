@@ -93,7 +93,7 @@ namespace StingTools.Commands.Symbols
                         string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
                         string scaleTier = SymbolScaleEngine.GetScaleTier(view);
                         string fam = SymbolConceptRegistry.GetFamilyName(
-                            d.ConceptId, d.ExpectedStandard, viewCtx, scaleTier, null);
+                            d.ConceptId, d.ExpectedStandard, viewCtx, scaleTier, null, ctx.Doc);
                         if (string.IsNullOrEmpty(fam)) continue;
                         var sym = new FilteredElementCollector(ctx.Doc)
                             .OfClass(typeof(FamilySymbol))
