@@ -435,10 +435,13 @@ namespace StingTools.Commands.Symbols
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
         {
             ["HVAC"] = new HashSet<string>(new[] { "SupplyAir", "ReturnAir", "ExhaustAir" }, StringComparer.Ordinal),
+            // Kept in lockstep with ResolvePipeSystemType in SymbolLibraryCreator.cs —
+            // "OtherPipe" is the med-gas / lab-gas catch-all (maps to PipeSystemType.OtherPipe).
             ["Piping"] = new HashSet<string>(new[] {
                 "DomesticColdWater", "DomesticHotWater", "Sanitary", "FireProtectionWet",
                 "FireProtectionDry", "FireProtectionPreaction", "ChilledWaterSupply",
-                "ChilledWaterReturn", "HotWaterSupply", "HotWaterReturn", "Hydronic" }, StringComparer.Ordinal),
+                "ChilledWaterReturn", "HotWaterSupply", "HotWaterReturn", "Hydronic",
+                "OtherPipe" }, StringComparer.Ordinal),
             ["Electrical"] = new HashSet<string>(new[] {
                 "Power", "Lighting", "Data", "Telephone", "FireAlarm", "Security",
                 "NurseCall", "Communication" }, StringComparer.Ordinal),
