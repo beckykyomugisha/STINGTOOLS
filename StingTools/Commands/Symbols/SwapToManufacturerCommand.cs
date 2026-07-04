@@ -111,7 +111,7 @@ namespace StingTools.Commands.Symbols
             }
 
             // 2) Group by seed id; resolve registry candidates for each.
-            var registry = LoadRegistry();
+            var registry = LoadRegistry(doc);
             if (registry == null)
             {
                 TaskDialog.Show("STING Swap",
@@ -389,7 +389,14 @@ namespace StingTools.Commands.Symbols
 
         // ── Registry ────────────────────────────────────────────────────
 
-        private static JObject LoadRegistry()
+        /// <summary>
+        /// Loads the corporate STING_FAMILY_SWAP_REGISTRY.json and merges the optional
+        /// project override at &lt;project&gt;/_BIM_COORD/family_swap_registry.json over it.
+        /// Merge is by <c>seedId</c> — a seed entry in the project override replaces the
+        /// corporate entry with the same id; new seed ids are appended (project wins by
+        /// key). Mirrors <see cref="SwapParameterBridge.LoadAliasMap"/>'s convention.
+        /// </summary>
+        private static JObject LoadRegistry(Document doc)
         {
             try
             {
@@ -397,16 +404,70 @@ namespace StingTools.Commands.Symbols
                 if (string.IsNullOrEmpty(corp) || !File.Exists(corp)) return null;
                 var root = JObject.Parse(File.ReadAllText(corp));
 
-                // Project override merge.
+                // Project override merge (project wins by seedId).
                 try
                 {
-                    string projDir = Path.GetDirectoryName(Path.GetDirectoryName(corp) ?? "") ?? "";
-                    // best-effort — try the typical _BIM_COORD location next to the active doc
+                    string baseDir = null;
+                    try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+                    catch (Exception exDir) { StingLog.Warn($"LoadRegistry override dir: {exDir.Message}"); }
+
+                    if (!string.IsNullOrEmpty(baseDir))
+                    {
+                        string ovr = Path.Combine(baseDir, "_BIM_COORD", "family_swap_registry.json");
+                        if (File.Exists(ovr))
+                        {
+                            MergeRegistryOverride(root, JObject.Parse(File.ReadAllText(ovr)));
+                            StingLog.Info($"LoadRegistry: merged project swap override {ovr}");
+                        }
+                    }
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"LoadRegistry override merge: {ex.Message}"); }
                 return root;
             }
             catch (Exception ex) { StingLog.Warn($"LoadRegistry: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Merges the project override's <c>seeds[]</c> into the corporate registry by
+        /// <c>seedId</c>: a project seed with a matching id replaces the corporate seed;
+        /// unmatched project seeds are appended. Non-"seeds" top-level keys on the
+        /// override (e.g. version) are copied over as well (project wins).
+        /// </summary>
+        private static void MergeRegistryOverride(JObject corp, JObject ovr)
+        {
+            if (corp == null || ovr == null) return;
+
+            var corpSeeds = corp["seeds"] as JArray;
+            if (corpSeeds == null) { corpSeeds = new JArray(); corp["seeds"] = corpSeeds; }
+
+            // Index corporate seeds by id for O(1) replacement.
+            var byId = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in corpSeeds.OfType<JObject>())
+            {
+                string id = (string)s["seedId"];
+                if (!string.IsNullOrEmpty(id)) byId[id] = s;
+            }
+
+            var ovrSeeds = ovr["seeds"] as JArray;
+            if (ovrSeeds != null)
+            {
+                foreach (var os in ovrSeeds.OfType<JObject>())
+                {
+                    string id = (string)os["seedId"];
+                    if (string.IsNullOrEmpty(id)) continue;
+                    if (byId.TryGetValue(id, out var existing))
+                        existing.Replace(os);          // project seed wins
+                    else
+                        corpSeeds.Add(os);             // net-new seed
+                }
+            }
+
+            // Copy any non-seeds scalar/object metadata (project wins), excluding "seeds".
+            foreach (var prop in ovr.Properties())
+            {
+                if (string.Equals(prop.Name, "seeds", StringComparison.OrdinalIgnoreCase)) continue;
+                corp[prop.Name] = prop.Value;
+            }
         }
 
         private static List<SwapPlan> BuildPlans(Document doc, IList<Element> seeds, JObject registry)
