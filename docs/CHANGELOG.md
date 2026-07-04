@@ -1953,6 +1953,46 @@ non-STING family and confirm positions + values survive.**
    STING target is empty). Swapping to a STING-naive family now preserves
    positions + values. Result panel + audit report families stamped.
 
+#### Completed (Phase 196 — Electrical conduit auto-routing after placement)
+
+Closes the gap that every market conduit plugin (ricaun EasyConduit, ConduiTool,
+Automatic Conduit, EVOLVE) leaves open: they all require families to already carry
+conduit connectors but none author them. StingTools authors connectors from JSON at
+seed-build time, so the fix is data + wiring, not a new routing engine.
+
+- **Electrical fixture seed connectors** (`Data/Seeds/STING_SEED_ElectricalFixture.json`):
+  the seed shipped with zero connectors, so placed sockets/switches/FCUs/isolators/
+  EV-chargers/data-outlets landed connector-less and `AutoConduitDrop.FindBestFreeConnector()`
+  fell back to the family `LocationPoint` (wrong terminal). Added one symbol-level
+  conduit terminal connector (`domain:"Conduit"` → `Domain.DomainCableTrayConduit`,
+  `facing:"+Z"`, `sizeMm:20`) that applies to all 55 variants.
+- **`WORKFLOW_ElectricalRoughIn.json`**: `Seeds_Build → Placement_PlaceFixtures →
+  Routing_AutoDrop → Validation_RunAll`. `PlaceFixturesCommand` leaves its placed IDs
+  selected; `AutoDropCommand` reads that selection and dispatches electrical fixtures
+  to `AutoConduitDrop`. This is the electrical place→route chain (plumbing already had
+  one shape of it).
+- **`WorkflowEngine.ResolveCommand`**: added `Placement_PlaceFixtures`, `Routing_AutoDrop`,
+  `Validation_RunAll`. `RunCommandByTag` resolves *only* through `ResolveCommand`, and
+  these were absent — every rough-in place/route/validate step returned FAILED despite
+  valid JSON.
+
+**Verified**: domain literal `"Conduit"` and field names `offsetX/offsetY/offsetZ/facing`
+match the `ConnectorDefinition` `[JsonProperty]` bindings; workflow uses `commandTag`/
+`label` per the `WorkflowStep` POCO (`command`/`name` do NOT bind). `dotnet build`
+succeeds on Revit 2025 (0 errors). Not yet exercised in a live Revit model.
+
+**Follow-ups (found, documented, not fixed to keep scope tight):**
+1. `WORKFLOW_PlumbingRoughIn.json` uses `command`/`name`/`skipIfFamilyLoaded` which do
+   not bind — that workflow is runtime-dead and needs the same field-name fix.
+2. Equipment / JunctionBox seed connectors use `x/y/z/direction` which do not bind to
+   `offsetX/offsetY/offsetZ/facing` → those connectors land at origin facing `-X`; and
+   JB connectors are `Domain=Electrical` (power), not `Conduit`, so they cannot yet act
+   as conduit auto-route anchors.
+3. Sleeve-connector engine (author a physical conduit stub + connector on manufacturer
+   families that lose the seed's connector on swap) — the "sleeve method" — remains to
+   be built. `AutoConduitDrop`'s `LocationPoint` fallback partially covers connector-less
+   fixtures in the interim.
+
 #### Completed (Phase 195 — EDGE/LEED Sustainability Module)
 
 Built to the approved design spec
