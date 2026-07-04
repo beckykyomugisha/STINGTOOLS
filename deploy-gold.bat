@@ -61,8 +61,13 @@ endlocal
 exit /b 0
 
 :pin
-if exist %1 (
-  powershell -NoProfile -Command "$f=%1; (Get-Content $f -Raw) -replace '<Assembly>.*?</Assembly>','<Assembly>C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll</Assembly>' | Set-Content $f -Encoding UTF8"
+REM  %~1 strips the surrounding quotes from the path so it can be wrapped in
+REM  PowerShell single quotes ($f='...'). Passing %1 (already double-quoted)
+REM  into the double-quoted -Command string produced nested double quotes that
+REM  terminated the string early, leaving $f empty — so the manifest was never
+REM  re-pointed ("Cannot bind argument to parameter 'Path' because it is null").
+if exist "%~1" (
+  powershell -NoProfile -Command "$f='%~1'; (Get-Content -LiteralPath $f -Raw) -replace '<Assembly>.*?</Assembly>','<Assembly>C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll</Assembly>' | Set-Content -LiteralPath $f -Encoding UTF8"
   echo   %2 pinned -^> C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll
 )
 exit /b 0

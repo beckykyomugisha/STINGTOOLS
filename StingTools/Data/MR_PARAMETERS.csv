@@ -66,6 +66,12 @@ Generic Models,BLE_FLR_LD_CAP_KPA,c9176e37-501e-5f2a-b4b4-0b66a37f88b5,TEXT,CST_
 Generic Models,BLE_FLR_SLIP_RESISTANCE_RATING_NR,8587af48-41e4-551b-b127-47fbfba712da,TEXT,CST_PROC,Type,Ble Flr Slip Resistance Rating Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_STRUCTURAL_SYSTEM_TXT,6fd7e2d6-1471-58dd-9226-6424a5ca3072,TEXT,CST_PROC,Type,Ble Flr Structural System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_THICKNESS_MM,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,TEXT,CST_PROC,Type,Ble Flr Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_SYSTEM_TXT,51ab0001-5c0d-5eab-9a01-000000000001,TEXT,CST_PROC,Type,MAT-4 slab system: Solid/Ribbed/Waffle/HollowPot/Maxspan/BeamBlock [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_WIDTH_MM,51ab0002-5c0d-5eab-9a01-000000000002,TEXT,CST_PROC,Type,MAT-4 slab rib width (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_SPACING_MM,51ab0003-5c0d-5eab-9a01-000000000003,TEXT,CST_PROC,Type,MAT-4 slab rib spacing centre-to-centre (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_DEPTH_MM,51ab0004-5c0d-5eab-9a01-000000000004,TEXT,CST_PROC,Type,MAT-4 slab rib depth below topping (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_TOPPING_MM,51ab0005-5c0d-5eab-9a01-000000000005,TEXT,CST_PROC,Type,MAT-4 slab structural topping thickness (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_BLOCK_SIZE_TXT,51ab0006-5c0d-5eab-9a01-000000000006,TEXT,CST_PROC,Type,MAT-4 slab infill block/pot size LxW (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_FURNITURE_FINISH_TXT,f24d7043-d3ff-4e0b-a87f-80262eacfa89,TEXT,CST_PROC,Type,Furniture surface finish specification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_HEADROOM_MM,ad4e4145-628a-4bd4-b622-79c2aa300d41,TEXT,CST_PROC,Type,General headroom clearance in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MULLION_DEPTH_MM,16606b2b-a814-4599-a295-8fb7e35e73da,TEXT,CST_PROC,Type,Curtain wall mullion depth in mm [ISO 19650-1:2018],False,,,MULTI,1,0

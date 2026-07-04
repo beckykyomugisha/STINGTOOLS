@@ -134,10 +134,13 @@ namespace StingTools.Core.Symbols
             // CIRCUIT_REF / RATING / POLES / LABEL remain as fallback so imported families
             // built against other library conventions still render labels — but the project
             // template ships ELC_CIRCUIT_REF_TXT / _RATING_TXT / _POLES_NR / _LABEL_TXT.
-            string circuit = ReadCircuitParam(host, "ELC_CIRCUIT_REF_TXT",    "CIRCUIT_REF");
-            string rating  = ReadCircuitParam(host, "ELC_CIRCUIT_RATING_TXT", "RATING");
-            string poles   = ReadCircuitParam(host, "ELC_CIRCUIT_POLES_NR",   "POLES");
-            string label   = ReadCircuitParam(host, "ELC_CIRCUIT_LABEL_TXT",  "LABEL");
+            // Route the canonical names through ParamRegistry so a project-level rename
+            // of the shared parameter is picked up here instead of silently rendering
+            // nothing; the bare CIRCUIT_REF/RATING/POLES/LABEL remain as fallbacks.
+            string circuit = ReadCircuitParam(host, ParamRegistry.CIRCUIT_REF,    "CIRCUIT_REF");
+            string rating  = ReadCircuitParam(host, ParamRegistry.CIRCUIT_RATING, "RATING");
+            string poles   = ReadCircuitParam(host, ParamRegistry.CIRCUIT_POLES,  "POLES");
+            string label   = ReadCircuitParam(host, ParamRegistry.CIRCUIT_LABEL,  "LABEL");
 
             string fmt = (rules.RatingFormat ?? "{rating}{unit}")
                 .Replace("{poles}", poles)

@@ -760,8 +760,6 @@ namespace StingTools.Core.Symbols
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
             bool isAnnotation)
         {
-            // The merged switch body branches on TemplateKind; derive it from isAnnotation.
-            var kind = isAnnotation ? TemplateKind.Annotation : TemplateKind.Model;
             try
             {
                 var geomWarnings = new List<string>();
@@ -776,6 +774,11 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
+
+                // Author the curve exactly once. (Previously the family-document
+                // branch drew the curve and then fell through into a switch that
+                // drew it a SECOND time — overlapping curves whose "lines overlap"
+                // warnings were swallowed by SymbolFailureSwallow.)
                 if (fdoc.IsFamilyDocument)
                 {
                     if (isAnnotation)
@@ -786,24 +789,6 @@ namespace StingTools.Core.Symbols
                 else
                 {
                     fdoc.Create.NewDetailCurve(view, line);
-                    return;
-                }
-
-                switch (kind)
-                {
-                    case TemplateKind.DetailItem:
-                    case TemplateKind.Annotation:
-                        // Annotation + DetailItem both render lines on
-                        // the family's built-in plan view; no sketch
-                        // plane needed (and SketchPlane.Create is
-                        // forbidden in Annotation templates).
-                        fdoc.FamilyCreate.NewDetailCurve(view, line);
-                        break;
-                    case TemplateKind.Model:
-                    default:
-                        if (sketch == null) return;
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                        break;
                 }
             }
             catch (Exception ex)
@@ -1154,7 +1139,7 @@ namespace StingTools.Core.Symbols
                         if (double.TryParse(value,
                             System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture,
-                            out double d)) fm.Set(p, d);
+                            out double d)) fm.Set(p, ConvertJsonDoubleForSpec(p, d));
                         break;
                     case StorageType.ElementId:
                         // Variant params don't yet support ElementId
@@ -1346,7 +1331,7 @@ namespace StingTools.Core.Symbols
                             System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture,
                             out double d))
-                            fm.Set(fp, d);
+                            fm.Set(fp, ConvertJsonDoubleForSpec(fp, d));
                         break;
                     case StorageType.ElementId:
                         // Material / reference defaults aren't expressible as JSON strings.
@@ -1357,6 +1342,28 @@ namespace StingTools.Core.Symbols
             {
                 result.Warnings.Add($"{def.Id}: default for '{fp.Definition?.Name}' failed — {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Converts a JSON-authored numeric default/variant value into Revit's internal
+        /// units for the target parameter's spec. JSON authors human units (mm), but a
+        /// Length parameter stores internal FEET — so a "600" (mm) default must become
+        /// 600/304.8 ft, otherwise it lands as 600 ft. Dimensionless Number and any
+        /// other Double spec pass through unchanged.
+        /// </summary>
+        private static double ConvertJsonDoubleForSpec(FamilyParameter fp, double parsed)
+        {
+            try
+            {
+                ForgeTypeId dataType = fp?.Definition?.GetDataType();
+                if (dataType != null && dataType.TypeId == SpecTypeId.Length.TypeId)
+                    return MmToFt(parsed);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ConvertJsonDoubleForSpec {fp?.Definition?.Name}: {ex.Message}");
+            }
+            return parsed;
         }
 
         /// <summary>
@@ -1581,7 +1588,17 @@ namespace StingTools.Core.Symbols
                                 // factory rejects UndefinedSystemType).
                                 Autodesk.Revit.DB.Plumbing.PipeSystemType pipeSys = ResolvePipeSystemType(c.SystemType);
                                 if (pipeSys == Autodesk.Revit.DB.Plumbing.PipeSystemType.UndefinedSystemType)
+                                {
+                                    // Make the mis-type visible: an unrecognised systemType would
+                                    // otherwise be silently built as domestic heating water. The
+                                    // factory rejects Undefined, so we must still pass a valid type.
+                                    string warn = $"{def.Id} [{sourceLabel}]: pipe connector systemType " +
+                                        $"'{c.SystemType}' not recognised by ResolvePipeSystemType — " +
+                                        "built as SupplyHydronic fallback (check the seed systemType).";
+                                    StingLog.Warn(warn);
+                                    result.Warnings.Add(warn);
                                     pipeSys = Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic;
+                                }
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
                                     pipeSys,
@@ -1788,6 +1805,9 @@ namespace StingTools.Core.Symbols
                 case "HotWaterSupply":      return PipeSystemType.SupplyHydronic;
                 case "HotWaterReturn":      return PipeSystemType.ReturnHydronic;
                 case "Hydronic":            return PipeSystemType.SupplyHydronic;
+                // Medical-gas / lab-gas outlets have no native domestic Revit pipe type;
+                // OtherPipe is the correct catch-all (intentional, not a typo).
+                case "OtherPipe":           return PipeSystemType.OtherPipe;
                 default:                    return PipeSystemType.UndefinedSystemType;
             }
         }

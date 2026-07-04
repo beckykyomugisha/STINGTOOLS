@@ -107,19 +107,27 @@
       "connectors": [
         {
           "domain": "HVAC",
-          "x": -0.5,
-          "y": 0.0,
-          "z": 0.0,
-          "direction": "x-",
-          "_notes": "Supply air connector (left)"
+          "systemType": "SupplyAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "In",
+          "offsetX": -0.5,
+          "offsetY": 0.0,
+          "offsetZ": 0.0,
+          "facing": "-X",
+          "_notes": "Supply air connector (left) — opposed on X"
         },
         {
           "domain": "HVAC",
-          "x": 0.5,
-          "y": 0.0,
-          "z": 0.0,
-          "direction": "x+",
-          "_notes": "Return air connector (right)"
+          "systemType": "ReturnAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "Out",
+          "offsetX": 0.5,
+          "offsetY": 0.0,
+          "offsetZ": 0.0,
+          "facing": "+X",
+          "_notes": "Return air connector (right) — opposed on X"
         }
       ],
       "geometry": {

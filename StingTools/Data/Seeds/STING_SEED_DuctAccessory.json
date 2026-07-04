@@ -119,6 +119,32 @@
           }
         ]
       },
+      "connectors": [
+        {
+          "domain": "HVAC",
+          "systemType": "SupplyAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "In",
+          "offsetX": -0.5,
+          "offsetY": 0.0,
+          "offsetZ": 0.0,
+          "facing": "-X",
+          "_notes": "Inlet — opposed along the run axis so the accessory can break into a duct run"
+        },
+        {
+          "domain": "HVAC",
+          "systemType": "SupplyAir",
+          "shape": "Round",
+          "sizeMm": 200,
+          "direction": "Out",
+          "offsetX": 0.5,
+          "offsetY": 0.0,
+          "offsetZ": 0.0,
+          "facing": "+X",
+          "_notes": "Outlet — opposed along the run axis"
+        }
+      ],
       "swapCandidates": [
         {
           "label": "Manufacturer family (primary)",
