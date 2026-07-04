@@ -232,10 +232,16 @@ namespace StingTools.Core
         private const string CopilotSystemPrompt =
             "You are the StingTools assistant inside Revit. You control a Revit BIM model through " +
             "tools. Use search_capabilities to discover commands and describe_capability to understand " +
-            "them. Prefer the Tier-1 read tools (query_elements, get_element, get_compliance, " +
-            "run_validator, get_model_info) to answer questions. For ANY write/mutation, ALWAYS call " +
-            "the tool with dryRun:true first, show the user the projected plan, and run for real only " +
-            "after the user confirms. NEVER claim a write happened unless the read-back confirms it — " +
+            "them. Prefer the Tier-1 read tools (query_elements, get_element, get_rooms, get_levels, " +
+            "get_grids, get_warnings, get_compliance, run_validator, get_model_info) to answer questions. " +
+            "You can also CREATE model geometry: create_wall, create_floor, create_floor_in_room, " +
+            "create_roof, create_duct, create_pipe, create_room, place_family, and building_shell. " +
+            "ALL coordinates and dimensions passed to create tools are in MILLIMETRES. " +
+            "For ANY write, mutation, or creation, ALWAYS call the tool with dryRun:true first, show the " +
+            "user the projected plan, and run for real only after the user confirms. building_shell (and " +
+            "any multi-element create) additionally requires confirm:true on the real run. When a create " +
+            "tool reports an unknown type/level/family (bad_args), read the listed options and pick a valid " +
+            "one or ask the user. NEVER claim a write/create happened unless the read-back confirms it — " +
             "watch for noWritesPersisted and typeScopeWrites in results and report them honestly. " +
             "Be concise; answer in plain English.";
 
@@ -254,11 +260,13 @@ namespace StingTools.Core
         /// write that returned needs_confirmation; returns true to proceed. May be null.
         /// </param>
         /// <param name="onToolStart">Optional progress callback fired with each tool name before it runs.</param>
+        /// <param name="onToolResult">Optional callback fired with (toolName, compactResultSummary) after each tool runs — for chat activity transparency.</param>
         public async Task<CopilotTurn> RunCopilotTurnAsync(
             List<CopilotMessage> conversation,
             CancellationToken ct,
             Func<string, bool> confirmCallback = null,
-            Action<string> onToolStart = null)
+            Action<string> onToolStart = null,
+            Action<string, string> onToolResult = null)
         {
             var turn = new CopilotTurn { ToolsUsed = new List<string>() };
 
@@ -284,7 +292,7 @@ namespace StingTools.Core
 
             try
             {
-                return await RunClaudeToolLoopAsync(conversation, ct, confirmCallback, onToolStart);
+                return await RunClaudeToolLoopAsync(conversation, ct, confirmCallback, onToolStart, onToolResult);
             }
             catch (OperationCanceledException)
             {
@@ -305,9 +313,18 @@ namespace StingTools.Core
             List<CopilotMessage> conversation,
             CancellationToken ct,
             Func<string, bool> confirmCallback,
-            Action<string> onToolStart)
+            Action<string> onToolStart,
+            Action<string, string> onToolResult)
         {
             var turn = new CopilotTurn { ToolsUsed = new List<string>() };
+
+            // Context auto-include: read the active view + current selection once so the
+            // model can resolve "this view" / "these" / "here" without the user restating them.
+            string contextPreamble = BuildContextPreamble();
+            string systemPrompt = string.IsNullOrEmpty(contextPreamble)
+                ? CopilotSystemPrompt
+                : CopilotSystemPrompt + "\n\nCurrent Revit context — " + contextPreamble +
+                  " Use these when the user says 'this view', 'these', 'the selection', or 'here'.";
 
             // Build the Anthropic tools array ONCE from the shared registry. Note the
             // registry serialises the schema under "inputSchema"; the Anthropic Messages
@@ -343,7 +360,7 @@ namespace StingTools.Core
                 {
                     ["model"]      = _claudeModel ?? "claude-haiku-4-5-20251001",
                     ["max_tokens"] = 1024,
-                    ["system"]     = CopilotSystemPrompt,
+                    ["system"]     = systemPrompt,
                     ["tools"]      = toolsArr,
                     ["messages"]   = messages,
                 };
@@ -403,6 +420,7 @@ namespace StingTools.Core
                     try { onToolStart?.Invoke(name); } catch { /* progress is best-effort */ }
 
                     var (text, isError) = ExecuteToolWithConfirm(name, input, confirmCallback);
+                    try { onToolResult?.Invoke(name, CompactSummary(text)); } catch { /* transparency is best-effort */ }
 
                     toolResults.Add(new JObject
                     {
@@ -460,6 +478,47 @@ namespace StingTools.Core
         {
             if (result?.Content == null || result.Content.Count == 0) return string.Empty;
             return string.Join("\n", result.Content.Select(c => c?.Text ?? string.Empty));
+        }
+
+        /// <summary>First meaningful line of a tool result (the Summary above the JSON fence), for the chat activity line.</summary>
+        private static string CompactSummary(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "(no result)";
+            int fence = text.IndexOf("```", StringComparison.Ordinal);
+            string head = (fence > 0 ? text.Substring(0, fence) : text).Trim();
+            string line = head.Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim() ?? "";
+            if (line.Length > 140) line = line.Substring(0, 137) + "…";
+            return string.IsNullOrEmpty(line) ? "(done)" : line;
+        }
+
+        /// <summary>
+        /// Read the active view name + current selection on the Revit API thread (short timeout,
+        /// no mutation) so the Copilot can resolve deictic references. Returns null on any failure.
+        /// </summary>
+        private static string BuildContextPreamble()
+        {
+            try
+            {
+                var r = McpJobBridge.Run(uiApp =>
+                {
+                    var uidoc = uiApp?.ActiveUIDocument;
+                    if (uidoc?.Document == null) return McpJobResult.Success("", null);
+                    string view = uidoc.ActiveView?.Name ?? "(none)";
+                    var sel = uidoc.Selection.GetElementIds();
+                    string selStr = sel.Count == 0
+                        ? "none"
+                        : (sel.Count <= 15
+                            ? string.Join(",", sel.Select(i => i.Value))
+                            : $"{sel.Count} elements (ids: {string.Join(",", sel.Take(15).Select(i => i.Value))}…)");
+                    return McpJobResult.Success($"active view: '{view}'; selection: {selStr}.", null);
+                }, 5000);
+                return (r != null && r.Ok && !string.IsNullOrEmpty(r.Summary)) ? r.Summary : null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Copilot context preamble failed: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
