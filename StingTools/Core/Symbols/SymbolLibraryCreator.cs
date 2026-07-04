@@ -1588,7 +1588,17 @@ namespace StingTools.Core.Symbols
                                 // factory rejects UndefinedSystemType).
                                 Autodesk.Revit.DB.Plumbing.PipeSystemType pipeSys = ResolvePipeSystemType(c.SystemType);
                                 if (pipeSys == Autodesk.Revit.DB.Plumbing.PipeSystemType.UndefinedSystemType)
+                                {
+                                    // Make the mis-type visible: an unrecognised systemType would
+                                    // otherwise be silently built as domestic heating water. The
+                                    // factory rejects Undefined, so we must still pass a valid type.
+                                    string warn = $"{def.Id} [{sourceLabel}]: pipe connector systemType " +
+                                        $"'{c.SystemType}' not recognised by ResolvePipeSystemType — " +
+                                        "built as SupplyHydronic fallback (check the seed systemType).";
+                                    StingLog.Warn(warn);
+                                    result.Warnings.Add(warn);
                                     pipeSys = Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic;
+                                }
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
                                     pipeSys,
@@ -1795,6 +1805,9 @@ namespace StingTools.Core.Symbols
                 case "HotWaterSupply":      return PipeSystemType.SupplyHydronic;
                 case "HotWaterReturn":      return PipeSystemType.ReturnHydronic;
                 case "Hydronic":            return PipeSystemType.SupplyHydronic;
+                // Medical-gas / lab-gas outlets have no native domestic Revit pipe type;
+                // OtherPipe is the correct catch-all (intentional, not a typo).
+                case "OtherPipe":           return PipeSystemType.OtherPipe;
                 default:                    return PipeSystemType.UndefinedSystemType;
             }
         }
