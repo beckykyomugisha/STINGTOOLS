@@ -81,9 +81,21 @@ namespace StingTools.Commands.Electrical.Routing
                         try { panelEl = sys.BaseEquipment; } catch (Exception ex4) { StingLog.Warn($"Suppressed: {ex4.Message}"); }
                         if (loadEl == null || panelEl == null) continue;
 
-                        var startPt = (loadEl.Location as LocationPoint)?.Point;
-                        var endPt   = (panelEl.Location as LocationPoint)?.Point;
+                        // Converged origin contract (shared with the v4 drop
+                        // engine): start the run at the fixture / panel conduit
+                        // connector when present, LocationPoint only as fallback.
+                        // Previously this read LocationPoint directly and so
+                        // began conduit runs at the family insertion point,
+                        // ignoring the placed-fixture connectors AutoConduitDrop
+                        // already honours.
+                        var startPt = StingTools.Core.Routing.RoutingOriginResolver.Resolve(loadEl, out string startSrc)
+                                      ?? (loadEl.Location as LocationPoint)?.Point;
+                        var endPt   = StingTools.Core.Routing.RoutingOriginResolver.Resolve(panelEl, out string endSrc)
+                                      ?? (panelEl.Location as LocationPoint)?.Point;
                         if (startPt == null || endPt == null) continue;
+                        if (startSrc == "location-point" || endSrc == "location-point")
+                            StingLog.Info($"AutoRoute cable {cable.CircuitId}: origin fell back to LocationPoint " +
+                                          $"(load={startSrc}, panel={endSrc}) — element has no MEP connector.");
 
                         var levelId = loadEl.LevelId;
                         if (levelId == null || levelId == ElementId.InvalidElementId)
