@@ -278,7 +278,7 @@
           "genericAnnotation": "SLD_XFMR_2W"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_XFMR_2W"
+          "genericAnnotation": "IEEE_SLD_TRANSFORMER"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_TRANSFORMER"
@@ -391,7 +391,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_KWH_METER"
+          "genericAnnotation": "SLD_KWH_METER"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_METER"
@@ -481,7 +481,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_EARTH"
+          "genericAnnotation": "SLD_EARTH"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_EARTH"
@@ -526,7 +526,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_GENERATOR"
+          "genericAnnotation": "SLD_GENERATOR"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_GENERATOR"
@@ -546,7 +546,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_UPS"
+          "genericAnnotation": "SLD_UPS"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_UPS"
@@ -611,7 +611,7 @@
           "genericAnnotation": "SLD_MOTOR_3PH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MOTOR_3PH"
+          "genericAnnotation": "IEEE_SLD_MOTOR"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_MOTOR"
@@ -634,7 +634,7 @@
           "genericAnnotation": "SLD_MOTOR_1PH"
         },
         "IEEE": {
-          "genericAnnotation": "IEEE_SLD_MOTOR_1PH"
+          "genericAnnotation": "IEEE_SLD_MOTOR"
         },
         "BS": {
           "genericAnnotation": "BS_SLD_MOTOR"
@@ -4361,7 +4361,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_LPS_AIR_TERMINAL"
+          "genericAnnotation": "SLD_LPS_AIR_TERMINAL"
         },
         "BS": {
           "genericAnnotation": "BS_EN_62305_AIR_TERMINAL"
@@ -4381,7 +4381,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_LPS_DOWN_CONDUCTOR"
+          "genericAnnotation": "SLD_LPS_DOWN_CONDUCTOR"
         },
         "BS": {
           "genericAnnotation": "BS_EN_62305_DOWN_CONDUCTOR"
@@ -4401,7 +4401,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_LPS_EARTH_ELECTRODE"
+          "genericAnnotation": "SLD_LPS_EARTH_ELECTRODE"
         },
         "BS": {
           "genericAnnotation": "BS_EN_62305_EARTH_ELECTRODE"
@@ -4421,7 +4421,7 @@
       "isViewDependent": false,
       "standardMappings": {
         "IEC": {
-          "genericAnnotation": "IEC_SLD_LPS_BONDING_BAR"
+          "genericAnnotation": "SLD_LPS_BONDING_BAR"
         },
         "BS": {
           "genericAnnotation": "BS_EN_62305_BONDING_BAR"
