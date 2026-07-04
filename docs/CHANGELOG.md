@@ -3,6 +3,44 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Symbol Library malformed-connector repair, branch `claude/symbol-fixes-3`)
+
+Fixes a defect the round-2 validator could not catch, plus hardens the validator so
+the class is caught going forward. Built against Revit 2025: **0 errors** (4
+pre-existing warnings). Data + compile verified; connector INSERTION into a real
+duct/pipe run was NOT exercised in Revit.
+
+- **(Task A) Three seeds authored connectors with non-binding keys.**
+  `STING_SEED_MechanicalEquipment` (2), `STING_SEED_ElectricalEquipment` (2) and
+  `STING_SEED_JunctionBox` (4) used `x/y/z` + `direction:"x-"`, which the
+  `ConnectorDefinition` POCO does not bind — Newtonsoft dropped them, so every
+  connector collapsed to the family origin (0,0,0): coincident, wrong-facing, no
+  `systemType`, effectively unroutable (same failure mode as no connectors, but
+  harder to spot). Repaired each preserving its `_notes` intent: `x/y/z` →
+  `offsetX/offsetY/offsetZ` (same values); `facing` set to the opposed axis
+  (−X/+X, −Z/+Z, −Y/+Y); `direction` remapped to a valid flow value (In/Out/
+  Bidirectional); a recognised `systemType` added per domain (HVAC SupplyAir/
+  ReturnAir; Electrical Power; JB 4× Electrical Power on distinct −X/+X/−Y/+Y).
+  Connector counts unchanged (2/2/4); files remain valid JSON. Domains preserved —
+  no domain invented.
+- **(Task B) `Symbols_Validate` now inspects raw connector JSON.** The prior check
+  read the deserialized POCO, so it could not see keys already dropped at
+  deserialization. Added `CheckSeedConnectorValidity` (raw `JObject` pass over
+  symbol- and variant-level connectors) flagging: unbound/unknown keys, missing/
+  unrecognised domain, missing/unrecognised systemType (sets mirror the creator's
+  resolver switches exactly), invalid direction, invalid facing, and coincident
+  positions (missing offset = 0, so origin-collapsed sets are caught). New
+  "Connector defects" report line; read-only. Self-tested: the original x/y/z bug
+  now flags unbound-key + bad-direction + coincident-origin.
+- **Follow-up surfaced (out of scope).** Run against shipped data, the hardened
+  validator reported **0 defects in the 3 repaired seeds** but **19 pre-existing
+  unrecognised-systemType defects in 5 other seeds** (`PlumbingFixture`,
+  `PlumbingEquipment`, `LabFixture`, `MedGasOutlet`, `Sprinkler`) using
+  `DomesticCold`/`DomesticHot` (should be `…Water`), `OtherPipe`, `SupplyHydronic`,
+  `ReturnHydronic`, `FireProtectWet` — none matched by `ResolvePipeSystemType`, so
+  they build as the fallback system type. Not fixed here (task scope = the 3 named
+  seeds only); recommended as a follow-up data pass.
+
 #### Completed (Symbol Library second-pass fixes, branch `claude/symbol-fixes-2`)
 
 Eight review findings on top of the round-1 fixes. Built against Revit 2025:
