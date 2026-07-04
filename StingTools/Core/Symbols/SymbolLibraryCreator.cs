@@ -1462,19 +1462,26 @@ namespace StingTools.Core.Symbols
 
         private static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
+            // Only the base symbol connectors are authored. Connectors live on the
+            // family document itself (not on a type), so unioning every TypeVariant's
+            // connector set would make a placed variant carry connectors from sibling
+            // variants (e.g. a WC would sprout basin/shower connectors). Per-variant
+            // connector geometry is therefore NOT supported through a single multi-
+            // variant family — that would require one family per connector topology.
+            // If a variant declares its own connectors, warn and skip rather than
+            // silently unioning a mismatched set onto every variant.
             AddConnectorList(fdoc, def, def.Connectors, result, sourceLabel: "symbol");
-            // Phase 178e — fold variant-level connector declarations
-            // into the same family doc. Connectors live on the family,
-            // not on a type, so the union of all variants ends up
-            // visible to every variant; per-variant differentiation
-            // happens via parameter values (size / system type) that
-            // AutoPipeDrop reads at routing time.
             if (def.TypeVariants != null)
             {
                 foreach (var v in def.TypeVariants)
                 {
                     if (v?.Connectors == null || v.Connectors.Count == 0) continue;
-                    AddConnectorList(fdoc, def, v.Connectors, result, sourceLabel: $"variant '{v.Name}'");
+                    string msg = $"{def.Id}: variant '{v.Name}' declares {v.Connectors.Count} " +
+                                 "connector(s) — per-variant connector sets are not supported " +
+                                 "(they would leak onto sibling variants); ignored. Author a " +
+                                 "separate symbol per connector topology instead.";
+                    StingLog.Warn(msg);
+                    result.Warnings.Add(msg);
                 }
             }
         }
@@ -1527,11 +1534,20 @@ namespace StingTools.Core.Symbols
                             // Reference, DuctSystemType) — 4 args; 3-arg overload does not exist.
                             try
                             {
+                                // Resolve the actual duct system type from the connector
+                                // declaration so return / exhaust connectors do not all
+                                // collapse to supply air. Fall back to SupplyAir only when
+                                // the declaration is unknown/undefined (the factory rejects
+                                // UndefinedSystemType).
+                                DuctSystemType ductSys = ResolveDuctSystemType(c.SystemType);
+                                if (ductSys == DuctSystemType.UndefinedSystemType)
+                                    ductSys = DuctSystemType.SupplyAir;
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
-                                    DuctSystemType.SupplyAir,
+                                    ductSys,
                                     ResolveProfileType(c.Shape),
                                     refLine.GeometryCurve.GetEndPointReference(0));
+                                // Best-effort post-set fallback (no-op when the param is read-only).
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex2)
@@ -1545,10 +1561,18 @@ namespace StingTools.Core.Symbols
                             // Revit 2025 API: CreatePipeConnector(Document, PipeSystemType, Reference)
                             try
                             {
+                                // Resolve the actual pipe system type so CHW / sanitary /
+                                // DCW connectors don't all collapse to supply-hydronic.
+                                // Fall back to SupplyHydronic only when undefined (the
+                                // factory rejects UndefinedSystemType).
+                                Autodesk.Revit.DB.Plumbing.PipeSystemType pipeSys = ResolvePipeSystemType(c.SystemType);
+                                if (pipeSys == Autodesk.Revit.DB.Plumbing.PipeSystemType.UndefinedSystemType)
+                                    pipeSys = Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic;
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
-                                    Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic,
+                                    pipeSys,
                                     refLine.GeometryCurve.GetEndPointReference(0));
+                                // Best-effort post-set fallback (no-op when the param is read-only).
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex3)
