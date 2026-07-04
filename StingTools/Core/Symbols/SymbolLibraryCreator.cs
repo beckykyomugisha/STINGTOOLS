@@ -106,7 +106,7 @@ namespace StingTools.Core.Symbols
         {
             if (v < -2.0 || v > 2.0)
             {
-                warnings.Add($"Symbol geometry coordinate {v:F3} out of expected range [-1,1] in {context}. Clamping.");
+                warnings.Add($"Symbol geometry coordinate {v:F3} out of expected range [-2,2] in {context}. Skipping.");
                 return false;
             }
             return true;
@@ -359,11 +359,19 @@ namespace StingTools.Core.Symbols
                 FamilyType = src.FamilyType,
                 Discipline = src.Discipline,
                 Subcategory = src.Subcategory,
+                Hosting = src.Hosting,
+                IsSeed = src.IsSeed,
                 SymbolSize = src.SymbolSize,
                 Parameters = src.Parameters,
                 Geometry = src.Geometry,
                 Connectors = src.Connectors,
                 Solid3D = src.Solid3D,
+                FormulaBindings = src.FormulaBindings,
+                TypeVariants = src.TypeVariants,
+                ProtectExisting = src.ProtectExisting,
+                Status = src.Status,
+                SourceFamilyPath = src.SourceFamilyPath,
+                SwapCandidates = src.SwapCandidates,
             };
         }
 
