@@ -2,7 +2,7 @@
   "standard": "CIBSE",
   "version": "1.0",
   "description": "CIBSE building services schematic symbols for HVAC/MEP drawings",
-  "symbolDefinitions": [
+  "symbols": [
     {
       "id": "CIBSE_FAN",
       "familyType": "GenericAnnotation",
