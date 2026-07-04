@@ -188,6 +188,31 @@
           }
         ]
       },
+      "connectors": [
+        {
+          "domain": "Conduit",
+          "systemType": "Power",
+          "shape": "Round",
+          "sizeMm": 20,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z",
+          "_notes": [
+            "Final-circuit conduit terminal for every electrical-fixture variant.",
+            "domain='Conduit' -> ResolveDomain -> Domain.DomainCableTrayConduit, so",
+            "AutoConduitDrop.FindBestFreeConnector() picks this up instead of falling",
+            "back to LocationPoint. One terminal connector = end-of-run device; the drop",
+            "engine routes a rising conduit from here to the nearest cable tray / conduit.",
+            "facing='+Z' -> conduit rises out of the back box toward containment above.",
+            "sizeMm=20 -> matches Revit default conduit size list (BS 7671 final circuit).",
+            "Symbol-level (not per-variant): per-variant connector sets are ignored by",
+            "SymbolLibraryCreator, so this single connector applies to sockets, switches,",
+            "FCUs, isolators, EV chargers, data outlets and floor boxes alike."
+          ]
+        }
+      ],
       "typeVariants": [
         {
           "_group": "\u2500\u2500 SOCKETS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
