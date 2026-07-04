@@ -130,19 +130,27 @@
       "connectors": [
         {
           "domain": "Electrical",
-          "x": 0.0,
-          "y": 0.0,
-          "z": -0.5,
-          "direction": "z-",
-          "_notes": "Top supply connector \u2014 incoming feeder from upstream panel"
+          "systemType": "Power",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "In",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z",
+          "_notes": "Top supply connector \u2014 incoming feeder from upstream panel (opposed on Z)"
         },
         {
           "domain": "Electrical",
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.5,
-          "direction": "z+",
-          "_notes": "Bottom load connector \u2014 outgoing to circuits / sub-DBs"
+          "systemType": "Power",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Out",
+          "offsetX": 0.0,
+          "offsetY": 0.0,
+          "offsetZ": -0.5,
+          "facing": "-Z",
+          "_notes": "Bottom load connector \u2014 outgoing to circuits / sub-DBs (opposed on Z)"
         }
       ],
       "geometry": {
