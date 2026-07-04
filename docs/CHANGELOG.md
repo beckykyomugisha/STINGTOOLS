@@ -3,6 +3,410 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
+
+Branch `claude/placement-matrix`. Build clean `-c Release` (0/0). **Model-modifying — verify placement
+in Revit before merge (sandbox cannot open Revit).** Two Revit-reported fixes.
+
+- **F1 — grid now orients to the room's shape + fixtures rotate to match.** `MatrixGridDistributor.EvenGrid`
+  previously gridded the axis-aligned bounding box (project X/Y) and never rotated the fittings, so a
+  rotated room got a skewed grid and an L-shaped room under-filled. It now builds the grid in the room's
+  ORIENTED frame: `ComputeFrame` derives the dominant axis from the longest wall-backed boundary segment
+  (else longest boundary segment), forces U to be the long axis, and computes the oriented bounding-box
+  extents; `LayOrientedGrid` lays the exact-N rows×cols grid in that frame and transforms each point back
+  to world (`C + a·U + b·V`). For a convex room the aligned grid is used verbatim (identical output for
+  axis-aligned rooms — no regression); for a concave/L-shaped room where that grid would clip and leave a
+  gap, it densifies and `FarthestPointSelect`s exactly N inside the actual outline so the real area fills
+  evenly. `DistributionResult.AngleDeg` carries the dominant-axis angle; **`MatrixPlacementEngine` applies
+  it post-placement via `ElementTransformUtils.RotateElement`** (mirrors `OrientPlacedInstance`) because
+  `PlacementHostPreflight.Place` does NOT consume `PlacementRule.RotationDeg` — only
+  `FixturePlacementEngine.OrientPlacedInstance` does, and the matrix places through `PlacementHostPreflight`.
+  Wall devices take no extra rotation (their host wall orients them). Exact-N + min-spacing shortfall
+  reporting preserved.
+- **F2 — Variant is a per-row dropdown, not free text.** New `MatrixVariants.ForCategory(doc, category)`
+  resolves category → seedId (`CategoryToSeedRegistry`) → `Data/Seeds/<seedId>.json`
+  (`SymbolLibrary.Symbols[].TypeVariants[].Name`) ∪ the loaded seed family's type names, cached per doc.
+  The dialog's Variant column is now an editable `ComboBox` whose `ItemsSource` binds to the ROW's own
+  `AvailableVariants` (so a Lighting row offers Recessed/Surface/Pendant/Emergency/External, an Electrical
+  row offers its socket variants, etc.), `Text` TwoWay/`PropertyChanged` to `Variant` (non-reverting,
+  editable fallback for a bespoke type). Changing the category refreshes the list and defaults to the
+  seed's first variant; loading a saved column keeps its stored variant. Persisted + used at placement.
+
+Judgment calls: room axis = longest wall-backed segment (robust, reuses `WallBackedSegments`);
+`RotationDeg` was NOT consumed by `PlacementHostPreflight`, so post-placement `RotateElement` was needed;
+variant source = seed spec `TypeVariants` ∪ loaded seed family type names. Files:
+`Core/Placement/Matrix/{MatrixGridDistributor,MatrixPlacementEngine,MatrixVariants}.cs`, `UI/MatrixPlaceDialog.cs`.
+
+#### Completed (Matrix Place — room×element grid, exact-count placement, Excel/DIALux round-trip, grid-circuiting, typical-floor repeat, load estimate)
+
+Branch `claude/placement-matrix` (off `claude/placement-library-dwg`, not `main`). Build clean
+`-c Release` (0 errors / 0 warnings). **Model-modifying + UI-heavy — the sandbox cannot open Revit,
+so placement / circuiting / typical-floor copy / DIALux ingest are verified by build + logic review
+only; confirm in Revit before merge.** New folder `Core/Placement/Matrix/` (8 files) + `UI/MatrixPlaceDialog.cs`
++ `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json`; Placement Centre Library tab gains a
+**"Matrix Place…"** button (section 4).
+
+**Concept — the reverse of rule-based placement.** The user declares, in an Excel-like grid, WHAT +
+HOW MANY elements go in WHICH rooms; STING places them, and power/load is calculated afterward. The
+grid is the control surface; placement/hosting/height/tagging/circuiting/load all REUSE the existing
+engines — no forks.
+
+- **M1 — read → grid → place → persist (backbone).** `MatrixRoomScanner` collects host Rooms +
+  host MEP Spaces (+ linked rooms, read-only) and groups them into room-TYPES by normalised name
+  ("Office 1/2" → "Office") with member count + median area. `MatrixPlacementEngine` composes
+  `SeedEnsurer` (seeds built/loaded outside the tx) + a synthetic `PlacementRule` per (room, column)
+  + `PlacementHostPreflight.Place` at engine-computed points + `StingProvenanceSchema.Stamp` — the
+  same proven composition as `DwgFixtureBridge`, not a fork of `FixturePlacementEngine`. One
+  `Transaction` = one undo. **Idempotent + versioned:** every placed instance's UniqueId is recorded
+  in the matrix ledger keyed (roomUid → colId); a re-run SKIPS already-populated cells unless
+  "Replace existing" deletes+replaces them. Persisted to `<project>/_BIM_COORD/placement_matrix.json`.
+  Area auto-suggest pre-fills blank cells from `PerAreaM2` density (data file, else loaded
+  `PlacementRule`s) as an editable starting point.
+- **M2 — exact-count + even distribution.** New `MatrixGridDistributor`: `EvenGrid` emits exactly N
+  points as an aspect-aware rows×cols grid (classic n-luminaire layout, e.g. 5 → 2+3), clipped to the
+  room polygon via `FixturePlacementEngine.PointInSpatial`; `WallRun` spaces N points along the room's
+  wall-backed boundary (from `GetBoundarySegments`), nudged inward so the nearest-wall host search
+  hosts them. Both cap N at what fits at `MinSpacing` and REPORT the shortfall ("placed 3 of 4 (min
+  spacing)") rather than silently dropping. Fills the gap that `LightingGridCalculator` (lumen-derived,
+  overshoots) and `CoverageGridGenerator` (spacing-driven) left open.
+- **M3 — Excel round-trip.** `MatrixExcel` (ClosedXML): Export writes a `Matrix` sheet (room-types ×
+  counts + Est-Load) plus a companion `Columns` sheet that fully describes each element-type column, so
+  export→import round-trips losslessly. Import tolerantly maps header cells → categories (label, then
+  allowlist fuzzy) and rows → room-types (name, then normalised), reports unmatched rows/columns.
+- **M4 — typical-floor repeat.** `MatrixTypicalFloors.Replicate` copies a source floor's matrix-placed
+  instances onto selected levels via `ElementTransformUtils.CopyElements` at the inter-level Z offset,
+  in a `TransactionGroup`. Reports per-floor counts + the honest host-retention caveat.
+- **M5 — grid circuiting.** `MatrixCircuiting` gathers the placed electrical devices (those with an
+  electrical connector) from the ledger, groups them (per room / per column / fill-to-breaker using the
+  M7 load estimate), and creates power circuits assigned to a chosen panel by REUSING
+  `MepCircuitBuilder.CreateFromSelection` (panel auto-detected from the selection collection).
+- **M6 — DIALux feedback.** `MatrixDialux` reads a DIALux/ElumTools/Relux IFC via the existing
+  `IfcResults.IfcSimpleParser`, extracts a per-space luminaire count (common PSet aliases), matches
+  spaces to room-types, and shows a diff (grid N → DIALux M) before applying to the lighting columns.
+- **M7 — reverse-engineer load.** New `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json` (corporate +
+  `_BIM_COORD/category_load_defaults.json` override) drives a live per-room estimated-VA column shown
+  BEFORE placement; after placement "Run load calc" chains the real
+  `ElecLoadSummary` / `LightingPowerDensity` / `DemandFactorReport` commands on the placed set.
+
+**UI.** `MatrixPlaceDialog` is programmatic WPF (no XAML) modelled on `DwgLayerMapDialog`:
+`DataGridTemplateColumn` + always-live combos/textboxes so edits commit without reverting;
+`SelectionMode=Extended` for multi-select; the editable named-standard-or-free-mm height combo reuses
+the OneWay-Text + parse pattern. Left grid edits the element-type columns (category ∩ fixture allowlist
+∩ seed-mappable, variant, anchor, height, auto-grid, load VA); centre grid holds room-types × integer
+counts + a live Est-VA column; a "Per-room overrides" toggle switches to per-room rows. Opened modally
+from the Placement Centre's `RunInlineAction` lambda (already on the API thread).
+
+**Judgment calls / functional-minimal boundaries (honest):**
+1. **Placement path** goes through `PlacementHostPreflight` (the `DwgFixtureBridge` composition) rather
+   than `FixturePlacementEngine.PlaceFixturesInScope`, because that gives deterministic exactly-N control
+   + even distribution + precise per-cell PlacedIds for the ledger — while still reusing every building
+   block (SeedEnsurer / PlacementRule / PlacementHostPreflight / CategoryToSeed / CategoryHeightDefaults).
+2. **Linked rooms** are collected + shown read-only but excluded from placement — the engine's per-room
+   roomId scoping is host-doc only. Host Rooms + host MEP Spaces are fully placeable. (Follow-up.)
+3. **M4 per-floor circuiting** is left to a re-scan + Circuit… per floor (the ledger tracks source-floor
+   ids only); the copy itself is complete.
+4. **M6** depends on the DIALux export carrying a per-space luminaire-count property — `IfcSimpleParser`
+   exposes per-space numerics but not space→fixture containment or positions; rooms without a count are
+   reported, not guessed. Repositioning to DIALux coordinates is not done (no positions in the parser).
+5. **MEP (pipe/duct) connection** from the grid was assessed and deferred: unlike electrical, valid MEP
+   connections need matched connector directions + a routing solve. M5 is electrical-only and says so.
+6. **Load/wattage defaults** are engineering seeds (BS 7671 small-power diversity, EN 12464 lighting
+   density, typical LED panel wattage) for the place-first estimate only — the real calc is the chained
+   load commands reading actual connector loads.
+
+Files: `Core/Placement/Matrix/{MatrixModel,MatrixRoomScanner,MatrixDefaults,MatrixGridDistributor,MatrixPlacementEngine,MatrixExcel,MatrixCircuiting,MatrixTypicalFloors,MatrixDialux}.cs`,
+`UI/MatrixPlaceDialog.cs`, `Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json`,
+`UI/PlacementCenter/StingPlacementCenter.xaml(.cs)`.
+
+#### Completed (DWG bridge — editable custom mounting height in the Map-DWG-Layers dialog)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings). GOLD
+deploy was staged (`CompiledPlugin/`) but the copy into `C:\Dev\STING_PLACEMENT_GOLD` was blocked
+by a running Revit holding the live DLL — close Revit and re-run `deploy-gold.bat`. **UI-adjacent —
+the sandbox cannot open Revit, so the editable-combo commit/parse/validate behaviour is verified by
+build + logic review only; confirm in Revit before merge.** Files: `UI/DwgLayerMapDialog.cs`,
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`, `Core/Placement/CategoryHeightDefaults.cs`,
+`Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json`.
+
+**Replaced the hard-coded `Custom: N mm` quick-list with a single editable field.** The Mounting-
+height grid column (`MakeHeightColumn`) and the bulk "Set selected to: Height" combo are now
+`IsEditable = true`. The dropdown lists ONLY the named `HeightStandards` entries
+(`<key> - <mm>mm (<Standard>)`); the long raw list (`0,150,300,450,900,1200,1350,1400,2200,2500,
+3150`) is gone. `BuildHeightOptions` no longer appends the quick-list; `CategoryHeightDefaults`
+lost its `QuickHeightsMm()`/`DefaultQuickHeightsMm`/`MapData.QuickHeightsMm` plumbing and the JSON
+`quickHeightsMm` array was deleted (note updated). Categories with a raw `mountingHeightMm` pre-fill
+a typed-style `"N mm"` value instead of `"Custom: N mm"`.
+
+**Typed input parses + validates + commits without reverting.** The editable combo binds its `Text`
+OneWay to a new `DwgLayerMapRow.HeightText` (so bulk-apply / reset / dropdown picks refresh the box)
+and reads typed input back on dropdown selection, focus-loss, and Enter via `HeightCell_*` handlers.
+`TryResolveHeightText` resolves, in order: a named-standard match by Display, then by standard key,
+then a bare number (tolerating a trailing `"mm"`, spaces, thousands separators) into a raw custom
+height with empty `HeightStandard`. Non-numeric / negative input is **rejected** (the box reverts to
+the committed value via `BindingExpression.UpdateTarget()` — NOT a direct `cb.Text =` assignment,
+which would clear the OneWay binding); a valid-but-absurd value (>5000 mm) **warns** inline but
+applies. Standards range-checking (below-min / above-max) continues to surface through the existing
+`DwgFixtureBridge` → `HeightStandardsTable.ValidateRulesAgainstStandards` save-path (typed customs
+carry no standard, named picks are always in-range PreferredMm). The resolved mm + standard key
+persist to the existing `_BIM_COORD/dwg_symbol_map.json` ByLayer rule and drive placement Z — no new
+persistence. Judgment calls: typed numbers clear any prior standard (raw height, empty key); empty
+box ⇒ defer to the category default (mm 0); Enter in the height combo is `Handled` so it commits
+without also triggering the default Save button.
+
+#### Completed (DWG bridge — import picker, automatic + flexible mounting heights, deploy-bat fix)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);
+`StingTools.dll` + `data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD` and the 2025/2026 Revit
+addins re-pinned to GOLD via the fixed `deploy-gold.bat`. **Model-adjacent — the sandbox
+cannot open Revit, so the import-switch, the per-fixture placement Z and the height stamp are
+verified by build + logic review only; confirm in Revit before merge.** Files: new
+`Core/Placement/CategoryHeightDefaults.cs` + `Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json`;
+edits to `Core/Placement/DwgFixtureBridge.cs`, `Core/Placement/DwgSymbolMapRegistry.cs`,
+`UI/DwgLayerMapDialog.cs`, `UI/PlacementCenter/StingPlacementCenter.xaml.cs`, `deploy-gold.bat`.
+
+**F1 — explicit Import picker (stop silently reading the wrong/only import).** The Map-DWG-Layers
+dialog gained an "Import:" dropdown listing EVERY detected `ImportInstance`
+(`<name> . id <ElementId> . [Import|Link] . view <owner view or "model">`, newest first) plus a
+"N DWG imports found" header. Switching it re-runs a caller callback that re-reads that import's
+`LayerCounts` and rebuilds the grid; the chosen `ImportInstance` is exposed via
+`DwgLayerMapDialog.SelectedImport`. The launcher records the picked import id (`_lastMappedImportId`)
+and `ResolveTargetImport` now prefers it, so the Place run targets the SAME import the dialog
+mapped. Import-capture findings: `FindImportInstances(doc)` is doc-scoped so it already lists
+imports owned by non-active views (surfaced via `ViewSpecific`/`OwnerViewId` -> view column);
+CAD links list too (flagged `[Link]` via `ImportInstance.IsLinked`). A Revit-format link / nested
+xref is NOT an `ImportInstance` and won't appear — the dropdown + "not a DWG import" note make
+that VISIBLE rather than silently substituting. Capture was NOT deepened for nested xrefs (low
+value, higher risk) — judgment call.
+
+**F2 — automatic standards-based mounting heights per category.** New corporate
+`STING_CATEGORY_HEIGHT_DEFAULTS.json` (+ `<project>/_BIM_COORD/category_height_defaults.json`
+override) maps each fixture category to a `STING_HEIGHT_STANDARDS.json` key (resolved to its
+`PreferredMm`) or a raw mm. `CategoryHeightDefaults.Resolve(doc, category)` is consulted when the
+bridge builds its synthetic `PlacementRule`, so DWG-placed sockets land at 450 mm
+(`BS7671_SOCKET_STD`), switches/JBs at 1350 mm (`BS7671_SWITCH_STD`), MCPs at 1400 mm
+(`BS5839_MCP`), data/comms at 350 mm (`BB103_DATA_SOCKET`), med-gas/specialty at 1500 mm
+(`HTM0201_OUTLET`), basins at 825 mm (`BS6465_BASIN`), emergency lighting at 2000 mm
+(`BS5266_EMERG_LIGHT`); ceiling-hosted categories (general lighting/sprinkler/air-terminal) carry
+sensible raw heights since they host to the ceiling face. The rule stamps `HeightStandard` +
+`MountingHeightMm`.
+
+**F3 — flexible per-layer override in the Map dialog.** A "Mounting height" column (always-live
+`DataGridTemplateColumn` + `ComboBox`, same non-reverting pattern as category/anchor) offers both
+the named `HeightStandards` entries (`<key> - <PreferredMm>mm (<Standard>)`) and a raw quick-list
+(`Custom: N mm`, from `quickHeightsMm` in JSON), pre-filled from the category default. A bulk
+"Height:" combo in the "Apply to selected" toolbar sets many rows at once. The resolved mm +
+standard persist on the ByLayer rule (`mountingHeightMm` / `heightStandard`) in the `_BIM_COORD`
+override; the bridge honours the per-layer override over the category default.
+
+**F4 — apply the height at placement + range-validate.** Verified `PlacementHostPreflight.Place`
+placed at the DWG insertion point's Z (≈ level) and did NOT apply `MountingHeightMm`, so every
+fixture sat at one Z. The bridge now lifts the placement point to `levelElevation + mountingHeight`
+(`ApplyMountingHeight`, level from the room else nearest level below the DWG Z — X/Y unchanged so
+wall/ceiling hosting still works) and stamps `MNT_HGT_MM` on the placed instance (the bridge
+bypasses the engine's `WriteAnchorParameters`). Out-of-range heights are reported as a non-blocking,
+de-duplicated warning via `HeightStandardsTable.ValidateRulesAgainstStandards`.
+
+**F5 — `deploy-gold.bat :pin` addin-pinning bug.** `$f=%1` substituted the quoted path into the
+double-quoted `-Command` string, producing nested double quotes that terminated the string early
+so `$f` was empty (`Cannot bind argument to parameter 'Path' because it is null`) and the addin was
+never re-pointed. Fixed to `$f='%~1'` (strip quotes, single-quote for PowerShell) + `if exist "%~1"`
++ `-LiteralPath`. Verified: the buggy form reproduces the exact null-Path error and leaves a stale
+manifest; the fixed form re-points every addin with exit 0.
+
+#### Completed (Map-DWG-Layers dialog — refresh, dropdown-revert, skip-all, multi-select)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors / 0 warnings);
+`StingTools.dll` + `data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD`. **UI / model-adjacent
+— sandbox cannot open Revit, so verify the four behaviours in Revit before merge.** Four
+fixes to `UI/DwgLayerMapDialog.cs` + the launcher in
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`.
+
+**B1 — dialog + Place run target the SAME import (was: always the oldest).** The launcher
+used `FindImportInstances(doc).FirstOrDefault()` (first/oldest), so a newly imported DWG
+never showed. Added `ResolveTargetImport(app, doc)`: one import -> use it; multiple ->
+prefer an `ImportInstance` selected in `uidoc.Selection`, else a `StingListPicker` of imports
+sorted newest-first by `ElementId.Value` (label = type/CAD name + `[id N]`). The Map dialog,
+the "DWG -> STING fixtures" Place button, and the experimental exploded-capture button all
+now resolve through this one helper and call `DwgFixtureBridge.PlaceFromImport(doc, import, …)`
+(the pre-existing explicit-import overload — `PlaceFromFirstImport` already delegates to it,
+no pipeline duplication). The Map dialog also calls `DwgSymbolMapRegistry.Reload(doc)` and
+always re-runs `PreviewImport` so re-opening after a new import re-reads its layers.
+
+**B2 — category/anchor dropdown no longer reverts.** The grid used `DataGridComboBoxColumn`
++ `SelectedItemBinding`, which didn't commit the edit (snapped back to the prefilled value).
+Replaced the STING-category and Anchor columns with `DataGridTemplateColumn` whose
+`CellTemplate` is an always-live `ComboBox` (`IsEditable=false`,
+`SelectedItem={Binding … TwoWay, UpdateSourceTrigger=PropertyChanged}`) — selection commits
+straight into the `DwgLayerMapRow` and is what Save writes.
+
+**B3 — Skip all / Reset to detected.** Added two buttons. "Skip all" sets every row's
+`Category` to the `(skip)` sentinel (the launcher already writes `(skip)` -> blank = no
+`ByLayer` rule). "Reset to detected" restores each row's category/variant/anchor from a
+construction-time snapshot (`DetectedCategory/Variant/Anchor`). Both mutate via the row's
+`INotifyPropertyChanged` setters so the grid updates live.
+
+**B4 — Ctrl/Shift multi-select + bulk apply.** Grid is now
+`SelectionMode=Extended` / `SelectionUnit=FullRow`. Added a toolbar (category combo +
+anchor combo + "Apply to selected") that writes the chosen category + anchor onto every
+selected row at once.
+
+Judgment calls: (a) import-selection UX = selected-in-Revit first, else newest-first picker
+(reused `StingListPicker`, no new dialog); (b) skip sentinel = the existing `(skip)` string
+(`IsMapped` already treats it as unmapped, launcher maps it to blank); (c) "Reset to detected"
+restores all three editable fields, not category alone; (d) bulk "Apply to selected" sets both
+category and anchor (anchor defaults to `WALL_MIDPOINT`) for flexibility.
+
+#### Completed (DWG fixture bridge — scope, counters, report noise fix)
+
+Branch `claude/placement-library-dwg`. Build clean `-c Release` (0 errors); DLL +
+`data\` deployed to `C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in
+Revit before merge.** Fixes a live run on an exploded ARCHICAD DWG that treated
+Doors/Windows/Furniture/Structural/"Lightning protection" as fixtures and flooded
+the report with duplicate "seed not loaded" lines.
+
+**D1 — fixture-category allowlist (root cause).** Added an authoritative
+`fixtureCategories` allowlist (20 MEP/fixture categories, all seed-resolvable) to
+`DWG_SYMBOL_MAP.json`; `DwgSymbolMapRegistry` now gates EVERY resolution through it
+(`GateFixture`) — any rule/fallback/inference resolving to a non-fixture category
+returns null. Removed Doors/Windows/Furniture from `categoryFallback`; widened
+`skipCategories`. `ResolveLayer` no longer uses the structural
+`CADToModelEngine.LayerMapper` (whose loose `"light"→Electrical` matched "**Light**ning
+protection", `door→Doors`, etc.) — it matches only the explicit, fixture-only DWG-map
+LAYER rules + the allowlist; the `"light"` layer rule is now `"lighting"` (≠ lightning)
+plus precise socket/data/smoke/sanitary/diffuser rules. Unmapped layers default to
+"(skip)" and are mapped manually in the UI. The Map-DWG-Layers dropdown now offers
+only allowlisted, seedable categories. The allowlist is data-driven (union-extended
+by the `_BIM_COORD` override).
+
+**D2 — counter integrity.** The 0-vs-23 mismatch came from detection totals being
+tracked independently of place-loop skips (and, post-D1, the doors no longer enter at
+all). Added `TotalCaptured` (items entering the place loop) + `DedupedAgainstBlock`,
+and a `CheckPlaceInvariant` that logs a `StingLog.Warn` if
+`Placed + SkippedNoSymbol + SkippedNotHosted != TotalCaptured` (and a pre-pass
+invariant for detected = captured + skips + deduped). Every detected item is now
+reflected in exactly one total.
+
+**D3 — seedless-category pre-check.** Before the place loop, seed availability is
+probed ONCE per category; a category whose seed didn't build/load is dropped as a
+single aggregated skip ("Doors: 23 x seed not built — run Rebuild Seeds"), not retried
++ logged per instance.
+
+**D4 — report de-duplication.** The 18 per-layer "mapped, empty" messages collapse to
+one rolled-up line (with the layer names); not-hosted skips roll up by
+`(category: reason)`. SUMMARY metrics + CAPTURE-MODE block unchanged.
+
+**Files:** edited `Data/Placement/DWG_SYMBOL_MAP.json`,
+`Core/Placement/DwgSymbolMapRegistry.cs`, `Core/Placement/DwgFixtureBridge.cs`,
+`Commands/Placement/DwgToSeedFixturesCommand.cs`,
+`UI/PlacementCenter/StingPlacementCenter.xaml.cs`.
+
+**Caveat:** model-modifying — untested in the sandbox; verify in Revit. A rare edge
+remains: a real block (not exploded) sitting on a "lightning" layer can still map via
+the coarse Electrical block-fallback; the reported exploded/layer case is fully fixed.
+
+#### Completed (Placement Centre — DWG layer mapping + exploded-geometry capture)
+
+Branch `claude/placement-library-dwg` (extends the DWG→seed bridge). Build clean
+`-c Release` (0 errors) in the isolated worktree; DLL + `data\` deployed to
+`C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in Revit before merge.**
+Reuses the existing engines; no logic forked.
+
+**Why.** A live run reported *"0 blocks"* — the bridge only placed from block
+inserts (`DetectedBlock`), so an **exploded** DWG (loose lines/text/points, no
+block references) had nothing to place, and layer→category mapping had no UI (you
+hand-edited JSON).
+
+**Tier 1 — Map DWG Layers UI.** New Library → Import button **"Map DWG layers…"**
+opens `DwgLayerMapDialog` (programmatic WPF, modelled on `MepCadWizard`): a grid of
+the import's **real** layers from `CADExtractionResult.LayerCounts` (layer + entity
+count, sorted by count), each row pre-filled from the existing resolution chain
+(`DwgSymbolMapRegistry.ResolveLayer` → override/`LayerMapper`), with a STING-category
+dropdown (the seed-mappable categories from `CategoryToSeedRegistry`), optional
+variant hint, and host anchor. **Save** writes `ByLayer` rules to the EXISTING
+`<project>/_BIM_COORD/dwg_symbol_map.json` override via new
+`DwgSymbolMapRegistry.SaveLayerRulesToProjectOverride` (merge-preserving block rules,
+idempotent) and `Reload`s — the corporate baseline is untouched. No JSON hand-editing.
+
+**Tier 2 safe — Point/insert capture on mapped layers.** New read-only
+`CADToModelEngine.CaptureFixturePoints(import, fixtureLayers, includeLineClusters)`
+emits one point per DWG `Point` entity on a mapped fixture layer (block inserts keep
+the proven `DetectedBlock` path). `DwgFixtureBridge` now computes the mapped fixture
+layers from `LayerCounts`, captures these points, dedups them against block insertions,
+and feeds them through the SAME pipeline (`DwgSymbolMapRegistry` → `CategoryToSeedRegistry`
+→ `SeedEnsurer` → `PlacementHostPreflight.Place` → provenance stamp). So the default
+**"Place STING fixtures from DWG symbols"** run now also handles exploded-with-Points
+DWGs. New `SkippedExplodedNoPoint` bucket + `CapturedByMode`/`TotalLayerPoints` counters
+report every mapped-but-empty layer inline — nothing dropped silently.
+
+**Tier 2 experimental — line-cluster capture.** When set, `CaptureFixturePoints`
+clusters loose lines/arcs on mapped layers into one centroid per symbol (greedy
+spatial clustering, `CaptureMode="cluster"`). Surfaced as a SEPARATE Library button
+**"Place from exploded layers (experimental)…"** that ALWAYS runs a dry-run first and
+shows a command-link `TaskDialog` (counts + heuristic warning) requiring an explicit
+"Place N now" before committing. Labelled experimental in the UI and report; the
+provenance stamp records the capture mode (`block`/`point`/`cluster`) so every
+placement is auditable.
+
+**Files added:** `UI/DwgLayerMapDialog.cs`. **Edited:** `Model/CADToModelEngine.cs`
+(`DwgFixturePoint` POCO + `CaptureFixturePoints` + cluster/collector helpers),
+`Core/Placement/DwgSymbolMapRegistry.cs` (`ResolveLayer`, `ProjectOverridePath`,
+`SaveLayerRulesToProjectOverride`, `LayerRuleInput`), `Core/Placement/DwgFixtureBridge.cs`
+(layer-point capture + new counters + capture-mode provenance + cluster overload),
+`Commands/Placement/DwgToSeedFixturesCommand.cs` (report new counters/modes),
+`UI/PlacementCenter/StingPlacementCenter.xaml(.cs)` (two Import buttons + handlers).
+
+**Caveats:** model-modifying — untested in the sandbox; verify in Revit. The
+line-cluster path is a heuristic (over/under-counts on messy DWGs) — kept opt-in +
+dry-run-gated by design. Safe path (block/point) is predictable.
+
+#### Completed (Placement Centre — Library tab + DWG-MEP → seed → swap bridge)
+
+Branch `claude/placement-library-dwg` off `main` (PR #379 foundation). Build clean
+`-c Release` (0 errors) in an isolated worktree; DLL + `data\` deployed to
+`C:\Dev\STING_PLACEMENT_GOLD`. **Model-modifying — verify in Revit before merge**
+(sandbox can't run Revit). No command logic forked; everything dispatches the
+existing engines/commands.
+
+**Phase 1 — "Library" tab in the Placement Centre.** New `Library` tab in
+`StingPlacementCenter.xaml` (alongside Rules / Run & Routing / Tools), grouped by
+lifecycle stage: **Seeds** (Rebuild Seeds, Inspect Library, Coverage Audit, Heal
+Orphans, Fix Drift), **Families** (Swap to Manufacturer, Augment Families), **Create
+Symbols** (Lighting / Fire Protection / SLD), **Import** (From DWG (MEP)… wizard,
+Place STING fixtures from DWG symbols). Each button DISPATCHES an existing command —
+no logic duplicated. A new generic `RunExternalCommand<T>()` helper (mirrors
+`StingCommandHandler.RunCommand<T>`) runs interactive/model-modifying commands on the
+API thread via the Centre's existing `_actionEvent`; read-only Coverage Audit renders
+inline via `SymbolCoverageAuditor.GenerateCoverageReport(doc)` in the shared Report
+panel. Corrected the spec's command-tag guesses against the real classes
+(`SymbolMaintenanceCommands`/`SymbolStandardCommands`, `Symbols_Coverage`/`_FixDrift`/
+`_AugmentAll`).
+
+**Phase 2 — DWG-MEP → seed → swap bridge.** `Core/Placement/DwgFixtureBridge.cs`
+turns DWG MEP fixture **blocks** into placed, swap-ready STING seed instances by
+REUSING the foundation: capture blocks via `CADToModelEngine.PreviewImport`
+(`DetectedBlock`: point + layer + blockName + coarse category) → map block/layer →
+STING category + variant + host anchor via new data-driven
+`Data/Placement/DWG_SYMBOL_MAP.json` + `DwgSymbolMapRegistry` (corporate + `_BIM_COORD`
+override) → `CategoryToSeedRegistry.Resolve` → `SeedEnsurer.EnsureSeedsForCategories`
+(outside any transaction) → resolve the seed `FamilySymbol` (by `STING_SEED_FAMILY_TXT`
+marker, type by variant name) → `PlacementHostPreflight.Place` at the block point
+(host-first, in a `STING Place DWG Fixtures` transaction) → `StingProvenanceSchema.Stamp`
+with the source DWG block/layer for audit. Output is STING seeds, so **Library → Swap
+to Manufacturer** swaps them to real product geometry. Surfaced as the Library button
+and a thin `DwgToSeedFixturesCommand` (`Placement_DwgToSeedFixtures` tag) — both call
+the one engine. No duplication of the DWG geometry engine or the placement host.
+
+**Files added:** `Core/Placement/DwgFixtureBridge.cs`, `Core/Placement/DwgSymbolMapRegistry.cs`,
+`Commands/Placement/DwgToSeedFixturesCommand.cs`, `Data/Placement/DWG_SYMBOL_MAP.json`.
+**Files edited:** `UI/PlacementCenter/StingPlacementCenter.xaml(.cs)` (Library tab +
+handlers + `RunExternalCommand<T>`), `UI/StingCommandHandler.cs` (one tag case).
+
+**Caveats:** model-modifying paths (placement, swap, heal, drift, seed build) untested
+in the sandbox — verify in Revit. The DWG bridge places at the captured block point and
+hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapped
+anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
+unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
+ships as a documented seed map — extend per project via the `_BIM_COORD` override.
 #### Completed (Wire Element Annotation — Phase 1, branch `claude/wire-element-annotation`)
 
 Extends STING's wire annotation so the cable-spec annotation (conductor tick
