@@ -51,24 +51,36 @@ namespace StingTools.Core.PaymentCert
                 .ToList();
 
             // Carry previously-certified per SOV line.
+            // PM-2 — carry the previously-certified value forward keyed on the
+            // STABLE SectionKey (NRM2 § + discipline), not the free-text Section.
+            // Renaming a section used to miss the join → PreviouslyCertified reset
+            // to 0 → the next cert over-paid the full earned value again.
+            static string KeyOf(SovLine l) => string.IsNullOrEmpty(l.SectionKey) ? l.Section : l.SectionKey;
             var priorByLine = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             if (prior.Count > 0)
             {
                 foreach (var line in prior[0].Lines)
                 {
-                    priorByLine[line.Section] =
+                    priorByLine[KeyOf(line)] =
                         line.PreviouslyCertified + line.GrossThisCert - line.MaterialsOnSite;
                 }
             }
             foreach (var line in currentSov)
             {
-                priorByLine.TryGetValue(line.Section, out double prev);
+                priorByLine.TryGetValue(KeyOf(line), out double prev);
                 line.PreviouslyCertified = prev;
             }
 
             int nextNum = (prior.FirstOrDefault()?.CertNumber ?? 0) + 1;
 
-            const double retentionPct = 3.0;
+            double retentionPct = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_PCT", 3.0);
+            // PM-1 — seed VAT (Uganda 18%) + the half-retention trigger (practical-
+            // completion proxy, 95%) from the project config instead of hard-coding
+            // UK 20% / an inert 100%.
+            double vatPct = StingTools.Core.TagConfig.GetConfigDouble("BOQ_TENDER_VAT_PCT", 18.0);
+            double halfAtPct = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_HALF_AT_PCT", 95.0);
+            // PM-2 — contract-specific: retention on work-done-only vs MoS-inclusive.
+            bool retExclMos = StingTools.Core.TagConfig.GetConfigDouble("COST_RETENTION_EXCLUDES_MOS", 0.0) > 0;
             var cert = new PaymentCertificate
             {
                 ContractRef = contractRef,
@@ -79,7 +91,9 @@ namespace StingTools.Core.PaymentCert
                 Lines = currentSov,
                 Currency = "UGX",                 // overridden from boq.Currency at the call site
                 RetentionPercent = retentionPct,
-                HalfRetentionAtPercent = 100.0
+                HalfRetentionAtPercent = halfAtPct,
+                VatPercent = vatPct,
+                RetentionExcludesMos = retExclMos
             };
 
             // B.4 — cap cumulative retention at RetentionPercent × contract sum
@@ -100,15 +114,85 @@ namespace StingTools.Core.PaymentCert
         public static List<SovLine> SovFromSnapshot(BOQ.BOQDocument snapshot)
         {
             if (snapshot == null) return new List<SovLine>();
-            return snapshot.Sections.Select(s => new SovLine
+            var lines = snapshot.Sections.Select(s => new SovLine
             {
                 Section = string.IsNullOrEmpty(s.NRM2Section) ? s.Name : s.NRM2Section,
+                // PM-2 — stable cumulative-valuation key (survives a section rename).
+                SectionKey = $"{s.NRM2Section}|{s.Discipline}",
                 Description = s.Name,
                 ContractValue = s.TotalUGX,
                 PercentComplete = 0,
                 PreviouslyCertified = 0,
                 MaterialsOnSite = 0
             }).ToList();
+
+            // CA-2 — ONE BASIS: carry preliminaries, OH&P and contingency as
+            // explicit SOV lines so Σ ContractValue equals the NET-OF-VAT contract
+            // sum (works + prelims + OH&P + contingency). Without these the SOV
+            // tops out at the works subtotal and a cert can never reach the
+            // contract sum. The retention cap (Σ ContractValue × ret%) then rides
+            // the same net basis. VAT is added only on the cert's final line.
+            void AddMarkup(string section, string key, double value)
+            {
+                if (value <= 0.005) return;
+                lines.Add(new SovLine
+                {
+                    Section = section,
+                    SectionKey = key,
+                    Description = section,
+                    ContractValue = Math.Round(value, 2),
+                    PercentComplete = 0,
+                    PreviouslyCertified = 0,
+                    MaterialsOnSite = 0
+                });
+            }
+            AddMarkup("Preliminaries", "MARKUP|PRELIMS", snapshot.PrelimContributionUGX);
+            AddMarkup("Overhead & Profit", "MARKUP|OHP", snapshot.OverheadProfitUGX);
+            AddMarkup("Contingency", "MARKUP|CONT", snapshot.ContingencyUGX);
+            return lines;
+        }
+
+        /// <summary>
+        /// PM-2 — append an "Adjustments / Variations" SOV line per AGREED variation
+        /// (Approved / Incorporated) so an approved VO flows straight into the next
+        /// certificate's gross valuation. Each line carries the VO value at 100%
+        /// (the work is instructed; the QS can dial progress back before issuing).
+        /// The stable SectionKey "VO|{number}" lets cumulative valuation carry
+        /// forward across certs even if the VO title changes. Returns the count
+        /// appended. Idempotent against the supplied list by SectionKey.
+        /// </summary>
+        public static int AppendAgreedVariations(List<SovLine> sov, Document doc, string contractRef)
+        {
+            if (sov == null || doc == null) return 0;
+            int added = 0;
+            try
+            {
+                var existingKeys = new HashSet<string>(sov.Select(l => l.SectionKey ?? ""), StringComparer.OrdinalIgnoreCase);
+                foreach (var p in Variation.VariationEngine.ListVariations(doc, contractRef))
+                {
+                    var v = Variation.VariationEngine.Load(p);
+                    if (v == null) continue;
+                    if (v.Status != Variation.VariationStatus.Approved
+                        && v.Status != Variation.VariationStatus.Incorporated) continue;
+                    if (Math.Abs(v.TotalValue) < 0.005) continue;
+
+                    string key = $"VO|{v.Number}";
+                    if (!existingKeys.Add(key)) continue;   // already present
+                    sov.Add(new SovLine
+                    {
+                        Section = $"Variation {v.Number}",
+                        SectionKey = key,
+                        Description = string.IsNullOrEmpty(v.Title) ? v.Description : v.Title,
+                        ContractValue = v.TotalValue,
+                        PercentComplete = 100,
+                        PreviouslyCertified = 0,
+                        MaterialsOnSite = 0
+                    });
+                    added++;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"AppendAgreedVariations: {ex.Message}"); }
+            return added;
         }
 
         // ── Persistence ────────────────────────────────────────────────
@@ -156,6 +240,24 @@ namespace StingTools.Core.PaymentCert
             catch (Exception ex) { StingLog.Warn($"ListCerts: {ex.Message}"); return new List<string>(); }
         }
 
+        /// <summary>PM-2 — cumulative certified-to-date GROSS valuation (the latest
+        /// non-superseded, non-draft cert's Σ line PreviouslyCertified + GrossThisCert).
+        /// The Final Account reconciles against this instead of ignoring the cert
+        /// series.</summary>
+        public static double CertifiedToDate(Document doc, string contractRef)
+        {
+            try
+            {
+                var latest = ListCerts(doc, contractRef).Select(p => Load(p))
+                    .Where(c => c != null && c.Status != PaymentCertStatus.Superseded
+                                          && c.Status != PaymentCertStatus.Draft)
+                    .OrderByDescending(c => c.CertNumber).FirstOrDefault();
+                if (latest == null) return 0;
+                return Math.Round(latest.Lines.Sum(l => l.PreviouslyCertified + l.GrossThisCert), 2);
+            }
+            catch (Exception ex) { StingLog.Warn($"CertifiedToDate: {ex.Message}"); return 0; }
+        }
+
         // ── Retention ledger ───────────────────────────────────────────
 
         public static RetentionLedger ComputeLedger(Document doc, string contractRef)
@@ -176,7 +278,46 @@ namespace StingTools.Core.PaymentCert
                     Reason = $"Cert {cert.CertNumber} retention @ {cert.EffectiveRetentionPercent}%"
                 });
             }
+            // WP-Q — merge persisted RELEASE entries (first moiety at Practical
+            // Completion, second at end of Defects Liability) so TotalReleased /
+            // Balance go live instead of being dead fields.
+            try { ledger.Entries.AddRange(LoadReleases(doc, contractRef)); }
+            catch (Exception ex) { StingLog.Warn($"ComputeLedger releases: {ex.Message}"); }
             return ledger;
+        }
+
+        private static string ReleasePath(Document doc, string contractRef)
+        {
+            string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "payment_certs");
+            Directory.CreateDirectory(dir);
+            string safe = string.Concat((contractRef ?? "default")
+                .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+            return Path.Combine(dir, $"retention_releases_{safe}.json");
+        }
+
+        /// <summary>WP-Q — persisted retention RELEASE entries for a contract.</summary>
+        public static List<RetentionEntry> LoadReleases(Document doc, string contractRef)
+        {
+            try
+            {
+                string p = ReleasePath(doc, contractRef);
+                if (!File.Exists(p)) return new List<RetentionEntry>();
+                return JsonConvert.DeserializeObject<List<RetentionEntry>>(File.ReadAllText(p), _jsonSettings)
+                       ?? new List<RetentionEntry>();
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadReleases: {ex.Message}"); return new List<RetentionEntry>(); }
+        }
+
+        /// <summary>WP-Q — record a retention RELEASE (half-moiety at PC / second at
+        /// end of DLP). Additive; persisted alongside the certs.</summary>
+        public static void RecordRelease(Document doc, string contractRef, RetentionEntry release)
+        {
+            if (doc == null || release == null) return;
+            release.Kind = "release";
+            var list = LoadReleases(doc, contractRef);
+            list.Add(release);
+            File.WriteAllText(ReleasePath(doc, contractRef), JsonConvert.SerializeObject(list, _jsonSettings));
+            StingLog.Info($"Retention release recorded: {release.Reason} — {release.Amount:N0}.");
         }
 
         // ── Element write-back ─────────────────────────────────────────

@@ -40,7 +40,11 @@ namespace StingTools.Core.Sustainability
         {
             if (doc == null || el == null) return 0;
             order = order ?? new FactorSourceOrder();
-            double wastePct = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
+            // PM-5 — per-material waste table (override at element level wins, else the
+            // material/category NRM2 allowance, else the project default) shared with
+            // the cost path. Resolved per material inside the loop below.
+            double wasteDefault = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
+            string catName = el.Category?.Name;
             double total = 0;
             try
             {
@@ -55,6 +59,8 @@ namespace StingTools.Core.Sustainability
 
                     var mat = doc.GetElement(mid) as Material;
                     string name = mat?.Name ?? "(unnamed)";
+                    double wastePct = StingTools.BOQ.WasteTable.ResolveWastePercent(
+                        name, catName, 0.0, wasteDefault);
                     var cf = CarbonFactorResolver.Resolve(doc, name);
                     var input = new MaterialCarbonInputs
                     {

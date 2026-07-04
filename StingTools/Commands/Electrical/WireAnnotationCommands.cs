@@ -550,7 +550,14 @@ namespace StingTools.Commands.Electrical
 
         // ── Label text builder ───────────────────────────────────────────────
 
-        public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style)
+        /// <param name="suppressContainmentFields">
+        /// When <c>true</c>, the conduit-only containment fields (Ø diameter and
+        /// conduit fill %) are omitted from the label regardless of style flags or
+        /// data. Defaults to <c>false</c> so existing conduit callers are unchanged.
+        /// Set by the wire-element annotation path (Revit Wires have no containment).
+        /// </param>
+        public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style,
+            bool suppressContainmentFields = false)
         {
             string mat = string.IsNullOrEmpty(d.ConductorMat) ? "Cu" : d.ConductorMat;
             string baseSpec;
@@ -580,10 +587,10 @@ namespace StingTools.Commands.Electrical
             string result = string.Join("  |  ", parts);
             var extras = new List<string>();
 
-            if (style.ShowDiameter && d.DiameterMm > 0)
+            if (!suppressContainmentFields && style.ShowDiameter && d.DiameterMm > 0)
                 extras.Add($"Ø{d.DiameterMm:0.#} mm");
 
-            if (style.ShowFill && d.FillPct > 0)
+            if (!suppressContainmentFields && style.ShowFill && d.FillPct > 0)
             {
                 string fillStr = $"Fill {d.FillPct:0.#}%";
                 if (d.FillPct > style.FillAlarmPct) fillStr += " ⚠";

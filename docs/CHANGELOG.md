@@ -407,6 +407,881 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+#### Completed (Wire Element Annotation — Phase 1, branch `claude/wire-element-annotation`)
+
+Extends STING's wire annotation so the cable-spec annotation (conductor tick
+marks + BS 7671 label) can be placed directly on Revit **Wire** elements
+(`Autodesk.Revit.DB.Electrical.Wire`, `OST_Wire`) — the 2-D schematic lines drawn
+between devices where no conduit is modelled — not just on modelled conduit.
+Implements **Phase 1 (compute-on-place) ONLY** per
+[`WIRE_ELEMENT_ANNOTATION_SCOPE.md`](WIRE_ELEMENT_ANNOTATION_SCOPE.md); Phase 2
+(persistence/refresh) is deferred pending the `OST_Wire` param-binding question.
+**Additive** — the conduit annotation path is unchanged. Build against Revit 2025:
+0 errors (4 pre-existing `Clash/ClashIssueSyncCommand.cs` obsolete-`ElementId`
+warnings only). Compiles; not runtime-verified in Revit.
+
+**STEP 0 — Revit 2025 API verification (all gates passed, confirmed by metadata reflection):**
+- **Circuit from wire**: `Wire : MEPCurve`; `Wire.MEPSystem` → `MEPSystem` (cast to
+  `ElectricalSystem`), plus `Wire.GetMEPSystems()` → `IList<ElementId>` fallback. On
+  the circuit: `PolesNumber` (int; fallback `RBS_ELEC_NUMBER_OF_POLES`),
+  `ApparentCurrent`, `Voltage`, `PanelName`, `BaseEquipment`, `CircuitNumber`.
+- **Wire geometry**: `Wire.NumberOfVertices` + `Wire.GetVertex(int)` give the drawn
+  polyline; ticks + label placed on the **longest vertex-to-vertex segment** (multi-
+  segment handled; arc/chamfer wires use the chord of the longest span).
+- **Circuit length for VD**: `ElectricalSystem.Length` (ft) — the circuit run length,
+  never the wire's schematic drawn length. When unavailable, VD is **omitted** (warned,
+  rate-limited) and CSA is sized on ampacity only — never a guessed length/current.
+
+**New file** `Commands/Electrical/WireElementAnnotationCommands.cs`:
+`WireElementAnnotateCommand` (`Electrical_WireElementAnnotate`, single pick) +
+`WireElementAnnotateBatchCommand` (`Electrical_WireElementAnnotateBatch`, all wires
+in view) + `WireElementAnnotationEngine` + `WireElementSelectionFilter`. Per wire:
+resolve circuit → phase→cores (1Ø→2, 3Ø→4) → size via `CableSizerEngine.Calculate`
+(load back-derived from apparent current at PF 1) and VD via the same engine using
+circuit length → place ticks/label reusing the conduit engine's public helpers
+(`ResolveColor`, `RotateInPlane`, `ViewScaleFactor`, `BuildAnnotationText`) and the
+shared `AnnotationMarkerRegistry` (markers keyed on the wire `UniqueId` using the
+**same** `STING_WIRE_ANNOT` / `STING_WIRE_TICK` prefixes as conduit).
+
+**Label-mode flag** (the only edit to the conduit file, additive/default-off):
+`WireAnnotationEngine.BuildAnnotationText` gains an optional
+`bool suppressContainmentFields = false`; when true it drops the conduit-only Ø
+diameter and fill% fields. Existing conduit callers pass nothing → unchanged.
+
+**Clear behaviour** — no new clear command, no edit to the existing one. The existing
+`ClearWireAnnotationsCommand` (`Electrical_ClearWireAnnotations`, "Wire clear") matches
+by marker **prefix**, owner-agnostic, so it removes wire-owned annotations for free.
+Verified safe against interference: the conduit drift detector
+(`WireAnnotationDriftDetector.Detect`) enumerates `OST_Conduit` only and keys
+`FindByOwner` on each conduit's `UniqueId`, so it never touches wire-owned markers.
+
+**Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
+`StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
+`StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+
+#### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
+
+Closes silent-wrong-ratio, alignment and performance gaps in the parameter-driven
+takeoff/ratio/cost machinery. Build 0 errors; Boq.Tests 161→196 (35 new).
+
+| Item | Status | What |
+|---|---|---|
+| **RC-1** Silent-DEFAULT | **DONE** | Canonicalise param values; infer; surface every DEFAULT fall |
+| **RC-2** Alignment | **DONE** | grade / curtain / tonne-kg / cable-pipe / system-rate |
+| **RC-3** Performance | **DONE** (memoisation); RC-3.3/3.4 deferred (PM-6) | Per-element JSON/CSV parsed once |
+| **RC-4** Rate-cache key | **DONE** (documented) | category\|unit key, no location dim — design constraint |
+
+**RC-1** — the compound takeoff composed lookup keys RAW, so `440X215` / `440×215`
+/ `440 x 215` / `215x440` and `1 : 6` all missed the table and silently fell to
+DEFAULT (a ~25% block-count error; a 1:3 mortar priced at half cement). New
+Document-free `MaterialKeyCanonicaliser` (upper-case, whitespace-collapse, ×→x,
+largest-first block order, aliases) applied to block size / mortar mix / brick
+bond / plaster type; block-size + bond inferred from the type name when unset;
+every DEFAULT fall lowers `RateConfidence` (unmatched value 35 + warn once; empty
+param 55), routes to the uncosted/low-confidence at-risk rollup, and notes which
+param defaulted — never a silent wrong number.
+
+**RC-2** — five alignment fixes: (1) concrete grade reads
+`BLE_STRUCT_CONCRETE_GRADE_TXT` FIRST (folded into the lookup name), name-parse
+fallback; (2) curtain-wall rule moved ABOVE wall-area (§17 not §14); (3) **tonne
+and kg kept DISTINCT** (extracted to Document-free `BoqUnits`) with a ×1000/÷1000
+`MassFactor` when they differ — was a latent 1000× error; (4) linear
+Pipe/Duct/Cable rules gain `matchCategoryExclude` so `Pipe Fittings` /
+`Cable Tray Fittings` point items aren't mis-routed to a linear rate;
+(5) **RC-2.5 decision — IMPLEMENTED**: `RateRequest` gains `SystemType` (from
+`ASS_SYSTEM_TYPE_TXT`) and `CsvRateProvider` adds a `Category|System` pass so
+med-gas vs domestic copper can price differently — legacy category-only rate
+cards unaffected.
+
+**RC-3** — memoised the per-element hot spots: `BOQTemplateLibrary.LoadAll` (per
+doc; was up to 3 JSON re-parses per element via `ResolveNrm2Paragraph`) and
+`LoadCsvRates`/`LoadCobieCostCodes` (by path + mtime); `Cost_ReloadRules`
+invalidates all memos. RC-3.3 (share one `BuildBOQDocument` across
+cert→EVM→AFC) and RC-3.4 (resolve the per-element takeoff/measurement/ES/
+discipline context once) remain the open PM-6 optimisation — the memoisations
+remove the dominant per-element re-parse cost behind the 3× rebuild.
+
+**RC-4** — documented the CostStamp rate-cache key (`category|discipline|prod|
+matcode|unit`, no location dimension) as a deliberate design constraint: one FX
+pair + one rate table per document ⇒ a category tuple resolves to one rate
+model-wide. A location token would only be added if multi-region-per-document
+pricing became a requirement.
+
+**In-Revit runtime verification:** a mis-formatted block size now flags rather
+than mis-quantifies; a large-model refresh parses the tables once; a graded
+material with a generic name ("Concrete") carbons correctly from
+`BLE_STRUCT_CONCRETE_GRADE_TXT`.
+
+#### Completed (MAT-4 — Accurate Ribbed/Hollow-Pot/Maxspan/Beam-System Takeoff, branch `claude/pm-complete`)
+
+Replaces MAT-1's flat solid-fraction with an accurate, parameter-driven method and
+gets the precast/beam-and-block constituent split right. Build 0 errors;
+Boq.Tests 148→161 (13 new).
+
+| Item | Status | What |
+|---|---|---|
+| **MAT-4.1** Params + calculator | **DONE** | 3-tier resolution; per-system net-concrete formulas |
+| **MAT-4.2** Precast/block split | **DONE** | In-situ vs precast vs blocks vs mesh; rib rebar; rib/edge formwork |
+| **MAT-4.3** RC beams | **DONE** | Section × net length; (b+2(D−ds))·L formwork; beam band once |
+
+**Resolution priority (most→least accurate), the governing decision tree:**
+1. **Real geometry** — summed `Solid.Volume` when materially below the gross
+   bounding box (voids actually modelled).
+2. **Parameter-driven calculator** — net concrete from the system rib/pot
+   dimensions (the primary path for typical flat-solid models).
+3. **Flat solid-fraction** (MAT-1) — LAST RESORT only, flagged low-confidence.
+
+**Net in-situ concrete per m² (calculator):** ribbed `topping + (w/s)·d`; waffle
+`topping + 2·(w/s)·d − (w/s)²·d`; hollow-pot `topping + (w/(pot+w))·d`;
+maxspan/beam-block `topping ONLY` (ribs precast, reported separately).
+
+**Seeded indicative default dimensions** (mm; confirm vs supplier span tables):
+hollow-pot pot 350 / rib 125 / depth 225 / topping 50; ribbed rib 125 @ 600 /
+depth 300 / topping 75; waffle 750 module / rib 150 / depth 325 / topping 75;
+maxspan ribs @ 625 / block 500×600 / topping 65; beam-block ribs @ 600 / block
+440×600 / topping 65. Element `BLE_SLAB_*` params override the seeds.
+
+**6 new shared params (additive, TEXT):** `BLE_SLAB_SYSTEM_TXT`,
+`BLE_SLAB_RIB_WIDTH_MM`, `BLE_SLAB_RIB_SPACING_MM`, `BLE_SLAB_RIB_DEPTH_MM`,
+`BLE_SLAB_TOPPING_MM`, `BLE_SLAB_BLOCK_SIZE_TXT`.
+
+**MAT-4.2** — void slabs now bill their constituents: in-situ concrete (net —
+topping only for maxspan), precast ribs/beams (m — **excluded** from in-situ, the
+maxspan correctness point: leaving precast in the in-situ line over-states it
+~3-4× and mis-bills precast as in-situ), infill blocks/pots (nr), topping mesh
+(m²), in-situ rib reinforcement (kg by rib concrete volume, **not** a flat
+80 kg/m³ on gross), and formwork = rib/edge forms or props (pots/blocks are
+permanent formwork — never gross soffit).
+
+**MAT-4.3** — RC beams (FamilyInstance framing): concrete = `SolidVolume` (net,
+columns trimmed) or section × net length; formwork = `(b + 2(D−ds))·L`; rebar by
+the beam band once (no double-count).
+
+**In-Revit runtime verification:** a real clay-pot slab measures net (calculator);
+a maxspan slab bills topping + precast ribs + blocks separately; a beam measures
+net length. **Correction note:** maxspan/pot bills now show LOWER in-situ concrete
++ new precast/block lines — this is the intended accuracy fix, not a regression.
+Accurate hollow-pot fraction is ~0.40 (wide pots), below the optimistic 0.62 flat
+fallback.
+
+#### Completed (MAT-1…MAT-3 — Building-Material Accuracy, branch `claude/pm-complete`)
+
+A QS/materials audit found three accuracy problems in sand/cement/aggregate/
+mortar/concrete/plaster handling. Build 0 errors; Boq.Tests 109→148 (39 new).
+
+| Item | Status | What |
+|---|---|---|
+| **MAT-1** Slab void systems | **DONE** | Hollow-pot / rib / waffle / trough slabs measured NET of voids |
+| **MAT-2** Ratio data | **DONE** | Corrected MATERIAL_LOOKUP.csv mortar/concrete/plaster/screed ratios |
+| **MAT-3** Compound takeoff | **DONE** | Type-aware constituent line items (toggled) that consume the ratios |
+
+**MAT-1** — rib/waffle/trough/hollow-pot (clay-pot) slabs were measured as solid
+concrete, over-measuring concrete + carbon + rebar ~30-40%. New data-driven
+`STING_SLAB_SYSTEMS.json` (corporate + `<project>/_BIM_COORD` override) +
+Document-free `SlabSystemRegistry` resolve a slab's **solid fraction** from
+`BLE_SLAB_SYSTEM_TXT` or a word-boundary type-name keyword. **Seeded indicative
+fractions**: hollow-pot 0.62, ribbed 0.60, waffle/coffer 0.65, trough 0.60. The
+canonical BOQ (`ApplySlabVoidFactor`) nets a floor's concrete volume before
+embodied carbon; `StructuralDesignSuite` slab carbon + `AutoRebarEstimator` net
+the volume before rebar. Also fixed the **compound-element carbon under-count**:
+`ComputeElementCarbonSplit` no longer silently drops layers whose
+`GetMaterialVolume` is 0 — when Σ material volume is materially < gross
+`HOST_VOLUME_COMPUTED` the shortfall is attributed to the dominant material and
+the row flagged Estimated.
+
+**MAT-2** — data-only corrections (basis: bag 50 kg, cement loose density 1440
+kg/m³ → 0.034722 m³/bag). Mortar `SAND_RATIO` corrected to the true mix (was
+missing the dry/bulking factor; 1:6 behaved like ~1:4.1) → **1:3/1:4/1:6/1:8
+≈1.25, 1:5 ≈1.30** m³/m³ (SAND = N × bags × 0.034722; cement bags unchanged).
+Concrete C35/C40/C45 aggregate lifted (0.83/0.80/0.78 → **0.866/0.855/0.844**) so
+dry volume ≈ 1.54. Plaster/render gained a 1:4 cement:sand mix; new **SCREED**
+section (1:3/1:4, 50-75 mm). One-brick bond mortar doubled (HEADER 0.055,
+ENGLISH 0.050, FLEMISH 0.052; half-brick 0.025 stays). Added NOMINAL_MIX per
+grade, lean C10 (1:3:6) + C7.5 (1:4:8), and cement:lime:sand mortars (BS EN
+998-2 / BS 5628 designations i-iv) + lime mortar.
+
+**MAT-3** — walls/slabs were priced as one composite m² rate, type-blind.
+Compound takeoff (behind **`COST_COMPOUND_TAKEOFF`, default off**) emits measured
+constituent lines: walls → blockwork/brickwork m² + units + mortar m³ + its
+cement & sand + plaster m² × faces + its cement & sand (+ formwork for RC); RC
+slabs → concrete m³ (net) + rebar + formwork, filed under §14/§28/§11/§13/§15.
+The corrected MAT-2 ratios now **drive** cement/sand quantities (flipped from
+reference-only to consumed). Document-free `CompoundTakeoff` engine (tested);
+Revit-side `CompoundTakeoffBuilder` gathers inputs; unpriced constituents are
+honestly flagged low-confidence rather than borrowing a composite rate. Toggle
+off → legacy bills unchanged.
+
+**In-Revit runtime verification:** a clay-pot slab measures net on a real model;
+a block wall in compound mode produces the constituent items; mortar/plaster/
+screed orders reconcile. **Note:** the MAT-1 flat solid-fraction is superseded by
+the MAT-4 parameter-driven calculator as the default (flat factor → last resort).
+
+#### Completed (CA-1…CA-5 — Cost & Carbon Basis Alignment, branch `claude/pm-complete`)
+
+The lifecycle + sustainability layers reconciled against the BOQ on mismatched
+bases. This run aligns them. Build 0 errors; tests green — Cost 90, Boq 109,
+Scheduling 38, Sustainability 438.
+
+| Item | Status | What |
+|---|---|---|
+| **CA-1** Currency safety | **DONE** | Closed the ~3,700× silent errors |
+| **CA-2** One cost basis | **DONE** | Net-of-VAT across the PM/QS lifecycle |
+| **CA-3** One carbon convention | **DONE** | Fossil headline everywhere; parallel LCA engine retired |
+| **CA-4** Carbon-as-cost | **DONE** | Configurable carbon price → whole-life LCC |
+| **CA-5** Remaining tail | **DONE** | CostStamp rates, IFC Qto gross/net, drift hash, server markup |
+
+**Chosen conventions (explicit):**
+- **Currency** — project BASE currency is **UGX**; one doc-scoped FX
+  (`UGX_PER_USD` / `UGX_PER_GBP`); a missing/blank currency defaults to **UGX,
+  never GBP**; an unknown currency passes through 1:1 (never silently scaled).
+  BCIS stays GBP — it is a £ service (a labelled-source default, not the arbitrary
+  GBP default removed elsewhere).
+- **Cost basis** — the PM/QS lifecycle (EVM BAC, CVR, AFC, Final Account, cert
+  SOV, `ContractSumResolver`, frozen `COST_CONTRACT_SUM_UGX`) reconciles on
+  **net of VAT** (`NetTotalExVatUGX` = works + prelims + OH&P + contingency).
+  **VAT is added only at the final presentation line.** The BOQ panel/exports
+  keep the VAT-inclusive `GrandTotalUGX` as the client-facing headline.
+- **Carbon basis** — the **A1-A3 FOSSIL** figure is the headline everywhere
+  (BOQ panel and EDGE dashboard); net (incl. biogenic credit) is a separate
+  whole-life line. `CST_EMBODIED_CARBON_KG` is single-valued = the BOQ fossil.
+  `CST_EMBODIED_CARBON_KG` is documented **A1-A3-only**; A4–D live in the
+  CarbonStageTracker (`CBN_*` params) — one reconciliation point.
+- **Carbon price** — `COST_CARBON_PRICE_UGX_PER_KG` in `project_config.json`,
+  default **0** (opt-in; no fabricated shadow price). When set, carbon enters a
+  true whole-life cost via the shared `CarbonLcc` seam.
+
+**CA-1 — currency safety.** New Document-free `RateCurrency` converter (the
+registry delegates to it). `MaterialLibraryRateProvider` labels project material
+costs UGX (was USD → ×3,700 at priority 95). `STING_DEFAULT_COST_RATES.csv` is
+declared USD-magnitude benchmarks; `DefaultRateProvider` labels them USD so the
+registry rebases to UGX (was mislabelled UGX → categories on the default table
+priced ~3,700× low). ES override + project rate-card default missing currency to
+UGX. `RateUSD` derived from the same FX (`RateCurrency.FromUgx`). `LoadCsvRates`
+de-dups keys (first-wins + logged). 11 headless tests (Boq.Tests 98→109).
+
+**CA-2 — one cost basis.** `ContractSumResolver.ResolveBase` → `NetTotalExVatUGX`
+(was VAT-inclusive) — flows to EVM BAC, AFC, Final Account, variations, CVR.
+`Cost_SetContractSum` freezes the net sum. Payment-cert SOV carries explicit
+Preliminaries / OH&P / Contingency lines so Σ ContractValue = net contract sum
+(cumulative cert can reach it); retention cap rides it. AFC live fallback +
+Final-Account asBuilt/snapshot fallbacks → net (`BOQSnapshotMeta.NetExVatUGX`
+added; old snapshots derive net via `VatPct`). Panel inline EVM BAC → net (was
+biasing CPI ~1.18×). ICMS3 net-basis reconciliation footer; £ residue removed.
+6 headless tests (Cost.Tests 84→90): contract sum = cert@100% = Final Account on
+net; CPI=1.0 when EV=AC; the VAT-mix bias guard.
+
+**CA-3 — one carbon convention + retire the parallel LCA engine.**
+`CST_EMBODIED_CARBON_KG` single-valued (the stage tracker prefers the BOQ's
+fossil value). EDGE dashboard leads with `FossilCarbonIntensityKgM2` (new,
+matches the BOQ); net shown separately. `Model/LifecycleAssessmentEngine.Assess`
+gutted — its ICE factor table, per-kg mass `Take(5000)` walk, `0.233` UK grid and
+net-timber `−1.0` deleted; it now delegates to `CarbonStageTracker.Compute`
+(shared `CarbonFactorResolver` + `GridCarbonRegistry`); BREEAM + LCA commands
+inherit the canonical carbon. COBie Impact sheet reconnected to
+`CST_EMBODIED_CARBON_KG` (was the never-written `BLE_EMBODIED_CARBON_TXT` →
+always empty). 4 headless tests (Sustainability.Tests 429→433).
+
+**CA-4 — carbon-as-cost.** New Document-free `CarbonLcc` seam: whole-life carbon
+cost = upfront embodied + NPV of annual operational carbon, at the configurable
+price; shared by the BOQ + EDGE LCC. `BOQLineItem.LifecycleCostInclCarbonUGX` +
+document totals (`TotalLifecycleCostUGX` / `…InclCarbonUGX` /
+`EmbodiedCarbonCostUGX`). ICMS3 gains a real `Carbon_Cost` column + whole-life
+footer + panel metrics. 5 headless tests (Sustainability.Tests 433→438).
+
+**CA-5 — the tail.** CostStamp passes the real CSV+COBie rate tables and bypasses
+the category-keyed cache for per-element overrides (was stamping siblings' generic
+rates, skewing `CST_MODELED_TOTAL_UGX` + EVM weighting); additivity documented.
+IFC Qto: `Gross*` from `GrossQuantity`, `Net*` from `Quantity` (was net in both).
+Drift hash adds `PrelimsItemised` + resolved prelim total + `MeasurementStandardId`.
+Server: plugin pushes the full `BoqMarkupBreakdown` (works value + contract sum
+ex/incl VAT); `BoqBaseline` entity + `CreateBaselineRequest` gain nullable markup
+fields; server BOQ currency defaults UGX (5 sites + entity).
+
+**Judgement calls / for in-Revit (and server) runtime verification.**
+- The element→rate→quantity and carbon paths are Revit-side; the headless tests
+  pin the Document-free seams (`RateCurrency`, `BoqTotals`, `CarbonLcc`,
+  `EvmPeriod`, `MaterialsRollupResult`). Verify in Revit: a UGX bill no longer
+  inflates a material-library or default-table rate; EVM/CVR/AFC/Final-Account
+  reconcile on the net basis; the EDGE dashboard and BOQ panel show the same
+  fossil kgCO₂e/m²; COBie Impact + IFC Gross/Net stamp correctly.
+- `COST_CONTRACT_SUM_UGX` is now stored **net of VAT** — re-run
+  `Cost_SetContractSum` on any project frozen before this change.
+- The server `BoqBaseline` columns need an EF migration
+  (`dotnet ef migrations add BoqBaselineMarkup`) before the markup fields persist;
+  the plugin payload and server DTO are additive and degrade gracefully until then.
+
+#### Completed (P0-7 — one canonical costing procedure: kill the cost forks, branch `claude/pm-complete`)
+
+Element costing now flows through a single procedure. Previously the correct
+engine (`BOQ/BOQCostManager` — `BuildBOQDocument` → per-element
+`BuildLineItemFromElement` → `ResolveRate` via the `Rates/` provider chain +
+`MeasureQuantity` + `BoqTotals` markup + `CarbonFactorResolver`) was shadowed by
+three independent forks that each re-read `cost_rates_5d.csv` and did their own
+quantity × rate, so the numbers drifted. WP0 had already converged the carbon
+path + the design-options fork; this run finishes the job.
+
+**Published the canonical per-element seam.**
+- Extracted `BoqMarkupBreakdown` + `BoqTotals` out of `BOQModels.cs` into a new
+  Document-free `BOQ/BoqTotals.cs` (zero `Autodesk.Revit.*` imports) so the one
+  markup waterfall is linkable into the headless test projects.
+- Added `BOQ/Boq5DEstimateAssembler.cs` (Document-free): builds the 5D estimate
+  JObject from already-costed BOQ rows — groups by category, **sums the
+  canonical per-line totals** (never re-derives qty × rate), and applies
+  `BoqTotals.Compute` (incl VAT).
+- Published `BOQCostManager.ElementCostContext` + `CostElement(doc, el, ctx)` +
+  `ProjectTo5DRows(boq)` so other subsystems cost via the exact canonical
+  `BuildLineItemFromElement` instead of their own take-off.
+
+**Routed the 4D/5D cash-flow through it.** `Scheduling4DEngine.GenerateCostEstimate`
+no longer runs its own take-off. It calls `BuildBOQDocument`, projects the line
+items, and hands them to `Boq5DEstimateAssembler`. Retired: the per-unit
+`qty += 1` fallbacks, the hardcoded `0.888 kg/m` rebar constant, the own
+`qty × rate` lineTotal, the flat VAT-less markup, and the duplicate `BccBridge`
+live-rate read. `AutoCost5DCommand` drops its `_BIM_MANAGER/cost_rates_5d.csv`
+read (rates flow through the canonical `Rates/` chain) and is now `Manual` (the
+canonical take-off clears stale flags in its own transaction). The S-curve
+distribution (`GenerateCashFlow` over the real 4D schedule) is unchanged and now
+consumes canonical numbers.
+
+**Routed the BIMManager forks.** `Export5DCostData` costs every element via
+`BOQCostManager.CostElement` (one take-off shared by the CSV + XLSX mirror) —
+deleting the worst fork: `EstimateCost` (a hardcoded GBP category→rate table with
+own `rate × qty`) and `ExtractQuantity` (own 1-each fallback) that ignored both
+the CSV *and* the canonical engine. Output currency corrected to UGX with
+`RateSource`/`RateConfidence` columns. The COBie `ReplacementCost` fallback now
+reads category rates through the one loader (`BOQCostManager.LoadCsvRates`, UGX)
+instead of a private inline reader that mislabelled a USD column as the UGX
+replacement cost.
+
+**Retired the legacy exporter.** All three `BOQExportLegacy` dispatch sites
+(`WorkflowEngine`, `TempCommandModule`, `StingCommandHandler`) now route to the
+canonical `BOQ.BOQExportCommand`. `Temp.BOQExportCommand` (own `DiscMap` +
+`BOQ_TEMPLATE.csv` rate logic) is left compiled but unreferenced and marked
+retired — nothing can reach its divergent take-off.
+
+**Reconciled NRM1.** `CostPlan_Compare` adds a total-level reconciliation: the
+NRM1 benchmark estimate (GIFA × £/m², FX-converted to UGX) against the BOQ
+Contract Sum resolved through the shared `ContractSumResolver`. NRM1 stays a
+deliberately different *method*, but its total now ties to the same canonical
+contract-sum number — "one rate source, two deliberate views", not two
+accidental numbers.
+
+**Consolidation-invariant tests.** `StingTools.Scheduling.Tests` links the
+Document-free `Boq5DEstimateAssembler` + `BoqTotals` and adds 8 tests
+(`Boq5DConsolidationTests`): the 5D subtotal equals the sum of the canonical BOQ
+line totals (single source of truth); line totals are summed, never recomputed
+from qty × rate (proved with a loaded rate where total ≠ qty × rate); the grand
+total is the canonical `BoqTotals` waterfall incl VAT (and is *not* the retired
+flat formula); category grouping, discipline reconciliation, and zero-qty safety.
+Build clean (0 errors); touched test projects green — Scheduling 38, Boq 98,
+Cost 84.
+
+**Judgement calls / for in-Revit verification.**
+- The element → rate → quantity path is shared *by construction* (every consumer
+  calls `BuildLineItemFromElement`); that part needs the Revit API and is
+  verified in Revit (the 4D cash-flow now sourced from the real BOQ take-off;
+  COBie `ReplacementCost` / `Export5DCostData` from the canonical per-element
+  cost). The headless tests pin the Document-free seam both paths cross.
+- Per-project 5D rate overrides no longer come from a separate
+  `_BIM_MANAGER/cost_rates_5d.csv`; they flow through the canonical surfaces
+  (`<project>/_BIM_COORD/rate_card.json` + the MAT panel), the same as the BOQ.
+  `LoadCsvRates` (corporate `data/cost_rates_5d.csv`) remains the one CSV loader
+  inside the `Rates/` chain.
+- `ExportMeasuredQuantities` (a quantity-only CSV, no cost) keeps its own
+  geometry roll-up — it computes no rate × qty, so it is not a cost fork.
+
+#### Completed (Shared-parameter alignment — Material cost/carbon + water-efficiency, branch `claude/pm-complete`)
+
+Aligned the shared-parameter data surfaces with the latest Material-Manager
+cost-split, Sustainability/carbon, and EDGE water-efficiency work. Nine
+element-bound shared parameters were declared/consumed in code but absent from
+`MR_PARAMETERS.txt` (so they never bound, and the `mat.LookupParameter` reads in
+`StingMaterialUpdater` / `MaterialRow` / `MaterialRfqGenerator` / `IfcMaterialPsetWriter`
+and the `SustainabilityEngine` fixture lookups silently no-opped):
+
+- Materials (group 12 `MAT_INFO`, NUMBER): `MAT_COST_SUPPLY_NR`, `MAT_COST_INSTALL_NR`,
+  `MAT_VAT_PCT_NR`, `STING_EMB_CARBON_NR`; (TEXT) `STING_MAT_EPD_SRC_TXT`,
+  `STING_MAT_EPD_DATE_TXT`, `STING_MAT_LIFECYCLE_TXT`.
+- Plumbing fixtures (group 6 `PLM_DRN`, NUMBER): `SUS_FIXTURE_FLOW_LPM`, `SUS_FIXTURE_FLUSH_L`.
+
+GUIDs are deterministic UUIDv5 in the Planscape namespace
+`a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a` (collision-checked against the existing
+3,336 rows). Surfaces updated: `MR_PARAMETERS.txt` (+9), `PARAMETER_REGISTRY.json`
+support_params (+9, v5.13), `MR_PARAMETERS.csv` (+9), `CATEGORY_BINDINGS.csv` (+9),
+`BINDING_COVERAGE_MATRIX.csv` (+9), `FAMILY_PARAMETER_BINDINGS.csv` (+7 material),
+`PARAMETER_CATEGORIES.csv` (+7 material). **Create-parameters function fix:**
+`LoadSharedParamsCommand.IsMaterialRelevantParam` now returns true for `STING_MAT_*`
+and `STING_EMB_CARBON_NR` so the carbon/EPD/lifecycle params get OST_Materials
+binding via `CleanMaterialBindings` (the `MAT_*` cost params already matched the
+`MAT_` prefix). `ParamRegistry.cs` gained the canonical GUID consts + a
+`MAT_LIFECYCLE` / `SUS_FIXTURE_*` declaration and added `MAT_LIFECYCLE` to
+`AllMaterialParams`. Data-only + loader change — not `dotnet build`-verified here
+(no Revit API in this environment); verify binding in Revit before merge.
+
+Tier-2 follow-up (same change set): the further 30 genuinely
+element-bound shared params referenced in earlier electrical (`ELC_CIR_*`,
+`ELC_CABLE_CSA_TXT`, `ELC_WIRE_BEND_COUNT_INT`, …), plumbing-router (`PLM_CONN_*`,
+`PLM_PIPE_SERVICE_TXT`, `PLM_NOMINAL_DIA_MM`, `PLM_PRESSURE_KPA`, `PLM_SLOPE_PCT_V4`,
+`PLM_TMV_KVS`), design-option (`ASS_OPTION_*`), sheet (`SHT_REV_DATE_TXT`), and
+clash (`CLASH_LIVE_FLAG`, `CLASH_COUNT_INT`) code were also aligned into
+`MR_PARAMETERS.txt` (groups 4 `ELC_PWR` / 6 `PLM_DRN` / 1 `ASS_MNG` / 22
+`IFC_EXCH` / 27 `STING_DRAWING` / 20 `CLASH_COORDINATION`, plus a new group 36
+`STING_VIEWPARAMS` with a dedicated `OST_Views` override in
+`LoadSharedParamsCommand.BuildGroupCategoryOverrides` for `STING_VIEW_TOKEN_MASK_TXT`).
+GUIDs reuse the existing code-declared values where present (`ASS_OPTION_*`,
+`STING_COMPOUND_PARENT_ID`, `STING_VIEW_TOKEN_MASK_TXT`) and are UUIDv5-minted
+otherwise. End state: MR_PARAMETERS.txt = 3,375 params / 36 groups;
+`PARAMETER_REGISTRY.json` v5.14. Sheet/view params are omitted from
+`BINDING_COVERAGE_MATRIX.csv` (no Sheets/Views columns) and clash params from the
+two family-binding CSVs (clash flags are not family-authored). Verified non-params
+were excluded (family-internal symbol params, annotation-marker text prefixes,
+ExtensibleStorage/config keys, the `RBS_SYSTEM_CLASSIFICATION_PARAM` BuiltInParameter,
+and LPS element-type tag *values*). Data + loader only — not `dotnet build`-verified
+here; verify binding in Revit before merge. See `StingTools/Data/MISSING_PARAMETERS.md`.
+
+**Tier-3 (same change set):** the 5 `STING_PLACER_*` symbol-placement idempotency
+stamps (`STING_PLACED_BY_SYMBOL_PLACER_BOOL`, `STING_PLACER_{ASSY,MEMBER,SYMBOL_CODE,VIEW}_ID*`),
+written by `IsoSymbolPlacer` / `MepSymbolEngine` onto placed detail/annotation
+symbols for re-run idempotency, were added under a new **group 37 `STING_PLACER`**
+with a loader override binding to detail components / generic annotations /
+generic models / lines (`PlacerCategories`). End state: MR_PARAMETERS.txt = 3,380
+params / 37 groups; `PARAMETER_REGISTRY.json` v5.15. (Matrix + family-binding CSVs
+skipped — detail/annotation categories aren't tracked there.)
+
+#### Completed (PM/Cost-Control + Sustainability COMPLETION — branch `claude/pm-complete`)
+
+Final completion run consolidating all remaining PM-1…PM-8 + sustainability work
+onto the single `claude/pm-complete` branch (no new branches/worktrees). Every
+engine-math commit was gated on `dotnet build` = 0 errors and `dotnet test` green
+on the touched projects. End state: **build 0 errors; StingTools.Cost.Tests 84/84
+· StingTools.Scheduling.Tests 30/30 · StingTools.Sustainability.Tests 429/429 ·
+StingTools.Boq.Tests 98/98.** The rescue branch `claude/pm4-wip-rescue` (06dd0b6e7)
+is integrated and **can now be deleted.**
+
+**Completion matrix — every PM-2…PM-8 item + the round-3 deferrals:**
+
+| Item | Status | Where |
+|---|---|---|
+| **STEP 0** — integrate rescued PM-4 scheduling slice; one CPM namespace | **DONE** | `Core/Schedule/*` feeds existing `Core/Scheduling/CpmEngine`; `ScheduleCpmCommands` |
+| **PM-4** converge MSP/XER parsers; read P6 TASKPRED + MSP links | **DONE** | `Core/Schedule/ScheduleImporter` (MSP/P6/XER, one parser) |
+| **PM-4** central %-complete normalisation; seconds-tolerant XER + warn-on-skip | **DONE** | `ScheduleImporter.NormalisePercent` / `TryParseXerDate` |
+| **PM-4** model-driven % complete (element-linked + phase-reached) | **DONE** | `Sched_ModelPercent` |
+| **PM-4** Uganda working-calendar into CPM | **DONE** | `WorkingCalendar` + `ScheduleCpmBridge`; override `_BIM_COORD/working_calendar.json` |
+| **PM-4** parser→bridge→engine round-trip tests; panel buttons | **DONE** | `StingTools.Scheduling.Tests`; "Programme & Cash-Flow" group |
+| **PM-3** schedule-driven cash-flow S-curve → real EVM PV | **DONE** | `CashFlowSCurve` + `Sched_SCurve`; EVM BCWS reads `SCurveStore` |
+| **PM-3** CVR (cost vs value, WIP, margin) | **DONE** | `Core/Cost/CvrEngine` + `Cvr_Report` |
+| **PM-3** loss & expense / compensation events off captured EOT days | **DONE** | `Core/Cost/LossAndExpenseEngine` + `LossExpense_Value` |
+| **PM-3** cost-to-complete at line level | **DONE** | `Core/Cost/CostToCompleteEngine` + `CostToComplete_Lines` |
+| **PM-3** commitments register (sub-contracts/POs → budget lines) | **DONE** | `Core/Cost/CommitmentsRegister` + `Commitments_Report` |
+| **PM-3** QuickBooks/Sage/Excel offline export (IIF/CSV) | **DONE** | `BOQ/ErpFormats` (IIF + Sage CSV) + panel ERP screen (CSV/P6 already shipped) |
+| **PM-3** NRM1 elemental cost plan + OCE (UGX/m² GIFA) | **DONE (pre-existing)** | `Core/CostPlan/*`; `CostPlan_Create/Compare/Export` (NRM2→NRM1 map) |
+| **PM-3** dayworks build-up (StarRate, BOQRowSource.Dayworks) | **DONE (via StarRate)** | `Variation_BuildStarRate` (labour+plant+material) + `BOQRowSource.Dayworks` row class |
+| **PM-3** per-material COST split + SYS-token rate matching | **DEFERRED (round-3)** | L/P/M split done (`BOQCostManager.ResolveRate`); SYS-token section/rate matching explicitly round-3-deferred |
+| **PM-2** approved VO → "Adjustments / Variations" SOV on next cert; BAC moves | **DONE** | `PaymentCertEngine.AppendAgreedVariations`; BAC via `ContractSumResolver` |
+| **PM-2** clash → tracked issue (IssueStatusNormalizer) into issues.json w/ SLA | **DONE** | `Clash_SyncIssues` (reuses `CreateIssue` SLA-by-priority) |
+| **PM-2** reconcile clashes.json ↔ issues.json; transmittal bundle | **DONE** | `Clash_SyncIssues` close-on-resolve + transmittal-ready CSV manifest |
+| **PM-2** unify contract-sum source (FinalAccount = AFC = EVM) | **DONE** | `FinalAccount` now uses `ContractSumResolver.ResolveBase` |
+| **PM-2** PaymentCert cumulative valuation by line/element id | **DONE (PM-2 prior)** | `SovLine.SectionKey` (survives section rename) |
+| **PM-5** per-material/category waste table (cost + carbon) | **DONE** | `BOQ/WasteTable` wired into `BOQCostManager` + `SustainElementCarbon`/`SustainabilityEngine` |
+| **PM-5** UG clamp-kiln brick factor | **DONE** | `STING_CARBON_FACTORS_UG.json` (clamp row 650; generic brick 350→420) |
+| **PM-5** Kampala/UG green-baseline rows | **DONE** | `STING_GREEN_BASELINES.json` 18 `UGA` rows (0A/1A/2A × 6 uses) |
+| **PM-5** stainless-steel factor | **DONE** | `MATERIAL_LOOKUP.csv` 12090→48278 (6.15 kg/kg × 7850) |
+| **PM-5** consolidate grid/benchmarks on GridCarbonRegistry | **DONE (PM-1)** | B6/benchmark wiring landed in PM-1; UG grid 0.05 confirmed |
+| **PM-6** ElementMulticategoryFilter on heavy sweeps | **DONE (key sweeps)** | `WeightedPctComplete`, `AggregatePercentComplete`, `Sched_ModelPercent`, CTC sweep |
+| **PM-6** reuse one weighted-%-complete (not duplicated) | **DONE** | `WeightedPctComplete` made internal, reused by CVR/CTC |
+| **PM-6** cache BuildBOQDocument across cert→EVM→AFC; collect-once MilestoneRegister/ListVariations; AuditLog last-hash | **PARTIAL** | per-command sweeps filtered; a shared per-run BOQ cache + the three collect-once micro-opts remain (separate command runs, low impact) |
+| **PM-7** de-dup `MapProviderIdToLegacySource` + `SuggestLiability` | **DONE** | `Rates/RateSourceLabels.ToLegacy`; `Core/Variation/VariationLiabilityRules.Suggest` |
+| **PM-7** consolidate the two ContractForm enums | **DONE (pre-existing)** | `ContractForm` (3) vs renamed `VariationContractForm` (8) — collision already removed |
+| **PM-7** rename one WorkflowEngine (Core preset vs Docs/Workflow state-machine) | **DEFERRED (reason)** | the two are namespace-separated (`StingTools.Core` vs `Planscape.Docs.Workflow`) and disambiguated by a `using` alias; the rename is a large mechanical change across many call sites — deferred to avoid destabilising the green build at end-of-run |
+| **PM-7** unify CST_* storage types + the three sidecar-folder roots | **DEFERRED (reason)** | `_BIM_COORD` / `STING_BIM_MANAGER` / `_bim_manager` are referenced across dozens of files with live JSON sidecars; a safe consolidation needs a back-compat migration shim — out of scope for a non-destabilising completion pass |
+| **PM-8** MIDP/TIDP engine (register joined to lifecycle; drift detection) | **DONE** | `Core/Delivery/MidpEngine` + `Midp_DriftReport` (joins `deliverables.json`) |
+| **PM-8** make KutKpiDashboard KPIs real (computed, auto-snapshotted, trended) | **DONE** | most KPIs already computed + auto-snapshot; added computed risk/delivery KPIs; the 3 string KPIs are longitudinal/multi-party (server-side per the audit's Revit-API line) |
+| **PM-8** risk register (data + lifecycle; thin "raise risk against element/zone" hook) | **DONE** | `Core/Delivery/RiskRegister` + `Risk_Raise`/`Risk_Report` (reuses issues sidecar + audit log) |
+
+**Acceptance narrative (§7) holds end-to-end:** NRM1 cost plan (UGX/GIFA) → seeds
+budget + EVM PV → NRM2 BoQ + tender adjudication → frozen contract-sum baseline →
+interim certs (18% VAT, retention) with approved variations flowing into the next
+cert + BAC → dayworks/fluctuations/L&E → schedule-driven S-curve + EVM CPI/SPI/
+EAC/CTC → CVR + client cost report → final account reconciled vs certified-to-date
++ retention-release ledger → carbon on EDGE/Uganda defaults throughout → export to
+QuickBooks/Sage/Excel offline.
+
+**New pure Core engines (all headless-tested):** `Core/Cost/{CvrEngine,
+LossAndExpenseEngine, CostToCompleteEngine, CommitmentsRegister}`, `Core/Delivery/
+{RiskRegister, MidpEngine}`, `BOQ/{WasteTable, ErpFormats}`, `BOQ/Rates/
+RateSourceLabels`, `Core/Variation/VariationLiabilityRules`.
+
+**Needs in-Revit runtime verification** (all built without a Revit host —
+Linux/headless): every new `IExternalCommand` — `Sched_Import/Cpm/ModelPercent/
+SCurve`, `Cvr_Report`, `LossExpense_Value`, `CostToComplete_Lines`,
+`Commitments_Report`, `Risk_Raise/Report`, `Midp_DriftReport`, `Clash_SyncIssues`
+— plus the new cost-panel button groups, the ERP IIF/Sage checkboxes, the
+VO→cert SOV append in `PaymentCert_Issue`, and the carbon-path waste re-weighting
+on a real model.
+
+---
+
+#### Completed (PM Cost-Control PM-2 — branch `claude/pm2-onward`)
+
+PM-2 wires the cost-side silos (no new features — connect what exists), consuming
+the PM-1 spine (`ContractSumResolver` / `IssueStatusNormalizer` / `MoneyRound`).
+Build 0 errors; `StingTools.Cost.Tests` 42 green.
+
+- *PaymentCert cumulative valuation* now joins on a STABLE `SovLine.SectionKey`
+  (NRM2 § + discipline) instead of the free-text section name — renaming a section
+  no longer resets `PreviouslyCertified` to 0 (which silently over-paid the full
+  earned value again). Old certs without the key fall back to the name.
+- *Retention basis is contract-configurable* (`COST_RETENTION_EXCLUDES_MOS`):
+  retention on work-done-only vs the materials-on-site-inclusive gross — replacing
+  the PM-1 hardcoded proxy a QS flagged as contract-dependent (default unchanged →
+  no regression).
+- *FinalAccount reconciles against certified-to-date*: new
+  `PaymentCertEngine.CertifiedToDate` (latest cert cumulative gross); the statement
+  + panel now show certified-to-date and the "still to certify at close" variance,
+  instead of ignoring the cert series.
+- *One contract-sum source*: `ContractSumResolver` split into `ResolveBase` (frozen
+  Award baseline, no variations — the Final Account waterfall base) + `Resolve`
+  (base + agreed variations — the EVM BAC / AFC basis), so the three never
+  double-count or diverge.
+- *CostPlan → budget*: the elemental cost plan auto-seeds `PROJECT_BUDGET_UGX`
+  (FX-converted from the plan currency) on create, so the budget variance + forecast
+  read `GrandTotalLikely` without a separate manual budget entry.
+- *AFC contract sum unified* through `ContractSumResolver.ResolveBase` (frozen Award
+  baseline wins, then earliest-cert SOV, then live) so AFC + Final Account + EVM agree.
+
+**PM-3 (fluctuations) — index-linked fluctuations engine.** New pure, tested
+`FluctuationsEngine` (NEDO/BCIS Price-Adjustment-Formula method + single-CPI method,
+e.g. UBOS): fluctuation = adjustable-work-value × (1 − non-adjustable %) × blended
+weighted index movement. `Fluctuations_Compute` reads a basket from
+`_BIM_COORD/fluctuations.json` (seeds a template with the adjustable value pre-filled
+from the live works subtotal on first run), computes the recoverable amount and
+writes `COST_FLUCTUATIONS_UGX` — which **both** the AFC and the Final Account
+waterfalls now consume (AFC previously omitted fluctuations). Panel button + handler
++ workflow wiring; 6 worked-number tests.
+
+**PM-4 (CPM core) — critical-path engine.** New pure, tested `CpmEngine` (the
+scheduling math Revit doesn't provide): forward/backward pass → early/late
+start/finish, total + free float, critical path, with Kahn topological ordering +
+cycle detection. FS links in whole days (the working-calendar conversion + parser
+convergence are the Revit-coupled remainder). 7 worked-network tests (diamond
+network: A-B-D critical = 12 d, C carries 2 d float; cycle detection).
+
+- *Open (ROADMAP):* remaining PM-2 wirings (VO → next-cert "Adjustments" SOV section;
+  clash → tracked issue/SLA → transmittal via `IssueStatusNormalizer`); PM-3 remainder
+  (dayworks, L&E, CVR, NRM1/OCE, CTC, commitments, accounting export) + the
+  schedule-driven S-curve consuming CPM dates; PM-4 parser convergence / model-driven
+  % / Uganda calendar; PM-5 carbon data; PM-6/7/8.
+
+#### Completed (PM / Cost-Control — branch `claude/pm-cost-control`)
+
+Per `docs/PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md` (PM-1…PM-8), re-baselined off
+`claude/boq-round3`. Build verified (0 errors) against the real Revit 2025 API and
+the commercially-consequential pure math is unit-tested in a new
+**`StingTools.Cost.Tests`** project (41 tests green) — `dotnet test` is the gate.
+
+**Do-once shared helpers (build once, consume everywhere).**
+- `IssueStatusNormalizer` — one canonical issue-status vocabulary collapsing the
+  four historical spellings (`OPEN`/`Open`/`open`/`Resolved`/`Void`…). The workflow
+  gate `has_open_issues` now routes through `IsOpen`, so it sees clash/ACC issues
+  (it previously matched only `"OPEN"`). Fails safe (unknown → open).
+- `MoneyRound` — one half-even (banker's) money-rounding helper. Scoped decision
+  recorded: money stays `double` (the persisted JSON contract is double-typed) but
+  all rounding funnels through this helper so per-line float residue can't be
+  masked; a `decimal` overload is provided for opt-in cert/EVM paths.
+- `ContractSumResolver` — the ONE contract-sum source: the frozen Award baseline
+  (`COST_CONTRACT_SUM_UGX`, from `Cost_SetContractSum`) + agreed (Approved/
+  Incorporated) variations. EVM BAC now anchors on it (was the live `GrandTotalUGX`,
+  which drifted upward as the model grew with zero progress); AFC/Final Account
+  already prioritise the same config key.
+
+**PM-1 — §2 correctness fixes (each with a before/after + test where pure).**
+- *EVM EAC no longer collapses to 0 at CPI=0* (`EvmPeriod`, extracted to a pure file
+  for testing): CPI-typical EAC = `AC+(BAC−EV)/CPI` (= `BAC/CPI`), budget-rate
+  fallback `AC+(BAC−EV)` at CPI=0 so ETC stays positive + VAC reads the real
+  forecast; added the schedule-blended `AC+(BAC−EV)/(CPI×SPI)` variant.
+- *CostPlan currency* default GBP → **UGX** (the GBP/UGX no-FX variance was ~3700×
+  wrong); *PERT mean* now weights the unrounded line values then rounds once.
+- *StarRateLine* costs on the resource type (Hours for labour/plant via Unit, else
+  Quantity) instead of `Max(Hours,Quantity)`.
+- *Cert VAT* default UK 20% → **Uganda 18%**; *retention* halving default 100% →
+  95% (a practical-completion proxy, was inert).
+- *SLA timezone*: the `…Z` UTC deadline is parsed `AssumeUniversal|AdjustToUniversal`
+  (breaches fired 3 h early in Kampala UTC+3).
+- *B6 operational carbon* via `GridCarbonRegistry` (Uganda 0.05), the hard-coded
+  0.233 kg/kWh (≈5× too high) deleted; the ISO-14064 export benchmarks now read the
+  same `COST_CARBON_RAG_*` project/region config the BOQ panel uses (UK LETI/RIBA
+  placeholders removed).
+- *AssignBoqLineRefs* middle segment now increments per sub-section (by Category)
+  with a per-group row index — the hard-coded `"1"` (every ref `{prefix}.1.{n}`,
+  stamped onto elements) is gone.
+- *Snapshot hasher* includes zero/default values (an unmeasured qty-0 row was
+  invisible to the checksum/dedupe).
+
+*Remaining (PM-2 integration silos, PM-3 lifecycle tools, PM-4 CPM/scheduling,
+PM-5 carbon data, PM-6 perf, PM-7 hygiene, PM-8 delivery layer) — tracked in
+ROADMAP; the audit doc catalogues each with file:line anchors.*
+
+#### Completed (BOQ Round 3 — branch `claude/boq-round3`)
+
+Carbon convergence, measurement parity round 2, automation enablement and QS
+lifecycle fills, per `docs/BOQ_*` Round-3 brief. Each work-package compile-verified
+against the real Revit 2025 API (0 errors).
+
+**WP-C — Carbon: one convention (fossil headline + biogenic line) on every surface.**
+`ComputeElementCarbon` is replaced by `ComputeElementCarbonSplit`, the single RICS
+WLCA computation: it returns the **A1-A3 fossil** headline (`EmbodiedCarbonKg`) and
+the separate **A1-A3 biogenic** line (`BiogenicKg`, ≤ 0), via the existing
+`BiogenicCarbon` + `CarbonFactorResolver.GetCarbonFossilPerM3/GetCarbonBiogenicPerM3`
+split — so the fossil/biogenic figure is identical regardless of which resolver
+tier fires (no more net-vs-fossil drift). Carbon is driven off **real geometry**
+(`ReadGeometryVolumeM3`/`GetMaterialVolume`) for single-material surface/linear
+elements too, falling back to the guessed-thickness estimate only when geometry is
+genuinely absent (those rows are flagged `CarbonEstimated` / quality "Estimated").
+Carbon waste now routes through the **same `WasteFactor`** per-element lookup the
+cost uses (was a flat 5%). The panel card, status strip, `CarbonPivotByPhaseLevel`
+(new biogenic column) and the IFC writer (`IfcMaterialPsetWriter` — new
+`GlobalWarmingPotential_Biogenic` + `CarbonScope = "A1-A3 fossil"`) all read the
+fossil figure; the card is relabelled "Embodied carbon (A1-A3)" and its **RAG is
+now kgCO₂e/m² GIFA intensity** (RIBA 2030 / LETI bands, `COST_CARBON_RAG_GREEN/AMBER_KGM2`
+defaults 400/700, GIFA from `BOQ_TENDER_GIA_M2` → model rooms), absolute kg kept as
+a secondary label. `STING_CARBON_FACTORS_UG.json` aluminium/copper raised to
+primary-route values (33 000 / 34 000 kgCO₂e/m³) to match the file's stated
+provenance. *Decision:* biogenic materials always resolve their fossil+biogenic via
+`BiogenicCarbon` (tier-independent); full A4/A5/C per-row module surfacing remains in
+the V6 `CarbonStageTracker` (now sharing the A1-A3 basis), with the BOQ figure
+explicitly scoped "A1-A3 upfront".
+
+**WP-Q — QS lifecycle fills + the missing buttons (bounded subset).**
+- *Set Contract Sum / Award Baseline* (`Cost_SetContractSum`): freezes the canonical
+  VAT-inclusive Contract Sum (writes `COST_CONTRACT_SUM_UGX` + an "Award" snapshot)
+  so the Final Account / AFC use a frozen baseline instead of the fuzzy
+  `PickAwardSnapshot` name-grep (a negotiated figure can be pre-set in config).
+- *Retention Release* (`Retention_Release`): the dormant release half of
+  `RetentionLedger` is now live — `PaymentCertEngine` persists release entries
+  (`retention_releases_*.json`) which `ComputeLedger` merges, so `TotalReleased` /
+  `Balance` work; the command releases the first moiety at Practical Completion
+  (`COST_RETENTION_FIRST_MOIETY_PCT`, default 50%) and the balance at end of the
+  Defects Liability Period.
+- *Sign-off guard*: `BOQ_SignOff` now strongly prompts (Yes/No) before signing the
+  LIVE, unfrozen bill and tells the QS whether a snapshot exists — so a moving bill
+  isn't certified by accident.
+- *Exposed orphaned commands*: panel buttons added for `BOQRateHeatMap` (rate-source
+  heatmap) and `BOQPrepForExport` (pre-export normalisation).
+- *Open (ROADMAP):* the index-linked Fluctuations engine, contractor CVR, itemised
+  contra-charges register, Materials-on-Site capture, Dayworks build-up sheet, and
+  the distinct PC-sum mechanism — each scoped with its reuse pointer.
+
+**WP-A — Turn on the automation.** The incremental/stale machinery now actually
+engages: the dirty marker is enabled when the Cost Manager panel opens (already
+wired) and its `ChangeEpoch` keys the `BOQBccBridge` cache, so in-place edits run
+an incremental take-off and don't feed stale 4D/5D rates. New **debounced
+auto-refresh**: a 1 s `DispatcherTimer` on the panel watches `ChangeEpoch`; after
+the model has been quiet for `COST_AUTO_REFRESH_QUIET_MS` (default 1500) it re-runs
+an *incremental* `RefreshAsync` (dirty elements only) — so the bill tracks the
+model without a manual click, guarded against thrash (restarts the window on each
+edit, skips while a command runs, opt-out via `COST_AUTO_REFRESH`), with the manual
+full refresh untouched. New workflow preset `WORKFLOW_BOQ_CostLifecycle.json`
+(reload → refresh → validate/gate → snapshot → drift-check → route) runs the manual
+sequence in one action. *Open (ROADMAP):* off-thread rate-feed pre-warm on document
+open and a low-frequency scheduled server-baseline drift check.
+
+**WP-M — Measurement parity, round 2.**
+- *Aggregated write-back* (`WriteElementParameters`) now re-measures each collapsed
+  constituent through `MeasureQuantity` (NRM2/CESMM deductions + waste), not the
+  legacy `DeriveQuantity` — so a stamped aggregated row's `CST_QTY_MEASURED` /
+  `CST_MODELED_TOTAL_UGX` matches its net bill row.
+- *Shaft / host-less voids*: `BuildVoidIndex` now attributes each host-less
+  `ShaftOpening` to every floor/roof whose slab elevation is within the shaft's
+  vertical span AND whose footprint overlaps it (bounding-box test), so a floor
+  pierced by a shaft is deducted instead of over-measured; shafts that pierce no
+  detected slab are logged (flagged) rather than silently dropped.
+- *Export gate* (`BoqUncostedRollup.BlocksExport`) now also blocks on
+  `CouldNotMeasureCount`; `CostStamp` stamps a **flagged zero**
+  (`CST_QTY_MEASURED … [COULD NOT MEASURE]`) for a measured unit returning 0 rather
+  than silently skipping the stamp.
+- *Solid-reader detail level* unified: `BOQCostManager.ReadGeometryVolumeM3` now uses
+  `ViewDetailLevel.Fine` to match `TakeoffRule.ReadSolidVolumeFt3`, so the same
+  column measures identically whichever path reads it.
+- *Open (ROADMAP):* the per-material COST split (carbon already splits), the
+  optional `matchSystem` (SYS) token in takeoff/measurement matching, and a
+  regional/per-category waste override.
+
+#### Completed (BOQ Measurement + QS — branch `claude/boq-measurement-qs`)
+
+Builds on the BOQ Master Impl branch. Each work-package compile-verified against
+the real Revit 2025 API (and the server project where touched), 0 errors.
+
+**WP-FIX — four review fixes on the prior pass.**
+1. *Sync payload contract.* The prior pass shipped a pre-waste `netQuantity` +
+   real `wastePercent` expecting the server to gross up — and it had also dropped
+   server-side carbon (the server reads `embodiedCarbonPerUnit`, which was
+   replaced by `embodiedCarbonKg`). `BoqSyncCoordinator.BuildLinePayload` now
+   ships the FINAL `netQuantity` with the gross-up-driving `wastePercent = 0`
+   (so a server that grosses up *and* one that treats it as final both store the
+   right total — cannot under/over-report against any server), carries the real
+   split as metadata (`measuredWastePercent`/`grossQuantity`/`deductionQuantity`)
+   behind `payloadSchemaVersion = 2` + `quantityIsFinal = true`, and restores
+   `embodiedCarbonPerUnit` alongside the authoritative `embodiedCarbonKg`.
+   `Planscape.Server` `BoqController` ingest honours the flag back-compatibly:
+   v2 payloads are stored without re-grossing (recording the measured waste +
+   the authoritative carbon total); old payloads keep the legacy behaviour.
+2. *Budget basis.* `ProjectBudgetUGX` is now defined VAT-inclusive; both
+   `BudgetVarianceUGX` and `BudgetCoveragePct` (and the panel coverage bar) use
+   the VAT-inclusive `GrandTotalUGX` — previously coverage used the bare works
+   subtotal against a VAT-inclusive total. Panel field relabelled "Project budget
+   (incl. VAT)".
+3. *Uganda metal class.* `UgCarbonFactors.ResolveSpecific` now tries the keyword
+   match (which has aluminium/copper/steel entries) BEFORE the broad Revit
+   material class, so non-ferrous metals (Revit class "Metal") no longer pick up
+   the steel-specific 12 200 kgCO₂e/m³ class value.
+4. *Option rollup units.* `OptionCostCarbonCalculator.BuildRow` costs each
+   category on the measure its rate's unit calls for (each→count, m³→volume,
+   m→length, m²/default→area) instead of always rate × area.
+
+**WP4a — Two highest-value QS lifecycle tools + variation approval.**
+*Tender Comparison & Adjudication* (`Tender_Adjudicate`): imports N priced QS-Bill
+returns (each carrying the stable `_key` column from Export QS Bill), joins them
+onto the live bill, builds a per-line × bidder comparison matrix, runs
+arithmetic-error / unpriced-measured / rate-outlier (vs cross-bidder median,
+`COST_TENDER_OUTLIER_PCT` default 25) / basic front-loading checks, ranks bidders
+by corrected total and recommends the most advantageous. Exports an XLSX (matrix +
+adjudication summary + qualifications register), persists to
+`_BIM_COORD/tender_adjudication.json`, and on award stamps the winner's rates as
+protected model overrides with `RateSource = "tender:<bidder>"` so the awarded
+prices become the contract baseline.
+*Final-Account Reconciliation* (`FinalAccount_Reconcile`): the signed waterfall —
+Contract Sum (the WP1 canonical VAT-inclusive GrandTotal, frozen at award from
+`COST_CONTRACT_SUM_UGX` / a saved statement / the award snapshot) ± provisional &
+PC-sum actuals (`BoqProvisional` trail) ± agreed variations (`VariationEngine`,
+Approved + Incorporated) ± fluctuations (`COST_FLUCTUATIONS_UGX`) = Final Account,
+plus the as-built remeasure (live canonical total) and its variance. Reuses
+`BoqSignOff` for the draft→certified stamp, exports an XLSX (waterfall + variations
++ provisional annexures), and persists to `_BIM_COORD/final_account.json`.
+*Variation approval* (`Variation_Approve` / `_Reject` / `_Incorporate`): advance the
+existing `VariationStatus` state machine in-plugin (recording approver + date) so a
+QS reaches an agreed final account without hand-editing JSON. All three tools are
+wired into the command handler, the workflow resolver and the Actions tab.
+
+**WP2 — Measurement parity (tag = bill = IFC = snapshot) + per-material split.**
+1. *CostStamp parity.* `CostStamp.WriteIfEnabled` now measures via
+   `BOQCostManager.MeasureQuantity` (the same NRM2/CESMM opening/void deductions +
+   project default waste the export uses), so the tag-time `CST_QTY_MEASURED` /
+   `CST_MODELED_TOTAL_UGX` equals the element's BOQ row instead of the raw rule
+   quantity.
+2. *m³ structural takeoff.* New `SolidVolume` takeoff `quantitySource` (true solid
+   geometry). The Column + Foundation rules now measure m³ via SolidVolume and
+   Framing measures m (length), matching their per-m³/per-m rates in
+   `cost_rates_5d.csv` instead of `literal:1.0`; `DeriveGrossQuantity` also falls
+   back to solid geometry when `HOST_VOLUME_COMPUTED` is empty.
+3. *No more 1.0 placeholder.* Measured-unit "could not measure" paths return a 0
+   sentinel (not a fake 1.0) via `MeasuredFallback` / `TakeoffRule.FallbackQuantity`;
+   count units stay 1.
+4. *Uncosted-at-risk rollup + export gate.* `ComputeUncostedRollup` reports
+   zero-rate / could-not-measure / low-confidence model rows (free categories
+   excluded) + a proxy value-at-risk; folded into the health score (capped penalty
+   + issues) and a hard Yes/No pricing gate on the professional/tender export
+   (`COST_MIN_RATE_CONFIDENCE_EXPORT`, default 60).
+6. *Per-material split (carbon).* `ComputeElementCarbon` sums embodied carbon
+   across an element's materials using each material's real `GetMaterialVolume` and
+   its own factor (waste grossed to match cost), instead of dumping the whole
+   quantity on one material; `GetPrimaryMaterialName` is now deterministic (dominant
+   material by volume) so density/carbon no longer flip between sessions.
+7. *Discipline preference.* `ResolveDiscipline` prefers the element's
+   `ASS_DISCIPLINE_COD_TXT` token over the category default in the build, rate
+   request, take-off match and waste paths.
+   *Open:* the full per-material COST-row split (multiple bill rows per material)
+   and shaft-void deductions on host-less openings, plus feeding
+   `ASS_SYSTEM_TYPE_TXT` into NRM2/takeoff matching, remain in ROADMAP.
+
+#### Completed (BOQ Master Impl — branch `claude/boq-master-impl`)
+
+A consolidated hardening + feature pass on the BOQ & Cost Manager, per
+`docs/BOQ_REVIEW_AND_HARDENING_PROMPT.md` (WP0–WP6). Each work-package
+compile-verified `dotnet build … -p:RevitApiPath="…Revit 2025"` (0 errors)
+and committed separately. Data-driven JSON with a project override under
+`_BIM_COORD/`; one canonical per-element costing/carbon API; honest
+low-confidence flagging over silent guesses.
+
+**WP2 (partial) — design-option double-count guard.** `CollectCandidateElements`
+(the host + linked-model takeoff walk) now skips non-primary design-option
+alternates by default — previously it billed every alternate in every option set,
+multiplying quantities by the option count. Bills the main model + each set's
+primary option; set `COST_BILL_PRIMARY_OPTION_ONLY = false` to bill all. (The
+remaining WP2 items — CostStamp↔export measurement parity, m³ takeoff for
+columns/foundations, the 1.0 placeholder + uncosted-at-risk rollup/gate, shaft
+voids, the per-material split, discipline/system tag preference — are tracked in
+ROADMAP.)
+
+**WP3 (core) — Uganda/EDGE default carbon basis.** New corporate factor table
+`Data/STING_CARBON_FACTORS_UG.json` (A1–A3 fossil GWP, kgCO₂e per m³) — derived
+from the IFC EDGE materials methodology cross-checked against ICE v3.0
+(cradle-to-gate) × representative in-place density, with Uganda sourcing notes
+(high-clinker CEM I structural concrete, imported primary-route steel/aluminium,
+local fired-clay brick); every adopted figure's provenance is in the file header.
+`UgCarbonFactors` loads it (corporate baseline + additive project override at
+`<project>/_BIM_COORD/carbon_factors_ug.json`, per-doc cache). `CarbonFactorResolver`
+now consults it as the primary regional default: a verified EPD and a material's
+own `STING_EMB_CARBON_NR` still win, then the UG table's specific match (exact
+name → Revit material class → keyword), then the existing material library /
+legacy dict, and finally the UG generic default (a sourced indicative figure
+flagged `uganda-edge:default` rather than 0/Missing). `Cost_ReloadRules` drops the
+table cache. WP3.5: the panel's carbon "missing %" is now based on factor
+provenance (`CarbonSource`/`CarbonQuality`) only — a row with a resolved factor
+but zero geometry is no longer mislabelled missing. (Remaining WP3 items — driving
+carbon off the WP2 per-material priced takeoff, applying waste to carbon, the
+RICS fossil-headline/biogenic-separate convention across every surface, the EN
+15978 module breakdown, and intensity-based RAG — tracked in ROADMAP.)
+
+**WP0 — One per-element costing/carbon API.** Extracted the canonical
+per-element embodied-carbon entry point `BOQCostManager.ComputeElementCarbonKg`
+(routes through `CarbonFactorResolver`: EPD → material param → lookup CSV →
+legacy, with correct per-m³/per-kg unit handling). The two forks now delegate to
+it: `Core/DesignOptions/OptionCostCarbonCalculator` dropped its own carbon
+dictionary AND its USD-column rate loader (it read `cost_rates_5d.csv` column 3
+= USD where the BOQ engine reads column 4 = UGX — a silent ~3700× divergence) and
+now uses `BOQCostManager.LoadCsvRates()` (UGX) + the canonical carbon resolver;
+`V6/CarbonStageTracker.EstimateA1A3` dropped its flat 350 kgCO₂e/m³ concrete proxy
+and delegates to the resolver, additionally stamping the one canonical embodied
+store `CST_EMBODIED_CARBON_KG` alongside its EN 15978 `CBN_A1_A3_KG_CO2E` module
+param so the two engines never report embodied carbon under divergent names.
+`WorkflowEngine.ResolveCommand("BOQExport")` now returns the canonical
+`BOQ.BOQExportCommand` (NRM2 + labour + carbon) instead of the legacy
+`Temp.BOQExportCommand`; the legacy export stays reachable as `"BOQExportLegacy"`.
+
+**WP6 (partial) — Performance & robustness.** `ResolveNrm2Paragraph` and
+`BOQByMaterialView.ResolveMaterialClass` now resolve materials through the O(1)
+per-document `MaterialNameCache` instead of a fresh `FilteredElementCollector(Material)`
+per row. Fixed the tangled triple-negation in `ResolveNrm2Paragraph`
+(`!resolved.IndexOf(matClass).Equals(-1) is false`, which evaluated to "not found"
+so the material class was NEVER prepended) → plain `IndexOf(...) >= 0`. Replaced
+the silent `catch { continue; }` in `RepriceElements` and `CostDirtyMarker.Execute`
+with rate-limited `StingLog.Warn`. `BOQBccBridge`'s `[ThreadStatic]` BOQ cache
+(keyed on `PathName` only) now folds in a `StingCostDirtyMarker.ChangeEpoch`
+model-edit epoch, so an in-place geometry/type/material edit busts the cache
+instead of feeding stale rates into 4D/5D cash-flow. `RateProviderRegistry.Resolve`
+now skips `RequiresNetwork` providers (BCIS/Planscape) on the synchronous
+per-element/transaction build path — they block on `.GetAwaiter().GetResult()`
+internally and are pre-warmed off-thread via the Fetch-live-rates action instead
+(they stay visible in the `ResolveAll` diagnostic). The section-card USD summary
+is derived from the UGX summary ÷ the one project FX rate instead of summing
+pre-rounded per-line `TotalUSD` (which drifts by cents × line-count). (Remaining
+WP6 items — FX snapshot-per-build and mandatory rate-source currency validation —
+tracked in ROADMAP.)
+
+**WP5 — Remove developer jargon from the user-facing UI.** Renamed the 26
+phase-coded strings on the Actions tab (`UI/BOQCostManagerPanel.cs`) and the
+10 paragraph-automation checkbox labels (`UI/BOQTenderDialog.cs`) to plain
+business language — `QS ROUND-TRIP (P3)` → `QS Round-Trip (Excel)`,
+`AUTOMATION (P2)` → `Automation`, `RATE FEEDS (Phase 2B)` → `Live Rate Feeds`,
+`DRIFT (Phase 2C)` → `Change Detection`, `WBS / CBS + ERP (Phase 2E)` →
+`Cost Breakdown & ERP Export`, `PAYMENT CERTS (P5.1)` → `Payment Certificates`,
+`VARIATIONS + STAR RATES (P5.2)` → `Variations & Star Rates`,
+`EARNED VALUE MGMT (P5.3)` → `Earned Value Management`, etc. — plus the
+"Every cost workflow (P0 → P8)" header, the "(Phase 184p)" tooltip, and the
+"(PAYMENT CERTS P5.1)" flash-hint. The JSON storage keys (`P1_PERFORMANCE` …
+`P10_SIDECARS`, `BOQ_TENDER_*`) are **unchanged** so saved tender configs keep
+deserialising. `docs/BOQ_QS_LAYMANS_GUIDE.md` synced to the new labels. The
+remaining `P2.1`-style occurrences are code comments and are left in place.
 
 #### Completed (BOQ 5D Phase 2B–2E — live rates · drift · incremental · WBS/ERP)
 

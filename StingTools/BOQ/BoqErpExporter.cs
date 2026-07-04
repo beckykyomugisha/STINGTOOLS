@@ -105,6 +105,48 @@ namespace StingTools.BOQ
             return path;
         }
 
+        /// <summary>Project the bill into accounting posting rows — one per BOQ
+        /// line, the cost account taken from the NRM2 section, the class from the
+        /// WBS/CBS, the memo from the description.</summary>
+        private static List<ErpRow> ToErpRows(BOQDocument boq)
+        {
+            var rows = new List<ErpRow>();
+            foreach (var i in boq.AllItems)
+            {
+                if (Math.Abs(i.TotalUGX) < 0.005) continue;
+                string desc = !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph) ? i.ResolvedNRM2Paragraph : (i.ItemName ?? "");
+                rows.Add(new ErpRow
+                {
+                    CostAccount = string.IsNullOrEmpty(i.NRM2Section) ? "Construction Costs" : $"Construction:{i.NRM2Section}",
+                    ClassName = !string.IsNullOrEmpty(i.CbsCode) ? i.CbsCode : (i.WbsCode ?? ""),
+                    Memo = desc,
+                    Amount = i.TotalUGX,
+                    DocNum = i.BOQLineRef ?? "",
+                });
+            }
+            return rows;
+        }
+
+        /// <summary>QuickBooks IIF general journal of the bill. Returns the path.</summary>
+        public static string ExportIif(BOQDocument boq, string path, DateTime date)
+        {
+            if (boq == null) throw new ArgumentNullException(nameof(boq));
+            File.WriteAllText(path, ErpFormats.BuildIif(ToErpRows(boq), date,
+                docNum: string.IsNullOrEmpty(boq.ProjectName) ? "BOQ" : boq.ProjectName));
+            StingLog.Info($"BOQ QuickBooks IIF exported: {Path.GetFileName(path)}.");
+            return path;
+        }
+
+        /// <summary>Sage 50 nominal-journal CSV of the bill. Returns the path.</summary>
+        public static string ExportSageCsv(BOQDocument boq, string path, DateTime date)
+        {
+            if (boq == null) throw new ArgumentNullException(nameof(boq));
+            File.WriteAllText(path, ErpFormats.BuildSageCsv(ToErpRows(boq), date,
+                reference: string.IsNullOrEmpty(boq.ProjectName) ? "BOQ" : boq.ProjectName));
+            StingLog.Info($"BOQ Sage CSV exported: {Path.GetFileName(path)}.");
+            return path;
+        }
+
         private static string SourceLabel(BOQLineItem i)
         {
             string s = BoqSourceUtil.Label(i.Source);

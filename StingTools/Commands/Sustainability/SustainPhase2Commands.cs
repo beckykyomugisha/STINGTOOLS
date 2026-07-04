@@ -90,13 +90,30 @@ namespace StingTools.Commands.Sustainability
                     b.PassFail(g.Label, g.Passed, $"{g.IndicativeValue:F1} ({g.Points} pts)");
             }
             b.AddSection("Embodied carbon (whole-building LCA, A1–A3)")
-             .Metric("kgCO2e/m²", $"{res.Materials?.CarbonIntensityKgM2:F1}", "indicative — full life-cycle report to follow");
+             .Metric("kgCO2e/m²", $"{res.Materials?.CarbonIntensityKgM2:F1}", "indicative — see the WBLCA prerequisite report");
             if (res.Materials?.Hotspots?.Count > 0)
                 b.Table(new[] { "Hotspot", "kgCO2e", "%" },
                     res.Materials.Hotspots.Select(h => new[] { h.Material, $"{h.CarbonKg:F0}", $"{h.SharePct:F0}%" }).ToList());
+
+            // SUS-4 — wire the scorecard far enough to PRODUCE the WBLCA A1–A3 prerequisite
+            // report (LEED v5 MR) from the already-computed carbon, not just a panel preview.
+            string reportPath = null;
+            try
+            {
+                reportPath = SustainReportEngine.ExportHtml(doc, res, setup,
+                    "STING — LEED v5 WBLCA A1-A3 prerequisite + Reduce-EC preview");
+                b.AddSection("WBLCA prerequisite report")
+                 .Metric("Written", System.IO.Path.GetFileName(reportPath),
+                    "shareable HTML — A1-A3 take-off, hotspots, biogenic split, coverage");
+            }
+            catch (Exception ex) { StingLog.Warn($"Sustain_LeedScorecard report: {ex.Message}"); }
             b.Show();
 
-            StingLog.Info("Sustain_LeedScorecard: preview rendered.");
+            if (reportPath != null)
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true }); }
+                catch (Exception ex) { StingLog.Warn($"Sustain_LeedScorecard open: {ex.Message}"); }
+
+            StingLog.Info("Sustain_LeedScorecard: WBLCA prerequisite report produced.");
             return Result.Succeeded;
         }
     }

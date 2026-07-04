@@ -685,7 +685,9 @@ namespace StingTools.Core
                                 if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
                                 // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
                                 var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
-                                int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
+                                // PM-1 — normalise the status so the gate sees clash/ACC
+                                // issues too (they spell it "Open"/"open", not "OPEN").
+                                int openCount = issuesArr.Count(i => IssueStatusNormalizer.IsOpen((string)i["status"]));
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
@@ -1486,6 +1488,8 @@ namespace StingTools.Core
                 case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
                 case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
+                case "Electrical_WireElementAnnotate":      return new Commands.Electrical.WireElementAnnotateCommand();
+                case "Electrical_WireElementAnnotateBatch": return new Commands.Electrical.WireElementAnnotateBatchCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
@@ -1586,7 +1590,14 @@ namespace StingTools.Core
 
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
-                case "BOQExport": return new Temp.BOQExportCommand();
+                // WP0/P0-7 — "BOQExport" resolves to the canonical BOQ engine
+                // export (NRM2 grouping + labour + carbon, one costing/carbon
+                // API). The legacy Temp pipeline exporter (own DiscMap + own
+                // BOQ_TEMPLATE.csv rate logic) is retired: "BOQExportLegacy" now
+                // also routes to the canonical command so any preset still naming
+                // it gets the single take-off, never the divergent old layout.
+                case "BOQExport": return new BOQ.BOQExportCommand();
+                case "BOQExportLegacy": return new BOQ.BOQExportCommand();
 
                 // Phase 108j — BOQ × BCC workflow integration
                 case "BOQRefresh":             return new BOQ.BOQRefreshCommand();
@@ -1618,6 +1629,15 @@ namespace StingTools.Core
                 case "Variation_ExportRegister":   return new Commands.Cost.VariationExportRegisterCommand();
                 // Phase 184p — reclassify legacy default-Other variations
                 case "Variation_ReclassifyLegacy": return new Commands.Cost.VariationReclassifyLegacyCommand();
+                // WP4a — variation approval workflow + final-account + tender adjudication
+                case "Variation_Approve":          return new Commands.Cost.VariationApproveCommand();
+                case "Variation_Reject":           return new Commands.Cost.VariationRejectCommand();
+                case "Variation_Incorporate":      return new Commands.Cost.VariationIncorporateCommand();
+                case "FinalAccount_Reconcile":     return new Commands.Cost.FinalAccountReconcileCommand();
+                case "Tender_Adjudicate":          return new Commands.Cost.TenderAdjudicateCommand();
+                case "Cost_SetContractSum":        return new Commands.Cost.CostSetContractSumCommand();
+                case "Retention_Release":          return new Commands.Cost.RetentionReleaseCommand();
+                case "Fluctuations_Compute":       return new Commands.Cost.FluctuationsComputeCommand();
                 case "Evm_Calculate":              return new Commands.Cost.EvmCalculateCommand();
                 case "Evm_ImportActuals":          return new Commands.Cost.EvmImportActualsCommand();
                 case "Evm_ExportReport":           return new Commands.Cost.EvmExportReportCommand();
@@ -2031,6 +2051,8 @@ namespace StingTools.Core
                 case "Sustain_SetBaseline":    return new Commands.Sustainability.SustainSetBaselineCommand();
                 case "Sustain_Dashboard":      return new Commands.Sustainability.SustainDashboardCommand();
                 case "Sustain_EdgeExport":     return new Commands.Sustainability.SustainEdgeExportCommand();
+                case "Sustain_Report":         return new Commands.Sustainability.SustainReportCommand();          // SUS-4
+                case "Sustain_PublishToServer": return new Commands.Sustainability.SustainPublishToServerCommand(); // SUS-5 symmetry
                 case "Sustain_LccBenefit":     return new Commands.Sustainability.SustainLccBenefitCommand();
                 case "Sustain_EpdAssign":      return new Commands.Sustainability.SustainEpdAssignCommand();
                 case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias

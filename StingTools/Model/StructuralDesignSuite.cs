@@ -642,6 +642,11 @@ namespace StingTools.Model
                 if (thkParam != null) thickness = thkParam.AsDouble() * Units.FeetToMm / 1000.0;
 
                 double vol = areaSqM * thickness;
+                // MAT-4 — net a void slab via the parameter-driven calculator (or
+                // real geometry); the flat solid-fraction is the last-resort
+                // fallback. Precast-rib systems (maxspan) resolve to topping only.
+                vol = StingTools.Core.Materials.SlabSystemLoader
+                        .ResolveNetConcrete(doc, slab, vol, areaSqM).NetConcreteM3;
                 double mass = vol * Densities["concrete"];
                 slabCarbon += mass * CarbonFactors["concrete_c30"];
                 slabCost += vol * CostRates["concrete_m3"];
@@ -825,6 +830,18 @@ namespace StingTools.Model
 
                     var (vol, isSteel) = EmbodiedCarbonCalculator.EstimateElementVolume(doc, el);
                     if (isSteel) continue;
+                    // MAT-4 — for floors, net the gross volume via the parameter
+                    // calculator (or real geometry) so rebar (= net concrete ×
+                    // ratio) isn't over-measured on a void slab, and precast-rib
+                    // systems (maxspan) resolve to the in-situ topping only.
+                    if (cat == BuiltInCategory.OST_Floors)
+                    {
+                        double area = 0;
+                        var ap = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                        if (ap != null && ap.HasValue) area = ap.AsDouble() * 0.092903;
+                        vol = StingTools.Core.Materials.SlabSystemLoader
+                                .ResolveNetConcrete(doc, el, vol, area).NetConcreteM3;
+                    }
                     catConcreteM3 += vol;
                 }
 

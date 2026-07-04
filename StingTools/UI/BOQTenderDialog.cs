@@ -481,16 +481,16 @@ namespace StingTools.BOQ
                 Margin = new Thickness(0, 0, 0, 4)
             };
             boxPanel.Children.Add(enhHint);
-            boxPanel.Children.Add(MakeCheckBox("P1 · Performance clauses (fire / Rw / U-value / velocity)", _config.EnablePerformanceClauses,   v => _config.EnablePerformanceClauses = v));
-            boxPanel.Children.Add(MakeCheckBox("P2 · Compliance reference (BS / BS EN per category)",        _config.EnableComplianceClauses,    v => _config.EnableComplianceClauses = v));
-            boxPanel.Children.Add(MakeCheckBox("P3 · Dimensional groupings (Schedule of Sizes annexure)",    _config.EnableDimensionalGroupings, v => _config.EnableDimensionalGroupings = v));
-            boxPanel.Children.Add(MakeCheckBox("P4 · Auto-inclusion boilerplate (fixings / supports / commissioning)", _config.EnableAutoInclusionBoiler, v => _config.EnableAutoInclusionBoiler = v));
-            boxPanel.Children.Add(MakeCheckBox("P5 · \"Or approved equivalent\"",                              _config.EnableOrApprovedEquivalent, v => _config.EnableOrApprovedEquivalent = v));
-            boxPanel.Children.Add(MakeCheckBox("P6 · Conditional design clauses (Structural / Services Engineer)", _config.EnableConditionalClauses, v => _config.EnableConditionalClauses = v));
-            boxPanel.Children.Add(MakeCheckBox("P7 · Client vocabulary overlay (BOQ_CLIENT_VOCABULARY.json)", _config.UseClientVocabulary,        v => _config.UseClientVocabulary = v));
-            boxPanel.Children.Add(MakeCheckBox("P8 · Smart item naming (material + thickness + finish)",      _config.EnableSmartItemNaming,      v => _config.EnableSmartItemNaming = v));
-            boxPanel.Children.Add(MakeCheckBox("P9 · Specification-clause cross-references",                  _config.EnableSpecClauseCrossRefs,  v => _config.EnableSpecClauseCrossRefs = v));
-            boxPanel.Children.Add(MakeCheckBox("P10 · Emit CSV + JSON sidecars alongside .xlsx",              _config.EmitCsvJsonSidecars,        v => _config.EmitCsvJsonSidecars = v));
+            boxPanel.Children.Add(MakeCheckBox("Performance clauses (fire / Rw / U-value / velocity)", _config.EnablePerformanceClauses,   v => _config.EnablePerformanceClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("Compliance reference (BS / BS EN per category)",        _config.EnableComplianceClauses,    v => _config.EnableComplianceClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("Dimensional groupings (Schedule of Sizes annexure)",    _config.EnableDimensionalGroupings, v => _config.EnableDimensionalGroupings = v));
+            boxPanel.Children.Add(MakeCheckBox("Auto-inclusion boilerplate (fixings / supports / commissioning)", _config.EnableAutoInclusionBoiler, v => _config.EnableAutoInclusionBoiler = v));
+            boxPanel.Children.Add(MakeCheckBox("\"Or approved equivalent\"",                              _config.EnableOrApprovedEquivalent, v => _config.EnableOrApprovedEquivalent = v));
+            boxPanel.Children.Add(MakeCheckBox("Conditional design clauses (Structural / Services Engineer)", _config.EnableConditionalClauses, v => _config.EnableConditionalClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("Client vocabulary overlay (BOQ_CLIENT_VOCABULARY.json)", _config.UseClientVocabulary,        v => _config.UseClientVocabulary = v));
+            boxPanel.Children.Add(MakeCheckBox("Smart item naming (material + thickness + finish)",      _config.EnableSmartItemNaming,      v => _config.EnableSmartItemNaming = v));
+            boxPanel.Children.Add(MakeCheckBox("Specification-clause cross-references",                  _config.EnableSpecClauseCrossRefs,  v => _config.EnableSpecClauseCrossRefs = v));
+            boxPanel.Children.Add(MakeCheckBox("Emit CSV + JSON sidecars alongside .xlsx",              _config.EmitCsvJsonSidecars,        v => _config.EmitCsvJsonSidecars = v));
 
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             Grid.SetRow(boxPanel, r); Grid.SetColumnSpan(boxPanel, 2);

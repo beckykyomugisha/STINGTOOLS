@@ -1,0 +1,61 @@
+<Page x:Class="StingTools.UI.StingCopilotPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="STING Copilot"
+      Background="{DynamicResource PrimaryBg}">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- header -->
+            <RowDefinition Height="*"/>      <!-- chat history -->
+            <RowDefinition Height="Auto"/>   <!-- running-tool status -->
+            <RowDefinition Height="Auto"/>   <!-- usage / credit note -->
+            <RowDefinition Height="Auto"/>   <!-- input -->
+            <RowDefinition Height="Auto"/>   <!-- buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,6">
+            <TextBlock Text="STING Copilot"
+                       FontSize="14" FontWeight="Bold"
+                       Foreground="{DynamicResource PrimaryText}"/>
+            <TextBlock Text="Ask in plain English. The AI drives StingTools through the MCP tools."
+                       FontSize="10" TextWrapping="Wrap" Opacity="0.8"
+                       Foreground="{DynamicResource PrimaryText}"/>
+        </StackPanel>
+
+        <!-- Chat history -->
+        <Border Grid.Row="1" BorderBrush="#55808080" BorderThickness="1" CornerRadius="3">
+            <ScrollViewer x:Name="ChatScroll" VerticalScrollBarVisibility="Auto" Padding="6">
+                <StackPanel x:Name="ChatStack"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Running-tool status -->
+        <TextBlock x:Name="StatusText" Grid.Row="2"
+                   Margin="2,6,2,0" FontSize="10" FontStyle="Italic"
+                   Foreground="{DynamicResource PrimaryText}" Opacity="0.85"
+                   Text=""/>
+
+        <!-- Usage + credit note -->
+        <TextBlock x:Name="UsageText" Grid.Row="3"
+                   Margin="2,2,2,4" FontSize="9" TextWrapping="Wrap"
+                   Foreground="{DynamicResource PrimaryText}" Opacity="0.7"
+                   Text="Each turn calls the LLM API and consumes credits."/>
+
+        <!-- Input -->
+        <TextBox x:Name="InputBox" Grid.Row="4"
+                 MinHeight="52" MaxHeight="120"
+                 AcceptsReturn="True" TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 FontSize="11"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+            <Button x:Name="CancelBtn" Content="Cancel" Width="80" Height="26"
+                    Margin="0,0,6,0" IsEnabled="False" Click="CancelBtn_Click"/>
+            <Button x:Name="SendBtn" Content="Send" Width="90" Height="26"
+                    Click="SendBtn_Click"/>
+        </StackPanel>
+    </Grid>
+</Page>

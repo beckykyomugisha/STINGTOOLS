@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+  </ItemGroup>
+
+  <!-- PM-1 — the commercially-consequential pure math, linked (no Revit API).
+       These files carry zero Autodesk.Revit.* imports on purpose. -->
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\Evm\EvmPeriod.cs" Link="EvmPeriod.cs" />
+    <!-- CA-2 — the canonical markup waterfall, for the net-of-VAT basis tests. -->
+    <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BOQ\BoqTotals.cs" />
+    <Compile Include="..\StingTools\Core\MoneyRound.cs" Link="MoneyRound.cs" />
+    <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="IssueStatusNormalizer.cs" />
+    <Compile Include="..\StingTools\Core\PaymentCert\PaymentCertModels.cs" Link="PaymentCertModels.cs" />
+    <Compile Include="..\StingTools\Core\CostPlan\CostPlanLine.cs" Link="CostPlanLine.cs" />
+    <Compile Include="..\StingTools\Core\Variation\VariationModels.cs" Link="VariationModels.cs" />
+    <Compile Include="..\StingTools\Core\Cost\FluctuationsEngine.cs" Link="FluctuationsEngine.cs" />
+    <Compile Include="..\StingTools\Core\Scheduling\CpmEngine.cs" Link="CpmEngine.cs" />
+    <!-- PM-3 lifecycle engines (CVR / L&E / line CTC / commitments). -->
+    <Compile Include="..\StingTools\Core\Cost\CvrEngine.cs" Link="Cost\CvrEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\LossAndExpenseEngine.cs" Link="Cost\LossAndExpenseEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\CostToCompleteEngine.cs" Link="Cost\CostToCompleteEngine.cs" />
+    <Compile Include="..\StingTools\Core\Cost\CommitmentsRegister.cs" Link="Cost\CommitmentsRegister.cs" />
+    <!-- PM-8 delivery-management engines (risk register / MIDP drift). -->
+    <Compile Include="..\StingTools\Core\Delivery\RiskRegister.cs" Link="Delivery\RiskRegister.cs" />
+    <Compile Include="..\StingTools\Core\Delivery\MidpEngine.cs" Link="Delivery\MidpEngine.cs" />
+  </ItemGroup>
+
+</Project>

@@ -42,8 +42,11 @@ namespace StingTools.Core.CostPlan
         public double TotalLikely => Math.Round(Quantity * LikelyRate, 0);
         public double TotalHigh => Math.Round(Quantity * HighRate, 0);
 
-        /// <summary>PERT expected value — (low + 4*likely + high) / 6.</summary>
-        public double TotalExpected => Math.Round((TotalLow + 4 * TotalLikely + TotalHigh) / 6.0, 0);
+        /// <summary>PERT expected value — (low + 4*likely + high) / 6. PM-1: weight
+        /// the UNROUNDED line values then round ONCE, so three pre-rounded inputs
+        /// don't bias the mean.</summary>
+        public double TotalExpected =>
+            Math.Round((Quantity * LowRate + 4 * Quantity * LikelyRate + Quantity * HighRate) / 6.0, 0);
 
         /// <summary>Per-element user override note (free text).</summary>
         public string Note { get; set; } = "";
@@ -61,7 +64,11 @@ namespace StingTools.Core.CostPlan
         public string Label { get; set; } = "Concept";
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
         public string CreatedBy { get; set; } = Environment.UserName ?? "";
-        public string Currency { get; set; } = "GBP";
+        // PM-1 — default to the project currency (UGX / East-Africa deployment),
+        // NOT GBP. The old GBP default made the CostPlan-vs-BOQ variance compare
+        // GBP to UGX with no FX (~3700× wrong). BuildCostPlan should set this from
+        // the project; the default is the deployment currency.
+        public string Currency { get; set; } = "UGX";
 
         /// <summary>Target gross internal floor area in m².</summary>
         public double GifaM2 { get; set; }

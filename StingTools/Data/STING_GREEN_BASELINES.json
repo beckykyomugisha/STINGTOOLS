@@ -15,7 +15,7 @@
     "defaults -> ASHRAE 90.1-2022 / 62.1 -> CIBSE Guide F / TM54. Resolution proxies on",
     "climate ZONE, not country. provenance is never 'certified'.",
     "Project teams confirm/replace these per the EDGE app for the certified run.",
-    "CAR (Bangui) has no EDGE-app baseline shipped here \u00e2\u20ac\u201d it resolves via the hot-humid 0A",
+    "CAR (Bangui) has no EDGE-app baseline shipped here â€” it resolves via the hot-humid 0A",
     "office proxy row and the proxy log records the fallback. Capturing the official CAR",
     "baseline is a DATA task (drop a country+0A+office row into the project override at",
     "<project>/_BIM_COORD/sustainability/green_baselines.json), not a code change.",
@@ -53,6 +53,816 @@
         },
         "baselineSystemCOP": {
           "cooling": 2.8
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "office"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 50
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "residential"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 35
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 8
+          },
+          "lighting": {
+            "lpd_w_m2": 6.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 8
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "hotel"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 60
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 20
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "retail"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 55
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 12.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "education"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 45
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 14
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 6
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "0A",
+        "buildingUse": "healthcare"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [0A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 70
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 14
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 25
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "office"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 50
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "residential"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 35
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 8
+          },
+          "lighting": {
+            "lpd_w_m2": 6.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 8
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "hotel"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 60
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 20
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "retail"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 55
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 12.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "education"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 45
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 14
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 6
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "1A",
+        "buildingUse": "healthcare"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [1A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 70
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 14
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 25
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "office"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 50
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "residential"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 35
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 8
+          },
+          "lighting": {
+            "lpd_w_m2": 6.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 8
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "hotel"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 60
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 18
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 12
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 20
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "retail"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 55
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 16
+          },
+          "lighting": {
+            "lpd_w_m2": 12.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 4
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "education"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 45
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 14
+          },
+          "lighting": {
+            "lpd_w_m2": 9.0
+          },
+          "equipment": {
+            "epd_w_m2": 8
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 6
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
+        }
+      },
+      "water": {
+        "fixtureBaselines": {
+          "wc_lpf": 6.0,
+          "urinal_lpf": 4.0,
+          "basin_tap_lpm": 8.0,
+          "shower_lpm": 10.0,
+          "kitchen_tap_lpm": 8.0
+        }
+      },
+      "materials": {
+        "embodiedEnergyBaseline_mj_m2": null,
+        "note": "EDGE app owns the certified materials %; STING tracks selections + indicative MJ"
+      }
+    },
+    {
+      "key": {
+        "country": "UGA",
+        "climateZone": "2A",
+        "buildingUse": "healthcare"
+      },
+      "source": "EDGE_defaults + ASHRAE_90.1_2022, Uganda highland (Kampala ~1190 m) adjustment [2A]",
+      "provenance": "indicative",
+      "energy": {
+        "method": "endUseIntensity",
+        "endUses": {
+          "cooling": {
+            "eui_kwh_m2_yr": 70
+          },
+          "fans": {
+            "eui_kwh_m2_yr": 20
+          },
+          "lighting": {
+            "lpd_w_m2": 10.0
+          },
+          "equipment": {
+            "epd_w_m2": 14
+          },
+          "dhw": {
+            "eui_kwh_m2_yr": 25
+          }
+        },
+        "baselineSystemCOP": {
+          "cooling": 3.0
         }
       },
       "water": {

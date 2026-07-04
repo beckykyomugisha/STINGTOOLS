@@ -93,6 +93,18 @@ namespace StingTools.Core.Sustainability
         // Days per month (non-leap) for hour integration.
         private static readonly int[] DaysInMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
+        /// <summary>SUS-3/5 — DHW delivery target (°C). ΔT = this − climate cold-feed (≈ annual
+        /// mean air temp). 45 °C is a low-temp DHW target; raise for hotel/healthcare storage
+        /// (legionella). Data-driven via GreenPhysicsRegistry (SUS-5); the engine sets it per
+        /// run, the default reproduces the prior behaviour. Replaces the flat 30 K ΔT.</summary>
+        public static double DhwTargetC = 45.0;
+
+        /// <summary>SUS-5 — vertical-solar transposition coefficients, data-driven via
+        /// GreenPhysicsRegistry (was the in-code 0.27 / 0.35). The engine sets these per run;
+        /// the defaults reproduce the prior behaviour.</summary>
+        public static double SolarBaseFactor  = 0.27;
+        public static double SolarRangeFactor = 0.35;
+
         /// <summary>
         /// Estimate annual energy for a set of LoadZones against monthly climate.
         /// COP/SEER is an input on each zone (CoolingCop) or falls back to the
@@ -228,7 +240,20 @@ namespace StingTools.Core.Sustainability
             double tSetCool = z.CoolingSetpointC;
             double tSetHeat = z.HeatingSetpointC;
 
-            double coolingThermalKwh = 0, heatingThermalKwh = 0;
+            // SUS-3 — track cooling in TWO streams: "fabric" (solar + conduction, which
+            // enter 365 days/yr) and "full" (fabric + internal gains). Only the internal
+            // increment is calendar-scaled; the fabric load is NOT discounted by occupancy
+            // days, so a hot-climate building's solar-driven cooling no longer falls with
+            // its operating-day count for a fixed fabric.
+            double coolThermalFull = 0, coolThermalFabric = 0, heatingThermalKwh = 0;
+
+            // Monthly cooling demand for a given gain total (EN ISO 13790 §12.2 utilisation).
+            double CoolMonth(double qg, double qht)
+            {
+                if (qg <= 0) return 0;
+                if (qht > 0) { double etaLs = Utilisation(qht / qg, aParam); return Math.Max(0, qg - etaLs * qht); }
+                return qg - qht;   // hot month: gain + conduction-in
+            }
 
             for (int m = 0; m < 12; m++)
             {
@@ -251,7 +276,7 @@ namespace StingTools.Core.Sustainability
                     foreach (var seg in z.Envelope.Where(s => s.Kind == SegmentKind.Window))
                         qSolKwh += seg.AreaM2 * seg.SHGC * seg.ShadingFactor
                                    * climate.GhiKwhM2Day[m] * DaysInMonth[m]
-                                   * VerticalSolarFactor(seg.OrientationDeg);
+                                   * VerticalSolarFactor(seg.OrientationDeg, climate.LatitudeDeg);
 
                 double qGain = qIntKwh + qSolKwh;
 
@@ -266,27 +291,23 @@ namespace StingTools.Core.Sustainability
 
                 // Cooling: signed transfer Q_ht = H(tSetCool - tOut). Positive ⇒ heat
                 // flows OUT (a loss that offsets cooling, utilised by η_ls); negative ⇒
-                // heat flows IN and adds fully to the cooling load.
+                // heat flows IN and adds fully to the cooling load. SUS-3 — accumulate both
+                // the FULL (qInt + qSol) and the FABRIC-ONLY (qSol) cooling so the calendar
+                // scaling can be applied to the internal increment only.
                 double qHtCool = h * (tSetCool - tOut) * hoursInMonth / 1000.0;
-                if (qGain > 0)
-                {
-                    if (qHtCool > 0)
-                    {
-                        double etaLs = Utilisation(qHtCool / qGain, aParam);   // η of losses
-                        coolingThermalKwh += Math.Max(0, qGain - etaLs * qHtCool);
-                    }
-                    else
-                    {
-                        coolingThermalKwh += qGain - qHtCool;   // gain + conduction-in
-                    }
-                }
+                coolThermalFull   += CoolMonth(qGain,   qHtCool);
+                coolThermalFabric += CoolMonth(qSolKwh, qHtCool);
             }
 
-            // WS L1/L2 — the building is actively conditioned only on operating days
-            // (the internal-gain + occupancy basis); scale the monthly conditioning by
-            // the operating-calendar fraction so a 250-day use isn't billed 365 days of
-            // HVAC. γ (gain/loss ratio) is unchanged, so only the magnitude scales.
-            coolingThermalKwh *= opFrac;
+            // SUS-3 — solar + conduction drive cooling 365 days/yr (the building heats up
+            // from sun + ambient whether or not it is occupied); only the internal-gain
+            // increment is calendar-scaled. The old code scaled the WHOLE cooling sum by
+            // opFrac, understating cooling EUI for the hot-climate, intermittently-occupied
+            // buildings that are the EDGE target market. γ is unchanged within each pass.
+            double internalCoolIncrement = Math.Max(0, coolThermalFull - coolThermalFabric);
+            double coolingThermalKwh = coolThermalFabric + internalCoolIncrement * opFrac;
+            // Heating stays on the operating calendar (setback/off when closed) — heating is
+            // negligible in the deployment band and gains REDUCE it, so the symmetry differs.
             heatingThermalKwh *= opFrac;
 
             // Cooling electricity via seasonal COP/SEER.
@@ -307,13 +328,17 @@ namespace StingTools.Core.Sustainability
             e.LightingKwh  = z.LightingWPerM2 * z.FloorAreaM2 * operatingHours / 1000.0;
             e.EquipmentKwh = z.EquipmentWPerM2 * z.FloorAreaM2 * operatingHours / 1000.0;
 
-            // DHW estimate from occupancy: people x (L/person.day) x 30 K dT x
-            // 1.16 Wh/(L.K) -> Wh/day; /1000 -> kWh/day; x operatingDaysPerYear -> kWh/yr.
-            // WS L1 — annualise on the SAME operating calendar as the water estimator
-            // (was a flat ×365). L/person.day is building-use dependent (office ~5,
-            // residential ~45) — see LoadZone.DhwLPerPersonDay.
+            // DHW estimate from occupancy: people x (L/person.day) x ΔT x 1.16 Wh/(L.K)
+            // -> Wh/day; /1000 -> kWh/day; x operatingDaysPerYear -> kWh/yr.
+            // SUS-3 — ΔT is CLIMATE-DRIVEN, not a flat 30 K: cold-feed ≈ the site's annual
+            // mean air temp (warmer in the tropics → less DHW heating), heated to a low-temp
+            // DHW target. The flat 30 K overstated tropical DHW (hotel/healthcare-sensitive).
+            // (SUS-5 promotes DhwTargetC to JSON; cold-feed already comes from the climate.)
+            // WS L1 — annualise on the SAME operating calendar as the water estimator.
             double dhwLpd = z.DhwLPerPersonDay > 0 ? z.DhwLPerPersonDay : 5.0;
-            double dhwKwhPerDay = z.OccupantCount * dhwLpd * 30.0 * 1.16 / 1000.0;
+            double coldFeedC = Math.Max(5.0, Math.Min(30.0, climate.MeanAnnualDbC));
+            double dhwDeltaT = Math.Max(15.0, DhwTargetC - coldFeedC);
+            double dhwKwhPerDay = z.OccupantCount * dhwLpd * dhwDeltaT * 1.16 / 1000.0;
             e.DhwKwh = dhwKwhPerDay * opDays;
 
             return e;
@@ -332,15 +357,16 @@ namespace StingTools.Core.Sustainability
         }
 
         /// <summary>Indicative monthly transposition of horizontal GHI onto a vertical
-        /// façade, by orientation. ~180° (equator-facing in the N hemisphere) is the
-        /// maximum, north the minimum, east/west between. Replaces the flat 0.5 factor
-        /// so a façade's orientation finally affects its solar gain. A full anisotropic
-        /// transposition (needs site latitude + DNI split) is a documented follow-on.
-        /// WS C1.</summary>
-        public static double VerticalSolarFactor(double orientationDeg)
+        /// façade, by orientation. SUS-3 — the EQUATOR-facing façade gets the maximum: it
+        /// is south in the N hemisphere (latitude ≥ 0) and NORTH in the S hemisphere
+        /// (latitude &lt; 0). The old version hard-assumed south, mis-assigning façade solar
+        /// for southern / sub-Saharan sites. A full anisotropic transposition (DNI split)
+        /// stays a documented follow-on. WS C1.</summary>
+        public static double VerticalSolarFactor(double orientationDeg, double latitudeDeg)
         {
-            double rad = (orientationDeg - 180.0) * Math.PI / 180.0;
-            return 0.27 + 0.35 * 0.5 * (1.0 + Math.Cos(rad));   // 0.27 (N) … 0.62 (S)
+            double equatorFacing = latitudeDeg >= 0 ? 180.0 : 0.0;   // S in N hemi, N in S hemi
+            double rad = (orientationDeg - equatorFacing) * Math.PI / 180.0;
+            return SolarBaseFactor + SolarRangeFactor * 0.5 * (1.0 + Math.Cos(rad));   // base (anti-equator) … base+range (equator-facing)
         }
 
         private static double ScheduleMean(double[] sched)

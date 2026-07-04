@@ -382,13 +382,25 @@ namespace StingTools.Commands.Sustainability
             // partial/outlier figure isn't mistaken for a complete WBLCA.
             if (res.Materials != null)
             {
+                // CA-3 — lead with the A1-A3 FOSSIL headline (RICS/RIBA upfront
+                // carbon), the SAME basis the BOQ panel reports, so the two
+                // surfaces agree on kgCO₂e/m². Net (incl. biogenic credit) is
+                // shown as a separate line. Fall back to net only when no
+                // fossil/biogenic split is available (fossil == 0 < net).
+                double fossilKgM2 = res.Materials.FossilCarbonIntensityKgM2 > 0
+                    ? res.Materials.FossilCarbonIntensityKgM2
+                    : res.Materials.CarbonIntensityKgM2;
                 if (res.Materials.CarbonHeadlineFlagged)
-                    b.MetricWarn("Embodied carbon",
-                        $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m² — indicative, review quantities",
-                        $"A1-A3 GWP; {res.Materials.CoverageSummary} ({res.Materials.CarbonStampedCoverageFraction * 100:0}% stamped)");
+                    b.MetricWarn("Embodied carbon (A1-A3 fossil)",
+                        $"{fossilKgM2:F1} kgCO2e/m² — indicative, review quantities",
+                        $"RICS/RIBA upfront headline; {res.Materials.CoverageSummary} ({res.Materials.CarbonStampedCoverageFraction * 100:0}% stamped)");
                 else
-                    b.Metric("Embodied carbon", $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m²",
-                        $"A1-A3 GWP (EN 15978); {res.Materials.CoverageSummary}");
+                    b.Metric("Embodied carbon (A1-A3 fossil)", $"{fossilKgM2:F1} kgCO2e/m²",
+                        $"RICS/RIBA upfront headline (matches BOQ); {res.Materials.CoverageSummary}");
+                // Net incl. biogenic — the whole-life basis, reported separately.
+                if (System.Math.Abs(res.Materials.CarbonIntensityKgM2 - fossilKgM2) > 0.05)
+                    b.Metric("Embodied carbon (net, incl. biogenic)",
+                        $"{res.Materials.CarbonIntensityKgM2:F1} kgCO2e/m²", "A1-A3 with biogenic credit (whole-life basis)");
             }
             b.Metric("Embodied energy", $"{res.Materials?.EnergyIntensityMjM2:F0} MJ/m²", "CED — EDGE materials track (indicative)");
             // WS I5 — coverage + sanity, surfaced here (not only the Materials tab).

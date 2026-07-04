@@ -11,6 +11,12 @@
 // study basis; the period is data-driven (SustainProjectSetup.StudyPeriodYears) so
 // a project can use 30 / 50 / 100 without code changes.
 //
+// SUS-2 — the two whole-life numbers now also agree on the TAKE-OFF: CarbonStageTracker
+// walks SustainabilityEngine.WblcaCategories (the shared WBLCA scope) and surfaces its
+// A1–A3 from SustainabilityEngine.WblcaA1A3Kg, the SAME canonical take-off the EDGE
+// dashboard reports — so CarbonStageTracker.TotalA1A3 == res.Materials.TotalCarbonKg
+// for the same model (previously they shared only the per-element resolver + period).
+//
 // Pure POCO — no Revit dependency. Unit-tested.
 
 using System;

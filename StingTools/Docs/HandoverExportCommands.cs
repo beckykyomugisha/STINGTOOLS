@@ -402,16 +402,30 @@ namespace StingTools.Docs
 
                 var impactLines = new List<string>();
                 impactLines.Add("Name,CreatedBy,CreatedOn,ImpactType,ImpactStage,SheetName,RowName,Value,ImpactUnit,Description");
-                // Environmental impact from material properties
+                // Environmental impact — CA-3: source the embodied carbon from
+                // CST_EMBODIED_CARBON_KG (the A1-A3 FOSSIL figure the BOQ stamps on
+                // every costed element), in kgCO2e. The legacy BLE_EMBODIED_CARBON_TXT
+                // is read as a fallback only — nothing writes it, so before this the
+                // COBie Impact sheet was always empty.
                 foreach (Element el in allTaggedElements)
                 {
                     try
                     {
-                        string embodied = HandoverHelper.Gs(el, "BLE_EMBODIED_CARBON_TXT");
+                        double carbonKg = 0;
+                        var cp = el.LookupParameter("CST_EMBODIED_CARBON_KG");
+                        if (cp != null && cp.HasValue && cp.StorageType == StorageType.Double)
+                            carbonKg = cp.AsDouble();
+
+                        string embodied;
+                        if (carbonKg > 0)
+                            embodied = carbonKg.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                        else
+                            embodied = HandoverHelper.Gs(el, "BLE_EMBODIED_CARBON_TXT"); // legacy fallback
                         if (string.IsNullOrEmpty(embodied)) continue;
+
                         string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                         impactLines.Add($"{Esc(tag1 + "_carbon")},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
-                            $"Embodied Energy,Construction,Component,{Esc(tag1)},{Esc(embodied)},kgCO2e/m2,Embodied carbon");
+                            $"EmbodiedCarbon,A1-A3,Component,{Esc(tag1)},{Esc(embodied)},kgCO2e,Embodied carbon (A1-A3 fossil)");
                     }
                     catch (Exception ex2) { StingLog.Warn($"COBie Impact: {ex2.Message}"); }
                 }

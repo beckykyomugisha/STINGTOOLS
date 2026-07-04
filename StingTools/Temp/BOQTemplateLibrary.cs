@@ -246,7 +246,22 @@ namespace StingTools.Temp
         /// When ID is not set (legacy builtin entries), entries are treated as
         /// independent templates and all appear in the catalogue.
         /// </summary>
+        // RC-3 — memoise the merged template list per (doc, plugin-data path). It
+        // was re-read + re-parsed (up to 3 JSON files) on EVERY element via
+        // ResolveNrm2Paragraph — the biggest per-element hot spot. Invalidated by
+        // Cost_ReloadRules → Invalidate(). Consumers treat the list as read-only.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQTemplate>> _loadAllMemo
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, List<BOQTemplate>>(StringComparer.OrdinalIgnoreCase);
+
+        public static void Invalidate() => _loadAllMemo.Clear();
+
         public static List<BOQTemplate> LoadAll(Document doc, string pluginDataPath)
+        {
+            string key = (doc?.PathName ?? "default") + "|" + (pluginDataPath ?? "");
+            return _loadAllMemo.GetOrAdd(key, _ => LoadAllUncached(doc, pluginDataPath));
+        }
+
+        private static List<BOQTemplate> LoadAllUncached(Document doc, string pluginDataPath)
         {
             var byId = new Dictionary<string, BOQTemplate>(StringComparer.OrdinalIgnoreCase);
             var anonymous = new List<BOQTemplate>();

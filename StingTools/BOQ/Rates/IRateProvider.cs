@@ -33,6 +33,11 @@ namespace StingTools.BOQ.Rates
         /// <summary>MAT_CODE on the element — e.g. "CONC-C30", "STL-S355".</summary>
         public string MatCode { get; set; } = "";
 
+        /// <summary>RC-2 — ASS_SYSTEM_TYPE_TXT (e.g. "MedicalGas", "DCW", "LV") so a
+        /// system-keyed rate can differentiate otherwise-identical categories
+        /// (med-gas vs domestic copper). Empty = no system differentiation.</summary>
+        public string SystemType { get; set; } = "";
+
         /// <summary>Unit hint when known up-front (m², m³, m, kg, each).</summary>
         public string Unit { get; set; } = "";
 

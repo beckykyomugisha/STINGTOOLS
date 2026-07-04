@@ -45,6 +45,12 @@ namespace StingTools.BOQ.Takeoff
     {
         public string Id { get; set; } = "";
         public string MatchCategory { get; set; } = "";
+        /// <summary>RC-2 — comma-separated tokens that DISQUALIFY a category even
+        /// when MatchCategory matched (contains, case-insensitive). Stops a linear
+        /// "Pipe"/"Duct"/"Cable" rule from swallowing point items like "Pipe
+        /// Fittings" / "Cable Tray Fittings" / "Duct Accessories". Empty = no
+        /// exclusion.</summary>
+        public string MatchCategoryExclude { get; set; } = "";
         public string MatchDiscipline { get; set; } = "*";
         public string MatchProdCode { get; set; } = "*";
         public string Unit { get; set; } = "each";
@@ -64,9 +70,25 @@ namespace StingTools.BOQ.Takeoff
         internal bool Matches(string categoryName, string discipline, string prodCode)
         {
             if (!FieldMatches(MatchCategory, categoryName)) return false;
+            if (ExcludedByCategory(categoryName)) return false;   // RC-2
             if (!FieldMatches(MatchDiscipline, discipline)) return false;
             if (!FieldMatches(MatchProdCode, prodCode)) return false;
             return true;
+        }
+
+        // RC-2 — true when the category contains any exclude token (fittings /
+        // accessories / insulation etc.), disqualifying a linear-run rule.
+        private bool ExcludedByCategory(string categoryName)
+        {
+            if (string.IsNullOrEmpty(MatchCategoryExclude) || string.IsNullOrEmpty(categoryName))
+                return false;
+            foreach (var tok in MatchCategoryExclude.Split(','))
+            {
+                string t = tok.Trim();
+                if (t.Length > 0 && categoryName.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
         }
 
         private static bool FieldMatches(string pattern, string value)
@@ -136,7 +158,8 @@ namespace StingTools.BOQ.Takeoff
         /// </summary>
         public static double EvaluateQuantity(Element el, TakeoffRule rule)
         {
-            if (el == null || rule == null) return 1.0;
+            if (rule == null) return 1.0;
+            if (el == null) return FallbackQuantity(rule);
             try
             {
                 string src = rule.QuantitySource ?? "";
@@ -147,14 +170,24 @@ namespace StingTools.BOQ.Takeoff
                             System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture, out double lit))
                         return ApplyConversion(lit, rule.UnitConversion);
-                    return 1.0;
+                    return FallbackQuantity(rule);
                 }
 
                 if (string.Equals(src, "LocationCurve", StringComparison.OrdinalIgnoreCase))
                 {
                     if (el.Location is LocationCurve lc && lc.Curve != null)
                         return ApplyConversion(lc.Curve.Length, rule.UnitConversion);
-                    return 1.0;
+                    return FallbackQuantity(rule);
+                }
+
+                // WP2 — true solid-geometry volume (Revit internal ft³). The
+                // robust m³ source for Columns / Foundations / Framing, which
+                // frequently leave HOST_VOLUME_COMPUTED empty. Pair with
+                // unitConversion "ft3_to_m3".
+                if (string.Equals(src, "SolidVolume", StringComparison.OrdinalIgnoreCase))
+                {
+                    double vFt3 = ReadSolidVolumeFt3(el);
+                    return vFt3 > 0 ? ApplyConversion(vFt3, rule.UnitConversion) : FallbackQuantity(rule);
                 }
 
                 if (src.StartsWith("LookupParameter:", StringComparison.OrdinalIgnoreCase))
@@ -163,7 +196,7 @@ namespace StingTools.BOQ.Takeoff
                     Parameter p = el.LookupParameter(paramName);
                     if (p != null && p.HasValue)
                         return ApplyConversion(p.AsDouble(), rule.UnitConversion);
-                    return 1.0;
+                    return FallbackQuantity(rule);
                 }
 
                 // BuiltInParameter name lookup — e.g. "HOST_AREA_COMPUTED".
@@ -172,14 +205,56 @@ namespace StingTools.BOQ.Takeoff
                     Parameter p = el.get_Parameter(bip);
                     if (p != null && p.HasValue)
                         return ApplyConversion(p.AsDouble(), rule.UnitConversion);
-                    return 1.0;
+                    return FallbackQuantity(rule);
                 }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"TakeoffRule.EvaluateQuantity({rule.Id}): {ex.Message}");
             }
-            return 1.0;
+            return FallbackQuantity(rule);
+        }
+
+        /// <summary>
+        /// WP2 — the "could not measure" fallback. For MEASURED units (m/m²/m³/kg)
+        /// a missing measure is NOT one unit — return 0 (a visible sentinel the
+        /// uncosted-at-risk rollup can catch) instead of a fake 1.0. Count units
+        /// ('each'/'item'/'nr'/'no') legitimately stay 1.
+        /// </summary>
+        public static double FallbackQuantity(TakeoffRule rule)
+        {
+            string u = (rule?.Unit ?? "each").Trim().ToLowerInvariant();
+            switch (u)
+            {
+                case "each": case "item": case "nr": case "no": case "": return 1.0;
+                default: return 0.0;
+            }
+        }
+
+        private static double ReadSolidVolumeFt3(Element el)
+        {
+            try
+            {
+                var opt = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Fine };
+                GeometryElement geo = el.get_Geometry(opt);
+                return geo != null ? SumSolidVolumeFt3(geo) : 0;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Takeoff.SolidVol", $"ReadSolidVolumeFt3: {ex.Message}"); return 0; }
+        }
+
+        private static double SumSolidVolumeFt3(GeometryElement geo)
+        {
+            double v = 0;
+            foreach (GeometryObject g in geo)
+            {
+                if (g is Solid s && s.Volume > 0) v += s.Volume;
+                else if (g is GeometryInstance gi)
+                {
+                    var inst = gi.GetInstanceGeometry();
+                    if (inst != null) v += SumSolidVolumeFt3(inst);
+                }
+            }
+            return v;
         }
 
         private static double ApplyConversion(double value, string conversion)

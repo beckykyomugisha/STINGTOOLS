@@ -347,27 +347,9 @@ namespace StingTools.Commands.Cost
         private static T EnumOr<T>(string s, T fallback) where T : struct
             => (!string.IsNullOrEmpty(s) && Enum.TryParse<T>(s, out var v)) ? v : fallback;
 
-        // Default liability suggestion per reason. The picker still lets
-        // the QS override — this just front-loads the common case so
-        // they can hit Enter on the typical assignment.
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiability(VariationReason reason)
-        {
-            switch (reason)
-            {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
-            }
-        }
+            => VariationLiabilityRules.Suggest(reason);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -507,6 +489,113 @@ namespace StingTools.Commands.Cost
         }
     }
 
+    // ── Variation approval workflow (WP4a dependency) ─────────────────
+    //  Advance the existing VariationStatus state machine in-plugin, so a QS can
+    //  reach an AGREED variation (which the Anticipated Final Cost and the
+    //  Final-Account reconciliation both read) without hand-editing JSON.
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationApproveCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Approved);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationRejectCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Rejected);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationIncorporateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Incorporated);
+    }
+
+    internal static class VariationStatusAdvance
+    {
+        public static Result Run(ExternalCommandData commandData, ref string message, VariationStatus target)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var loaded = VariationEngine.ListVariations(doc)
+                    .Select(p => VariationEngine.Load(p)).Where(v => v != null).ToList();
+                var selectable = loaded.Where(v => CanTransition(v.Status, target))
+                    .OrderBy(v => v.ContractRef).ThenBy(v => v.Number).ToList();
+
+                if (selectable.Count == 0)
+                {
+                    StingResultPanel.Create($"Variation — {target}")
+                        .AddSection("NOTHING TO DO")
+                        .Text(loaded.Count == 0
+                            ? "No variations recorded."
+                            : $"No variation is in a state that can move to {target}.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                var labels = selectable
+                    .Select(v => $"{v.Number} · {v.ContractRef} · {v.Currency} {v.TotalValue:N0} · {v.Status}")
+                    .ToList();
+                string pick = StingListPicker.Show($"STING — {target} variation",
+                    $"Pick a variation to move to {target}", labels);
+                if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+                int idx = labels.IndexOf(pick);
+                if (idx < 0) return Result.Cancelled;
+                var vo = selectable[idx];
+
+                vo.Status = target;
+                if (target == VariationStatus.Approved || target == VariationStatus.Incorporated)
+                {
+                    vo.ApprovedBy = Environment.UserName;
+                    vo.ApprovalDate = DateTime.UtcNow;
+                }
+                VariationEngine.Save(doc, vo);
+
+                StingResultPanel.Create($"Variation {target}")
+                    .AddSection("UPDATED")
+                    .Metric("Variation", vo.Number)
+                    .Metric("New status", target.ToString())
+                    .Metric("Value", $"{vo.Currency} {vo.TotalValue:N0}")
+                    .Text("Agreed variations flow into the Anticipated Final Cost and the Final-Account reconciliation.")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Variation status → {target}", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static bool CanTransition(VariationStatus from, VariationStatus to)
+        {
+            switch (to)
+            {
+                case VariationStatus.Approved:
+                case VariationStatus.Rejected:
+                    return from == VariationStatus.Draft
+                        || from == VariationStatus.Submitted
+                        || from == VariationStatus.Reviewed;
+                case VariationStatus.Incorporated:
+                    return from == VariationStatus.Approved;
+                default:
+                    return false;
+            }
+        }
+    }
+
     // ── EVM ──────────────────────────────────────────────────────────
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -522,7 +611,12 @@ namespace StingTools.Commands.Cost
 
                 // Build a single period from live BOQ + actuals CSV.
                 var boq = BOQCostManager.BuildBOQDocument(doc);
-                double bac = boq.GrandTotalUGX;
+                // PM-1 — BAC anchors on the FROZEN Award contract sum
+                // (COST_CONTRACT_SUM_UGX) + agreed variations, via the one shared
+                // ContractSumResolver — NOT the live GrandTotal, which drifts upward
+                // as the model grows even with zero progress. Falls back to the live
+                // bill only when no baseline has been frozen.
+                double bac = ContractSumResolver.Resolve(doc, boq, out _);
 
                 // BCWS — use the current BOQ value × (planned % at this date).
                 // No 4D wiring yet in this commit; QS sets BCWS via Cost_ReloadRules
@@ -531,30 +625,45 @@ namespace StingTools.Commands.Cost
                 double pctEarned = WeightedPctComplete(doc);
                 double bcwp = bac * pctEarned / 100.0;
 
-                // P4.3 — BCWS (planned value) from a QS-entered planned %% rather
-                // than the old optimistic BCWS == BCWP. Cancel ⇒ fall back to the
-                // earned %% (no schedule variance) so the command stays one-click.
-                // P0.3 — inline-form gate: the planned %% comes from the EvmPlannedPct
-                // ExtraParam ("earned" ⇒ use BCWP, else a number) when driven from the
-                // panel; otherwise the modal band picker (Cancel ⇒ earned %%).
-                double plannedPct = pctEarned;
-                string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
-                if (!string.IsNullOrEmpty(fPlan))
+                // PM-3/PM-4 — BCWS (Planned Value) now comes from the SCHEDULE-DRIVEN
+                // cash-flow S-curve when one has been built (Sched_SCurve). That curve
+                // time-phases each task's value over its own start/finish, so PV is the
+                // real time-phased planned value — not a hand-keyed planned %. The
+                // QS-entered planned % and the modal picker remain as the fallback when
+                // no S-curve exists yet, so the command stays one-click either way.
+                double bcws;
+                string bcwsSource;
+                var savedCurve = SCurveStore.Load(doc);
+                if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0
+                    && savedCurve.TotalValue > 0)
                 {
-                    if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
-                        && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
-                        plannedPct = Math.Max(0, Math.Min(100, pp0));
+                    bcws = savedCurve.PlannedValueAt(DateTime.UtcNow);
+                    bcwsSource = "schedule-driven S-curve";
                 }
                 else
                 {
-                    var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
-                        .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
-                    var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
-                        $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
-                        "Cancel to use the earned %% (SV = 0).", planItems, allowMultiSelect: false);
-                    if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                    double plannedPct = pctEarned;
+                    string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
+                    if (!string.IsNullOrEmpty(fPlan))
+                    {
+                        if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
+                            && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
+                            plannedPct = Math.Max(0, Math.Min(100, pp0));
+                    }
+                    else
+                    {
+                        var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                            .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                        var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                            $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                            "Cancel to use the earned %% (SV = 0). Tip: build a schedule-driven S-curve "
+                            + "(Sched_SCurve) for an automatic time-phased PV.", planItems, allowMultiSelect: false);
+                        if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                    }
+                    bcws = bac * plannedPct / 100.0;
+                    bcwsSource = "planned % (no S-curve)";
                 }
-                double bcws = bac * plannedPct / 100.0;
+                StingLog.Info($"EVM BCWS source: {bcwsSource} → {bcws:N0}.");
 
                 // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
                 // deduped by content so a re-dropped export can't double-count (B.5).
@@ -603,12 +712,18 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static double WeightedPctComplete(Document doc)
+        // PM-3/PM-6 — internal so the CVR / CTC commands reuse the one weighted
+        // %-complete measure; scoped to STING-tracked categories (was an unfiltered
+        // whole-model sweep) so the heavy LookupParameter pass only touches priced
+        // categories.
+        internal static double WeightedPctComplete(Document doc)
         {
             try
             {
                 double weightSum = 0, valueSum = 0;
-                var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .WhereElementIsNotElementType();
                 foreach (Element el in col)
                 {
                     Parameter p = el.LookupParameter(ParamRegistry.PMT_PCT_COMPLETE_NR);
@@ -921,25 +1036,58 @@ namespace StingTools.Commands.Cost
             new() { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
         };
 
-        // Duplicates VariationFromDiffCommand.SuggestLiability so this
-        // command stays self-contained when the other one isn't used.
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiabilityShared(VariationReason reason)
+            => VariationLiabilityRules.Suggest(reason);
+    }
+
+    /// <summary>
+    /// PM-1/PM-2 — the ONE contract-sum source. Returns the frozen Award baseline
+    /// (COST_CONTRACT_SUM_UGX, set by Cost_SetContractSum) plus agreed (Approved +
+    /// Incorporated) variations, so EVM BAC, AFC and Final Account all anchor on the
+    /// same number. Falls back to the live bill only when nothing has been frozen.
+    /// </summary>
+    internal static class ContractSumResolver
+    {
+        /// <summary>The frozen contract-sum BASE (no variations): COST_CONTRACT_SUM_UGX
+        /// when set (Cost_SetContractSum), else the live bill. Use this where the
+        /// caller adds variations separately (e.g. the Final Account waterfall) so
+        /// agreed VOs aren't double-counted.
+        ///
+        /// CA-2 — ONE BASIS: this is NET OF VAT (works + prelims + OH&P +
+        /// contingency = NetTotalExVatUGX). The whole PM/QS lifecycle (EVM BAC,
+        /// CVR value, AFC, Final Account, cert SOV) reconciles on this net basis
+        /// because actuals, certs, variations and fluctuations are all net; VAT is
+        /// added only at the final presentation line. COST_CONTRACT_SUM_UGX is
+        /// therefore stored net-of-VAT (re-run Cost_SetContractSum after upgrade).</summary>
+        public static double ResolveBase(Document doc, BOQDocument boq, out string source)
         {
-            switch (reason)
+            double frozen = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
+            if (frozen > 0) { source = "frozen Award baseline (COST_CONTRACT_SUM_UGX, net of VAT)"; return frozen; }
+            source = "live bill (net of VAT, no frozen contract sum)";
+            return boq?.NetTotalExVatUGX ?? 0;
+        }
+
+        /// <summary>Sum of agreed (Approved + Incorporated) variation values.</summary>
+        public static double AgreedVariationsUGX(Document doc)
+        {
+            try
             {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
+                return VariationEngine.ListVariations(doc)
+                    .Select(VariationEngine.Load).Where(v => v != null)
+                    .Where(v => v.Status == VariationStatus.Approved || v.Status == VariationStatus.Incorporated)
+                    .Sum(v => v.TotalValue);
             }
+            catch (Exception ex) { StingLog.Warn($"ContractSumResolver variations: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>The contract sum INCLUDING agreed variations — the EVM BAC / AFC
+        /// anticipated basis.</summary>
+        public static double Resolve(Document doc, BOQDocument boq, out string source)
+        {
+            double baseSum = ResolveBase(doc, boq, out source);
+            source += " + agreed variations";
+            return baseSum + AgreedVariationsUGX(doc);
         }
     }
 }

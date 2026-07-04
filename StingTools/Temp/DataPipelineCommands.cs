@@ -1012,6 +1012,12 @@ namespace StingTools.Temp
     /// or "TO SUMMARY". Full Excel formatting: bold headers, borders, merged cells,
     /// number formats (#,##0), print settings. Zero manual editing required after export.
     /// </summary>
+    // P0-7 — RETIRED. This legacy exporter ran its own DiscMap + BOQ_TEMPLATE.csv
+    // rate logic, a cost fork that drifted from the BOQ Cost Manager. No dispatch
+    // tag routes here any more ("BOQExport" and "BOQExportLegacy" both resolve to
+    // the canonical BOQ.BOQExportCommand). The class is left compiled but
+    // unreferenced (it shares helpers with other DataPipeline commands in this
+    // file); do not wire new tags to it. Use BOQ.BOQExportCommand instead.
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class BOQExportCommand : IExternalCommand
