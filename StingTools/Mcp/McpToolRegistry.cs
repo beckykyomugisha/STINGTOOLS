@@ -470,6 +470,81 @@ namespace StingTools.Mcp
             },
             new McpTool
             {
+                Name = "size_ducts",
+                Description =
+                    "WRITE. Auto-size the model's ducts to CIBSE Guide B3 (DuctSizingApplyEngine). Flow is READ from " +
+                    "each duct (HVC_FLOW_LS or the built-in duct flow); the per-element segment role (main/branch/" +
+                    "runout…) drives the target velocity + aspect ratio from STING_MEP_SIZING_RULES.json; the result " +
+                    "is WRITTEN to the duct's NATIVE geometry instance params (Width+Height rectangular, else Diameter) " +
+                    "— always instance-scoped, no shared-param binding needed. Best-effort HVC_* audit stamps (prev " +
+                    "size / modified date / rule id / pressure class) are written when bound. Ducts with no flow, or " +
+                    "whose size is fitting-driven (read-only geometry), are skipped (reported). pressureClass (default " +
+                    "'low') is stamped for audit. scope: 'selection'/'view' run synchronously; 'project' runs " +
+                    "asynchronously (returns {jobId} — poll get_job_status). Read-back reports computed vs written + " +
+                    "perParamWritten{width,height,diameter} + noWritesPersisted (computed>0 but persisted 0). " +
+                    "dryRun:true returns a per-duct plan and mutates nothing. confirm:true is REQUIRED for scope=" +
+                    "project or >25 ducts. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":         { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""pressureClass"": { ""type"": ""string"",  ""description"": ""DW/144 class stamped for audit: low | med | high | extra (default low)"" },
+                        ""dryRun"":        { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"":       { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 ducts"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
+                Name = "build_panel_schedules",
+                Description =
+                    "WRITE. Batch-create one PanelScheduleView per electrical panel using the rule-based template " +
+                    "registry (PanelScheduleApplyEngine). For each in-scope panel it picks a PanelScheduleTemplate " +
+                    "(with fallback), calls PanelScheduleView.CreateInstanceView, stamps the elec-panel-schedule-A3 " +
+                    "Drawing Type, backfills ELC_PNL_* panel params (SetIfEmpty), and writes ELC_PANEL_SCHEDULE_REF_TXT " +
+                    "on every feeding circuit. The PRIMARY output is element creation (schedules) — read-back reports " +
+                    "created vs computed (panels needing one) + noWritesPersisted (computed>0 but created==0, e.g. all " +
+                    "candidate templates rejected) + skippedExisting / skippedPattern / noTemplate / failed + " +
+                    "integration{drawingTypeStamped,paramsStamped,circuitRefsStamped}. Panels that already have a " +
+                    "schedule are re-wired (idempotent) not recreated. scope defaults to 'project' (whole model, runs " +
+                    "asynchronously → {jobId}, poll get_job_status); 'view'/'selection' run synchronously. dryRun:true " +
+                    "classifies panels and creates nothing. confirm:true is REQUIRED for scope=project or >25 panels. " +
+                    "Example: {scope:'project', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project (default project)"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; create nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 panels"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
+                Name = "size_pipes",
+                Description =
+                    "WRITE. Auto-size the model's pipes to a per-service target velocity (PipeSizingApplyEngine, " +
+                    "CIBSE Guide C ≤ 2.5 m/s fallback). Flow is READ from each pipe (PLM_FLOW_LS); the pipe's " +
+                    "service (chw/hws/dcw/dhw/refrig/steam/gas) is detected from its MEPSystem and drives the target " +
+                    "velocity from STING_MEP_SIZING_RULES.json; the result is WRITTEN to the pipe's NATIVE Diameter " +
+                    "instance param (always instance-scoped, no shared-param binding needed). A best-effort " +
+                    "HVC_PIPE_SERVICE_TXT audit stamp records the detected service when bound. Pipes with no flow, or " +
+                    "a read-only Diameter, are skipped (reported). scope: 'selection'/'view' run synchronously; " +
+                    "'project' runs asynchronously (returns {jobId} — poll get_job_status). Read-back reports " +
+                    "computed vs written + perParamWritten{diameter,service} + noWritesPersisted (computed>0 but " +
+                    "persisted 0). dryRun:true returns a per-pipe plan and mutates nothing. confirm:true is REQUIRED " +
+                    "for scope=project or >25 pipes. Example: {scope:'view', dryRun:true}.",
+                InputSchema = JObject.Parse(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""scope"":   { ""type"": ""string"",  ""description"": ""selection | view | project"" },
+                        ""dryRun"":  { ""type"": ""boolean"", ""description"": ""Preview only; execute nothing"" },
+                        ""confirm"": { ""type"": ""boolean"", ""description"": ""Required for project scope or >25 pipes"" }
+                    }
+                }"),
+            },
+            new McpTool
+            {
                 Name = "size_cables",
                 Description =
                     "WRITE. Size cables for the model's electrical power circuits (CableSizerApplyEngine). Inputs " +

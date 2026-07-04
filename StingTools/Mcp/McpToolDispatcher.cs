@@ -75,6 +75,11 @@ namespace StingTools.Mcp
                 case "size_cable_calc":   return McpQueryTools.SizeCableCalc(args);
                 case "size_cables":       return McpWriteTools.SizeCables(args);
 
+                // ── Dialog→engine: MEP sizing + panel schedules ────────────────
+                case "size_ducts":            return McpWriteTools.SizeDucts(args);
+                case "size_pipes":            return McpWriteTools.SizePipes(args);
+                case "build_panel_schedules": return McpWriteTools.BuildPanelSchedules(args);
+
                 default:
                     return Err($"Unknown tool: {toolName}. Call tools/list to see available tools.");
             }

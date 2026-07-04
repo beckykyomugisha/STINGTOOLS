@@ -31,6 +31,8 @@ using Newtonsoft.Json.Linq;
 using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Core;
 using StingTools.Core.Electrical;
+using StingTools.Core.Mep;
+using StingTools.Core.Panels;
 using StingTools.Tags;
 
 namespace StingTools.Mcp
@@ -47,6 +49,9 @@ namespace StingTools.Mcp
                 ["BatchTag"]         = AutoTagHandler,          // project-scope tagging
                 ["TagScheme_Render"] = TagSchemeRenderHandler,  // render project tag schemes
                 ["ElecCableSize"]    = ElecSizeCablesApplyHandler, // BS 7671 cable sizing apply
+                ["Mep_AutoSizeDuct"] = MepSizeDuctsApplyHandler,   // CIBSE B3 duct auto-size apply
+                ["Mep_AutoSizePipe"] = MepSizePipesApplyHandler,   // per-service pipe auto-size apply
+                ["Panel_BatchSchedules"] = PanelBatchSchedulesApplyHandler, // rule-based panel schedule create
             };
 
         public static bool IsEngineBacked(string tag) => tag != null && _handlers.ContainsKey(tag);
@@ -428,6 +433,259 @@ namespace StingTools.Mcp
             ["installMethod"] = a.InstallMethod, ["material"] = a.Material, ["insulation"] = a.Insulation,
             ["standard"] = a.Standard, ["vdLimitPct"] = a.VDLimitPct, ["ambientTempC"] = a.AmbientTempC,
             ["continuousLoad"] = a.ContinuousLoad,
+        };
+
+        // ── Mep_AutoSizeDuct engine handler (delegates to DuctSizingApplyEngine) ──
+        //
+        // Same dialog→engine shape as ElecCableSize: the CIBSE B3 sizing math stays in
+        // DuctSizingApplyEngine (single source of duct-sizing truth); this handler only
+        // adapts args → scope/pressureClass and applies the Phase-3a guardrails. The
+        // engine writes native geometry (Width/Height/Diameter) + best-effort HVC_* audit
+        // stamps and reports computed-vs-written.
+
+        private static McpJobResult MepSizeDuctsApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            string pclass = args?["pressureClass"]?.Value<string>() ?? "low";
+            MepSizingScope scope = ResolveMepScope(doc, args);
+
+            // Plan pass (writes nothing) — also yields the count for the confirm gate.
+            var plan = DuctSizingApplyEngine.Apply(doc, scope, dryRun: true, pressureClassId: pclass);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]              = "dry_run",
+                    ["inspected"]           = plan.Inspected,
+                    ["computed"]            = plan.Computed,
+                    ["plannedChanges"]      = plan.Planned,
+                    ["skipped"]             = plan.Skipped.Count,
+                    ["skippedDetail"]       = plan.Skipped.Take(25).ToList(),
+                    ["sampleChanges"]       = plan.SampleChanges.Select(DuctSampleToDict).ToList(),
+                    ["pressureClass"]       = pclass,
+                    ["requiredBindingGaps"] = plan.RequiredBindingGaps,
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would size {plan.Planned} of {plan.Inspected} duct(s); " +
+                    $"{plan.Skipped.Count} skipped; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == MepSizingScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            DuctSizingApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP Mep_AutoSizeDuct", () =>
+            {
+                applied = DuctSizingApplyEngine.Apply(doc, scope, dryRun: false, pressureClassId: pclass);
+            });
+
+            StingLog.Info($"MCP Mep_AutoSizeDuct[{(isProject ? "project" : "scoped")}]: " +
+                          $"computed {applied.Computed}, written {applied.Written}, " +
+                          $"skipped {applied.Skipped.Count}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") + ".");
+
+            var rb = McpSafety.WriteResult(applied.Written, applied.Skipped.Count, applied.Errors,
+                applied.SampleChanges.Select(c => c.ElementId));
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["written"]             = applied.Written;
+            rb["perParamWritten"]     = new Dictionary<string, object>
+                { ["width"] = applied.WroteWidth, ["height"] = applied.WroteHeight, ["diameter"] = applied.WroteDiameter };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["typeScopeWrites"]     = applied.TypeScopeWrites;
+            rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(DuctSampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ Computed {applied.Computed} duct size(s) but PERSISTED 0 — every in-scope duct's geometry size " +
+                  "param was read-only (fitting-driven?)."
+                : $"Sized {applied.Written} duct(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).";
+            return McpJobResult.Success(summary, rb);
+        }
+
+        /// <summary>Resolve MCP args → duct/pipe engine scope. 'selection' expands the
+        /// caller-resolved _elementIds; 'project' → whole model; else active view.</summary>
+        private static MepSizingScope ResolveMepScope(Document doc, JObject args)
+        {
+            string scope = args?["scope"]?.Value<string>()?.ToLowerInvariant() ?? "view";
+            if (scope == "selection")
+            {
+                var ids = new List<ElementId>();
+                if (args["_elementIds"] is JArray arr)
+                    foreach (var t in arr) { long v = t?.Value<long?>() ?? -1; if (v >= 0) ids.Add(new ElementId(v)); }
+                return MepSizingScope.ForIds(ids);
+            }
+            if (scope == "project") return MepSizingScope.Project();
+            return MepSizingScope.ActiveView();
+        }
+
+        private static Dictionary<string, object> DuctSampleToDict(DuctSizingChange c) => new Dictionary<string, object>
+        {
+            ["id"] = c.ElementId, ["role"] = c.RoleId, ["roleSource"] = c.RoleSource, ["flowLs"] = c.FlowLs,
+            ["widthMm"] = c.WidthMm, ["heightMm"] = c.HeightMm, ["diameterMm"] = c.DiameterMm,
+            ["isRound"] = c.IsRound, ["sizeLabel"] = c.SizeLabel, ["prevSize"] = c.PrevSize,
+        };
+
+        // ── Mep_AutoSizePipe engine handler (delegates to PipeSizingApplyEngine) ──
+        //
+        // Same dialog→engine shape as Mep_AutoSizeDuct: the per-service sizing math stays
+        // in PipeSizingApplyEngine; this handler only adapts args → scope and applies the
+        // Phase-3a guardrails. The engine writes native Diameter + a best-effort
+        // HVC_PIPE_SERVICE_TXT stamp and reports computed-vs-written.
+
+        private static McpJobResult MepSizePipesApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            MepSizingScope scope = ResolveMepScope(doc, args);
+
+            var plan = PipeSizingApplyEngine.Apply(doc, scope, dryRun: true);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]              = "dry_run",
+                    ["inspected"]           = plan.Inspected,
+                    ["computed"]            = plan.Computed,
+                    ["plannedChanges"]      = plan.Planned,
+                    ["skipped"]             = plan.Skipped.Count,
+                    ["skippedDetail"]       = plan.Skipped.Take(25).ToList(),
+                    ["sampleChanges"]       = plan.SampleChanges.Select(PipeSampleToDict).ToList(),
+                    ["requiredBindingGaps"] = plan.RequiredBindingGaps,
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would size {plan.Planned} of {plan.Inspected} pipe(s); " +
+                    $"{plan.Skipped.Count} skipped; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == MepSizingScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            PipeSizingApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP Mep_AutoSizePipe", () =>
+            {
+                applied = PipeSizingApplyEngine.Apply(doc, scope, dryRun: false);
+            });
+
+            StingLog.Info($"MCP Mep_AutoSizePipe[{(isProject ? "project" : "scoped")}]: " +
+                          $"computed {applied.Computed}, written {applied.Written}, " +
+                          $"skipped {applied.Skipped.Count}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") + ".");
+
+            var rb = McpSafety.WriteResult(applied.Written, applied.Skipped.Count, applied.Errors,
+                applied.SampleChanges.Select(c => c.ElementId));
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["written"]             = applied.Written;
+            rb["perParamWritten"]     = new Dictionary<string, object>
+                { ["diameter"] = applied.WroteDiameter, ["service"] = applied.WroteService };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["typeScopeWrites"]     = applied.TypeScopeWrites;
+            rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(PipeSampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ Computed {applied.Computed} pipe bore(s) but PERSISTED 0 — every in-scope pipe's Diameter was read-only/absent."
+                : $"Sized {applied.Written} pipe(s) (computed {applied.Computed}); {applied.Skipped.Count} skipped; {applied.Errors.Count} error(s).";
+            return McpJobResult.Success(summary, rb);
+        }
+
+        private static Dictionary<string, object> PipeSampleToDict(PipeSizingChange c) => new Dictionary<string, object>
+        {
+            ["id"] = c.ElementId, ["service"] = c.ServiceId, ["serviceLabel"] = c.ServiceLabel,
+            ["flowLs"] = c.FlowLs, ["maxVelMs"] = c.MaxVelMs, ["diameterMm"] = c.DiameterMm, ["sizeLabel"] = c.SizeLabel,
+        };
+
+        // ── Panel_BatchSchedules engine handler (delegates to PanelScheduleApplyEngine) ──
+        //
+        // Same dialog→engine shape: the rule-based schedule-creation logic stays in
+        // PanelScheduleApplyEngine (single source of truth); this handler only adapts
+        // args → scope and applies the Phase-3a guardrails. The PRIMARY output is element
+        // creation (PanelScheduleView), so the read-back reports created vs computed
+        // (would-create) + noWritesPersisted when computed>0 but created==0.
+
+        private static McpJobResult PanelBatchSchedulesApplyHandler(Document doc, JObject args, bool dryRun)
+        {
+            PanelScheduleScope scope = ResolvePanelScope(doc, args);
+
+            var plan = PanelScheduleApplyEngine.Apply(doc, scope, dryRun: true);
+
+            if (dryRun)
+            {
+                var planData = new Dictionary<string, object>
+                {
+                    ["status"]          = "dry_run",
+                    ["inspected"]       = plan.Inspected,
+                    ["computed"]        = plan.Computed,
+                    ["plannedChanges"]  = plan.Planned,
+                    ["skippedExisting"] = plan.SkippedExisting,
+                    ["skippedPattern"]  = plan.SkippedPattern,
+                    ["noTemplate"]      = plan.NoTemplate,
+                    ["failures"]        = plan.Failures.Take(25).ToList(),
+                    ["sampleChanges"]   = plan.SampleChanges.Select(PanelSampleToDict).ToList(),
+                };
+                return McpJobResult.Success(
+                    $"Dry run: would create {plan.Planned} panel schedule(s) of {plan.Inspected} panel(s); " +
+                    $"{plan.SkippedExisting} already have one; {plan.NoTemplate} lack a template; nothing mutated.", planData);
+            }
+
+            bool isProject = scope.Kind == PanelScheduleScopeKind.Project;
+            var confirmErr = McpSafety.RequireConfirmation(plan.Planned, isProject, McpSafety.IsConfirmed(args));
+            if (confirmErr != null) return confirmErr;
+
+            PanelScheduleApplyResult applied = null;
+            McpSafety.RunInTransactionGroup(doc, "STING MCP Panel_BatchSchedules", () =>
+            {
+                applied = PanelScheduleApplyEngine.Apply(doc, scope, dryRun: false);
+            });
+
+            StingLog.Info($"MCP Panel_BatchSchedules[{(isProject ? "project" : "scoped")}]: " +
+                          $"created {applied.Created}, computed {applied.Computed}, existing {applied.SkippedExisting}, " +
+                          $"failed {applied.Failed}, noTemplate {applied.NoTemplate}, errors {applied.Errors.Count}" +
+                          (applied.NoWritesPersisted ? " — NO SCHEDULES CREATED" : "") + ".");
+
+            var rb = McpSafety.WriteResult(applied.Created, applied.SkippedPattern + applied.SkippedExisting,
+                applied.Errors.Concat(applied.Failures).ToList(),
+                applied.SampleChanges.Select(c => c.PanelId));
+            rb["inspected"]           = applied.Inspected;
+            rb["computed"]            = applied.Computed;
+            rb["created"]             = applied.Created;
+            rb["skippedExisting"]     = applied.SkippedExisting;
+            rb["skippedPattern"]      = applied.SkippedPattern;
+            rb["failed"]              = applied.Failed;
+            rb["noTemplate"]          = applied.NoTemplate;
+            rb["integration"]         = new Dictionary<string, object>
+                { ["drawingTypeStamped"] = applied.DrawingTypeStamped, ["paramsStamped"] = applied.ParamsStamped, ["circuitRefsStamped"] = applied.CircuitRefsStamped };
+            rb["noWritesPersisted"]   = applied.NoWritesPersisted;
+            rb["perTemplate"]         = applied.PerTemplate;
+            rb["sampleChanges"]       = applied.SampleChanges.Select(PanelSampleToDict).ToList();
+
+            string summary = applied.NoWritesPersisted
+                ? $"⚠ {applied.Computed} panel(s) needed a schedule but 0 were created — every candidate PanelScheduleTemplate was rejected."
+                : $"Created {applied.Created} panel schedule(s) (of {applied.Computed} needing one); " +
+                  $"{applied.SkippedExisting} already had one; {applied.Failed + applied.NoTemplate} failed.";
+            return McpJobResult.Success(summary, rb);
+        }
+
+        private static PanelScheduleScope ResolvePanelScope(Document doc, JObject args)
+        {
+            string scope = args?["scope"]?.Value<string>()?.ToLowerInvariant() ?? "project";
+            if (scope == "selection")
+            {
+                var ids = new List<ElementId>();
+                if (args["_elementIds"] is JArray arr)
+                    foreach (var t in arr) { long v = t?.Value<long?>() ?? -1; if (v >= 0) ids.Add(new ElementId(v)); }
+                return PanelScheduleScope.ForIds(ids);
+            }
+            if (scope == "view") return PanelScheduleScope.ActiveView();
+            return PanelScheduleScope.Project();
+        }
+
+        private static Dictionary<string, object> PanelSampleToDict(PanelScheduleChange c) => new Dictionary<string, object>
+        {
+            ["panelId"] = c.PanelId, ["panelName"] = c.PanelName, ["scheduleName"] = c.ScheduleName,
+            ["template"] = c.Template, ["wasExisting"] = c.WasExisting,
         };
 
         /// <summary>Collect taggable targets for the requested scope (selection ids /
