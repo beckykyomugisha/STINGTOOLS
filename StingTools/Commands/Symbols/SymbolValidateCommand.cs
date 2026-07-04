@@ -38,11 +38,13 @@ namespace StingTools.Commands.Symbols
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var issues = new List<string>();
-            int catalogueOk = 0, catalogueBad = 0, symbolTotal = 0;
+            int catalogueOk = 0, catalogueBad = 0, symbolTotal = 0, coordViolations = 0;
+            int blindSpots = 0, connectorlessSeeds = 0;
+            int refTotal = 0, danglingTotal = 0, danglingPrefix = 0, danglingViewCtx = 0, danglingAbsent = 0;
 
             try
             {
-                // ── 1) Catalogue + seed non-empty Symbols check ───────────────
+                // ── 1) Catalogue + seed non-empty Symbols check + coord range (1d) ─
                 foreach (var (path, label) in EnumerateCatalogueFiles())
                 {
                     if (!File.Exists(path))
@@ -76,6 +78,10 @@ namespace StingTools.Commands.Symbols
                         int noId = lib.Symbols.Count(s => string.IsNullOrWhiteSpace(s.Id));
                         if (noId > 0)
                             issues.Add($"[warn] {Path.GetFileName(path)}: {noId} symbol(s) have no id.");
+                        // 1d — geometry coordinate range: |value| > 2.0 is silently dropped
+                        // at build by the creator's ValidateGeometryCoord.
+                        foreach (var s in lib.Symbols)
+                            coordViolations += ScanCoordViolations(s, Path.GetFileName(path), issues);
                     }
                 }
 
@@ -84,6 +90,16 @@ namespace StingTools.Commands.Symbols
 
                 // ── 3) Alias targets resolve to defined concepts ──────────────
                 ValidateAliasTargets(issues);
+
+                // ── 1a) Catalogue blind spots (symbol libs not registered) ────
+                blindSpots = CheckCatalogueBlindSpots(issues);
+
+                // ── 1b) Concept → family reference integrity ──────────────────
+                CheckConceptFamilyIntegrity(issues,
+                    out refTotal, out danglingTotal, out danglingPrefix, out danglingViewCtx, out danglingAbsent);
+
+                // ── 1c) Connector completeness on MEP seeds ───────────────────
+                connectorlessSeeds = CheckSeedConnectors(issues);
             }
             catch (Exception ex)
             {
@@ -96,9 +112,14 @@ namespace StingTools.Commands.Symbols
             var sb = new StringBuilder();
             sb.AppendLine("Symbol data-integrity validation");
             sb.AppendLine();
-            sb.AppendLine($"  Catalogues OK   : {catalogueOk} ({symbolTotal} symbols)");
-            sb.AppendLine($"  Catalogues BAD  : {catalogueBad}");
-            sb.AppendLine($"  Issues          : {issues.Count}");
+            sb.AppendLine($"  Catalogues OK        : {catalogueOk} ({symbolTotal} symbols)");
+            sb.AppendLine($"  Catalogues BAD       : {catalogueBad}");
+            sb.AppendLine($"  Catalogue blind spots: {blindSpots} (symbol libs not in AllBatches)");
+            sb.AppendLine($"  Coord violations     : {coordViolations} (|value| > 2.0, dropped at build)");
+            sb.AppendLine($"  Connector-less seeds : {connectorlessSeeds} (MEP-category, 0 connectors)");
+            sb.AppendLine($"  Concept refs         : {refTotal}, dangling {danglingTotal} " +
+                          $"(prefix-fixable {danglingPrefix} / view-context {danglingViewCtx} / absent {danglingAbsent})");
+            sb.AppendLine($"  Issues               : {issues.Count}");
             if (issues.Count > 0)
             {
                 sb.AppendLine();
@@ -216,6 +237,216 @@ namespace StingTools.Commands.Symbols
             {
                 issues.Add($"[alias] parse failed: {ex.Message}");
             }
+        }
+
+        private static readonly string[] StdPrefixes = { "IEC_", "IEEE_", "BS_", "NFPA_", "CIBSE_" };
+
+        // ── 1d) geometry coordinate range ─────────────────────────────────────
+        private static int ScanCoordViolations(SymbolDefinition s, string file, List<string> issues)
+        {
+            if (s?.Geometry == null) return 0;
+            int n = 0;
+            void ChkLines(List<LineDefinition> lines)
+            {
+                if (lines == null) return;
+                foreach (var l in lines)
+                    if (Bad(l.X1) || Bad(l.Y1) || Bad(l.X2) || Bad(l.Y2)) n++;
+            }
+            void ChkArcs(List<ArcDefinition> arcs)
+            {
+                if (arcs == null) return;
+                foreach (var a in arcs)
+                    if (Bad(a.Cx) || Bad(a.Cy) || Bad(a.R)) n++;
+            }
+            void ChkText(List<TextDefinition> text)
+            {
+                if (text == null) return;
+                foreach (var t in text) if (Bad(t.X) || Bad(t.Y)) n++;
+            }
+            ChkLines(s.Geometry.Lines);
+            ChkLines(s.Geometry.ConnectionLines);
+            ChkArcs(s.Geometry.Arcs);
+            ChkText(s.Geometry.Text);
+            if (s.Geometry.FilledRegions != null)
+                foreach (var fr in s.Geometry.FilledRegions)
+                    if (fr.Boundary != null)
+                        foreach (var p in fr.Boundary) if (Bad(p.X) || Bad(p.Y)) n++;
+            if (s.Geometry.Section != null)
+            {
+                ChkLines(s.Geometry.Section.Lines);
+                ChkArcs(s.Geometry.Section.Arcs);
+                ChkText(s.Geometry.Section.Text);
+            }
+            if (n > 0)
+                issues.Add($"[coord] {file}:{s.Id}: {n} geometry coordinate(s) |value| > 2.0 — dropped at build.");
+            return n;
+        }
+
+        private static bool Bad(double v) => Math.Abs(v) > 2.0;
+
+        // ── 1a) catalogue blind spots ─────────────────────────────────────────
+        private static int CheckCatalogueBlindSpots(List<string> issues)
+        {
+            string symDir = SymbolsDir();
+            if (symDir == null || !Directory.Exists(symDir)) return 0;
+            var registered = new HashSet<string>(
+                SymbolBatchHelper.AllBatches.Select(b => b.File), StringComparer.OrdinalIgnoreCase);
+            int n = 0;
+            foreach (var f in Directory.GetFiles(symDir, "*.json"))
+            {
+                string name = Path.GetFileName(f);
+                if (registered.Contains(name)) continue;
+                SymbolLibrary lib = null;
+                try { lib = JsonConvert.DeserializeObject<SymbolLibrary>(File.ReadAllText(f)); }
+                catch { continue; } // non-catalogue JSON (standards/concepts/aliases) — ignore
+                if (lib?.Symbols != null && lib.Symbols.Count > 0)
+                {
+                    n++;
+                    issues.Add($"[blind-spot] {name}: {lib.Symbols.Count} symbols but not in " +
+                               "SymbolBatchHelper.AllBatches — invisible to the builder.");
+                }
+            }
+            return n;
+        }
+
+        // ── 1b) concept → family reference integrity ──────────────────────────
+        private static void CheckConceptFamilyIntegrity(List<string> issues,
+            out int refTotal, out int dangling, out int prefixFixable, out int viewCtx, out int absent)
+        {
+            refTotal = dangling = prefixFixable = viewCtx = absent = 0;
+            var catalogueIds = CollectCatalogueSymbolIds();
+            string conceptPath = StingToolsApp.FindDataFile("Symbols/STING_SYMBOL_CONCEPTS.json")
+                ?? StingToolsApp.FindDataFile("STING_SYMBOL_CONCEPTS.json");
+            if (string.IsNullOrEmpty(conceptPath) || !File.Exists(conceptPath) || catalogueIds.Count == 0)
+            {
+                issues.Add("[concept-refs] concepts file or catalogue ids unavailable — reference check skipped.");
+                return;
+            }
+            var absentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var concepts = JObject.Parse(File.ReadAllText(conceptPath))["concepts"] as JObject;
+                if (concepts == null) return;
+                foreach (var cp in concepts.Properties())
+                {
+                    var maps = (cp.Value as JObject)?["standardMappings"] as JObject;
+                    if (maps == null) continue;
+                    foreach (var sp in maps.Properties())
+                    {
+                        if (!(sp.Value is JObject m)) continue;
+                        // base refs
+                        foreach (var kind in new[] { "genericAnnotation", "tagFamily" })
+                        {
+                            string v = m[kind]?.ToString();
+                            if (string.IsNullOrEmpty(v)) continue;
+                            refTotal++;
+                            if (catalogueIds.Contains(v)) continue;
+                            dangling++;
+                            string stripped = StripPrefix(v);
+                            if (stripped != v && catalogueIds.Contains(stripped))
+                            {
+                                prefixFixable++;
+                                issues.Add($"[concept-ref] {cp.Name}[{sp.Name}].{kind}: '{v}' — prefix-fixable to '{stripped}'.");
+                            }
+                            else { absent++; absentNames.Add(v); }
+                        }
+                        // view-context / scale-variant refs
+                        foreach (var ovKey in new[] { "viewContextOverrides", "scaleVariants" })
+                        {
+                            if (!(m[ovKey] is JObject ov)) continue;
+                            foreach (var op in ov.Properties())
+                            {
+                                string v = op.Value?.ToString();
+                                if (string.IsNullOrEmpty(v)) continue;
+                                refTotal++;
+                                if (catalogueIds.Contains(v)) continue;
+                                dangling++; viewCtx++;
+                            }
+                        }
+                    }
+                }
+                if (absentNames.Count > 0)
+                    issues.Add($"[concept-refs] {absentNames.Count} unique family name(s) referenced by concepts " +
+                               "are not defined in any catalogue (authoring backlog — see ROADMAP; full list in log).");
+                foreach (var a in absentNames.OrderBy(x => x))
+                    StingLog.Warn($"Symbols_Validate: absent concept ref → {a}");
+            }
+            catch (Exception ex) { issues.Add($"[concept-refs] parse failed: {ex.Message}"); }
+        }
+
+        // ── 1c) connector completeness on MEP seeds ───────────────────────────
+        private static readonly string[] MepCategoryKeys =
+        {
+            "Duct", "Pipe", "Electrical", "Plumbing", "Mechanical", "Fire Alarm", "FireAlarm",
+            "Med Gas", "MedGas", "Sprinkler", "Air Terminal", "AirTerminal", "Lighting",
+            "Fire Damper", "FireDamper", "Security", "Nurse Call", "NurseCall"
+        };
+
+        private static int CheckSeedConnectors(List<string> issues)
+        {
+            string seedDir = SeedsDir();
+            if (seedDir == null || !Directory.Exists(seedDir)) return 0;
+            int n = 0;
+            foreach (var f in Directory.GetFiles(seedDir, "*.json"))
+            {
+                SymbolLibrary lib = null;
+                try { lib = JsonConvert.DeserializeObject<SymbolLibrary>(File.ReadAllText(f)); }
+                catch { continue; }
+                if (lib?.Symbols == null) continue;
+                foreach (var s in lib.Symbols)
+                {
+                    string haystack = $"{s.Category} {s.Discipline} {s.Id}";
+                    bool isMep = MepCategoryKeys.Any(k =>
+                        haystack.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (!isMep) continue;
+                    int cc = s.Connectors?.Count ?? 0;
+                    if (s.TypeVariants != null)
+                        foreach (var v in s.TypeVariants) cc += v.Connectors?.Count ?? 0;
+                    if (cc == 0)
+                    {
+                        n++;
+                        issues.Add($"[connectors] {Path.GetFileName(f)}:{s.Id} [{s.Category}] — MEP seed with 0 connectors.");
+                    }
+                }
+            }
+            return n;
+        }
+
+        // ── shared helpers ────────────────────────────────────────────────────
+        private static string SymbolsDir()
+        {
+            string dp = StingToolsApp.DataPath;
+            return string.IsNullOrEmpty(dp) ? null : Path.Combine(dp, "Symbols");
+        }
+
+        private static string SeedsDir()
+        {
+            string dp = StingToolsApp.DataPath;
+            return string.IsNullOrEmpty(dp) ? null : Path.Combine(dp, "Seeds");
+        }
+
+        private static HashSet<string> CollectCatalogueSymbolIds()
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string symDir = SymbolsDir();
+            if (symDir == null || !Directory.Exists(symDir)) return ids;
+            foreach (var f in Directory.GetFiles(symDir, "*.json"))
+            {
+                SymbolLibrary lib = null;
+                try { lib = JsonConvert.DeserializeObject<SymbolLibrary>(File.ReadAllText(f)); }
+                catch { continue; }
+                if (lib?.Symbols == null) continue;
+                foreach (var s in lib.Symbols)
+                    if (!string.IsNullOrWhiteSpace(s.Id)) ids.Add(s.Id);
+            }
+            return ids;
+        }
+
+        private static string StripPrefix(string name)
+        {
+            foreach (var p in StdPrefixes)
+                if (name.StartsWith(p, StringComparison.Ordinal)) return name.Substring(p.Length);
+            return name;
         }
     }
 }
