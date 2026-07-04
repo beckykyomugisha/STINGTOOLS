@@ -1386,6 +1386,24 @@ namespace StingTools.Core.Symbols
         /// engines to pick the correctly-sized type automatically based
         /// on view scale.
         /// </summary>
+        /// <summary>
+        /// Records the authored symbol size (metadata only) on the family's default
+        /// type.
+        /// <para>
+        /// NOTE: scale tiers are metadata-only. Symbol geometry is drawn at a fixed
+        /// author-time size via <c>Scale(coord, def.SymbolSize)</c> in DrawGeometry and
+        /// is NOT associated (labeled) to any family parameter, so setting a per-type
+        /// length value cannot change what is rendered. Previously this method minted a
+        /// family TYPE per scale tier ("{id}_large" / "{id}_small" …) and set
+        /// STING_SYMBOL_SIZE_MM on each — but every one of those types drew identically,
+        /// which was misleading. View-time tier selection is handled separately by
+        /// <see cref="SymbolScaleEngine"/> / <see cref="SymbolStandardRegistry"/> against
+        /// view-scale thresholds (a variant-picking mechanism, not these types), so the
+        /// per-tier types were dead cosmetic artifacts and are no longer created.
+        /// To make geometry actually scale by tier, DrawGeometry would need to label its
+        /// drawn curves to STING_SYMBOL_SIZE_MM (parametric authoring) — out of scope here.
+        /// </para>
+        /// </summary>
         private static void AddScaleTierTypes(Document fdoc, SymbolDefinition def,
             StandardDefinition std, List<string> warnings)
         {
@@ -1406,7 +1424,8 @@ namespace StingTools.Core.Symbols
                 }
             }
 
-            // Ensure SymbolSizeMm parameter exists on the family.
+            // Record the authored size as metadata on the family (single value; the
+            // geometry is not parametrically bound to it — see the method remarks).
             const string sizeParamName = "STING_SYMBOL_SIZE_MM";
             if (fm.get_Parameter(sizeParamName) == null)
             {
@@ -1421,39 +1440,26 @@ namespace StingTools.Core.Symbols
                 }
             }
 
-            foreach (var tier in std.SymbolScaleTiers)
+            try
             {
-                string tierName = tier.Key;
-                double sizeMm   = tier.Value;
-
-                // "standard" is the default type that already exists — skip.
-                if (string.Equals(tierName, "standard", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string typeName = $"{def.Id}_{tierName}";
-
-                try
+                fm.CurrentType = seedType;
+                var sizeParam = fm.get_Parameter(sizeParamName);
+                if (sizeParam != null && !sizeParam.IsReadOnly)
                 {
-                    fm.CurrentType = seedType;
-                    var tierType = fm.NewType(typeName);
-                    fm.CurrentType = tierType;
-
-                    // Set size multiplier on the new type.
-                    var sizeParam = fm.get_Parameter(sizeParamName);
-                    if (sizeParam != null && !sizeParam.IsReadOnly)
-                    {
-                        // SpecTypeId.Length means the value is stored in feet.
-                        fm.Set(sizeParam, MmToFt(sizeMm));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    warnings?.Add($"{def.Id}: scale tier '{tierName}' type creation failed — {ex.Message}");
+                    // SpecTypeId.Length means the value is stored in feet.
+                    double authoredMm = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+                    fm.Set(sizeParam, MmToFt(authoredMm));
                 }
             }
+            catch (Exception ex)
+            {
+                warnings?.Add($"{def.Id}: AddScaleTierTypes — could not stamp {sizeParamName}: {ex.Message}");
+            }
 
-            // Restore default type.
-            try { fm.CurrentType = seedType; } catch { }
+            StingLog.Info($"{def.Id}: scale tiers are metadata-only — geometry is authored at " +
+                          $"{(def.SymbolSize > 0 ? def.SymbolSize : 3.0):F1}mm and not bound to " +
+                          $"{sizeParamName}; per-tier family types are not created (view-time tier " +
+                          "selection is handled by SymbolScaleEngine/SymbolStandardRegistry).");
         }
 
         // ─────────────────────────────────────────────────────────────────
