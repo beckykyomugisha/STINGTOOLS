@@ -2,7 +2,7 @@
   "standard": "NFPA 70",
   "version": "1.0",
   "description": "NFPA 70 / NEC SLD symbols for US electrical drawings",
-  "symbolDefinitions": [
+  "symbols": [
     {
       "id": "NFPA_SLD_MCB",
       "familyType": "GenericAnnotation",

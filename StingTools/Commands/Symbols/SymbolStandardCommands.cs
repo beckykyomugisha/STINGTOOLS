@@ -86,7 +86,7 @@ namespace StingTools.Commands.Symbols
                         if (string.IsNullOrEmpty(conceptId)) continue;
                         string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
                         string scaleTier = SymbolScaleEngine.GetScaleTier(view);
-                        string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null);
+                        string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null, doc);
                         if (string.IsNullOrEmpty(fam)) continue;
                         var sym = new FilteredElementCollector(doc)
                             .OfClass(typeof(FamilySymbol))
@@ -143,7 +143,7 @@ namespace StingTools.Commands.Symbols
                                     if (string.IsNullOrEmpty(conceptId)) continue;
                                     string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
                                     string scaleTier = SymbolScaleEngine.GetScaleTier(view);
-                                    string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null);
+                                    string fam = SymbolConceptRegistry.GetFamilyName(conceptId, newStandard, viewCtx, scaleTier, null, doc);
                                     if (string.IsNullOrEmpty(fam)) continue;
                                     // Inline FindSymbol — original helper was lost to the merge.
                                     var sym = new FilteredElementCollector(doc)

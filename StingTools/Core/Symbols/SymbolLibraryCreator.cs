@@ -106,7 +106,7 @@ namespace StingTools.Core.Symbols
         {
             if (v < -2.0 || v > 2.0)
             {
-                warnings.Add($"Symbol geometry coordinate {v:F3} out of expected range [-1,1] in {context}. Clamping.");
+                warnings.Add($"Symbol geometry coordinate {v:F3} out of expected range [-2,2] in {context}. Skipping.");
                 return false;
             }
             return true;
@@ -359,11 +359,19 @@ namespace StingTools.Core.Symbols
                 FamilyType = src.FamilyType,
                 Discipline = src.Discipline,
                 Subcategory = src.Subcategory,
+                Hosting = src.Hosting,
+                IsSeed = src.IsSeed,
                 SymbolSize = src.SymbolSize,
                 Parameters = src.Parameters,
                 Geometry = src.Geometry,
                 Connectors = src.Connectors,
                 Solid3D = src.Solid3D,
+                FormulaBindings = src.FormulaBindings,
+                TypeVariants = src.TypeVariants,
+                ProtectExisting = src.ProtectExisting,
+                Status = src.Status,
+                SourceFamilyPath = src.SourceFamilyPath,
+                SwapCandidates = src.SwapCandidates,
             };
         }
 
@@ -752,8 +760,6 @@ namespace StingTools.Core.Symbols
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
             bool isAnnotation)
         {
-            // The merged switch body branches on TemplateKind; derive it from isAnnotation.
-            var kind = isAnnotation ? TemplateKind.Annotation : TemplateKind.Model;
             try
             {
                 var geomWarnings = new List<string>();
@@ -768,6 +774,11 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
+
+                // Author the curve exactly once. (Previously the family-document
+                // branch drew the curve and then fell through into a switch that
+                // drew it a SECOND time — overlapping curves whose "lines overlap"
+                // warnings were swallowed by SymbolFailureSwallow.)
                 if (fdoc.IsFamilyDocument)
                 {
                     if (isAnnotation)
@@ -778,24 +789,6 @@ namespace StingTools.Core.Symbols
                 else
                 {
                     fdoc.Create.NewDetailCurve(view, line);
-                    return;
-                }
-
-                switch (kind)
-                {
-                    case TemplateKind.DetailItem:
-                    case TemplateKind.Annotation:
-                        // Annotation + DetailItem both render lines on
-                        // the family's built-in plan view; no sketch
-                        // plane needed (and SketchPlane.Create is
-                        // forbidden in Annotation templates).
-                        fdoc.FamilyCreate.NewDetailCurve(view, line);
-                        break;
-                    case TemplateKind.Model:
-                    default:
-                        if (sketch == null) return;
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                        break;
                 }
             }
             catch (Exception ex)
@@ -1146,7 +1139,7 @@ namespace StingTools.Core.Symbols
                         if (double.TryParse(value,
                             System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture,
-                            out double d)) fm.Set(p, d);
+                            out double d)) fm.Set(p, ConvertJsonDoubleForSpec(p, d));
                         break;
                     case StorageType.ElementId:
                         // Variant params don't yet support ElementId
@@ -1338,7 +1331,7 @@ namespace StingTools.Core.Symbols
                             System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture,
                             out double d))
-                            fm.Set(fp, d);
+                            fm.Set(fp, ConvertJsonDoubleForSpec(fp, d));
                         break;
                     case StorageType.ElementId:
                         // Material / reference defaults aren't expressible as JSON strings.
@@ -1349,6 +1342,28 @@ namespace StingTools.Core.Symbols
             {
                 result.Warnings.Add($"{def.Id}: default for '{fp.Definition?.Name}' failed — {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Converts a JSON-authored numeric default/variant value into Revit's internal
+        /// units for the target parameter's spec. JSON authors human units (mm), but a
+        /// Length parameter stores internal FEET — so a "600" (mm) default must become
+        /// 600/304.8 ft, otherwise it lands as 600 ft. Dimensionless Number and any
+        /// other Double spec pass through unchanged.
+        /// </summary>
+        private static double ConvertJsonDoubleForSpec(FamilyParameter fp, double parsed)
+        {
+            try
+            {
+                ForgeTypeId dataType = fp?.Definition?.GetDataType();
+                if (dataType != null && dataType.TypeId == SpecTypeId.Length.TypeId)
+                    return MmToFt(parsed);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ConvertJsonDoubleForSpec {fp?.Definition?.Name}: {ex.Message}");
+            }
+            return parsed;
         }
 
         /// <summary>
@@ -1386,6 +1401,24 @@ namespace StingTools.Core.Symbols
         /// engines to pick the correctly-sized type automatically based
         /// on view scale.
         /// </summary>
+        /// <summary>
+        /// Records the authored symbol size (metadata only) on the family's default
+        /// type.
+        /// <para>
+        /// NOTE: scale tiers are metadata-only. Symbol geometry is drawn at a fixed
+        /// author-time size via <c>Scale(coord, def.SymbolSize)</c> in DrawGeometry and
+        /// is NOT associated (labeled) to any family parameter, so setting a per-type
+        /// length value cannot change what is rendered. Previously this method minted a
+        /// family TYPE per scale tier ("{id}_large" / "{id}_small" …) and set
+        /// STING_SYMBOL_SIZE_MM on each — but every one of those types drew identically,
+        /// which was misleading. View-time tier selection is handled separately by
+        /// <see cref="SymbolScaleEngine"/> / <see cref="SymbolStandardRegistry"/> against
+        /// view-scale thresholds (a variant-picking mechanism, not these types), so the
+        /// per-tier types were dead cosmetic artifacts and are no longer created.
+        /// To make geometry actually scale by tier, DrawGeometry would need to label its
+        /// drawn curves to STING_SYMBOL_SIZE_MM (parametric authoring) — out of scope here.
+        /// </para>
+        /// </summary>
         private static void AddScaleTierTypes(Document fdoc, SymbolDefinition def,
             StandardDefinition std, List<string> warnings)
         {
@@ -1406,7 +1439,8 @@ namespace StingTools.Core.Symbols
                 }
             }
 
-            // Ensure SymbolSizeMm parameter exists on the family.
+            // Record the authored size as metadata on the family (single value; the
+            // geometry is not parametrically bound to it — see the method remarks).
             const string sizeParamName = "STING_SYMBOL_SIZE_MM";
             if (fm.get_Parameter(sizeParamName) == null)
             {
@@ -1421,39 +1455,26 @@ namespace StingTools.Core.Symbols
                 }
             }
 
-            foreach (var tier in std.SymbolScaleTiers)
+            try
             {
-                string tierName = tier.Key;
-                double sizeMm   = tier.Value;
-
-                // "standard" is the default type that already exists — skip.
-                if (string.Equals(tierName, "standard", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string typeName = $"{def.Id}_{tierName}";
-
-                try
+                fm.CurrentType = seedType;
+                var sizeParam = fm.get_Parameter(sizeParamName);
+                if (sizeParam != null && !sizeParam.IsReadOnly)
                 {
-                    fm.CurrentType = seedType;
-                    var tierType = fm.NewType(typeName);
-                    fm.CurrentType = tierType;
-
-                    // Set size multiplier on the new type.
-                    var sizeParam = fm.get_Parameter(sizeParamName);
-                    if (sizeParam != null && !sizeParam.IsReadOnly)
-                    {
-                        // SpecTypeId.Length means the value is stored in feet.
-                        fm.Set(sizeParam, MmToFt(sizeMm));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    warnings?.Add($"{def.Id}: scale tier '{tierName}' type creation failed — {ex.Message}");
+                    // SpecTypeId.Length means the value is stored in feet.
+                    double authoredMm = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+                    fm.Set(sizeParam, MmToFt(authoredMm));
                 }
             }
+            catch (Exception ex)
+            {
+                warnings?.Add($"{def.Id}: AddScaleTierTypes — could not stamp {sizeParamName}: {ex.Message}");
+            }
 
-            // Restore default type.
-            try { fm.CurrentType = seedType; } catch { }
+            StingLog.Info($"{def.Id}: scale tiers are metadata-only — geometry is authored at " +
+                          $"{(def.SymbolSize > 0 ? def.SymbolSize : 3.0):F1}mm and not bound to " +
+                          $"{sizeParamName}; per-tier family types are not created (view-time tier " +
+                          "selection is handled by SymbolScaleEngine/SymbolStandardRegistry).");
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -1462,19 +1483,26 @@ namespace StingTools.Core.Symbols
 
         private static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
+            // Only the base symbol connectors are authored. Connectors live on the
+            // family document itself (not on a type), so unioning every TypeVariant's
+            // connector set would make a placed variant carry connectors from sibling
+            // variants (e.g. a WC would sprout basin/shower connectors). Per-variant
+            // connector geometry is therefore NOT supported through a single multi-
+            // variant family — that would require one family per connector topology.
+            // If a variant declares its own connectors, warn and skip rather than
+            // silently unioning a mismatched set onto every variant.
             AddConnectorList(fdoc, def, def.Connectors, result, sourceLabel: "symbol");
-            // Phase 178e — fold variant-level connector declarations
-            // into the same family doc. Connectors live on the family,
-            // not on a type, so the union of all variants ends up
-            // visible to every variant; per-variant differentiation
-            // happens via parameter values (size / system type) that
-            // AutoPipeDrop reads at routing time.
             if (def.TypeVariants != null)
             {
                 foreach (var v in def.TypeVariants)
                 {
                     if (v?.Connectors == null || v.Connectors.Count == 0) continue;
-                    AddConnectorList(fdoc, def, v.Connectors, result, sourceLabel: $"variant '{v.Name}'");
+                    string msg = $"{def.Id}: variant '{v.Name}' declares {v.Connectors.Count} " +
+                                 "connector(s) — per-variant connector sets are not supported " +
+                                 "(they would leak onto sibling variants); ignored. Author a " +
+                                 "separate symbol per connector topology instead.";
+                    StingLog.Warn(msg);
+                    result.Warnings.Add(msg);
                 }
             }
         }
@@ -1527,11 +1555,20 @@ namespace StingTools.Core.Symbols
                             // Reference, DuctSystemType) — 4 args; 3-arg overload does not exist.
                             try
                             {
+                                // Resolve the actual duct system type from the connector
+                                // declaration so return / exhaust connectors do not all
+                                // collapse to supply air. Fall back to SupplyAir only when
+                                // the declaration is unknown/undefined (the factory rejects
+                                // UndefinedSystemType).
+                                DuctSystemType ductSys = ResolveDuctSystemType(c.SystemType);
+                                if (ductSys == DuctSystemType.UndefinedSystemType)
+                                    ductSys = DuctSystemType.SupplyAir;
                                 ce = ConnectorElement.CreateDuctConnector(
                                     fdoc,
-                                    DuctSystemType.SupplyAir,
+                                    ductSys,
                                     ResolveProfileType(c.Shape),
                                     refLine.GeometryCurve.GetEndPointReference(0));
+                                // Best-effort post-set fallback (no-op when the param is read-only).
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex2)
@@ -1545,10 +1582,28 @@ namespace StingTools.Core.Symbols
                             // Revit 2025 API: CreatePipeConnector(Document, PipeSystemType, Reference)
                             try
                             {
+                                // Resolve the actual pipe system type so CHW / sanitary /
+                                // DCW connectors don't all collapse to supply-hydronic.
+                                // Fall back to SupplyHydronic only when undefined (the
+                                // factory rejects UndefinedSystemType).
+                                Autodesk.Revit.DB.Plumbing.PipeSystemType pipeSys = ResolvePipeSystemType(c.SystemType);
+                                if (pipeSys == Autodesk.Revit.DB.Plumbing.PipeSystemType.UndefinedSystemType)
+                                {
+                                    // Make the mis-type visible: an unrecognised systemType would
+                                    // otherwise be silently built as domestic heating water. The
+                                    // factory rejects Undefined, so we must still pass a valid type.
+                                    string warn = $"{def.Id} [{sourceLabel}]: pipe connector systemType " +
+                                        $"'{c.SystemType}' not recognised by ResolvePipeSystemType — " +
+                                        "built as SupplyHydronic fallback (check the seed systemType).";
+                                    StingLog.Warn(warn);
+                                    result.Warnings.Add(warn);
+                                    pipeSys = Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic;
+                                }
                                 ce = ConnectorElement.CreatePipeConnector(
                                     fdoc,
-                                    Autodesk.Revit.DB.Plumbing.PipeSystemType.SupplyHydronic,
+                                    pipeSys,
                                     refLine.GeometryCurve.GetEndPointReference(0));
+                                // Best-effort post-set fallback (no-op when the param is read-only).
                                 SetConnectorSystemTypeParam(ce, c.SystemType, domain, def.Id, sourceLabel, result);
                             }
                             catch (Exception ex3)
@@ -1750,6 +1805,9 @@ namespace StingTools.Core.Symbols
                 case "HotWaterSupply":      return PipeSystemType.SupplyHydronic;
                 case "HotWaterReturn":      return PipeSystemType.ReturnHydronic;
                 case "Hydronic":            return PipeSystemType.SupplyHydronic;
+                // Medical-gas / lab-gas outlets have no native domestic Revit pipe type;
+                // OtherPipe is the correct catch-all (intentional, not a typo).
+                case "OtherPipe":           return PipeSystemType.OtherPipe;
                 default:                    return PipeSystemType.UndefinedSystemType;
             }
         }

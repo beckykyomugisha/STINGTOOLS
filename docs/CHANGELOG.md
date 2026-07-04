@@ -407,6 +407,174 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+#### Completed (Symbol Library pipe systemType fixes, branch `claude/symbol-fixes-4`)
+
+Clears the 19 pre-existing `bad-systemType` connector defects the round-3 validator
+surfaced. Built against Revit 2025: **0 errors** (4 pre-existing warnings). Connector
+system-type assignment was NOT exercised in Revit — compile- and data-verified only.
+
+Root cause: `SymbolLibraryCreator.AddConnectorList` calls `ResolvePipeSystemType`;
+any string the switch doesn't recognise returns `UndefinedSystemType`, and because
+the factory rejects Undefined the round-1 code falls back to `SupplyHydronic` — so
+unrecognised pipe systemTypes were silently built as domestic heating water.
+
+- **(Task A) Renamed 13 unrecognised pipe systemTypes to recognised strings** across
+  4 seeds (values only; offsets/facing/direction/shape/size and connector counts
+  unchanged): `DomesticCold`→`DomesticColdWater`, `DomesticHot`→`DomesticHotWater`
+  (PlumbingFixture, PlumbingEquipment, LabFixture), `FireProtectWet`→`FireProtectionWet`
+  (Sprinkler), and the ambiguous PlumbingEquipment hydronic pair
+  `SupplyHydronic`→`HotWaterSupply` / `ReturnHydronic`→`HotWaterReturn`. **Hot vs
+  chilled:** chose HotWater — the seed is calorifier/DHW-cylinder/water-heater
+  equipment (standard BS 8558/BS 6700/HSG 274; variants `CALORIFIER`, `DHW_CYLINDER_*`,
+  `WATER_HEATER_ELECTRIC`), a domestic-hot-water/LTHW context with no chilled water;
+  the 28 mm hydronic pair is the primary heating coil. This also fixes conn[3], which
+  was unrecognised and built as *SupplyHydronic* (a return wrongly built as supply).
+- **(Task B) `OtherPipe` made a first-class type** (MedGasOutlet ×4, LabFixture ×2 —
+  med-gas/lab-gas has no native domestic Revit pipe type; intentional, not a typo).
+  Confirmed `PipeSystemType.OtherPipe` exists in the Revit 2025 API (in RevitAPI.dll;
+  compiles), added `case "OtherPipe"` to `ResolvePipeSystemType`, kept the data as
+  `OtherPipe`, and added `OtherPipe` to the validator's recognised Piping set (verified
+  byte-identical to the resolver switch). Also added a visible `StingLog.Warn` in
+  `AddConnectorList` when a pipe connector still resolves to Undefined (names seed id +
+  systemType) so future mis-types surface instead of silently shipping as heating water;
+  the SupplyHydronic fallback is retained (factory rejects Undefined).
+- **Result:** `Symbols_Validate` connector defects across all shipped seeds **19 → 0**.
+
+#### Completed (Symbol Library malformed-connector repair, branch `claude/symbol-fixes-3`)
+
+Fixes a defect the round-2 validator could not catch, plus hardens the validator so
+the class is caught going forward. Built against Revit 2025: **0 errors** (4
+pre-existing warnings). Data + compile verified; connector INSERTION into a real
+duct/pipe run was NOT exercised in Revit.
+
+- **(Task A) Three seeds authored connectors with non-binding keys.**
+  `STING_SEED_MechanicalEquipment` (2), `STING_SEED_ElectricalEquipment` (2) and
+  `STING_SEED_JunctionBox` (4) used `x/y/z` + `direction:"x-"`, which the
+  `ConnectorDefinition` POCO does not bind — Newtonsoft dropped them, so every
+  connector collapsed to the family origin (0,0,0): coincident, wrong-facing, no
+  `systemType`, effectively unroutable (same failure mode as no connectors, but
+  harder to spot). Repaired each preserving its `_notes` intent: `x/y/z` →
+  `offsetX/offsetY/offsetZ` (same values); `facing` set to the opposed axis
+  (−X/+X, −Z/+Z, −Y/+Y); `direction` remapped to a valid flow value (In/Out/
+  Bidirectional); a recognised `systemType` added per domain (HVAC SupplyAir/
+  ReturnAir; Electrical Power; JB 4× Electrical Power on distinct −X/+X/−Y/+Y).
+  Connector counts unchanged (2/2/4); files remain valid JSON. Domains preserved —
+  no domain invented.
+- **(Task B) `Symbols_Validate` now inspects raw connector JSON.** The prior check
+  read the deserialized POCO, so it could not see keys already dropped at
+  deserialization. Added `CheckSeedConnectorValidity` (raw `JObject` pass over
+  symbol- and variant-level connectors) flagging: unbound/unknown keys, missing/
+  unrecognised domain, missing/unrecognised systemType (sets mirror the creator's
+  resolver switches exactly), invalid direction, invalid facing, and coincident
+  positions (missing offset = 0, so origin-collapsed sets are caught). New
+  "Connector defects" report line; read-only. Self-tested: the original x/y/z bug
+  now flags unbound-key + bad-direction + coincident-origin.
+- **Follow-up surfaced (out of scope).** Run against shipped data, the hardened
+  validator reported **0 defects in the 3 repaired seeds** but **19 pre-existing
+  unrecognised-systemType defects in 5 other seeds** (`PlumbingFixture`,
+  `PlumbingEquipment`, `LabFixture`, `MedGasOutlet`, `Sprinkler`) using
+  `DomesticCold`/`DomesticHot` (should be `…Water`), `OtherPipe`, `SupplyHydronic`,
+  `ReturnHydronic`, `FireProtectWet` — none matched by `ResolvePipeSystemType`, so
+  they build as the fallback system type. Not fixed here (task scope = the 3 named
+  seeds only); recommended as a follow-up data pass.
+
+#### Completed (Symbol Library second-pass fixes, branch `claude/symbol-fixes-2`)
+
+Eight review findings on top of the round-1 fixes. Built against Revit 2025:
+**0 errors** (4 pre-existing warnings only). Data-file + compile checks verified
+locally; Revit-runtime family authoring / connector insertion / section rendering
+not exercised. Findings verified against current code first — P5 no longer held and
+was skipped.
+
+- **(P1) `Symbols_Validate` extended** (`Commands/Symbols/SymbolValidateCommand.cs`)
+  with four guards: (1a) catalogue blind spots — symbol libs on disk not in
+  `SymbolBatchHelper.AllBatches` (0 today); (1b) concept→family reference integrity —
+  799 refs, 276 dangling grouped by cause (0 prefix-fixable after P8b / 218
+  view-context / 58 absent, 53 unique); (1c) connector completeness — 12 MEP-category
+  seeds with 0 connectors; (1d) geometry coords |value| > 2.0 (0 today, silently
+  dropped at build).
+- **(P2) Section geometry double-draw** (`Core/Symbols/SymbolLibraryCreator.cs`) — the
+  section `DrawLine` overload authored each curve then fell through a redundant switch
+  that drew it again (overlapping curves, warnings swallowed). Removed the switch;
+  curve authored once.
+- **(P3) Length-spec unit trap** — `TrySetDefault`/`SetVariantParam` set Double
+  parameters straight from JSON; a Length param stores feet, so "600" (mm) → 600 ft.
+  Added `ConvertJsonDoubleForSpec` (mm→ft for Length; other Double specs unchanged).
+  Latent today; no data changed.
+- **(P4) SLD phase heuristic** (`Commands/Symbols/SldAnnotationCommands.cs`) — replaced
+  `Contains("400"/"415"/"3"/"kV")` (misclassified "0.4 kV" and any stray "3") with a
+  numeric voltage parser (V/kV → volts; line-to-line ≥ 300 V → 3-phase; unparseable →
+  single-phase, logged).
+- **(P5) SKIPPED — no longer holds.** The finding described `EnsureStamp` re-opening the
+  destination family per instance; current `EnsureStampFamilies` already groups by
+  `fam.Id` and does one `EditFamily`+reload per distinct family (and the `AutoAuthor`
+  path dedupes via `seen.Add(fam.Id)`). No per-instance re-open exists.
+- **(P6) ParamRegistry alignment** — `SymbolAnnotationEngine.BuildLabel` now routes the
+  circuit param names through `ParamRegistry.CIRCUIT_*` constants (exact matches).
+  `SldAnnotationCommands` `ELC_CIR_*` names have no registry constant, so kept as
+  literals but added a rename-visibility warning when a view has candidate elements
+  but none carry any SLD param.
+- **(P7) Seed connectors** — added two opposed in/out connectors to
+  `STING_SEED_DuctAccessory` (HVAC / SupplyAir) and `STING_SEED_PipeAccessory`
+  (Piping / Hydronic) using the correct `offsetX/offsetY/offsetZ`+`facing` bindable
+  fields. Remaining 12 connector-less MEP seeds recorded as ROADMAP GAP-SYM-08.
+- **(P8) Dangling concept→family refs** — (8b) repointed 11 prefix/name-mismatched
+  concept refs to the ids the catalogue actually defines (8 IEC prefix-strips + 3 IEEE
+  → `IEEE_SLD_TRANSFORMER`/`IEEE_SLD_MOTOR`); prefix-fixable dangling 11→0. (8a) added
+  an optional `Document` to `SymbolConceptRegistry.GetFamilyName`/`ResolveFromMapping`
+  so a viewContext/scale override that isn't loaded degrades to the base family
+  (`IsFamilyLoaded`); wired doc through the four placement callers, left the drift
+  detector unchanged. The ~50 genuinely-absent specialty symbols recorded as ROADMAP
+  GAP-SYM-09 (not authored).
+
+#### Completed (Symbol Library defect fixes, branch `claude/symbol-fixes`)
+
+Fixes six review findings across the Symbol Library subsystem
+(`Core/Symbols/`, `Commands/Symbols/`, `Data/Symbols/`, `Data/Seeds/`). Built
+against Revit 2025: **0 errors** (4 pre-existing warnings only). Data-file and
+compile checks verified locally; Revit-runtime family authoring not exercised.
+
+- **(P1) SLD BS/CIBSE/NFPA catalogues never loaded** — `STING_SLD_SYMBOLS_BS.json`
+  (52), `_CIBSE.json` (36) and `_NFPA.json` (47) used top-level key
+  `symbolDefinitions`, but `SymbolLibrary.Symbols` binds to
+  `[JsonProperty("symbols")]`; all three deserialized to an empty list so
+  `CreateAllFromFile` returned "No symbols in library." and ~135 authored symbols
+  never generated (despite the commands being wired). Renamed the key to `symbols`
+  to match the working IEC/IEEE files; all three now parse into non-empty lists.
+- **(P1) Wrong connector system type** — `AddConnectorList` hardcoded
+  `DuctSystemType.SupplyAir` / `PipeSystemType.SupplyHydronic` in the factory calls
+  and tried to patch the type post-hoc via a read-only param (no-op). Now passes the
+  already-present-but-never-called `ResolveDuctSystemType` / `ResolvePipeSystemType`
+  into `CreateDuctConnector` / `CreatePipeConnector`, falling back to the old default
+  only when the declaration is `Undefined`. Return/exhaust/CHW/sanitary/DCW
+  connectors now build with the correct system type.
+- **(P2) Variant connector leak** — `AddConnectors` unioned every `TypeVariant`'s
+  connectors onto the single family document (a WC would sprout basin/shower
+  connectors). No seed currently declares variant-level connectors, so it was
+  latent, but the design is wrong; now authors only the base connectors and warns
+  (log + result) if a variant declares its own set.
+- **(P2) Cosmetic scale-tier types** — `AddScaleTierTypes` minted a family type per
+  tier and set `STING_SYMBOL_SIZE_MM`, but `DrawGeometry` scales at author-time and
+  never associates geometry to that parameter, so every tier type rendered
+  identically. Chose option (b): stop minting the misleading types; retain
+  `STING_SYMBOL_SIZE_MM` as single-value metadata on the default type and log that
+  scale tiers are metadata-only (view-time tier selection is handled separately by
+  `SymbolScaleEngine`/`SymbolStandardRegistry`).
+- **(P2) Dead swap-registry override** — `SwapToManufacturerCommand.LoadRegistry`
+  computed a project dir then did nothing. Now loads
+  `<project>/_BIM_COORD/family_swap_registry.json` and merges it over the corporate
+  baseline by `seedId` (project wins), mirroring `SwapParameterBridge.LoadAliasMap`.
+- **(P3) Hygiene** — `CloneWithId` now copies the fields it previously dropped
+  (`Hosting`, `IsSeed`, `FormulaBindings`, `TypeVariants`, `ProtectExisting`,
+  `Status`, `SourceFamilyPath`, `SwapCandidates`); `ValidateGeometryCoord`'s warning
+  text now matches the actual `[-2,2]`/skip behaviour (was `[-1,1]`/"Clamping").
+- **New `Symbols_Validate` read-only command** (`Commands/Symbols/SymbolValidateCommand.cs`,
+  wired into `StingCommandHandler` + `WorkflowEngine`) — would have caught the P1 key
+  mismatch: checks every `Data/Symbols` catalogue + `Data/Seeds` seed deserializes to
+  a non-empty `Symbols` list, that `STING_SYMBOL_STANDARDS.json` fallback targets
+  resolve to defined standards, and that `STING_SYMBOL_ALIASES.json` targets resolve
+  to defined concepts. Passes clean (0 issues) on current data.
+
 #### Completed (Wire Element Annotation — Phase 1, branch `claude/wire-element-annotation`)
 
 Extends STING's wire annotation so the cable-spec annotation (conductor tick

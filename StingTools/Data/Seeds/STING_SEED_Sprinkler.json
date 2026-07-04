@@ -106,7 +106,7 @@
       "connectors": [
         {
           "domain": "Piping",
-          "systemType": "FireProtectWet",
+          "systemType": "FireProtectionWet",
           "shape": "Round",
           "sizeMm": 25,
           "direction": "In",
