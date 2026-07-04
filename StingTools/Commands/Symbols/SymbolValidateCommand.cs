@@ -39,7 +39,7 @@ namespace StingTools.Commands.Symbols
         {
             var issues = new List<string>();
             int catalogueOk = 0, catalogueBad = 0, symbolTotal = 0, coordViolations = 0;
-            int blindSpots = 0, connectorlessSeeds = 0;
+            int blindSpots = 0, connectorlessSeeds = 0, connectorDefects = 0;
             int refTotal = 0, danglingTotal = 0, danglingPrefix = 0, danglingViewCtx = 0, danglingAbsent = 0;
 
             try
@@ -100,6 +100,9 @@ namespace StingTools.Commands.Symbols
 
                 // ── 1c) Connector completeness on MEP seeds ───────────────────
                 connectorlessSeeds = CheckSeedConnectors(issues);
+
+                // ── 1e) Raw-JSON connector validity (field-binding correctness) ─
+                connectorDefects = CheckSeedConnectorValidity(issues);
             }
             catch (Exception ex)
             {
@@ -117,6 +120,7 @@ namespace StingTools.Commands.Symbols
             sb.AppendLine($"  Catalogue blind spots: {blindSpots} (symbol libs not in AllBatches)");
             sb.AppendLine($"  Coord violations     : {coordViolations} (|value| > 2.0, dropped at build)");
             sb.AppendLine($"  Connector-less seeds : {connectorlessSeeds} (MEP-category, 0 connectors)");
+            sb.AppendLine($"  Connector defects    : {connectorDefects} (malformed/unbound connector fields)");
             sb.AppendLine($"  Concept refs         : {refTotal}, dangling {danglingTotal} " +
                           $"(prefix-fixable {danglingPrefix} / view-context {danglingViewCtx} / absent {danglingAbsent})");
             sb.AppendLine($"  Issues               : {issues.Count}");
@@ -410,6 +414,142 @@ namespace StingTools.Commands.Symbols
                 }
             }
             return n;
+        }
+
+        // ── 1e) raw-JSON connector validity ───────────────────────────────────
+        // Deserializing into ConnectorDefinition silently DROPS non-binding keys
+        // (e.g. x/y/z instead of offsetX/offsetY/offsetZ), so the POCO shows valid-
+        // looking connectors that actually collapsed to the origin at build. This
+        // check inspects the RAW JSON to catch that class of defect.
+        private static readonly HashSet<string> ConnectorAllowedKeys = new HashSet<string>(
+            new[] { "domain", "systemType", "shape", "sizeMm", "widthMm", "heightMm",
+                    "direction", "offsetX", "offsetY", "offsetZ", "facing" },
+            StringComparer.Ordinal);
+        private static readonly HashSet<string> ConnectorDomains = new HashSet<string>(
+            new[] { "HVAC", "Piping", "Electrical", "Conduit", "CableTray" }, StringComparer.Ordinal);
+        private static readonly HashSet<string> ConnectorFacings = new HashSet<string>(
+            new[] { "+X", "-X", "+Y", "-Y", "+Z", "-Z" }, StringComparer.Ordinal);
+        private static readonly HashSet<string> ConnectorDirections = new HashSet<string>(
+            new[] { "In", "Out", "Bidirectional" }, StringComparer.Ordinal);
+        private static readonly Dictionary<string, HashSet<string>> ConnectorSystemTypes =
+            new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["HVAC"] = new HashSet<string>(new[] { "SupplyAir", "ReturnAir", "ExhaustAir" }, StringComparer.Ordinal),
+            ["Piping"] = new HashSet<string>(new[] {
+                "DomesticColdWater", "DomesticHotWater", "Sanitary", "FireProtectionWet",
+                "FireProtectionDry", "FireProtectionPreaction", "ChilledWaterSupply",
+                "ChilledWaterReturn", "HotWaterSupply", "HotWaterReturn", "Hydronic" }, StringComparer.Ordinal),
+            ["Electrical"] = new HashSet<string>(new[] {
+                "Power", "Lighting", "Data", "Telephone", "FireAlarm", "Security",
+                "NurseCall", "Communication" }, StringComparer.Ordinal),
+        };
+
+        private static int CheckSeedConnectorValidity(List<string> issues)
+        {
+            string seedDir = SeedsDir();
+            if (seedDir == null || !Directory.Exists(seedDir)) return 0;
+            int defects = 0;
+            foreach (var f in Directory.GetFiles(seedDir, "*.json"))
+            {
+                JObject root;
+                try { root = JObject.Parse(File.ReadAllText(f)); }
+                catch (Exception ex) { issues.Add($"[connector] {Path.GetFileName(f)}: JSON parse failed — {ex.Message}"); continue; }
+
+                var syms = root["symbols"] as JArray;
+                if (syms == null) continue;
+                foreach (var sym in syms.OfType<JObject>())
+                {
+                    string sid = sym["id"]?.ToString() ?? "(no id)";
+                    // symbol-level connectors + per-variant connectors (validate both;
+                    // per-variant sets are ignored by the creator but still worth flagging).
+                    defects += ValidateConnectorArray(sym["connectors"] as JArray, Path.GetFileName(f), sid, "", issues);
+                    var variants = sym["typeVariants"] as JArray;
+                    if (variants != null)
+                    {
+                        foreach (var v in variants.OfType<JObject>())
+                        {
+                            string vn = v["name"]?.ToString() ?? "?";
+                            defects += ValidateConnectorArray(v["connectors"] as JArray, Path.GetFileName(f), sid,
+                                $"variant '{vn}' ", issues);
+                        }
+                    }
+                }
+            }
+            return defects;
+        }
+
+        private static int ValidateConnectorArray(JArray connectors, string file, string sid, string scope,
+            List<string> issues)
+        {
+            if (connectors == null) return 0;
+            int defects = 0;
+            var positions = new Dictionary<(double, double, double), int>();
+            for (int i = 0; i < connectors.Count; i++)
+            {
+                var c = connectors[i] as JObject;
+                if (c == null)
+                {
+                    Add(issues, ref defects, file, sid, scope, i, "not a JSON object.");
+                    continue;
+                }
+
+                // (i) unknown / non-binding keys (comment keys starting with "_" allowed).
+                foreach (var prop in c.Properties())
+                {
+                    if (prop.Name.StartsWith("_", StringComparison.Ordinal)) continue;
+                    if (!ConnectorAllowedKeys.Contains(prop.Name))
+                        Add(issues, ref defects, file, sid, scope, i,
+                            $"unbound/unknown key '{prop.Name}' (dropped by Newtonsoft — did you mean offsetX/offsetY/offsetZ/facing?).");
+                }
+
+                // (ii) domain
+                string domain = c["domain"]?.ToString();
+                if (string.IsNullOrEmpty(domain))
+                    Add(issues, ref defects, file, sid, scope, i, "missing 'domain'.");
+                else if (!ConnectorDomains.Contains(domain))
+                    Add(issues, ref defects, file, sid, scope, i, $"domain '{domain}' not recognised.");
+
+                // (iii) systemType (required for the flow domains that carry one).
+                string st = c["systemType"]?.ToString();
+                if (!string.IsNullOrEmpty(domain) && ConnectorSystemTypes.TryGetValue(domain, out var allowedSt))
+                {
+                    if (string.IsNullOrEmpty(st))
+                        Add(issues, ref defects, file, sid, scope, i, $"missing 'systemType' for domain '{domain}'.");
+                    else if (!allowedSt.Contains(st))
+                        Add(issues, ref defects, file, sid, scope, i, $"systemType '{st}' not recognised for domain '{domain}'.");
+                }
+
+                // (iv) direction (optional; validate when present).
+                var dirTok = c["direction"];
+                if (dirTok != null && !ConnectorDirections.Contains(dirTok.ToString()))
+                    Add(issues, ref defects, file, sid, scope, i,
+                        $"direction '{dirTok}' invalid (expected In/Out/Bidirectional).");
+
+                // (v) facing (optional; validate when present).
+                var faceTok = c["facing"];
+                if (faceTok != null && !ConnectorFacings.Contains(faceTok.ToString()))
+                    Add(issues, ref defects, file, sid, scope, i,
+                        $"facing '{faceTok}' invalid (expected +X/-X/+Y/-Y/+Z/-Z).");
+
+                // (vi) coincident position — missing offset key counts as 0.
+                double ox = c["offsetX"]?.Value<double>() ?? 0.0;
+                double oy = c["offsetY"]?.Value<double>() ?? 0.0;
+                double oz = c["offsetZ"]?.Value<double>() ?? 0.0;
+                var key = (ox, oy, oz);
+                if (positions.TryGetValue(key, out int firstIdx))
+                    Add(issues, ref defects, file, sid, scope, i,
+                        $"coincident position ({ox},{oy},{oz}) with conn[{firstIdx}] — connectors collapsed to the same point.");
+                else
+                    positions[key] = i;
+            }
+            return defects;
+        }
+
+        private static void Add(List<string> issues, ref int defects, string file, string sid, string scope,
+            int idx, string reason)
+        {
+            defects++;
+            issues.Add($"[connector] {file}:{sid} {scope}conn[{idx}] — {reason}");
         }
 
         // ── shared helpers ────────────────────────────────────────────────────
