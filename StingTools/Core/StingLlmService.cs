@@ -45,6 +45,14 @@ namespace StingTools.Core
         private string _claudeKey;
         private string _claudeModel;
         private bool   _enabled;
+        private string _provider;          // "claude" | "azure" — which provider to prefer
+        private int    _timeoutSeconds = 10;
+
+        /// <summary>The Claude model id currently configured (for transcripts / display). Never a secret.</summary>
+        public string ActiveModel => string.IsNullOrWhiteSpace(_claudeModel) ? "claude-haiku-4-5-20251001" : _claudeModel;
+
+        /// <summary>The preferred provider ("claude" | "azure"). Never a secret.</summary>
+        public string ActiveProvider => string.IsNullOrWhiteSpace(_provider) ? "claude" : _provider;
 
         // Valid command tags — LLM output is rejected unless it is in this whitelist
         private static readonly HashSet<string> _commandWhitelist = BuildWhitelist();
@@ -69,11 +77,37 @@ namespace StingTools.Core
                 _azureKey       = cfg["azure_api_key"]?.Value<string>();
                 _claudeKey      = cfg["claude_api_key"]?.Value<string>();
                 _claudeModel    = cfg["claude_model"]?.Value<string>()        ?? "claude-haiku-4-5-20251001";
+
+                // Provider preference (explicit key wins; otherwise inferred from which
+                // credentials are present) — keeps the settings-dialog radio meaningful
+                // without deleting the other provider's saved credentials.
+                _provider = cfg["provider"]?.Value<string>()?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(_provider))
+                    _provider = !string.IsNullOrWhiteSpace(_claudeKey) ? "claude"
+                              : (!string.IsNullOrWhiteSpace(_azureEndpoint) && !string.IsNullOrWhiteSpace(_azureKey)) ? "azure"
+                              : "claude";
+
+                int t = cfg["timeout_seconds"]?.Value<int?>() ?? 10;
+                _timeoutSeconds = t > 0 ? t : 10;
+                // HttpClient.Timeout can only be set before the first request; on a live
+                // reload it may throw — swallow it (the message carries no secret).
+                try { _http.Timeout = TimeSpan.FromSeconds(_timeoutSeconds); }
+                catch (Exception tex) { StingLog.Warn($"LLM timeout not applied (request already in flight): {tex.Message}"); }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"LLM config load failed (offline mode): {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Re-read STING_LLM_CONFIG.json so a save from the settings dialog takes effect
+        /// without restarting Revit. Never logs credential values.
+        /// </summary>
+        public void ReloadConfig()
+        {
+            LoadConfig();
+            StingLog.Info($"LLM config reloaded (enabled={_enabled}, provider={_provider}, model={_claudeModel}).");
         }
 
         // ── 1. Design brief parser ────────────────────────────────────────────
@@ -147,33 +181,98 @@ namespace StingTools.Core
         {
             if (!_enabled) return null; // LLM disabled in config — rule-based fallback handles this
 
-            // Try Azure OpenAI first
-            if (!string.IsNullOrEmpty(_azureEndpoint) && !string.IsNullOrEmpty(_azureKey))
-            {
-                try
-                {
-                    return await CallAzureOpenAiAsync(userPrompt, systemPrompt);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Azure OpenAI failed, trying Claude fallback: {ex.Message}");
-                }
-            }
+            bool azureReady  = !string.IsNullOrEmpty(_azureEndpoint) && !string.IsNullOrEmpty(_azureKey);
+            bool claudeReady = !string.IsNullOrEmpty(_claudeKey);
+            bool preferAzure = string.Equals(_provider, "azure", StringComparison.OrdinalIgnoreCase);
 
-            // Try Claude API
-            if (!string.IsNullOrEmpty(_claudeKey))
+            // Try the preferred provider first, then fall back to the other.
+            foreach (bool tryAzure in preferAzure ? new[] { true, false } : new[] { false, true })
             {
-                try
+                if (tryAzure && azureReady)
                 {
-                    return await CallClaudeAsync(userPrompt, systemPrompt);
+                    try { return await CallAzureOpenAiAsync(userPrompt, systemPrompt); }
+                    catch (Exception ex) { StingLog.Warn($"Azure OpenAI failed: {ex.Message}"); }
                 }
-                catch (Exception ex)
+                else if (!tryAzure && claudeReady)
                 {
-                    StingLog.Warn($"Claude API failed: {ex.Message}");
+                    try { return await CallClaudeAsync(userPrompt, systemPrompt); }
+                    catch (Exception ex) { StingLog.Warn($"Claude API failed: {ex.Message}"); }
                 }
             }
 
             return null; // Both unavailable — caller uses offline fallback
+        }
+
+        // ── Test connection (settings dialog) ─────────────────────────────────
+        //
+        // Sends a trivial prompt using the values PASSED IN (the dialog's current
+        // fields, not the saved config) so the user can verify before saving. Never
+        // logs the key — only the exception type + message (which carry no secret).
+
+        public async Task<(bool ok, string message)> TestConnectionAsync(
+            bool useClaude, string claudeKey, string claudeModel,
+            string azureEndpoint, string azureKey, string azureDeployment)
+        {
+            try
+            {
+                if (useClaude)
+                {
+                    if (string.IsNullOrWhiteSpace(claudeKey))
+                        return (false, "No Claude API key entered.");
+
+                    string model = string.IsNullOrWhiteSpace(claudeModel) ? "claude-haiku-4-5-20251001" : claudeModel;
+                    var body = new
+                    {
+                        model,
+                        max_tokens = 16,
+                        messages = new[] { new { role = "user", content = "Reply with the single word OK." } }
+                    };
+                    var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                    req.Headers.Add("x-api-key", claudeKey);
+                    req.Headers.Add("anthropic-version", "2023-06-01");
+                    req.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                    var resp = await _http.SendAsync(req);
+                    string json = await resp.Content.ReadAsStringAsync();
+                    if (!resp.IsSuccessStatusCode)
+                        return (false, $"Claude API {(int)resp.StatusCode}: {ExtractApiError(json) ?? "request failed"}");
+                    string text = JObject.Parse(json)["content"]?[0]?["text"]?.Value<string>();
+                    return (true, $"Claude ({model}) responded: {(text ?? "OK").Trim()}");
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(azureEndpoint) || string.IsNullOrWhiteSpace(azureKey))
+                        return (false, "Azure endpoint and API key are required.");
+
+                    string dep = string.IsNullOrWhiteSpace(azureDeployment) ? "gpt-4o-mini" : azureDeployment;
+                    string url = $"{azureEndpoint.TrimEnd('/')}/openai/deployments/{dep}/chat/completions?api-version=2024-02-01";
+                    var body = new
+                    {
+                        messages = new[] { new { role = "user", content = "Reply with the single word OK." } },
+                        max_tokens = 16,
+                        temperature = 0.0
+                    };
+                    var req = new HttpRequestMessage(HttpMethod.Post, url);
+                    req.Headers.Add("api-key", azureKey);
+                    req.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                    var resp = await _http.SendAsync(req);
+                    string json = await resp.Content.ReadAsStringAsync();
+                    if (!resp.IsSuccessStatusCode)
+                        return (false, $"Azure OpenAI {(int)resp.StatusCode}: {ExtractApiError(json) ?? "request failed"}");
+                    string text = JObject.Parse(json)["choices"]?[0]?["message"]?["content"]?.Value<string>();
+                    return (true, $"Azure ({dep}) responded: {(text ?? "OK").Trim()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LLM test connection failed: {ex.GetType().Name}: {ex.Message}");
+                return (false, $"Connection failed: {ex.Message}");
+            }
+        }
+
+        private static string ExtractApiError(string json)
+        {
+            try { return JObject.Parse(json)["error"]?["message"]?.Value<string>(); }
+            catch { return null; }
         }
 
         private async Task<string> CallAzureOpenAiAsync(string userPrompt, string systemPrompt)
