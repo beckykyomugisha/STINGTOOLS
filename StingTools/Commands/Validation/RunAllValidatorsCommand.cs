@@ -42,6 +42,10 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new MaintenanceClashValidator().Validate(doc));
                 // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
                 all.AddRange(new ClassificationAuditValidator().Validate(doc));
+                // Task D — conduit routing pre-flight: off-list connector sizes
+                // (phantom-reducer risk) + electrical devices with no conduit
+                // connector (sleeve targets).
+                all.AddRange(new RoutingPreflightValidator().Validate(doc));
             }
             catch (Exception ex)
             {

@@ -190,6 +190,22 @@ namespace StingTools.Core.Mep
         public double ConduitMaxFillPct { get; set; } = 45.0;
         public double CableTrayMaxFillPct { get; set; } = 50.0;
 
+        /// <summary>
+        /// Nominal diameter (mm) of the short conduit stub authored by
+        /// SleeveConnectorEngine on manufacturer fixtures that lack a
+        /// conduit connector. Default 20 mm = BS 7671 final-circuit conduit.
+        /// Override via conduit.sleeveStubSizeMm in the project rules file.
+        /// </summary>
+        public double ConduitSleeveStubSizeMm { get; set; } = 20.0;
+
+        /// <summary>
+        /// Length (mm) of the sleeve stub — long enough to expose a free,
+        /// grabbable conduit terminal outside the fixture face but short
+        /// enough not to look like a real run. Override via
+        /// conduit.sleeveStubLengthMm in the project rules file.
+        /// </summary>
+        public double ConduitSleeveStubLengthMm { get; set; } = 150.0;
+
         // Strategy + balancing + acoustics
         public List<SizingStrategyOption> SizingStrategies { get; set; } = new();
         public BalancingSettings Balancing { get; set; } = new();
@@ -521,7 +537,12 @@ namespace StingTools.Core.Mep
             }
 
             var conduit = j["conduit"] as JObject;
-            if (conduit != null) rules.ConduitMaxFillPct = (double?)conduit["maxFillPct"] ?? rules.ConduitMaxFillPct;
+            if (conduit != null)
+            {
+                rules.ConduitMaxFillPct = (double?)conduit["maxFillPct"] ?? rules.ConduitMaxFillPct;
+                rules.ConduitSleeveStubSizeMm   = (double?)conduit["sleeveStubSizeMm"]   ?? rules.ConduitSleeveStubSizeMm;
+                rules.ConduitSleeveStubLengthMm = (double?)conduit["sleeveStubLengthMm"] ?? rules.ConduitSleeveStubLengthMm;
+            }
             var tray = j["cableTray"] as JObject;
             if (tray != null) rules.CableTrayMaxFillPct = (double?)tray["maxFillPct"] ?? rules.CableTrayMaxFillPct;
 

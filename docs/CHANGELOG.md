@@ -2477,6 +2477,153 @@ non-STING family and confirm positions + values survive.**
    STING target is empty). Swapping to a STING-naive family now preserves
    positions + values. Result panel + audit report families stamped.
 
+#### Completed (Phase 198 — Sleeve method review follow-ups + non-interactive workflow wiring, branch `claude/conduit-auto-routing`)
+
+Closes the two-reviewer follow-ups on PR #386 and adds the queued unattended sleeve path.
+
+**Fix 1 — per-fixture idempotency (was a dense-fixture bug).** `SleeveConnectorEngine`'s
+idempotency probe previously treated *any* conduit end connector within 50 mm of a terminal
+as "already sleeved", so two connector-less fixtures on one back-box / adjacent floor-box
+modules (~30 mm apart) shared a stub — the second got none. The `STING_SLEEVE_STUB` marker
+was written but never read. Now the marker carries the fixture id
+(`STING_SLEEVE_STUB:<ElementId>`); `AlreadySleeved` matches a stub to its fixture by that
+stamp (any spacing) with a tightened 10 mm coincidence fallback for when the marker param is
+unbound. Two fixtures 30 mm apart each get their own stub; a genuine re-run still places
+nothing.
+
+**Fix 2 — offset-reader divergence.** `AutoConduitDrop.FindSleeveStub` inlined a Double-only
+`FIXTURE_DROP_OFFSET_Z_MM` read that diverged from the canonical `DropEngineBase.ReadDropOffsetMm`
+(Double feet + String mm) the sleeve engine uses. Replaced with the inherited reader, and the
+marker match switched to `StartsWith` (the marker now carries the id suffix).
+
+**Fix 3 — floor-box stub direction.** Stubs always rose +Z. `ResolveStubDirZ` now drops −Z for
+floor-mounted devices (`ELE_FIX_MOUNT_HEIGHT_MM ≈ 0`, `ELE_FIX_TYPE_TXT`/name containing
+"FLOOR", or a `Floor` host); wall/ceiling boxes still rise +Z.
+
+**Fix 4 — unit contract documented.** `FIXTURE_DROP_OFFSET_Z_MM` Double values are internal
+feet (bind as a **Length** spec) — a plain Number binding is a 304.8× error. Documented on both
+readers (code) and here (String params carry raw mm).
+
+**Fix 5 — pre-flight scope annotated.** `AutoDropCommand`'s whole-model → filter-to-selection
+pre-flight is intentional (the validator has no per-element overload; a project-wide electrical
+scan is cheap vs routing); annotated in place.
+
+**Feature — non-interactive sleeve command + workflow wiring.** New
+`Routing_PlaceSleeveConnectorsAuto` (`PlaceSleeveConnectorsAutoCommand`) runs the engine live
+with NO dialog, logs a `StingLog` summary, and returns `Succeeded` (clean no-op when nothing to
+sleeve) — safe headless. Registered in `WorkflowEngine.ResolveCommand` and `StingCommandHandler`.
+`WORKFLOW_ElectricalRoughIn.json` gains a sleeve step between `Placement_PlaceFixtures` and
+`Routing_AutoDrop`, so the electrical rough-in runs end-to-end with no modal prompt and authors
+conduit terminals on connector-less/swapped fixtures before the drop. The interactive
+`Routing_PlaceSleeveConnectors` remains for ad-hoc use (also now wired into `StingCommandHandler`).
+
+**Verify status.** `dotnet build` on Revit 2025: **0 errors, 4 pre-existing warnings**; zero new
+warnings. Workflow JSON parses; all five step `commandTag`s resolve in `ResolveCommand`.
+**Live-Revit smoke test still PENDING** — Revit was open with the prior build loaded during this
+work, so the new DLL could not be deployed or exercised. Manual gate (scratch `.rvt` with rooms
++ a cable tray above): `Seeds_Build` → run `WORKFLOW_ElectricalRoughIn` (select rooms first) →
+swap some fixtures to a manufacturer family with no conduit connector → confirm each
+connector-less fixture gets a free, correctly-oriented `CableTrayConduit` terminal (re-run =
+no-op) → `Routing_AutoDrop` creates bonded conduit (`Connector.IsConnected`) → `Validation_RunAll`
+shows zero `CONN.OPEN` on routed fixtures and `SIZE.MISMATCH` only where expected.
+
+#### Completed (Phase 196 — Electrical conduit auto-routing after placement)
+
+Closes the gap that every market conduit plugin (ricaun EasyConduit, ConduiTool,
+Automatic Conduit, EVOLVE) leaves open: they all require families to already carry
+conduit connectors but none author them. StingTools authors connectors from JSON at
+seed-build time, so the fix is data + wiring, not a new routing engine.
+
+- **Electrical fixture seed connectors** (`Data/Seeds/STING_SEED_ElectricalFixture.json`):
+  the seed shipped with zero connectors, so placed sockets/switches/FCUs/isolators/
+  EV-chargers/data-outlets landed connector-less and `AutoConduitDrop.FindBestFreeConnector()`
+  fell back to the family `LocationPoint` (wrong terminal). Added one symbol-level
+  conduit terminal connector (`domain:"Conduit"` → `Domain.DomainCableTrayConduit`,
+  `facing:"+Z"`, `sizeMm:20`) that applies to all 55 variants.
+- **`WORKFLOW_ElectricalRoughIn.json`**: `Seeds_Build → Placement_PlaceFixtures →
+  Routing_AutoDrop → Validation_RunAll`. `PlaceFixturesCommand` leaves its placed IDs
+  selected; `AutoDropCommand` reads that selection and dispatches electrical fixtures
+  to `AutoConduitDrop`. This is the electrical place→route chain (plumbing already had
+  one shape of it).
+- **`WorkflowEngine.ResolveCommand`**: added `Placement_PlaceFixtures`, `Routing_AutoDrop`,
+  `Validation_RunAll`. `RunCommandByTag` resolves *only* through `ResolveCommand`, and
+  these were absent — every rough-in place/route/validate step returned FAILED despite
+  valid JSON.
+
+**Verified**: domain literal `"Conduit"` and field names `offsetX/offsetY/offsetZ/facing`
+match the `ConnectorDefinition` `[JsonProperty]` bindings; workflow uses `commandTag`/
+`label` per the `WorkflowStep` POCO (`command`/`name` do NOT bind). `dotnet build`
+succeeds on Revit 2025 (0 errors). Not yet exercised in a live Revit model.
+
+**Follow-ups (found, documented, not fixed to keep scope tight):**
+1. `WORKFLOW_PlumbingRoughIn.json` uses `command`/`name`/`skipIfFamilyLoaded` which do
+   not bind — that workflow is runtime-dead and needs the same field-name fix.
+2. Equipment / JunctionBox seed connectors use `x/y/z/direction` which do not bind to
+   `offsetX/offsetY/offsetZ/facing` → those connectors land at origin facing `-X`; and
+   JB connectors are `Domain=Electrical` (power), not `Conduit`, so they cannot yet act
+   as conduit auto-route anchors.
+3. Sleeve-connector engine (author a physical conduit stub + connector on manufacturer
+   families that lose the seed's connector on swap) — the "sleeve method" — remains to
+   be built. `AutoConduitDrop`'s `LocationPoint` fallback partially covers connector-less
+   fixtures in the interim.
+
+#### Completed (Phase 197 — Sleeve method + routing convergence, branch `claude/conduit-auto-routing`)
+
+Closes all three Phase 196 follow-ups and adds the sleeve-connector engine that lets
+manufacturer families route even after they lose the seed's conduit connector on swap.
+Owning connector authorship is the differentiator — market tools require a conduit
+connector and none author one.
+
+**Task A — revive two runtime-dead data files.**
+- `WORKFLOW_PlumbingRoughIn.json` used `command`/`name`/`skipIfFamilyLoaded` keys that do
+  not bind to the `WorkflowStep` POCO (`[JsonProperty] commandTag/label`). Rewrote all 8
+  steps to `commandTag`/`label`; every tag now resolves in `WorkflowEngine.ResolveCommand`
+  (`Seeds_Build` replaces the nonexistent `BuildSeedFamilies`).
+- `STING_SEED_JunctionBox.json` + `STING_SEED_ElectricalEquipment.json` seed connectors
+  used `x/y/z/direction` keys (unbound — the creator reads `offsetX/offsetY/offsetZ` +
+  `facing`), so every connector collapsed to `(0,0,0)` facing `-X`. Converted to the
+  bindable schema. Junction-box connectors switched `Electrical → Conduit` (a JB is a
+  physical conduit junction) so `AutoConduitDrop` bonds to them; equipment keeps its two
+  power connectors (now `systemType:"Power"` → `PowerCircuit`, was rejected as
+  `UndefinedSystemType`) and gains one added `Conduit` terminal so panels/DBs also become
+  conduit anchors.
+
+**Task B — sleeve-connector engine (`Core/Mep/SleeveConnectorEngine.cs` + command).**
+For each fixture lacking a free `Domain.DomainCableTrayConduit` connector, authors a short
+conduit stub (`Conduit.Create` on a 20/25 mm type) rising out of the fixture face; the
+outward end is a real, free conduit terminal for `AutoConduitDrop` to extend. Idempotent
+(geometric end-connector proximity + `ELC_CDT_INSTALL_METHOD_TXT == STING_SLEEVE_STUB`
+marker) and dry-run capable (`Run(fixtures, dryRun:true)` plans without a transaction or
+geometry — required, since it can't be Revit-tested from the dev box). Command
+`Routing_PlaceSleeveConnectors` (selection → else active-view electrical fixtures) always
+offers Preview-only vs Place, wired into `ResolveCommand`. Stub size/length tunable via
+`conduit.sleeveStubSizeMm`/`sleeveStubLengthMm` in the `MepSizingRegistry` project
+override. `AutoConduitDrop.ResolveRoutingSource` extends an authored stub instead of
+duplicating a drop from the LocationPoint.
+
+**Task C — converge the third routing silo.** New `Core/Routing/RoutingOriginResolver` —
+one origin contract (free conduit connector → any free connector → any connector →
+LocationPoint). `ConduitAutoRouteCommand` (cable-manifest router) now resolves its
+start/end through it instead of reading `LocationPoint` directly, so conduit runs begin
+at the placed-fixture connectors `AutoConduitDrop` already honours.
+
+**Task D — pre-flight hardening.** New `Core/Validation/RoutingPreflightValidator` gates
+routing: `SIZE.MISMATCH` when a conduit connector's Ø is not in the project Conduit
+Standards size list (`ConduitSizeSettings`) — the phantom-reducer / "no auto-route
+solution" cause — and `CONN.DOMAIN.NOCONDUIT` (Info) for electrical devices with MEP
+connectors but no conduit connector (sleeve targets). Registered in
+`RunAllValidatorsCommand` and run as a pre-flight inside `AutoDropCommand`'s electrical
+group so problems surface before drops. `DropEngineBase` (+ the sleeve engine) now honour
+a `FIXTURE_DROP_OFFSET_Z_MM` per-family hint on the LocationPoint fallback for legacy
+connector-less families.
+
+**Verified**: `dotnet build` succeeds on Revit 2025 (0 errors, 4 pre-existing warnings)
+after every task. All JSON keys diffed against the target `[JsonProperty]` names. `ConduitSizeSettings` / `ConduitSize.NominalDiameter` confirmed present in the Revit 2025 API.
+**Not Revit-verified** (no live model on this box): the full sleeve→drop pipeline and
+`CONN.OPEN` accounting are model-specific; the sleeve engine's core promise (a free,
+correctly-oriented conduit terminal per connector-less fixture; idempotent; dry-run) holds
+by construction.
+
 #### Completed (Phase 195 — EDGE/LEED Sustainability Module)
 
 Built to the approved design spec

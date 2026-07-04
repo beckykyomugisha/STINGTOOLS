@@ -225,6 +225,8 @@ namespace StingTools.UI
 
                     // ── v4 MVP: auto-drop routing (Phase 3) ──
                     case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
+                    case "Routing_PlaceSleeveConnectors":     RunCommand<Commands.Routing.PlaceSleeveConnectorsCommand>(app); break;
+                    case "Routing_PlaceSleeveConnectorsAuto": RunCommand<Commands.Routing.PlaceSleeveConnectorsAutoCommand>(app); break;
                     case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;
                     case "Routing_ValidateFills":    RunCommand<Commands.Routing.ValidateFillsCommand>(app); break;
 
