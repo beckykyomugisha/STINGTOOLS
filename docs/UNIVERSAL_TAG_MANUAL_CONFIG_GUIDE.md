@@ -163,7 +163,38 @@ Turn subcategory `STING_TagStatus` **OFF** in print/issue view templates (VG); l
 in on-screen QA views. Revit has no per-element print flag — this subcategory switch is the
 clean equivalent.
 
-### 3e. Conveyor caveat (verify in the smoke test)
+### 3e. Same label or separate? — glyph placement for clean visuals (IMPORTANT)
+
+**You cannot put a coloured glyph *inside* the label.** A Revit label is a pure **text**
+element — it holds only parameter text + calculated values. Graphic traffic-light symbols
+are separate annotation elements. So the badges are **NOT** part of the 62-row label.
+
+Placement options, worst → best:
+- ❌ **Text symbol inside the label** (a calc value emitting ● / ▲ / ✕). Works, but it's
+  **monochrome** (a label is one colour — no green/amber/red) and it **flows with the text**,
+  so it drifts as tiers toggle. Rejected.
+- ❌ **A separate label per colour.** This was the original idea and is rejected for the same
+  reason per-colour *text* tiers were: separate label elements sit at **fixed XY and don't
+  reflow**, so they gap/overlap. Don't.
+- ✅ **Nested generic-annotation symbols at a FIXED anchor** (recommended). One nested badge
+  family per side, on subcategory `STING_TagStatus`, giving true per-glyph colour, clean
+  on/off, and reuse.
+
+**Best-practice layout (not broken):**
+1. The 62-row text stays **ONE label** that reflows as tiers toggle.
+2. Place the two badges as **nested annotation families** anchored to a **FIXED point the
+   reflowing label never crosses** — put them **ABOVE the first text line or hard-LEFT of the
+   tag origin** (data gate top-left, QA gate top-right). **Never below or inline** with the
+   flowing block: the label grows/shrinks with tier depth, and anything beneath it gets
+   overrun.
+3. Prefer **one nested family per side** (its 3 internal glyphs switched by the `vis_*`
+   Yes/No params) over 6 loose symbolic elements — cleaner to move, colour, and propagate.
+
+Rule of thumb: **text tiers want reflow (one flowing label); badges want a fixed header
+anchor (separate nested symbols).** Mixing the two — badges inside/below the flow — is exactly
+what breaks the layout.
+
+### 3f. Conveyor caveat (verify in the smoke test)
 The badges are family elements + params, so they ride the master and propagate to all 206 via
 recategorise. **Nested-symbol survival through recategorise is UNTESTED** — it's verification
 **V5** in `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`. Build them into the master, propagate to Duct,
