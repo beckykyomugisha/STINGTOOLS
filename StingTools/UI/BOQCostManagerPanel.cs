@@ -1120,7 +1120,7 @@ namespace StingTools.UI
                      "collections + grand summary. Choose priced or unpriced.", true),
                     ("Import QS Bill", "BOQQsImport",
                      "Re-import the QS's priced workbook. Shows a diff (rate changes / new rows / model-qty drift) " +
-                     "before applying. Model quantities preserved; QS rates land as RateSource=QS.", false),
+                     "before applying. Model quantities preserved; the QS's rates are applied to the matching lines.", false),
                     ("Rate Gap Report", "BOQ_RateGapReport",
                      "List every modelled item that still needs a price (no rate / low confidence / defaulted), the " +
                      "value at risk, and a CSV worklist to hand the QS. Read-only.", false),
@@ -1141,19 +1141,19 @@ namespace StingTools.UI
                 new[]
                 {
                     ("★ Run Cost Workflow", "Cost_RunWorkflow",
-                     "Pick and run a WORKFLOW_BOQ_*.json preset (Full Refresh / Quick Valuation / Tender Pack)", true),
+                     "Pick and run a saved cost workflow (Full Refresh / Quick Valuation / Tender Pack)", true),
                     ("Validate Cost",        "Cost_ValidateAll",
-                     "Run the 5-validator chain (missing material / untyped category / unpriced PROD / zero qty / stale)", false),
+                     "Check the bill for problems — missing material, unclassified category, unpriced item, zero quantity, or out-of-date lines.", false),
                     ("Clear Stale Flags",    "Cost_ClearStale",
-                     "Reset ASS_CST_STALE_BOOL on every element after a successful BOQ build", false),
+                     "Clear the out-of-date flag on every element after a clean bill rebuild.", false),
                     ("Toggle Stale Marker",  "Cost_ToggleStaleMarker",
-                     "Enable/disable the IUpdater that flags BOQ rows as stale on geometry change", false),
+                     "Turn the automatic out-of-date detector on or off — it flags bill lines when an element's geometry changes.", false),
                     ("Reload Rules",         "Cost_ReloadRules",
-                     "Invalidate rate provider / take-off rule / ICMS3 phase / CostStamp / default-rates caches", false),
-                    ("Migrate UGX → Neutral","Cost_MigrateCurrencyParams",
-                     "One-shot: copy legacy CST_UNIT_RATE_UGX into currency-neutral params + FX stamp", false),
-                    ("Migrate ES v1 → v2",   "Cost_MigrateESEntities",
-                     "Bulk-migrate v1 Extensible Storage cost overrides to v2 (waste / OH / profit / lock)", false),
+                     "Reload the pricing rules, take-off rules and rate tables from disk.", false),
+                    ("Update Currency Fields","Cost_MigrateCurrencyParams",
+                     "One-time update — copy older single-currency rates into the current multi-currency fields, with an exchange-rate stamp.", false),
+                    ("Update Cost Overrides", "Cost_MigrateESEntities",
+                     "One-time update — bring older saved cost overrides (waste / overheads / profit / lock) up to the current format.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Live Rate Feeds",
@@ -1183,7 +1183,7 @@ namespace StingTools.UI
                     ("WBS / CBS map", "BOQ_WbsMap",
                      "Edit rules that assign WBS / CBS codes from element attributes (category / discipline / NRM2 § / level / zone). Saved to the project; lines with no rule inherit the linked 4D task's WBS. Group the bill by WBS / CBS via the Group dropdown.", false),
                     ("★ Export to ERP", "BOQ_ExportErp",
-                     "Write a flat, import-ready CSV (WBS · CBS · cost code · qty · rate · total · level · location · source · IfcGuid) — the union most ERP / accounting importers accept — plus an optional Primavera P6 activity-cost XML. Opens inline.", true),
+                     "Write a flat, import-ready CSV (WBS · CBS · cost code · qty · rate · total · level · location · source · IFC GUID) — the combined set most ERP / accounting importers accept — plus an optional Primavera P6 activity-cost XML.", true),
                 }));
 
             sp.Children.Add(BuildActionGroup("Cost Plan (NRM1)",
@@ -1203,7 +1203,7 @@ namespace StingTools.UI
                 new[]
                 {
                     ("Set % Complete",   "PaymentCert_SetProgress",
-                     "Stamp % complete on a BOQ section's elements (ASS_PMT_PCT_COMPLETE_NR) — the input for Issue Cert + EVM.", false),
+                     "Record % complete on a bill section's elements — the input for Issue Cert and Earned Value.", false),
                     ("★ Issue Cert",     "PaymentCert_Issue",
                      "Build a draft interim cert from current BOQ + weighted % complete. Retention auto-halves.", true),
                     ("Cert Document",    "PaymentCert_ExportDoc",
@@ -1221,7 +1221,7 @@ namespace StingTools.UI
                 new[]
                 {
                     ("★ Variation from Diff","Variation_FromDiff",
-                     "Mint a draft VO from a BOQSnapshotDiff. Numbered VO-AI / VO-CE / VO-EI / VO-CC.", true),
+                     "Create a draft variation order from the changes between two snapshots. Numbered VO-AI / VO-CE / VO-EI / VO-CC.", true),
                     ("Star Rate Build-Up",   "Variation_BuildStarRate",
                      "Author a star rate from first principles — labour + plant + materials + OH + profit", false),
                     ("VO Register",          "Variation_ExportRegister",
@@ -1241,11 +1241,11 @@ namespace StingTools.UI
                 new[]
                 {
                     ("Import Programme", "Sched_Import",
-                     "Import an MS Project .xml or Primavera .xer/.xml through the one converged parser — predecessors read, % complete normalised, dates seconds-tolerant — into the unified _BIM_COORD/schedule.json.", false),
+                     "Import an MS Project .xml or Primavera .xer/.xml programme — predecessors, % complete and dates are read into the project's unified schedule.", false),
                     ("★ Critical Path", "Sched_Cpm",
-                     "Run the CPM forward/backward pass over the unified schedule — critical path, total & free float — on the Uganda working calendar (override at _BIM_COORD/working_calendar.json). CSV out.", true),
+                     "Run the critical-path forward/backward pass over the schedule — critical path, total & free float — on the Uganda working calendar. CSV out.", true),
                     ("Model % Complete", "Sched_ModelPercent",
-                     "Derive each task's % complete from model state — element-linked tasks from ASS_PMT_PCT_COMPLETE_NR, phase-named tasks from a phase-reached proxy — and write it back to feed EVM + the S-curve.", false),
+                     "Work out each task's % complete from the model — from the % recorded on linked elements, or from the phase a task has reached — and write it back to feed Earned Value and the S-curve.", false),
                     ("★ Cash-Flow S-Curve", "Sched_SCurve",
                      "Time-phase each task's value over its own start/finish into a monthly cash-flow S-curve. This becomes the REAL EVM Planned Value (EVM reads PV off it). CSV out.", true),
                 }));
@@ -1257,7 +1257,7 @@ namespace StingTools.UI
                     ("★ Calculate EVM", "Evm_Calculate",
                      "Compute every PMI metric with Green/Amber/Red gates at CPI 0.95 / 1.00", true),
                     ("Import Actuals",  "Evm_ImportActuals",
-                     "Sum the latest actuals CSV under _bim_manager/actuals/", false),
+                     "Sum the latest actual-cost spreadsheet for the project.", false),
                     ("Export S-Curve",  "Evm_ExportReport",
                      "CSV of every EVM period — drives an S-curve in your favourite chart tool", false),
                 }));
@@ -1269,14 +1269,14 @@ namespace StingTools.UI
                     ("★ Anticipated Final Cost", "Cost_AnticipatedFinalCost",
                      "Modelled works + manual/PS allowances + agreed variations + pending variations → AFC vs budget. On screen + XLSX.", true),
                     ("Set Contract Sum", "Cost_SetContractSum",
-                     "Freeze the contract sum at award (writes COST_CONTRACT_SUM_UGX + an Award snapshot) so the Final Account and AFC use a frozen baseline instead of guessing from a snapshot name.", false),
+                     "Freeze the contract sum at award (saves the figure and an Award snapshot) so the Final Account and Anticipated Final Cost use a fixed baseline instead of guessing from a snapshot name.", false),
                     ("Fluctuations", "Fluctuations_Compute",
-                     "Compute index-linked fluctuations (NEDO/BCIS formula or UBOS CPI) from a basket edited at " +
-                     "_BIM_COORD/fluctuations.json; writes COST_FLUCTUATIONS_UGX into the AFC + Final Account waterfalls.", false),
+                     "Compute index-linked fluctuations (NEDO/BCIS formula or UBOS CPI) from a basket of indices; " +
+                     "the result flows into the Anticipated Final Cost and Final Account.", false),
                     ("Final Account", "FinalAccount_Reconcile",
-                     "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures; persists to _BIM_COORD/final_account.json.", false),
+                     "Signed reconciliation: Contract Sum (frozen at award) ± provisional/PC actuals ± agreed variations ± fluctuations = Final Account, with as-built variance. XLSX with variations + provisional annexures.", false),
                     ("Reconcile Provisionals", "ReconcileProvisionals",
-                     "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and persists across reopen.", false),
+                     "Record the final-account actual against each provisional sum (estimate → actual trail). The movement feeds the Anticipated Final Cost and is kept when you reopen the project.", false),
                     ("Preliminaries schedule", "BOQ_Prelims",
                      "Keep the flat prelims % or switch to an itemised built-up preliminaries schedule (site set-up, staff, welfare, insurances…). The active basis rolls into the grand total and the XLSX export.", false),
                     ("Labour rollup", "BOQ_LabourRollup",
@@ -1294,7 +1294,7 @@ namespace StingTools.UI
                     ("Cost-to-Complete (lines)", "CostToComplete_Lines",
                      "Per-BOQ-line cost-to-complete: each line's remaining cost from its budget × remaining %, with a CPI-implied productivity factor where actuals exist, plus forecast-final and variance. CSV.", false),
                     ("Commitments Register", "Commitments_Report",
-                     "Roll PO / sub-contract commitments (QS-authored in <BIM manager>/commitments.json) up against budget by NRM2 section — committed / outstanding / uncommitted balance + over-commitment flags. CSV.", false),
+                     "Roll purchase-order and sub-contract commitments (entered by the QS) up against budget by NRM2 section — committed / outstanding / uncommitted balance + over-commitment flags. CSV.", false),
                     ("Loss & Expense", "LossExpense_Value",
                      "Value a prolongation claim off the EOT days already captured on agreed variations: weeks × weekly prelims + head-office OHP + disruption + finance. Raise a CompensationEvent VO for the result.", false),
                 }));
@@ -1304,7 +1304,7 @@ namespace StingTools.UI
                 new[]
                 {
                     ("Raise Risk", "Risk_Raise",
-                     "Raise a risk against the selected element/zone (or project-level) — pick category + 5×5 likelihood/impact. Persists to risks.json and the tamper-evident audit log.", false),
+                     "Raise a risk against the selected element/zone (or project-level) — pick category + 5×5 likelihood/impact. Saved to the project risk register and the tamper-evident audit log.", false),
                     ("★ Risk Register", "Risk_Report",
                      "Roll the risk register up — RAG counts on the residual (post-mitigation) score, open-red exposure and the top risks. CSV out.", true),
                     ("MIDP Drift", "Midp_DriftReport",
@@ -1328,7 +1328,7 @@ namespace StingTools.UI
                 new[]
                 {
                     ("Stamp IFC Qto",    "Cost_StampIfcQuantities",
-                     "Populate IFC4 Qto_*BaseQuantities + Pset_StingCost so Cost-X / CostOS / Candy / Bluebeam Revu can read cost direct from IFC", false),
+                     "Write IFC4 base quantities and a STING cost property set so Cost-X / CostOS / Candy / Bluebeam Revu can read cost direct from IFC.", false),
                     ("★ ICMS3 Report",   "Cost_ExportIcms3Report",
                      "Export ICMS3 cost + carbon ledger — £ + kgCO₂e + £/kgCO₂e per ICMS group", true),
                 }));
@@ -1400,7 +1400,7 @@ namespace StingTools.UI
 
             _actionReportEmpty = new TextBlock
             {
-                Text = "Select an action on the left — its result appears here, inline (no popup).",
+                Text = "Select an action on the left — its result appears here.",
                 Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(14), VerticalAlignment = VerticalAlignment.Top
             };
@@ -1702,8 +1702,8 @@ namespace StingTools.UI
                 });
                 sp.Children.Add(new TextBlock
                 {
-                    Text = "Configure external price books. Settings save to the project file only "
-                         + "(_BIM_COORD/rate_feeds.json) — the BCIS API key is never committed to the repo. "
+                    Text = "Configure external price books. Settings are saved with the project only — "
+                         + "your BCIS API key stays on this machine and is never shared. "
                          + "Use 'Fetch live rates' to pull candidates onto the bill.",
                     FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 0, 0, 12)
@@ -1725,7 +1725,7 @@ namespace StingTools.UI
                 sp.Children.Add(bcisCb);
                 var urlTb = Row("Base URL", cfg.BcisBaseUrl);
                 var keyTb = Row("API key", cfg.BcisApiKey);
-                var ttlTb = Row("Cache TTL (min)", cfg.BcisTtlMinutes.ToString(CultureInfo.InvariantCulture), 120);
+                var ttlTb = Row("Refresh every (min)", cfg.BcisTtlMinutes.ToString(CultureInfo.InvariantCulture), 120);
 
                 var planCb = new CheckBox { Content = "Enable Planscape feed (uses the current Planscape login)",
                     IsChecked = cfg.PlanscapeEnabled, FontSize = 12, FontWeight = FontWeights.SemiBold,
@@ -1748,7 +1748,7 @@ namespace StingTools.UI
                         StingTools.BOQ.Rates.RateProviderRegistry.Invalidate();
 
                         var b = StingResultPanel.Create("Rate feeds");
-                        b.SetSubtitle(ok ? "Saved to _BIM_COORD/rate_feeds.json." : "Could not save (unsaved project?).");
+                        b.SetSubtitle(ok ? "Feed settings saved with the project." : "Could not save (unsaved project?).");
                         b.AddSection("ACTIVE FEEDS")
                          .PassFail("BCIS", cfg.BcisEnabled, cfg.BcisEnabled ? cfg.BcisBaseUrl : "disabled")
                          .PassFail("Planscape", cfg.PlanscapeEnabled, cfg.PlanscapeEnabled ? "uses current login" : "disabled")
@@ -2012,7 +2012,7 @@ namespace StingTools.UI
                         sp.Children.Add(new TextBlock
                         {
                             Text = $"{protectedCount} line group(s) carry a manual Override and were left untouched — "
-                                 + "edit the rate inline if you want to replace it.",
+                                 + "edit the rate in the bill if you want to replace it.",
                             FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brushes.Gray,
                             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0)
                         });
@@ -2141,7 +2141,7 @@ namespace StingTools.UI
                     ? $"Bill drifted from snapshot '{last.Label}' ({last.Date:dd MMM yyyy})."
                     : $"No drift — bill matches snapshot '{last.Label}'.");
                 b.AddSection("SUMMARY")
-                 .Metric("Checksum", checksumChanged ? "CHANGED" : "match")
+                 .Metric("Bill content", checksumChanged ? "changed" : "unchanged")
                  .Metric("Net Δ cost", $"UGX {diff.NetChange:N0}", $"{diff.NetChangePct:+0.0;-0.0;0.0}%")
                  .Metric("Net Δ carbon", $"{diff.NetCarbonChange:N0} kg")
                  .Metric("Changed lines", changed.ToString(CultureInfo.InvariantCulture));
@@ -2349,8 +2349,8 @@ namespace StingTools.UI
                 sp.Children.Add(new TextBlock
                 {
                     Text = $"Writes a flat, import-ready CSV ({_boq.AllItems.Count} rows) with WBS · CBS · cost code · "
-                         + "qty · rate · total · level · location · source · IfcGuid. Optionally also a Primavera "
-                         + "P6 activity-cost XML grouped by WBS. The 8-sheet XLSX + IFC Qto exports are unchanged.",
+                         + "qty · rate · total · level · location · source · IFC GUID. Optionally also a Primavera "
+                         + "P6 activity-cost XML grouped by WBS. The 8-sheet Excel and IFC quantity exports are unchanged.",
                     FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 0, 0, 10)
                 });
@@ -3557,7 +3557,7 @@ namespace StingTools.UI
                             + "by hand), markups and a budget, then save a baseline snapshot.\n\n"
                             + "It takes about a minute, nothing here is irreversible, and you can re-run it any time "
                             + "from the ✦ Cost Setup button.\n\n"
-                            + "Full walkthrough: BOQ_QS_LAYMANS_GUIDE.md (in the project docs)."));
+                            + "A full step-by-step walkthrough is in the project documentation."));
                         break;
                     case 1:
                         sp.Children.Add(WizardText("Model readiness — a quick scan so you know what the take-off has to work with:"));
@@ -3814,9 +3814,9 @@ namespace StingTools.UI
             // Slice 1 — QTO IFC export (estimator feed). Routes its result inline
             // via the InlineHost convention rather than a StingResultPanel window.
             var qtoBtn = BuildActionBtn("⛁ QTO IFC", NavyBrush);
-            qtoBtn.ToolTip = "Export an IFC4 file with base quantities + Pset_StingCost "
+            qtoBtn.ToolTip = "Export an IFC4 file with base quantities and a STING cost property set "
                 + "(NRM2 / unit rate) so an external estimator (CostX / iTWO / Candy) can "
-                + "ingest measured quantities. Result shows inline below — no popup.";
+                + "ingest measured quantities. The result shows below.";
             qtoBtn.Click += (s, e) => ExportQtoIfcInline();
             right.Children.Add(qtoBtn);
 
@@ -4485,7 +4485,7 @@ namespace StingTools.UI
                         e.Cancel = true;
                         FlashHint(vm, hdr.StartsWith("Item")
                             ? "Item name is derived from the Revit family — edit the element type in Revit."
-                            : "Quantity is derived from the element geometry — it can't be overridden inline.");
+                            : "Quantity is derived from the element geometry — it can't be overridden here.");
                     }
                 }
             };
@@ -4693,7 +4693,7 @@ namespace StingTools.UI
             // Footnote
             var editNote = new FrameworkElementFactory(typeof(TextBlock));
             editNote.SetValue(TextBlock.TextProperty,
-                "Edit inline · click away or press Tab to save · Export and Save Snapshot persist the paragraph");
+                "Edit here · click away or press Tab to save · Export and Save Snapshot keep the paragraph");
             editNote.SetValue(TextBlock.FontSizeProperty, 9.0);
             editNote.SetValue(TextBlock.ForegroundProperty,
                 new SolidColorBrush(Color.FromRgb(160, 170, 180)));
@@ -5438,8 +5438,7 @@ namespace StingTools.UI
                 });
                 sp.Children.Add(new TextBlock
                 {
-                    Text = "This action reported in its own dialog. Inline reporting for every " +
-                           "action is being rolled out — those already converted render here directly.",
+                    Text = "This action showed its results in a separate window.",
                     Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 6, 0, 0)
                 });
@@ -5538,7 +5537,7 @@ namespace StingTools.UI
             aGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             aGrid.Children.Add(new TextBlock
             {
-                Text = "Changes save to project_config.json under BOQ_TENDER_* keys on Export.",
+                Text = "Your changes are saved with the project when you Export.",
                 Foreground = Brushes.Gray, FontSize = 10, FontStyle = FontStyles.Italic,
                 VerticalAlignment = VerticalAlignment.Center
             });
