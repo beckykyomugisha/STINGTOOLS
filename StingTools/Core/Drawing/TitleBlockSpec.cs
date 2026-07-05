@@ -140,6 +140,15 @@ namespace StingTools.Core.Drawing
     public sealed class StaticTextSpec
     {
         [JsonProperty("text")]    public string   Text { get; set; }
+
+        /// <summary>P10 — optional stable id. When a child spec re-declares a
+        /// staticText with the SAME id (case-insensitive), it OVERRIDES the
+        /// parent's (position, size, …) instead of adding a second copy — the
+        /// same dedup-by-key pattern as params/slots, but leaf-wins. id-less
+        /// entries keep concatenating exactly as before (backward compatible).</summary>
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+        public string   Id { get; set; }
+
         [JsonProperty("anchor")]  public double[] Anchor { get; set; }   // [x, y] mm
         [JsonProperty("size")]    public double   Size { get; set; } = 1.8;  // mm text height
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
@@ -152,6 +161,15 @@ namespace StingTools.Core.Drawing
     public sealed class LabelSpec
     {
         [JsonProperty("param")]   public string   Param { get; set; }
+
+        /// <summary>P10 — optional stable id. A child spec re-declaring a label
+        /// with the SAME id (case-insensitive) OVERRIDES the parent's (position,
+        /// size, bound param, …) rather than duplicating it — lets each size
+        /// base reposition an inherited label (SYSTEM / DISCIPLINE) at its own
+        /// coords, single copy. id-less labels keep concatenating as before.</summary>
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+        public string   Id { get; set; }
+
         [JsonProperty("anchor")]  public double[] Anchor { get; set; }
         [JsonProperty("size")]    public double   Size { get; set; } = 2.5;
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
@@ -357,13 +375,59 @@ namespace StingTools.Core.Drawing
             // de-duplicate parameters and slots by id.
             into.Parameters    = MergeParams(into.Parameters,       from.Parameters);
             into.Slots         = MergeSlots (into.Slots,            from.Slots);
-            // Lines / static text / labels / filled regions don't have
-            // natural ids, so just concatenate. The generator handles
-            // duplicates via spatial collision (rare in practice).
+            // Lines / filled regions have no natural id → plain concatenate.
             into.Lines         = ConcatList(into.Lines,             from.Lines);
-            into.StaticText    = ConcatList(into.StaticText,        from.StaticText);
-            into.Labels        = ConcatList(into.Labels,            from.Labels);
             into.FilledRegions = ConcatList(into.FilledRegions,     from.FilledRegions);
+            // P10 — static text + labels are id-aware. An id-less entry
+            // concatenates exactly as ConcatList did (100% backward compatible);
+            // an id'd entry lets a nearer-to-leaf spec OVERRIDE the inherited one
+            // of the same id — a single copy at the child's coords. This is how
+            // each size base repositions the inherited SYSTEM / DISCIPLINE cell.
+            into.StaticText    = MergeAnnById(into.StaticText, from.StaticText, s => s?.Id);
+            into.Labels        = MergeAnnById(into.Labels,     from.Labels,     l => l?.Id);
+        }
+
+        /// <summary>
+        /// P10 — id-aware merge for annotation entries (static text + labels)
+        /// that preserves ConcatList ordering for id-less entries but lets the
+        /// nearer-to-leaf spec override an inherited entry of the same id.
+        ///
+        /// IMPORTANT — this is LEAF-wins, the opposite of MergeParams/MergeSlots.
+        /// Resolve() merges root-first (foreach chain: A1_common, then each size
+        /// base, then the leaf), calling MergeInto(accumulator, incoming) where
+        /// <paramref name="accum"/> is the accumulator built so far and
+        /// <paramref name="incoming"/> is the spec being layered in. Because a
+        /// later MergeInto call carries the nearer-to-leaf spec as
+        /// <paramref name="incoming"/>, making <paramref name="incoming"/> win by
+        /// id gives correct inheritance (size base / leaf overrides the root).
+        /// MergeParams/MergeSlots instead let the accumulator win, which is why
+        /// the root's slots/params currently shadow a size base's — a pre-existing
+        /// quirk this deliberately does NOT replicate.
+        ///
+        /// Ordering mirrors ConcatList(accum, incoming) = incoming entries first,
+        /// then accumulator entries; when both carry the same id the accumulator's
+        /// copy is dropped so exactly one (the incoming/leaf) survives.
+        /// </summary>
+        private static List<T> MergeAnnById<T>(List<T> accum, List<T> incoming, Func<T, string> getId)
+        {
+            var result = new List<T>();
+            var incomingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (incoming != null)
+                foreach (var e in incoming)
+                {
+                    var id = getId(e);
+                    if (!string.IsNullOrEmpty(id)) incomingIds.Add(id);
+                    result.Add(e);                       // incoming (nearer-leaf) first
+                }
+            if (accum != null)
+                foreach (var e in accum)
+                {
+                    var id = getId(e);
+                    // drop the accumulator's copy when the incoming spec overrides it
+                    if (!string.IsNullOrEmpty(id) && incomingIds.Contains(id)) continue;
+                    result.Add(e);
+                }
+            return result;
         }
 
         private static List<T> ConcatList<T>(List<T> a, List<T> b)
