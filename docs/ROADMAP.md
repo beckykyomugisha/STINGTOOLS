@@ -20,10 +20,19 @@ tagging/placement pipeline. Recorded here as staged, gated work:
 | `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
 | `MigrateTagFamiliesCommand` tier-authoring path | UI "Migrate Fams" button | **Trim** the `FamilyLabelAuthor.AuthorLabelsMulti` call once the universal path is proven; KEEP its params + the (now-shared) type-variant loop. |
 
+**Prerequisites now in-repo (tracked):**
+- `docs/UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — the authoritative 62-row master-label build guide
+  (human-authored in the Family Editor; the API can't do it).
+- `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` — the precise Duct smoke-test checklist (the step-1 gate).
+- `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md` — the ready-to-apply step-2 trim of
+  `MigrateTagFamiliesCommand` (staged; apply only after the smoke test passes).
+
 **Staged cutover (do in order, each gated):**
-1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`).
+1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`) —
+   follow `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`.
 2. Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
-   call; retire/relabel the "Migrate Fams" tier-authoring UI. Verify build + Tags.Tests green.
+   call; retire/relabel the "Migrate Fams" tier-authoring UI — apply
+   `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`. Verify build + Tags.Tests green.
 3. Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
    v5.0-CSV tier-authoring cluster as one unit.
 4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
