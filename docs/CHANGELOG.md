@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 Task 1 — Universal Tag propagation, branch `feature/universal-tag-system`)
+
+**Universal-tag pivot.** The v7.8 goal of auto-propagating a *bespoke* tiered label to all
+206 tag families is impossible (Revit API can't author label rows; cross-category label
+paste is blocked; all 62 MEP family sheets have unique row structures). The settled design:
+a human builds ONE **universal, discipline-agnostic** label (62 identical rows — see
+`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`) once by hand, and this command clones it to every
+target family. Discipline engineering data moves off the tag into per-category schedules
+(Task 3). Built against Revit 2025: **0 errors** (4 pre-existing warnings). Not yet exercised
+in Revit — the one-family (Duct) smoke test is the user's next step before scaling to 206.
+
+- **New `TagTypeVariantWriter` (`Tags/TagTypeVariantWriter.cs`)** — extracted the data-driven
+  type-variant authoring loop (`CreateStandardVariants` + `SetFamilyBool` +
+  `BuildArrowheadLookup`) out of `MigrateTagFamiliesCommand` so both it and the new
+  propagation command author *identical* variants. The variants (PARA_STATE depth gating,
+  128 style BOOLs, LEADER_ARROWHEAD, TAG_DEPTH_TIER_INT) are family-independent — that is
+  what makes the recategorise conveyor safe (type props are re-created, never "lost").
+  `MigrateTagFamiliesCommand` now delegates to the helper (its private copies removed).
+- **New `Propagate_UniversalTag` command (`Commands/TagStudio/PropagateUniversalTagCommand.cs`).**
+  Pick the universal master from loaded families → per target family: `EditFamily(master)` →
+  `famDoc.OwnerFamily.FamilyCategory = <target tag category>` (the one net-new API call, a
+  documented read-write property) → rename the clone to the target family name (so
+  `LoadFamily` overwrites the right family by internal name) → add missing style/visibility
+  params + re-create type variants → atomic `SaveAs`(temp) → `LoadFamily` → `File.Move` over
+  the canonical `.rfa` (pattern reused verbatim from `MigrateTagLabelReferencesCommand`).
+  Recategorising preserves label rows (proven live), so no per-family row swapping is needed.
+- **Re-sync built in.** Re-running is a safe re-sync — overwrite is idempotent, same code path.
+- **Smoke-test-first scope picker.** A scope TaskDialog (CHOOSE / ALL) with a multi-select
+  picker (Duct families pre-ticked) enforces the "run on ONE family, eyeball, then scale"
+  discipline. Wired to the CREATE tab ("Propagate Universal" button, tag `Propagate_UniversalTag`).
+- Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
+  section-normalization failures, unrelated to this work).
+
 #### Completed (Symbol Library pipe systemType fixes, branch `claude/symbol-fixes-4`)
 
 Clears the 19 pre-existing `bad-systemType` connector defects the round-3 validator
