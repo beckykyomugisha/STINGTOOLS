@@ -2,6 +2,35 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
+
+Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
+schedules). **Task 4 (deprecate the now-superseded bespoke-tier machinery) was reviewed but NO
+deletions were performed** — a caller grep proved that none of the brief's candidates are true
+orphans yet, and the brief mandates deletions only "after the new paths are proven" (the Revit
+Duct smoke test is still pending). Blind-deleting now would break the build and the shipped
+tagging/placement pipeline. Recorded here as staged, gated work:
+
+| Candidate | Live callers found | Why it can't be deleted yet |
+|---|---|---|
+| `Tags/FamilyLabelAuthor.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand`, `TagConfigCsvReader` | Still the tier-authoring engine invoked by the OLD path. |
+| `Tags/TagConfigPlanResolver.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand` | Loads the per-family tier plans the OLD path consumes. |
+| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | `HandoverModeHelper`, `FamilyLabelAuthor`, `TagConfigPlanResolver`, `ParamRegistry`, `TagConfig`, `TagFamilyCreatorCommand`, `PresentationModeCommand`, `FamilyParamCreatorCommand` | Heavily entangled; the v5.0 CSVs also feed `LABEL_DEFINITIONS.json` sync + creator. |
+| `Core/HandoverModeHelper.cs` (DC/HO) | `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`, `TagFamilyCreatorCommand`, + 3 more | Repurpose (not delete) DC/HO → a `PARA_STATE` view preset; remove only the dual-CSV authoring path. |
+| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
+| `MigrateTagFamiliesCommand` tier-authoring path | UI "Migrate Fams" button | **Trim** the `FamilyLabelAuthor.AuthorLabelsMulti` call once the universal path is proven; KEEP its params + the (now-shared) type-variant loop. |
+
+**Staged cutover (do in order, each gated):**
+1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`).
+2. Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
+   call; retire/relabel the "Migrate Fams" tier-authoring UI. Verify build + Tags.Tests green.
+3. Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
+   v5.0-CSV tier-authoring cluster as one unit.
+4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
+   the dual-CSV authoring path only.
+5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers
