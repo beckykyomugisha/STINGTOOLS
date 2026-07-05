@@ -701,6 +701,32 @@ We won't hide these:
 > so cost and carbon are two columns of one bill — not two separate exercises.
 > This part folds the old Sustainability guide into the QS/PM one.
 
+## Carbon in 5 minutes — the quick-start
+
+New to carbon and just want to *go*? Do this. The rest of Part E is the detail behind
+each step.
+
+```
+  1. COST THE MODEL  (Part B).   Carbon appears on its own — the embodied-carbon
+     gauge on the BOQ dashboard + a CO₂ column on every line. Nothing extra.
+
+  2. FIND WEAK CARBON.   BOQ → Actions → Carbon Gap Report → a CSV worklist of
+     materials with no EPD / a guessed factor. Hand it to procurement.
+
+  3. ASSESS EDGE.   Ribbon → STING Sustain → SETUP (⤓ From model · pick EDGE level ·
+     country) → Save setup → DASHBOARD → Readiness check → Run dashboard.
+        ⇒ Energy / Water / Materials gates + your EDGE level.
+
+  4. IMPROVE (cheapest first).   COST tab → Target seeker (cheapest route to the
+     next level) · Compare options (greenest fabric/structure).
+
+  5. DELIVER.   DASHBOARD → EDGE / WLC report (HTML)  +  MATERIALS → EDGE export (XLSX).
+     Want carbon in money?   Set COST_CARBON_PRICE_UGX_PER_KG → BOQ → ICMS3 Report.
+```
+
+> Everything here is **indicative** — StingTools builds the business case; the
+> official **EDGE app** issues the certificate.
+
 ## E0. The whole idea, in 90 seconds
 
 A building has **two carbon bills**:
@@ -709,6 +735,23 @@ A building has **two carbon bills**:
   steel, glass, brick, blockwork and finishes. Measured in **kgCO₂e** (A1–A3).
 - **Operational carbon** — paid **every year**, for the energy and water the building
   uses to run. Measured in **kgCO₂e/yr** (grid factor × energy).
+
+```
+              A BUILDING'S CARBON  =  two bills
+   ┌───────────────────────────┬────────────────────────────┐
+   │   EMBODIED  (one-off)      │   OPERATIONAL  (yearly)    │
+   │   concrete · steel ·       │   electricity · water ·    │
+   │   block · glass · finishes │   cooling · lighting       │
+   │                            │                            │
+   │   kgCO₂e   (A1–A3)         │   kgCO₂e / yr              │
+   │   = the BOQ headline       │   = energy × grid (UG 0.05) │
+   └───────────────────────────┴────────────────────────────┘
+        cut it: use less /            cut it: efficient
+        greener material · EPDs        fabric · plant · PV
+
+   In Uganda the grid is so clean (0.05) that EMBODIED usually dominates —
+   so the material / BOQ side is where the carbon war is won.
+```
 
 And "carbon cost" means two things, both of which StingTools produces:
 
@@ -740,6 +783,20 @@ And "carbon cost" means two things, both of which StingTools produces:
 ## E2. Where carbon lives — the three homes
 
 Carbon isn't in one place; it's wherever a decision is made:
+
+```
+   REVIT MODEL
+       │  one take-off  (Refresh)
+       ▼
+   QUANTITIES ──× rate ──────────────►  £ COST ─────┐
+       │                                             ├──►  ONE BOQ ROW
+       └──× carbon factor ────────────►  kgCO₂e ─────┘     (cost + carbon,
+                                            │               side by side)
+                        × carbon price ─────┼──►  carbon-as-money (whole-life LCC)
+                                            │
+   ♻ SUSTAINABILITY PANEL ◄──same take-off──┘   EDGE gates · WBLCA · reports
+```
+*One take-off feeds cost, carbon and EDGE — so the numbers can't drift apart.*
 
 | Home | What's there | How you reach it |
 |---|---|---|
@@ -790,6 +847,26 @@ option shows the lowest whole-life-incl-carbon total.
 Open it from the ribbon (**STING Sustain**). Four tabs; the footer always reads
 *"STING figures are INDICATIVE — the EDGE app owns the certified number."*
 
+```
+┌─ ♻ STING SUSTAINABILITY ─────────────────────────────────────────┐
+│  [ SETUP ]   [ DASHBOARD ]   [ MATERIALS ]   [ COST ]            │
+├──────────────────────────────────────────────────────────────────┤
+│ SETUP      schemes (EDGE/LEED) · EDGE level · country · use ·     │
+│            area · occupancy · Plant & Supply (PV/grid/diesel)     │
+│            ⤓ From model    Save setup    Save supply              │
+│ DASHBOARD  ┌ Energy ┐  ┌ Water ┐  ┌ Materials ┐   ← 3 gate tiles │
+│            Run dashboard · Readiness check · Set baseline ·       │
+│            EDGE/WLC report · Publish to server                    │
+│ MATERIALS  kgCO₂e/m²   +   MJ/m²   +   top-3 hotspots             │
+│            EDGE export · EPD register · LEED scorecard            │
+│ COST       per-measure LCC grid (capex · net benefit)            │
+│            LCC benefit · Target seeker · Compare options ·        │
+│            Generate deliverable                                   │
+├──────────────────────────────────────────────────────────────────┤
+│   "INDICATIVE — the EDGE app owns the certified number."         │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 ### SETUP tab — tell it about the project (the options surface, nothing hardcoded)
 You fill: schemes (**EDGE** / **LEED v5**), **EDGE target level** (Certified 20/20/20 · Advanced 40/20/20 · Zero Carbon), units, **country**, climate site/zone, **building use** (office/residential/healthcare/retail/hotel + mixed-use zones grid), floor area, occupancy, and a **Plant & Supply** card (cooling COP/SEER, supply = grid-tied/off-grid/hybrid, PV kWp + performance ratio, grid & diesel carbon, diesel fraction).
 
@@ -834,6 +911,15 @@ must clear a single % on each *versus a typical local building*:
    ENERGY ≥ 20%     WATER ≥ 20%     MATERIALS ≥ 20%   →  EDGE Certified
    (all three)      (advanced = ENERGY ≥ 40%)          (zero carbon = advanced +
                                                          remaining op. carbon offset)
+```
+
+```
+   THE EDGE LOOP IN STINGTOOLS
+
+   SETUP ──► Run dashboard ──► gates pass? ──yes──► EDGE export ──► EDGE/WLC report
+     ▲            │                 │ no                (XLSX)        (HTML deliverable)
+     └── Save ────┘        Target seeker (cheapest fix) ──┘
+        (tweak design, re-run)
 ```
 
 **The EDGE loop in StingTools:** SETUP (tell it the project) → **Run dashboard** (see
