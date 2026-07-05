@@ -353,8 +353,12 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(into.TemplateRft)) into.TemplateRft = from.TemplateRft;
             if (string.IsNullOrEmpty(into.Mode))        into.Mode        = from.Mode;
             if (string.IsNullOrEmpty(into.Category))    into.Category    = from.Category;
-            // Lists — append parent contents under child contents,
-            // de-duplicate parameters and slots by id.
+            // P11 — params (by name) + slots (by id) are LEAF-WINS: Resolve folds
+            // root → nearest-parent → leaf into this accumulator, so the INCOMING
+            // (nearer-to-leaf) spec must win on key collision for a size / specialty
+            // base to override the A1_common root. Fixes the prior root-wins quirk
+            // where A1_common's slot coords + default values (paper "A1", variant
+            // "WORKING", …) shadowed every A0/A3/portrait/fab/presentation family.
             into.Parameters    = MergeParams(into.Parameters,       from.Parameters);
             into.Slots         = MergeSlots (into.Slots,            from.Slots);
             // Lines / static text / labels / filled regions don't have
@@ -374,28 +378,43 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
-        private static List<ParamSpec> MergeParams(List<ParamSpec> child, List<ParamSpec> parent)
+        /// <summary>
+        /// P11 — id/name-keyed merge that is LEAF-WINS, mirroring the annotation
+        /// (label/staticText) override rule. Callers pass
+        /// <c>MergeXxx(into.X, from.X)</c> where <paramref name="accum"/> is the
+        /// accumulator built so far (root-first) and <paramref name="incoming"/>
+        /// is the spec being layered in; because a later fold step carries the
+        /// nearer-to-leaf spec as <paramref name="incoming"/>, making it win gives
+        /// correct inheritance (size/specialty base and leaf override the root).
+        /// Ordering matches the previous implementation (incoming-keys first, then
+        /// accumulator-only keys) — only the winner on collision changed, so the
+        /// factory sees the same param/slot ADD order it did before.
+        /// </summary>
+        private static List<T> MergeKeyedLeafWins<T>(List<T> accum, List<T> incoming, Func<T, string> getKey)
         {
-            var byName = new Dictionary<string, ParamSpec>(StringComparer.OrdinalIgnoreCase);
-            if (parent != null)
-                foreach (var p in parent)
-                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p;
-            if (child != null)
-                foreach (var p in child)
-                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p; // child wins
-            return new List<ParamSpec>(byName.Values);
+            var result = new List<T>();
+            var incomingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (incoming != null)
+                foreach (var e in incoming)
+                {
+                    var k = getKey(e);
+                    if (!string.IsNullOrEmpty(k)) incomingKeys.Add(k);
+                    result.Add(e);                 // incoming (nearer-leaf) first — and wins
+                }
+            if (accum != null)
+                foreach (var e in accum)
+                {
+                    var k = getKey(e);
+                    if (!string.IsNullOrEmpty(k) && incomingKeys.Contains(k)) continue; // overridden by incoming
+                    result.Add(e);
+                }
+            return result;
         }
 
-        private static List<SlotSpec> MergeSlots(List<SlotSpec> child, List<SlotSpec> parent)
-        {
-            var byId = new Dictionary<string, SlotSpec>(StringComparer.OrdinalIgnoreCase);
-            if (parent != null)
-                foreach (var s in parent)
-                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s;
-            if (child != null)
-                foreach (var s in child)
-                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s; // child wins
-            return new List<SlotSpec>(byId.Values);
-        }
+        private static List<ParamSpec> MergeParams(List<ParamSpec> accum, List<ParamSpec> incoming)
+            => MergeKeyedLeafWins(accum, incoming, p => p?.Name);
+
+        private static List<SlotSpec> MergeSlots(List<SlotSpec> accum, List<SlotSpec> incoming)
+            => MergeKeyedLeafWins(accum, incoming, s => s?.Id);
     }
 }
