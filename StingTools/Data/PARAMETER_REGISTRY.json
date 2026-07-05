@@ -1479,6 +1479,22 @@
       "required": false
     },
     {
+      "param_name": "STING_GATE_DATA_STATUS_INT",
+      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0001",
+      "description": "Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge",
+      "binding": "universal",
+      "param_type": "INTEGER",
+      "required": false
+    },
+    {
+      "param_name": "STING_GATE_QA_STATUS_INT",
+      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0002",
+      "description": "QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge",
+      "binding": "universal",
+      "param_type": "INTEGER",
+      "required": false
+    },
+    {
       "param_name": "TAG_BOX_STYLE_TXT",
       "guid": "a1b2c3d4-5038-4a01-b001-000000000156",
       "description": "Tag bounding box style (SOLID/DASHED/NONE/ROUND)",
