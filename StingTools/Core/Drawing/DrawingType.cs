@@ -111,6 +111,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("discipline")]  public string Discipline { get; set; } = "*";
         [JsonProperty("phase")]       public string Phase { get; set; } = "*";
 
+        /// <summary>
+        /// P4 — MEP system / service code for this profile (STING SysMap
+        /// vocabulary: DCW, DHW, LTHW, HVAC, LV, LTG, MGPS…). Deterministic
+        /// per-profile value that flows into the <c>{sys}</c> token, so an MEP
+        /// design sheet carries its system in the title-block SYSTEM cell (and
+        /// optionally its number/name). Null for arch/struct/non-MEP profiles;
+        /// a null/empty value collapses cleanly (blank cell, no stray tokens).
+        /// </summary>
+        [JsonProperty("system", NullValueHandling = NullValueHandling.Ignore)]
+        public string System { get; set; }
+
         // Sheet
         [JsonProperty("paperSize")]        public string PaperSize { get; set; } = "A1";
         [JsonProperty("titleBlockFamily")] public string TitleBlockFamily { get; set; }

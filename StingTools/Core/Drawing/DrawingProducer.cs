@@ -739,7 +739,7 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(pattern)) return pattern;
             string disc  = dt?.Discipline ?? "";
             string lvl   = ctx?.Level?.Name ?? "";
-            string sys   = "";
+            string sys   = dt?.System ?? "";   // P4 — system code into {sys} for number/name patterns
             string mark  = ctx?.Tag ?? "";
             string spool = ctx?.Tag ?? "";
 

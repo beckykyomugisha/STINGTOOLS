@@ -16888,3 +16888,4 @@ STING_PLACER_ASSY_ID_TXT,Detail Items,Instance,False
 STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,False
 STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,False
 STING_PLACER_VIEW_ID_TXT,Detail Items,Instance,False
+PRJ_SHEET_SYSTEM_TXT,Title Blocks,Instance,True
