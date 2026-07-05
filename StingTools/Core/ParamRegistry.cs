@@ -1281,6 +1281,16 @@ namespace StingTools.Core
         /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
         public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
 
+        // ── Universal-tag status gates (Phase 195 Task 2) ────────────────
+        // Instance INTEGER params stamped on model elements by ComplianceScan
+        // and read by the universal tag's two status badges (left = data gate,
+        // right = QA gate) via and(TAG_WARN_VISIBLE_BOOL, STING_GATE_x = n).
+        // 0 = red, 1 = amber, 2 = green.
+        /// <summary>Data-completeness gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
+        /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
+
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:
         //   DISC: M=BLUE, E=ORANGE, P=GREEN, A=GREY, S=RED, FP=ORANGE, LV=PURPLE, G=BLACK
