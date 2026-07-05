@@ -26,7 +26,7 @@ namespace StingTools.Core.Drawing
         private const double MarginMm = 25.0;
         private const double MmPerFt = 304.8;
 
-        internal static XYZ GetSlotPosition(Document doc, ElementId sheetId, DrawingType dt, int slotIndex, ProduceResult result)
+        internal static XYZ GetSlotPosition(Document doc, ElementId sheetId, DrawingType dt, int slotIndex, ProduceResult result, FamilySlotContext famCtx = null)
         {
             if (doc == null || sheetId == null || sheetId == ElementId.InvalidElementId || dt == null) return null;
             DrawingSlot slot = null;
@@ -41,6 +41,29 @@ namespace StingTools.Core.Drawing
             {
                 var sheet = doc.GetElement(sheetId) as ViewSheet;
                 if (sheet == null) return null;
+
+                // P1 — unified slot model. When this slot opts in via PurposeTag
+                // / SlotRef, place it against the live title-block family's own
+                // slot grid (TitleBlockSpec.SlotSpec) — the single source of
+                // truth for where views land. Falls through to the historic
+                // norm* subdivision below when it doesn't resolve, so legacy
+                // (norm-only) profiles are completely untouched.
+                if (SlotOptsIntoFamilyGrid(slot))
+                {
+                    var ctx = famCtx ?? BuildFamilySlotContext(doc, sheet, dt, result);
+                    var bounds = ResolveUnifiedSlotBounds(slot, ctx);
+                    if (bounds?.Bbox != null)
+                    {
+                        // Slot bounds are already in feet, origin at the
+                        // title-block family (0,0) which by convention sits at
+                        // the sheet's bottom-left — the same assumption the
+                        // manual auto-placer (TitleBlock_AutoPlaceViewports)
+                        // relies on. Centre = midpoint of the family slot bounds.
+                        return new XYZ((bounds.Min.X + bounds.Max.X) / 2.0,
+                                       (bounds.Min.Y + bounds.Max.Y) / 2.0, 0);
+                    }
+                    // else: unmatched purposeTag / slotRef — fall through to norm.
+                }
 
                 var titleBlock = new FilteredElementCollector(doc, sheet.Id)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
@@ -79,6 +102,11 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt == null || viewIds == null) return pr;
             int slotCount = dt.Slots?.Count ?? 0;
             var skippedViews = new List<ElementId>();
+
+            // P1 — resolve the title-block family's slot grid once for this
+            // sheet (null for norm-only profiles) so the per-view loop reuses
+            // it instead of re-opening the family doc for every slot.
+            var famCtx = BuildFamilySlotContext(doc, sheet, dt, result);
             for (int i = 0; i < viewIds.Count; i++)
             {
                 // Skip views that have no slot defined — do NOT fall back to
@@ -93,7 +121,7 @@ namespace StingTools.Core.Drawing
 
                 try
                 {
-                    var pt = GetSlotPosition(doc, sheet.Id, dt, i, result);
+                    var pt = GetSlotPosition(doc, sheet.Id, dt, i, result, famCtx);
                     if (pt == null)
                     {
                         var ol = sheet.Outline;
@@ -175,6 +203,75 @@ namespace StingTools.Core.Drawing
             if (skippedViews.Count > 0)
                 StingTools.Core.StingLog.Warn($"SheetPlacementBridge: {skippedViews.Count} view(s) had no slot and were skipped on sheet '{sheet?.SheetNumber}'. Profile: '{dt?.Id}'.");
             return pr;
+        }
+
+        // ── P1 — unified slot model helpers ─────────────────────────────────
+
+        /// <summary>The live title-block family's slot grid (bounds in feet)
+        /// plus the alias rules, resolved once per sheet and threaded through
+        /// the placement loop so each slot doesn't re-open the family doc.</summary>
+        internal sealed class FamilySlotContext
+        {
+            public Dictionary<string, StingTools.Commands.Drawing.SlotBounds> Map { get; set; }
+            public StingTools.Commands.Drawing.ViewportPlacementRules Rules { get; set; }
+        }
+
+        private static bool SlotOptsIntoFamilyGrid(DrawingSlot slot)
+            => slot != null && (!string.IsNullOrWhiteSpace(slot.PurposeTag)
+                             || !string.IsNullOrWhiteSpace(slot.SlotRef));
+
+        /// <summary>Build the title-block family's slot map for a sheet — but
+        /// ONLY when the profile actually uses the unified model. Norm-only
+        /// profiles return null here and never pay the (EditFamily) cost, so
+        /// their historic behaviour is byte-for-byte unchanged. Returns null
+        /// when there's no title block, no matching spec, or an empty slot
+        /// set.</summary>
+        internal static FamilySlotContext BuildFamilySlotContext(Document doc, ViewSheet sheet, DrawingType dt, ProduceResult result)
+        {
+            try
+            {
+                if (doc == null || sheet == null || dt?.Slots == null) return null;
+                if (!dt.Slots.Any(SlotOptsIntoFamilyGrid)) return null;
+
+                var tb = StingTools.Commands.Drawing.TitleBlockSlotUtils.FindTitleBlockOnSheet(doc, sheet);
+                if (tb == null) return null;
+                var map = StingTools.Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
+                if (map == null || map.Count == 0) return null;
+                return new FamilySlotContext
+                {
+                    Map   = map,
+                    Rules = StingTools.Commands.Drawing.ViewportPlacementRules.Load()
+                };
+            }
+            catch (Exception ex)
+            {
+                result?.Warnings.Add($"SheetPlacementBridge.BuildFamilySlotContext: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Resolve a DrawingSlot against the family slot grid:
+        /// PurposeTag (semantic, exact then alias chain) first, then SlotRef
+        /// (exact family slot id). Returns null when neither resolves, letting
+        /// the caller fall back to the norm* subdivision.</summary>
+        private static StingTools.Commands.Drawing.SlotBounds ResolveUnifiedSlotBounds(DrawingSlot slot, FamilySlotContext ctx)
+        {
+            if (slot == null || ctx?.Map == null || ctx.Map.Count == 0) return null;
+
+            // 1. PurposeTag — preferred, semantic, portable across paper sizes.
+            if (!string.IsNullOrWhiteSpace(slot.PurposeTag))
+            {
+                var id = StingTools.Commands.Drawing.TitleBlockSlotUtils
+                    .ResolveSlotIdForTag(ctx.Map, slot.PurposeTag, ctx.Rules);
+                if (!string.IsNullOrEmpty(id) && ctx.Map.TryGetValue(id, out var b) && b?.Bbox != null)
+                    return b;
+            }
+            // 2. SlotRef — exact family slot id.
+            if (!string.IsNullOrWhiteSpace(slot.SlotRef)
+                && ctx.Map.TryGetValue(slot.SlotRef, out var byId) && byId?.Bbox != null)
+                return byId;
+
+            return null;
         }
 
         // SLOT-1 helper — resolves a viewport type ElementId by name.
