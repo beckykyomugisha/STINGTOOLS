@@ -80,6 +80,23 @@ namespace StingTools.Mcp
                 case "size_pipes":            return McpWriteTools.SizePipes(args);
                 case "build_panel_schedules": return McpWriteTools.BuildPanelSchedules(args);
 
+                // ── Create stage — read tools ──────────────────────────────────
+                case "get_rooms":    return McpQueryTools.GetRooms(args);
+                case "get_levels":   return McpQueryTools.GetLevels();
+                case "get_grids":    return McpQueryTools.GetGrids();
+                case "get_warnings": return McpQueryTools.GetWarnings(args);
+
+                // ── Create stage — ModelEngine creation tools (WRITE) ───────────
+                case "create_wall":         return McpCreateTools.CreateWall(args);
+                case "create_floor":        return McpCreateTools.CreateFloor(args);
+                case "create_floor_in_room": return McpCreateTools.CreateFloorInRoom(args);
+                case "create_roof":         return McpCreateTools.CreateRoof(args);
+                case "create_duct":         return McpCreateTools.CreateDuct(args);
+                case "create_pipe":         return McpCreateTools.CreatePipe(args);
+                case "create_room":         return McpCreateTools.CreateRoom(args);
+                case "place_family":        return McpCreateTools.PlaceFamily(args);
+                case "building_shell":      return McpCreateTools.BuildingShell(args);
+
                 default:
                     return Err($"Unknown tool: {toolName}. Call tools/list to see available tools.");
             }

@@ -10,6 +10,7 @@
             <RowDefinition Height="*"/>      <!-- chat history -->
             <RowDefinition Height="Auto"/>   <!-- running-tool status -->
             <RowDefinition Height="Auto"/>   <!-- usage / credit note -->
+            <RowDefinition Height="Auto"/>   <!-- suggestion chips -->
             <RowDefinition Height="Auto"/>   <!-- input -->
             <RowDefinition Height="Auto"/>   <!-- buttons -->
         </Grid.RowDefinitions>
@@ -19,7 +20,7 @@
             <TextBlock Text="STING Copilot"
                        FontSize="14" FontWeight="Bold"
                        Foreground="{DynamicResource PrimaryText}"/>
-            <TextBlock Text="Ask in plain English. The AI drives StingTools through the MCP tools."
+            <TextBlock Text="Ask in plain English. The AI drives StingTools through the MCP tools — read, tag, size, and now BUILD."
                        FontSize="10" TextWrapping="Wrap" Opacity="0.8"
                        Foreground="{DynamicResource PrimaryText}"/>
         </StackPanel>
@@ -43,15 +44,18 @@
                    Foreground="{DynamicResource PrimaryText}" Opacity="0.7"
                    Text="Each turn calls the LLM API and consumes credits."/>
 
+        <!-- Suggestion chips + undo -->
+        <WrapPanel x:Name="ChipPanel" Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,4"/>
+
         <!-- Input -->
-        <TextBox x:Name="InputBox" Grid.Row="4"
+        <TextBox x:Name="InputBox" Grid.Row="5"
                  MinHeight="52" MaxHeight="120"
                  AcceptsReturn="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto"
                  FontSize="11"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
             <Button x:Name="CancelBtn" Content="Cancel" Width="80" Height="26"
                     Margin="0,0,6,0" IsEnabled="False" Click="CancelBtn_Click"/>
             <Button x:Name="SendBtn" Content="Send" Width="90" Height="26"
