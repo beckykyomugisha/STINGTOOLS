@@ -737,6 +737,48 @@ For each circuit, STING:
 4. Sets the conduit's `CPC_SZ_MM` (circuit protective conductor size) and
    fill capacity per BS 7671 Table 4D5.
 
+### 8.1a Where the conduit starts — connectors and the "sleeve" trick
+
+Auto-drop has to know *where* on the fixture the conduit should begin. Every
+fixture STING places carries a tiny **conduit connector** — think of it as the
+hole in the back box where the conduit screws in. Auto-drop starts the run
+there, so the conduit lands exactly where it should, not at some arbitrary
+middle-of-the-symbol point.
+
+- STING's own sockets, switches, isolators, data outlets and floor boxes all
+  have this connector built in.
+- Junction boxes and panels have them too, on each face — so a conduit can
+  branch into a junction box the way it does in real life.
+
+**The catch:** when you swap a STING fixture for a real **manufacturer's
+family** (`Symbols_SwapToManufacturer`), the vendor's model usually has *no*
+conduit connector. Every rival tool (EasyConduit, ConduiTool, EVOLVE) just
+gives up on those fixtures. STING fixes it with the **sleeve method** —
+**TAGS → Routing → Place Sleeve Connectors** (`Routing_PlaceSleeveConnectors`).
+For each fixture that's missing a connector, STING pushes a short conduit
+"sleeve" out of the box face (up for wall/ceiling devices, down for floor
+boxes). That sleeve *has* a connector, so auto-drop can grab it and carry on.
+It previews first, it's safe to run again (it won't double up), and two
+fixtures side-by-side each get their own sleeve.
+
+### 8.1b One button for the whole job — the Electrical Rough-In workflow
+
+You don't have to run those steps one at a time. **BIM → Workflows → Workflow
+Preset → "Electrical Rough-In Pipeline"** does the lot, in order:
+
+1. Build the STING fixture family.
+2. Place fixtures in the rooms you selected.
+3. Add sleeve connectors to anything that's missing one (skips fixtures that
+   already have one).
+4. Auto-drop the conduit to the nearest tray / basket.
+5. Run the full validator check.
+
+Select your rooms first, press go, and STING hands each step's result to the
+next. If a fixture ends up with no conduit, the validator's **CONN.OPEN** line
+tells you which one; a **SIZE.MISMATCH** line means a connector size isn't in
+your project's conduit size list (the usual cause of *"no auto-route solution
+found"*).
+
 ### 8.2 Cable tray sizing
 
 Once auto-dropped, **Routing → Validate Fills** checks each tray against
@@ -1610,6 +1652,8 @@ concepts but they remove pain points first-timers hit constantly.
 | `Symbols_BuildSeeds`                | TAGS      | Builds all 16 seed families from JSON. Includes `STING_SEED_ElectricalEquipment` (MDB / DB / SDB / MCB / MCCB / ACB / RCD), `STING_SEED_LightingFixture` (5 variants), `STING_SEED_ElectricalFixture` (4 variants), `STING_SEED_FireAlarmDevice` (5 variants), `STING_SEED_JunctionBox` (4 variants), `STING_SEED_CommunicationDevice` (5 variants). |
 | `Symbols_SwapToManufacturer`        | TAGS      | Swaps a seed family for a manufacturer family via `STING_FAMILY_SWAP_REGISTRY.json`; stamps `PEN_CERTIFICATION_TXT` with the UL system. |
 | `Symbols_DriftDetect`               | TAGS      | Detects symbols whose geometry / parameters have drifted from the JSON spec — catches the "manufacturer family lost a connector" failure mode. |
+| `Routing_PlaceSleeveConnectors`     | TAGS Routing | The **sleeve method** — authors a short conduit stub carrying a real conduit terminal on fixtures that have no conduit connector (chiefly manufacturer families after swap). Previews first; idempotent; up for wall/ceiling, down for floor boxes. Run before Auto Drop. See §8.1a. |
+| `Routing_PlaceSleeveConnectorsAuto` | (workflow) | Non-interactive sleeve pass used inside the **Electrical Rough-In Pipeline** workflow (§8.1b) — no dialog, safe to run headless. |
 | `DesignOptions_Audit`                | DOCS      | Read-only audit of cost/carbon implications per design option. Use when the architect provides "option A vs option B" — STING reports the electrical containment delta. |
 | `DesignOptions_ClashView`            | DOCS      | Creates a view isolating the primary option only so your clash detection doesn't false-flag option-B containment against option-A architecture. |
 | `Hvac_EnvelopeStaleToggle`           | HVAC LOADS| Subscribes the envelope-stale IUpdater. After it's on, any wall / window geometry change marks affected Spaces with `HVC_LOAD_STALE_BOOL = 1`. Run `Hvac_BlockLoad` to re-stamp and the flag clears. Coordinate with your panel schedule re-run. |
