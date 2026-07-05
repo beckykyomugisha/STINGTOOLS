@@ -83,7 +83,18 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
 
 **PASS** = V1–V4 and V6 all green (V5/V7 green too if badges were built). Then, and only then:
 1. Re-run Propagate Universal → **ALL** families (after re-loading the master + all targets).
-2. Begin the Task-4 staged cutover (`docs/ROADMAP.md` step 2) — apply
+2. **Persist the propagated `.rfa` files — do not skip this.** Propagation writes to the running
+   DLL's `data/TagFamilies/`, NOT to git. So after the ALL run:
+   a. Copy the propagated `.rfa` set into the git-tracked `StingTools/Data/TagFamilies/` and
+      commit them (this is what the deploy + git actually ship).
+   b. **Repopulate the seed folder** `StingTools/Data/TagFamilies/Seeds/` with the propagated,
+      universal-label families (overwrite the old bespoke seeds). `TagFamilyCreatorCommand.FindSeedFamily`
+      loads these as the "gold standard" for fresh `Create Tag Families` runs, so stale seeds would
+      re-introduce the old scheme. Match the per-category file names `FindSeedFamily` expects
+      (category base name, optionally `_seed.rfa`).
+   c. Redeploy: copy the updated `data/TagFamilies/` (incl. `Seeds/`) to the deploy target
+      (`C:\Dev\STING_PLACEMENT_GOLD\data\TagFamilies`, Revit closed).
+3. Begin the Task-4 staged cutover (`docs/ROADMAP.md` step 2) — apply
    `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`.
 
 **FAIL** triage:

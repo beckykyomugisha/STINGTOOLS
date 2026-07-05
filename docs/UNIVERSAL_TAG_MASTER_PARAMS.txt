@@ -1,0 +1,92 @@
+# This is a Revit shared parameter file.
+# STING universal-tag MASTER label params ONLY (generated — do not hand-edit).
+# Load as the active shared-parameter file, then add every param below to the
+# tag family's Edit Label field list. GUIDs are identical to MR_PARAMETERS.txt.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	ASS_MNG
+GROUP	2	CST_PROC
+GROUP	4	ELC_PWR
+GROUP	5	HVC_SYSTEMS
+GROUP	9	PER_SUST
+GROUP	15	RGL_CMPL
+GROUP	17	STINGTags_ISO19650
+GROUP	20	CLASH_COORDINATION
+GROUP	21	ACC_SYNC
+GROUP	22	IFC_EXCH
+GROUP	23	HEALTH_METRICS
+GROUP	24	ASBUILT
+GROUP	25	COMMISSIONING
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	5753b5aa-000a-4000-8000-000000000002	ACC_ISSUE_ID_TXT	TEXT		21	1	Autodesk Construction Cloud Issue GUID for bidirectional sync	1	0
+PARAM	5753b5aa-000a-4000-8000-000000000003	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sync status (SYNCED / PENDING / ERROR)	1	0
+PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1	0
+PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1	0
+PARAM	6c883d6a-6671-5c6c-be21-968aa8918e8c	ASS_CAPACITY_TXT	TEXT		4	1	Asset capacity specification [ISO 19650-2:2018]	1	0
+PARAM	fbbf5b6d-776a-58e2-a3ce-cbd9fbfe3f93	ASS_CRITICALITY_RATING_NR	TEXT		1	1	Ass Criticality Rating Nr [ISO 19650-3:2020]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45	ASS_CST_AS_OF_DT	TEXT		2	1	Pricing reference date for inflation indexing [Phase 184]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44	ASS_CST_FX_DATE_DT	TEXT		2	1	ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184]	1	0
+PARAM	2f6725f9-94b3-58f6-8d85-0f542659fd8f	ASS_CST_FX_TO_BASE_NR_DISP_TXT	TEXT		2	1	FX rate to project base currency at write time — TEXT display mirror for tag labels	1	0
+PARAM	01fcf005-60b1-5886-b52f-015cc7598787	ASS_CST_INSTALL_UGX_NR	TEXT		1	1	Ass Cst Install Ugx Nr [ISO 19650-3:2020]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	TEXT		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47	ASS_CST_STALE_REASON_TXT	TEXT		2	1	Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184]	1	0
+PARAM	465171ad-d9b5-54c2-a002-86cbff6f15cf	ASS_CST_UNIT_RATE_NR_DISP_TXT	TEXT		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT — TEXT display mirror for tag labels	1	0
+PARAM	3ee68ef4-0cad-505f-a973-8817e9cf5d08	ASS_DESCRIPTION_TXT	TEXT		1	1	Ass Description Txt [ISO 19650-3:2020]	1	0
+PARAM	88e92abe-385f-55a3-8734-43458adb98f2	ASS_DESIGN_OPTION_TXT	TEXT		1	1	Design option name for element	1	0
+PARAM	3bc7b880-b296-532f-9faf-8c41d69df5c3	ASS_EXPECTED_LIFE_YEARS_YRS	TEXT		1	1	Ass Expected Life Years Yrs [ISO 19650-3:2020]	1	0
+PARAM	d9a5078f-1c08-56f9-b4e0-5feeb97692e0	ASS_FLOW_RATE_TXT	TEXT		5	1	Flow rate for MEP elements	1	0
+PARAM	953575a9-1d0c-5bb5-a4d2-c52b4b4adf96	ASS_INSTALL_DATE_TXT	TEXT		1	1	DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. ISO 8601 date when assembly was installed on site.	1	0
+PARAM	d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a	ASS_ITEM_CODE_TXT	TEXT		1	1	Procurement item code for asset ordering	1	0
+PARAM	a1b2c3d4-501f-4a01-b001-000000000131	ASS_KEYNOTE_TXT	TEXT		1	1	Keynote reference	1	0
+PARAM	b1e51fab-fa88-50df-8b2f-bcdbe48e7c78	ASS_LVL_COD_TXT	TEXT		1	1	Ass Lvl Cod Txt [ISO 19650-3:2020]	1	0
+PARAM	822bb665-a508-5268-b490-28d8546d6300	ASS_MANUFACTURER_TXT	TEXT		1	1	Ass Manufacturer Txt [ISO 19650-3:2020]	1	0
+PARAM	305de400-5d2f-54f6-a4ed-acc93f5a1ab2	ASS_MODEL_NR_TXT	TEXT		1	1	Ass Model Nr Txt [ISO 19650-3:2020]	1	0
+PARAM	a1b2c3d4-5011-4a01-b001-000000000117	ASS_MODEL_REF_TXT	TEXT		1	1	Model reference identifier [COBie V2.4]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d52	ASS_PMT_CERT_DATE_DT	TEXT		2	1	ISO 8601 date of the payment certificate valuation [Phase 184g / P5]	1	0
+PARAM	1fee3b2b-7f2a-56a5-9d89-81d40113b725	ASS_PMT_CERT_NO_NR_DISP_TXT	TEXT		2	1	Payment certificate number this line item was last valued in — TEXT display mirror for tag labels	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d53	ASS_PMT_LAST_VALUED_DT	TEXT		2	1	ISO 8601 timestamp the line item was last valued by PaymentCertEngine [Phase 184g / P5]	1	0
+PARAM	f27e6d2a-a647-5fd5-9c41-9ef2a54f22e3	ASS_PMT_PCT_COMPLETE_NR_DISP_TXT	TEXT		2	1	Per-element percent complete (0-100) driving payment certificate valuation — TEXT display mirror for tag labels	1	0
+PARAM	28c52839-f0b9-55f6-bc9e-7cad2149acc3	ASS_POWER_RATING_TXT	TEXT		4	1	Electrical power rating (kW/VA)	1	0
+PARAM	b97665a8-5e34-585b-9674-fbdd83d7637f	ASS_STATUS_TXT	TEXT		1	1	Ass Status Txt [ISO 19650-3:2020]	1	0
+PARAM	e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6a7b	ASS_SYSTEMS_TXT	TEXT		1	1	Pipe/duct systems this element connects to (pipe-delimited)	1	0
+PARAM	1eeb577d-342d-5039-97f1-f1dd8d80c8c4	ASS_TAG_1_TXT	TEXT		1	1	Ass Tag 1 Txt [ISO 19650-3:2020]	1	0
+PARAM	bf6cb687-478f-459a-8c5d-ece073c24831	ASS_TAG_2_TXT	TEXT		1	1	Ass Tag 2 Txt [ISO 19650-3:2020]	1	0
+PARAM	d66a235f-2250-590a-8a9f-b5bd78f330da	ASS_TRACE_SEQ_NR_DISP_TXT	TEXT		1	1	Sequential trace number for multi-element commissioning sequences — TEXT display mirror for tag labels	1	0
+PARAM	211dbcbc-361e-513e-a25c-ba0c730c6409	ASS_UNICLASS_2015_TXT	TEXT		1	1	Uniclass 2015 classification code	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d61	ASS_VAR_INSTRUCTION_DT	TEXT		2	1	ISO 8601 date the variation instruction was issued [Phase 184g / P5]	1	0
+PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d60	ASS_VAR_NO_TXT	TEXT		2	1	Variation / change-order number this element was instructed under [Phase 184g / P5]	1	0
+PARAM	8854c07f-d664-545c-a5a3-89c0be61961a	ASS_VAR_VALUATION_NR_DISP_TXT	TEXT		2	1	Variation valuation amount in project base currency — TEXT display mirror for tag labels	1	0
+PARAM	185175fb-822c-5978-9955-1ffd1fa2025c	ASS_WARRANTY_LABOR_TXT	TEXT		1	1	Warranty guarantor labor (COBie)	1	0
+PARAM	400e0672-13f4-5383-aa9d-9f276864d677	ASS_WARRANTY_PARTS_TXT	TEXT		1	1	Warranty guarantor parts (COBie)	1	0
+PARAM	b3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7a	ASS_WARRANTY_TXT	TEXT		1	1	Warranty description [COBie V2.4]	1	0
+PARAM	dc0d940f-e4ce-5e73-a0a7-fc7094148c84	ASS_ZONE_TXT	TEXT		1	1	Ass Zone Txt [ISO 19650-3:2020]	1	0
+PARAM	e72731ee-88d0-5341-b458-4ce288e5fbe4	CBN_A1_A3_KG_CO2E_DISP_TXT	TEXT		9	1	Embodied carbon A1-A3 product stage (manufacturing) kgCO2e — TEXT display mirror for tag labels	1	0
+PARAM	434c64bc-c14b-5c9e-8378-dece87752dca	CBN_A4_KG_CO2E_DISP_TXT	TEXT		9	1	Embodied carbon A4 transport to site kgCO2e — TEXT display mirror for tag labels	1	0
+PARAM	d45fbd40-963e-5e52-864f-e4964ef3b449	CBN_B6_KG_CO2E_YR_DISP_TXT	TEXT		9	1	Operational carbon B6 energy annual kgCO2e/yr — TEXT display mirror for tag labels	1	0
+PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1	0
+PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1	0
+PARAM	24b29d51-28da-59b4-a011-007d932651b7	CLASH_TRIAGE_SEVERITY_NR_DISP_TXT	TEXT		20	1	Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels	1	0
+PARAM	5753b5aa-0004-4000-8000-000000000002	COMM_DATE_TXT	TEXT		25	1	ISO 8601 date of commissioning state change	1	0
+PARAM	5753b5aa-0004-4000-8000-000000000003	COMM_OPERATIVE_TXT	TEXT		25	1	Commissioning operative name or ID who performed the test	1	0
+PARAM	5753b5aa-0004-4000-8000-000000000001	COMM_STATE_TXT	TEXT		25	1	Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)	1	0
+PARAM	84726a5b-ca7f-59a8-9d3b-7d9f5b8fe4f3	CST_INSTALL_HRS_DISP_TXT	TEXT		2	1	Install time in hours per element for labour takeoff — TEXT display mirror for tag labels	1	0
+PARAM	e1c19fcb-f0bf-552a-a795-9e28918bb81b	CST_INTL_PRICE_USD_DISP_TXT	TEXT		2	1	International supplier unit price in USD — TEXT display mirror for tag labels	1	0
+PARAM	4de58d8f-38e2-584f-b8aa-5a5744a80fcd	CST_QUOTE_REF_TXT	TEXT		2	1	Supplier quote reference number	1	0
+PARAM	1a55a7cb-fa8e-51bf-944b-e173d9026299	CST_UG_PRICE_UGX_DISP_TXT	TEXT		2	1	Local Uganda unit price in UGX — TEXT display mirror for tag labels	1	0
+PARAM	7c4f149b-46cf-50d7-9c10-8fbd2bdd80f8	HEALTH_SCORE_LAST_NR_DISP_TXT	TEXT		23	1	Last model health score 0 to 100 — TEXT display mirror for tag labels	1	0
+PARAM	5753b5aa-000a-4000-8000-000000000001	IFC_PSET_OVERRIDE_TXT	TEXT		22	1	Manual IFC property set override pipe-delimited (Pset_Name=Value)	1	0
+PARAM	b8c9d0e1-f2a3-4b4c-d5e6-f7a8b9c0d1e2	MEC_SYS_TXT	TEXT		5	1	Mechanical system code	1	0
+PARAM	19d2a36a-8e02-57f9-8b00-66b7c0a151cf	RGL_STD_TXT	TEXT		15	1	Rgl Std Txt [ISO 19650-1:2018]	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0001	STING_GATE_DATA_STATUS_INT	INTEGER		17	1	Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0002	STING_GATE_QA_STATUS_INT	INTEGER		17	1	QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge	1	0
+PARAM	8be3ef27-42ab-5668-8cd0-a376578c805a	TAG_PARA_STATE_10_BOOL	YESNO		17	1	Paragraph depth state tier 10 [ISO 19650-3:2020]	1	0
+PARAM	b1080057-9890-5a0c-959a-46fb8847c766	TAG_PARA_STATE_2_BOOL	YESNO		17	1	Standard mode (tiers 1+2) [ISO 19650-3:2020]	1	0
+PARAM	3ac69694-7584-5ba2-9bce-4d045ca21088	TAG_PARA_STATE_4_BOOL	YESNO		17	1	Paragraph depth state tier 4 [ISO 19650-3:2020]	1	0
+PARAM	c9045501-eee6-54ce-b725-3ea589ee8025	TAG_PARA_STATE_5_BOOL	YESNO		17	1	Paragraph depth state tier 5 [ISO 19650-3:2020]	1	0
+PARAM	9b913556-ac00-5a04-b53c-1e262498ad1d	TAG_PARA_STATE_6_BOOL	YESNO		17	1	Paragraph depth state tier 6 [ISO 19650-3:2020]	1	0
+PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	YESNO		17	1	Paragraph depth state tier 7 [ISO 19650-3:2020]	1	0
+PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8 [ISO 19650-3:2020]	1	0
+PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	YESNO		17	1	Paragraph depth state tier 9 [ISO 19650-3:2020]	1	0
+PARAM	11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f	TAG_WARN_VISIBLE_BOOL	YESNO		17	1	Enable/disable warning text in tags [ISO 19650-3:2020]	1	0

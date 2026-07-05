@@ -3,21 +3,54 @@
 **One label. 62 rows. Discipline-agnostic. Built ONCE by hand, then propagated to all 206.**
 
 This is the master walkthrough for hand-building the universal tag label in the Revit Family
-Editor. It supersedes the per-family bespoke-tier authoring. Three parts:
+Editor. It supersedes the per-family bespoke-tier authoring. Sections:
 
+- **Part 0 — SETUP** — load the params and get all 71 into the Edit Label field list.
 - **Part 1 — DELETE** the discipline-specific + T3 + warning-text rows from your current master.
-- **Part 2 — BUILD** the 62 universal rows.
+- **Part 2 — BUILD** the 62 universal rows (with the exact per-row calc-value procedure).
 - **Part 3 — WARNING / STATUS SYMBOLS** — the two visual status badges that replace the old
   text warning rows.
+- **Part 4 — COMPLETION CHECKLIST** — what "done" looks like before the smoke test.
 
-Companion docs (same folder): `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` (the canonical 62-row table)
-· `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` (the verify gate).
+### Build kit (files in `docs/`)
+| File | Use |
+|---|---|
+| `UNIVERSAL_TAG_MASTER_BUILD.xlsx` | **The working spreadsheet.** Sheet *Label Rows* = all 62 rows (Name/Formula/Prefix/Suffix/Spaces/Break/param) with a **Built?** column to tick as you go; *Parameters* = the exact 71 params (type/group/GUID/role); *Badges* = the 6 visibility formulas; *Delete first* = the removal list. Work from this. |
+| `UNIVERSAL_TAG_MASTER_PARAMS.txt` | **Revit shared-parameter file with ONLY the 71 master params.** Load it as the active shared-param file so the Add-parameter browser shows only what you need (fast add). GUIDs are identical to `MR_PARAMETERS.txt`. |
+| `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` | The canonical 62-row table (source of the xlsx). |
+| `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` | The verify gate to run when the master is done. |
 
 Why this changed: the API can't author label rows, cross-category paste is blocked, and every
 family's bespoke tier structure is unique — so a single bespoke master can't be propagated. A
 *discipline-agnostic* label CAN (recategorise preserves rows). Discipline engineering data moves
 to per-category **schedules** (`Tag Schedules` button); per-item warnings move to the two
 **status badges** (Part 3).
+
+---
+
+## Part 0 — Setup: load params + populate the Edit Label field list
+
+A parameter can only be used in a calc value if it is already in the tag's **Edit Label field
+list** (Family-Types binding does NOT surface it there). Do this first so Part 2 never stalls on
+a "not a valid parameter" error.
+
+1. **Pick the pilot family.** Air Terminal is the sanctioned first master (do NOT start with
+   Electrical Equipment — it's the longest). Open it in the Family Editor in a test project
+   (TENDO 3.rvt).
+2. **Load the master param file.** Manage → Shared Parameters → Browse → select
+   `docs/UNIVERSAL_TAG_MASTER_PARAMS.txt`. This file holds exactly the 71 params (13 groups) —
+   nothing else — so the browser is short.
+3. **Open Edit Label** on the tag's label element (or create one label if none: Create → Label →
+   place it).
+4. **Add every param from the *Parameters* sheet to the field list:** Edit Label → **Add
+   parameter** (the ▸ icon) → Select → pick group → pick param → OK → OK. Repeat for all 71.
+   - Multi-select does **not** work — one at a time.
+   - The Shared-Parameters browser **resets to the first group on every reopen**, so re-pick the
+     group each time.
+   - Tick them off in the xlsx *Parameters* sheet as you add them.
+5. Leave Edit Label **open** — go straight to Part 1/2. **Params added to the field list are lost
+   on close unless pushed to the label table as rows**, so never close Edit Label until the rows
+   are built.
 
 ---
 
@@ -74,17 +107,35 @@ the style/visibility params, or any Part 2 / Part 3 parameter.
 
 ## Part 2 — Build the 62 universal rows
 
-**Mechanics (every non-T1 row):**
-1. Edit Label → **fx** (Calculated Value) button in the middle column.
-2. **Name** = the row name from the table; **Type = Text** (it defaults to Number — verify it
-   sticks); **Formula** = paste the `if(...)` exactly. OK. (The referenced parameter must
-   already be in the label field list, or OK errors — add it first via Add-parameter.)
-3. In the label table set that row's **Prefix**, **Suffix**, **Spaces = 0**, and **Break**.
-   Set **Spaces = 0 BEFORE ticking Break** — Spaces is only editable while the row *above* has
-   no Break. Double-click the Spaces cell to select the digit before typing (a plain click
-   appends).
+Work from the **`UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Label Rows* sheet** and tick the **Built?**
+column per row. Build rows **in order (2 → 62)**.
 
-**Row 1** = `ASS_TAG_1_TXT` added directly (not a calc value), Break = YES.
+**Row 1** = `ASS_TAG_1_TXT` added directly (drag the parameter into the label, not a calc value),
+Break = YES.
+
+**Exact procedure for each non-T1 row (rows 2–62):**
+1. In Edit Label, click the **fx / Calculated Value** button (middle column, below the →/←
+   arrows).
+2. **Name** = the row's *Calc Value Name* from the xlsx (e.g. `Show Tier 2 - 2`).
+3. **Type = Text.** It defaults to *Number* — change it and confirm it sticks (a Number-typed
+   `if(...,"" )` errors).
+4. **Formula** = paste the row's formula exactly, e.g. `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")`.
+   Both referenced params (the `TAG_PARA_STATE_n_BOOL` gate **and** the data param) must already
+   be in the field list from Part 0, or OK throws "not a valid parameter".
+5. **OK** — this creates the calc value **and** adds it as a new row in the label table (no
+   separate → push needed).
+6. In the label table, set that row's **Prefix**, **Suffix**, **Spaces = 0**, **Break**:
+   - Set **Spaces = 0 BEFORE ticking Break** — the Spaces cell is only editable while the row
+     *above* has no Break.
+   - To set a Spaces value reliably: single-click the cell (make it current) → **double-click to
+     select the existing digit** → type `0`. A plain click+type *appends* (`1` → `10`).
+   - Break checkbox is finicky — click the square precisely.
+
+**Copy/paste tip:** keep the xlsx open beside Revit; copy the Formula cell straight into the
+Formula field to avoid typos in the `if(...)` and param names.
+
+**Tier gating** = each row shows only when its `TAG_PARA_STATE_n_BOOL` is Yes, so the whole
+label reflows cleanly as tiers toggle. This is why it's ONE label, not per-colour labels.
 
 **Tier gating** = each row shows only when its `TAG_PARA_STATE_n_BOOL` is Yes, so the whole
 label reflows cleanly as tiers toggle. This is why it's ONE label, not per-colour labels.
@@ -202,8 +253,45 @@ and confirm they survive before scaling.
 
 ---
 
+## Part 4 — Completion checklist (what "done" means)
+
+Tick every item before running the smoke test. The master is not finished until all pass.
+
+**Params & setup**
+- [ ] `UNIVERSAL_TAG_MASTER_PARAMS.txt` loaded as the active shared-param file.
+- [ ] All **71** params from the xlsx *Parameters* sheet are in the Edit Label field list.
+
+**Delete (Part 1)**
+- [ ] All 3 T2 discipline rows removed.
+- [ ] All 6 T3 rows removed.
+- [ ] All warning text rows removed.
+- [ ] No `HVC_/PLM_/ELC_/MNT_/WARN_` data param remains in any label row.
+
+**Build (Part 2)**
+- [ ] Row 1 = `ASS_TAG_1_TXT` direct, Break = YES.
+- [ ] All **62** rows present, in order, **Built?** ticked in the xlsx.
+- [ ] Every calc value is **Type = Text** (none left as Number).
+- [ ] Every formula matches the xlsx exactly (gate + data param spelled right).
+- [ ] Prefix / Suffix / **Spaces = 0** / Break set per row.
+- [ ] Tier toggle test in the family: flip `TAG_PARA_STATE_4..10_BOOL` — rows appear/collapse and
+      the label **reflows with no gaps/overlaps**.
+
+**Badges (Part 3) — optional but recommended**
+- [ ] 6 glyphs placed (LEFT green/amber/red + RIGHT green/amber/red).
+- [ ] All 6 on subcategory `STING_TagStatus` (Object Styles).
+- [ ] 6 family Yes/No params with the `vis_*` formulas from the xlsx *Badges* sheet.
+- [ ] Each glyph's **Visible** bound to its `vis_*` param.
+- [ ] Badges anchored at a **fixed** top-left / top-right point — never below/inside the flowing label.
+
+**Finish**
+- [ ] Master saved with an unambiguous name (e.g. `STING - UNIVERSAL Tag`).
+- [ ] Loaded into the test project alongside a Duct tag family (both needed for the smoke test).
+
 ## After building: verify, then propagate
 
-1. Save the master (unambiguous name, e.g. `STING - UNIVERSAL Tag`).
-2. Run the **Duct smoke test** (`UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`) — the one-family gate.
-3. On PASS: `Propagate Universal` → ALL families, then run `Stamp Gates` and `Tag Schedules`.
+1. Run the **Duct smoke test** (`UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`) — the one-family gate.
+2. On PASS: `Propagate Universal` → ALL families; then **persist** the propagated `.rfa` to
+   git-tracked `StingTools/Data/TagFamilies/` **and repopulate `…/TagFamilies/Seeds/`** (see the
+   smoke-test doc's post-pass step 2), and redeploy.
+3. Run `Stamp Gates` (fills the badge status ints) and `Tag Schedules` (builds the per-category
+   engineering schedules that replace the dropped discipline tiers).
