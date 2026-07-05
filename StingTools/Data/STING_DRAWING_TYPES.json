@@ -3450,6 +3450,7 @@
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
+      "system": "HVAC",
       "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3576,6 +3577,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3776,6 +3778,7 @@
     },
     {
       "id": "elec-power-A1-1to100",
+      "system": "LV",
       "name": "Electrical Power Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3886,6 +3889,7 @@
         "revision": "P01"
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3910,6 +3914,7 @@
     },
     {
       "id": "elec-lighting-A1-1to100",
+      "system": "LTG",
       "name": "Lighting Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -4013,6 +4018,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -7848,6 +7854,7 @@
     },
     {
       "id": "health-medgas-pln-A1-1to100",
+      "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
@@ -7887,6 +7894,7 @@
         }
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9146,6 +9154,7 @@
     },
     {
       "id": "plumb-dcw-schematic-A1-NTS",
+      "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9182,6 +9191,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9207,6 +9217,7 @@
     },
     {
       "id": "plumb-dhw-schematic-A1-NTS",
+      "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9243,6 +9254,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9268,6 +9280,7 @@
     },
     {
       "id": "plumb-lthw-schematic-A1-NTS",
+      "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9304,6 +9317,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",

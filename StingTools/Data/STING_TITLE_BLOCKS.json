@@ -255,6 +255,12 @@
           "instance": false,
           "group": "IdentityData",
           "default": "v2.0"
+        },
+        {
+          "name": "PRJ_SHEET_SYSTEM_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -612,6 +618,14 @@
             69
           ],
           "size": 1.0
+        },
+        {
+          "text": "SYSTEM",
+          "anchor": [
+            300,
+            56
+          ],
+          "size": 1.2
         }
       ],
       "labels": [
@@ -882,6 +896,16 @@
             64
           ],
           "size": 1.0,
+          "hAlign": "Left",
+          "vAlign": "Middle"
+        },
+        {
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            300,
+            50
+          ],
+          "size": 1.6,
           "hAlign": "Left",
           "vAlign": "Middle"
         }
@@ -9929,6 +9953,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -10450,7 +10504,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -10466,7 +10520,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -10474,7 +10528,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -10482,7 +10536,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -10490,7 +10544,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -10667,6 +10721,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -11188,7 +11272,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -11204,7 +11288,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -11212,7 +11296,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -11220,7 +11304,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -11228,7 +11312,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -11405,6 +11489,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -11926,7 +12040,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -11942,7 +12056,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -11950,7 +12064,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -11958,7 +12072,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -11966,7 +12080,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -12143,6 +12257,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -12664,7 +12808,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -12680,7 +12824,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -12688,7 +12832,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -12696,7 +12840,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -12704,7 +12848,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
