@@ -1270,6 +1270,7 @@
         {
           "label": "Main Plan",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.75,
@@ -1457,6 +1458,7 @@
         {
           "label": "Plan 3D Overlay",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,

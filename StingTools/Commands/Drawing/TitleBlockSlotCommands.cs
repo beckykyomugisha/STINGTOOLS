@@ -220,29 +220,7 @@ namespace StingTools.Commands.Drawing
         /// Returns the slot id, or null if nothing matches even via aliases.</summary>
         private static string ResolveSlotForTag(Dictionary<string, SlotBounds> slotMap,
             string tag, ViewportPlacementRules rules)
-        {
-            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
-            // Direct hit: any slot whose purposeTag matches.
-            foreach (var kv in slotMap)
-            {
-                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
-                    return kv.Key;
-            }
-            // Alias chain.
-            if (rules?.PurposeTagAliases != null
-                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
-            {
-                foreach (var alias in aliases)
-                {
-                    foreach (var kv in slotMap)
-                    {
-                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
-                            return kv.Key;
-                    }
-                }
-            }
-            return null;
-        }
+            => TitleBlockSlotUtils.ResolveSlotIdForTag(slotMap, tag, rules);
 
         private static bool GlobMatch(string pattern, string value)
         {
@@ -669,6 +647,40 @@ namespace StingTools.Commands.Drawing
                 StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
             return result;
+        }
+
+        /// <summary>Find the id of the slot whose <see cref="SlotBounds.PurposeTag"/>
+        /// matches <paramref name="tag"/>. Exact (case-insensitive) match first,
+        /// then the alias chain from
+        /// <see cref="ViewportPlacementRules.PurposeTagAliases"/> for graceful
+        /// fallback (a "main-plan-half-left" request lands in a "main-plan" slot
+        /// when the half-left pocket isn't present). Returns null when nothing
+        /// matches even via aliases. Shared by the manual auto-placer and the
+        /// automated <c>SheetPlacementBridge</c> (P1 — unified slot model).</summary>
+        public static string ResolveSlotIdForTag(Dictionary<string, SlotBounds> slotMap,
+            string tag, ViewportPlacementRules rules)
+        {
+            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
+            // Direct hit: any slot whose purposeTag matches.
+            foreach (var kv in slotMap)
+            {
+                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
+                    return kv.Key;
+            }
+            // Alias chain.
+            if (rules?.PurposeTagAliases != null
+                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    foreach (var kv in slotMap)
+                    {
+                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
+                            return kv.Key;
+                    }
+                }
+            }
+            return null;
         }
 
         private const double MmPerFoot = 304.8;

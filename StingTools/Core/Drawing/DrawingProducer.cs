@@ -167,6 +167,14 @@ namespace StingTools.Core.Drawing
             if (opts.CreateSheet)
                 result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
 
+            // P1 — resolve the title-block family's slot grid once for this
+            // sheet (null for norm-only profiles / no sheet) and reuse it across
+            // every production rule instead of re-opening the family per view.
+            SheetPlacementBridge.FamilySlotContext famCtx = null;
+            if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
+                famCtx = SheetPlacementBridge.BuildFamilySlotContext(
+                    doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+
             foreach (var rule in rules)
             {
                 if (rule == null) continue;
@@ -178,7 +186,7 @@ namespace StingTools.Core.Drawing
 
                 if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
                 {
-                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result);
+                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result, famCtx);
                     if (vpId != ElementId.InvalidElementId)
                     {
                         result.ViewportIds.Add(vpId);
@@ -623,12 +631,12 @@ namespace StingTools.Core.Drawing
             return sheet.Id;
         }
 
-        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result)
+        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result, SheetPlacementBridge.FamilySlotContext famCtx = null)
         {
             try
             {
                 var pt = SheetPlacementBridge.GetSlotPosition(doc, sheetId, dt,
-                    rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result);
+                    rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
                 if (pt == null)
                 {
                     var sheet = doc.GetElement(sheetId) as ViewSheet;
