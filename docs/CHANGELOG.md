@@ -3,6 +3,29 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
+
+Because the universal tag is discipline-agnostic (Task 1), the engineering data dropped from
+the bespoke tag tiers moves into schedules. New `Schedule_DisciplineTagExpander` command builds
+one `ViewSchedule` per model category from the shipped `SCHEDULE_SPEC_all_disciplines.json` (207
+entries across ARCH/GEN/HEALTH/MEP/STR). Built against Revit 2025: **0 errors**. Not yet exercised
+in Revit. Tests: `Tags.Tests` 134 pass / 2 pre-existing `CsiMasterFormat` fails.
+
+- **Column layout** per the brief: col 1 = `ASS_TAG_1_TXT` (the tag — links drawing ↔ schedule),
+  then the entry's discipline columns, then the built-in Comments column. Fields are matched to
+  each category's `GetSchedulableFields()` by name; columns not bound to the category are omitted.
+- **Runtime category derivation** (no hand-transcription): the spec's family name is joined to
+  `LABEL_DEFINITIONS.json` `category_labels` (family_name / csv_family_alias / plural Revit key,
+  with prefix-fallback for the ~16 truncated spec names) to get the Revit model-category display
+  name, then resolved to a live `Category` in the open document. Unresolved / non-schedulable
+  categories are skipped and reported.
+- **Modes**: Sheet columns (compact `sheet_columns`) / Full as-built (`full_columns`) / Both.
+  Entries with empty columns are skipped (the universal tag already covers them). Families that
+  share a category (e.g. 16 healthcare "Medical Equipment" families) collapse to ONE schedule with
+  the de-duplicated union of their columns, capped at 24 (reported when truncated). Idempotent —
+  skips schedules that already exist by name. Wired to the CREATE tab ("Tag Schedules" button);
+  `SCHEDULE_SPEC_all_disciplines.json` copied into `Data/`.
+
 #### Completed (Phase 195 Task 2 — Universal Tag status gates, branch `feature/universal-tag-system`)
 
 Plugin side of the universal tag's two status **badges** (left = data-completeness gate,
