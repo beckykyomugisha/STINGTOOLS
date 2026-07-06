@@ -129,6 +129,15 @@ namespace StingTools.Core.Mep
         public Dictionary<string, double> DuctFittingLossK { get; set; }
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         /// <summary>
+        /// Fixed external-static allowances (Pa) for in-line AHU/system
+        /// components — coils, filters, terminals, attenuators. Added to the
+        /// index-run friction total by <c>HvacFanStaticReportCommand</c> to
+        /// estimate fan External Static Pressure. Keyed case-insensitively
+        /// (e.g. "coil_cooling", "filter_bag", "terminal").
+        /// </summary>
+        public Dictionary<string, double> DuctComponentAllowancesPa { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
         /// Manufacturer-specific fitting C values. Outer key is the brand
         /// (e.g. "lindab", "trox"), inner key is the product code (case
         /// insensitive). Resolved via <see cref="GetManufacturerC"/>.
@@ -432,6 +441,22 @@ namespace StingTools.Core.Mep
                             (jv.Type == JTokenType.Float || jv.Type == JTokenType.Integer))
                         {
                             try { rules.DuctFittingLossK[kv.Key] = (double)kv.Value; }
+                            catch { /* skip malformed entry */ }
+                        }
+                    }
+                }
+
+                // Component external-static allowances (coils/filters/terminals).
+                var comps = duct["componentAllowancesPa"] as JObject;
+                if (comps != null)
+                {
+                    foreach (var kv in comps)
+                    {
+                        if (kv.Key.StartsWith("_")) continue; // _notes etc.
+                        if (kv.Value is JValue cv &&
+                            (cv.Type == JTokenType.Float || cv.Type == JTokenType.Integer))
+                        {
+                            try { rules.DuctComponentAllowancesPa[kv.Key] = (double)kv.Value; }
                             catch { /* skip malformed entry */ }
                         }
                     }

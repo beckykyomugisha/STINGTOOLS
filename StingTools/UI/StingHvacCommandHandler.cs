@@ -278,6 +278,9 @@ namespace StingTools.UI
                     case "Hvac_CarbonReport":
                         // Phase 183 — gap C8 (HVAC plant + refrigerant carbon)
                         Run<StingTools.Commands.Hvac.HvacCarbonReportCommand>(app); break;
+                    case "Hvac_FanStaticReport":
+                        // Gap 2.3 — index-run total-static / fan external static report.
+                        Run<StingTools.Commands.Hvac.HvacFanStaticReportCommand>(app); break;
                     case "Hvac_BlockLoad":
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.

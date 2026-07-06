@@ -3387,6 +3387,41 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 2 item 2.3 — branch `claude/hvac-impl`)
+
+Item 2.3 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — new duct static-pressure / fan-selection
+report. Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **New `[ReadOnly]` command `HvacFanStaticReportCommand`** (tag `Hvac_FanStaticReport`, file
+  `Commands/Hvac/HvacFanStaticReportCommand.cs`). From a selected mechanical-equipment element
+  (AHU/fan carrying a duct connector) or a selected duct, it walks the duct network to the
+  **index run** (highest cumulative total-pressure-drop path) and reports fan **External Static
+  Pressure** in Pa with a per-segment breakdown.
+- **Index-run algorithm.** (1) Resolve the fan source — a selected AHU, or for a selected duct the
+  `MechanicalSystem.BaseEquipment` (else the first equipment member, else the duct itself).
+  (2) BFS outward over the duct connector graph (`Connector.AllRefs` → `Owner`; visited set; 5000-node
+  guard) from the source's HVAC connectors. Each duct segment records a **cumulative** total-pressure
+  drop = predecessor cumulative + this segment's straight Darcy-Weisbach friction
+  (`DuctFrictionSolver.Solve`, galvanised roughness, **air density from the HVAC header `Snapshot()`**
+  so altitude is respected) + fitting loss crossed on the hop in. (3) Terminal nodes are air terminals
+  (`OST_DuctTerminal` on `AllRefs`) or dead-end ducts. The index run is the terminal with the **maximum
+  cumulative drop**, recovered by backtracing a predecessor map (cycle-guarded). Falls back to the
+  single highest-ΔP duct when no terminal is reachable (surfaced as a warning).
+- **Fitting losses** are classified from `MechanicalFitting.PartType` (Elbow→`ELBOW_90_SMOOTH`,
+  Tee/Cross/Tap→`TEE_BRANCH_90`, Transition→`EXPANSION_45`; duct accessory→`DAMPER_OPEN`) → C from
+  `MepSizingRegistry` (manufacturer C via `MEP_PROD_REF_TXT` first, else the SMACNA/registry table),
+  `ΔP = C·½ρv²` with v from the connector's own flow+area.
+- **Component allowances** (coil/filter/terminal) read from a **new `duct.componentAllowancesPa`
+  block** in `STING_MEP_SIZING_RULES.json` (parsed into `MepSizingRules.DuctComponentAllowancesPa`),
+  offered via a TaskDialog (all / terminal-only / none) with hardcoded fallbacks if the block is absent.
+- **Output:** a `StingResultPanel` (fan ESP + per-segment table + method), a TaskDialog summary, a
+  `StingHvacPanel.PushRunRow` entry, and a CSV via `OutputLocationHelper.GetOutputPath`.
+- **Wiring:** dispatch case in `UI/StingHvacCommandHandler.cs`; a "Fan static" primary button on the
+  **RPRT** tab of `UI/StingHvacPanel.xaml`.
+- **Honesty:** fitting classification uses SMACNA design-point C, not full fitting curves; component
+  allowances are fixed Pa, not modelled coil/filter selections. Unverifiable without a live Revit
+  ducted model — logic is static-analysis + build-verified only.
+
 #### Completed (HVAC gap remediation Tier 2 item 2.2 — branch `claude/hvac-impl`)
 
 Item 2.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — auto-populate refrigerant sizing from the
