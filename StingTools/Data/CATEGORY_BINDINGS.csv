@@ -1,3 +1,4 @@
+# v3.8 | 20260706 | +217 engine-written param bindings (P3 coverage: 28 sibling-derived params across HVC/ELC/PLM/ASS; see docs/CATEGORY_BINDING_COVERAGE_REPORT.md)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
 # v3.6 | 20260630 | +30 Tier-2 element-bound param bindings (electrical/plumbing/design-option/sheet/view/clash/IFC)
 # v3.5 | 20260630 | +9 material cost/carbon/EPD + fixture water-efficiency bindings (Sustainability/BOQ-cost)
@@ -16889,3 +16890,220 @@ STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,False
 STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,False
 STING_PLACER_VIEW_ID_TXT,Detail Items,Instance,False
 PRJ_SHEET_SYSTEM_TXT,Title Blocks,Instance,True
+ASS_LAST_TOKEN_HASH_TXT,Generic Models,Instance,False
+ASS_REV_TXT,Generic Models,Type,True
+ASS_TAG_MODIFIED_DT,Air Terminals,Type,True
+ASS_TAG_MODIFIED_DT,Cable Trays,Type,True
+ASS_TAG_MODIFIED_DT,Casework,Type,True
+ASS_TAG_MODIFIED_DT,Ceilings,Type,True
+ASS_TAG_MODIFIED_DT,Columns,Type,True
+ASS_TAG_MODIFIED_DT,Communication Devices,Type,True
+ASS_TAG_MODIFIED_DT,Conduits,Type,True
+ASS_TAG_MODIFIED_DT,Curtain Panels,Type,True
+ASS_TAG_MODIFIED_DT,Curtain Systems,Type,True
+ASS_TAG_MODIFIED_DT,Curtain Wall Mullions,Type,True
+ASS_TAG_MODIFIED_DT,Data Devices,Type,True
+ASS_TAG_MODIFIED_DT,Doors,Type,True
+ASS_TAG_MODIFIED_DT,Duct Accessories,Type,True
+ASS_TAG_MODIFIED_DT,Duct Fittings,Type,True
+ASS_TAG_MODIFIED_DT,Ducts,Type,True
+ASS_TAG_MODIFIED_DT,Electrical Equipment,Type,True
+ASS_TAG_MODIFIED_DT,Electrical Fixtures,Type,True
+ASS_TAG_MODIFIED_DT,Fire Alarm Devices,Type,True
+ASS_TAG_MODIFIED_DT,Flex Ducts,Type,True
+ASS_TAG_MODIFIED_DT,Flex Pipes,Type,True
+ASS_TAG_MODIFIED_DT,Floors,Type,True
+ASS_TAG_MODIFIED_DT,Furniture,Type,True
+ASS_TAG_MODIFIED_DT,Furniture Systems,Type,True
+ASS_TAG_MODIFIED_DT,Generic Models,Type,True
+ASS_TAG_MODIFIED_DT,Lighting Fixtures,Type,True
+ASS_TAG_MODIFIED_DT,Mechanical Equipment,Type,True
+ASS_TAG_MODIFIED_DT,Medical Equipment,Type,True
+ASS_TAG_MODIFIED_DT,Nurse Call Devices,Type,True
+ASS_TAG_MODIFIED_DT,Pipe Accessories,Type,True
+ASS_TAG_MODIFIED_DT,Pipe Fittings,Type,True
+ASS_TAG_MODIFIED_DT,Pipes,Type,True
+ASS_TAG_MODIFIED_DT,Plumbing Equipment,Type,True
+ASS_TAG_MODIFIED_DT,Plumbing Fixtures,Type,True
+ASS_TAG_MODIFIED_DT,Railings,Type,True
+ASS_TAG_MODIFIED_DT,Ramps,Type,True
+ASS_TAG_MODIFIED_DT,Roofs,Type,True
+ASS_TAG_MODIFIED_DT,Rooms,Type,True
+ASS_TAG_MODIFIED_DT,Security Devices,Type,True
+ASS_TAG_MODIFIED_DT,Specialty Equipment,Type,True
+ASS_TAG_MODIFIED_DT,Sprinklers,Type,True
+ASS_TAG_MODIFIED_DT,Stairs,Type,True
+ASS_TAG_MODIFIED_DT,Structural Foundations,Type,True
+ASS_TAG_MODIFIED_DT,Structural Framing,Type,True
+ASS_TAG_MODIFIED_DT,Telephone Devices,Type,True
+ASS_TAG_MODIFIED_DT,Walls,Type,True
+ASS_TAG_MODIFIED_DT,Windows,Type,True
+ASS_TAG_PREV_TXT,Air Terminals,Type,True
+ASS_TAG_PREV_TXT,Cable Trays,Type,True
+ASS_TAG_PREV_TXT,Casework,Type,True
+ASS_TAG_PREV_TXT,Ceilings,Type,True
+ASS_TAG_PREV_TXT,Columns,Type,True
+ASS_TAG_PREV_TXT,Communication Devices,Type,True
+ASS_TAG_PREV_TXT,Conduits,Type,True
+ASS_TAG_PREV_TXT,Curtain Panels,Type,True
+ASS_TAG_PREV_TXT,Curtain Systems,Type,True
+ASS_TAG_PREV_TXT,Curtain Wall Mullions,Type,True
+ASS_TAG_PREV_TXT,Data Devices,Type,True
+ASS_TAG_PREV_TXT,Doors,Type,True
+ASS_TAG_PREV_TXT,Duct Accessories,Type,True
+ASS_TAG_PREV_TXT,Duct Fittings,Type,True
+ASS_TAG_PREV_TXT,Ducts,Type,True
+ASS_TAG_PREV_TXT,Electrical Equipment,Type,True
+ASS_TAG_PREV_TXT,Electrical Fixtures,Type,True
+ASS_TAG_PREV_TXT,Fire Alarm Devices,Type,True
+ASS_TAG_PREV_TXT,Flex Ducts,Type,True
+ASS_TAG_PREV_TXT,Flex Pipes,Type,True
+ASS_TAG_PREV_TXT,Floors,Type,True
+ASS_TAG_PREV_TXT,Furniture,Type,True
+ASS_TAG_PREV_TXT,Furniture Systems,Type,True
+ASS_TAG_PREV_TXT,Generic Models,Type,True
+ASS_TAG_PREV_TXT,Lighting Fixtures,Type,True
+ASS_TAG_PREV_TXT,Mechanical Equipment,Type,True
+ASS_TAG_PREV_TXT,Medical Equipment,Type,True
+ASS_TAG_PREV_TXT,Nurse Call Devices,Type,True
+ASS_TAG_PREV_TXT,Pipe Accessories,Type,True
+ASS_TAG_PREV_TXT,Pipe Fittings,Type,True
+ASS_TAG_PREV_TXT,Pipes,Type,True
+ASS_TAG_PREV_TXT,Plumbing Equipment,Type,True
+ASS_TAG_PREV_TXT,Plumbing Fixtures,Type,True
+ASS_TAG_PREV_TXT,Railings,Type,True
+ASS_TAG_PREV_TXT,Ramps,Type,True
+ASS_TAG_PREV_TXT,Roofs,Type,True
+ASS_TAG_PREV_TXT,Rooms,Type,True
+ASS_TAG_PREV_TXT,Security Devices,Type,True
+ASS_TAG_PREV_TXT,Specialty Equipment,Type,True
+ASS_TAG_PREV_TXT,Sprinklers,Type,True
+ASS_TAG_PREV_TXT,Stairs,Type,True
+ASS_TAG_PREV_TXT,Structural Foundations,Type,True
+ASS_TAG_PREV_TXT,Structural Framing,Type,True
+ASS_TAG_PREV_TXT,Telephone Devices,Type,True
+ASS_TAG_PREV_TXT,Walls,Type,True
+ASS_TAG_PREV_TXT,Windows,Type,True
+ASS_WARRANTY_TXT,Air Terminals,Type,True
+ASS_WARRANTY_TXT,Cable Trays,Type,True
+ASS_WARRANTY_TXT,Casework,Type,True
+ASS_WARRANTY_TXT,Communication Devices,Type,True
+ASS_WARRANTY_TXT,Conduits,Type,True
+ASS_WARRANTY_TXT,Data Devices,Type,True
+ASS_WARRANTY_TXT,Electrical Equipment,Type,True
+ASS_WARRANTY_TXT,Electrical Fixtures,Type,True
+ASS_WARRANTY_TXT,Furniture,Type,True
+ASS_WARRANTY_TXT,Generic Models,Type,True
+ASS_WARRANTY_TXT,Lighting Fixtures,Type,True
+ASS_WARRANTY_TXT,Mechanical Equipment,Type,True
+ASS_WARRANTY_TXT,Nurse Call Devices,Type,True
+ASS_WARRANTY_TXT,Plumbing Equipment,Type,True
+ASS_WARRANTY_TXT,Plumbing Fixtures,Type,True
+ASS_WARRANTY_TXT,Security Devices,Type,True
+ASS_WARRANTY_TXT,Specialty Equipment,Type,True
+ASS_WARRANTY_TXT,Sprinklers,Type,True
+ASS_WARRANTY_TXT,Telephone Devices,Type,True
+ELC_CDT_FAB_METHOD_TXT,Conduit Fittings,Instance,True
+ELC_CDT_FAB_METHOD_TXT,Conduits,Instance,False
+ELC_CDT_FAB_METHOD_TXT,Ducts,Instance,True
+ELC_CDT_FAB_METHOD_TXT,Pipes,Instance,True
+ELC_CDT_SOFFIT_OFFSET_MM,Conduit Fittings,Instance,True
+ELC_CDT_SOFFIT_OFFSET_MM,Conduits,Instance,False
+ELC_CDT_SOFFIT_OFFSET_MM,Ducts,Instance,True
+ELC_CDT_SOFFIT_OFFSET_MM,Pipes,Instance,True
+ELC_JB_UPSTREAM_REF_TXT,Electrical Equipment,Instance,True
+ELC_PNL_IP_RATING_TXT,Air Terminals,Type,True
+ELC_PNL_IP_RATING_TXT,Cable Tray Fittings,Type,True
+ELC_PNL_IP_RATING_TXT,Cable Trays,Type,True
+ELC_PNL_IP_RATING_TXT,Casework,Type,True
+ELC_PNL_IP_RATING_TXT,Communication Devices,Type,True
+ELC_PNL_IP_RATING_TXT,Conduit Fittings,Type,True
+ELC_PNL_IP_RATING_TXT,Conduits,Type,True
+ELC_PNL_IP_RATING_TXT,Data Devices,Type,True
+ELC_PNL_IP_RATING_TXT,Electrical Circuits,Type,True
+ELC_PNL_IP_RATING_TXT,Electrical Equipment,Type,True
+ELC_PNL_IP_RATING_TXT,Electrical Fixtures,Type,True
+ELC_PNL_IP_RATING_TXT,Furniture,Type,True
+ELC_PNL_IP_RATING_TXT,Generic Models,Type,True
+ELC_PNL_IP_RATING_TXT,Lighting Fixtures,Type,True
+ELC_PNL_IP_RATING_TXT,Mechanical Equipment,Type,True
+ELC_PNL_IP_RATING_TXT,Nurse Call Devices,Type,True
+ELC_PNL_IP_RATING_TXT,Plumbing Equipment,Type,True
+ELC_PNL_IP_RATING_TXT,Plumbing Fixtures,Type,True
+ELC_PNL_IP_RATING_TXT,Security Devices,Type,True
+ELC_PNL_IP_RATING_TXT,Specialty Equipment,Type,True
+ELC_PNL_IP_RATING_TXT,Sprinklers,Type,True
+ELC_PNL_IP_RATING_TXT,Telephone Devices,Type,True
+ELC_PNL_NAME_TXT,Air Terminals,Type,True
+ELC_PNL_NAME_TXT,Cable Tray Fittings,Type,True
+ELC_PNL_NAME_TXT,Cable Trays,Type,True
+ELC_PNL_NAME_TXT,Casework,Type,True
+ELC_PNL_NAME_TXT,Communication Devices,Type,True
+ELC_PNL_NAME_TXT,Conduit Fittings,Type,True
+ELC_PNL_NAME_TXT,Conduits,Type,True
+ELC_PNL_NAME_TXT,Data Devices,Type,True
+ELC_PNL_NAME_TXT,Electrical Circuits,Type,True
+ELC_PNL_NAME_TXT,Electrical Equipment,Type,True
+ELC_PNL_NAME_TXT,Electrical Fixtures,Type,True
+ELC_PNL_NAME_TXT,Furniture,Type,True
+ELC_PNL_NAME_TXT,Generic Models,Type,True
+ELC_PNL_NAME_TXT,Lighting Fixtures,Type,True
+ELC_PNL_NAME_TXT,Mechanical Equipment,Type,True
+ELC_PNL_NAME_TXT,Nurse Call Devices,Type,True
+ELC_PNL_NAME_TXT,Plumbing Equipment,Type,True
+ELC_PNL_NAME_TXT,Plumbing Fixtures,Type,True
+ELC_PNL_NAME_TXT,Security Devices,Type,True
+ELC_PNL_NAME_TXT,Specialty Equipment,Type,True
+ELC_PNL_NAME_TXT,Sprinklers,Type,True
+ELC_PNL_NAME_TXT,Telephone Devices,Type,True
+ELC_WIRE_AMPACITY_A,Conduits,Instance,False
+ELC_WIRE_CIRCUIT_BREAKER_A,Conduits,Instance,False
+ELC_WIRE_CIRCUIT_TYPE_TXT,Conduits,Instance,False
+ELC_WIRE_COND_MAT_TXT,Conduits,Instance,False
+ELC_WIRE_CORE_COUNT_INT,Conduits,Instance,False
+ELC_WIRE_CSA_MM2_NUM,Conduits,Instance,False
+ELC_WIRE_INSTALL_METHOD_TXT,Conduits,Instance,False
+ELC_WIRE_MAX_DEMAND_A,Conduits,Instance,False
+ELC_WIRE_PHASE_TXT,Conduits,Instance,False
+ELC_WIRE_PROFILE_ID_TXT,Conduits,Instance,False
+ELC_WIRE_VD_PCT_NUM,Conduits,Instance,False
+HVC_DCT_FAB_METHOD_TXT,Air Terminals,Type,True
+HVC_DCT_FAB_METHOD_TXT,Duct Accessories,Type,True
+HVC_DCT_FAB_METHOD_TXT,Duct Fittings,Type,True
+HVC_DCT_FAB_METHOD_TXT,Ducts,Type,True
+HVC_DCT_FAB_METHOD_TXT,Flex Ducts,Type,True
+HVC_DCT_FAB_METHOD_TXT,Generic Models,Type,True
+HVC_DCT_FAB_METHOD_TXT,Mechanical Equipment,Type,True
+HVC_DCT_FAB_METHOD_TXT,Pipes,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Air Terminals,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Duct Accessories,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Duct Fittings,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Ducts,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Flex Ducts,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Generic Models,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Mechanical Equipment,Type,True
+HVC_DCT_SEAM_TYPE_TXT,Pipes,Type,True
+HVC_PRESSURE_DROP_PA,Ducts,Instance,True
+HVC_PRESSURE_DROP_PA,Flex Ducts,Instance,True
+PLM_PIPE_INS_THK_MM,Pipes,Instance,False
+PLM_PPE_FAB_METHOD_TXT,Generic Models,Type,True
+PLM_PPE_FAB_METHOD_TXT,Pipe Accessories,Type,True
+PLM_PPE_FAB_METHOD_TXT,Pipe Fittings,Type,True
+PLM_PPE_FAB_METHOD_TXT,Pipes,Type,True
+PLM_PPE_FAB_METHOD_TXT,Plumbing Equipment,Type,True
+PLM_PPE_FAB_METHOD_TXT,Plumbing Fixtures,Type,True
+PLM_PPE_FAB_METHOD_TXT,Sprinklers,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Generic Models,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Pipe Accessories,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Pipe Fittings,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Pipes,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Plumbing Equipment,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Plumbing Fixtures,Type,True
+PLM_PPE_HANGER_TYPE_TXT,Sprinklers,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Generic Models,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Pipe Accessories,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Pipe Fittings,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Pipes,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Plumbing Equipment,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Plumbing Fixtures,Type,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Sprinklers,Type,True
