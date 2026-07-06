@@ -3,7 +3,7 @@
 A step-by-step, Revit-specific guide to **drawing the status-badge glyphs** for the universal
 tag: the traffic-light symbols (🟢 / 🟡 / 🔴) for the data gate and QA gate. This covers ONLY
 the glyph construction — how to draw them, colour them, set line weight, and the scale question.
-The visibility wiring (`vis_*` params, placement on the tag) is in
+The visibility wiring (`VIS_*` params, placement on the tag) is in
 `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` Part 3.
 
 ---
@@ -23,7 +23,7 @@ Why distinct **shapes** and not just three coloured dots: ~8% of men are red-gre
 Shape + colour together means the badge is still readable in greyscale and by colour-blind users.
 If you truly want a pure traffic-light, make all three circles — but shape redundancy is better.
 
-Only **one** glyph per side is ever visible at a time (the `vis_*` formulas are mutually
+Only **one** glyph per side is ever visible at a time (the `VIS_*` formulas are mutually
 exclusive), so all three overlay at the same point.
 
 ---
@@ -172,10 +172,10 @@ family itself. Keep the glyph families clean.
    - RIGHT/QA gate anchor: place another Green, Amber, Red trio at the top-right point.
    → 6 nested instances total.
 2. Select each nested instance → in Properties, associate its **Visible** parameter (the small
-   `=` button) with the matching `vis_*` Yes/No family parameter (main guide Part 3b).
+   `=` button) with the matching `VIS_*` Yes/No family parameter (main guide Part 3b).
 3. Assign each nested instance's **Subcategory = `STING_TagStatus`** (for print control, §7).
 
-Because only one `vis_*` per side is ever true, exactly one glyph shows per gate.
+Because only one `VIS_*` per side is ever true, exactly one glyph shows per gate.
 
 ---
 
@@ -189,4 +189,4 @@ Because only one `vis_*` per side is ever true, exactly one glyph shows per gate
 - [ ] Boundary = **`<Invisible lines>`** (or pen 1 matching the fill).
 - [ ] Distinct shapes per colour (accessibility) — or all circles if you want a pure traffic light.
 - [ ] Saved as 3 `.rfa` in `Data/TagFamilies/Badges/`.
-- [ ] (At nesting) 6 instances placed at fixed L/R anchors, `Visible` → `vis_*`, subcategory `STING_TagStatus`.
+- [ ] (At nesting) 6 instances placed at fixed L/R anchors, `Visible` → `VIS_*`, subcategory `STING_TagStatus`.

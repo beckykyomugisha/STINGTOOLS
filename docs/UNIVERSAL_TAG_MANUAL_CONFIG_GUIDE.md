@@ -174,11 +174,13 @@ The old text warnings are replaced by **two visual badges** on the tag: **LEFT =
 gate**, **RIGHT = QA / sign-off gate**. Each shows 🟢/🟡/🔴 only when warnings are switched on;
 hidden otherwise, and switchable off on print.
 
-### 3a. Parameters (all already in MR_PARAMETERS.txt — Task 2 added the two INTs)
+### 3a. Parameters (all already in MR_PARAMETERS.txt — shared)
 | Param | Type | Scope | Set by | Meaning |
 |---|---|---|---|---|
-| `STING_GATE_DATA_STATUS_INT` | Integer | Instance | **Plugin** (`Stamp Gates`) | 0 = 🔴 / 1 = 🟡 / 2 = 🟢 (data gate) |
-| `STING_GATE_QA_STATUS_INT` | Integer | Instance | **Plugin** (`Stamp Gates`) | 0 = 🔴 / 1 = 🟡 / 2 = 🟢 (QA gate) |
+| `STING_GATE_DATA_STATUS_INT` | Integer | Instance | **Plugin** (`Stamp Gates`) | 0 = 🔴 / 1 = 🟡 / 2 = 🟢 (data gate colour) |
+| `STING_GATE_QA_STATUS_INT` | Integer | Instance | **Plugin** (`Stamp Gates`) | 0 = 🔴 / 1 = 🟡 / 2 = 🟢 (QA gate colour) |
+| `STING_GATE_DATA_MSG_TXT` | Text | Instance | **Plugin** (`Stamp Gates`) | terse data-gate reason (blank when green) — left message label |
+| `STING_GATE_QA_MSG_TXT` | Text | Instance | **Plugin** (`Stamp Gates`) | terse QA-gate reason (blank when green) — right message label |
 | `TAG_WARN_VISIBLE_BOOL` | Yes/No | Instance | User toggle | master on/off for both badges |
 
 The plugin side is **done**: CREATE tab → **Stamp Gates** runs `ComplianceScan.ComputeElementGates`
@@ -191,18 +193,19 @@ per-family logic.
    recommended over raw symbolic geometry.)
 2. Put all 6 glyphs on a **new subcategory `STING_TagStatus`** (Object Styles). Colour each glyph
    via its subcategory. This subcategory is what makes the badges print-optional.
-3. Add **6 family Yes/No parameters** (formula-driven) and bind each glyph's **Visible** property
-   to its param:
+3. Add **6 family Yes/No parameters** — **UPPERCASE, family-local** (these are NOT shared params;
+   do not add them to MR_PARAMETERS — they are pure in-family glue that reads the shared ints).
+   Give each a formula, then bind each glyph's **Visible** property to its param:
 
    **LEFT — data gate:**
-   - `vis_data_green = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 2)`
-   - `vis_data_amber = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 1)`
-   - `vis_data_red   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 0)`
+   - `VIS_DATA_GREEN = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 2)`
+   - `VIS_DATA_AMBER = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 1)`
+   - `VIS_DATA_RED   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 0)`
 
    **RIGHT — QA gate:**
-   - `vis_qa_green = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 2)`
-   - `vis_qa_amber = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 1)`
-   - `vis_qa_red   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 0)`
+   - `VIS_QA_GREEN = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 2)`
+   - `VIS_QA_AMBER = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 1)`
+   - `VIS_QA_RED   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 0)`
 
    > If `TAG_WARN_VISIBLE_BOOL` is stored as **TEXT**, write the first argument as
    > `(TAG_WARN_VISIBLE_BOOL = "Yes")`; if it's a real **YESNO**, use it bare.
@@ -216,6 +219,26 @@ missing STATUS, empty relevant container, or ISO 19650 validation error) · 🟢
 STATUS + all relevant containers + zero validation errors.
 **QA gate** (right): 🟢 commissioning not required, OR commissioned + QC inspector recorded ·
 🟡 some QA data present but not signed off · 🔴 no QA data.
+
+### 3c-bis. Warning message labels beside each badge (optional but recommended)
+Add a small **gated label** next to each glyph showing the plugin-stamped reason (blank when green,
+so it only appears when there's an issue):
+- LEFT / data:  `if(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_MSG_TXT, "")`
+- RIGHT / QA:   `if(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_MSG_TXT, "")`
+
+`Stamp Gates` fills these alongside the ints. Message vocabulary — data: `UNTAGGED` / `TAG INCOMPLETE`
+/ `NO STATUS` / `EMPTY CONTAINER` / `ISO ERRORS`; QA: `NO QA` / `NO SIGN-OFF` / `QA PENDING`. Keep the
+label text small (2–2.5 mm) and 1–2 words wide.
+
+### 3c-ter. View-driven control (issue vs QA views)
+Whole-tag *status colour* is not formula-drivable on a label, and per-view show/hide of the badges is
+done at the **view level, not the family**:
+- **Issue / print View Style Packs** turn the `STING_TagStatus` subcategory **OFF** → badges + message
+  labels never print. (Wired into the issue/presentation packs in `STING_VIEW_STYLE_PACKS.json`.)
+- The **`STING - Coordination / QA` pack** (`coord-qa`) turns `STING_TagStatus` **ON** and attaches the
+  four gate filters (`qa-gate-data-red/amber`, `qa-gate-qa-red/amber` in `STING_AEC_FILTERS.json`) so a
+  QA view recolours non-compliant tags automatically.
+- `TAG_WARN_VISIBLE_BOOL` is the project-wide master switch; the subcategory is the per-view control.
 
 ### 3d. Print-optional
 Turn subcategory `STING_TagStatus` **OFF** in print/issue view templates (VG); leave it **ON**
