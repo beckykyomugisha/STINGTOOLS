@@ -3387,6 +3387,29 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 3 item 3.4 — branch `claude/hvac-impl`)
+
+Item 3.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the gbXML load import no longer overwrites Space
+loads silently; it now shows a per-zone delta and requires explicit confirmation. Built against Revit 2025
+Release: **0 errors, 4 baseline warnings**. The actual stamping logic after confirmation is unchanged.
+
+- **Pre-apply delta pass** (`Commands/Hvac/HvacImportGbxmlLoadsCommand.cs`). Before any transaction, each
+  incoming gbXML zone is joined to its Space (Number → Name → ElementId, unchanged) and the incoming
+  sensible cooling is compared against the existing STING BlockLoad value read via `ReadStingCoolingW`
+  (prefers `HVC_PEAK_SENS_W`, falls back to `HVC_LOAD_COOLING_KW` × 1000). Zones with no prior value are
+  flagged **new**; changed zones carry a Δ%.
+- **Diff surfaced two ways.** A CSV via `OutputLocationHelper.GetTimestampedPath` (`STING_gbXML_delta_<ts>.csv`
+  — ZoneId, Matched, IsNew, prior/new cooling kW, Δ%, latent, OA, SpaceId) and a TaskDialog summary listing
+  the worst-15 zones (new zones first). The result panel gains New / Changed / Diff-CSV metrics.
+- **Explicit confirmation gate.** A command-link TaskDialog (default = Cancel) requires the user to pick
+  "Apply" before the `STING gbXML Loads Import` transaction runs. Cancel keeps the CSV and changes nothing;
+  no matches short-circuits to a message with no transaction.
+- **Stamping unchanged after confirm:** the `HVC_PEAK_SENS_W` / `HVC_PEAK_LAT_W` / `HVC_OA_LS` /
+  `HVC_LOAD_SOURCE_TXT` writes inside the named transaction are byte-for-byte the previous behaviour — only
+  the review+confirm step was added in front.
+- **Honesty:** unverifiable without a live Revit model + a real simulator gbXML export — static-analysis +
+  build-verified only.
+
 #### Completed (HVAC gap remediation Tier 3 item 3.3 — branch `claude/hvac-impl`)
 
 Item 3.3 (room-model half only) from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the NC prediction receiver
