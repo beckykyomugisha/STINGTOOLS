@@ -632,6 +632,10 @@ namespace StingTools.Core
             public int DataGate;
             /// <summary>STING_GATE_QA_STATUS_INT — QA / sign-off gate.</summary>
             public int QaGate;
+            /// <summary>STING_GATE_DATA_MSG_TXT — terse data-gate reason (blank when green).</summary>
+            public string DataMsg;
+            /// <summary>STING_GATE_QA_MSG_TXT — terse QA-gate reason (blank when green).</summary>
+            public string QaMsg;
         }
 
         /// <summary>
@@ -657,7 +661,7 @@ namespace StingTools.Core
         /// </summary>
         public static GateResult ComputeElementGates(Document doc, Element el)
         {
-            var r = new GateResult { DataGate = 0, QaGate = 0 };
+            var r = new GateResult { DataGate = 0, QaGate = 0, DataMsg = "", QaMsg = "" };
             if (el == null) return r;
 
             // ── Data-completeness gate ──
@@ -665,6 +669,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
             {
                 r.DataGate = 0; // untagged → red
+                r.DataMsg = "UNTAGGED";
             }
             else
             {
@@ -676,11 +681,23 @@ namespace StingTools.Core
                 try { validationErrors = ISO19650Validator.ValidateElement(el)?.Count ?? 0; }
                 catch (Exception ex) { StingLog.Warn($"ComputeElementGates validate: {ex.Message}"); }
 
-                r.DataGate = (resolved && statusOk && containersOk && validationErrors == 0) ? 2 : 1;
+                if (resolved && statusOk && containersOk && validationErrors == 0)
+                {
+                    r.DataGate = 2; // green
+                }
+                else
+                {
+                    r.DataGate = 1; // amber — first failing reason drives the label
+                    if (!resolved)             r.DataMsg = "TAG INCOMPLETE";
+                    else if (!statusOk)        r.DataMsg = "NO STATUS";
+                    else if (!containersOk)    r.DataMsg = "EMPTY CONTAINER";
+                    else                       r.DataMsg = "ISO ERRORS";
+                }
             }
 
             // ── QA / sign-off gate ──
-            r.QaGate = ComputeQaGate(el);
+            r.QaGate = ComputeQaGate(el, out string qaMsg);
+            r.QaMsg = qaMsg;
             return r;
         }
 
@@ -713,8 +730,9 @@ namespace StingTools.Core
         private const string P_FAB_STATUS   = "ASS_FAB_STATUS_TXT";
         private const string P_INSTALL_DATE = "ASS_INSTALL_DATE_TXT";
 
-        private static int ComputeQaGate(Element el)
+        private static int ComputeQaGate(Element el, out string msg)
         {
+            msg = "";
             // Commissioning explicitly not required → nothing to sign off → green.
             string req = ParameterHelpers.GetString(el, P_QA_REQ);
             if (IsNegative(req)) return 2;
@@ -730,7 +748,13 @@ namespace StingTools.Core
                                 !string.IsNullOrEmpty(fab) || !string.IsNullOrEmpty(install);
 
             if (commDone && hasInspector) return 2; // green — commissioned + signed off
-            if (anyQaData) return 1;                // amber — QA in progress
+            if (anyQaData)
+            {
+                // amber — some QA data but not fully signed off.
+                msg = commDone ? "NO SIGN-OFF" : "QA PENDING";
+                return 1;
+            }
+            msg = "NO QA";
             return 0;                               // red — QA not started
         }
 
