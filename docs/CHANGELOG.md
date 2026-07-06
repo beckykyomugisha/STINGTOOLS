@@ -3387,6 +3387,34 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 3 item 3.3 — branch `claude/hvac-impl`)
+
+Item 3.3 (room-model half only) from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the NC prediction receiver
+room now comes from the actual Revit `Space`/`Room` instead of the hardcoded 100 m³ / α=0.2 cube. Built
+against Revit 2025 Release: **0 errors, 4 baseline warnings**. The duct-path attenuation math is unchanged
+— only the room/receiver field was touched.
+
+- **`ResolveRoomReceiver`** (`Commands/Hvac/HvacNcPredictionCommand.cs`) builds the `RoomReceiver` from the
+  Space/Room containing the terminal: **volume** from `Space.Volume` / `Room.Volume` (ft³ → m³);
+  **surface area** = boundary perimeter × height (from `ROOM_HEIGHT`/`ROOM_UPPER_OFFSET`, else volume/area,
+  else 3 m) + 2 × floor area; **average absorption** area-weighted from per-boundary finish estimates blended
+  with floor (α=0.05) / ceiling (α=0.30) defaults, clamped to 0.05–0.60.
+- **`FindReceiverSpatial`** prefers the selected `OST_DuctTerminal` (else the last element with a location
+  point), takes its location point, and queries `Document.GetSpaceAtPoint` (phase-aware via
+  `PHASE_CREATED`), falling back to `GetRoomAtPoint`.
+- **`EstimateBoundaryAbsorption`** maps wall-type / material / category name keywords to Sabine α
+  (glazing 0.05, acoustic/perforated 0.60, carpet/fabric 0.35, plaster/gypsum 0.10, concrete/masonry/tile
+  0.03, generic wall 0.08); returns 0 (excluded from the weighted average) for non-matching boundaries.
+- **Reporting.** A new ROOM MODEL section shows the source, name, volume, surface area and avg α; the
+  subtitle and method note surface which path was used (`Revit Space (finishes → α)` /
+  `Revit Space (default α)` / `fallback cube (100 m³, α=0.20)`).
+- **No-data fallback:** when no Space/Room resolves (stripped model, no MEP spaces, unbounded point) the
+  method returns the exact legacy hardcoded cube, so behaviour is unchanged on models without spaces.
+- **Scope honesty:** only the room/receiver field changed — breakout/casing transmission, manufacturer
+  terminal-NC lookup and broadening `STING_FAN_SPECTRA.json` (the other half of prompt 3.3) were **not**
+  in this item's brief and are untouched. Unverifiable without a live Revit space model — static-analysis +
+  build-verified only.
+
 #### Completed (HVAC gap remediation Tier 3 item 3.2 — branch `claude/hvac-impl`)
 
 Item 3.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — true balanced-flow solve with PICV / control-valve
