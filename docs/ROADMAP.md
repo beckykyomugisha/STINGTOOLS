@@ -650,3 +650,21 @@ ISO default 2.5 mm at 1:50). `DrawingType.TagSizeToken(mm)` → the "2.5mm" text
 - Consumer not yet wired: `DrawingProducer`/`AnnotationRunner` should pick the size-variant tag
   family via `EffectiveTagTextSizeMm()`/`TagSizeToken` when placing tags. Add once the size families exist.
 
+### Status delivery — in-tag badges ABANDONED, replaced by the Status Register
+The coloured status-badge glyphs cannot work in Revit: a tag family's **formulas can only
+reference the family's own parameters, not the tagged element's** (confirmed live — `vis_data_green`
+= `and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 2)` errors "not a valid parameter",
+because `STING_GATE_DATA_STATUS_INT` is an element param). Only LABELS can surface element data,
+and label text is monochrome. So per-element coloured badges are impossible.
+
+**Replacement (shipped):** `Status_Register` command (`Commands/TagStudio/StatusRegisterCommand.cs`,
+"Status Register" button) exports a colour-coded Excel register (Register + Summary sheets, reds
+sorted to top, auto-filtered) from `ComplianceScan.ComputeElementGates` — read-only, no stamp run
+needed. Element-level at-a-glance colour still available via the `coord-qa` view filters.
+
+**Now-vestigial (keep for now, no harm):** the four `STING_GATE_*_MSG_TXT` params + `Stamp Gates`
+still feed the register's message columns (useful). The `STING_TagStatus` subcategory rules in the
+view style packs are moot without in-tag glyphs but harmless. The badge-glyph sections of
+UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md / UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md are superseded — status is
+a register/view concern, not an in-family one. User deletes the drawn glyph fills + vis_* params in Revit.
+
