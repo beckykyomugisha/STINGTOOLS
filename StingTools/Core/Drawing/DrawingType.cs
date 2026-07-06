@@ -423,6 +423,12 @@ namespace StingTools.Core.Drawing
         [JsonProperty("slotRef", NullValueHandling = NullValueHandling.Ignore)]
         public string SlotRef { get; set; }
 
+        // P12.E — norm* fractions and TitleBlockSpec.SlotSpec.FracAnchor/FracSize
+        // share IDENTICAL semantics: both are 0..1 fractions of the title-block
+        // family's ONE drawable rect (TitleBlockSpec.Drawable), resolved the same
+        // way by SheetPlacementBridge. A slot therefore lands in the same place
+        // regardless of which POCO declares it. (Legacy families with no drawable
+        // rect fall back to the historic title-block-bbox−25 mm frame.)
         [JsonProperty("normX")]    public double NormX { get; set; }
         [JsonProperty("normY")]    public double NormY { get; set; }
         [JsonProperty("normW")]    public double NormW { get; set; }

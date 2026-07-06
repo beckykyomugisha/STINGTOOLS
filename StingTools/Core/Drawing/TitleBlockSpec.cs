@@ -83,6 +83,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("category")]             public string Category { get; set; }
             = "OST_TitleBlocks";
 
+        /// <summary>P12 — structured drawable content rect (mm, origin at the
+        /// title-block family bottom-left = sheet bottom-left). This is the
+        /// SINGLE reference frame both placement paths resolve against
+        /// (SheetPlacementBridge): the norm* fractions of a <see cref="DrawingSlot"/>
+        /// and the <see cref="SlotSpec.FracAnchor"/>/<see cref="SlotSpec.FracSize"/>
+        /// of a family slot are both fractions of this rect. The values were
+        /// previously stated only in prose in each size base's description
+        /// ("drawable zone 821×469 mm, strip 110 mm"); this makes them a real
+        /// field. Leaf-wins on merge so A0/A3/portrait bases override the A1
+        /// root's rect (see MergeInto).</summary>
+        [JsonProperty("drawable", NullValueHandling = NullValueHandling.Ignore)]
+        public DrawableRect Drawable { get; set; }
+
         [JsonProperty("parameters")]   public List<ParamSpec>        Parameters    { get; set; } = new List<ParamSpec>();
         [JsonProperty("lines")]        public List<LineSpec>         Lines         { get; set; } = new List<LineSpec>();
         [JsonProperty("staticText")]   public List<StaticTextSpec>   StaticText    { get; set; } = new List<StaticTextSpec>();
@@ -189,6 +202,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("color")]       public string   Color { get; set; }        // "#RRGGBB", optional
     }
 
+    /// <summary>P12 — the drawable content rect on a title-block family, in mm,
+    /// origin at the family bottom-left. Carries the 25 mm margin as a property
+    /// (already netted out of w/h — resolvers do NOT re-inset), so the norm and
+    /// fractional coordinate systems share one reference frame.</summary>
+    public sealed class DrawableRect
+    {
+        [JsonProperty("x")]        public double X { get; set; }
+        [JsonProperty("y")]        public double Y { get; set; }
+        [JsonProperty("w")]        public double W { get; set; }
+        [JsonProperty("h")]        public double H { get; set; }
+        [JsonProperty("marginMm")] public double MarginMm { get; set; } = 25.0;
+    }
+
     /// <summary>Viewport slot. Coordinates are mm relative to the
     /// title-block sheet bottom-left, same as every other coord in this
     /// spec. The Drawing-Type / Sheet-Manager system reads slot bounds
@@ -200,6 +226,24 @@ namespace StingTools.Core.Drawing
         [JsonProperty("id")]          public string   Id { get; set; }            // "S01" / "S02" / "MAIN" — used for the corner marker label
         [JsonProperty("anchor")]      public double[] Anchor { get; set; }        // [x, y] mm — bottom-left corner of the slot
         [JsonProperty("size")]        public double[] Size   { get; set; }        // [w, h] mm
+
+        /// <summary>P12 — optional fractional (0..1) bottom-left anchor, resolved
+        /// against the family's <see cref="TitleBlockSpec.Drawable"/> rect at
+        /// BUILD time. A family authored with fractional slots needs no per-size
+        /// override — one definition scales to A0/A1/A3. When present (with a
+        /// drawable rect available) it wins over the absolute <see cref="Anchor"/>;
+        /// otherwise the absolute fields are used unchanged (fully backward
+        /// compatible). Shares identical semantics with <see cref="DrawingSlot"/>'s
+        /// normX/normY (P12.E).</summary>
+        [JsonProperty("fracAnchor", NullValueHandling = NullValueHandling.Ignore)]
+        public double[] FracAnchor { get; set; }
+
+        /// <summary>P12 — optional fractional (0..1) [w, h] size, resolved against
+        /// the family's <see cref="TitleBlockSpec.Drawable"/> rect at build time.
+        /// See <see cref="FracAnchor"/>.</summary>
+        [JsonProperty("fracSize", NullValueHandling = NullValueHandling.Ignore)]
+        public double[] FracSize { get; set; }
+
         [JsonProperty("description")] public string   Description { get; set; }   // human-readable purpose
 
         /// <summary>Routing key used by TitleBlock_AutoPlaceViewports —
@@ -280,6 +324,34 @@ namespace StingTools.Core.Drawing
         /// slot so the operator can see slot identifiers when authoring
         /// the title block.</summary>
         [JsonProperty("showCornerMarker")]      public bool ShowCornerMarker      { get; set; } = true;
+
+        /// <summary>P12 — resolve the effective absolute (anchorMm, sizeMm) for
+        /// this slot. Prefers the fractional coords resolved against
+        /// <paramref name="drawable"/> when both are present; otherwise falls
+        /// back to the absolute <see cref="Anchor"/>/<see cref="Size"/> fields.
+        /// Returns false when neither is available. The single resolution point
+        /// shared by the factory (PlaceSlot) and the runtime reader
+        /// (TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock).</summary>
+        public bool TryResolveAbsolute(DrawableRect drawable, out double[] anchorMm, out double[] sizeMm)
+        {
+            anchorMm = null; sizeMm = null;
+            if (drawable != null
+                && FracAnchor != null && FracAnchor.Length >= 2
+                && FracSize != null && FracSize.Length >= 2)
+            {
+                anchorMm = new[] { drawable.X + FracAnchor[0] * drawable.W,
+                                   drawable.Y + FracAnchor[1] * drawable.H };
+                sizeMm   = new[] { FracSize[0] * drawable.W, FracSize[1] * drawable.H };
+                return true;
+            }
+            if (Anchor != null && Anchor.Length >= 2 && Size != null && Size.Length >= 2)
+            {
+                anchorMm = new[] { Anchor[0], Anchor[1] };
+                sizeMm   = new[] { Size[0], Size[1] };
+                return true;
+            }
+            return false;
+        }
     }
 
     /// <summary>Loader — corporate baseline at Data/STING_TITLE_BLOCKS.json,
@@ -371,6 +443,12 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(into.TemplateRft)) into.TemplateRft = from.TemplateRft;
             if (string.IsNullOrEmpty(into.Mode))        into.Mode        = from.Mode;
             if (string.IsNullOrEmpty(into.Category))    into.Category    = from.Category;
+            // P12 — Drawable is LEAF-WINS (unlike the string scalars above).
+            // Resolve() folds root→…→leaf as `incoming`, so taking the incoming
+            // value whenever it supplies one means a size base (A0/A3/portrait)
+            // overrides the A1_common root's drawable rect, and the leaf can
+            // override the size base. Mirrors the params/slots leaf-wins rule.
+            if (from.Drawable != null) into.Drawable = from.Drawable;
             // P11 — params (by name) + slots (by id) are LEAF-WINS: Resolve folds
             // root → nearest-parent → leaf into this accumulator, so the INCOMING
             // (nearer-to-leaf) spec must win on key collision for a size / specialty

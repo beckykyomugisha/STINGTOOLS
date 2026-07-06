@@ -649,14 +649,20 @@ namespace StingTools.Core.Drawing
         {
             try
             {
-                var pt = SheetPlacementBridge.GetSlotPosition(doc, sheetId, dt,
+                var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
                     rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
+                var pt = sp?.Center;
                 if (pt == null)
                 {
                     var sheet = doc.GetElement(sheetId) as ViewSheet;
                     var bb = sheet?.Outline;
                     pt = bb != null ? new XYZ((bb.Min.U + bb.Max.U) / 2.0, (bb.Min.V + bb.Max.V) / 2.0, 0) : XYZ.Zero;
                 }
+                // P12.A — fit the view to its slot before placement, unless the
+                // production rule pins an explicit scale override.
+                if (sp != null && !rule.ScaleOverride.HasValue
+                    && doc.GetElement(viewId) is View vFit)
+                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
                 var vp = Viewport.Create(doc, sheetId, viewId, pt);
                 return vp?.Id ?? ElementId.InvalidElementId;
             }

@@ -554,16 +554,18 @@ namespace StingTools.Commands.Drawing
                         spec = Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, spec);
                         foreach (var slot in spec.Slots ?? Enumerable.Empty<Core.Drawing.SlotSpec>())
                         {
-                            if (string.IsNullOrEmpty(slot.Id)
-                                || slot.Anchor == null || slot.Anchor.Length < 2
-                                || slot.Size   == null || slot.Size.Length   < 2) continue;
+                            if (string.IsNullOrEmpty(slot.Id)) continue;
+                            // P12 — resolve fractional coords against the family's
+                            // drawable rect when present, else absolute anchor/size.
+                            if (!slot.TryResolveAbsolute(spec.Drawable, out var anchorMm, out var sizeMm))
+                                continue;
                             // Convert the spec's mm coords to feet (Revit
                             // internal length unit), origin at sheet's
                             // bottom-left.
-                            double xFt = MmToFt(slot.Anchor[0]);
-                            double yFt = MmToFt(slot.Anchor[1]);
-                            double wFt = MmToFt(slot.Size[0]);
-                            double hFt = MmToFt(slot.Size[1]);
+                            double xFt = MmToFt(anchorMm[0]);
+                            double yFt = MmToFt(anchorMm[1]);
+                            double wFt = MmToFt(sizeMm[0]);
+                            double hFt = MmToFt(sizeMm[1]);
                             result[slot.Id] = new SlotBounds
                             {
                                 Id           = slot.Id,

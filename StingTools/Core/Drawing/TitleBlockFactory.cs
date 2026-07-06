@@ -177,7 +177,7 @@ namespace StingTools.Core.Drawing
                     // (`<id>_TOP/BOT/LFT/RGT`) and routes viewports here
                     // based on PurposeTag (see TitleBlock_AutoPlaceViewports).
                     foreach (var slot in spec.Slots)
-                        PlaceSlot(famDoc, fm, view, slot, r);
+                        PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
                     tx.Commit();
                 }
@@ -639,20 +639,21 @@ namespace StingTools.Core.Drawing
         /// can introspect the .rfa to read slot bounds back, and the
         /// operator can dimension viewports off the reference planes.</summary>
         private static void PlaceSlot(Document famDoc, FamilyManager fm,
-            View view, SlotSpec spec, TitleBlockBuildResult r)
+            View view, SlotSpec spec, DrawableRect drawable, TitleBlockBuildResult r)
         {
             if (spec == null) return;
             if (string.IsNullOrEmpty(spec.Id))
             { r.Warnings.Add("PlaceSlot: slot has no id — skipped"); return; }
-            if (spec.Anchor == null || spec.Anchor.Length < 2
-                || spec.Size == null || spec.Size.Length < 2)
-            { r.Warnings.Add($"PlaceSlot '{spec.Id}': missing anchor or size"); return; }
+            // P12 — resolve fractional coords against the family's drawable rect
+            // when present, else the absolute anchor/size fields.
+            if (!spec.TryResolveAbsolute(drawable, out var anchorMm, out var sizeMm))
+            { r.Warnings.Add($"PlaceSlot '{spec.Id}': missing anchor/size (no absolute and no fractional+drawable)"); return; }
             try
             {
-                double xMm = spec.Anchor[0];
-                double yMm = spec.Anchor[1];
-                double wMm = spec.Size[0];
-                double hMm = spec.Size[1];
+                double xMm = anchorMm[0];
+                double yMm = anchorMm[1];
+                double wMm = sizeMm[0];
+                double hMm = sizeMm[1];
                 // Top-left in screen-space terms = (xMm, yMm + hMm) since
                 // the spec is bottom-left-anchored.
                 double topYMm    = yMm + hMm;

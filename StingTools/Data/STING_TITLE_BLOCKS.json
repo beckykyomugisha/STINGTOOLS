@@ -9,6 +9,7 @@
       "abstract": true,
       "description": "A1 landscape working sheet \u2014 common base shared between BIM and NONBIM variants. Parameter set per TITLE_BLOCK_FAMILY_DESIGN.md \u00a72.1 \u2014 Group A (project / originator / consultants / contractor identity + addresses) + Group C (authoring drawn/checked/approved). Defines the bottom-strip layout, outer border, and the 8 viewport slots. Concrete variants extend this and overlay BIM-specific or NONBIM-specific cells.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "drawable": { "x": 10, "y": 120, "w": 810, "h": 470, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -926,6 +927,8 @@
             810,
             470
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [1.0, 1.0],
           "purposeTag": "main-plan",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -943,6 +946,8 @@
             400,
             470
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [0.493827, 1.0],
           "purposeTag": "main-plan-half-left",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -960,6 +965,8 @@
             400,
             470
           ],
+          "fracAnchor": [0.506173, 0.0],
+          "fracSize": [0.493827, 1.0],
           "purposeTag": "main-plan-half-right",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -977,6 +984,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-bottom-left",
           "scaleHint": 200,
           "description": "Bottom-left quadrant \u2014 4-up grid",
@@ -993,6 +1002,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.506173, 0.0],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-bottom-right",
           "scaleHint": 200,
           "description": "Bottom-right quadrant \u2014 4-up grid",
@@ -1009,6 +1020,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.0, 0.510638],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-top-left",
           "scaleHint": 200,
           "description": "Top-left quadrant \u2014 4-up grid",
@@ -1025,6 +1038,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.506173, 0.510638],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-top-right",
           "scaleHint": 200,
           "description": "Top-right quadrant \u2014 4-up grid",
@@ -1041,6 +1056,8 @@
             120,
             100
           ],
+          "fracAnchor": [0.839506, 0.021277],
+          "fracSize": [0.148148, 0.212766],
           "purposeTag": "key-plan",
           "scaleHint": 500,
           "description": "Key-plan pocket \u2014 small location overview",
@@ -1939,6 +1956,7 @@
       "extends": "A1_common_v2.0",
       "description": "A0 landscape working sheet (1189 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 1169 \u00d7 696 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
+      "drawable": { "x": 10, "y": 135, "w": 1169, "h": 701, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -3423,6 +3441,7 @@
       "extends": "A1_common_v2.0",
       "description": "A0 portrait working sheet (841 \u00d7 1189 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 821 \u00d7 1044 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
+      "drawable": { "x": 10, "y": 135, "w": 821, "h": 1049, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -5713,6 +5732,7 @@
       "extends": "A1_common_v2.0",
       "description": "A1 portrait working sheet (594 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 574 \u00d7 716 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "drawable": { "x": 10, "y": 115, "w": 574, "h": 721, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -7197,6 +7217,7 @@
       "extends": "A1_common_v2.0",
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 400 \u00d7 212 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": { "x": 10, "y": 75, "w": 400, "h": 217, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -8607,6 +8628,7 @@
       "extends": "A1_common_v2.0",
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 277 \u00d7 335 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": { "x": 10, "y": 75, "w": 277, "h": 340, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
