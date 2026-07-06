@@ -3387,6 +3387,43 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 2 item 2.2 — branch `claude/hvac-impl`)
+
+Item 2.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — auto-populate refrigerant sizing from the
+model. Built against Revit 2025 Release: **0 errors, 4 baseline warnings** (pre-existing
+`ElementId(int)` CS0618 in `Clash/ClashIssueSyncCommand.cs`).
+
+- **New `Core/Refrigerant/RefrigerantSelectionExtractor.cs`** (+ `RefrigerantSelectionResult`).
+  Given the active document and the current selection, it derives the three inputs the
+  `RefrigerantSizingDialog` previously required by hand:
+  - **Capacity** — from `HVC_CAPACITY_KW`. When a VRF ODU (mechanical-equipment `FamilyInstance`
+    with a piping-domain connector) is selected, the connector graph is walked and the served IDUs'
+    capacities are **summed**; if no IDU capacity is reachable it falls back to the ODU's own
+    stamped value; if neither is present the field keeps the manual default.
+  - **Equivalent length** — the refrigerant connector graph is walked outward from the ODU (BFS over
+    `Connector.AllRefs` → `Owner`, visited-set + 200-hop guard, mirroring
+    `HvacSegmentRoleDetector`/`PipeServiceDetector`), summing pipe straight lengths
+    (`CURVE_ELEM_LENGTH` → location-curve fallback, ft→m), then adding a **+30% fitting-equivalent
+    allowance** (documented, editable). Pipe-anchored selections grow the run through connected
+    fittings and sum that; both note when the trace is partial.
+  - **Lift** — the world-Z delta between the ODU's lowest refrigerant connector origin and the
+    farthest reachable IDU connector (`Connector.Origin.Z`, ft→m), sign-matched to the solver's
+    `+lift = ODU above IDU`. Pipe-only selections report the run's Z-span magnitude.
+- **`UI/RefrigerantSizingDialog.cs`** gained a second ctor param
+  (`RefrigerantSelectionResult prefill = null`). When supplied it seeds the capacity / equivalent-
+  length / lift / riser fields and shows a green provenance banner explaining exactly what was traced
+  vs. defaulted. **Every field stays editable** — nothing is locked.
+- **`Commands/Hvac/HvacRefrigerantSizeCommand.cs`** reads `ctx.UIDoc.Selection.GetElementIds()`
+  before showing the dialog and runs the extractor; **empty/unsuitable selection → the manual
+  dialog exactly as before**. The extractor never throws (every reader `try/catch`-guarded, failures
+  logged via `StingLog.Warn`); the command's outer catch is unchanged. Vendor-envelope checks then
+  run against whatever final (possibly user-edited) values the dialog returns.
+- **Coverage honesty:** the trace covers ODU→pipe→IDU where the model is connected in Revit's MEP
+  graph. It does *not* enumerate individual fitting equivalent-lengths (uses the flat +30% factor),
+  does not distinguish suction/liquid/discharge legs during the walk (the user still picks the leg),
+  and treats any reachable mechanical-equipment as an IDU. Unverifiable without a live Revit VRF
+  model — logic is static-analysis + build-verified only.
+
 #### Completed (HVAC gap remediation Tier 2 — branch `claude/hvac-impl`)
 
 Items 2.1 and 2.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` (they edit the same files, done
