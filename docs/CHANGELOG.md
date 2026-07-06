@@ -3387,6 +3387,26 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 1 — branch `claude/hvac-impl`)
+
+Three items from `docs/HVAC_GAP_REMEDIATION_PROMPT.md`, all discovery-first (the gaps were
+flagged from static analysis). Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **1.1 — `Routing_GenerateLayout` (no change — discovery only).** The gap analysis claimed the
+  tag dispatched to a missing `GenerateLayoutCommand.cs`. Grep proved the class is live: it is
+  `GenerateLayoutCommand` in `Commands/Routing/RoutingStubCommands.cs:30`, a production
+  `IExternalCommand` driving the A* voxel pathfinder (`RoutingPathfinder` → `VoxelGrid`/`AStarSolver`)
+  and emitting a DetailCurve preview. Both dispatch sites (`StingHvacCommandHandler.cs:372`,
+  `StingCommandHandler.cs:227`) resolve to a real type. The glob-for-a-filename in the analysis
+  missed the multi-class file. The button works; no dead dispatch removed.
+- **1.2 — stale CLAUDE.md caveat corrected.** The Phase 180/181 HVAC caveat 2 said per-element
+  segment-role / pipe-service detection was "still pending — the data path is in place." It shipped:
+  `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182, connector-graph main/branch/runout, cached to
+  `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183, `MEPSystem`-abbreviation
+  match) are production and used per-element in the auto-size pass
+  (`DuctSizingApplyEngine.DetectRoles` → `DetectRolesBatch`). Caveat rewritten to say shipped; the
+  old project-wide `branch`/`chw` defaults are documented as fail-soft fallbacks only. PaneGuid,
+  grid-empty-on-open, and `Hvac_RunLoads`/`Hvac_ExportGbxml` caveats cross-checked and left intact.
 
 #### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
 
