@@ -234,7 +234,8 @@ namespace StingTools.Core.Refrigerant
             }
             if (maxZ > minZ)
             {
-                res.LiftM = maxZ - minZ;
+                // ConnectorOrigins returns raw Revit XYZ (feet) — convert to metres.
+                res.LiftM = (maxZ - minZ) * FtToM;
                 res.HasLift = true;
                 res.HasVerticalRiser = res.LiftM > 0.5;
                 notes.Add($"lift = run Z-span {res.LiftM:F1} m (magnitude only from pipe selection)");

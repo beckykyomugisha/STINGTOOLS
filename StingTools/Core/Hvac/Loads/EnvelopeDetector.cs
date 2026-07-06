@@ -321,12 +321,13 @@ namespace StingTools.Core.Hvac.Loads
                 if (doc.GetElement(thermalId) is not PropertySetElement pse) return null;
                 var asset = pse.GetThermalAsset();
                 if (asset == null) return null;
-                // ThermalConductivity is stored in internal units
-                // (W/(ft·°F)); convert to W/(m·K) for the ΣR calc.
-                double kInternal = asset.ThermalConductivity;
-                if (kInternal <= 0) return null;
-                double kSi = UnitUtils.ConvertFromInternalUnits(
-                    kInternal, UnitTypeId.WattsPerMeterKelvin);
+                // ThermalAsset.ThermalConductivity is already SI (W/m·K) —
+                // it is NOT subject to Revit's internal length-unit system.
+                // Confirmed by the codebase's own writer (Temp/MaterialCommands.cs
+                // sets ThermalConductivity from a raw W/m·K value with no
+                // ConvertToInternalUnits). Applying ConvertFromInternalUnits here
+                // would double-convert and understate U by ~45%.
+                double kSi = asset.ThermalConductivity;
                 return kSi > 0 ? kSi : (double?)null;
             }
             catch (Exception ex)
