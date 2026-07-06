@@ -632,6 +632,10 @@ namespace StingTools.Core
             public int DataGate;
             /// <summary>STING_GATE_QA_STATUS_INT — QA / sign-off gate.</summary>
             public int QaGate;
+            /// <summary>STING_GATE_DATA_MSG_TXT — terse reason for the data gate (blank when green).</summary>
+            public string DataMsg;
+            /// <summary>STING_GATE_QA_MSG_TXT — terse reason for the QA gate (blank when green).</summary>
+            public string QaMsg;
         }
 
         /// <summary>
@@ -657,14 +661,14 @@ namespace StingTools.Core
         /// </summary>
         public static GateResult ComputeElementGates(Document doc, Element el)
         {
-            var r = new GateResult { DataGate = 0, QaGate = 0 };
-            if (el == null) return r;
+            var r = new GateResult { DataGate = 0, QaGate = 0, DataMsg = "", QaMsg = "" };
+            if (el == null) { r.DataMsg = "UNTAGGED"; return r; }
 
             // ── Data-completeness gate ──
             string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             if (string.IsNullOrEmpty(tag))
             {
-                r.DataGate = 0; // untagged → red
+                r.DataGate = 0; r.DataMsg = "UNTAGGED"; // untagged → red
             }
             else
             {
@@ -676,11 +680,25 @@ namespace StingTools.Core
                 try { validationErrors = ISO19650Validator.ValidateElement(el)?.Count ?? 0; }
                 catch (Exception ex) { StingLog.Warn($"ComputeElementGates validate: {ex.Message}"); }
 
-                r.DataGate = (resolved && statusOk && containersOk && validationErrors == 0) ? 2 : 1;
+                if (resolved && statusOk && containersOk && validationErrors == 0)
+                {
+                    r.DataGate = 2; r.DataMsg = ""; // green — nothing to flag
+                }
+                else
+                {
+                    r.DataGate = 1;
+                    // Terse reason for the label — first failing check wins.
+                    r.DataMsg = !resolved    ? "TAG INCOMPLETE"
+                              : !statusOk     ? "NO STATUS"
+                              : !containersOk ? "EMPTY CONTAINER"
+                              :                 "ISO ERRORS";
+                }
             }
 
             // ── QA / sign-off gate ──
-            r.QaGate = ComputeQaGate(el);
+            var qa = ComputeQaGate(el);
+            r.QaGate = qa.gate;
+            r.QaMsg  = qa.msg;
             return r;
         }
 
@@ -713,11 +731,11 @@ namespace StingTools.Core
         private const string P_FAB_STATUS   = "ASS_FAB_STATUS_TXT";
         private const string P_INSTALL_DATE = "ASS_INSTALL_DATE_TXT";
 
-        private static int ComputeQaGate(Element el)
+        private static (int gate, string msg) ComputeQaGate(Element el)
         {
             // Commissioning explicitly not required → nothing to sign off → green.
             string req = ParameterHelpers.GetString(el, P_QA_REQ);
-            if (IsNegative(req)) return 2;
+            if (IsNegative(req)) return (2, "");
 
             string comm      = ParameterHelpers.GetString(el, P_COMM_STATE);
             string inspector = ParameterHelpers.GetString(el, P_QC_INSPECTOR);
@@ -729,9 +747,9 @@ namespace StingTools.Core
             bool anyQaData    = !string.IsNullOrEmpty(comm) || hasInspector ||
                                 !string.IsNullOrEmpty(fab) || !string.IsNullOrEmpty(install);
 
-            if (commDone && hasInspector) return 2; // green — commissioned + signed off
-            if (anyQaData) return 1;                // amber — QA in progress
-            return 0;                               // red — QA not started
+            if (commDone && hasInspector) return (2, "");                            // green — commissioned + signed off
+            if (anyQaData) return (1, hasInspector ? "QA PENDING" : "NO SIGN-OFF");  // amber — QA in progress
+            return (0, "NO QA");                                                     // red — QA not started
         }
 
         /// <summary>True when a text value reads as an explicit negative

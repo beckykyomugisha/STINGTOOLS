@@ -1495,6 +1495,22 @@
       "required": false
     },
     {
+      "param_name": "STING_GATE_DATA_MSG_TXT",
+      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0003",
+      "description": "Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge",
+      "binding": "universal",
+      "param_type": "TEXT",
+      "required": false
+    },
+    {
+      "param_name": "STING_GATE_QA_MSG_TXT",
+      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0004",
+      "description": "QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge",
+      "binding": "universal",
+      "param_type": "TEXT",
+      "required": false
+    },
+    {
       "param_name": "TAG_BOX_STYLE_TXT",
       "guid": "a1b2c3d4-5038-4a01-b001-000000000156",
       "description": "Tag bounding box style (SOLID/DASHED/NONE/ROUND)",

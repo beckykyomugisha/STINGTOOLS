@@ -1290,6 +1290,10 @@ namespace StingTools.Core
         public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
         /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
         public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
+        /// <summary>Data gate terse reason for the label next to the left badge (instance TEXT, blank when green).</summary>
+        public static string GATE_DATA_MSG { get; private set; } = "STING_GATE_DATA_MSG_TXT";
+        /// <summary>QA gate terse reason for the label next to the right badge (instance TEXT, blank when green).</summary>
+        public static string GATE_QA_MSG { get; private set; } = "STING_GATE_QA_MSG_TXT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:
