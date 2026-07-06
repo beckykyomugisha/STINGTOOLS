@@ -3387,6 +3387,38 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 2 — branch `claude/hvac-impl`)
+
+Items 2.1 and 2.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` (they edit the same files, done
+together). Built against Revit 2025 Release: **0 errors, 4 baseline warnings** (all pre-existing
+`ElementId(int)` CS0618 in `Clash/ClashIssueSyncCommand.cs`, unrelated).
+
+- **2.1 — construction properties read from the model, not just the profile.**
+  `Core/Hvac/Loads/EnvelopeDetector.cs` previously stamped every exterior wall with the global
+  `ConstructionProfileRegistry` profile U and every window with the profile-global SHGC. Now, for
+  each exterior wall on the Space/Room boundary, `TryWallUFromModel(doc, wallType)` reads the wall
+  type's `CompoundStructure`, sums layer thermal resistances (`layer.Width` → m ÷ material thermal
+  conductivity) plus the ISO 6946 / CIBSE surface air-films (Rsi 0.13 + Rse 0.04 = 0.17 m²·K/W),
+  and returns `U = 1/ΣR`. Layer conductivity comes from `TryMaterialConductivity`:
+  `Material.ThermalAssetId` → `PropertySetElement.GetThermalAsset()` → `ThermalAsset.ThermalConductivity`,
+  converted from internal units via `UnitUtils.ConvertFromInternalUnits(k, UnitTypeId.WattsPerMeterKelvin)`.
+  The zone's single aggregated wall segment carries the **area-weighted** model U across its exterior
+  walls. Glazing SHGC and U are read per window from the family symbol via
+  `TryGlazingShgcFromSymbol` / `TryGlazingUFromSymbol` — a STING `HVC_GLAZING_SHGC_NR` /
+  `HVC_GLAZING_U_NR` shared param first, then the Revit built-in analytic parameters
+  (`ANALYTICAL_SOLAR_HEAT_GAIN_COEFFICIENT`, `ANALYTICAL_HEAT_TRANSFER_COEFFICIENT`) — area-weighted
+  across the zone's windows.
+  **Fallback is preserved and documented:** any wall whose type has no compound structure, no
+  layers, or a solid layer with missing/zero conductivity (curtain wall, generic wall, materials
+  with no thermal asset) returns `null` from `TryWallUFromModel`, and the segment keeps the profile
+  U; likewise glazing without analytic/STING data keeps the profile SHGC/U. Every fallback is logged
+  per-segment (`StingLog.Info` with the type name + the profile value used). A new
+  `EnvelopeBuildStats` accumulator counts model-derived vs fallback walls and glazing; the
+  block-load result panel (`HvacBlockLoadCommand`) now shows an **"ENVELOPE DATA SOURCE (2.1)"**
+  section with the model/profile split for walls and glazing. All new readers are `try/catch`-guarded
+  and never throw out of the envelope loop. The `AddPerimeterEnvelope` signature gained an optional
+  `EnvelopeBuildStats stats = null` (additive — the `SustainabilityEngine` callers are unchanged).
+
 #### Completed (HVAC gap remediation Tier 1 — branch `claude/hvac-impl`)
 
 Three items from `docs/HVAC_GAP_REMEDIATION_PROMPT.md`, all discovery-first (the gaps were
