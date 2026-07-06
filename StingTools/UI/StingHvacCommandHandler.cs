@@ -348,11 +348,12 @@ namespace StingTools.UI
                         // acoustic data + climate registries together.
                         StingTools.Core.Hvac.Loads.LoadProfileRegistry.Reload();
                         StingTools.Core.Hvac.Loads.ConstructionProfileRegistry.Reload();
+                        StingTools.Core.Hvac.Loads.LoadAssumptionsRegistry.Reload();
                         StingTools.Core.Acoustic.AcousticDataRegistry.Reload();
                         StingTools.Core.Climate.ClimateRegistry.Reload();
                         StingTools.Core.Mep.MepSizingRegistry.Reload();
                         TaskDialog.Show("STING HVAC",
-                            "Reloaded: load profiles, construction profiles, acoustic data, climate, MEP sizing.");
+                            "Reloaded: load profiles, construction profiles, load assumptions, acoustic data, climate, MEP sizing.");
                         break;
 
                     // ── DUCT tab ───────────────────────────────────────────

@@ -1,0 +1,32 @@
+{
+  "_schema": "STING_LOAD_ASSUMPTIONS",
+  "_version": "1.0",
+  "_notes": [
+    "Design-day load-calc assumptions used by BlockLoadEngine. These were",
+    "previously hardcoded literals in the engine (Tier-2 item 2.4); they are",
+    "now project-tunable through the standard corporate-baseline + project-",
+    "override registry pattern.",
+    "",
+    "Corporate baseline: this file (Data/STING_LOAD_ASSUMPTIONS.json).",
+    "Project override:    <project>/_BIM_COORD/load_assumptions.json (any",
+    "                     subset of keys; unspecified keys keep the defaults).",
+    "",
+    "The values below reproduce the engine's prior hardcoded behaviour exactly,",
+    "so a project with no override computes an identical load to before.",
+    "",
+    "Fields:",
+    "  coolingDesignDoy   day-of-year for the cooling design day (ASHRAE July 21 = 202)",
+    "  heatingDesignDoy   day-of-year for the heating design day (ASHRAE January 21 = 21)",
+    "  outdoorDailyRangeK outdoor dry-bulb daily swing, K (CIBSE Guide A 2.4 default 8 K)",
+    "  diffuseFraction    diffuse-on-horizontal as a fraction of direct-normal (0.15)",
+    "  infiltrationWindwardCp  windward-wall pressure coefficient for the CIBSE",
+    "                          Guide A §4.6 wind-driven infiltration term (0.6)"
+  ],
+  "loads": {
+    "coolingDesignDoy": 202,
+    "heatingDesignDoy": 21,
+    "outdoorDailyRangeK": 8.0,
+    "diffuseFraction": 0.15,
+    "infiltrationWindwardCp": 0.6
+  }
+}

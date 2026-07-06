@@ -3419,6 +3419,23 @@ together). Built against Revit 2025 Release: **0 errors, 4 baseline warnings** (
   and never throw out of the envelope loop. The `AddPerimeterEnvelope` signature gained an optional
   `EnvelopeBuildStats stats = null` (additive — the `SustainabilityEngine` callers are unchanged).
 
+- **2.4 — baked-in load constants now project overrides.** Four design-day literals in
+  `Core/Hvac/Loads/BlockLoadEngine.cs` — cooling/heating day-of-year (`202`/`21`), outdoor daily
+  range (`8.0` K), diffuse-on-horizontal fraction (`0.15`), and the CIBSE §4.6 windward infiltration
+  `Cp` (`0.6`) — moved into a new registry. `Data/STING_LOAD_ASSUMPTIONS.json` (corporate baseline)
+  + `<project>/_BIM_COORD/load_assumptions.json` (project override, any subset of keys) load through
+  `Core/Hvac/Loads/LoadAssumptionsRegistry.cs`, a per-document cache mirroring
+  `ClimateRegistry`/`ConstructionProfileRegistry`. `BlockLoadEngine.Run` resolves a `LoadAssumptions`
+  once (via the existing `docHint`) and threads it into `ComputeZoneHourly`; the two public helpers
+  `OutdoorTempC` and `CibseInfiltrationLs` gained optional `dailyRangeK = 8.0` / `windwardCp = 0.6`
+  parameters so **every prior call site (and `HvacRtsBenchmarkCommand`, which calls `Run` with no
+  doc) is byte-for-byte unchanged** — the JSON defaults equal the old literals. The block-load result
+  panel gained a **"DESIGN-DAY ASSUMPTIONS (2.4)"** section showing the active values so an override
+  is visibly in effect. `LoadAssumptionsRegistry.Reload()` is wired into the HVAC panel "Reload
+  profiles" handler (`StingHvacCommandHandler`) and the per-document reload into the document-close
+  hook (`StingToolsApp.OnDocumentClosing`), matching the sibling registries. The data file ships to
+  `bin/Release/Data/` via the existing `Data\**\*` csproj glob.
+
 #### Completed (HVAC gap remediation Tier 1 — branch `claude/hvac-impl`)
 
 Three items from `docs/HVAC_GAP_REMEDIATION_PROMPT.md`, all discovery-first (the gaps were

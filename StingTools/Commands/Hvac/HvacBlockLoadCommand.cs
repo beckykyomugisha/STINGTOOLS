@@ -124,6 +124,17 @@ namespace StingTools.Commands.Hvac
                      .Metric("Skipped (no data)",    skipped.ToString())
                      .Metric("Stamped HVC_PEAK_*",   stamped.ToString());
 
+                // Tier-2 2.4 — surface the active design-day assumptions so an
+                // override is visibly in effect (defaults shown when none set).
+                var la = StingTools.Core.Hvac.Loads.LoadAssumptionsRegistry.Get(doc);
+                panel.AddSection("DESIGN-DAY ASSUMPTIONS (2.4)")
+                     .Metric("Cooling / heating DOY", $"{la.CoolingDesignDoy} / {la.HeatingDesignDoy}")
+                     .Metric("Outdoor daily range",   $"{la.OutdoorDailyRangeK:F1} K")
+                     .Metric("Diffuse fraction",      $"{la.DiffuseFraction:F2}")
+                     .Metric("Infiltration Cp",       $"{la.InfiltrationWindwardCp:F2}")
+                     .Text("Corporate baseline: Data/STING_LOAD_ASSUMPTIONS.json · " +
+                           "project override: _BIM_COORD/load_assumptions.json.");
+
                 // Tier-2 2.1 — how much of the fabric came from model thermal
                 // data vs the construction-profile fallback.
                 int envModel = envStats.TotalModelDerived;
