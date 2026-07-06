@@ -1639,7 +1639,7 @@ PARAM	0ecf2056-1239-52bc-87f8-17c281e67209	FOHLIO_REF_TXT	TEXT		1	1	Fohlio item 
 PARAM	f2ec67d7-0d9a-561b-b3f6-11b713ac468e	LTG_HOIST_WEIGHT_KG	TEXT		7	1	Ltg Hoist Weight Kg [A1 §5]	1	0
 PARAM	aabcfa8d-62bb-55bc-8cf2-d84e365a75a5	LTG_HOIST_MOTOR_TXT	TEXT		7	1	Ltg Hoist Motor [A1 §5]	1	0
 PARAM	c110503a-c776-5c6e-8298-24adf24d1fd0	LTG_HOIST_DROP_MM	TEXT		7	1	Ltg Hoist Drop Mm [A1 §5]	1	0
-PARAM	c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa	ASS_WEIGHT_KG_NR	TEXT		1	1	Ass Weight Kg [ISO 19650]	1	0
+PARAM	c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa	ASS_WEIGHT_KG_NR	TEXT		1	1	DEPRECATED - use ASS_WEIGHT_KG (NUMBER); legacy TEXT duplicate. No code consumers; canonical numeric weight is ASS_WEIGHT_KG (Fabrication SpoolWeight/AssemblyGrouper/ParamRegistry).	1	0
 # -- Group 3: COM_DAT (Communications & Security) (8 params) --
 PARAM	d2828a98-abba-5a71-825c-e8b1c6355fe9	COM_C_PANEL_TXT	TEXT		3	1	Com C Panel [ISO 19650]	1	0
 PARAM	c7283cb7-804f-6024-edfc-bd3f2085facc	COM_HANDOVER_STATUS_TXT	TEXT		3	1	Com Handover Status [ISO 19650]	1	0

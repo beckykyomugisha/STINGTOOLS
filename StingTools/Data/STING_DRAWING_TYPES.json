@@ -9169,7 +9169,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DCW-{seq:D3}",
-      "sheetNamePattern": "DCW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9232,7 +9232,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DHW-{seq:D3}",
-      "sheetNamePattern": "DHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9295,7 +9295,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-LTHW-{seq:D3}",
-      "sheetNamePattern": "LTHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
