@@ -522,13 +522,27 @@ namespace StingTools.Core.Drawing
             try
             {
                 var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
-                var familyMatches = new FilteredElementCollector(doc)
+                // P5 — map the profile's logical / dangling family name to the
+                // concrete built family (STING_TB_<size>[_PORT]_<BIM|NONBIM>_v2.0
+                // / …_ASSEMBLY_*_v1.0 / …_PRESENT_A1_v1.0) before looking it up.
+                tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, tbFamily);
+
+                List<FamilySymbol> CollectMatches() => new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .Cast<FamilySymbol>()
                     .Where(s => string.IsNullOrEmpty(tbFamily) ||
                                 string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
                     .ToList();
+
+                var familyMatches = CollectMatches();
+                // P5 delivery — if the concrete family was built but not yet
+                // loaded, load it from Families/TitleBlocks/ on demand so the
+                // producer never falls back to an arbitrary title block.
+                if (familyMatches.Count == 0 && !string.IsNullOrEmpty(tbFamily)
+                    && TitleBlockResolver.EnsureFamilyLoaded(doc, tbFamily))
+                    familyMatches = CollectMatches();
+
                 FamilySymbol picked = null;
                 if (!string.IsNullOrWhiteSpace(tbSymbol))
                     picked = familyMatches.FirstOrDefault(s =>
