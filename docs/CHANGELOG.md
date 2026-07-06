@@ -3407,6 +3407,22 @@ flagged from static analysis). Built against Revit 2025 Release: **0 errors, 4 b
   (`DuctSizingApplyEngine.DetectRoles` → `DetectRolesBatch`). Caveat rewritten to say shipped; the
   old project-wide `branch`/`chw` defaults are documented as fail-soft fallbacks only. PaneGuid,
   grid-empty-on-open, and `Hvac_RunLoads`/`Hvac_ExportGbxml` caveats cross-checked and left intact.
+- **1.3 — friction (Pa/m) budget now governs duct sizing.** `Core/Mep/DuctSizingApplyEngine.cs`
+  previously sized on `maxVelocityMs` only, leaving `DuctRole.MaxFrictionPaPerM` (main 1.2 / branch
+  1.0 / runout 0.8) validation-only — a long main passing velocity could exceed the friction target.
+  After the velocity size is chosen, `ComputeProposals` now computes straight-run Pa/m via
+  `DuctFrictionSolver.Solve` (1 m reference length ⇒ StraightDropPa **is** Pa/m; at the duct default
+  region's air density from `MepSizingRules.DefaultAirDensityKgM3()`, new accessor) and, while it
+  exceeds the role's `MaxFrictionPaPerM`, steps up one standard size at a time — round: next
+  diameter; rectangular: next width, then re-clamp the other side to the role aspect — in a loop
+  bounded by the size-table length and guarded against running off the top of the table. When
+  friction governs, `DuctSizingChange.FrictionGoverned` is set and the audit stamp
+  `HVC_SIZE_RULE_ID_TXT` records `role|source|friction` (vs `role|source` when velocity governs).
+  Velocity-path behaviour is byte-for-byte unchanged when friction is already satisfied (loop is a
+  no-op). `DuctFrictionSolver.Solve` gained an optional `airDensityKgM3` parameter (default = the
+  existing 1.204 constant), so all prior call sites are unchanged. Worked check: Ø400 @ 500 L/s ≈
+  0.45 Pa/m (matches Ductulator); a tight-budget main at Ø400/1.63 Pa/m upsizes to Ø500/0.54 Pa/m.
+  No new shared params (reuses `HVC_SIZE_RULE_ID_TXT`). Release build: 0 errors, 4 baseline warnings.
 
 #### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
 

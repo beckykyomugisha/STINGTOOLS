@@ -227,6 +227,19 @@ namespace StingTools.Core.Mep
             return new double[] { 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200 };
         }
 
+        /// <summary>Air density (kg/m³) for the duct default region, used by the
+        /// friction solver. Falls back to 1.20 (sea-level ~20 °C) when the region
+        /// carries no value. Callers with a live header/climate density should
+        /// prefer that; this is the engine-local default the dialog-free
+        /// <c>DuctSizingApplyEngine</c> reads.</summary>
+        public double DefaultAirDensityKgM3()
+        {
+            if (Regions != null && Regions.TryGetValue(DuctDefaultRegion ?? "", out var reg)
+                && reg != null && reg.AirDensityKgM3 > 0)
+                return reg.AirDensityKgM3;
+            return 1.20;
+        }
+
         public double[] PipeBoresForRegion(string region)
         {
             if (PipeStandardBoreMm.TryGetValue(region ?? PipeDefaultRegion, out var arr) && arr != null) return arr;
