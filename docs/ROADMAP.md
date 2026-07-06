@@ -22,7 +22,7 @@ tagging/placement pipeline. Recorded here as staged, gated work:
 
 **Prerequisites now in-repo (tracked):**
 - `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` — the consolidated manual walkthrough: what to
-  DELETE (T3 + discipline + warning rows), how to BUILD the 62 rows, and the status-badge system.
+  DELETE (T3 + discipline + warning rows), how to BUILD the 65 rows, and the status-badge system.
 - `docs/UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — the authoritative 62-row master-label build guide
   (human-authored in the Family Editor; the API can't do it).
 - `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` — the precise Duct smoke-test checklist (the step-1 gate).

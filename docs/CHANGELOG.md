@@ -52,7 +52,7 @@ exercised in Revit. Tests: `Tags.Tests` 134 pass / 2 pre-existing `CsiMasterForm
 **Universal-tag pivot.** The v7.8 goal of auto-propagating a *bespoke* tiered label to all
 206 tag families is impossible (Revit API can't author label rows; cross-category label
 paste is blocked; all 62 MEP family sheets have unique row structures). The settled design:
-a human builds ONE **universal, discipline-agnostic** label (62 identical rows — see
+a human builds ONE **universal, discipline-agnostic** label (65 identical rows — see
 `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`) once by hand, and this command clones it to every
 target family. Discipline engineering data moves off the tag into per-category schedules
 (Task 3). Built against Revit 2025: **0 errors** (4 pre-existing warnings). Not yet exercised

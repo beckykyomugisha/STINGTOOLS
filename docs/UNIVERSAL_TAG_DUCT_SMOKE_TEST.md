@@ -21,7 +21,7 @@ the API cannot author label rows). Claude cannot drive Revit reliably on this ma
       Revit first). Confirm the "Propagate Universal", "Stamp Gates", "Tag Schedules"
       buttons appear on the CREATE tab.
 - [ ] **P1. Build the universal master label BY HAND** on one source family (Air Terminal is
-      the historical master), following `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — all 62 rows,
+      the historical master), following `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — all 65 rows,
       Type=Text, Spaces=0, breaks per the table, tier gating on `TAG_PARA_STATE_n_BOOL`.
       Optionally build the 6 status-badge glyphs (STEP 4) if testing badge survival.
 - [ ] **P2. Save the master** and give it an unambiguous name (e.g. `STING - UNIVERSAL Tag`)
@@ -52,7 +52,7 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
 
 - [ ] **V1 — Category.** Family category is **Duct Tags** (not Air Terminal Tags). The clone
       was recategorised.
-- [ ] **V2 — Label rows survived.** Edit Label shows all **62 universal rows** with correct
+- [ ] **V2 — Label rows survived.** Edit Label shows all **65 universal rows** with correct
       formulas, prefixes, suffixes, breaks. No rows dropped, no formula corruption. This is
       the single most important check — it proves recategorise preserves labels.
 - [ ] **V3 — Tier toggle works.** On a placed Duct tag instance (or a family type), flip
