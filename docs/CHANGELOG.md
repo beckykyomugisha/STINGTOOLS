@@ -3387,6 +3387,42 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 3 item 3.2 — branch `claude/hvac-impl`)
+
+Item 3.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — true balanced-flow solve with PICV / control-valve
+authority folded into the Hardy Cross loop head loss, plus a wired (data-pending) pump-curve duty point.
+Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **Valve resistance folded into loop head loss** (`Core/Calc/HardyCrossSolver.cs`). `NetworkPipe` gains
+  additive, zero-default valve fields (`ValveKvs`, `PicvQMaxLs`, `PicvDpMinKpa/MaxKpa`) plus post-solve
+  diagnostics (`ValveDpKpa`, `ValveHeadM`, `ValveAuthority`, `PicvInWindow`). `HeadLoss` now adds a
+  `ValveSpecificEnergy` term in the same specific-energy units (ΔP/ρ = J/kg) as the Darcy friction so it
+  stacks without a g-conversion. **Kvs path:** ΔP_Pa = 1e5·(Q_m³h/Kvs)² (EU convention). **PICV path:**
+  inside the rated band, ΔP is modelled as the authority-window mid-point (constant head that absorbs
+  surplus), reverting to Kvs behaviour out of band.
+- **Valve authority** β = ΔP_valve / (ΔP_valve + pipe friction+fitting ΔP) computed per branch in a new
+  `ComputeValveDiagnostics` pass at the end of `Solve`; branches below β<0.25 are flagged as low-authority
+  (BSRIA BG 2/2010 / CIBSE Commissioning Code W).
+- **Valve discovery** (`Core/Calc/NetworkExtractor.cs`). `AttachValves` walks each pipe's connectors to
+  adjoining `OST_PipeAccessory` instances and substring-matches the family/type/instance name against the
+  `valveCv` / `picvCurves` (brand:code) catalogue in `STING_MEP_SIZING_RULES.json` via `MepSizingRegistry`.
+  PICV wins over plain Kvs. Fully guarded — bails when the catalogue is empty, and any failure leaves the
+  pipe valve-free.
+- **Pump duty point** (`Commands/Routing/HardyCrossCommand.cs`). The existing but unused
+  `HardyCrossSolver.OperatingPoint` (system-resistance × pump-curve bisection) is now wired: the command
+  resolves a `PumpCurve` from three optional ProjectInformation params (`PRJ_PUMP_SHUTOFF_QH` /
+  `PRJ_PUMP_BEP_QH` / `PRJ_PUMP_RUNOUT_QH`, each `Q_lps,H_m`) and reports duty flow + head. **No STING data
+  file defines pump curves yet**, so absent those params the report states the intersection is pending a
+  data source — the solver is ready, only the curve data is missing.
+- **Reporting.** Result panel gains a CONTROL VALVES / PICV AUTHORITY section (per-branch ΔP, β, PICV
+  in/out of window) and a PUMP DUTY POINT section. When no valve/pump data is present the sections say so
+  explicitly and the existing convergence + RBS_PIPE_FLOW_PARAM write-back behaviour is **unchanged**.
+- **No-data fallback:** a network with no matching pipe accessories and no pump params balances byte-for-byte
+  as before (valve terms are exactly zero; duty-point section is informational only).
+- **Honesty:** unverifiable without a live looped hydronic model in Revit — logic is static-analysis +
+  build-verified only. The pump-curve intersection is code-complete but effectively dormant until a
+  pump-curve data source is added.
+
 #### Completed (HVAC gap remediation Tier 2 item 2.3 — branch `claude/hvac-impl`)
 
 Item 2.3 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — new duct static-pressure / fan-selection
