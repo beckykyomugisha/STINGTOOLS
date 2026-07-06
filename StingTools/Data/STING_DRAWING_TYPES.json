@@ -9833,6 +9833,137 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
+    },
+    {
+      "id": "mech-equip-schedule-A3",
+      "name": "Mechanical Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "M",
+      "system": "HVAC",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "M-SCH-EQ-{seq:D2}",
+      "sheetNamePattern": "MECHANICAL EQUIPMENT SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Mechanical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Level",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP mechanical-equipment schedule (AHU / FCU / VAV / chiller / boiler / pump). The producer emits a ViewSchedule of category Mechanical Equipment with the listed fields; unknown fields are skipped."
+    },
+    {
+      "id": "elec-panel-schedule-A3",
+      "name": "Electrical Panel / Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "E-SCH-PNL-{seq:D2}",
+      "sheetNamePattern": "ELECTRICAL PANEL SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Electrical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Panel",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP electrical panel / equipment schedule (distribution boards, panels, MCCBs). The producer emits a ViewSchedule of category Electrical Equipment; unknown fields are skipped."
+    },
+    {
+      "id": "valve-schedule-A3",
+      "name": "Valve Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "P",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "P-SCH-VLV-{seq:D2}",
+      "sheetNamePattern": "VALVE SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Pipe Accessories",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Size",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped."
     }
   ],
   "routing": [
@@ -10491,6 +10622,24 @@
       "phase": "*",
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "MECH_EQUIP_SCHEDULE",
+      "drawingTypeId": "mech-equip-schedule-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ELEC_PANEL_SCHEDULE",
+      "drawingTypeId": "elec-panel-schedule-A3"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "VALVE_SCHEDULE",
+      "drawingTypeId": "valve-schedule-A3"
     }
   ]
 }
