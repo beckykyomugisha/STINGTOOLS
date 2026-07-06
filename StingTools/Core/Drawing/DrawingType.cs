@@ -131,6 +131,35 @@ namespace StingTools.Core.Drawing
         [JsonProperty("scale")]
         [JsonConverter(typeof(TolerantScaleConverter))]
         public int Scale { get; set; } = 100; // 1:N  (0 = not applicable, e.g. "NA" for 3D/presentation)
+
+        /// <summary>Tag text height in mm for this drawing type. 0 = derive from Scale via
+        /// <see cref="EffectiveTagTextSizeMm"/>. Selects the tag size-variant family (label text
+        /// types 1.0mm … 5.0mm) the drawing producer should place for this drawing.</summary>
+        [JsonProperty("tagTextSizeMm")] public double TagTextSizeMm { get; set; } = 0;
+
+        /// <summary>Resolve the tag text size (mm): explicit <see cref="TagTextSizeMm"/> if set,
+        /// else a sensible default from the view Scale. Always returns one of the 8 canonical
+        /// authored sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm). ISO default is 2.5 mm at 1:50.</summary>
+        public double EffectiveTagTextSizeMm()
+        {
+            if (TagTextSizeMm > 0) return TagTextSizeMm;
+            int n = Scale;
+            if (n <= 0)   return 2.5;   // NA (3D / presentation) → ISO default
+            if (n <= 5)   return 5.0;
+            if (n <= 10)  return 4.0;
+            if (n <= 20)  return 3.5;
+            if (n <= 25)  return 3.0;
+            if (n <= 50)  return 2.5;
+            if (n <= 100) return 2.0;
+            if (n <= 150) return 1.5;
+            return 1.0;                 // 1:200 and smaller
+        }
+
+        /// <summary>Canonical label text-type / size token for a mm size (e.g. 2.5 → "2.5mm"),
+        /// matching the 8 authored tag text types.</summary>
+        public static string TagSizeToken(double mm) =>
+            mm.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "mm";
+
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
