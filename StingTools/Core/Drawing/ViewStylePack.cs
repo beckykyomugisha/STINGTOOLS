@@ -287,6 +287,20 @@ namespace StingTools.Core.Drawing
         // Primary list — newer JSON files use "viewStylePacks".
         [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
         public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Corporate STING_VIEW_STYLE_PACKS.json and every editor-written
+        // project override (<project>/_BIM_COORD/view_style_packs.json,
+        // see DrawingTypeEditorDialog.ViewStylePackDoc) key the array under
+        // "stylePacks", not "viewStylePacks". Without this alias the loader
+        // binds nothing and ViewStylePackRegistry falls back to the 3 hard
+        // -coded BuildDefaults() packs — i.e. the 31-pack corporate catalogue
+        // was runtime-dead. Additive write-only alias; the canonical Packs
+        // list still serialises under "viewStylePacks".
+        [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> StylePacksAlias
+        {
+            set { if (value != null && value.Count > 0) Packs = value; }
+        }
     }
 
 }
