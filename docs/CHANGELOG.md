@@ -3,6 +3,43 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 195 — Universal-tag badge/gate integration, branch `feature/universal-tag-system`)
+
+Closed the integration gap between the universal-tag status badges (data + QA gates stamped by
+`Gate_StampStatus`) and the drawing-production pipeline. Release build: **0 errors** (4 pre-existing
+`ClashIssueSyncCommand` CS0618 warnings). Not yet exercised in Revit — validate before merge.
+
+- **Gate-based AEC filters (Task 1).** Four corporate filters in `STING_AEC_FILTERS.json`
+  (`qa-gate-data-red/amber`, `qa-gate-qa-red/amber`) keyed on `STING_GATE_DATA_STATUS_INT` /
+  `STING_GATE_QA_STATUS_INT` (`kind:shared`, `op:equals`, `type:int`; op vocabulary confirmed
+  against `AecFilterFactory.BuildIntRule`). Same 11 categories as `qa-untagged`.
+- **View-driven badges (Task 2).** `STING_TagStatus` subcategory hidden (`vgOverrides
+  visible:false`) on the non-managed issue/presentation packs in `STING_VIEW_STYLE_PACKS.json`
+  (standard rcp/section/elevation/detail, clarification, demolition, presentation-rich→children,
+  pres-base→children). New `coord-qa` pack (extends `corp-coordination`) shows it and attaches the
+  four Task-1 filters by name so a coordination view auto-recolours non-compliant tags; `+routing`
+  entry `{purpose:QA→coord-qa}`. **Two loader fixes** were required for these to bind (grepped per
+  the "green json.load ≠ loader binds it" rule): `ViewStylePackLibrary` gained a `stylePacks` alias
+  (it bound only `viewStylePacks`, so the 31-pack corporate catalogue was runtime-dead → 3
+  `BuildDefaults` packs); `ResolveCategoryIdCached` (a lost-to-merge stub that resolved
+  BuiltInCategory names only) now falls back to the richer name/subcategory resolver so localised
+  and subcategory vgOverride keys bind. See ROADMAP for the Revit-validation gate this activation
+  requires.
+- **Auto-refresh gates + message labels (Task 3).** `Gate_StampStatus` step added early in
+  `WORKFLOW_DailyQA_Enhanced.json` and `WORKFLOW_MorningHealthCheck.json`, and the tag mapped in
+  `WorkflowEngine.ResolveCommand` (it was previously unresolvable). Completed the two badge message
+  labels the guides reference but which never existed in code: new instance TEXT params
+  `STING_GATE_DATA_MSG_TXT` / `STING_GATE_QA_MSG_TXT` (MR_PARAMETERS group 17 + `ParamRegistry`
+  constants); `ComplianceScan.ComputeElementGates` now emits terse reasons (data: UNTAGGED /
+  TAG INCOMPLETE / NO STATUS / EMPTY CONTAINER / ISO ERRORS; QA: NO QA / NO SIGN-OFF / QA PENDING;
+  blank when green); `StampGateStatusCommand` binds + stamps them alongside the ints.
+- **Docs (Tasks 4-6).** ROADMAP records the QA-filter rationalization plan (Task 4 — no deletions),
+  the drawing-type binding audit (Task 5 — `"STING - Generic Tag"` is a placeholder, not the
+  universal master, so no bindings repointed), and the integration follow-ups + smoke-test survival
+  items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
+  target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
+  code landed here and the guide edits are flagged in ROADMAP for that branch.
+
 #### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
 
 Because the universal tag is discipline-agnostic (Task 1), the engineering data dropped from

@@ -42,6 +42,65 @@ tagging/placement pipeline. Recorded here as staged, gated work:
 5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
 
 
+## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
+
+Follow-on to the badge/gate system: wired the stamped status gates into the AEC filters,
+View Style Packs, and QA workflows (see CHANGELOG "Universal-tag badge/gate integration").
+Open items surfaced while doing it — recorded rather than force-fixed:
+
+**QA-filter rationalization (runner Task 4 — DOCS ONLY, nothing deleted).**
+The stamped **data gate** (`STING_GATE_DATA_STATUS_INT`) now computes the same completeness
+signal the old ad-hoc completeness filters derive per-view. Once `coord-qa` + the four
+`qa-gate-*` filters are proven in Revit, deprecate the overlapping completeness filters in
+favour of the gate-based ones (single source of truth = the stamped gate, not a re-derived
+per-view rule). Overlapping legacy ids in `STING_AEC_FILTERS.json`:
+`qa-untagged` (⊆ data-gate red), `qa-incomplete-tag` (⊆ data-gate amber "TAG INCOMPLETE"),
+`qa-missing-disc` / `qa-missing-loc` (⊆ data-gate amber container/ISO reasons),
+`qa-stale-element` (orthogonal — keep; staleness is not a gate input). These have live
+callers/packs, so **not deleted** — deprecate only after the Revit smoke test.
+
+**Drawing-Type tag-binding audit (runner Task 5 — reported, no change made).**
+`STING_DRAWING_TYPES.json` annotation rule packs bind `tagFamilies` per category. 22 bindings
+reference `"STING - Generic Tag"`; the rest reference specific `STING_TAG_*` families. Finding:
+`"STING - Generic Tag"` is a **placeholder generic-tag family name** (spaces / "STING - " prefix),
+NOT the universal master — the universal label is propagated *into* the 206 named `STING_TAG_*`
+families, so the specific bindings already carry it. Repointing the 22 generic bindings to a
+"universal master" would therefore be wrong. **No bindings changed.** Revisit only if a single
+universal `.rfa` master is ever loaded per-category and the names are proven to resolve.
+
+**Integration follow-ups (need Revit validation before merge — repo norm):**
+1. **View Style Pack catalogue now loads at runtime.** `ViewStylePackLibrary` gained a `stylePacks`
+   alias (it previously bound only `viewStylePacks`, so the 31-pack corporate file + editor-written
+   project overrides were runtime-dead and the registry used 3 hard-coded `BuildDefaults` packs).
+   This activates the full corporate catalogue at runtime for the first time — **validate drawing
+   production in Revit** (managed-template minting + authored vgOverrides now apply). Treat like the
+   Duct smoke test: prove before merge.
+2. **Managed issue packs still show badges.** `corp-standard-plan`, `corp-fabrication-shop`,
+   `corp-coordination` are `templateMode: managed` with `managedFields` that exclude `vgOverrides`,
+   so their `STING_TagStatus: {visible:false}` hide does not apply through the managed path. Either
+   add `"vgOverrides"` to those packs' `managedFields` (note: this also applies their existing
+   authored vgOverrides, a visible appearance change) or leave as-is (badges are opt-in —
+   `TAG_WARN_VISIBLE_BOOL` defaults off — so this is belt-and-braces). Deferred pending the Revit
+   validation in (1).
+3. **Style-pack `routing[]` is not consumed by `ViewStylePackRegistry`** (resolution is by explicit
+   pack id). The added `{purpose:QA → coord-qa}` entry (and all existing routing entries) are
+   declarative until routing consumption is wired. Low priority.
+4. **Guide edits live on a different branch.** The runner's Task 6.1 (rename badge visibility params
+   to UPPERCASE `VIS_DATA_*` / `VIS_QA_*`; document the message labels + view-driven control) targets
+   `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` + `docs/UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md`, which do
+   **not exist on `feature/universal-tag-system`** — they live on branch `claude/tag-tier-review-94c78a`
+   (worktree `awesome-kirch-94c78a`), together with the runner itself. This branch implemented the
+   *enabling* code (the `STING_GATE_*_MSG_TXT` params + message computation + stamping, and the
+   filters/packs/workflows); the guide edits must be applied on that branch (or when the two branches
+   merge). Not forked here to avoid divergent guide copies.
+
+**Smoke-test survival (carry forward):** when the Duct smoke test runs, additionally verify the
+badge subsystem survives recategorise-propagation — the 6 family-local `VIS_DATA_GREEN/AMBER/RED` +
+`VIS_QA_GREEN/AMBER/RED` Yes/No params, the `STING_TagStatus` annotation subcategory, and the coloured
+glyphs must all survive `Propagate_UniversalTag`, and `Gate_StampStatus` must repopulate the four
+`STING_GATE_*` params (2 INT + 2 MSG) so badges + message labels render.
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers

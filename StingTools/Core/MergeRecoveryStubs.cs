@@ -437,6 +437,18 @@ namespace StingTools.Core.Drawing
         {
             try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
             catch { }
+            // The corporate/project packs key vgOverrides by localised category
+            // name ("Walls", "Ducts") and by custom subcategory ("STING-LargeTree",
+            // "STING_TagStatus" — the universal-tag status-badge subcategory). The
+            // BIC-only fast path above misses both, leaving those overrides
+            // runtime-dead. Fall back to the richer resolver in the main partial,
+            // which matches top-level category names and subcategory names.
+            try
+            {
+                var byName = ResolveCategoryId(doc, key);
+                if (byName != null && byName != ElementId.InvalidElementId) return byName;
+            }
+            catch { }
             return ElementId.InvalidElementId;
         }
         internal static ElementId ResolveFilterIdCached(Document doc, string name)
