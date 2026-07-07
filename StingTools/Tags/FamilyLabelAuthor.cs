@@ -44,6 +44,10 @@ namespace StingTools.Tags
     /// <see cref="HandoverModeHelper.GetAllTagConfigCsvs"/> → CSV read →
     /// one call to <see cref="AuthorLabels"/> per family document.
     /// </remarks>
+    // LEGACY(universal-tag): per-family CSV tier authoring, superseded by the
+    // hand-built universal master + PropagateUniversalTagCommand. Retained —
+    // still called by TagFamilyCreatorCommand (MigrateTagFamiliesCommand no
+    // longer authors tier rows). Delete only when the creator is migrated too.
     internal static class FamilyLabelAuthor
     {
         /// <summary>Options passed from the outer command.</summary>

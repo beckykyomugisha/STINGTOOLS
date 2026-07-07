@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 196 — Universal-tag finalize, branch `claude/universal-tag-finalize`)
+
+Finished the universal-tag pivot: the on-drawing tag is now the short/maskable display, and the
+old CSV tier-authoring entry point in "Migrate Fams" is retired. Release build: **0 errors** (4
+pre-existing `ClashIssueSyncCommand` CS0618 warnings); `StingTools.Tags.Tests` 134 pass / 2
+pre-existing `CsiMasterFormat` fails. Manual Family-Editor label edits remain (the Revit API
+cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finalize report / runner.
+
+- **Short + maskable display (Task A).** `ASS_DISPLAY_TXT` is the on-drawing identity line, rendered
+  as a display-mode + segment-mask resolution of the canonical `ASS_TAG_1_TXT` (which stays the full
+  unique ISO key). `ParamRegistry.DisplayModeDefault` 2→5 so the display starts from the full
+  8-segment string a mask can shorten (masks apply in modes 0/5 only). `TagConfig.BuildAndWriteTag`
+  no longer clobbers `ASS_DISPLAY_TXT` with the full tag every build — it calls `BuildDisplayTag(el)`
+  (resolves mode + `TAG_SEG_MASK_TXT` / `STING_VIEW_TOKEN_MASK_TXT` / UI `TokenMask` and writes the
+  result), falling back to the full tag only when that yields nothing. Corrected the stale
+  `BuildDisplayTag` mask-block comment that claimed "modes 1-5/0" (code is 0/5 only).
+- **Dead ExtraParam cleanup (Task B).** Verified the `TagSeparator` / `SeqPad` / `SegOrder`
+  `SetExtraParam` pushes (superseded by `ParamRegistry.ApplyTagFormatOverrides` + `TagConfig.SeqPadWidth`)
+  are gone with zero remaining readers; `TokenMask` + `ParaDepth` pushes retained (live readers). The
+  removal itself landed on the base branch.
+- **Legacy tier-authoring cutover, step 2 (Task C).** Trimmed `MigrateTagFamiliesCommand` ("Migrate
+  Fams") from a tier-authoring command to a **param + type-variant migrator only** — dropped the
+  `TagConfigPlanResolver.LoadAll*` → `FamilyLabelAuthor.AuthorLabelsMulti` CSV path and the
+  preserve-mode command links; kept `AddMissingParams` + the shared `TagTypeVariantWriter` type-variant
+  loop. Label rows now come from the propagated universal master, not per-family CSV. Caller checks
+  confirmed the ROADMAP finding — `FamilyLabelAuthor` / `TagConfigPlanResolver` / `HandoverModeHelper`
+  are **still called by `TagFamilyCreatorCommand`**, so nothing was deleted; `LEGACY(universal-tag)`
+  markers were added to the two retained classes for the next pass. (ROADMAP staged-cutover steps 1–2
+  done; steps 3–5 remain, blocked on the creator.)
+
 #### Completed (Phase 195 — Universal-tag badge/gate integration, branch `feature/universal-tag-system`)
 
 Closed the integration gap between the universal-tag status badges (data + QA gates stamped by

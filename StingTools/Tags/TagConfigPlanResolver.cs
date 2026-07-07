@@ -18,6 +18,10 @@ namespace StingTools.Tags
     /// new discipline or a new mode variant is a one-line change to either
     /// HandoverModeHelper or TagConfigCsvReader — the command stays unchanged.
     /// </summary>
+    // LEGACY(universal-tag): loads per-family tier plans for the old CSV
+    // authoring path, superseded by PropagateUniversalTagCommand. Retained —
+    // still called by TagFamilyCreatorCommand. Delete with the FamilyLabelAuthor
+    // cluster once the creator no longer authors tier rows from CSV.
     internal static class TagConfigPlanResolver
     {
         /// <summary>

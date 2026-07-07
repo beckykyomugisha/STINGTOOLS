@@ -5,11 +5,15 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 ## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
 
 Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
-schedules). **Task 4 (deprecate the now-superseded bespoke-tier machinery) was reviewed but NO
-deletions were performed** — a caller grep proved that none of the brief's candidates are true
-orphans yet, and the brief mandates deletions only "after the new paths are proven" (the Revit
-Duct smoke test is still pending). Blind-deleting now would break the build and the shipped
-tagging/placement pipeline. Recorded here as staged, gated work:
+schedules). **Staged cutover steps 1-2 are now done** (branch `claude/universal-tag-finalize`,
+Phase 196): the Duct smoke test passed (recategorise preserves labels — proven live) and
+`MigrateTagFamiliesCommand` was trimmed to a param + type-variant migrator (its
+`FamilyLabelAuthor.AuthorLabelsMulti` CSV call is gone; `TagTypeVariantWriter` variant loop kept).
+**Steps 3-5 remain deferred with NO deletions performed** — a caller grep re-confirms that none of
+the remaining candidates are true orphans (`TagFamilyCreatorCommand` still authors labels via the
+CSV path), and deletions are gated "after the new paths are proven" per family creator migration.
+Blind-deleting now would break the build and the shipped tagging/placement pipeline. Recorded here
+as staged, gated work:
 
 | Candidate | Live callers found | Why it can't be deleted yet |
 |---|---|---|
@@ -18,7 +22,7 @@ tagging/placement pipeline. Recorded here as staged, gated work:
 | `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | `HandoverModeHelper`, `FamilyLabelAuthor`, `TagConfigPlanResolver`, `ParamRegistry`, `TagConfig`, `TagFamilyCreatorCommand`, `PresentationModeCommand`, `FamilyParamCreatorCommand` | Heavily entangled; the v5.0 CSVs also feed `LABEL_DEFINITIONS.json` sync + creator. |
 | `Core/HandoverModeHelper.cs` (DC/HO) | `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`, `TagFamilyCreatorCommand`, + 3 more | Repurpose (not delete) DC/HO → a `PARA_STATE` view preset; remove only the dual-CSV authoring path. |
 | `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
-| `MigrateTagFamiliesCommand` tier-authoring path | UI "Migrate Fams" button | **Trim** the `FamilyLabelAuthor.AuthorLabelsMulti` call once the universal path is proven; KEEP its params + the (now-shared) type-variant loop. |
+| ~~`MigrateTagFamiliesCommand` tier-authoring path~~ | ~~UI "Migrate Fams" button~~ | **DONE (Phase 196).** Trimmed to param + type-variant migrator; `FamilyLabelAuthor.AuthorLabelsMulti` call removed, `TagTypeVariantWriter` loop kept. |
 
 **Prerequisites now in-repo (tracked):**
 - `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` — the consolidated manual walkthrough: what to
@@ -30,12 +34,13 @@ tagging/placement pipeline. Recorded here as staged, gated work:
   `MigrateTagFamiliesCommand` (staged; apply only after the smoke test passes).
 
 **Staged cutover (do in order, each gated):**
-1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`) —
-   follow `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`.
-2. Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
-   call; retire/relabel the "Migrate Fams" tier-authoring UI — apply
-   `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`. Verify build + Tags.Tests green.
-3. Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
+1. ~~Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`)~~ —
+   **DONE.** Recategorise preserves labels/formulas/breaks (proven live on Duct).
+2. ~~Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
+   call~~ — **DONE (Phase 196).** Applied `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`; build +
+   Tags.Tests green. The remaining entry point is `TagFamilyCreatorCommand` (step 3).
+3. Once nothing calls them (i.e. after `TagFamilyCreatorCommand` is migrated off the CSV
+   authoring path), delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
    v5.0-CSV tier-authoring cluster as one unit.
 4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
    the dual-CSV authoring path only.
