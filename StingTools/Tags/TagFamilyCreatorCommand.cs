@@ -664,72 +664,10 @@ namespace StingTools.Tags
         public static string GetTieInFamilyFileName(string suffix)
             => GetTieInFamilyName(suffix).Replace('/', '-') + ".rfa";
 
-        /// <summary>
-        /// Resolve a creator-side family name to the CSV-side family name used
-        /// in <c>plansByFamily</c>. Yields candidates in priority order:
-        ///   1. Exact match → as-is (no alias needed).
-        ///   2. Strip parenthetical disambiguator before " Tag":
-        ///      "STING - Anti-Ligature (Door) Tag" → "STING - Anti-Ligature Tag".
-        ///      Used by healthcare variants where one CSV name binds multiple
-        ///      BICs and the creator emits per-BIC files.
-        ///   3. Plural → singular fallback: "STING - Doors Tag" → "STING - Door Tag".
-        ///      The CSV ships singular forms while Revit's category display is
-        ///      plural, so this rule rescues every basic category whose
-        ///      <see cref="CategoryCsvFamilyKey"/> override happens to be missing.
-        /// </summary>
-        public static IEnumerable<string> CsvFamilyNameCandidates(string familyName)
-        {
-            if (string.IsNullOrEmpty(familyName)) yield break;
-            yield return familyName;
-
-            const string suffix = " Tag";
-            if (!familyName.EndsWith(suffix, StringComparison.Ordinal)) yield break;
-            string stem = familyName.Substring(0, familyName.Length - suffix.Length);
-
-            // Strip trailing "(...)" disambiguator: "Anti-Ligature (Door)" → "Anti-Ligature"
-            if (stem.EndsWith(")", StringComparison.Ordinal))
-            {
-                int openParen = stem.LastIndexOf('(');
-                if (openParen > 0)
-                {
-                    string trimmed = stem.Substring(0, openParen).TrimEnd();
-                    if (!string.IsNullOrEmpty(trimmed))
-                        yield return trimmed + suffix;
-                }
-            }
-
-            // Plural → singular: drop final 's' before " Tag"
-            if (stem.Length > 0 && stem[stem.Length - 1] == 's')
-            {
-                yield return stem.Substring(0, stem.Length - 1) + suffix;
-            }
-        }
-
-        /// <summary>
-        /// Alias-aware <c>plansByFamily</c> lookup: tries the exact name first,
-        /// then plural→singular fallback. Returns the matching plan or null.
-        /// </summary>
-        public static TierPlan TryGetTierPlan(Dictionary<string, TierPlan> plansByFamily, string familyName)
-        {
-            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return null;
-            foreach (var candidate in CsvFamilyNameCandidates(familyName))
-            {
-                if (plansByFamily.TryGetValue(candidate, out TierPlan plan) && plan != null)
-                    return plan;
-            }
-            return null;
-        }
-
-        /// <summary>Alias-aware <c>plansByFamily</c> ContainsKey check.</summary>
-        public static bool ContainsPlanForFamily(Dictionary<string, TierPlan> plansByFamily, string familyName)
-        {
-            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return false;
-            foreach (var candidate in CsvFamilyNameCandidates(familyName))
-            {
-                if (plansByFamily.ContainsKey(candidate)) return true;
-            }
-            return false;
-        }
+        // CsvFamilyNameCandidates / TryGetTierPlan / ContainsPlanForFamily were the
+        // alias-aware CSV tier-plan lookups used by the old per-family label-authoring
+        // path. Removed in the universal-tag teardown — no callers remained after the
+        // Create Tag Fams gut (labels now come from Propagate_UniversalTag, not CSV plans).
 
         /// <summary>
         /// STING shared parameters to add to each tag family.
@@ -1130,12 +1068,16 @@ namespace StingTools.Tags
     ///   1. Locates Revit's .rft annotation templates on disk
     ///   2. Skips categories that already have a STING tag loaded
     ///   3. Creates new family documents from templates
-    ///   4. Adds ASS_TAG_1_TXT through ASS_TAG_6_TXT shared parameters
+    ///   4. Injects STING shared parameters (via the type/instance binding in
+    ///      FamilyParamCreatorCommand.InjectSharedParams) + standard type variants
     ///   5. Saves .rfa files to Data/TagFamilies/
     ///   6. Loads families into the current project
     ///
-    /// Post-creation: Open each family in Family Editor, add a Label pointing
-    /// to ASS_TAG_1_TXT to complete the tag family configuration.
+    /// Universal-tag pivot: this command MINTS the family + params + type variants; it
+    /// no longer authors per-family tier label rows from the v5.0 CSVs (that path is
+    /// superseded and the Revit API cannot author label rows). Post-creation the LABEL is
+    /// applied by 'Propagate Universal' (clones the hand-built universal master onto every
+    /// family), then 'Set depth' chooses the visible tier count.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1149,19 +1091,13 @@ namespace StingTools.Tags
             Document doc = uidoc.Document;
             var app = uiApp.Application;
 
-            // ── Dual-wire authoring: load every built-in mode's TierPlans so
-            //    each family gets stamped with both Handover and Design &
-            //    Construction T4-T10 rows in a single pass. Switching between
-            //    the two patterns at runtime is then a project-level BOOL flip
-            //    (HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL) instead
-            //    of a family re-author. Modes whose CSVs are missing on disk
-            //    are silently skipped — families keep whatever rows are live.
-            Dictionary<string, Dictionary<string, TierPlan>> plansByMode =
-                TagConfigPlanResolver.LoadAllPerMode(doc);
-            var failedCsvs = new System.Collections.Generic.List<string>();
-            Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc, failedCsvs);
-            bool preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
-            string activeMode = HandoverModeHelper.GetActiveMode(doc);
+            // Universal-tag pivot: this command no longer authors per-family tier rows
+            // from the v5.0 CSVs. It mints the family shell + injects params + creates the
+            // depth/style type variants; the LABEL rows are cloned onto every family by
+            // Propagate_UniversalTag (recategorise the hand-built universal master). The
+            // Revit API cannot author label rows anyway, so the old CSV path was a partial
+            // dead-end. TagConfigPlanResolver / FamilyLabelAuthor / HandoverModeHelper mode
+            // loading are gone from here.
 
             // ── Pre-check: Auto-fix any numeric label params to TEXT ──
             var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
@@ -1311,65 +1247,19 @@ namespace StingTools.Tags
 
             TaskDialog confirm = new TaskDialog("Create Tag Families");
             confirm.MainInstruction = $"Create {toCreate} STING tag families?";
-            int familiesWithPlan = 0;
-            foreach (var bic in categories)
-            {
-                string fn = TagFamilyConfig.GetFamilyName(bic);
-                if (TagFamilyConfig.ContainsPlanForFamily(plansByFamily, fn)) familiesWithPlan++;
-            }
-            // Coverage warning: <50% of base categories have CSV plans.
-            // Two distinct root causes are diagnosed so the user gets
-            // an actionable message rather than a generic warning:
-            //   A) CSV files not found on disk → plansByFamily is empty.
-            //      The resolver tried the standard DataPath search chain PLUS
-            //      several deployment-layout fallbacks and still could not
-            //      locate the files.  Fix: copy the 5 STING_TAG_CONFIG_v5_0_*.csv
-            //      files into the same folder as StingTools.dll (or into a
-            //      'data' sub-folder next to it).
-            //   B) CSVs loaded but family names don't match → naming drift.
-            //      Check CategoryCsvFamilyKey and VariantSuffixToCsvName.
-            int coveragePct = categories.Count == 0 ? 100 : (int)Math.Round(familiesWithPlan * 100.0 / categories.Count);
-            string coverageBanner = string.Empty;
-            if (coveragePct < 50)
-            {
-                if (failedCsvs.Count > 0)
-                {
-                    // Root cause A: CSV files not found on disk.
-                    string missingList = string.Join(", ", failedCsvs);
-                    coverageBanner =
-                        $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
-                        $"  {failedCsvs.Count} tag-config CSV file(s) could NOT be located on disk:\n" +
-                        $"  {missingList}\n" +
-                        "  Without the CSV data, families are authored with DEFAULT\n" +
-                        "  visibility params instead of per-family T4-T10 rows.\n" +
-                        "  FIX: copy the STING_TAG_CONFIG_v5_0_*.csv files into\n" +
-                        $"  the 'data' sub-folder next to StingTools.dll.\n\n";
-                }
-                else
-                {
-                    // Root cause B: CSVs loaded but family-name mismatch.
-                    coverageBanner =
-                        $"⚠ WARNING: only {coveragePct}% of base categories matched a CSV plan.\n" +
-                        "  The CSV files were found but most family names did not match.\n" +
-                        "  Likely cause: naming drift (plural/singular, suffix format).\n" +
-                        "  Check CategoryCsvFamilyKey and VariantSuffixToCsvName\n" +
-                        "  in TagFamilyConfig.cs.\n\n";
-                }
-            }
             confirm.MainContent =
-                coverageBanner +
                 $"Total taggable categories: {total}\n" +
                 $"Already loaded in project: {alreadyLoaded}\n" +
                 $"Already built on disk: {onDisk}\n" +
                 $"To create: {toCreate}\n\n" +
-                $"Mode: {activeMode}  •  Preserve hand-edits: {(preserveHandEdits ? "on" : "off")}\n" +
-                $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories, {coveragePct}%)\n\n" +
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
-                "Each family will be created from a Revit annotation template,\n" +
-                "loaded with STING shared parameters, and — when a plan is\n" +
-                "available — have T4..T10 visibility formulas re-authored.";
+                "Each family is created from a Revit annotation template, loaded with STING\n" +
+                "shared parameters, and given the standard depth/style type variants.\n\n" +
+                "NEXT: run 'Propagate Universal' to clone the universal label onto every\n" +
+                "family, then 'Set depth' to choose the visible tier count. Label rows are\n" +
+                "NOT authored here — the Revit API cannot author label rows.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             var choice = confirm.Show();
             if (choice == TaskDialogResult.Cancel)
@@ -1495,12 +1385,8 @@ namespace StingTools.Tags
                     // Attempt to rebind the existing Label to ASS_TAG_1_TXT
                     bool labelBound = TryRebindLabel(famDoc);
 
-                    // Wave-1 commit 3: if a TierPlan for this family is known,
-                    // bind T4..T10 shared params + apply visibility formulas
-                    // before saving. No-op when plansByFamily does not contain
-                    // the family (e.g. a category not yet listed in the CSVs).
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     // Save the family document
                     SaveAsOptions saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1617,8 +1503,8 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     // Save and load — always proceeds even if params failed
                     string savePath = Path.Combine(outputDir, fileName);
@@ -1730,8 +1616,8 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1842,8 +1728,8 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1954,8 +1840,8 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -2066,8 +1952,8 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, hvParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
-                        app, sharedParamFile, preserveHandEdits, report);
+                    // Label rows are cloned by Propagate_UniversalTag from the universal
+                    // master, not authored per-family here (universal-tag pivot).
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -2106,13 +1992,16 @@ namespace StingTools.Tags
             if (created > 0)
             {
                 report.AppendLine();
-                report.AppendLine("NEXT STEP:");
-                report.AppendLine("Run 'Configure Labels' to open each family in the");
-                report.AppendLine("Family Editor and set the Label to ASS_TAG_1_TXT.");
-                report.AppendLine("The wizard will guide you step by step.");
+                report.AppendLine("NEXT STEPS (universal-tag flow):");
+                report.AppendLine("1. Run 'Propagate Universal' to clone the universal label");
+                report.AppendLine("   onto every family (recategorise the universal master).");
+                report.AppendLine("2. Run 'Set depth' to choose how many tiers are visible.");
                 report.AppendLine();
-                report.AppendLine("TIP: After configuring, copy finished .rfa files to");
-                report.AppendLine("Data/TagFamilies/Seeds/ to skip this step next time.");
+                report.AppendLine("Label ROWS are not authored here — the Revit API cannot");
+                report.AppendLine("author label rows; they come from the universal master.");
+                report.AppendLine();
+                report.AppendLine("TIP: after propagating, copy finished .rfa files to");
+                report.AppendLine("Data/TagFamilies/Seeds/ to skip creation next time.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
@@ -2128,77 +2017,6 @@ namespace StingTools.Tags
                 $"skipped={alreadyLoaded}, missing={templateMissing}, failed={failed}");
 
             return Result.Succeeded;
-        }
-
-        /// <summary>
-        /// Per-family author hook. When <paramref name="plansByMode"/> has at
-        /// least one mode that lists this family, stamps BOTH pattern row sets
-        /// into the family via <see cref="FamilyLabelAuthor.AuthorLabelsMulti"/>
-        /// so switching between Handover and Design & Construction at runtime
-        /// is a selector-BOOL flip. Falls back to the single-plan path via
-        /// <paramref name="plansByFamily"/> when the per-mode dict is empty
-        /// (e.g. only the active-mode CSVs are on disk). No-op when no plan
-        /// mentions the family.
-        /// </summary>
-        private void AuthorFromPlanIfAvailable(Document famDoc, string famName,
-            Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
-            Dictionary<string, TierPlan> plansByFamily,
-            Autodesk.Revit.ApplicationServices.Application app,
-            string sharedParamFile, bool preserveHandEdits,
-            StringBuilder report)
-        {
-            if (famDoc == null || string.IsNullOrEmpty(famName)) return;
-
-            var modePlans = new List<FamilyLabelAuthor.ModePlan>();
-            if (plansByMode != null)
-            {
-                foreach (var kv in plansByMode)
-                {
-                    if (kv.Value == null) continue;
-                    TierPlan plan = TagFamilyConfig.TryGetTierPlan(kv.Value, famName);
-                    if (plan == null) continue;
-                    modePlans.Add(new FamilyLabelAuthor.ModePlan
-                    {
-                        Mode = kv.Key,
-                        GateParam = HandoverModeHelper.GetSelectorBool(kv.Key),
-                        Plan = plan,
-                    });
-                }
-            }
-
-            if (modePlans.Count == 0)
-            {
-                TierPlan plan = TagFamilyConfig.TryGetTierPlan(plansByFamily, famName);
-                if (plan == null) return;
-                modePlans.Add(new FamilyLabelAuthor.ModePlan
-                {
-                    Mode = "", GateParam = null, Plan = plan,
-                });
-            }
-
-            try
-            {
-                var opts = new FamilyLabelAuthor.Options
-                {
-                    App = app,
-                    SharedParamFile = sharedParamFile,
-                    PreserveHandEdits = preserveHandEdits,
-                    FamilyName = famName,
-                };
-                var r = FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);
-                string modeTag = modePlans.Count > 1
-                    ? $"modes=[{string.Join(",", modePlans.ConvertAll(m => m.Mode))}]"
-                    : "";
-                report.AppendLine($"         author → bound={r.ParamsBound} " +
-                    $"formulas={r.FormulasApplied} skipped={r.FormulasSkipped} " +
-                    $"preserved={r.TiersPreserved} label-rebound={r.LabelRebound} {modeTag}".TrimEnd());
-                foreach (var w in r.Warnings) StingLog.Warn($"{famName}: {w}");
-            }
-            catch (Exception ex)
-            {
-                report.AppendLine($"         author → FAILED: {ex.Message}");
-                StingLog.Error($"AuthorFromPlanIfAvailable({famName})", ex);
-            }
         }
 
         /// <summary>

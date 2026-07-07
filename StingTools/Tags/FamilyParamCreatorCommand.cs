@@ -323,6 +323,26 @@ namespace StingTools.Tags
                         fm.GetParameters().Select(p => p.Definition.Name),
                         StringComparer.OrdinalIgnoreCase);
 
+                    // Params the TYPE-level machinery owns must be bound as TYPE params,
+                    // else they are invisible to it. SetParagraphDepthCommand and
+                    // TagTypeVariantWriter both operate on the family TYPE, so the depth
+                    // gates (TAG_PARA_STATE_*) and the style/box/leader/scale/depth params
+                    // MUST be type — otherwise a family built via "Inject Params" carries
+                    // them as instance and Set Depth / style-switch silently no-op on it.
+                    // TAG_POS is also type (it drives the type-level offset Calculated Value).
+                    // Everything else (ASS_TAG_* containers, tokens, description, category
+                    // label params) is per-element and stays INSTANCE.
+                    var typeParamSet = new HashSet<string>(
+                        TagFamilyConfig.VisibilityParams
+                            .Concat(TagFamilyConfig.StyleParams)
+                            .Append(ParamRegistry.TAG_POS),
+                        StringComparer.OrdinalIgnoreCase);
+                    bool IsTypeParam(string p) =>
+                        typeParamSet.Contains(p) ||
+                        p == ParamRegistry.TAG_DEPTH_TIER ||
+                        p.StartsWith("TAG_BOX_", StringComparison.Ordinal) ||
+                        p.StartsWith("TAG_LEADER_", StringComparison.Ordinal);
+
                     foreach (string paramName in paramNames)
                     {
                         try
@@ -349,7 +369,7 @@ namespace StingTools.Tags
                                 continue;
                             }
 
-                            bool isInstance = paramName != ParamRegistry.TAG_POS;
+                            bool isInstance = !IsTypeParam(paramName);
                             fm.AddParameter(extDef,
                                 GroupTypeId.General,
                                 isInstance);

@@ -165,8 +165,12 @@ namespace StingTools.Core
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// Defaults to 5 (full 8-segment): ASS_DISPLAY_TXT is the on-drawing tag and
+        /// must start from the full string so a segment mask (TAG_SEG_MASK_TXT /
+        /// STING_VIEW_TOKEN_MASK_TXT / UI "TokenMask") has all 8 segments to shorten.
+        /// Masks only apply in modes 0/5 — the only modes that carry every segment.
         /// </summary>
-        public static int DisplayModeDefault = 2;
+        public static int DisplayModeDefault = 5;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
