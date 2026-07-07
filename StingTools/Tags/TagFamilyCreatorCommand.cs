@@ -664,72 +664,10 @@ namespace StingTools.Tags
         public static string GetTieInFamilyFileName(string suffix)
             => GetTieInFamilyName(suffix).Replace('/', '-') + ".rfa";
 
-        /// <summary>
-        /// Resolve a creator-side family name to the CSV-side family name used
-        /// in <c>plansByFamily</c>. Yields candidates in priority order:
-        ///   1. Exact match → as-is (no alias needed).
-        ///   2. Strip parenthetical disambiguator before " Tag":
-        ///      "STING - Anti-Ligature (Door) Tag" → "STING - Anti-Ligature Tag".
-        ///      Used by healthcare variants where one CSV name binds multiple
-        ///      BICs and the creator emits per-BIC files.
-        ///   3. Plural → singular fallback: "STING - Doors Tag" → "STING - Door Tag".
-        ///      The CSV ships singular forms while Revit's category display is
-        ///      plural, so this rule rescues every basic category whose
-        ///      <see cref="CategoryCsvFamilyKey"/> override happens to be missing.
-        /// </summary>
-        public static IEnumerable<string> CsvFamilyNameCandidates(string familyName)
-        {
-            if (string.IsNullOrEmpty(familyName)) yield break;
-            yield return familyName;
-
-            const string suffix = " Tag";
-            if (!familyName.EndsWith(suffix, StringComparison.Ordinal)) yield break;
-            string stem = familyName.Substring(0, familyName.Length - suffix.Length);
-
-            // Strip trailing "(...)" disambiguator: "Anti-Ligature (Door)" → "Anti-Ligature"
-            if (stem.EndsWith(")", StringComparison.Ordinal))
-            {
-                int openParen = stem.LastIndexOf('(');
-                if (openParen > 0)
-                {
-                    string trimmed = stem.Substring(0, openParen).TrimEnd();
-                    if (!string.IsNullOrEmpty(trimmed))
-                        yield return trimmed + suffix;
-                }
-            }
-
-            // Plural → singular: drop final 's' before " Tag"
-            if (stem.Length > 0 && stem[stem.Length - 1] == 's')
-            {
-                yield return stem.Substring(0, stem.Length - 1) + suffix;
-            }
-        }
-
-        /// <summary>
-        /// Alias-aware <c>plansByFamily</c> lookup: tries the exact name first,
-        /// then plural→singular fallback. Returns the matching plan or null.
-        /// </summary>
-        public static TierPlan TryGetTierPlan(Dictionary<string, TierPlan> plansByFamily, string familyName)
-        {
-            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return null;
-            foreach (var candidate in CsvFamilyNameCandidates(familyName))
-            {
-                if (plansByFamily.TryGetValue(candidate, out TierPlan plan) && plan != null)
-                    return plan;
-            }
-            return null;
-        }
-
-        /// <summary>Alias-aware <c>plansByFamily</c> ContainsKey check.</summary>
-        public static bool ContainsPlanForFamily(Dictionary<string, TierPlan> plansByFamily, string familyName)
-        {
-            if (plansByFamily == null || string.IsNullOrEmpty(familyName)) return false;
-            foreach (var candidate in CsvFamilyNameCandidates(familyName))
-            {
-                if (plansByFamily.ContainsKey(candidate)) return true;
-            }
-            return false;
-        }
+        // CsvFamilyNameCandidates / TryGetTierPlan / ContainsPlanForFamily were the
+        // alias-aware CSV tier-plan lookups used by the old per-family label-authoring
+        // path. Removed in the universal-tag teardown — no callers remained after the
+        // Create Tag Fams gut (labels now come from Propagate_UniversalTag, not CSV plans).
 
         /// <summary>
         /// STING shared parameters to add to each tag family.

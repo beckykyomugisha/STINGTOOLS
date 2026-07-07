@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 197 — Universal-tag legacy teardown, branch `claude/universal-tag-teardown`)
+
+Applied the two behavioural findings Phase 196 only reported, then retired the "Create Tag Fams"
+legacy label path and **deleted** the now-orphaned tier-authoring stack (caller-verified, one
+deletion group). Release build **0 errors / 4 baseline CS0618 warnings**; `StingTools.Tags.Tests`
+134 pass / 2 baseline `CsiMasterFormat` fails.
+
+- **Behavioural fixes applied (Task 1).** (a) `FamilyParamCreatorCommand.InjectSharedParams` now
+  binds STATE/style params as TYPE via an `IsTypeParam` predicate (`VisibilityParams` ∪ `StyleParams`
+  ∪ `{ TAG_DEPTH_TIER, TAG_BOX_*, TAG_LEADER_*, TAG_POS }`); container/token params stay INSTANCE.
+  Fixes the latent bug where "Inject Params"-built families carried the depth STATE bools as instance,
+  so `Set depth` (type-targeting) silently no-op'd on them. `TAG_POS` preserved as type (drives its
+  offset Calculated Value). (b) Collapsed the SEQ-pad dual source of truth into
+  `TagConfig.EffectiveSeqPad`; `BuildSeqString` + `BuildAndWriteTag` route through it.
+- **Create Tag Fams gutted (Task 2).** `TagFamilyCreatorCommand` (the last live caller of the legacy
+  stack) no longer authors per-family CSV tier rows — removed the plan-loading setup, all six
+  `AuthorFromPlanIfAvailable` call sites, the method itself, and the CSV-plan coverage diagnostics.
+  Kept the family-shell creation, `InjectSharedParams`, and the `TagTypeVariantWriter` variant loop.
+  Confirm dialog, post-creation report, class doc, button tooltip, and
+  `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` now describe the mint → `Propagate Universal` → `Set depth`
+  flow.
+- **Deleted the orphaned stack (Task 3).** `Tags/FamilyLabelAuthor.cs` and
+  `Tags/TagConfigPlanResolver.cs` — 0 code callers verified after Task 2 (only historical comments
+  remained). `TierPlan`/`TierState` (in `Core/PerFamilyTierMap.cs`) and `HandoverModeHelper` (live
+  callers: `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`) were RETAINED.
+- **CSV/data/docs disposition (Task 4).** `Core/TagConfigCsvReader.cs` RETAINED with a
+  `LEGACY(universal-tag)` marker: its `TierPlan` API is now caller-less, but the v5.0 CSV data it
+  parses is the canonical synced source and is still read by `ParamRegistry` / `TagConfig` /
+  `HandoverModeHelper` / `PresentationModeCommand` / `FamilyParamCreatorCommand` / `LpsValidator`.
+  **No data files deleted.** Removed the dead alias helpers `CsvFamilyNameCandidates` /
+  `TryGetTierPlan` / `ContainsPlanForFamily` (0 callers). ROADMAP §Task-4 updated (steps 1-3 done;
+  4-5 open).
+
 #### Completed (Phase 196 — Universal-tag finalize, branch `claude/universal-tag-finalize`)
 
 Finished the universal-tag pivot: the on-drawing tag is now the short/maskable display, and the

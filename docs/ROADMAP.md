@@ -5,24 +5,23 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 ## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
 
 Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
-schedules). **Staged cutover steps 1-2 are now done** (branch `claude/universal-tag-finalize`,
-Phase 196): the Duct smoke test passed (recategorise preserves labels — proven live) and
-`MigrateTagFamiliesCommand` was trimmed to a param + type-variant migrator (its
-`FamilyLabelAuthor.AuthorLabelsMulti` CSV call is gone; `TagTypeVariantWriter` variant loop kept).
-**Steps 3-5 remain deferred with NO deletions performed** — a caller grep re-confirms that none of
-the remaining candidates are true orphans (`TagFamilyCreatorCommand` still authors labels via the
-CSV path), and deletions are gated "after the new paths are proven" per family creator migration.
-Blind-deleting now would break the build and the shipped tagging/placement pipeline. Recorded here
-as staged, gated work:
+schedules). **Staged cutover steps 1-3 are now done** — step 1-2 in Phase 196
+(`claude/universal-tag-finalize`) and the **teardown in Phase 197** (`claude/universal-tag-teardown`):
+`TagFamilyCreatorCommand` ("Create Tag Fams") was gutted of its CSV tier-authoring path (labels now
+come from `Propagate_UniversalTag`), which removed the last live callers of `FamilyLabelAuthor` and
+`TagConfigPlanResolver`; both files were then **deleted** (0 callers verified). **Steps 4-5 remain**
+(repurpose `HandoverModeHelper` DC/HO; deprecate the colour-scheme commands) — those still have live
+callers and are separately gated.
 
-| Candidate | Live callers found | Why it can't be deleted yet |
+| Candidate | Status | Notes |
 |---|---|---|
-| `Tags/FamilyLabelAuthor.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand`, `TagConfigCsvReader` | Still the tier-authoring engine invoked by the OLD path. |
-| `Tags/TagConfigPlanResolver.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand` | Loads the per-family tier plans the OLD path consumes. |
-| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | `HandoverModeHelper`, `FamilyLabelAuthor`, `TagConfigPlanResolver`, `ParamRegistry`, `TagConfig`, `TagFamilyCreatorCommand`, `PresentationModeCommand`, `FamilyParamCreatorCommand` | Heavily entangled; the v5.0 CSVs also feed `LABEL_DEFINITIONS.json` sync + creator. |
-| `Core/HandoverModeHelper.cs` (DC/HO) | `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`, `TagFamilyCreatorCommand`, + 3 more | Repurpose (not delete) DC/HO → a `PARA_STATE` view preset; remove only the dual-CSV authoring path. |
-| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
-| ~~`MigrateTagFamiliesCommand` tier-authoring path~~ | ~~UI "Migrate Fams" button~~ | **DONE (Phase 196).** Trimmed to param + type-variant migrator; `FamilyLabelAuthor.AuthorLabelsMulti` call removed, `TagTypeVariantWriter` loop kept. |
+| ~~`Tags/FamilyLabelAuthor.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the Create Tag Fams gut. Nested `Options`/`ModePlan` went with it. |
+| ~~`Tags/TagConfigPlanResolver.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the gut. `TierPlan`/`TierState` live in `Core/PerFamilyTierMap.cs` (retained). |
+| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | **RETAINED** | The reader's `TierPlan` API (`LoadFile`/`LoadFiles`/`Parse`) is now caller-less (its consumer `TagConfigPlanResolver` was deleted), but the **v5.0 CSV data** it parses is the canonical *synced* source (per `reference-tag-config-sources`) and is still read by `ParamRegistry` / `TagConfig` / `HandoverModeHelper` / `PresentationModeCommand` / `FamilyParamCreatorCommand` / `LpsValidator` via their own paths. Marked `LEGACY(universal-tag)` in-file; a future pass can rewire a reader onto the typed parser or retire it with the CSVs together. **Do NOT delete the data files — still parsed.** |
+| `Core/HandoverModeHelper.cs` (DC/HO) | **RETAINED** | Live callers: `StingToolsApp.GetAllTagConfigCsvs`, `TagConfig.GetTagConfigCsv` (×3), `ApplyParagraphPresetCommand.GetSelectorBool`/`ModeSelectorBool`; `GetActiveMode` used internally. It's a mode/CSV resolver, not pure-legacy. Step 4 (repurpose DC/HO → `PARA_STATE` view preset) still open. |
+| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | **RETAINED** | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands wired to live buttons. Keep DEPTH-variant logic (also in `TagTypeVariantWriter`). Step 5 (colour-scheme deprecation) is a separate surgical refactor. |
+| ~~`MigrateTagFamiliesCommand` tier-authoring path~~ | **DONE (Phase 196)** | Trimmed to param + type-variant migrator. |
+| ~~`TagFamilyCreatorCommand` tier-authoring path~~ | **DONE (Phase 197)** | Gutted to mint (shell + params + variants); label via `Propagate_UniversalTag`. Dead alias helpers (`CsvFamilyNameCandidates`/`TryGetTierPlan`/`ContainsPlanForFamily`) removed. |
 
 **Prerequisites now in-repo (tracked):**
 - `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` — the consolidated manual walkthrough: what to
@@ -39,32 +38,25 @@ as staged, gated work:
 2. ~~Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
    call~~ — **DONE (Phase 196).** Applied `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`; build +
    Tags.Tests green. The remaining entry point is `TagFamilyCreatorCommand` (step 3).
-3. Once nothing calls them (i.e. after `TagFamilyCreatorCommand` is migrated off the CSV
-   authoring path), delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
-   v5.0-CSV tier-authoring cluster as one unit.
+3. ~~Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` cluster~~ —
+   **DONE (Phase 197).** `TagFamilyCreatorCommand` was gutted off the CSV path first (removing the
+   last callers), then both files deleted (0 callers verified). The v5.0-CSV **reader** and **data**
+   are RETAINED (still the canonical synced source, still parsed elsewhere) — see the table above.
 4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
-   the dual-CSV authoring path only.
+   the dual-CSV authoring path only. **Still open** (helper has live callers).
 5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
+   **Still open** (live buttons + placement).
 
-**Consistency findings (Phase 196 sweep — reported, NOT applied — behavioural, need review):**
-- **`FamilyParamCreatorCommand` injects STATE/style params as INSTANCE.** `InjectSharedParams`
-  (`StingTools/Tags/FamilyParamCreatorCommand.cs:352`) does `isInstance = paramName != TAG_POS`, so
-  every param except `TAG_POS` — including `TAG_PARA_STATE_*_BOOL` and the 128 `TAG_{size}{style}
-  {colour}_BOOL` style BOOLs fed in via `GetParamsForFamily` → `TagFamilyConfig.{Visibility,Style}Params`
-  — is added as an **instance** parameter. This is inverted from `MigrateTagFamiliesCommand` /
-  `PropagateUniversalTagCommand` (where `isInstance = paramName.StartsWith("ASS_TAG")`, i.e. STATE/style
-  are **TYPE** params). `SetParagraphDepthCommand` sets the STATE bools at the **type** level, so a
-  family built via the "Inject Params" path would carry them as instance and depth-setting would miss
-  them. **Proposed fix:** align the predicate with `MigrateTagFamiliesCommand`
-  (`isInstance = paramName.StartsWith("ASS_TAG")`). Not applied — changing a family-parameter binding
-  is behavioural and should be validated against a family built the old way before flipping.
-- **SEQ zero-pad has two sources of truth.** SEQ padding reads `TagConfig.SeqPadWidth`
-  (`SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad`), while `ParamRegistry.NumPad` is still
-  needed independently (`BuildSeqString` fallback, `num_pad` config export). The Tokens & Depth panel
-  keeps them in sync by writing BOTH (`ApplyTagFormatOverrides(...,padN,...)` **and**
-  `TagConfig.SeqPadWidth = padN`); any future caller that sets only one would desync. **Recommend** a
-  single `EffectiveSeqPad` accessor so callers can't set half of it. Not applied — refactor, low risk
-  but out of the mechanical-fix scope.
+**Consistency findings (Phase 196 sweep) — both APPLIED in Phase 197:**
+- ~~**`FamilyParamCreatorCommand` injects STATE/style params as INSTANCE.**~~ **FIXED (Phase 197).**
+  `InjectSharedParams` now uses an `IsTypeParam` predicate: `TagFamilyConfig.VisibilityParams` ∪
+  `StyleParams` ∪ `{ TAG_DEPTH_TIER, TAG_BOX_*, TAG_LEADER_*, TAG_POS }` bind as TYPE; container
+  values (`ASS_TAG_*`, tokens, description, label params) stay INSTANCE. `TAG_POS` preserved as type
+  (drives its offset formula). Depth-setting on "Inject Params"-built families now works.
+- ~~**SEQ zero-pad has two sources of truth.**~~ **FIXED (Phase 197).** New `TagConfig.EffectiveSeqPad`
+  (`SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad`); `BuildSeqString` and `BuildAndWriteTag`
+  route through it. Panel still writes `SeqPadWidth` (live driver); `NumPad` write kept in
+  `ApplyTagFormatOverrides` (fallback + `num_pad` export). Single accessor — can't desync.
 
 
 ## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
