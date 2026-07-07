@@ -223,7 +223,7 @@ namespace StingTools.UI
             StringComparer.OrdinalIgnoreCase)
         {
             "CombineParameters", "TagAndCombine", "FamilyStagePopulate",
-            "FullAutoPopulate", "TagStudio_Pipeline",
+            "FullAutoPopulate", "TagStudio_Pipeline", "BuildTags",
             "AutoTag", "BatchTag", "BatchTagAll", "BatchTagView", "AutoTagSelected",
             "TagNewOnly", "ReTag", "ResolveAllIssues", "RetagStale",
             "SetParagraphDepth", "PreTagAudit", "ValidateTags",
@@ -1016,10 +1016,17 @@ namespace StingTools.UI
                     bool uiIsDefault = sep == "-" && padN == 4 &&
                         string.Join("-", order) == "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
                     bool registryIsCustom =
-                        Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4;
+                        Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4
+                        || Core.TagConfig.SeqPadWidth != 4;
 
                     if (!(uiIsDefault && registryIsCustom))
+                    {
                         Core.ParamRegistry.ApplyTagFormatOverrides(sep, padN, order);
+                        // TagConfig.BuildAndWriteTag pads SEQ from TagConfig.SeqPadWidth when
+                        // it is > 0 — and it TAKES PRECEDENCE over NumPad — so the SEQ zero-pad
+                        // combo only bites if we drive SeqPadWidth directly, not just NumPad.
+                        Core.TagConfig.SeqPadWidth = padN;
+                    }
                 }
                 catch (Exception exFmt)
                 {
