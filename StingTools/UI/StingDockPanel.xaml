@@ -4295,7 +4295,7 @@
                                                         <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
                                                     </ComboBox>
                                                 </Grid>
-                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline. Note: separator / pad / order only RE-PAD or reformat tags that already exist when Overwrite = Yes — with Overwrite = No they apply to newly built tags only." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 

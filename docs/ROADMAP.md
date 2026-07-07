@@ -46,6 +46,26 @@ as staged, gated work:
    the dual-CSV authoring path only.
 5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
 
+**Consistency findings (Phase 196 sweep — reported, NOT applied — behavioural, need review):**
+- **`FamilyParamCreatorCommand` injects STATE/style params as INSTANCE.** `InjectSharedParams`
+  (`StingTools/Tags/FamilyParamCreatorCommand.cs:352`) does `isInstance = paramName != TAG_POS`, so
+  every param except `TAG_POS` — including `TAG_PARA_STATE_*_BOOL` and the 128 `TAG_{size}{style}
+  {colour}_BOOL` style BOOLs fed in via `GetParamsForFamily` → `TagFamilyConfig.{Visibility,Style}Params`
+  — is added as an **instance** parameter. This is inverted from `MigrateTagFamiliesCommand` /
+  `PropagateUniversalTagCommand` (where `isInstance = paramName.StartsWith("ASS_TAG")`, i.e. STATE/style
+  are **TYPE** params). `SetParagraphDepthCommand` sets the STATE bools at the **type** level, so a
+  family built via the "Inject Params" path would carry them as instance and depth-setting would miss
+  them. **Proposed fix:** align the predicate with `MigrateTagFamiliesCommand`
+  (`isInstance = paramName.StartsWith("ASS_TAG")`). Not applied — changing a family-parameter binding
+  is behavioural and should be validated against a family built the old way before flipping.
+- **SEQ zero-pad has two sources of truth.** SEQ padding reads `TagConfig.SeqPadWidth`
+  (`SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad`), while `ParamRegistry.NumPad` is still
+  needed independently (`BuildSeqString` fallback, `num_pad` config export). The Tokens & Depth panel
+  keeps them in sync by writing BOTH (`ApplyTagFormatOverrides(...,padN,...)` **and**
+  `TagConfig.SeqPadWidth = padN`); any future caller that sets only one would desync. **Recommend** a
+  single `EffectiveSeqPad` accessor so callers can't set half of it. Not applied — refactor, low risk
+  but out of the mechanical-fix scope.
+
 
 ## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
 

@@ -419,11 +419,11 @@ namespace StingTools.Tags
             Parameter p = el.LookupParameter(paramName);
             if (p == null || p.IsReadOnly) return false;
 
-            // TAG_PARA_STATE_N_BOOL is stored as TEXT in MR_PARAMETERS so that
-            // Revit tag-family Calculated Values can use it inside if(...) — Yes/No
-            // parameters cannot be referenced directly by label-formula conditions.
-            // Legacy families that still carry the YESNO datatype are kept working
-            // by the Integer branch.
+            // TAG_PARA_STATE_N_BOOL is declared YESNO in MR_PARAMETERS.txt (group 17),
+            // so on the universal master + propagated families it lands as
+            // StorageType.Integer (the branch below). The String branch is a defensive
+            // fallback for any family that was hand-authored with a TEXT variant of the
+            // param — set-by-storage-type keeps both working regardless of datatype.
             if (p.StorageType == StorageType.String)
             {
                 string target = value ? "Yes" : "No";

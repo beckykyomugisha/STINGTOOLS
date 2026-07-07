@@ -32,6 +32,15 @@ cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finali
   are **still called by `TagFamilyCreatorCommand`**, so nothing was deleted; `LEGACY(universal-tag)`
   markers were added to the two retained classes for the next pass. (ROADMAP staged-cutover steps 1–2
   done; steps 3–5 remain, blocked on the creator.)
+- **Consistency sweep (Task D).** Mechanical fixes: corrected the inverted `TAG_PARA_STATE_*`
+  datatype comments in `ParagraphDepthCommand.SetYesNo` and `TagTypeVariantWriter.SetFamilyBool`
+  (the params are `YESNO`/Integer on the master per `MR_PARAMETERS.txt`, so the String branch is the
+  fallback, not the default); documented Overwrite=Yes re-pad semantics in the Tokens & Depth panel
+  hint + `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md`. Two behavioural findings reported to ROADMAP (NOT
+  applied): `FamilyParamCreatorCommand.InjectSharedParams` binds STATE/style params as **instance**
+  (inverted vs the type binding used by propagation) — latent bug for families built via "Inject
+  Params"; and SEQ zero-pad has a dual source of truth (`TagConfig.SeqPadWidth` + `ParamRegistry.NumPad`)
+  kept in sync only by the panel writing both.
 
 #### Completed (Phase 195 — Universal-tag badge/gate integration, branch `feature/universal-tag-system`)
 
