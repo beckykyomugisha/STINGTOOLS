@@ -23,7 +23,15 @@ the API cannot author label rows). Claude cannot drive Revit reliably on this ma
 - [ ] **P1. Build the universal master label BY HAND** on one source family (Air Terminal is
       the historical master), following `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — all 65 rows,
       Type=Text, Spaces=0, breaks per the table, tier gating on `TAG_PARA_STATE_n_BOOL`.
-      Optionally build the 6 status-badge glyphs (STEP 4) if testing badge survival.
+      **Do NOT build status-badge glyphs** — in-tag badges are abandoned (Revit tag formulas
+      can't read the tagged element's params). Status is delivered by the **Status Register**
+      (`Status_Register`, colour-coded Excel), not in the tag. Also **remove any size BOOLs /
+      size-named Family Types** from the master before saving — size lives in the SaveAs variant
+      families, not in a BOOL.
+
+  > **Base size.** Set the master label to the **2.5mm** Label text-type so the default SaveAs
+  > copy needs no size change. The 8 size variants are cut *from this master AFTER it passes* —
+  > do not SaveAs the 8 until V1–V6 below are green, or you'll re-cut them after any fix.
 - [ ] **P2. Save the master** and give it an unambiguous name (e.g. `STING - UNIVERSAL Tag`)
       so it is easy to pick in the master picker.
 - [ ] **P3. Open a test project** (TENDO 3.rvt is the sanctioned test project) and **load two
@@ -63,16 +71,13 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
       variants (canonical names like `2.5_BOLD_RED_Filled30_T3`), re-created by
       `TagTypeVariantWriter`. Spot-check one: its `TAG_PARA_STATE_1..depth` bools and the
       single active `TAG_{size}{style}_{colour}_BOOL` match the name.
-- [ ] **V5 — Nested badges survived (if built in P1).** The 6 status glyphs on subcategory
-      `STING_TagStatus` are still present, still nested, and their `Visible` formulas still
-      reference `STING_GATE_*_STATUS_INT` + `TAG_WARN_VISIBLE_BOOL`. **This is the known
-      open risk** — nested-symbol survival through recategorise is untested.
-- [ ] **V6 — Placement works.** Place the Duct tag on a real duct in a view; it reads
+- [ ] **V5 — Placement works.** Place the Duct tag on a real duct in a view; it reads
       `ASS_TAG_1_TXT` and renders. No "can't load family" / broken-tag errors.
-- [ ] **V7 — Gates drive the badges (if V5 built).** Run CREATE tab → **Stamp Gates**, then
-      turn on `TAG_WARN_VISIBLE_BOOL` on a tagged duct; confirm the correct green/amber/red
-      glyph shows and matches the stamped `STING_GATE_DATA_STATUS_INT` / `_QA_STATUS_INT`.
-- [ ] **V8 — On-disk persistence.** Confirm `data/TagFamilies/STING - Duct Tag.rfa` (in the
+- [ ] **V6 — Status Register (replaces in-tag badges).** Stamp Gates → **Status Register**
+      (`Status_Register`) on the test project; confirm the Excel opens with the Duct element(s)
+      colour-coded green/amber/red on the Data + QA gate columns. This is where status lives now
+      — there is nothing to verify *inside* the tag.
+- [ ] **V7 — On-disk persistence.** Confirm `data/TagFamilies/STING - Duct Tag.rfa` (in the
       running DLL's data dir) was updated. **Note:** it is NOT auto-written back to the
       git-tracked `StingTools/Data/TagFamilies/` — copy it back manually if you want to commit
       the propagated result.
@@ -81,7 +86,7 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
 
 ## Pass / fail
 
-**PASS** = V1–V4 and V6 all green (V5/V7 green too if badges were built). Then, and only then:
+**PASS** = V1–V6 all green. Then, and only then:
 1. Re-run Propagate Universal → **ALL** families (after re-loading the master + all targets).
 2. **Persist the propagated `.rfa` files — do not skip this.** Propagation writes to the running
    DLL's `data/TagFamilies/`, NOT to git. So after the ALL run:
@@ -104,8 +109,6 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
 - **V4 fails (no/partial variants)** → issue in `TagTypeVariantWriter.CreateStandardVariants`
   or the arrowhead lookup; the master's params may be missing the STATE/style bools. Check
   `AddMissingParams` ran (ParamsAdded > 0 in the report).
-- **V5 fails (badges lost)** → nested-symbol survival confirmed as the failure mode; badges
-  must be re-authored per family (no conveyor for them) OR dropped from the master.
 - **Command reports FAILED** → read the Excel report's Error column + `StingTools.log`
   (`PropagateUniversalTag:` entries). The atomic SaveAs→LoadFamily→move leaves the target's
   existing family untouched on any failure, so the project is safe to re-run.
