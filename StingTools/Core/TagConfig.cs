@@ -2396,13 +2396,18 @@ namespace StingTools.Core
                 return false;
             }
 
-            // Keep ASS_DISPLAY_TXT (the presentational container that tag families
-            // read for refreshable token-depth) populated with the full canonical
-            // tag right after tagging. Depth masking is applied non-destructively
-            // and on demand by RefreshTagDisplayCommand, which re-masks
-            // ASS_DISPLAY_TXT from this canonical ASS_TAG_1_TXT — so the full tag
-            // is always recoverable. No-op when ASS_DISPLAY_TXT isn't bound.
-            ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
+            // ASS_DISPLAY_TXT is the ON-DRAWING tag: the display-mode + segment-mask
+            // resolved rendering of the canonical ASS_TAG_1_TXT. Let BuildDisplayTag
+            // compute AND write it (it resolves STING_DISPLAY_MODE / DisplayModeDefault,
+            // applies any active TAG_SEG_MASK_TXT / STING_VIEW_TOKEN_MASK_TXT / UI
+            // "TokenMask", and SetStrings the result). The token params it reads were
+            // just written above (lines ~2301/2318), so the tokens are in scope here.
+            // Fall back to the full canonical tag only when BuildDisplayTag yields
+            // nothing (element has no tokens / ASS_DISPLAY_TXT unbound) so the display
+            // never goes blank. ASS_TAG_1_TXT stays the full key — always recoverable.
+            string displayResolved = BuildDisplayTag(el);
+            if (string.IsNullOrEmpty(displayResolved))
+                ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
@@ -2733,9 +2738,10 @@ namespace StingTools.Core
             //   2. TAG_SEG_MASK_TXT on the element — written by
             //      TokenProfileApplier step 7.5.
             //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
-            // Mask now applies in modes 1-5/0 (was 5/0 only). Modes that
-            // already drop segments by design just no-op when the mask
-            // matches, so layered masks stay safe.
+            // Mask applies in modes 0/5 ONLY — the two modes that render all 8
+            // segments (a full 8-char mask has nothing to shorten in modes 1-4,
+            // which already drop segments by design). The mode-5 default (see
+            // ParamRegistry.DisplayModeDefault) makes this the common path.
             try
             {
                 string mask = null;
