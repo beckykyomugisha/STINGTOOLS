@@ -327,6 +327,17 @@ Tick every item before running the smoke test. The master is not finished until 
 3. Run `Stamp Gates` (fills the badge status ints) and `Tag Schedules` (builds the per-category
    engineering schedules that replace the dropped discipline tiers).
 
+## Adding a brand-new tag family (post-pivot flow)
+
+`Create Tag Fams` no longer authors label rows — it **mints** the family shell, injects the STING
+shared params, and creates the depth/style type variants. The label comes from the universal master:
+
+1. **`Create Tag Fams`** — mints the family + params + type variants (Revit API can't author label
+   rows, so the family has no tiers yet).
+2. **`Propagate Universal`** — clones the hand-built universal label onto the new family (recategorise
+   the master; labels/formulas/breaks are preserved).
+3. **`Set depth`** — choose how many tiers (T1..N) are visible.
+
 ## Note — Tokens & Depth format changes need Overwrite = Yes to re-pad existing tags
 
 The **Tokens & Depth** tab's separator / SEQ zero-pad / segment-order controls feed the tag
