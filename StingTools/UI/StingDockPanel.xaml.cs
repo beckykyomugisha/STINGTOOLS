@@ -962,7 +962,8 @@ namespace StingTools.UI
                 if (FindName("rbSepSlash") is System.Windows.Controls.RadioButton rSl && rSl.IsChecked == true) sep = "/";
                 else if (FindName("rbSepDot") is System.Windows.Controls.RadioButton rDt && rDt.IsChecked == true) sep = ".";
                 else if (FindName("rbSepUnderscore") is System.Windows.Controls.RadioButton rUs && rUs.IsChecked == true) sep = "_";
-                StingCommandHandler.SetExtraParam("TagSeparator", sep);
+                // (separator now feeds ParamRegistry.ApplyTagFormatOverrides below —
+                //  the old SetExtraParam("TagSeparator") had no reader and was removed)
 
                 // SEQ pad combo (4-digit default)
                 string seqPad = "4";
@@ -974,16 +975,17 @@ namespace StingTools.UI
                     else if (spText.StartsWith("00001")) seqPad = "5";
                     else                                 seqPad = "4";
                 }
-                StingCommandHandler.SetExtraParam("SeqPad", seqPad);
+                // (seqPad now drives TagConfig.SeqPadWidth below — the old
+                //  SetExtraParam("SeqPad") had no reader and was removed)
 
-                // Segment order combo — pass the raw text; consumers parse it
+                // Segment order combo — parsed into the format override below.
                 string segOrderText = "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
                 if (FindName("cmbSegOrder") is System.Windows.Controls.ComboBox cSegOrder
                     && cSegOrder.SelectedItem is System.Windows.Controls.ComboBoxItem cbiOrder
                     && cbiOrder.Content is string orderText)
                 {
                     segOrderText = orderText;
-                    StingCommandHandler.SetExtraParam("SegOrder", orderText);
+                    // (the old SetExtraParam("SegOrder") had no reader and was removed)
                 }
 
                 // Paragraph depth slider (1..10)
