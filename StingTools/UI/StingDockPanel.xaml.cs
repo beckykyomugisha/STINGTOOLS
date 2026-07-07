@@ -977,10 +977,12 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("SeqPad", seqPad);
 
                 // Segment order combo — pass the raw text; consumers parse it
+                string segOrderText = "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
                 if (FindName("cmbSegOrder") is System.Windows.Controls.ComboBox cSegOrder
                     && cSegOrder.SelectedItem is System.Windows.Controls.ComboBoxItem cbiOrder
                     && cbiOrder.Content is string orderText)
                 {
+                    segOrderText = orderText;
                     StingCommandHandler.SetExtraParam("SegOrder", orderText);
                 }
 
@@ -991,6 +993,38 @@ namespace StingTools.UI
                 if (depth < 1) depth = 1;
                 if (depth > 10) depth = 10;
                 StingCommandHandler.SetExtraParam("ParaDepth", depth.ToString());
+
+                // ── Wire Separator / SEQ zero-pad / Segment order into the ACTUAL
+                // tag builder. TagConfig.BuildAndWriteTag reads ParamRegistry.Separator
+                // and NumPad; without this the Tokens & Depth separator + pad + order
+                // controls only ever set now-dead ExtraParams ("TagSeparator"/"SeqPad"/
+                // "SegOrder") that no command reads, so they were inert. Applying the
+                // override here means the next Build Tags / Combine / Auto-Tag picks them up.
+                //
+                // Clobber guard: if the panel still shows pure defaults (hyphen / 4-digit /
+                // canonical order) but a project has already loaded a CUSTOM format from
+                // project_config.json, leave that project format alone — only apply once the
+                // user has actually dialled in a non-default here.
+                try
+                {
+                    int padN = int.TryParse(seqPad, out int pn) ? pn : 4;
+                    string[] order = segOrderText.Split(new[] { '-' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                    for (int oi = 0; oi < order.Length; oi++)
+                        order[oi] = order[oi].Trim().ToUpperInvariant();
+
+                    bool uiIsDefault = sep == "-" && padN == 4 &&
+                        string.Join("-", order) == "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
+                    bool registryIsCustom =
+                        Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4;
+
+                    if (!(uiIsDefault && registryIsCustom))
+                        Core.ParamRegistry.ApplyTagFormatOverrides(sep, padN, order);
+                }
+                catch (Exception exFmt)
+                {
+                    Core.StingLog.Warn($"Tokens&Depth ApplyTagFormatOverrides: {exFmt.Message}");
+                }
 
                 // Handover mode radios → ParagraphPreset + HandoverMode extra params
                 string handoverMode = "Handover";

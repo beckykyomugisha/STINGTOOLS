@@ -4328,6 +4328,9 @@
                                                     <TextBlock x:Name="lblParaTier10" Grid.Column="9" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T10 —"/>
                                                 </Grid>
                                                 <TextBlock x:Name="lblParaDepthHint" Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <Button Style="{StaticResource GreenBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click"
+                                                        Height="24" MinWidth="90" HorizontalAlignment="Left" Margin="0,5,0,0"
+                                                        ToolTip="Apply the slider depth (tiers T1..N ON, N+1..10 OFF) to the SELECTED tags' type — or all tag types if nothing is selected. This is what makes the slider take effect."/>
                                             </StackPanel>
                                         </Border>
 
