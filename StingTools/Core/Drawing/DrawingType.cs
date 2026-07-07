@@ -134,7 +134,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Tag text height in mm for this drawing type. 0 = derive from Scale via
         /// <see cref="EffectiveTagTextSizeMm"/>. Selects the tag size-variant family (label text
-        /// types 1.0mm … 5.0mm) the drawing producer should place for this drawing.</summary>
+        /// types 1mm … 5mm) the drawing producer should place for this drawing.</summary>
         [JsonProperty("tagTextSizeMm")] public double TagTextSizeMm { get; set; } = 0;
 
         /// <summary>Resolve the tag text size (mm): explicit <see cref="TagTextSizeMm"/> if set,
@@ -155,10 +155,41 @@ namespace StingTools.Core.Drawing
             return 1.0;                 // 1:200 and smaller
         }
 
-        /// <summary>Canonical label text-type / size token for a mm size (e.g. 2.5 → "2.5mm"),
-        /// matching the 8 authored tag text types.</summary>
+        /// <summary>The 8 canonical authored tag text sizes (mm). A size-variant tag family and a
+        /// Label text-type is authored for each. Used to snap a scale-derived size to a size that
+        /// actually exists when fewer than 8 variants have been built.</summary>
+        public static readonly double[] CanonicalTagSizesMm = { 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0 };
+
+        /// <summary>Canonical label text-type / size token for a mm size (e.g. 2.5 → "2.5mm",
+        /// 2 → "2mm"), matching the authored tag text-type names ("1mm", "1.5mm", … "5mm").
+        /// Trailing ".0" is trimmed so whole-number sizes read as "2mm", not "2.0mm".</summary>
         public static string TagSizeToken(double mm) =>
-            mm.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "mm";
+            mm.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "mm";
+
+        /// <summary>Snap <see cref="EffectiveTagTextSizeMm"/> to the nearest size that has actually
+        /// been authored, so a 1:200 view never asks for a 1mm family that was never built. Pass the
+        /// mm sizes you have built (e.g. new[]{2.5, 3.5}); ties resolve to the larger (more legible)
+        /// size. Null/empty <paramref name="availableSizesMm"/> means "assume all 8 exist" and returns
+        /// the raw effective size.</summary>
+        public double NearestAvailableTagSizeMm(System.Collections.Generic.IEnumerable<double> availableSizesMm)
+        {
+            double want = EffectiveTagTextSizeMm();
+            if (availableSizesMm == null) return want;
+            double best = 0; double bestDelta = double.MaxValue;
+            foreach (double s in availableSizesMm)
+            {
+                if (s <= 0) continue;
+                double d = System.Math.Abs(s - want);
+                // Nearest wins; on a tie prefer the larger size (more legible on the sheet).
+                if (d < bestDelta || (d == bestDelta && s > best)) { best = s; bestDelta = d; }
+            }
+            return best > 0 ? best : want;
+        }
+
+        /// <summary>Token of the nearest authored size (see <see cref="NearestAvailableTagSizeMm"/>) —
+        /// this is what the drawing producer looks up when placing the size-variant tag family.</summary>
+        public string ResolveTagSizeToken(System.Collections.Generic.IEnumerable<double> availableSizesMm) =>
+            TagSizeToken(NearestAvailableTagSizeMm(availableSizesMm));
 
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
