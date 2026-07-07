@@ -46,8 +46,18 @@ namespace StingTools.Core
         /// <summary>
         /// TW-02: Configurable SEQ zero-pad width. Defaults to NumPad (4) but can be
         /// overridden independently (e.g., 2 for small projects, 6 for large estates).
+        /// Set by the Tokens &amp; Depth panel (the live driver); read via
+        /// <see cref="EffectiveSeqPad"/>.
         /// </summary>
         public static int SeqPadWidth { get; internal set; } = 4;
+
+        /// <summary>
+        /// Single source of truth for the SEQ zero-pad width used across the tag builder:
+        /// the explicit <see cref="SeqPadWidth"/> when set (&gt; 0), else <see cref="ParamRegistry.NumPad"/>
+        /// (still the fallback + <c>num_pad</c> export driver). Callers must read this rather
+        /// than re-deriving <c>SeqPadWidth &gt; 0 ? SeqPadWidth : NumPad</c> so the two never desync.
+        /// </summary>
+        public static int EffectiveSeqPad => SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
 
         /// <summary>
         /// TW-03: Optional tag prefix prepended before the first segment.
@@ -450,7 +460,7 @@ namespace StingTools.Core
         /// project-configured pad width.
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
-            => SeqAssigner.BuildSeqString(n, scheme, SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad, zoneOrDisc);
+            => SeqAssigner.BuildSeqString(n, scheme, EffectiveSeqPad, zoneOrDisc);
 
         /// <summary>Convert alphabetic SEQ string back to integer (A=1, B=2... Z=26, AA=27...).</summary>
         private static int FromAlpha(string alpha)
@@ -2258,7 +2268,7 @@ namespace StingTools.Core
             // on success; on its own failure it has already rolled back).
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
-            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
+            int seqPad = EffectiveSeqPad;
             SeqResult seqRes = SeqAssigner.AssignNext(
                 seqKey, sequenceCounters, tagBody, tagSuffix,
                 CurrentSeqScheme, seqPad, seqSchemeContext,
