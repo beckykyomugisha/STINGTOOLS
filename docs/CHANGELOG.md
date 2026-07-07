@@ -3,6 +3,46 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 196 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
+
+Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature
+(`LIG_*`), telecom/RTLS (`ICT_*`), and air-terminal-finish (`HVC_TERMINAL_*`) parameters that do not
+belong to ductwork. Release build: **0 errors, 4 warnings** (all pre-existing `ClashIssueSyncCommand`
+CS0618). **Not verified in Revit** — validate binding + reconcile in a real project before merge.
+
+- **Root cause (two mechanisms).** The runtime binder `LoadSharedParamsCommand` bound every parameter
+  to its container *group's whole* category set (or, for groups with no override, to the broad
+  universal core set) — it never read the per-parameter truth in `CATEGORY_BINDINGS.csv`. So
+  `HVC_SYSTEMS` params (incl. `HVC_TERMINAL_*`) bound to all MEP categories incl. Ducts, and
+  `COM_DAT`/`LIG_BEHAVIOURAL` params (no override) bound to *everything*.
+- **Data fix.** `HVC_TERMINAL_MAT/PATTERN/FINISH/DAMPER_TXT` rows corrected to **Air Terminals only**
+  (removed Ducts/Flex Ducts/Duct Fittings/Duct Accessories/Generic Models/Mechanical Equipment) across
+  all four CSVs. Added **102** discipline-scoped per-param rows to `CATEGORY_BINDINGS.csv` +
+  `PARAMETER_CATEGORIES.csv` (+ family rows) for `LIG_`/`ICT_`/`COM_`/`NCL_`/`SEC_`/`MED_`/`MGS_`/
+  `RAD_`/`CEQ_`/`CLN_` families, each scoped to its true element domain (e.g. `LIG_*` → Doors/Windows/
+  Plumbing Fixtures/Lighting Fixtures/Casework/Specialty Equipment; `ICT_*` → Data/Communication
+  Devices). Version lines appended to each edited CSV; no GUIDs/names/data-types/groups changed.
+- **Code fix.** `LoadSharedParamsCommand` now binds each **non-universal** parameter to its own
+  category set from `CATEGORY_BINDINGS.csv` (`SharedParamGuids.PerParamCategoryBindings`), clustered by
+  identical category-set signature so one `InstanceBinding` is built per signature *outside* the
+  transaction loop. Universal groups (`ASS_MNG`, `IFC_EXCH`, `CST_PROC`, cost/identity/commissioning/
+  as-built/tag groups — `LoadSharedParamsCommand.UniversalGroups`) keep the broad core set and are
+  never narrowed by an incomplete CSV row (e.g. `IFC_GLOBAL_ID_TXT` stays broad). Discipline params
+  with no CSV row and no group override are logged as coverage **GAPs** instead of silently binding to
+  everything. Material handling (`CleanMaterialBindings`) is unchanged.
+- **Existing-model remediation.** New command **`Bindings_PruneToSpec`** (`PruneBindingsToSpecCommand`,
+  tag wired in `StingCommandHandler`) reconciles an already-bound project: for every bound
+  discipline-scoped param whose CategorySet differs from spec it `ReInsert`s a corrected binding
+  (removes over-bound categories, adds missing spec categories), inside a `STING Reconcile Bindings`
+  transaction, guarding universal params and skipping already-correct params (idempotent).
+- **Validator.** `SharedParamGuids.ValidateBindingsFromCsv` now also asserts cross-CSV consistency
+  (`AuditCrossCsvConsistency`: `CATEGORY_BINDINGS.csv` ↔ `PARAMETER_CATEGORIES.csv`).
+- **Audit artifact.** `docs/binding_audit_report.csv` records before/after effective binding for all
+  3,390 parameters: **958 CHANGED, 2,432 OK, 29 GAP; 593 params moved OFF Ducts.** All 15 screenshot
+  offenders now bind `OnDuctsBefore=Y → OnDuctsAfter=N`; `IFC_*`/`ASS_*` universals confirmed unchanged
+  (broad). Residual GAPs (mislocated `GEN_`/`SPC_`/`ZON_`/`CST_S_`/`SLV_TAG` params in `COM_DAT`) are
+  deferred to `ROADMAP.md`.
+
 #### Completed (Phase 195 — Universal-tag badge/gate integration, branch `feature/universal-tag-system`)
 
 Closed the integration gap between the universal-tag status badges (data + QA gates stamped by

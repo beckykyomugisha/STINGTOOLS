@@ -382,6 +382,47 @@ namespace StingTools.Tags
             if (groupCatOverrides.TryGetValue("MAT_INFO", out CategorySet matOverrideCats))
                 matOnlyBinding = app.Create.NewInstanceBinding(matOverrideCats);
 
+            // ── Per-parameter category bindings (accuracy fix) ──
+            // CATEGORY_BINDINGS.csv is the authoritative per-param×category source of truth.
+            // Each discipline-scoped parameter binds to ITS OWN category set (e.g.
+            // HVC_TERMINAL_* → Air Terminals only; LIG_* → anti-ligature element types;
+            // ICT_* → data/comms devices) instead of its container group's whole category
+            // set. This stops cross-discipline leakage (params showing on Ducts, etc.).
+            //
+            // Performance: bindings are clustered by identical category-set signature so we
+            // build ONE InstanceBinding per distinct signature (built here, OUTSIDE the
+            // per-param transaction loop) and share it across every param that needs it.
+            var perParamBindingMap = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            int perParamSignatures = 0;
+            try
+            {
+                var perParamCats = SharedParamGuids.PerParamCategoryBindings;
+                var sigToBinding = new Dictionary<string, InstanceBinding>(StringComparer.Ordinal);
+                foreach (var kvp in perParamCats)
+                {
+                    if (kvp.Value == null || kvp.Value.Length == 0) continue;
+                    // Stable signature from the ordered enum values
+                    var ordered = kvp.Value.Select(b => (int)b).OrderBy(x => x).ToArray();
+                    string sig = string.Join(",", ordered);
+                    if (!sigToBinding.TryGetValue(sig, out InstanceBinding ib))
+                    {
+                        CategorySet cs = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
+                        if (cs.Size == 0) continue; // none of the spec categories bind here — skip
+                        ib = app.Create.NewInstanceBinding(cs);
+                        sigToBinding[sig] = ib;
+                        perParamSignatures++;
+                    }
+                    perParamBindingMap[kvp.Key] = ib;
+                }
+                StingLog.Info($"LoadSharedParams: per-param CSV bindings — {perParamBindingMap.Count} params across {perParamSignatures} distinct category-set signatures");
+            }
+            catch (Exception ex) { StingLog.Warn($"Per-param binding pre-build failed, falling back to group bindings: {ex.Message}"); }
+
+            // Collect discipline-scoped params that had no per-param CSV row AND no group
+            // override — they fall back to the broad core set (a coverage GAP). Logged so
+            // gaps surface for follow-up rather than silently binding to everything.
+            var bindingGapParams = new List<string>();
+
             // ── Step 5: Bind ONE GROUP per transaction ──
             int bound = 0;
             int skipped = 0;
@@ -427,15 +468,34 @@ namespace StingTools.Tags
                         {
                             try
                             {
-                                // Per-parameter override: if this param is material-relevant
-                                // (BLE_APP-*, BLE_MAT_*) but the group binding targets core cats,
-                                // use the material-only binding instead so it binds to OST_Materials.
+                                // Binding selection precedence:
+                                //   1. Material-relevant params (BLE_APP-*, BLE_MAT_*) in a group
+                                //      without its own override → material-only binding (OST_Materials
+                                //      handled later by CleanMaterialBindings). Preserved verbatim.
+                                //   2. Discipline-scoped params (group NOT universal) with a per-param
+                                //      CATEGORY_BINDINGS.csv row → bind to THAT param's exact category
+                                //      set (the accuracy fix — no cross-discipline leakage).
+                                //   3. Otherwise the group binding (override or the broad core set).
+                                //      Universal groups always keep the broad core set; a discipline
+                                //      param that reaches the core set here is a coverage GAP.
                                 InstanceBinding paramBinding = binding;
+                                bool isUniversalGroup = UniversalGroups.Contains(groupName);
+
                                 if (matOnlyBinding != null
                                     && !groupCatOverrides.ContainsKey(groupName)
                                     && IsMaterialRelevantParam(extDef.Name))
                                 {
                                     paramBinding = matOnlyBinding;
+                                }
+                                else if (!isUniversalGroup
+                                    && perParamBindingMap.TryGetValue(extDef.Name, out InstanceBinding ppb))
+                                {
+                                    paramBinding = ppb;
+                                }
+                                else if (!isUniversalGroup && !groupCatOverrides.ContainsKey(groupName))
+                                {
+                                    // discipline param, no per-param row, no override → broad core = GAP
+                                    if (bindingGapParams.Count < 500) bindingGapParams.Add(extDef.Name);
                                 }
 
                                 bool result = doc.ParameterBindings.Insert(
@@ -470,6 +530,16 @@ namespace StingTools.Tags
             }
 
             try { progress?.Close(); } catch (Exception ex) { StingLog.Warn($"Progress close: {ex.Message}"); }
+
+            // Surface coverage GAPs: discipline-scoped params that bound to the broad core
+            // set because they lack a per-param CATEGORY_BINDINGS.csv row and a group
+            // override. These are candidates for a CSV row (see docs/ROADMAP.md).
+            if (bindingGapParams.Count > 0)
+            {
+                StingLog.Warn($"Binding coverage GAP: {bindingGapParams.Count} discipline-scoped param(s) fell back to the broad core set (no per-param CATEGORY_BINDINGS.csv row, no group override):");
+                foreach (string gp in bindingGapParams.Take(50))
+                    StingLog.Warn($"  GAP {gp}");
+            }
 
             // ── Step 6: Clean material bindings (single post-bind pass) ──
             // CleanMaterialBindings now handles both removing Materials from
@@ -671,6 +741,22 @@ namespace StingTools.Tags
             BuiltInCategory.OST_FurnitureSystems,
             BuiltInCategory.OST_GenericModel,
             BuiltInCategory.OST_SpecialityEquipment,
+        };
+
+        // Definition groups (from MR_PARAMETERS.txt) whose parameters are genuinely
+        // UNIVERSAL — identity, tag, cost, IFC, commissioning, as-built, regulatory and
+        // project-tracking metadata that belongs on every element type. These bind to the
+        // broad core category set and are NEVER narrowed from a (possibly incomplete)
+        // per-param CATEGORY_BINDINGS.csv row. Everything NOT in this set is treated as
+        // discipline-scoped and driven by the per-param CSV (see ExecuteCore step 5).
+        // This is the mechanism that honours "AllCategoryEnums ONLY for the explicitly
+        // universal set" — see docs/binding_audit_report.csv.
+        internal static readonly HashSet<string> UniversalGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ASS_MNG", "CST_PROC", "PER_SUST", "TPL_TRACKING", "RGL_CMPL",
+            "STINGTags_ISO19650", "WARN_THRESHOLDS", "ACC_SYNC", "IFC_EXCH",
+            "HEALTH_METRICS", "ASBUILT", "COMMISSIONING", "TBL_TITLEBLOCK",
+            "STING_DRAWING", "Identity",
         };
 
         /// <summary>
@@ -1320,6 +1406,194 @@ namespace StingTools.Tags
             ParameterHelpers.ClearParamCache();
             TaskDialog.Show("Purge Done", $"Removed {removed}/{remove.Count} bindings.");
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Bindings_PruneToSpec — reconcile the ACTIVE project's parameter bindings to the
+    /// per-param category spec in CATEGORY_BINDINGS.csv.
+    ///
+    /// The plain "Load Shared Params" pass skips parameters that are already bound, so a
+    /// model that was bound BEFORE the accuracy fix keeps its old, over-broad category
+    /// sets (e.g. LIG_*/ICT_*/HVC_TERMINAL_* still showing on Ducts). This command walks
+    /// every bound discipline-scoped param whose current CategorySet differs from its spec
+    /// and ReInserts a corrected binding — removing categories that are not in the spec
+    /// (over-bindings) and adding any spec categories that are missing (under-bindings).
+    ///
+    /// Universal params (identity/tag/cost/IFC groups) are guarded and never narrowed.
+    /// Idempotent: a param already matching its spec is left untouched, so re-running does
+    /// not thrash bindings.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PruneBindingsToSpecCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+                var app = doc.Application;
+
+                var spec = SharedParamGuids.PerParamCategoryBindings;
+                if (spec.Count == 0)
+                {
+                    TaskDialog.Show("STING — Reconcile Bindings",
+                        "CATEGORY_BINDINGS.csv could not be loaded — nothing to reconcile.");
+                    return Result.Failed;
+                }
+
+                // param → group name (to guard universal groups from narrowing)
+                var paramGroup = LoadParamGroupMap();
+
+                // Index bound SharedParameterElements by name (InternalDefinition is the
+                // BindingMap key — the only reference ReInsert reliably accepts).
+                var speByName = new Dictionary<string, SharedParameterElement>(StringComparer.OrdinalIgnoreCase);
+                foreach (var spe in new FilteredElementCollector(doc)
+                             .OfClass(typeof(SharedParameterElement)).Cast<SharedParameterElement>())
+                {
+                    try
+                    {
+                        var idef = spe.GetDefinition();
+                        if (idef != null && !string.IsNullOrEmpty(idef.Name))
+                            speByName[idef.Name] = spe;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"PruneToSpec inspect SPE: {ex.Message}"); }
+                }
+
+                // Plan the changes (read-only pass) before opening a transaction.
+                var plan = new List<(string name, SharedParameterElement spe, CategorySet target,
+                                     List<string> removed, List<string> added)>();
+                int universalSkipped = 0, notBound = 0, alreadyOk = 0, unresolved = 0;
+
+                foreach (var kvp in spec)
+                {
+                    string name = kvp.Key;
+                    // guard universal groups — they must stay broad
+                    if (paramGroup.TryGetValue(name, out string grp) && LoadSharedParamsCommand.UniversalGroups.Contains(grp))
+                    { universalSkipped++; continue; }
+
+                    if (!speByName.TryGetValue(name, out SharedParameterElement spe)) { notBound++; continue; }
+                    InternalDefinition idef = spe.GetDefinition();
+                    if (idef == null) { notBound++; continue; }
+                    if (!(doc.ParameterBindings.get_Item(idef) is InstanceBinding curIB)) { notBound++; continue; }
+
+                    // desired category set (spec ∩ categories that accept bound params in this doc)
+                    var target = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
+                    if (target.Size == 0) { unresolved++; continue; }
+
+                    // diff current vs target by category id
+                    var curIds = new HashSet<long>();
+                    var curNames = new Dictionary<long, string>();
+                    foreach (Category c in curIB.Categories) { curIds.Add(c.Id.Value); curNames[c.Id.Value] = c.Name; }
+                    var tgtIds = new HashSet<long>();
+                    var tgtNames = new Dictionary<long, string>();
+                    foreach (Category c in target) { tgtIds.Add(c.Id.Value); tgtNames[c.Id.Value] = c.Name; }
+
+                    if (curIds.SetEquals(tgtIds)) { alreadyOk++; continue; } // idempotent no-op
+
+                    var removed = curIds.Except(tgtIds).Select(id => curNames[id]).OrderBy(s => s).ToList();
+                    var added = tgtIds.Except(curIds).Select(id => tgtNames[id]).OrderBy(s => s).ToList();
+                    plan.Add((name, spe, target, removed, added));
+                }
+
+                if (plan.Count == 0)
+                {
+                    TaskDialog.Show("STING — Reconcile Bindings",
+                        $"Nothing to reconcile.\n\n" +
+                        $"Already correct: {alreadyOk}\n" +
+                        $"Universal (kept broad): {universalSkipped}\n" +
+                        $"In spec but not bound here: {notBound}\n" +
+                        $"Unresolvable categories: {unresolved}");
+                    return Result.Succeeded;
+                }
+
+                int overBound = plan.Count(p => p.removed.Count > 0);
+                var preview = new StringBuilder();
+                preview.AppendLine($"{plan.Count} parameter binding(s) differ from CATEGORY_BINDINGS.csv");
+                preview.AppendLine($"  {overBound} are over-bound (extra categories will be removed).");
+                preview.AppendLine($"  Universal params kept broad: {universalSkipped}");
+                preview.AppendLine();
+                preview.AppendLine("Examples:");
+                foreach (var p in plan.Take(12))
+                    preview.AppendLine($"  {p.name}: -[{string.Join(", ", p.removed)}]" +
+                                       (p.added.Count > 0 ? $" +[{string.Join(", ", p.added)}]" : ""));
+                if (plan.Count > 12) preview.AppendLine($"  ... and {plan.Count - 12} more (see StingTools.log)");
+
+                var confirm = new TaskDialog("STING — Reconcile Bindings");
+                confirm.MainInstruction = $"Narrow {plan.Count} parameter binding(s) to spec?";
+                confirm.MainContent = preview.ToString();
+                confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+                confirm.DefaultButton = TaskDialogResult.Cancel;
+                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
+                int reinserted = 0, failed = 0;
+                using (var tx = new Transaction(doc, "STING Reconcile Bindings"))
+                {
+                    var fo = tx.GetFailureHandlingOptions();
+                    fo.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(fo);
+                    tx.Start();
+                    foreach (var p in plan)
+                    {
+                        try
+                        {
+                            InternalDefinition idef = p.spe.GetDefinition();
+                            if (idef == null) { failed++; continue; }
+                            var nb = app.Create.NewInstanceBinding(p.target);
+                            if (doc.ParameterBindings.ReInsert(idef, nb))
+                            {
+                                reinserted++;
+                                StingLog.Info($"PruneToSpec '{p.name}': removed [{string.Join(",", p.removed)}]" +
+                                              (p.added.Count > 0 ? $" added [{string.Join(",", p.added)}]" : ""));
+                            }
+                            else { failed++; StingLog.Warn($"PruneToSpec ReInsert failed for '{p.name}'"); }
+                        }
+                        catch (Exception ex) { failed++; StingLog.Warn($"PruneToSpec '{p.name}': {ex.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                ParameterHelpers.ClearParamCache();
+                TaskDialog.Show("STING — Reconcile Bindings",
+                    $"Reconciled {reinserted} binding(s) to spec ({overBound} were over-bound).\n" +
+                    $"Failed: {failed}\n" +
+                    $"Already correct: {alreadyOk}\n" +
+                    $"Universal (kept broad): {universalSkipped}\n\n" +
+                    "Not verified in Revit at author time — see StingTools.log for per-param detail.");
+                StingLog.Info($"PruneToSpec complete: reinserted={reinserted}, failed={failed}, alreadyOk={alreadyOk}, universalSkipped={universalSkipped}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PruneBindingsToSpecCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Reconcile Bindings failed:\n{ex.Message}"); }
+                catch (Exception dex) { StingLog.Warn($"dialog: {dex.Message}"); }
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>Load param → definition-group-name from MR_PARAMETERS.txt.</summary>
+        private static Dictionary<string, string> LoadParamGroupMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var groups = new Dictionary<string, string>();
+            string f = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(f)) return map;
+            try
+            {
+                foreach (string l in File.ReadAllLines(f))
+                {
+                    var p = l.Split('\t');
+                    if (p.Length >= 3 && p[0] == "GROUP") groups[p[1]] = p[2];
+                    else if (p.Length >= 6 && p[0] == "PARAM" && groups.TryGetValue(p[5], out string gn))
+                        map[p[2]] = gn;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadParamGroupMap: {ex.Message}"); }
+            return map;
         }
     }
 

@@ -104,6 +104,7 @@ namespace StingTools.Core
         {
             _allCategoryEnums = null;
             _disciplineBindings = null;
+            _perParamCats = null;
         }
 
         /// <summary>
@@ -138,6 +139,88 @@ namespace StingTools.Core
             }
             StingLog.Info($"BuildCategorySet: {added}/{categories.Length} categories resolved");
             return catSet;
+        }
+
+        /// <summary>
+        /// Per-parameter category bindings loaded directly from CATEGORY_BINDINGS.csv.
+        /// This is the authoritative, per-param×category source of truth used to drive
+        /// binding (each parameter gets ITS OWN category set, not its container group's
+        /// whole set). Cached after first access; call InvalidateCache() to refresh.
+        ///
+        /// Returns paramName → BuiltInCategory[] for every parameter that has one or more
+        /// rows in CATEGORY_BINDINGS.csv, resolved through ParamRegistry.CategoryEnumMap.
+        /// The pseudo-category "Materials" (OST_Materials does not accept bound parameters)
+        /// is skipped here; material binding is handled separately by CleanMaterialBindings.
+        /// </summary>
+        public static Dictionary<string, BuiltInCategory[]> PerParamCategoryBindings
+        {
+            get
+            {
+                if (_perParamCats == null)
+                {
+                    try
+                    {
+                        _perParamCats = LoadPerParamCategoryBindings();
+                        StingLog.Info($"SharedParamGuids.PerParamCategoryBindings: {_perParamCats.Count} params loaded from CATEGORY_BINDINGS.csv");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("SharedParamGuids.PerParamCategoryBindings: load failed, using empty dict", ex);
+                        _perParamCats = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+                    }
+                }
+                return _perParamCats;
+            }
+        }
+        private static Dictionary<string, BuiltInCategory[]> _perParamCats;
+
+        /// <summary>
+        /// Parse CATEGORY_BINDINGS.csv → paramName → BuiltInCategory[]. Comment / header
+        /// lines are skipped. Categories that do not resolve through CategoryEnumMap
+        /// (including "Materials") are dropped. Order is preserved and duplicates removed.
+        /// </summary>
+        private static Dictionary<string, BuiltInCategory[]> LoadPerParamCategoryBindings()
+        {
+            var result = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+            string path = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
+            if (path == null)
+            {
+                StingLog.Warn("CATEGORY_BINDINGS.csv not found — per-param bindings empty");
+                return result;
+            }
+
+            // paramName → ordered distinct BuiltInCategory list
+            var acc = new Dictionary<string, List<BuiltInCategory>>(StringComparer.Ordinal);
+            var seen = new Dictionary<string, HashSet<BuiltInCategory>>(StringComparer.Ordinal);
+
+            foreach (string raw in File.ReadAllLines(path))
+            {
+                if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
+                string[] cols = StingToolsApp.ParseCsvLine(raw);
+                if (cols.Length < 2) continue;
+                string param = cols[0].Trim();
+                string catName = cols[1].Trim();
+                if (param.Length == 0 || param.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
+                if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+
+                if (!acc.TryGetValue(param, out var list))
+                {
+                    list = new List<BuiltInCategory>();
+                    acc[param] = list;
+                    seen[param] = new HashSet<BuiltInCategory>();
+                }
+                if (seen[param].Add(bic)) list.Add(bic);
+            }
+
+            foreach (var kvp in acc)
+                if (kvp.Value.Count > 0)
+                    result[kvp.Key] = kvp.Value.ToArray();
+
+            return result;
         }
 
         /// <summary>
@@ -222,7 +305,65 @@ namespace StingTools.Core
                 return -1;
             }
 
+            // Cross-CSV consistency: CATEGORY_BINDINGS.csv (per-param) must agree with
+            // PARAMETER_CATEGORIES.csv (the Categories column). A param whose two files
+            // disagree is a data-integrity error that would silently mis-bind.
+            try
+            {
+                int mismatches = AuditCrossCsvConsistency(out int checkedParams);
+                if (mismatches == 0)
+                    StingLog.Info($"Cross-CSV consistency passed: {checkedParams} params agree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                else
+                    StingLog.Warn($"Cross-CSV consistency: {mismatches} param(s) disagree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                discrepancies += mismatches;
+            }
+            catch (Exception ex) { StingLog.Warn($"Cross-CSV consistency check failed: {ex.Message}"); }
+
             return discrepancies;
+        }
+
+        /// <summary>
+        /// Assert that CATEGORY_BINDINGS.csv (per-param×category rows) and
+        /// PARAMETER_CATEGORIES.csv (per-param Categories column) describe the same
+        /// category set for every parameter present in both. Returns the number of
+        /// mismatched parameters and logs each one. Comparison is by resolvable
+        /// BuiltInCategory so unresolved names ("Materials", loads, analytical) don't
+        /// produce false positives.
+        /// </summary>
+        public static int AuditCrossCsvConsistency(out int checkedParams)
+        {
+            checkedParams = 0;
+            var perParam = PerParamCategoryBindings; // CATEGORY_BINDINGS.csv, resolved
+            string pcPath = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
+            if (pcPath == null) return 0;
+
+            int mismatches = 0;
+            foreach (string raw in File.ReadAllLines(pcPath))
+            {
+                if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
+                string[] cols = StingToolsApp.ParseCsvLine(raw);
+                if (cols.Length < 5) continue;
+                string param = cols[0].Trim();
+                if (param.Length == 0 || param.Equals("Parameter Name", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!perParam.TryGetValue(param, out var cbCats)) continue; // only params in both
+
+                // Resolve PARAMETER_CATEGORIES Categories column (comma-separated) to enums
+                var pcNames = cols[4].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
+                var pcEnums = ParamRegistry.ResolveCategoryEnums(pcNames);
+
+                var cbSet = new HashSet<BuiltInCategory>(cbCats);
+                var pcSet = new HashSet<BuiltInCategory>(pcEnums);
+                checkedParams++;
+                if (!cbSet.SetEquals(pcSet))
+                {
+                    mismatches++;
+                    var extra = cbSet.Except(pcSet).ToList();
+                    var missing = pcSet.Except(cbSet).ToList();
+                    StingLog.Warn($"Cross-CSV mismatch '{param}': CATEGORY_BINDINGS-only={string.Join("/", extra)} PARAMETER_CATEGORIES-only={string.Join("/", missing)}");
+                }
+            }
+            return mismatches;
         }
     }
 }
