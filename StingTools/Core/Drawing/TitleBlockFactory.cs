@@ -1006,88 +1006,56 @@ namespace StingTools.Core.Drawing
         //      from the title-block FamilyItemFactory in Revit 2025).
         private static MethodInfo _newLabelMethod;
         private static object     _newLabelTarget;            // factory the method is invoked on
-        private static bool       _newLabelTakesDocFirstArg;  // true for Application.Create.NewLabel
         private static Type       _verticalAlignType;
         private static bool       _newLabelDiscoveryAttempted;
+        // P-label-fix (Revit 2025): the actual parameters of whatever NewLabel
+        // overload we bound to. InvokeNewLabel fills them by TYPE, so the code
+        // is signature-agnostic (old View/XYZ/align/IList<FamilyParameter>/…
+        // form OR the modern View/IList<ElementId>/prefix/suffix/XYZ form).
+        private static System.Reflection.ParameterInfo[] _newLabelParams;
 
-        private static void EnsureNewLabelDiscovered(object famFactory, object appFactory,
-            TitleBlockBuildResult r)
+        private static void EnsureNewLabelDiscovered(Document famDoc, TitleBlockBuildResult r)
         {
             if (_newLabelMethod != null || _newLabelDiscoveryAttempted) return;
             _newLabelDiscoveryAttempted = true;
             try
             {
+                // Probe ALL THREE creation surfaces by NAME (not by rigid arg
+                // shape). Revit 2025 removed NewLabel from FamilyItemFactory, and
+                // the old matcher never reached the other surfaces (appFactory was
+                // null). Bind to whatever NewLabel exists; InvokeNewLabel fills its
+                // args by type, so any signature works (old View/XYZ/align/
+                // IList<FamilyParameter> form OR modern View/IList<ElementId>/
+                // prefix/suffix/XYZ form).
+                var candidates = new List<(object factory, string label)>();
+                try { var f = famDoc.FamilyCreate;       if (f != null) candidates.Add((f, "FamilyCreate")); }       catch (Exception ex) { r.Warnings.Add($"NewLabel probe FamilyCreate: {ex.Message}"); }
+                try { var d = famDoc.Create;             if (d != null) candidates.Add((d, "Document.Create")); }    catch (Exception ex) { r.Warnings.Add($"NewLabel probe Document.Create: {ex.Message}"); }
+                try { var a = famDoc.Application?.Create; if (a != null) candidates.Add((a, "Application.Create")); } catch (Exception ex) { r.Warnings.Add($"NewLabel probe Application.Create: {ex.Message}"); }
+
                 var diag = new System.Text.StringBuilder();
-                MethodInfo bestMatch = null;
-                bool bestTakesDoc   = false;
-                object bestTarget   = null;
-
-                // Plan A: 7-arg form on FamilyItemFactory (familyCreate).
-                if (famFactory != null)
+                foreach (var (factory, label) in candidates)
                 {
-                    EnumerateLabelLikeMethods(famFactory.GetType(), "FamilyCreate", diag);
-                    foreach (var m in famFactory.GetType().GetMethods())
+                    EnumerateLabelLikeMethods(factory.GetType(), label, diag);
+                    if (_newLabelMethod != null) continue;   // keep enumerating for the diag; don't rebind
+                    foreach (var m in factory.GetType().GetMethods())
                     {
                         if (m.Name != "NewLabel") continue;
-                        var ps = m.GetParameters();
-                        if (ps.Length != 7) continue;
-                        if (ps[0].ParameterType != typeof(View)) continue;
-                        if (ps[1].ParameterType != typeof(XYZ))  continue;
-                        if (ps[2].ParameterType != typeof(HorizontalAlign)) continue;
-                        if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[4].ParameterType)) continue;
-                        if (!typeof(IList<string>).IsAssignableFrom(ps[5].ParameterType)) continue;
-                        if (ps[6].ParameterType != typeof(double)) continue;
-                        if (!ps[3].ParameterType.IsEnum) continue;
-                        bestMatch         = m;
-                        _verticalAlignType = ps[3].ParameterType;
-                        bestTakesDoc      = false;
-                        bestTarget        = famFactory;
+                        _newLabelMethod = m;
+                        _newLabelTarget = factory;
+                        _newLabelParams = m.GetParameters();
+                        var shape = string.Join(", ", _newLabelParams.Select(p => p.ParameterType.Name));
+                        StingLog.Info($"InvokeNewLabel: bound to {label}.NewLabel({shape})");
                         break;
                     }
                 }
 
-                // Plan B: 8-arg form on Application.Create with leading Document.
-                if (bestMatch == null && appFactory != null)
-                {
-                    EnumerateLabelLikeMethods(appFactory.GetType(), "Application.Create", diag);
-                    foreach (var m in appFactory.GetType().GetMethods())
-                    {
-                        if (m.Name != "NewLabel") continue;
-                        var ps = m.GetParameters();
-                        if (ps.Length != 8) continue;
-                        if (!typeof(Document).IsAssignableFrom(ps[0].ParameterType)) continue;
-                        if (ps[1].ParameterType != typeof(View)) continue;
-                        if (ps[2].ParameterType != typeof(XYZ))  continue;
-                        if (ps[3].ParameterType != typeof(HorizontalAlign)) continue;
-                        if (!typeof(IList<FamilyParameter>).IsAssignableFrom(ps[5].ParameterType)) continue;
-                        if (!typeof(IList<string>).IsAssignableFrom(ps[6].ParameterType)) continue;
-                        if (ps[7].ParameterType != typeof(double)) continue;
-                        if (!ps[4].ParameterType.IsEnum) continue;
-                        bestMatch          = m;
-                        _verticalAlignType = ps[4].ParameterType;
-                        bestTakesDoc       = true;
-                        bestTarget         = appFactory;
-                        break;
-                    }
-                }
-
-                _newLabelMethod           = bestMatch;
-                _newLabelTakesDocFirstArg = bestTakesDoc;
-                _newLabelTarget           = bestTarget;
-
-                // Dual-factory diagnostic — record whether each surface had NewLabel.
                 StingLog.Info($"InvokeNewLabel diagnostic — {diag}");
-                if (bestMatch == null)
+                if (_newLabelMethod == null)
                 {
                     r.Warnings.Add(
-                        "InvokeNewLabel: no compatible NewLabel overload found on either "
-                        + "FamilyCreate (FamilyItemFactory) or Application.Create. Labels skipped — "
-                        + "operator must add labels via Family Editor's Label tool. Full method "
+                        "InvokeNewLabel: no NewLabel found on FamilyCreate / Document.Create / "
+                        + "Application.Create in this Revit build. Labels skipped — full method "
                         + "diagnostic in StingTools.log.");
-                }
-                else
-                {
-                    StingLog.Info($"InvokeNewLabel: bound to '{bestMatch.DeclaringType?.Name}.{bestMatch.Name}' (vAlign type '{_verticalAlignType?.FullName}', docFirstArg={bestTakesDoc})");
                 }
             }
             catch (Exception ex)
@@ -1176,18 +1144,36 @@ namespace StingTools.Core.Drawing
             double size, TitleBlockBuildResult r)
         {
             if (famDoc == null) return null;
-            object famFactory = null;
-            object appFactory = null;
-            try { famFactory = famDoc.FamilyCreate; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            try { appFactory = famDoc.Application?.Create; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            EnsureNewLabelDiscovered(famFactory, appFactory, r);
-            if (_newLabelMethod == null || _newLabelTarget == null) return null;
-            object vAlign = ParseVAlign(vAlignName);
+            EnsureNewLabelDiscovered(famDoc, r);
+            if (_newLabelMethod == null || _newLabelParams == null || _newLabelTarget == null) return null;
             try
             {
-                object[] args = _newLabelTakesDocFirstArg
-                    ? new object[] { famDoc, view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size }
-                    : new object[] {           view, origin, hAlign, vAlign, labelParameters, prefixSuffix, size };
+                // Fill each parameter slot by TYPE — signature-agnostic, so the
+                // old (View, XYZ, HorizontalAlign, VerticalAlign,
+                // IList<FamilyParameter>, IList<string>, double) form and the
+                // modern (View, IList<ElementId>, prefix, suffix, XYZ) form both
+                // bind correctly.
+                int strSlot = 0;
+                string prefix = prefixSuffix != null && prefixSuffix.Count > 0 ? prefixSuffix[0] : "";
+                string suffix = prefixSuffix != null && prefixSuffix.Count > 1 ? prefixSuffix[1] : "";
+                var args = new object[_newLabelParams.Length];
+                for (int i = 0; i < _newLabelParams.Length; i++)
+                {
+                    var pt = _newLabelParams[i].ParameterType;
+                    if (typeof(Document).IsAssignableFrom(pt))                    args[i] = famDoc;
+                    else if (typeof(View).IsAssignableFrom(pt))                   args[i] = view;
+                    else if (pt == typeof(XYZ))                                   args[i] = origin;
+                    else if (pt == typeof(double))                               args[i] = size;
+                    else if (typeof(IList<FamilyParameter>).IsAssignableFrom(pt)) args[i] = labelParameters;
+                    else if (typeof(IList<ElementId>).IsAssignableFrom(pt))       args[i] = labelParameters?.Select(fp => fp.Id).ToList();
+                    else if (typeof(IList<string>).IsAssignableFrom(pt))          args[i] = new List<string> { prefix, suffix };
+                    else if (pt == typeof(string))                               args[i] = strSlot++ == 0 ? prefix : suffix;
+                    else if (pt.IsEnum)
+                        args[i] = pt.Name.IndexOf("Horizontal", StringComparison.OrdinalIgnoreCase) >= 0
+                            ? Enum.ToObject(pt, (int)hAlign)
+                            : Enum.ToObject(pt, ParseVAlignInt(vAlignName));
+                    else args[i] = pt.IsValueType ? Activator.CreateInstance(pt) : null;
+                }
                 return _newLabelMethod.Invoke(_newLabelTarget, args) as Element;
             }
             catch (TargetInvocationException tie)
@@ -1199,6 +1185,16 @@ namespace StingTools.Core.Drawing
             {
                 r.Warnings.Add($"InvokeNewLabel: {ex.Message}");
                 return null;
+            }
+        }
+
+        private static int ParseVAlignInt(string s)
+        {
+            switch ((s ?? "").ToLowerInvariant())
+            {
+                case "top":    return V_TOP;
+                case "bottom": return V_BOTTOM;
+                default:       return V_MIDDLE;
             }
         }
 
