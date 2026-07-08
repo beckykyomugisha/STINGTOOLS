@@ -1124,7 +1124,131 @@ This map is what the annotation rules `AutoTag` rule type uses when it needs to 
 
 ---
 
+## Stage 6 — Sheet Manager: placing, arranging & issuing sheets at scale
+
+Drawing Types produce *views*; the **Sheet Manager** is the layer that lays those
+views onto sheets, arranges the viewports, and batch-issues the set. You reach it
+two ways: the dock panel **DOCS ▸ SHEET MANAGER** row of buttons, and the
+**Sheet Manager tab** in the Drawing Type Editor (a dual-panel dialog — sheet tree
+on the left, detail on the right).
+
+> **A note on button labels:** the buttons below show the *labels you see in the
+> panel*. The internal command tag (used only in scripting / this repo) is given in
+> brackets — e.g. **Build All** *(TitleBlock_CreateAll)*. You never type the tag.
+
+### 6.1 Every Sheet Manager button — what it does and when to use it
+
+| Button | What it does | When to use it |
+|---|---|---|
+| **Sheet Manager** | Opens the dual-panel dialog: sheets grouped by discipline, viewport children, and unplaced views | Your home base — start here to see the whole sheet set and drag/arrange |
+| **Auto-Layout** | Arranges the viewports on the active sheet using **shelf packing** (row by row) | Fast, predictable layout when viewports are similar in size |
+| **MaxRects** | Arranges viewports using **MaxRects bin-packing** (Best-Short-Side-Fit) — tighter space use | Mixed-size viewports, or a cramped sheet where shelf packing wastes space |
+| **Optimal Scale** | Computes the largest standard scale at which a view fits the drawable zone | Before placing a big plan — lets STING pick 1:100 vs 1:50 for you |
+| **Place Unplaced** | Finds every view not yet on a sheet and places them (new or existing sheets, with overflow) | End-of-session sweep so no view is left off a sheet |
+| **Clone Sheet** | Duplicates a sheet **with its viewports** (delete-and-recreate pattern) | Making a near-identical sheet for the next level/zone |
+| **Move VP** | Moves a viewport from one sheet to another | Re-balancing an over-full sheet |
+| **Batch Arrange** | Runs Auto-Layout across **many sheets** at once | After bulk-producing a set — arrange them all in one click |
+| **Batch Clone** | Clones several sheets at once | Spinning up a full level's worth of sheets from a template sheet |
+| **Grid Align / Align Edges / Distribute** | Snap viewport centres to a grid; align left/right/top/bottom; space evenly | Final tidy-up so a sheet looks deliberate, not hand-nudged |
+| **Save Layout / Apply Layout** | Save the current sheet's viewport arrangement as a named preset; re-apply it later | Reuse a proven layout across projects |
+| **Batch Print** | Export sheets to PDF by scope (all / discipline / selection) | Issue day — one click to the whole PDF set |
+| **Sheet Audit** | Read-only: flags empty sheets, missing/overlapping viewports, ISO-19650 non-compliance | Run before every issue as a pre-flight |
+
+### 6.2 Auto-Layout vs MaxRects — which packer, when
+
+- **Auto-Layout (shelf packing)** — lays viewports in rows, left-to-right, top-to-bottom. Fast and *predictable* — you can guess where things land. Best when your viewports are roughly the same size (e.g. four equal quadrant plans).
+- **MaxRects (bin packing)** — tries every free rectangle and picks the best fit. *Tighter* but less predictable. Best when viewports vary a lot in size, or the sheet is nearly full and shelf packing leaves awkward gaps.
+
+*Rule of thumb:* start with **Auto-Layout**; if it wastes space or overflows, switch to **MaxRects**.
+
+### 6.3 Worked example — a 6-view MEP coordination sheet
+
+1. Produce the 6 views (main plan + 4 detail callouts + a key plan).
+2. Open **Sheet Manager**, create/select the coordination sheet.
+3. Click **MaxRects** (mixed sizes) → all 6 fit.
+4. **Align Edges** the four callouts to a common top edge; **Distribute** them evenly.
+5. **Sheet Audit** → confirm no overlaps, ISO number valid.
+6. **Batch Print** → PDF.
+
+### 6.4 Issue-day chain
+
+**Sheet Audit** (pre-flight) → **Sheet Register** export (the deliverable list) →
+**Batch Print** (PDF set). Three clicks, whole set out the door.
+
+## Stage 7 — Title Block command reference (the DOCS ▸ Title Block buttons)
+
+These are the day-to-day title-block buttons in **DOCS ▸ TITLE BLOCK** (and its
+*Advanced title-block ops* expander). This is the section that answers "which
+button builds my families?" — it's **Build All**.
+
+| Button | What it does | When to use it |
+|---|---|---|
+| **Build All** *(TitleBlock_CreateAll)* | **Mints every concrete family** in `STING_TITLE_BLOCKS.json` in one batch (abstract `_common` bases are skipped). | **First thing on any project**, and after any title-block/param update. This is the "create all title blocks" button. |
+| **Build…** | Build a **single** chosen family | Regenerating just one family after editing its spec |
+| **Auto-VPs** *(TitleBlock_AutoPlaceViewports)* | For each selected view, place a viewport in the active sheet's slot matching its purpose tag | Fast manual placement onto a STING title block |
+| **BIM Mode** *(TitleBlock_ToggleBIMMode)* | Swap the active sheet's title block between its BIM and NONBIM variants | Downgrading a working sheet to a simple non-BIM border (or back) |
+| **Populate** | Fill every sheet's title-block cells from project data / `TITLE_BLOCK.csv` | After project setup, or when cells look blank |
+| **Validate** | Check title-block completeness across sheets | Pre-issue QA |
+| **Set Variant** | Switch the title-block variant code (`PRJ_TB_VARIANT_TXT`) | Original vs revised layout |
+| **Legend Bind** | Bind the discipline legend/symbol key to the active discipline | MEP sheets that need a symbol legend |
+| **Count** | Auto-update the "Sheet x of y" totals | Before issue, after adding/removing sheets |
+| **Rev Sync** | Push revision data into `PRJ_TB_REVISION_*` cells | On every revision |
+| **Stamp TX** | Auto-issue the transmittal stamp | At transmittal time |
+| **Pre-Export** | Gate: validate before PDF/DWG export | Just before Batch Print |
+| **Audit Legacy / Migrate Legacy** | List / convert pre-May-2026 single-family title blocks to the BIM variant | Upgrading an old project |
+
+> **UI note:** the Drawing Type Editor now has a dedicated **Title Block tab** too
+> (ISO 19650 code legend + Authoring + Sheet identity/transmittal + Revision +
+> Repair sections). It's the same actions in dialog form, plus the read-only ISO
+> code legend for reference while authoring.
+
+## Stage 8 — Cutting production time: the playbook
+
+The system's whole point is to turn a day of sheet-wrangling into minutes. Here's
+where the time actually goes, slow way vs fast way.
+
+| Task | Slow way (manual) | Fast way (STING) | Why it wins |
+|---|---|---|---|
+| Build the title-block kit | Author 25 `.rfa` by hand | **Build All** — once | Minutes, zero drift |
+| A full level's plans across zones | Create + crop + template each view by hand | **From Scope Boxes** | One command walks every `STING::` scope box → views → cropped + styled |
+| Arrange viewports on a sheet | Drag each viewport, eyeball alignment | **Auto-Layout / MaxRects** then **Align/Distribute** | Packer + snap instead of nudging |
+| A set of similar sheets | Copy sheet, fix numbers, replace views | **Batch Clone** + **Batch Renumber** | Two-pass rename avoids number clashes |
+| Keep graphics consistent | Ship + maintain Revit templates per project | **Managed templates** (Stage 4) | STING owns the templates; edit the pack once, every view follows |
+| Issue the set | Print sheets one by one | **Sheet Audit → Sheet Register → Batch Print** | Pre-flight + register + PDF in three clicks |
+
+### 8.1 The golden path for a full MEP set
+
+1. **Build All** (once per project) → families exist.
+2. **Project Setup Wizard** → identity + disciplines seeded.
+3. **From Scope Boxes** → produce all discipline plans, cropped + styled + SYSTEM-stamped.
+4. **Batch Arrange** → lay them all out.
+5. **Sync Styles** if you tweak a pack → every view updates.
+6. **Sheet Audit → Batch Print** → issue.
+
+### 8.2 Get the most from managed templates (the biggest time-saver)
+
+Managed templates (Stage 4) are where offices reclaim the most time. To maximise it:
+
+- **Convert every corporate pack to Managed** on day one — then you never ship or
+  re-import `.rvt`-embedded view templates again; STING regenerates them per project.
+- **Edit the pack, not the views.** Change a line weight or filter once in the pack;
+  **Sync Styles** propagates it to every drawing that uses it. No per-view editing.
+- **Watch the drift count in Inspect.** A non-zero drift = a view diverged from its
+  recipe; **Sync Styles** heals it. Treat drift like a failing test.
+- **Use the `extends` chain.** Put office-wide rules in `corp-base`; a single edit
+  there cascades to all 11 packs. One change, whole house-style updated.
+- **Lock hand-tuned views** with the style lock (`STING_STYLE_LOCKED_BOOL = 1`) so
+  Sync Styles skips the one presentation view you fussed over.
+
 ## Quick Reference
+
+### All Sheet Manager & Title Block commands
+
+| Button | Section | Purpose |
+|---|---|---|
+| **Build All** | DOCS ▸ Title Block ▸ Advanced | Mint all title-block families (the "create all" button) |
+| **Auto-VPs / BIM Mode / Populate / Validate / Count / Rev Sync / Stamp TX / Pre-Export** | DOCS ▸ Title Block | Per-sheet title-block operations (§7) |
+| **Sheet Manager / Auto-Layout / MaxRects / Place Unplaced / Clone Sheet / Batch Arrange / Batch Print / Sheet Audit** | DOCS ▸ Sheet Manager | Place, arrange, batch, and issue sheets (§6) |
 
 ### All Drawing Type commands
 
