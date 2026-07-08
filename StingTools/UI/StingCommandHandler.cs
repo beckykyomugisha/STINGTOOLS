@@ -1484,6 +1484,7 @@ namespace StingTools.UI
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
                     case "ScaffoldTiers": RunCommand<Tags.ScaffoldTiersCommand>(app); break;
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
+                    case "Bindings_PruneToSpec": RunCommand<Tags.PruneBindingsToSpecCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
                     case "DisciplineProfiles":

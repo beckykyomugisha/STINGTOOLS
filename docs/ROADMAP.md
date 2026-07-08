@@ -2,6 +2,32 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
+
+The Phase 196 binding-accuracy fix narrowed every confidently-classifiable discipline family and
+preserved the universal set. The parameters below remain bound to the **broad core set** (they had no
+per-param `CATEGORY_BINDINGS.csv` row and no group override) and are logged as coverage **GAPs** by
+`LoadSharedParamsCommand`. They are semantically mis-located (space/zone/landscape/structural-cost
+params filed under the `COM_DAT` communications group) — narrowing them requires an SME decision on the
+correct element domain, so they were **not** guessed. Recommended categories noted for review; once
+confirmed, add rows to `CATEGORY_BINDINGS.csv` (+ `PARAMETER_CATEGORIES.csv`) and re-run
+`Bindings_PruneToSpec`.
+
+| Param(s) | Group | Recommended domain (needs confirmation) |
+|---|---|---|
+| `SPC_GROSS_AREA_M2`, `SPC_CEILING_HEIGHT_M`, `SPC_MIN_HEADROOM_M`, `SPC_FINISH_FLOOR/CEILING/WALLS_TXT`, `SPC_PUBLIC_ACCESSIBLE_BOOL` | COM_DAT | Rooms, Spaces |
+| `ZON_CATEGORY_NAME/CODE_TXT`, `ZON_NET/GROSS_AREA_M2`, `ZON_VOLUME_M3`, `ZON_OCCUPANTS_NR` | COM_DAT | Areas, Spaces, HVAC Zones |
+| `GEN_SPECIES_TXT`, `GEN_HEIGHT_AT_MATURITY_M`, `GEN_ROAD_TYPE_TXT`, `GEN_TAG_7_PARA_MISC_TXT` | COM_DAT | Planting, Site, Roads |
+| `CST_S_FRM_FORMWORK_AREA_SQ_M`, `CST_S_MAS_BLOCKS_NR`, `CST_S_MAS_NET_WALL_AREA_SQ_M`, `CST_S_REI_LAP_LENGTH_MM`, `CST_S_REI_TOTAL_WEIGHT_KG`, `CST_S_SUPPLIER_TXT`, `CST_FORMWORK_TYPE_TXT`, `CST_PLYWOOD_SIZE_TXT`, `CST_SAND_MOISTURE_TXT` | COM_DAT | Structural Framing/Columns/Foundations, Walls, Floors |
+| `SLV_TAG`, `SLV_TAG_7_PARA_TXT` | SLV_SLEEVE_PARAMS | Generic Models (matches rest of `SLV_*` family) |
+| `COMP_TAG_1_TXT` | COM_DAT | universal composite tag — likely keep broad |
+
+Additionally, the healthcare families `MGS_` / `RAD_` / `CLN_` / `CEQ_` were bound to reasoned
+discipline domains (medical-gas piped set, radiation-shielding set, clinical room/equipment set) that
+exclude all cross-discipline conveyance categories, but the **precise per-param category refinement**
+(e.g. which exact device vs. room vs. equipment category each WARN_/DESIGN_/TAG param belongs to)
+should be SME-confirmed against HTM/HBN modelling conventions. See `docs/binding_audit_report.csv`.
+
 ## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
 
 Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
