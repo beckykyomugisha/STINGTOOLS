@@ -33,8 +33,8 @@ def code_single(p):
     disc={k for k in c if k in ("HVAC","PLUMB","ELEC","HEALTH","STRUCT","MATERIAL")}
     return next(iter(disc)) if len(disc)==1 else None
 # ---- category sets ----
-S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulations|Flex Ducts",
-"HVAC_TERM":"Air Terminals","PLUMB":"Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulations|Plumbing Fixtures",
+S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts",
+"HVAC_TERM":"Air Terminals","PLUMB":"Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures",
 "FIRE":"Sprinklers|Fire Alarm Devices","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
 "DATA":"Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices",
