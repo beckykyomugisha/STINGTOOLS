@@ -1039,7 +1039,7 @@ ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
 ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_IPS_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_IP_RATING_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_IT_CARDIAC_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_IT_CARDIAC_BOOL,Electrical Fixtures
 ELC_JB_AUTO_PLACED_BOOL,Electrical Fixtures
 ELC_JB_REASON_TXT,Electrical Fixtures
 ELC_JB_SIZE_MM,Electrical Fixtures
@@ -1130,7 +1130,7 @@ ELC_PWR_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Circuits
 ELC_PWR_KW,Electrical Equipment|Electrical Circuits
 ELC_PWR_SPARE_01_TXT,Electrical Equipment|Electrical Circuits
 ELC_PWR_SPARE_02_TXT,Electrical Equipment|Electrical Circuits
-ELC_RECEPT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_RECEPT_TYPE_TXT,Electrical Fixtures
 ELC_RECONCILE_DRIFT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_SEL_COORD_OK,Electrical Equipment|Electrical Circuits
 ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment|Electrical Circuits
@@ -1418,30 +1418,30 @@ LS_NAME_TXT,Generic Models
 LS_PATTERN_TXT,Generic Models
 LS_STATUS_TXT,Generic Models
 LS_WEIGHT_INT,Generic Models
-LTG_CKT_NR_TXT,Lighting Fixtures|Lighting Devices
-LTG_CLR_RENDERING_INDEX_NR,Lighting Fixtures|Lighting Devices
-LTG_CLR_TEMP_K,Lighting Fixtures|Lighting Devices
-LTG_CONTROLS_SPARE_01_TXT,Lighting Fixtures|Lighting Devices
-LTG_CONTROLS_SPARE_02_TXT,Lighting Fixtures|Lighting Devices
-LTG_CRI_NR,Lighting Fixtures|Lighting Devices
-LTG_CTRL_TYPE_TXT,Lighting Fixtures|Lighting Devices
-LTG_DESIGN_ILLUMINANCE_LUX,Lighting Fixtures|Lighting Devices
-LTG_DIMMABLE_TXT,Lighting Fixtures|Lighting Devices
-LTG_EFFICACY_LM_W,Lighting Fixtures|Lighting Devices
-LTG_EMERGENCY_TXT,Lighting Fixtures|Lighting Devices
-LTG_EMRG_TYPE_TXT,Lighting Fixtures|Lighting Devices
-LTG_FIX_EFFICACY_LM_W,Lighting Fixtures|Lighting Devices
-LTG_FIX_LAMP_TYPE_TXT,Lighting Fixtures|Lighting Devices
-LTG_FIX_LMP_WATTAGE_W,Lighting Fixtures|Lighting Devices
+LTG_CKT_NR_TXT,Electrical Circuits
+LTG_CLR_RENDERING_INDEX_NR,Lighting Fixtures
+LTG_CLR_TEMP_K,Lighting Fixtures
+LTG_CONTROLS_SPARE_01_TXT,Lighting Devices
+LTG_CONTROLS_SPARE_02_TXT,Lighting Devices
+LTG_CRI_NR,Lighting Fixtures
+LTG_CTRL_TYPE_TXT,Lighting Devices
+LTG_DESIGN_ILLUMINANCE_LUX,Lighting Fixtures
+LTG_DIMMABLE_TXT,Lighting Fixtures
+LTG_EFFICACY_LM_W,Lighting Fixtures
+LTG_EMERGENCY_TXT,Lighting Fixtures
+LTG_EMRG_TYPE_TXT,Lighting Fixtures
+LTG_FIX_EFFICACY_LM_W,Lighting Fixtures
+LTG_FIX_LAMP_TYPE_TXT,Lighting Fixtures
+LTG_FIX_LMP_WATTAGE_W,Lighting Fixtures
 LTG_FIX_TAG,<ALL>
-LTG_FIX_TAG_01_TXT,Lighting Fixtures|Lighting Devices
-LTG_FIX_TAG_02_TXT,Lighting Fixtures|Lighting Devices
-LTG_FIX_TYPE_CLASSIFICATION_TXT,Lighting Fixtures|Lighting Devices
-LTG_HOIST_DROP_MM,Lighting Fixtures|Lighting Devices
-LTG_HOIST_MOTOR_TXT,Lighting Fixtures|Lighting Devices
-LTG_HOIST_WEIGHT_KG,Lighting Fixtures|Lighting Devices
-LTG_ILLUMINANCE_LUX,Lighting Fixtures|Lighting Devices
-LTG_POWER_DENSITY_W_M2,Lighting Fixtures|Lighting Devices
+LTG_FIX_TAG_01_TXT,Lighting Fixtures
+LTG_FIX_TAG_02_TXT,Lighting Fixtures
+LTG_FIX_TYPE_CLASSIFICATION_TXT,Lighting Fixtures
+LTG_HOIST_DROP_MM,Lighting Fixtures
+LTG_HOIST_MOTOR_TXT,Lighting Fixtures
+LTG_HOIST_WEIGHT_KG,Lighting Fixtures
+LTG_ILLUMINANCE_LUX,Lighting Fixtures
+LTG_POWER_DENSITY_W_M2,Lighting Fixtures
 LTG_TAG_7_PARA_FIXTURE_TXT,<ALL>
 LTG_TAG_7_PARA_SPEC_TXT,<ALL>
 MAT_APPLICATION,Materials
@@ -2804,17 +2804,17 @@ WARN_INS_THICKNESS_MM,<ALL>
 WARN_INS_THICKNESS_PIPE_INSULATION,<ALL>
 WARN_INS_VAPOUR_BARRIER_DUCT_INS,<ALL>
 WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,<ALL>
-WARN_LTG_COLOUR_RENDERING_LIGHTING,Lighting Fixtures|Lighting Devices
-WARN_LTG_COLOUR_TEMP_LIGHTING,Lighting Fixtures|Lighting Devices
-WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,Lighting Fixtures|Lighting Devices
-WARN_LTG_EFFICACY_LIGHTING_DEVICES,Lighting Fixtures|Lighting Devices
-WARN_LTG_EFFICACY_LM_W_LIGHTING,Lighting Fixtures|Lighting Devices
-WARN_LTG_EMERGENCY_LIGHTING,Lighting Fixtures|Lighting Devices
-WARN_LTG_EMERGENCY_LIGHTING_DEVICES,Lighting Fixtures|Lighting Devices
-WARN_LTG_GLARE_RATING_LIGHTING,Lighting Fixtures|Lighting Devices
-WARN_LTG_ILLUMINANCE,Lighting Fixtures|Lighting Devices
-WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES,Lighting Fixtures|Lighting Devices
-WARN_LTG_POWER_DENSITY_LIGHTING,Lighting Fixtures|Lighting Devices
+WARN_LTG_COLOUR_RENDERING_LIGHTING,Lighting Fixtures
+WARN_LTG_COLOUR_TEMP_LIGHTING,Lighting Fixtures
+WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,Lighting Devices
+WARN_LTG_EFFICACY_LIGHTING_DEVICES,Lighting Fixtures
+WARN_LTG_EFFICACY_LM_W_LIGHTING,Lighting Fixtures
+WARN_LTG_EMERGENCY_LIGHTING,Lighting Fixtures
+WARN_LTG_EMERGENCY_LIGHTING_DEVICES,Lighting Fixtures
+WARN_LTG_GLARE_RATING_LIGHTING,Lighting Fixtures
+WARN_LTG_ILLUMINANCE,Lighting Fixtures
+WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES,Lighting Fixtures
+WARN_LTG_POWER_DENSITY_LIGHTING,Lighting Fixtures
 WARN_MEC_CTRL_CALIBRATION_CTRL_DEV,<ALL>
 WARN_MEC_CTRL_FUNCTION_CTRL_DEV,<ALL>
 WARN_MEC_CTRL_SIGNAL_CTRL_DEV,<ALL>

@@ -1042,7 +1042,7 @@ ELC_GEN_RUN_HRS_TGT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Requir
 ELC_GEN_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
 ELC_IPS_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Powered from Isolated Power System (NEC 517)
 ELC_IP_RATING_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ip Rating Txt [ISO 19650-1:2018]
-ELC_IT_CARDIAC_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cardiac-protected outlet (IT-network NEC 517.19)
+ELC_IT_CARDIAC_BOOL,4,elc-sub,Electrical Fixtures,Cardiac-protected outlet (IT-network NEC 517.19)
 ELC_JB_AUTO_PLACED_BOOL,4,elc-sub,Electrical Fixtures,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.
 ELC_JB_REASON_TXT,4,elc-sub,Electrical Fixtures,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.
 ELC_JB_SIZE_MM,4,elc-sub,Electrical Fixtures,Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.
@@ -1133,7 +1133,7 @@ ELC_PWR_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc
 ELC_PWR_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pwr Kw [ISO 19650-1:2018]
 ELC_PWR_SPARE_01_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 1 for ELC_PWR group
 ELC_PWR_SPARE_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 2 for ELC_PWR group
-ELC_RECEPT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Receptacle type: HOSP-GR / TR / ISO / EMG-RED
+ELC_RECEPT_TYPE_TXT,4,elc-sub,Electrical Fixtures,Receptacle type: HOSP-GR / TR / ISO / EMG-RED
 ELC_RECONCILE_DRIFT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit reconciliation drift flag [Electrical]
 ELC_SEL_COORD_OK,4,elc-sub,Electrical Equipment|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
 ELC_SEL_COORD_VERIFIED_BOOL,4,elc-sub,Electrical Equipment|Electrical Circuits,"Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]"
@@ -1421,30 +1421,30 @@ LS_NAME_TXT,11,curated-fallback,Generic Models,Line style name [ISO 19650-1:2018
 LS_PATTERN_TXT,11,curated-fallback,Generic Models,Line pattern name [ISO 19650-1:2018]
 LS_STATUS_TXT,11,curated-fallback,Generic Models,Line style status [ISO 19650-2:2018]
 LS_WEIGHT_INT,11,curated-fallback,Generic Models,Line weight number [ISO 19650-1:2018]
-LTG_CKT_NR_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Ckt Nr Txt [ISO 19650-1:2018]
-LTG_CLR_RENDERING_INDEX_NR,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Clr Rendering Index Nr [ISO 19650-1:2018]
-LTG_CLR_TEMP_K,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Clr Temp K [ISO 19650-1:2018]
-LTG_CONTROLS_SPARE_01_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Spare parameter 1 for LTG_CONTROLS group
-LTG_CONTROLS_SPARE_02_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Spare parameter 2 for LTG_CONTROLS group
-LTG_CRI_NR,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Cri [ISO 19650]
-LTG_CTRL_TYPE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Ctrl Type Txt [ISO 19650-1:2018]
-LTG_DESIGN_ILLUMINANCE_LUX,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Design Illuminance Lux [ISO 19650-1:2018]
-LTG_DIMMABLE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Dimmable [ISO 19650]
-LTG_EFFICACY_LM_W,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Efficacy Lm W [ISO 19650-1:2018]
-LTG_EMERGENCY_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Emergency [ISO 19650]
-LTG_EMRG_TYPE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Emrg Type Txt [ISO 19650-1:2018]
-LTG_FIX_EFFICACY_LM_W,7,safe-prefix,Lighting Fixtures|Lighting Devices,Luminaire efficacy in lumens per watt
-LTG_FIX_LAMP_TYPE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Lamp type (LED/Fluorescent/HID/Incandescent)
-LTG_FIX_LMP_WATTAGE_W,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Lmp Wattage W [ISO 19650-1:2018]
+LTG_CKT_NR_TXT,7,ltg-sub,Electrical Circuits,Ltg Ckt Nr Txt [ISO 19650-1:2018]
+LTG_CLR_RENDERING_INDEX_NR,7,ltg-sub,Lighting Fixtures,Ltg Clr Rendering Index Nr [ISO 19650-1:2018]
+LTG_CLR_TEMP_K,7,ltg-sub,Lighting Fixtures,Ltg Clr Temp K [ISO 19650-1:2018]
+LTG_CONTROLS_SPARE_01_TXT,7,ltg-sub,Lighting Devices,Spare parameter 1 for LTG_CONTROLS group
+LTG_CONTROLS_SPARE_02_TXT,7,ltg-sub,Lighting Devices,Spare parameter 2 for LTG_CONTROLS group
+LTG_CRI_NR,7,ltg-sub,Lighting Fixtures,Ltg Cri [ISO 19650]
+LTG_CTRL_TYPE_TXT,7,ltg-sub,Lighting Devices,Ltg Ctrl Type Txt [ISO 19650-1:2018]
+LTG_DESIGN_ILLUMINANCE_LUX,7,ltg-sub,Lighting Fixtures,Ltg Design Illuminance Lux [ISO 19650-1:2018]
+LTG_DIMMABLE_TXT,7,ltg-sub,Lighting Fixtures,Ltg Dimmable [ISO 19650]
+LTG_EFFICACY_LM_W,7,ltg-sub,Lighting Fixtures,Ltg Efficacy Lm W [ISO 19650-1:2018]
+LTG_EMERGENCY_TXT,7,ltg-sub,Lighting Fixtures,Ltg Emergency [ISO 19650]
+LTG_EMRG_TYPE_TXT,7,ltg-sub,Lighting Fixtures,Ltg Emrg Type Txt [ISO 19650-1:2018]
+LTG_FIX_EFFICACY_LM_W,7,ltg-sub,Lighting Fixtures,Luminaire efficacy in lumens per watt
+LTG_FIX_LAMP_TYPE_TXT,7,ltg-sub,Lighting Fixtures,Lamp type (LED/Fluorescent/HID/Incandescent)
+LTG_FIX_LMP_WATTAGE_W,7,ltg-sub,Lighting Fixtures,Ltg Fix Lmp Wattage W [ISO 19650-1:2018]
 LTG_FIX_TAG,7,tag-container,<ALL>,Lighting fixture tag container [ISO 19650-2:2018]
-LTG_FIX_TAG_01_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Tag
-LTG_FIX_TAG_02_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Tag
-LTG_FIX_TYPE_CLASSIFICATION_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Type Classification Txt [ISO 19650-1:2018]
-LTG_HOIST_DROP_MM,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Hoist Drop Mm [A1 §5]
-LTG_HOIST_MOTOR_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Hoist Motor [A1 §5]
-LTG_HOIST_WEIGHT_KG,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Hoist Weight Kg [A1 §5]
-LTG_ILLUMINANCE_LUX,7,safe-prefix,Lighting Fixtures|Lighting Devices,Illuminance level in lux
-LTG_POWER_DENSITY_W_M2,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Power Density W M2 [ISO 19650-1:2018]
+LTG_FIX_TAG_01_TXT,7,ltg-sub,Lighting Fixtures,Ltg Fix Tag
+LTG_FIX_TAG_02_TXT,7,ltg-sub,Lighting Fixtures,Ltg Fix Tag
+LTG_FIX_TYPE_CLASSIFICATION_TXT,7,ltg-sub,Lighting Fixtures,Ltg Fix Type Classification Txt [ISO 19650-1:2018]
+LTG_HOIST_DROP_MM,7,ltg-sub,Lighting Fixtures,Ltg Hoist Drop Mm [A1 §5]
+LTG_HOIST_MOTOR_TXT,7,ltg-sub,Lighting Fixtures,Ltg Hoist Motor [A1 §5]
+LTG_HOIST_WEIGHT_KG,7,ltg-sub,Lighting Fixtures,Ltg Hoist Weight Kg [A1 §5]
+LTG_ILLUMINANCE_LUX,7,ltg-sub,Lighting Fixtures,Illuminance level in lux
+LTG_POWER_DENSITY_W_M2,7,ltg-sub,Lighting Fixtures,Ltg Power Density W M2 [ISO 19650-1:2018]
 LTG_TAG_7_PARA_FIXTURE_TXT,7,tag-container,<ALL>,Lighting fixture TAG7 paragraph narrative
 LTG_TAG_7_PARA_SPEC_TXT,7,tag-container,<ALL>,Lighting fixture paragraph container [ISO 19650-3:2020]
 MAT_APPLICATION,12,safe-prefix,Materials,Mat Application [ISO 19650-1:2018]
@@ -3146,17 +3146,17 @@ WARN_INS_THICKNESS_PIPE_INSULATION,17,warn-mirror,<ALL>,Tag warning: ins thickne
 WARN_INS_VAPOUR_BARRIER_DUCT_INS,17,warn-mirror,<ALL>,Tag warning: ins vapour barrier duct ins
 WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,17,warn-mirror,<ALL>,Tag warning: ins vapour barrier pipe insulation
 WARN_LIG_RES_NO_RATING,32,warn-mirror,,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01]
-WARN_LTG_COLOUR_RENDERING_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg colour rendering lighting
-WARN_LTG_COLOUR_TEMP_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg colour temp lighting
-WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg ctrl type lighting devices
-WARN_LTG_EFFICACY_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg efficacy lighting devices
-WARN_LTG_EFFICACY_LM_W_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg efficacy lm w lighting
-WARN_LTG_EMERGENCY_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg emergency lighting
-WARN_LTG_EMERGENCY_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg emergency lighting devices
-WARN_LTG_GLARE_RATING_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg glare rating lighting
-WARN_LTG_ILLUMINANCE,7,warn-mirror,Lighting Fixtures|Lighting Devices,Warning: Illuminance level minimum [MEDIUM]
-WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg illuminance lighting devices
-WARN_LTG_POWER_DENSITY_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg power density lighting
+WARN_LTG_COLOUR_RENDERING_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg colour rendering lighting
+WARN_LTG_COLOUR_TEMP_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg colour temp lighting
+WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,17,warn-mirror,Lighting Devices,Tag warning: ltg ctrl type lighting devices
+WARN_LTG_EFFICACY_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures,Tag warning: ltg efficacy lighting devices
+WARN_LTG_EFFICACY_LM_W_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg efficacy lm w lighting
+WARN_LTG_EMERGENCY_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg emergency lighting
+WARN_LTG_EMERGENCY_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures,Tag warning: ltg emergency lighting devices
+WARN_LTG_GLARE_RATING_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg glare rating lighting
+WARN_LTG_ILLUMINANCE,7,warn-mirror,Lighting Fixtures,Warning: Illuminance level minimum [MEDIUM]
+WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures,Tag warning: ltg illuminance lighting devices
+WARN_LTG_POWER_DENSITY_LIGHTING,17,warn-mirror,Lighting Fixtures,Tag warning: ltg power density lighting
 WARN_MEC_CTRL_CALIBRATION_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl calibration ctrl dev
 WARN_MEC_CTRL_FUNCTION_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl function ctrl dev
 WARN_MEC_CTRL_SIGNAL_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl signal ctrl dev
