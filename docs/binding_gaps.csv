@@ -1,0 +1,353 @@
+param,group,desc
+ACC_ISSUE_ID_TXT,21,Autodesk Construction Cloud Issue GUID for bidirectional sync
+ACC_SYNC_STATUS_TXT,21,ACC sync status (SYNCED / PENDING / ERROR)
+AC_ELEMENT_ID_TXT,26,ArchiCAD IFC: ArchiCAD internal element GUID (AC_Pset_ElementID.ID) - distinct from IFC GlobalId
+AC_HOTLINK_FILE_TXT,26,ArchiCAD IFC: relative path of the source hotlink .mod file
+AC_HOTLINK_ID_TXT,26,ArchiCAD IFC: GUID of the originating hotlink module (AC_Pset_ElementID.Hotlink_ID)
+AC_REVISION_TXT,26,ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision)
+ARCH_TAG_7_PARA_AREAS_TXT,10,Areas paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ASSEMBLIES_TXT,10,Assemblies paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_COLUMNS_TXT,10,Columns paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_CURTAIN_TXT,17,Architectural TAG7 paragraph container for curtain
+ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,10,Detail Items paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ENTOURAGE_TXT,10,Entourage paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FLOOR_TXT,10,Floor paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,10,Food Equip paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FURNITURE_TXT,10,Furniture paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FURN_SYS_TXT,10,Furniture system paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_HARDSCAPE_TXT,10,Hardscape paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MASS_TXT,10,Mass paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,10,Model Groups paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MULLION_TXT,17,Architectural TAG7 paragraph container for mullion
+ARCH_TAG_7_PARA_PADS_TXT,10,Pads paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PARTS_TXT,10,Parts paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PLANTING_TXT,10,Planting paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROFILES_TXT,10,Profiles paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,10,Property Lines paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,10,Property Line Segments paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_RAILING_TXT,17,Architectural TAG7 paragraph container for railing
+ARCH_TAG_7_PARA_ROADS_TXT,10,Roads paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ROOM_TXT,10,Room/space paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_RVT_LINKS_TXT,10,Rvt Links paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SIGNAGE_TXT,10,Signage paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SITE_TXT,10,Site paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SPACES_TXT,10,Spaces paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,10,Temp Struct paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,10,Toposolid Links paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TOPOSOLID_TXT,10,Toposolid paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_VERT_CIRC_TXT,10,Vert Circ paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_WASH_TXT,10,Wash paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ZONES_TXT,10,Zones paragraph [ISO 19650-3:2020]
+ARC_FACTORY_ORDER_REF_TXT,10,Joinery factory order reference [BS 8000-5:1990]
+ARC_GLAZING_SPEC_TXT,10,Glazing specification reference [BS 6262-1:2022]
+AREA_SQ_M,1,Area [ISO 19650-1:2018]
+ASBUILT_CAPTURE_DATE_TXT,24,ISO 8601 date when as-built data captured from Planscape mobile
+ASBUILT_COVER_DEVIATION_MM,24,As-built concrete cover deviation from design in mm [BS EN 13670:2009]
+ASBUILT_COVER_DEVIATION_MM_DISP_TXT,24,As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels
+ASBUILT_DEVIATION_MM,24,As-built vs as-designed deviation in millimetres
+ASBUILT_DEVIATION_MM_DISP_TXT,24,As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels
+ASS_ACCESS_PERF_TXT,1,Accessibility performance rating [COBie V2.4]
+ASS_AREA_M2_TXT,1,Element area in square metres
+ASS_ASSEMBLY_CODE_TXT,1,Assembly code from Revit type [ISO 19650-2:2018]
+ASS_ASSEMBLY_DESC_TXT,1,Assembly description from Revit type [ISO 19650-2:2018]
+ASS_ASSET_ID_TXT,1,Unique asset identifier [COBie V2.4]
+ASS_BARCODE_TXT,1,Asset barcode identifier [COBie V2.4]
+ASS_BMS_ADDRESS_TXT,1,BMS/IoT device address
+ASS_BOLT_COUNT_NR,1,Total number of bolted connections in the assembly
+ASS_BOM_REV_TXT,1,"Bill of materials revision code (e.g. P01, C01)"
+ASS_BOQ_LINE_REF,1,BOQ line reference e.g. 14.3.2 -- Excel roundtrip join key [ISO 19650-3:2020]
+ASS_BOQ_SECTION_NAME,1,BOQ section name this element belongs to [ISO 19650-3:2020]
+ASS_BOUNDING_VOL_CU_M,1,Element bounding volume in cubic metres
+ASS_CAPACITY_TXT,4,Asset capacity specification [ISO 19650-2:2018]
+ASS_CDE_STATUS_TXT,17,CDE container status code (WIP/SHARED/PUBLISHED/ARCHIVE) [ISO 19650-1:2018 Sec.12]
+ASS_CDE_SUITABILITY_TXT,17,CDE suitability code for information exchange [ISO 19650-2:2018 Sec.5.6]
+ASS_CLASS_COD_TXT,1,Classification code (Uniclass/NRM)
+ASS_CLASS_DESC_TXT,1,Classification description
+ASS_CODE_PERF_TXT,1,Code compliance performance [COBie V2.4]
+ASS_COLOR_TXT,1,Asset color description [COBie V2.4]
+ASS_CONDITION_DATE_TXT,1,Condition assessment date
+ASS_CONDITION_TXT,1,Asset condition assessment [COBie V2.4]
+ASS_CONNECTED_ELEMENTS_TXT,1,Connected element tags (pipe/duct connections)
+ASS_CONSTITUENTS_TXT,1,Material constituents [COBie V2.4]
+ASS_CUT_COUNT_NR,1,Number of cut operations required to fabricate the assembly
+ASS_DESIGN_OPTION_TXT,1,Design option name for element
+ASS_DISCIPLINES_TXT,1,Project discipline codes
+ASS_DRIVE_TXT,4,Asset drive type/mechanism [ISO 19650-2:2018]
+ASS_DUR_UNIT_TXT,1,Expected life duration unit [COBie V2.4]
+ASS_ELEVATION_M,1,Element elevation in metres from project base
+ASS_FAB_LOC_TXT,1,Fabrication location (SHOP / FIELD / VENDOR)
+ASS_FAB_NOTES_TXT,1,Free-text fabrication notes consumed by ShopDrawingComposer
+ASS_FAB_SEQ_NR,1,Fabrication sequence number within the fabrication package
+ASS_FAB_STATUS_TXT,1,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)
+ASS_FAMILY_NAME_TXT,1,Revit family name
+ASS_FEATURES_TXT,1,Notable features description [COBie V2.4]
+ASS_FINISH_TXT,1,Asset surface finish [COBie V2.4]
+ASS_FITTING_COUNT_NR,1,Total number of inline fittings in the assembly
+ASS_FLANGE_COUNT_NR,1,Total number of flanged connections in the assembly
+ASS_FLOW_RATE_TXT,5,Flow rate for MEP elements
+ASS_GRADE_TXT,1,Asset material grade [COBie V2.4]
+ASS_GRID_DIST_NR,1,Distance to nearest grid intersection
+ASS_GRID_REF_TXT,1,Ass Grid Ref [ISO 19650]
+ASS_GRID_X_ID_INT,1,Nearest X grid element ID
+ASS_GRID_Y_ID_INT,1,Nearest Y grid element ID
+ASS_HOST_ELEMENT_TXT,1,Host element tag (wall/floor/ceiling hosting this element)
+ASS_HOST_TYPE_TXT,1,Host element type name
+ASS_INHERIT_STATUS_TXT,1,Token inheritance status (PROXIMITY_OK/PROXIMITY_FAIL/TYPE_INHERIT/MANUAL)
+ASS_INSPECT_FREQ_TXT,4,Asset inspection frequency [ISO 19650-2:2018]
+ASS_INSTALLATION_DATE_TXT,1,Planned or actual installation date [ISO 19650-3:2020]
+ASS_INSTALL_DATE_TXT,1,DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. ISO 8601 date when assembly was installed on site.
+ASS_INSULATION_AREA_M2,1,External insulation surface area in square metres
+ASS_KEYNOTE_TXT,1,Keynote reference
+ASS_LAST_TOKEN_HASH_TXT,1,Ass Last Token Hash [ISO 19650]
+ASS_LENGTH_TOTAL_MM,1,Total linear length of the assembly in millimetres
+ASS_LOD_VERIFIED_TXT,1,Ass Lod Verified [milestone id passed at LOD]
+ASS_MAINT_INTERVAL_TXT,1,Maintenance interval schedule
+ASS_MAINT_NEXT_TXT,1,Next maintenance date
+ASS_MATERIAL_TXT,1,Asset material description [COBie V2.4]
+ASS_MEP_SYS_NAME_TXT,1,MEP system name from Revit MEP System API
+ASS_NOM_HEIGHT_TXT,1,Nominal height [COBie V2.4]
+ASS_NOM_LENGTH_TXT,1,Nominal length [COBie V2.4]
+ASS_NOM_WIDTH_TXT,1,Nominal width [COBie V2.4]
+ASS_NOTES_TXT,1,General notes field for element-level annotations
+ASS_NRM2_PARA_AUTHOR_TXT,1,Author who last updated the NRM2 paragraph [ISO 19650-3:2020]
+ASS_NRM2_PARA_DATE_TXT,1,Date NRM2 paragraph was last updated [ISO 19650-3:2020]
+ASS_NRM2_PARA_PREV_TXT,1,Previous NRM2 paragraph (for audit trail) [ISO 19650-3:2020]
+ASS_NRM2_PARA_TXT,1,"Resolved NRM2 BOQ paragraph, all tokens substituted [ISO 19650-3:2020]"
+ASS_NRM_CODE_TXT,1,NRM classification code
+ASS_OMNICLASS_TXT,1,OmniClass classification code
+ASS_ORIGIN_TXT,1,Asset origin (Manufactured/Imported/Local)
+ASS_PHASE_CREATED_TXT,1,Revit phase in which element was created
+ASS_PHASE_DEMOLISHED_TXT,1,Revit phase in which element is demolished
+ASS_PLACE_ANCHOR_TXT,1,"Anchor reference used by FixturePlacementEngine (e.g. DOOR_HINGE, ROOM_CENTRE, WALL_MIDPOINT)"
+ASS_PLACE_OFFSET_X_MM,1,Signed horizontal offset from placement anchor in millimetres
+ASS_POWER_RATING_TXT,4,Electrical power rating (kW/VA)
+ASS_PROJECT_TXT,1,Project name
+ASS_QA_CERT_TXT,4,QA certificate reference [ISO 19650-2:2018]
+ASS_QA_TEST_REPORT_TXT,4,QA test report reference [ISO 19650-2:2018]
+ASS_QC_INSPECTOR_TXT,1,Name or ID of QC inspector who released the assembly
+ASS_REV_TXT,1,"Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token."
+ASS_RM_COD_TXT,1,Ass Rm Cod Txt [ISO 19650-1:2018]
+ASS_ROOM_HEIGHT_MM,10,Room height in mm from room bounding geometry
+ASS_ROOM_NAME_TXT,1,Room name from spatial lookup
+ASS_ROOM_NUM_TXT,1,Room number from spatial lookup
+ASS_SHAPE_TXT,1,Asset shape description [COBie V2.4]
+ASS_SHIP_DATE_TXT,1,ISO 8601 date when assembly was shipped to site
+ASS_SIZE_TXT,1,Element size description
+ASS_SPOOL_DRAWING_REF_TXT,1,Reference to the generated shop / spool drawing sheet number
+ASS_SPOOL_NR_TXT,1,Spool or bundle number assigned by AssemblyBuilder
+ASS_STALE_TOKENS_TXT,18,Comma-separated list of stale token names for targeted re-derivation
+ASS_SUPPLIER_TXT,1,Asset supplier name [COBie V2.4]
+ASS_SUPPORT_COUNT_NR,1,Number of supports / hangers referenced by the assembly
+ASS_SUSTAIN_PERF_TXT,1,Sustainability performance rating [COBie V2.4]
+ASS_TEST_PRESSURE_BAR,1,Hydrostatic or pneumatic test pressure for the assembly in bar
+ASS_TIEIN_BY_TXT,1,Tie-in installed/connected by (contractor/trade) [ISO 19650-3:2020]
+ASS_TIEIN_CONNECTED_BOOL,1,Tie-in connection status flag [ISO 19650-3:2020]
+ASS_TIEIN_ELEV_TXT,1,Tie-in point elevation reference [ISO 19650-3:2020]
+ASS_TIEIN_FLOW_DIR_TXT,1,Tie-in flow direction (IN/OUT/BIDIRECTIONAL) [ISO 19650-3:2020]
+ASS_TIEIN_IFC_REF_TXT,1,Tie-in IFC GUID reference [ISO 19650-3:2020]
+ASS_TIEIN_PHASE_TXT,1,Tie-in construction phase [ISO 19650-3:2020]
+ASS_TIEIN_REF_TXT,1,Ass Tiein Ref [ISO 19650]
+ASS_TIEIN_SIZE_TXT,1,Ass Tiein Size [ISO 19650]
+ASS_TIEIN_STATUS_TXT,1,Tie-in status: OPEN / CONNECTED / DEFERRED [ISO 19650-3:2020]
+ASS_TOKEN_LOCK_TXT,1,Ass Token Lock [ISO 19650]
+ASS_TYPE_COMMENTS_TXT,1,Type comments
+ASS_TYPE_LOC_OVERRIDE_TXT,1,Type-level LOC override value
+ASS_TYPE_MARK_TXT,1,Type mark identifier
+ASS_TYPE_NAME_TXT,1,Revit type name
+ASS_TYPE_ZONE_OVERRIDE_TXT,1,Type-level ZONE override value
+ASS_UNICLASS_2015_TXT,1,Uniclass 2015 classification code
+ASS_UNIFORMAT_DESC_TXT,1,UniFormat classification description
+ASS_UNIFORMAT_TXT,1,UniFormat classification code
+ASS_VOL_TXT,1,Volume/zone code for ISO 19650 naming
+ASS_WARRANTY_DURATION_LABOR_YRS,1,Warranty duration labor in years (COBie)
+ASS_WARRANTY_DUR_UNIT_TXT,1,Warranty duration unit (years/months) [COBie V2.4]
+ASS_WARRANTY_LABOR_TXT,1,Warranty guarantor labor (COBie)
+ASS_WARRANTY_PARTS_TXT,1,Warranty guarantor parts (COBie)
+ASS_WARRANTY_TXT,1,Warranty description [COBie V2.4]
+ASS_WARR_DUR_LABOR_TXT,1,Warranty duration for labor [COBie V2.4]
+ASS_WARR_DUR_PARTS_TXT,1,Warranty duration for parts [COBie V2.4]
+ASS_WARR_DUR_UNIT_TXT,1,Warranty duration unit (year/month) [COBie V2.4]
+ASS_WARR_GUAR_LABOR_TXT,1,Warranty guarantor for labor [COBie V2.4]
+ASS_WARR_GUAR_PARTS_TXT,1,Warranty guarantor for parts [COBie V2.4]
+ASS_WEIGHT_KG,1,Assembly total weight in kilograms (sum of member volume x material density)
+ASS_WEIGHT_KG_NR,1,Ass Weight Kg [ISO 19650]
+ASS_WELD_COUNT_NR,1,Total number of welds in the assembly
+ASS_WORKSET_TXT,1,Workset name for worksharing tracking
+ATEX_CLASSIFICATION_OK,4,Atex Classification Ok [STING]
+BLD_EPC_CERT_TXT,1,ArchiCAD IFC: EPC / SAP certificate number
+BLD_EPC_CLASS_TXT,1,ArchiCAD IFC: energy rating class A++ through G
+BLD_FIRE_CLASS_TXT,1,ArchiCAD IFC: building fire occupancy classification
+BLD_PLANNING_REF_TXT,1,ArchiCAD IFC: planning permission reference number
+BLD_STOREY_ABOVE_GROUND_BOOL,1,ArchiCAD IFC: storey is above ground level
+BLD_STOREY_IMPOSED_LOAD_NR,1,ArchiCAD IFC: storey design imposed load kN/m2 (Pset_BuildingStoreyCommon.LoadBearingCapacity)
+BLD_YEAR_BUILT_TXT,1,ArchiCAD IFC: year of construction
+BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,10,Curtain Mullions paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,10,Curtain Panels paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_FASCIA_TXT,10,Fascia paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_GUTTER_TXT,10,Gutter paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_HANDRAILS_TXT,10,Handrails paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_RAILINGS_TXT,10,Railings paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_SLAB_EDGES_TXT,10,Slab Edges paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_TOP_RAILS_TXT,10,Top Rails paragraph [ISO 19650-3:2020]
+CLASH_RESOLUTION_ACTION_TXT,20,Chosen resolution action (MOVE / REROUTE / ACCEPT)
+CLASH_RESOLUTION_STATUS_TXT,20,Clash resolution status (PENDING / APPLIED / ACCEPTED)
+CLASH_TRIAGE_CATEGORY_TXT,20,Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)
+CLASH_TRIAGE_SCORE,20,Clash triage weighted score 0 to 100
+CLASH_TRIAGE_SEVERITY_NR,20,Clash triage severity 1 (lowest) to 5 (highest)
+CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,20,Clash triage severity 1 (lowest) to 5 (highest) — TEXT display mirror for tag labels
+CLS_CSI_MASTERFORMAT_TXT,10,ArchiCAD IFC: CSI MasterFormat classification (US projects)
+CLS_EDITION_TXT,10,ArchiCAD IFC: classification edition / version year
+CLS_ETIM_CLASS_TXT,10,ArchiCAD IFC: ETIM classification code (MEP equipment)
+CLS_NBS_DESCRIPTION_TXT,10,ArchiCAD IFC: NBS code description
+CLS_OMNICLASS_NR_TXT,10,ArchiCAD IFC: OmniClass number (ArchiCAD_PropertyGroup_Classification.OmniClass Number)
+CLS_OMNICLASS_TITLE_TXT,10,ArchiCAD IFC: OmniClass title description
+CLS_SYSTEM_NAME_TXT,10,ArchiCAD IFC: classification system name (Uniclass / OmniClass / ETIM / NBS)
+CLS_UNICLASS_EF_TXT,10,ArchiCAD IFC: Uniclass 2015 EF (Entity Form) code
+COMM_DATE_TXT,25,ISO 8601 date of commissioning state change
+COMM_NOTES_TXT,25,Free-text commissioning notes captured from the QR workflow
+COMM_OPERATIVE_TXT,25,Commissioning operative name or ID who performed the test
+COMM_STATE_TXT,25,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)
+COMM_WITNESS_TXT,25,Commissioning witness name or ID (client / CA representative)
+COMP_TAG_1_TXT,3,Compliance tag container
+CSI_SECTION_TXT,1,CSI MasterFormat section [e.g. 23 31 00]
+CSI_TITLE_TXT,1,CSI MasterFormat section title
+CST_BUDGET_VARIANCE_UGX,13,Budget variance: budget minus grand total UGX [ISO 19650-3:2020]
+CST_COST_CATEGORY_TXT,13,ArchiCAD IFC: cost trade grouping category
+CST_COST_CODE_TXT,13,ArchiCAD IFC: cost/trade code NRM1 / specification clause reference
+CST_ELEMENT_COST_NR,13,ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD)
+CST_LAST_COSTED_DATE,13,Date of last BOQ cost calculation [ISO 19650-3:2020]
+CST_LIFECYCLE_COST_UGX,2,Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]
+CST_MODELED_TOTAL_UGX,2,Computed element cost total in UGX [ISO 19650-3:2020]
+CST_PLYWOOD_SIZE_TXT,3,Plywood size specification [ISO 19650-2:2018]
+CST_PROVISIONAL_SUM,2,True if this element represents a provisional sum [ISO 19650-3:2020]
+CST_PS_DESCRIPTION,2,Provisional sum scope description [ISO 19650-3:2020]
+CST_QTY_MEASURED,2,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]
+CST_QUOTE_REF_TXT,2,Supplier quote reference number
+CST_SAND_MOISTURE_TXT,3,Sand moisture content [ISO 19650-2:2018]
+CST_SHIPPING_UGX,2,Shipping cost component in UGX
+CST_TAG_7_PARA_CONC_TXT,2,TAG7 paragraph container for concrete
+CST_TRADE_NAME_TXT,13,ArchiCAD IFC: subcontractor trade name
+ELE_FIX_TAG,4,Electrical fixture tag container [ISO 19650-2:2018]
+ENV_TAG_1_TXT,9,Environmental tag container
+EQP_TAG_1_TXT,1,Equipment tag container
+EV_CHARGER_CIRCUIT_REF,4,Ev Charger Circuit Ref [STING]
+EV_CHARGER_KW,4,Ev Charger Kw [STING]
+EV_CHARGER_TYPE_TXT,4,Ev Charger Type Txt [STING]
+FAB_CONTAINMENT_D_MM,16,MEP fabrication containment depth in mm [SMACNA]
+FAB_CONTAINMENT_W_MM,16,MEP fabrication containment width in mm [SMACNA]
+FAB_DCT_H_MM,16,MEP fabrication ductwork height in mm [SMACNA]
+FAB_DCT_W_MM,16,MEP fabrication ductwork width in mm [SMACNA]
+FAB_HANGER_LOAD_KN,16,MEP fabrication hanger design load in kN [SMACNA/BS 7671]
+FAB_HANGER_TYPE_TXT,16,MEP fabrication hanger type and configuration [SMACNA]
+FAB_PIPE_DN_MM,16,MEP fabrication pipework nominal diameter in mm [SMACNA]
+FAB_STIFF_TYPE_TXT,16,Ductwork stiffener type [SMACNA]
+FIN_TAG_1_TXT,1,Finish tag container
+FOHLIO_REF_TXT,1,Fohlio item ref [link never duplicate]
+FOUND_BEAR_UTIL_TXT,16,Found Bear Util Txt [STING]
+FOUND_SOIL_CLASS_TXT,16,Found Soil Class Txt [STING]
+FOUND_SUMMARY_TXT,16,Found Summary Txt [STING]
+GEN_HEIGHT_AT_MATURITY_M,3,Plant height at maturity in metres [ISO 19650-1:2018]
+GEN_ROAD_TYPE_TXT,3,Road type classification [ISO 19650-1:2018]
+GEN_SPECIES_TXT,3,Plant species name [ISO 19650-1:2018]
+GEN_TAG_7_PARA_EQUIP_TXT,17,General TAG7 paragraph container for equip
+GEN_TAG_7_PARA_MISC_TXT,3,Miscellaneous element paragraph container [ISO 19650-3:2020]
+GEN_TAG_7_PARA_SITE_TXT,17,General TAG7 paragraph container for site
+HANDOVER_MODE_CUSTOM_BOOL,25,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]
+HANDOVER_MODE_DC_BOOL,25,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]
+HANDOVER_MODE_HANDOVER_BOOL,25,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]
+INS_MATERIAL_TXT,5,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
+IPS_BRANCH_COMPLIANT,4,Ips Branch Compliant [STING]
+MEC_CTRL_FUNCTION_TXT,5,Mechanical control device function [ISO 19650-1:2018]
+MEC_CTRL_SIGNAL_TXT,5,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
+MEC_SET_CAPACITY_KW,5,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
+MEP_CONNECTOR_COUNT_NR,5,Mep Connector Count [ISO 19650]
+MEP_DELTA_PRESS_PA,5,Differential pressure in Pascals
+MEP_DESIGN_FLOW_M3S,5,ArchiCAD IFC: MEP design flow rate m3/s (Pset_DistributionFlowElementCommon)
+MEP_DESIGN_TEMP_C,5,Design temperature in degrees Celsius
+MEP_DESIGN_VEL_MS,5,ArchiCAD IFC: MEP design velocity m/s
+MEP_DIVERSITY_FACTOR,5,Load diversity factor (0.0 to 1.0)
+MEP_DOWNSTREAM_ELEMENT_TXT,5,Mep Downstream Element [ISO 19650]
+MEP_INSULATED_BOOL,5,ArchiCAD IFC: MEP element is insulated
+MEP_MATERIAL_TXT,5,ArchiCAD IFC: MEP element material Steel/uPVC/Copper/Galvanised
+MEP_NOISE_LEVEL_DB,5,Noise level in decibels (dBA)
+MEP_NOMINAL_DIAMETER_MM,5,ArchiCAD IFC: MEP nominal diameter DN mm (Pset_DistributionFlowElementCommon)
+MEP_PUMP_HEAD_M,5,Pump head pressure in metres of water
+MEP_SYSTEM_ABBREVIATION_TXT,5,Mep System Abbreviation [ISO 19650]
+MEP_SYSTEM_NAME_TXT,5,Mep System Name [ISO 19650]
+MEP_TAG_7_PARA_ANCILLARY_TXT,5,Ancillary paragraph [ISO 19650-3:2020]
+MEP_TAG_7_PARA_FAB_HANGERS_TXT,5,Fab Hangers paragraph [ISO 19650-3:2020]
+MEP_TIE_POINT_ID_TXT,9,MEP tie-in point identifier
+MEP_UPSTREAM_ELEMENT_TXT,5,Mep Upstream Element [ISO 19650]
+MEP_WORKING_PRESSURE_PA,5,ArchiCAD IFC: MEP system working pressure Pa (Pset_DistributionFlowElementCommon)
+MOUNTING_REFERENCE_TXT,1,Mounting Reference Txt [STING]
+NRG_ANNUAL_COOL_KWH,11,ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy)
+NRG_ANNUAL_HEAT_KWH,11,ArchiCAD IFC: annual heating energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualHeatingEnergy)
+NRG_COOLING_LOAD_W,11,ArchiCAD IFC: design cooling load W (ArchiCAD_PropertyGroup_Energy.CoolingLoad)
+NRG_HEATING_LOAD_W,11,ArchiCAD IFC: design heating load W (ArchiCAD_PropertyGroup_Energy.HeatingLoad)
+NRG_LIFECYCLE_COST_NR,11,ArchiCAD IFC: lifecycle cost estimate NPV 25/60 year (EcoDesigner Star)
+NRG_OPERATING_COST_YR,11,ArchiCAD IFC: annual operating energy cost in project currency (EcoDesigner Star)
+PEN_BEAM_DEPTH_RATIO,33,"Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4"
+PEN_BEAM_OFFSET_PCT,33,"Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)"
+PEN_CERTIFICATION_TXT,33,UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly
+PEN_CONTROL_NUMBER_TXT,33,Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.
+PEN_FIRE_RATING_TXT,33,"Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]"
+PEN_HOST_REF_TXT,33,Host reference: FLR:<id> / WAL:<id> / BEM:<id>
+PEN_HOST_TYPE_TXT,33,Host element class: FLOOR/WALL/BEAM/CEILING/ROOF
+PEN_INSPECTION_DATE,33,Inspection date ISO 8601 (YYYY-MM-DD)
+PEN_INSPECTOR_TXT,33,Inspector name / company
+PEN_INSTALLER_TXT,33,Installer name / company
+PEN_INSTALL_DATE,33,Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off
+PEN_INSTALL_STATUS_TXT,33,Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK
+PEN_OD_MM,33,Penetrating member outside diameter (mm)
+PEN_PFV_UUID_TXT,33,"Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence"
+PEN_SEALANT_TYPE_TXT,33,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]
+PEN_STRUCTURAL_FLAG_TXT,33,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules
+PERF_TAG_1_TXT,9,Performance tag container
+PIP_TAG_7_PARA_PIPE_TXT,6,Pipe system TAG7 paragraph narrative
+PROJECT_BUDGET_UGX,13,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
+PROP_TAG_7_PARA_MATERIALS_TXT,14,Materials paragraph [ISO 19650-3:2020]
+PV_PANEL_KWP,4,Pv Panel Kwp [STING]
+PV_SYSTEM_TYPE_TXT,4,Pv System Type Txt [STING]
+Pset_StingCost.Currency,2,STING IFC4 cost-data property set -> Currency [Phase 184k / P8]
+Pset_StingCost.NRM2Section,2,STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]
+Pset_StingCost.ProvisionalSum,2,STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]
+Pset_StingCost.RateSource,2,STING IFC4 cost-data property set -> RateSource [Phase 184k / P8]
+Pset_StingCost.TotalCost,2,STING IFC4 cost-data property set -> TotalCost [Phase 184k / P8]
+Pset_StingCost.UnitRate,2,STING IFC4 cost-data property set -> UnitRate [Phase 184k / P8]
+QTO_GROSS_AREA_M2,26,ArchiCAD IFC: element gross side/face area m2 (Qto BaseQuantities)
+QTO_GROSS_VOLUME_M3,26,ArchiCAD IFC: element gross volume m3 (Qto BaseQuantities)
+QTO_HEIGHT_M,26,ArchiCAD IFC: element height or depth m (Qto BaseQuantities)
+QTO_LENGTH_M,26,ArchiCAD IFC: element length or span m (Qto BaseQuantities)
+QTO_NET_AREA_M2,26,ArchiCAD IFC: element net side/face area m2 deducting openings (Qto BaseQuantities)
+QTO_NET_FLOOR_AREA_M2,26,ArchiCAD IFC: room net floor area m2 (Qto_SpaceBaseQuantities)
+QTO_NET_VOLUME_M3,26,ArchiCAD IFC: element net volume m3 deducting openings and recesses (Qto BaseQuantities)
+QTO_PERIMETER_M,26,ArchiCAD IFC: element perimeter m (door/window frame perimeter)
+QTO_WEIGHT_KG,26,ArchiCAD IFC: element weight kg (Qto beam/column quantities)
+QTO_WIDTH_M,26,ArchiCAD IFC: element width or thickness m (Qto BaseQuantities)
+RNV_CONTRACTOR_TXT,26,ArchiCAD IFC: demolition contractor name
+RNV_DEMOLITION_SEQ_TXT,26,ArchiCAD IFC: demolition sequence code for phasing programme
+RNV_IS_EXISTING_BOOL,26,ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain)
+RNV_NEW_CONST_SEQ_TXT,26,ArchiCAD IFC: new construction sequence identifier
+RNV_STATUS_TXT,26,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)
+SLV_TAG,19,MEP Sleeve discipline tag container [ISO 19650-3:2020]
+SLV_TAG_7_PARA_TXT,19,Sleeve paragraph container [ISO 19650-3:2020]
+SPC_FINISH_FLOOR_TXT,3,ArchiCAD IFC: room floor finish material (Pset_SpaceCommon.FinishFloor)
+SPC_MIN_HEADROOM_M,3,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)
+SPC_PUBLIC_ACCESSIBLE_BOOL,3,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)
+STRUCT_COL_AXIAL_LOAD_KN,16,Column axial load
+STRUCT_COL_BUCKLING_CHECK_BOOL,16,Column buckling check passed
+STRUCT_COL_MOMENT_KNM,16,Column bending moment
+STRUCT_COL_SHEAR_KN,16,Column shear force
+STRUCT_FRM_AXIAL_LOAD_KN,16,Frame axial load
+STRUCT_FRM_DEFLECTION_MM,16,Frame deflection
+STRUCT_FRM_MOMENT_KNM,16,Frame bending moment
+STRUCT_FRM_SHEAR_KN,16,Frame shear force
+SUST_TAG_1_TXT,9,Sustainability tag container
+VIEW_COLOR_SCHEME_TXT,17,Active color scheme name for view
+VIEW_DISC_FILTER_TXT,17,Discipline filter codes for view (comma-separated)
+ZON_CATEGORY_CODE_TXT,3,ArchiCAD IFC: zone category short code (AC_Pset_ZoneCategory.ZoneCategoryCode)
+ZON_CATEGORY_NAME_TXT,3,ArchiCAD IFC: zone functional category name (AC_Pset_ZoneCategory.ZoneCategoryName)
+ZON_GROSS_AREA_M2,3,ArchiCAD IFC: zone gross area m2 (AC_Pset_ZoneCategory.ZoneGrossArea)
+ZON_NET_AREA_M2,3,ArchiCAD IFC: zone net area m2 (AC_Pset_ZoneCategory.ZoneNetArea)
+ZON_OCCUPANTS_NR,3,ArchiCAD IFC: zone design occupant count (AC_Pset_ZoneCategory.ZoneNumberOfOccupants)
+ZON_VOLUME_M3,3,ArchiCAD IFC: zone volume m3 (AC_Pset_ZoneCategory.ZoneVolume)
