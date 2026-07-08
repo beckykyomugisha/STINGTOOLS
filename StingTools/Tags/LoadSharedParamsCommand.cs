@@ -394,9 +394,10 @@ namespace StingTools.Tags
             // per-param transaction loop) and share it across every param that needs it.
             var perParamBindingMap = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
             int perParamSignatures = 0;
+            bool specDriven = SharedParamGuids.HasResolvedSpec;
             try
             {
-                var perParamCats = SharedParamGuids.PerParamCategoryBindings;
+                var perParamCats = specDriven ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings;
                 var sigToBinding = new Dictionary<string, InstanceBinding>(StringComparer.Ordinal);
                 foreach (var kvp in perParamCats)
                 {
@@ -478,7 +479,7 @@ namespace StingTools.Tags
                                 //   3. Otherwise the group binding (override or the broad core set).
                                 //      Universal groups always keep the broad core set; a discipline
                                 //      param that reaches the core set here is a coverage GAP.
-                                InstanceBinding paramBinding = binding;
+                                InstanceBinding paramBinding;
                                 bool isUniversalGroup = UniversalGroups.Contains(groupName);
 
                                 if (matOnlyBinding != null
@@ -487,6 +488,13 @@ namespace StingTools.Tags
                                 {
                                     paramBinding = matOnlyBinding;
                                 }
+                                else if (specDriven)
+                                {
+                                    // Spec-driven: universal->core, scoped->exact set, absent->UNBOUND (never broad-bind).
+                                    if (SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name)) paramBinding = coreBinding;
+                                    else if (perParamBindingMap.TryGetValue(extDef.Name, out InstanceBinding sb)) paramBinding = sb;
+                                    else { if (bindingGapParams.Count < 1000) bindingGapParams.Add(extDef.Name); skipped++; continue; }
+                                }
                                 else if (!isUniversalGroup
                                     && perParamBindingMap.TryGetValue(extDef.Name, out InstanceBinding ppb))
                                 {
@@ -494,9 +502,10 @@ namespace StingTools.Tags
                                 }
                                 else if (!isUniversalGroup && !groupCatOverrides.ContainsKey(groupName))
                                 {
-                                    // discipline param, no per-param row, no override → broad core = GAP
+                                    paramBinding = binding;
                                     if (bindingGapParams.Count < 500) bindingGapParams.Add(extDef.Name);
                                 }
+                                else { paramBinding = binding; }
 
                                 bool result = doc.ParameterBindings.Insert(
                                     extDef, paramBinding, GroupTypeId.General);
@@ -1437,7 +1446,7 @@ namespace StingTools.Tags
                 Document doc = ctx.Doc;
                 var app = doc.Application;
 
-                var spec = SharedParamGuids.PerParamCategoryBindings;
+                var spec = SharedParamGuids.HasResolvedSpec ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings;
                 if (spec.Count == 0)
                 {
                     TaskDialog.Show("STING — Reconcile Bindings",
@@ -1503,7 +1512,7 @@ namespace StingTools.Tags
                 {
                     string name = kvp.Key;
                     // guard universal groups — they must stay broad
-                    if (paramGroup.TryGetValue(name, out string grp) && LoadSharedParamsCommand.UniversalGroups.Contains(grp))
+                    if (SharedParamGuids.ResolvedUniversalParams.Contains(name) || (paramGroup.TryGetValue(name, out string grp) && LoadSharedParamsCommand.UniversalGroups.Contains(grp)))
                     { universalSkipped++; continue; }
 
                     if (!speByName.TryGetValue(name, out SharedParameterElement spe)) { notBound++; continue; }

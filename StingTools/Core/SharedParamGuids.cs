@@ -223,6 +223,51 @@ namespace StingTools.Core
             return result;
         }
 
+        // Resolved binding spec (Data/RESOLVED_BINDINGS.csv) - domain-derived single source of
+        // truth (triangulated vs descriptions + code usage). Rows: param,categories(pipe) or
+        // "<ALL>" universal. A param ABSENT from the spec is intentionally UNBOUND (documented
+        // gap), never broad-bound - this stops cross-discipline leakage by construction.
+        private static Dictionary<string, BuiltInCategory[]> _resolvedScoped;
+        private static HashSet<string> _resolvedUniversal;
+        private static bool _resolvedLoaded;
+        public static Dictionary<string, BuiltInCategory[]> ResolvedScopedBindings { get { EnsureResolved(); return _resolvedScoped; } }
+        public static HashSet<string> ResolvedUniversalParams { get { EnsureResolved(); return _resolvedUniversal; } }
+        public static bool HasResolvedSpec { get { EnsureResolved(); return _resolvedScoped.Count > 0 || _resolvedUniversal.Count > 0; } }
+        public static void InvalidateResolvedSpec() { _resolvedLoaded = false; }
+        private static void EnsureResolved()
+        {
+            if (_resolvedLoaded) return;
+            _resolvedLoaded = true;
+            _resolvedScoped = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+            _resolvedUniversal = new HashSet<string>(StringComparer.Ordinal);
+            try
+            {
+                string path = StingToolsApp.FindDataFile("RESOLVED_BINDINGS.csv");
+                if (path == null) { StingLog.Warn("RESOLVED_BINDINGS.csv not found - spec-driven binding disabled"); return; }
+                foreach (string raw in File.ReadAllLines(path))
+                {
+                    if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(raw);
+                    if (cols.Length < 2) continue;
+                    string param = cols[0].Trim(); string cats = cols[1].Trim();
+                    if (param.Length == 0 || param.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (cats == "<ALL>") { _resolvedUniversal.Add(param); continue; }
+                    var list = new List<BuiltInCategory>(); var seen = new HashSet<BuiltInCategory>();
+                    foreach (string nm in cats.Split('|'))
+                    {
+                        string catName = nm.Trim();
+                        if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
+                        if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+                        if (seen.Add(bic)) list.Add(bic);
+                    }
+                    if (list.Count > 0) _resolvedScoped[param] = list.ToArray();
+                }
+                StingLog.Info($"SharedParamGuids.ResolvedBindings: {_resolvedScoped.Count} scoped + {_resolvedUniversal.Count} universal");
+            }
+            catch (Exception ex) { StingLog.Error("EnsureResolved failed", ex); _resolvedScoped.Clear(); _resolvedUniversal.Clear(); }
+        }
+
         /// <summary>
         /// Validate DisciplineBindings against CATEGORY_BINDINGS.csv.
         /// Now delegates to ParamRegistry for the binding data.
