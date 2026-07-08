@@ -1148,11 +1148,11 @@ EV_CHARGER_KW,<ALL>
 EV_CHARGER_TYPE_TXT,<ALL>
 FAB_CONTAINMENT_D_MM,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 FAB_CONTAINMENT_W_MM,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-FAB_DCT_H_MM,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-FAB_DCT_W_MM,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
+FAB_DCT_H_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+FAB_DCT_W_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 FAB_HANGER_LOAD_KN,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 FAB_HANGER_TYPE_TXT,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-FAB_PIPE_DN_MM,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
+FAB_PIPE_DN_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 FAB_STIFF_TYPE_TXT,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 FIN_CEIL_TAG_TXT,Ceilings|Generic Models
 FIN_FLR_TAG_TXT,Floors|Generic Models
@@ -2641,16 +2641,16 @@ WARN_ELC_WIRE_AMPACITY_MISSING,Electrical Equipment|Electrical Fixtures|Cable Tr
 WARN_FAB_CONTAINMENT_DIMENSIONS,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_CONTAINMENT_FILL_RATIO,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_CONTAINMENT_FIRE_RATING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_DCT_DIMENSIONS_DUCTWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_DCT_LEAKAGE_DUCTWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_DCT_MATERIAL_DUCTWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
+WARN_FAB_DCT_DIMENSIONS_DUCTWORK,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+WARN_FAB_DCT_LEAKAGE_DUCTWORK,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+WARN_FAB_DCT_MATERIAL_DUCTWORK,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 WARN_FAB_HANGER_LOAD_KN,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_HANGER_SEISMIC,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_HANGER_SPACING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_LOC_MISSING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_PIPE_DN_PIPEWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_PIPE_WALL_PIPEWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-WARN_FAB_PIPE_WELD_PIPEWORK,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
+WARN_FAB_PIPE_DN_PIPEWORK,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+WARN_FAB_PIPE_WALL_PIPEWORK,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+WARN_FAB_PIPE_WELD_PIPEWORK,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 WARN_FAB_QC_INSPECTOR_MISSING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_SPOOL_NR_MISSING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_STIFF_SPACING_STIFFENERS,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays

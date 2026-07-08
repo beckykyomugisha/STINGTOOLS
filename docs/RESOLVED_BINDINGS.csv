@@ -1196,11 +1196,11 @@ EV_CHARGER_KW,4,meta-universal,<ALL>,Ev Charger Kw [STING]
 EV_CHARGER_TYPE_TXT,4,meta-universal,<ALL>,Ev Charger Type Txt [STING]
 FAB_CONTAINMENT_D_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication containment depth in mm [SMACNA]
 FAB_CONTAINMENT_W_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication containment width in mm [SMACNA]
-FAB_DCT_H_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication ductwork height in mm [SMACNA]
-FAB_DCT_W_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication ductwork width in mm [SMACNA]
+FAB_DCT_H_MM,16,fab-duct,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,MEP fabrication ductwork height in mm [SMACNA]
+FAB_DCT_W_MM,16,fab-duct,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,MEP fabrication ductwork width in mm [SMACNA]
 FAB_HANGER_LOAD_KN,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication hanger design load in kN [SMACNA/BS 7671]
 FAB_HANGER_TYPE_TXT,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication hanger type and configuration [SMACNA]
-FAB_PIPE_DN_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication pipework nominal diameter in mm [SMACNA]
+FAB_PIPE_DN_MM,16,fab-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,MEP fabrication pipework nominal diameter in mm [SMACNA]
 FAB_STIFF_TYPE_TXT,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Ductwork stiffener type [SMACNA]
 FIN_CEIL_TAG_TXT,10,curated-fallback,Ceilings|Generic Models,"Ceiling finish schedule tag: finish, system, NRC, grid size [ISO 19650-1:2018]"
 FIN_FLR_TAG_TXT,10,curated-fallback,Floors|Generic Models,"Floor finish schedule tag: finish, thickness, slip resistance, material [ISO 19650-1:2018]"
@@ -3047,16 +3047,16 @@ WARN_ELC_WIRE_AMPACITY_MISSING,17,warn-mirror,Electrical Equipment|Electrical Fi
 WARN_FAB_CONTAINMENT_DIMENSIONS,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment dimensions
 WARN_FAB_CONTAINMENT_FILL_RATIO,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment fill ratio
 WARN_FAB_CONTAINMENT_FIRE_RATING,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment fire rating
-WARN_FAB_DCT_DIMENSIONS_DUCTWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab dct dimensions ductwork
-WARN_FAB_DCT_LEAKAGE_DUCTWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab dct leakage ductwork
-WARN_FAB_DCT_MATERIAL_DUCTWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab dct material ductwork
+WARN_FAB_DCT_DIMENSIONS_DUCTWORK,17,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Tag warning: fab dct dimensions ductwork
+WARN_FAB_DCT_LEAKAGE_DUCTWORK,17,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Tag warning: fab dct leakage ductwork
+WARN_FAB_DCT_MATERIAL_DUCTWORK,17,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Tag warning: fab dct material ductwork
 WARN_FAB_HANGER_LOAD_KN,15,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Warning: Fabrication hanger load capacity [HIGH]
 WARN_FAB_HANGER_SEISMIC,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab hanger seismic
 WARN_FAB_HANGER_SPACING,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab hanger spacing
 WARN_FAB_LOC_MISSING,15,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Warning: ASS_FAB_STATUS_TXT empty — fabrication location not assigned [HIGH] [ISO 19650-2 / v4 MVP]
-WARN_FAB_PIPE_DN_PIPEWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab pipe dn pipework
-WARN_FAB_PIPE_WALL_PIPEWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab pipe wall pipework
-WARN_FAB_PIPE_WELD_PIPEWORK,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab pipe weld pipework
+WARN_FAB_PIPE_DN_PIPEWORK,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: fab pipe dn pipework
+WARN_FAB_PIPE_WALL_PIPEWORK,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: fab pipe wall pipework
+WARN_FAB_PIPE_WELD_PIPEWORK,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: fab pipe weld pipework
 WARN_FAB_QC_INSPECTOR_MISSING,15,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Warning: ASS_QC_INSPECTOR_TXT empty — QC inspector not assigned before fabrication [MEDIUM] [ISO 9001 / v4 MVP]
 WARN_FAB_SPOOL_NR_MISSING,15,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Warning: ASS_SPOOL_NR_TXT empty — fabricated element has no spool number [HIGH] [ISO 19650-2 / v4 MVP]
 WARN_FAB_STIFF_SPACING_STIFFENERS,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab stiff spacing stiffeners

@@ -73,7 +73,10 @@ def resolve(n,desc,depth=0):
     if pre in("ACC","AC","Pset","PST","COBIE","COB"): return "UNIVERSAL","interop-universal"
     if pre=="MEP": return "MEP_ALL","mep-generic"
     if pre in("QTO",): return "NONE","excluded"
-    if pre=="FAB": return "FABX","fabrication"
+    if pre=="FAB":
+        if sub=="DCT": return "HVAC","fab-duct"
+        if sub=="PIPE": return "PLUMB","fab-pipe"
+        return "FABX","fabrication"
     if pre=="PEN": return "PEN","penetration"
     if pre in("SYS","BLD","WS","PH","NRG","SPC","ZON","GEN","CLS","CLASH","ASBUILT","COMM","SUST","HANDOVER","EV","MEC","RNV","PV","RMP","ARC"): return "UNIVERSAL","meta-universal"
     if n.startswith("BLE_ELE_") or n=="AREA_SQ_M": return "UNIVERSAL","generic-geom"
