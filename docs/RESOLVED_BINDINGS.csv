@@ -6,49 +6,49 @@ AC_ELEMENT_ID_TXT,26,interop-universal,<ALL>,ArchiCAD IFC: ArchiCAD internal ele
 AC_HOTLINK_FILE_TXT,26,interop-universal,<ALL>,ArchiCAD IFC: relative path of the source hotlink .mod file
 AC_HOTLINK_ID_TXT,26,interop-universal,<ALL>,ArchiCAD IFC: GUID of the originating hotlink module (AC_Pset_ElementID.Hotlink_ID)
 AC_REVISION_TXT,26,interop-universal,<ALL>,ArchiCAD IFC: element-level revision mark (AC_Pset_ElementID.Revision)
-ARCH_TAG_7_PARA_AREAS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Areas paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ASSEMBLIES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Assemblies paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_CASEWORK_TXT,10,arch-sub,Casework,Casework paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_CEIL_TXT,10,arch-sub,Ceilings,Ceiling paragraph container - NEW v4.3 [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_COLUMNS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Columns paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_CURTAIN_TXT,17,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Architectural TAG7 paragraph container for curtain
-ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Detail Items paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_DOOR_TXT,10,arch-sub,Doors,Door paragraph container [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ENTOURAGE_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Entourage paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_FACADE_TXT,10,arch-sub,Walls|Curtain Panels|Curtain Wall Mullions,Facade/curtain wall paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_FLOOR_TXT,10,arch-sub,Floors,Floor paragraph container [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Food Equip paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_FURNITURE_TXT,10,arch-sub,Furniture|Furniture Systems,Furniture paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_FURN_SYS_TXT,10,arch-sub,Furniture|Furniture Systems,Furniture system paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_HARDSCAPE_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Hardscape paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_MASS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Mass paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Model Groups paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_MULLION_TXT,17,arch-sub,Walls|Curtain Panels|Curtain Wall Mullions,Architectural TAG7 paragraph container for mullion
-ARCH_TAG_7_PARA_PADS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Pads paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PARKING_TXT,10,arch-sub,Parking,Parking paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PARTS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Parts paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PLANTING_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Planting paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PROFILES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Profiles paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Property Lines paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Property Line Segments paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_RAILING_TXT,17,arch-sub,Railings,Architectural TAG7 paragraph container for railing
-ARCH_TAG_7_PARA_RAMP_TXT,10,arch-sub,Ramps,Ramp paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ROADS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Roads paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ROOF_TXT,10,arch-sub,Roofs,Roof paragraph container - NEW v4.3 [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ROOM_TXT,10,arch-sub,Rooms,Room/space paragraph container [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_RVT_LINKS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Rvt Links paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_SIGNAGE_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Signage paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_SITE_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Site paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_SPACES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Spaces paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_STAIR_TXT,10,arch-sub,Stairs|Railings,Stair paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,10,arch-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Temp Struct paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Toposolid Links paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_TOPOSOLID_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Toposolid paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_VERT_CIRC_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Vert Circ paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_WALL_TXT,10,arch-sub,Walls|Curtain Panels|Curtain Wall Mullions,Wall paragraph container [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_WASH_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Wash paragraph [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_WIN_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Window paragraph container [ISO 19650-3:2020]
-ARCH_TAG_7_PARA_ZONES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Zones paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_AREAS_TXT,10,tag-container,<ALL>,Areas paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ASSEMBLIES_TXT,10,tag-container,<ALL>,Assemblies paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_CASEWORK_TXT,10,tag-container,<ALL>,Casework paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_CEIL_TXT,10,tag-container,<ALL>,Ceiling paragraph container - NEW v4.3 [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_COLUMNS_TXT,10,tag-container,<ALL>,Columns paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_CURTAIN_TXT,17,tag-container,<ALL>,Architectural TAG7 paragraph container for curtain
+ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,10,tag-container,<ALL>,Detail Items paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_DOOR_TXT,10,tag-container,<ALL>,Door paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ENTOURAGE_TXT,10,tag-container,<ALL>,Entourage paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FACADE_TXT,10,tag-container,<ALL>,Facade/curtain wall paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FLOOR_TXT,10,tag-container,<ALL>,Floor paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,10,tag-container,<ALL>,Food Equip paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FURNITURE_TXT,10,tag-container,<ALL>,Furniture paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_FURN_SYS_TXT,10,tag-container,<ALL>,Furniture system paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_HARDSCAPE_TXT,10,tag-container,<ALL>,Hardscape paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MASS_TXT,10,tag-container,<ALL>,Mass paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,10,tag-container,<ALL>,Model Groups paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_MULLION_TXT,17,tag-container,<ALL>,Architectural TAG7 paragraph container for mullion
+ARCH_TAG_7_PARA_PADS_TXT,10,tag-container,<ALL>,Pads paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PARKING_TXT,10,tag-container,<ALL>,Parking paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PARTS_TXT,10,tag-container,<ALL>,Parts paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PLANTING_TXT,10,tag-container,<ALL>,Planting paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROFILES_TXT,10,tag-container,<ALL>,Profiles paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,10,tag-container,<ALL>,Property Lines paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,10,tag-container,<ALL>,Property Line Segments paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_RAILING_TXT,17,tag-container,<ALL>,Architectural TAG7 paragraph container for railing
+ARCH_TAG_7_PARA_RAMP_TXT,10,tag-container,<ALL>,Ramp paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ROADS_TXT,10,tag-container,<ALL>,Roads paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ROOF_TXT,10,tag-container,<ALL>,Roof paragraph container - NEW v4.3 [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ROOM_TXT,10,tag-container,<ALL>,Room/space paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_RVT_LINKS_TXT,10,tag-container,<ALL>,Rvt Links paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SIGNAGE_TXT,10,tag-container,<ALL>,Signage paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SITE_TXT,10,tag-container,<ALL>,Site paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_SPACES_TXT,10,tag-container,<ALL>,Spaces paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_STAIR_TXT,10,tag-container,<ALL>,Stair paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,10,tag-container,<ALL>,Temp Struct paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,10,tag-container,<ALL>,Toposolid Links paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_TOPOSOLID_TXT,10,tag-container,<ALL>,Toposolid paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_VERT_CIRC_TXT,10,tag-container,<ALL>,Vert Circ paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_WALL_TXT,10,tag-container,<ALL>,Wall paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_WASH_TXT,10,tag-container,<ALL>,Wash paragraph [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_WIN_TXT,10,tag-container,<ALL>,Window paragraph container [ISO 19650-3:2020]
+ARCH_TAG_7_PARA_ZONES_TXT,10,tag-container,<ALL>,Zones paragraph [ISO 19650-3:2020]
 ARC_FACTORY_ORDER_REF_TXT,10,meta-universal,<ALL>,Joinery factory order reference [BS 8000-5:1990]
 ARC_GLAZING_SPEC_TXT,10,meta-universal,<ALL>,Glazing specification reference [BS 6262-1:2022]
 AREA_SQ_M,1,generic-geom,<ALL>,Area [ISO 19650-1:2018]
@@ -526,8 +526,8 @@ BLE_ROOM_NAME_TXT,2,ble-sub,Rooms,Ble Room Name Txt [ISO 19650-1:2018]
 BLE_ROOM_NUM_TXT,2,ble-sub,Rooms,Ble Room Num Txt [ISO 19650-1:2018]
 BLE_ROOM_OCCUPANCY_NR,10,ble-sub,Rooms,Ble Room Occupancy [ISO 19650]
 BLE_ROOM_VENTILATION_RATE_LPS,2,ble-sub,Rooms,Room design ventilation rate in l/s [ISO 19650-1:2018]
-BLE_SIGN_ILLUMINATED_BOOL,2,UNRESOLVED,,Signage is internally illuminated [ISO 19650-1:2018]
-BLE_SIGN_TYPE_TXT,2,UNRESOLVED,,Signage type classification [ISO 19650-1:2018]
+BLE_SIGN_ILLUMINATED_BOOL,2,ble-sub,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Signage is internally illuminated [ISO 19650-1:2018]
+BLE_SIGN_TYPE_TXT,2,ble-sub,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Signage type classification [ISO 19650-1:2018]
 BLE_SLAB_BLOCK_SIZE_TXT,10,ble-sub,Floors,MAT-4 slab infill block/pot size LxW (mm) [ISO 19650-2:2018]
 BLE_SLAB_RIB_DEPTH_MM,10,ble-sub,Floors,MAT-4 slab rib depth below topping (mm) [ISO 19650-2:2018]
 BLE_SLAB_RIB_SPACING_MM,10,ble-sub,Floors,MAT-4 slab rib spacing centre-to-centre (mm) [ISO 19650-2:2018]
@@ -570,19 +570,19 @@ BLE_STRUCT_STEEL_GRADE_TXT,2,ble-sub,Structural Framing|Structural Columns|Struc
 BLE_STRUCT_STEEL_SECTION_TXT,2,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural steel section size designation [ISO 19650-1:2018]
 BLE_STRUCT_WATERPROOFING_TXT,10,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Ble Struct Waterproofing [ISO 19650]
 BLE_SURFACE_CONDITION_TXT,2,ble-sub,Walls|Floors|Ceilings|Roofs|Rooms,Surface condition assessment [ISO 19650-2:2018]
-BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,10,UNRESOLVED,,Curtain Mullions paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,10,UNRESOLVED,,Curtain Panels paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_FASCIA_TXT,10,UNRESOLVED,,Fascia paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_GUTTER_TXT,10,UNRESOLVED,,Gutter paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_HANDRAILS_TXT,10,UNRESOLVED,,Handrails paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_RAILINGS_TXT,10,UNRESOLVED,,Railings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,10,UNRESOLVED,,Roof Soffits paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_SLAB_EDGES_TXT,10,UNRESOLVED,,Slab Edges paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,10,UNRESOLVED,,Stair Landings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_RUNS_TXT,10,UNRESOLVED,,Stair Runs paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,10,UNRESOLVED,,Stair Supports paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_TOP_RAILS_TXT,10,UNRESOLVED,,Top Rails paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_WALL_SWEEPS_TXT,10,UNRESOLVED,,Wall Sweeps paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Curtain Mullions paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Curtain Panels paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_FASCIA_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Fascia paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_GUTTER_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Gutter paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_HANDRAILS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Handrails paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_RAILINGS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Railings paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Roof Soffits paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_SLAB_EDGES_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Slab Edges paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Stair Landings paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_RUNS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Stair Runs paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Stair Supports paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_TOP_RAILS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Top Rails paragraph [ISO 19650-3:2020]
+BLE_TAG_7_PARA_WALL_SWEEPS_TXT,10,tag-arch,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Wall Sweeps paragraph [ISO 19650-3:2020]
 BLE_TILE_JOINT_WIDTH_MM,2,ble-sub,Walls|Floors|Ceilings|Roofs|Rooms,Tile joint width mm [ISO 19650-2:2018]
 BLE_TILE_SIZE_TXT,2,ble-sub,Walls|Floors|Ceilings|Roofs|Rooms,Tile size specification [ISO 19650-2:2018]
 BLE_WALL_CORE_MATERIAL_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Wall core structural material (Concrete/Masonry/Steel/Timber) [ISO 19650-1:2018]
@@ -641,11 +641,11 @@ CEQ_ENDO_AER_REF_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plu
 CEQ_ENDO_CYCLE_COUNT_INT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Reprocessing cycle count [H-26]
 CEQ_ENDO_LAST_REPRO_DT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Last reprocessing timestamp ISO 8601 [H-26]
 CEQ_ENDO_SCOPE_ID_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Endoscope unique ID for HTM 01-06 traceability [H-26]
-CEQ_EQP_TAG,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Clinical specialist equipment ISO 19650 tag container
+CEQ_EQP_TAG,31,tag-container,<ALL>,Clinical specialist equipment ISO 19650 tag container
 CEQ_GMDN_CODE_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Global Medical Device Nomenclature code
 CEQ_INFECT_TIER_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Spaulding classification: CRITICAL / SEMI / NON-CRITICAL
 CEQ_SFG20_REF_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,SFG20 healthcare schedule id
-CEQ_TAG_7_PARA_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Clinical specialist equipment TAG7 rich narrative paragraph container
+CEQ_TAG_7_PARA_TXT,31,tag-container,<ALL>,Clinical specialist equipment TAG7 rich narrative paragraph container
 CEQ_UMDNS_CODE_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,ECRI Universal Medical Device Nomenclature System code
 CLASH_COUNT_INT,20,meta-universal,<ALL>,Count of active clashes on this element [Clash]
 CLASH_LIVE_FLAG,20,meta-universal,<ALL>,Element is flagged by live clash detection [Clash]
@@ -663,7 +663,7 @@ CLN_DESIGN_ACH_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumb
 CLN_DESIGN_PRESSURE_DELTA_PA_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Cln Design Pressure Delta Pa Int [STING]
 CLN_DESIGN_RH_PCT_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Cln Design Rh Pct Int [STING]
 CLN_DESIGN_TEMP_C_DBL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Cln Design Temp C Dbl [STING]
-CLN_EQP_TAG,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Clinical equipment ISO 19650 tag container
+CLN_EQP_TAG,28,tag-container,<ALL>,Clinical equipment ISO 19650 tag container
 CLN_EQUIP_WEIGHT_KG_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Heavy-equipment design weight (kg) [H-23]
 CLN_FGI_REF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,FGI Guidelines section reference
 CLN_FLOOR_LOAD_KN_M2_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Imposed floor load (kN/m2) for heavy imaging equipment [H-23]
@@ -683,11 +683,11 @@ CLN_PRIVACY_LVL_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plum
 CLN_RAD_CONTROLLED_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,IRR17 controlled area? [UK Ionising Radiations Regulations 2017]
 CLN_RF_SHIELD_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,RF Faraday cage present (MRI suite)
 CLN_ROOM_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,"Clinical room class (OR-ULTRA, OR-CONV, OR-HYBRID, ICU, AIIR, PE-PROT, etc.) [HBN/FGI]"
-CLN_ROOM_TAG,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Clinical room ISO 19650 tag container
+CLN_ROOM_TAG,28,tag-container,<ALL>,Clinical room ISO 19650 tag container
 CLN_RT60_TARGET_S_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Reverberation T60 target (s) per HTM 08-01 [H-24]
 CLN_STRUCT_SIGN_OFF_DT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Structural Engineer sign-off date [H-23]
 CLN_STRUCT_SIGN_OFF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Structural Engineer sign-off name [H-23]
-CLN_TAG_7_PARA_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Clinical TAG7 rich narrative paragraph container
+CLN_TAG_7_PARA_TXT,28,tag-container,<ALL>,Clinical TAG7 rich narrative paragraph container
 CLN_TRANSPORT_PATH_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Heavy-equipment transport path designation [H-23]
 CLN_VIB_VM_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Vibration criterion (_m/s rms VC band) [H-23]
 CLN_WASTE_BIN_BIM_ID_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,IoT smart bin BIM element id [H-30]
@@ -709,9 +709,9 @@ COMM_NOTES_TXT,25,meta-universal,<ALL>,Free-text commissioning notes captured fr
 COMM_OPERATIVE_TXT,25,meta-universal,<ALL>,Commissioning operative name or ID who performed the test
 COMM_STATE_TXT,25,meta-universal,<ALL>,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)
 COMM_WITNESS_TXT,25,meta-universal,<ALL>,Commissioning witness name or ID (client / CA representative)
-COMP_MAT_TAG_1_TXT,12,curated-fallback,Materials,"Standards compliance tag: code, standard, QA cert, UNBS reference [ISO 19650-1:2018]"
+COMP_MAT_TAG_1_TXT,12,tag-container,<ALL>,"Standards compliance tag: code, standard, QA cert, UNBS reference [ISO 19650-1:2018]"
 COMP_MAT_TAG_2_TXT,12,curated-fallback,Materials,"ISO 19650 procurement tag: name, ISO ID, durability, approved vendor [ISO 19650-3:2020]"
-COMP_TAG_1_TXT,3,UNRESOLVED,,Compliance tag container
+COMP_TAG_1_TXT,3,tag-container,<ALL>,Compliance tag container
 COM_BACKBONE_CAPACITY_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Communications backbone capacity (Gbps/fibre count)
 COM_BMS_RANGE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Com Bms Range Txt [ISO 19650-1:2018]
 COM_COMMISSION_DATE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Commissioning date (COBie)
@@ -728,13 +728,13 @@ COM_C_PROTOCOL_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone De
 COM_C_PWR_SUPPLY_V,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Com C Pwr Supply V [ISO 19650-1:2018]
 COM_DAT_SPARE_01_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Spare parameter 1 for COM_DAT group
 COM_DAT_SPARE_02_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Spare parameter 2 for COM_DAT group
-COM_DEV_TAG,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Communications device tag container [ISO 19650-2:2018]
+COM_DEV_TAG,3,tag-container,<ALL>,Communications device tag container [ISO 19650-2:2018]
 COM_DEV_TAG_01_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,BMS/comms device identity + network address + BACnet instance tag [ISO 19650-1:2018]
 COM_FIBER_TYPE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Fibre optic cable type (SM/MM/OM3/OM4)
 COM_HANDOVER_STATUS_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Com Handover Status [ISO 19650]
 COM_INSTALL_DATE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Installation date (COBie)
 COM_PROTOCOL_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Communications protocol (Ethernet/WiFi6/5G/BACnet)
-COM_TAG_7_PARA_BMS_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,BMS device paragraph [ISO 19650-3:2020]
+COM_TAG_7_PARA_BMS_TXT,3,tag-container,<ALL>,BMS device paragraph [ISO 19650-3:2020]
 COM_TEST_CERT_REF_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Com Test Cert Ref [ISO 19650]
 COM_WARRANTY_START_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Warranty start date (COBie)
 CP_ELEMENT_TYPE_TXT,11,curated-fallback,Generic Models,Element type in palette [ISO 19650-1:2018]
@@ -742,12 +742,12 @@ CP_HEX_CODE_TXT,11,curated-fallback,Generic Models,Color hex code [ISO 19650-1:2
 CP_PALETTE_NAME_TXT,11,curated-fallback,Generic Models,Color palette name [ISO 19650-1:2018]
 CP_STYLE_TXT,11,curated-fallback,Generic Models,Style category [ISO 19650-1:2018]
 CP_USE_CASE_TXT,11,curated-fallback,Generic Models,Color use case [ISO 19650-1:2018]
-CSI_SECTION_TXT,1,UNRESOLVED,,CSI MasterFormat section [e.g. 23 31 00]
-CSI_TITLE_TXT,1,UNRESOLVED,,CSI MasterFormat section title
-CST_BOQ_COVERAGE_PCT,13,cost-rollup,<ALL>,Percentage of elements with resolved BOQ line items [ISO 19650-3:2020]
-CST_BOQ_ITEM_TXT,13,cost-rollup,<ALL>,ArchiCAD IFC: bill of quantities item / section reference
-CST_BOQ_SNAPSHOT_REF,2,cost-rollup,<ALL>,Snapshot label when this element was last costed [ISO 19650-3:2020]
-CST_BUDGET_VARIANCE_UGX,13,UNRESOLVED,,Budget variance: budget minus grand total UGX [ISO 19650-3:2020]
+CSI_SECTION_TXT,1,classification,<ALL>,CSI MasterFormat section [e.g. 23 31 00]
+CSI_TITLE_TXT,1,classification,<ALL>,CSI MasterFormat section title
+CST_BOQ_COVERAGE_PCT,13,cost-meta,<ALL>,Percentage of elements with resolved BOQ line items [ISO 19650-3:2020]
+CST_BOQ_ITEM_TXT,13,cost-meta,<ALL>,ArchiCAD IFC: bill of quantities item / section reference
+CST_BOQ_SNAPSHOT_REF,2,cost-meta,<ALL>,Snapshot label when this element was last costed [ISO 19650-3:2020]
+CST_BUDGET_VARIANCE_UGX,13,cost-meta,<ALL>,Budget variance: budget minus grand total UGX [ISO 19650-3:2020]
 CST_CALC_ADHESIVE_KG,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated tile adhesive in kilograms [ISO 19650-3:2020]
 CST_CALC_AGGREGATE_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated aggregate volume in cubic meters [ISO 19650-3:2020]
 CST_CALC_AREA_M2,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated area in square meters [ISO 19650-3:2020]
@@ -771,52 +771,52 @@ CST_CALC_STEEL_KG,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated steel r
 CST_CALC_TILE_M2,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated tile area with wastage in square meters [ISO 19650-3:2020]
 CST_CALC_VOLUME_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated volume in cubic meters [ISO 19650-3:2020]
 CST_CALC_WATER_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated water volume in cubic meters [ISO 19650-3:2020]
-CST_COST_CATEGORY_TXT,13,UNRESOLVED,,ArchiCAD IFC: cost trade grouping category
-CST_COST_CODE_TXT,13,UNRESOLVED,,ArchiCAD IFC: cost/trade code NRM1 / specification clause reference
-CST_DELIVERY_LEAD_TIME_DAYS,3,UNRESOLVED(polluted-curated),,Cst Delivery Lead Time Days [ISO 19650-2:2018]
-CST_DUTY_PCT,2,cost-rollup,<ALL>,Import duty percentage applied to USD price
-CST_ELEMENT_COST_NR,13,UNRESOLVED,,ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD)
-CST_EMBODIED_CARBON_KG,2,cost-rollup,<ALL>,Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]
-CST_ENERGY_ANNUAL_UGX_NUM_NR,3,UNRESOLVED(polluted-curated),,Cst Energy Annual Ugx Num Nr [ISO 19650-2:2018]
-CST_FIX_CAT_NR,3,UNRESOLVED(polluted-curated),,Cst Fix Cat Nr [ISO 19650-2:2018]
-CST_FIX_LUMEN_OUTPUT_LM,3,UNRESOLVED(polluted-curated),,Cst Fix Lumen Output Lm [ISO 19650-2:2018]
-CST_FORMWORK_TYPE_TXT,3,cost-rollup,<ALL>,Formwork type specification [ISO 19650-2:2018]
-CST_FX_RATE_USD_UGX,2,cost-rollup,<ALL>,USD to UGX exchange rate snapshot used on quote date
-CST_IMPORT_REQUIRED_BOOL,3,UNRESOLVED(polluted-curated),,Cst Import Required Bool [ISO 19650-2:2018]
-CST_INSTALL_HRS,2,cost-rollup,<ALL>,Install time in hours per element for labour takeoff
-CST_INSTALL_HRS_DISP_TXT,2,cost-rollup,<ALL>,Install time in hours per element for labour takeoff — TEXT display mirror for tag labels
-CST_INTL_PRICE_USD,2,cost-rollup,<ALL>,International supplier unit price in USD
-CST_INTL_PRICE_USD_DISP_TXT,2,cost-rollup,<ALL>,International supplier unit price in USD — TEXT display mirror for tag labels
-CST_LABOUR_CREW_TXT,2,cost-rollup,<ALL>,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff"
-CST_LABOUR_HOURS,2,cost-rollup,<ALL>,Estimated labour hours per element for install takeoff
-CST_LABOUR_RATE_GBP,2,cost-rollup,<ALL>,Labour rate in GBP per hour (override for UK projects)
-CST_LABOUR_RATE_UGX,2,cost-rollup,<ALL>,Labour rate in UGX per hour
-CST_LAST_COSTED_DATE,13,UNRESOLVED,,Date of last BOQ cost calculation [ISO 19650-3:2020]
-CST_LIFECYCLE_COST_UGX,2,UNRESOLVED,,Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]
-CST_LOCAL_MAT_BOOL,3,UNRESOLVED(polluted-curated),,Cst Local Mat Bool [ISO 19650-2:2018]
-CST_MODELED_TOTAL_UGX,2,UNRESOLVED,,Computed element cost total in UGX [ISO 19650-3:2020]
-CST_PERCENTAGE_OF_TOTAL_PCT,2,UNRESOLVED(polluted-curated),,Percentage of total project cost [ISO 19650-3:2020]
-CST_PLYWOOD_SIZE_TXT,3,UNRESOLVED,,Plywood size specification [ISO 19650-2:2018]
-CST_PROC_SPARE_01_TXT,3,cost-rollup,<ALL>,Spare parameter 1 for CST_PROC group
-CST_PROC_SPARE_02_TXT,3,cost-rollup,<ALL>,Spare parameter 2 for CST_PROC group
-CST_PROVISIONAL_SUM,2,UNRESOLVED,,True if this element represents a provisional sum [ISO 19650-3:2020]
-CST_PS_DESCRIPTION,2,UNRESOLVED,,Provisional sum scope description [ISO 19650-3:2020]
-CST_QTY_MEASURED,2,UNRESOLVED,,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]
-CST_QUOTE_REF_TXT,2,UNRESOLVED,,Supplier quote reference number
-CST_RATE_CONFIDENCE,2,cost-rollup,<ALL>,Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020]
-CST_RATE_SOURCE,2,cost-rollup,<ALL>,Rate source: CSV | COBie | Manual | Override | Carbon [ISO 19650-3:2020]
-CST_SAND_MOISTURE_TXT,3,UNRESOLVED,,Sand moisture content [ISO 19650-2:2018]
-CST_SHIPPING_UGX,2,UNRESOLVED,,Shipping cost component in UGX
-CST_SPECIAL_EQUIPMENT_TXT,3,UNRESOLVED(polluted-curated),,Cst Special Equipment Txt [ISO 19650-2:2018]
-CST_SUP_ALTERNATIVE_SUPPLIERS_TXT,3,cost-rollup,<ALL>,Cst Sup Alternative Suppliers Txt [ISO 19650-2:2018]
-CST_SUP_COUNTRY_OF_ORIGIN_INT,3,cost-rollup,<ALL>,Cst Sup Country Of Origin Int [ISO 19650-2:2018]
-CST_SUP_CUSTOMS_CLEARANCE_DAYS,3,cost-rollup,<ALL>,Cst Sup Customs Clearance Days [ISO 19650-2:2018]
-CST_SUP_LOCAL_SUPPLIER_TXT,3,cost-rollup,<ALL>,Cst Sup Local Supplier Txt [ISO 19650-2:2018]
-CST_SUP_PAYMENT_TERMS_TXT,3,cost-rollup,<ALL>,Cst Sup Payment Terms Txt [ISO 19650-2:2018]
-CST_SUP_PREFERRED_SUPPLIER_TXT,3,cost-rollup,<ALL>,Cst Sup Preferred Supplier Txt [ISO 19650-2:2018]
-CST_SUP_PROCUREMENT_LEAD_TIME_DAYS,3,cost-rollup,<ALL>,Cst Sup Procurement Lead Time Days [ISO 19650-2:2018]
-CST_SUP_QUALITY_INSP_REQ_BOOL,3,cost-rollup,<ALL>,Cst Sup Quality Insp Req Bool [ISO 19650-2:2018]
-CST_SUP_SHIPPING_METHOD_TXT,3,cost-rollup,<ALL>,Cst Sup Shipping Method Txt [ISO 19650-2:2018]
+CST_COST_CATEGORY_TXT,13,cost-meta,<ALL>,ArchiCAD IFC: cost trade grouping category
+CST_COST_CODE_TXT,13,cost-meta,<ALL>,ArchiCAD IFC: cost/trade code NRM1 / specification clause reference
+CST_DELIVERY_LEAD_TIME_DAYS,3,cost-meta,<ALL>,Cst Delivery Lead Time Days [ISO 19650-2:2018]
+CST_DUTY_PCT,2,cost-meta,<ALL>,Import duty percentage applied to USD price
+CST_ELEMENT_COST_NR,13,cost-meta,<ALL>,ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD)
+CST_EMBODIED_CARBON_KG,2,cost-meta,<ALL>,Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]
+CST_ENERGY_ANNUAL_UGX_NUM_NR,3,cost-meta,<ALL>,Cst Energy Annual Ugx Num Nr [ISO 19650-2:2018]
+CST_FIX_CAT_NR,3,cost-meta,<ALL>,Cst Fix Cat Nr [ISO 19650-2:2018]
+CST_FIX_LUMEN_OUTPUT_LM,3,cost-meta,<ALL>,Cst Fix Lumen Output Lm [ISO 19650-2:2018]
+CST_FORMWORK_TYPE_TXT,3,cost-meta,<ALL>,Formwork type specification [ISO 19650-2:2018]
+CST_FX_RATE_USD_UGX,2,cost-meta,<ALL>,USD to UGX exchange rate snapshot used on quote date
+CST_IMPORT_REQUIRED_BOOL,3,cost-meta,<ALL>,Cst Import Required Bool [ISO 19650-2:2018]
+CST_INSTALL_HRS,2,cost-meta,<ALL>,Install time in hours per element for labour takeoff
+CST_INSTALL_HRS_DISP_TXT,2,cost-meta,<ALL>,Install time in hours per element for labour takeoff — TEXT display mirror for tag labels
+CST_INTL_PRICE_USD,2,cost-meta,<ALL>,International supplier unit price in USD
+CST_INTL_PRICE_USD_DISP_TXT,2,cost-meta,<ALL>,International supplier unit price in USD — TEXT display mirror for tag labels
+CST_LABOUR_CREW_TXT,2,cost-meta,<ALL>,"Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff"
+CST_LABOUR_HOURS,2,cost-meta,<ALL>,Estimated labour hours per element for install takeoff
+CST_LABOUR_RATE_GBP,2,cost-meta,<ALL>,Labour rate in GBP per hour (override for UK projects)
+CST_LABOUR_RATE_UGX,2,cost-meta,<ALL>,Labour rate in UGX per hour
+CST_LAST_COSTED_DATE,13,cost-meta,<ALL>,Date of last BOQ cost calculation [ISO 19650-3:2020]
+CST_LIFECYCLE_COST_UGX,2,cost-meta,<ALL>,Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]
+CST_LOCAL_MAT_BOOL,3,cost-meta,<ALL>,Cst Local Mat Bool [ISO 19650-2:2018]
+CST_MODELED_TOTAL_UGX,2,cost-meta,<ALL>,Computed element cost total in UGX [ISO 19650-3:2020]
+CST_PERCENTAGE_OF_TOTAL_PCT,2,cost-meta,<ALL>,Percentage of total project cost [ISO 19650-3:2020]
+CST_PLYWOOD_SIZE_TXT,3,cost-meta,<ALL>,Plywood size specification [ISO 19650-2:2018]
+CST_PROC_SPARE_01_TXT,3,cost-meta,<ALL>,Spare parameter 1 for CST_PROC group
+CST_PROC_SPARE_02_TXT,3,cost-meta,<ALL>,Spare parameter 2 for CST_PROC group
+CST_PROVISIONAL_SUM,2,cost-meta,<ALL>,True if this element represents a provisional sum [ISO 19650-3:2020]
+CST_PS_DESCRIPTION,2,cost-meta,<ALL>,Provisional sum scope description [ISO 19650-3:2020]
+CST_QTY_MEASURED,2,cost-meta,<ALL>,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]
+CST_QUOTE_REF_TXT,2,cost-meta,<ALL>,Supplier quote reference number
+CST_RATE_CONFIDENCE,2,cost-meta,<ALL>,Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020]
+CST_RATE_SOURCE,2,cost-meta,<ALL>,Rate source: CSV | COBie | Manual | Override | Carbon [ISO 19650-3:2020]
+CST_SAND_MOISTURE_TXT,3,cost-meta,<ALL>,Sand moisture content [ISO 19650-2:2018]
+CST_SHIPPING_UGX,2,cost-meta,<ALL>,Shipping cost component in UGX
+CST_SPECIAL_EQUIPMENT_TXT,3,cost-meta,<ALL>,Cst Special Equipment Txt [ISO 19650-2:2018]
+CST_SUP_ALTERNATIVE_SUPPLIERS_TXT,3,cost-meta,<ALL>,Cst Sup Alternative Suppliers Txt [ISO 19650-2:2018]
+CST_SUP_COUNTRY_OF_ORIGIN_INT,3,cost-meta,<ALL>,Cst Sup Country Of Origin Int [ISO 19650-2:2018]
+CST_SUP_CUSTOMS_CLEARANCE_DAYS,3,cost-meta,<ALL>,Cst Sup Customs Clearance Days [ISO 19650-2:2018]
+CST_SUP_LOCAL_SUPPLIER_TXT,3,cost-meta,<ALL>,Cst Sup Local Supplier Txt [ISO 19650-2:2018]
+CST_SUP_PAYMENT_TERMS_TXT,3,cost-meta,<ALL>,Cst Sup Payment Terms Txt [ISO 19650-2:2018]
+CST_SUP_PREFERRED_SUPPLIER_TXT,3,cost-meta,<ALL>,Cst Sup Preferred Supplier Txt [ISO 19650-2:2018]
+CST_SUP_PROCUREMENT_LEAD_TIME_DAYS,3,cost-meta,<ALL>,Cst Sup Procurement Lead Time Days [ISO 19650-2:2018]
+CST_SUP_QUALITY_INSP_REQ_BOOL,3,cost-meta,<ALL>,Cst Sup Quality Insp Req Bool [ISO 19650-2:2018]
+CST_SUP_SHIPPING_METHOD_TXT,3,cost-meta,<ALL>,Cst Sup Shipping Method Txt [ISO 19650-2:2018]
 CST_S_CON_ADMIXTURE_TXT,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Con Admixture Txt [ISO 19650-2:2018]
 CST_S_CON_AGGREGATE_VOLUME_CU_M,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Con Aggregate Volume Cu M [ISO 19650-2:2018]
 CST_S_CON_CEMENT_BAGS_NR,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Con Cement Bags Nr [ISO 19650-2:2018]
@@ -892,42 +892,42 @@ CST_S_REI_WEIGHT_KG,3,cst-sub,Structural Framing|Structural Columns|Structural F
 CST_S_REI_WEIGHT_WASTAGE_KG,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Rei Weight Wastage Kg [ISO 19650-2:2018]
 CST_S_REI_WIRE_WEIGHT_KG,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Rei Wire Weight Kg [ISO 19650-2:2018]
 CST_S_SUPPLIER_TXT,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Material supplier name for BOQ schedules [ISO 19650-2:2018]
-CST_TAG_7_PARA_CONC_TXT,2,UNRESOLVED,,TAG7 paragraph container for concrete
-CST_TOTAL_ADHESIVE_COST,3,cost-rollup,<ALL>,Total adhesive cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_AGGREGATE_COST,3,cost-rollup,<ALL>,Total aggregate cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_BLOCKS_COST,3,cost-rollup,<ALL>,Total blocks cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_CEMENT_COST,3,cost-rollup,<ALL>,Total cement cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_COST_NR,13,cost-rollup,<ALL>,ArchiCAD IFC: total cost for composite elements (sum of component costs)
-CST_TOTAL_COST_UGX,3,cost-rollup,<ALL>,Grand total cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_EQUIPMENT_COST,2,cost-rollup,<ALL>,Total equipment cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_GROUT_COST,3,cost-rollup,<ALL>,Total grout cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_LABOUR_COST,3,cost-rollup,<ALL>,Total labour cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_MATERIAL_COST,3,cost-rollup,<ALL>,Total material cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_PAINT_COST,3,cost-rollup,<ALL>,Total paint cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_PLASTER_COST,3,cost-rollup,<ALL>,Total plaster cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_ROOFING_COST,3,cost-rollup,<ALL>,Total roofing cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_SAND_COST,3,cost-rollup,<ALL>,Total sand cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_STEEL_COST,3,cost-rollup,<ALL>,Total steel cost in UGX [ISO 19650-3:2020]
-CST_TOTAL_TILE_COST,3,cost-rollup,<ALL>,Total tiles cost in UGX [ISO 19650-3:2020]
-CST_TRADE_NAME_TXT,13,UNRESOLVED,,ArchiCAD IFC: subcontractor trade name
-CST_UG_PRICE_UGX,2,cost-rollup,<ALL>,Local Uganda unit price in UGX
-CST_UG_PRICE_UGX_DISP_TXT,2,cost-rollup,<ALL>,Local Uganda unit price in UGX — TEXT display mirror for tag labels
-CST_UNIT_COST_NR,13,cost-rollup,<ALL>,ArchiCAD IFC: unit cost in project currency per unit of measure
-CST_UNIT_PRICE_ADHESIVE_UGX,3,cost-rollup,<ALL>,Unit price per kilogram adhesive in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_AGGREGATE_UGX,3,cost-rollup,<ALL>,Unit price per cubic meter aggregate in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_BLOCK_UGX,3,cost-rollup,<ALL>,Unit price per block in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_CEMENT_UGX,3,cost-rollup,<ALL>,Unit price per cement bag in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_FASTENER_UGX,3,cost-rollup,<ALL>,Unit price per fastener in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_GROUT_UGX,3,cost-rollup,<ALL>,Unit price per kilogram grout in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_PAINT_UGX,3,cost-rollup,<ALL>,Unit price per liter paint in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_PRIMER_UGX,3,cost-rollup,<ALL>,Unit price per liter primer in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_SAND_UGX,3,cost-rollup,<ALL>,Unit price per cubic meter sand in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_SHEET_UGX,3,cost-rollup,<ALL>,Unit price per roofing sheet in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_STEEL_UGX,3,cost-rollup,<ALL>,Unit price per kilogram steel in UGX [ISO 19650-3:2020]
-CST_UNIT_PRICE_TILE_UGX,3,cost-rollup,<ALL>,Unit price per square meter tile in UGX [ISO 19650-3:2020]
-CST_UNIT_RATE_UGX,2,cost-rollup,<ALL>,Unit rate UGX applied to this element [ISO 19650-3:2020]
-CST_UNIT_RATE_USD,2,cost-rollup,<ALL>,Unit rate USD applied to this element [ISO 19650-3:2020]
-CST_UNIT_TXT,13,cost-rollup,<ALL>,ArchiCAD IFC: unit of measure for cost: m2 / m3 / m / EA / kg / tonne
+CST_TAG_7_PARA_CONC_TXT,2,tag-container,<ALL>,TAG7 paragraph container for concrete
+CST_TOTAL_ADHESIVE_COST,3,cost-meta,<ALL>,Total adhesive cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_AGGREGATE_COST,3,cost-meta,<ALL>,Total aggregate cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_BLOCKS_COST,3,cost-meta,<ALL>,Total blocks cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_CEMENT_COST,3,cost-meta,<ALL>,Total cement cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_COST_NR,13,cost-meta,<ALL>,ArchiCAD IFC: total cost for composite elements (sum of component costs)
+CST_TOTAL_COST_UGX,3,cost-meta,<ALL>,Grand total cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_EQUIPMENT_COST,2,cost-meta,<ALL>,Total equipment cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_GROUT_COST,3,cost-meta,<ALL>,Total grout cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_LABOUR_COST,3,cost-meta,<ALL>,Total labour cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_MATERIAL_COST,3,cost-meta,<ALL>,Total material cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_PAINT_COST,3,cost-meta,<ALL>,Total paint cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_PLASTER_COST,3,cost-meta,<ALL>,Total plaster cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_ROOFING_COST,3,cost-meta,<ALL>,Total roofing cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_SAND_COST,3,cost-meta,<ALL>,Total sand cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_STEEL_COST,3,cost-meta,<ALL>,Total steel cost in UGX [ISO 19650-3:2020]
+CST_TOTAL_TILE_COST,3,cost-meta,<ALL>,Total tiles cost in UGX [ISO 19650-3:2020]
+CST_TRADE_NAME_TXT,13,cost-meta,<ALL>,ArchiCAD IFC: subcontractor trade name
+CST_UG_PRICE_UGX,2,cost-meta,<ALL>,Local Uganda unit price in UGX
+CST_UG_PRICE_UGX_DISP_TXT,2,cost-meta,<ALL>,Local Uganda unit price in UGX — TEXT display mirror for tag labels
+CST_UNIT_COST_NR,13,cost-meta,<ALL>,ArchiCAD IFC: unit cost in project currency per unit of measure
+CST_UNIT_PRICE_ADHESIVE_UGX,3,cost-meta,<ALL>,Unit price per kilogram adhesive in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_AGGREGATE_UGX,3,cost-meta,<ALL>,Unit price per cubic meter aggregate in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_BLOCK_UGX,3,cost-meta,<ALL>,Unit price per block in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_CEMENT_UGX,3,cost-meta,<ALL>,Unit price per cement bag in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_FASTENER_UGX,3,cost-meta,<ALL>,Unit price per fastener in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_GROUT_UGX,3,cost-meta,<ALL>,Unit price per kilogram grout in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_PAINT_UGX,3,cost-meta,<ALL>,Unit price per liter paint in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_PRIMER_UGX,3,cost-meta,<ALL>,Unit price per liter primer in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_SAND_UGX,3,cost-meta,<ALL>,Unit price per cubic meter sand in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_SHEET_UGX,3,cost-meta,<ALL>,Unit price per roofing sheet in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_STEEL_UGX,3,cost-meta,<ALL>,Unit price per kilogram steel in UGX [ISO 19650-3:2020]
+CST_UNIT_PRICE_TILE_UGX,3,cost-meta,<ALL>,Unit price per square meter tile in UGX [ISO 19650-3:2020]
+CST_UNIT_RATE_UGX,2,cost-meta,<ALL>,Unit rate UGX applied to this element [ISO 19650-3:2020]
+CST_UNIT_RATE_USD,2,cost-meta,<ALL>,Unit rate USD applied to this element [ISO 19650-3:2020]
+CST_UNIT_TXT,13,cost-meta,<ALL>,ArchiCAD IFC: unit of measure for cost: m2 / m3 / m / EA / kg / tonne
 DS_NAME_TXT,11,curated-fallback,Generic Models,Dimension style name [ISO 19650-1:2018]
 DS_PRECISION_TXT,11,curated-fallback,Generic Models,Dimension precision [ISO 19650-1:2018]
 DS_TEXT_FONT_TXT,11,curated-fallback,Generic Models,Text font [ISO 19650-1:2018]
@@ -983,7 +983,7 @@ ELC_CDT_SOFFIT_OFFSET_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|
 ELC_CDT_STALE_ANNOT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit wire annotation is stale and needs refresh [Electrical]
 ELC_CDT_SUPPORT_SPACING_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit support spacing
 ELC_CDT_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018]
-ELC_CDT_TAG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical conduit tag container [ISO 19650-2:2018]
+ELC_CDT_TAG,4,tag-container,<ALL>,Electrical conduit tag container [ISO 19650-2:2018]
 ELC_CDT_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]"
 ELC_CDT_TAG_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]
 ELC_CIRCUIT_GROUP_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.
@@ -1020,7 +1020,7 @@ ELC_CTR_FILL_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Tr
 ELC_CTR_HEIGHT_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ctr Height Mm [ISO 19650]
 ELC_CTR_MAT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray material: HDG/SS316/AL/GRP/PVC [ISO 19650-1:2018]
 ELC_CTR_SZ_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray size designation [ISO 19650-1:2018]
-ELC_CTR_TAG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical cable tray tag container [ISO 19650-2:2018]
+ELC_CTR_TAG,4,tag-container,<ALL>,Electrical cable tray tag container [ISO 19650-2:2018]
 ELC_CTR_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Cable tray spec tag: width x depth, material, fill percentage [ISO 19650-1:2018]"
 ELC_CTR_WIDTH_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018]
 ELC_DIV_FCT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Div Fct Nr [ISO 19650-1:2018]
@@ -1028,7 +1028,7 @@ ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable 
 ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
 ELC_ENERGY_COST_UGX_PA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
 ELC_ENERGY_KWH_PA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Energy Kwh Pa [ISO 19650-1:2018]
-ELC_EQP_TAG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical equipment tag container [ISO 19650-2:2018]
+ELC_EQP_TAG,4,tag-container,<ALL>,Electrical equipment tag container [ISO 19650-2:2018]
 ELC_EQP_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]"
 ELC_EQP_TAG_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]"
 ELC_EQUIPMENT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Equipment Type Txt [ISO 19650-1:2018]
@@ -1036,7 +1036,7 @@ ELC_FACTORY_QR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable 
 ELC_FAT_CERT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Factory Acceptance Test certificate reference [IEC 61439-1:2020]
 ELC_FEEDER_CSA_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
 ELC_FEEDER_RATING_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
-ELC_FIX_TAG_1_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc fix tag 1
+ELC_FIX_TAG_1_TXT,4,tag-container,<ALL>,Elc fix tag 1
 ELC_FIX_TAG_2_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc fix tag 2
 ELC_GEN_RUN_HRS_TGT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
 ELC_GEN_TEST_LOG_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
@@ -1138,18 +1138,18 @@ ELC_RECONCILE_DRIFT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|
 ELC_SEL_COORD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
 ELC_SEL_COORD_VERIFIED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]"
 ELC_SPARE_WAYS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Spare Ways Nr [ISO 19650-1:2018]
-ELC_TAG_7_PARA_CABLE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Cable paragraph (destination, source, cores, size, insulation, install method, tray fill, load) [ISO 19650-3:2020]"
-ELC_TAG_7_PARA_CIRCUIT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit/point paragraph container [ISO 19650-3:2020]
-ELC_TAG_7_PARA_CIRC_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical TAG7 paragraph container for circ
-ELC_TAG_7_PARA_COMM_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Communication device electrical paragraph container [ISO 19650-3:2020]
-ELC_TAG_7_PARA_CONDUIT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit paragraph [ISO 19650-3:2020]
-ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Connectors paragraph [ISO 19650-3:2020]
-ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Fab Containment paragraph [ISO 19650-3:2020]
-ELC_TAG_7_PARA_FIXTURE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical fixture TAG7 paragraph narrative
-ELC_TAG_7_PARA_LPS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]"
-ELC_TAG_7_PARA_PANEL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,DB panel paragraph container [ISO 19650-3:2020]
-ELC_TAG_7_PARA_TIEIN_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical tie-in point paragraph container [ISO 19650-3:2020]
-ELC_TAG_7_PARA_TRAY_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_CABLE_TXT,4,tag-container,<ALL>,"Cable paragraph (destination, source, cores, size, insulation, install method, tray fill, load) [ISO 19650-3:2020]"
+ELC_TAG_7_PARA_CIRCUIT_TXT,4,tag-container,<ALL>,Circuit/point paragraph container [ISO 19650-3:2020]
+ELC_TAG_7_PARA_CIRC_TXT,4,tag-container,<ALL>,Electrical TAG7 paragraph container for circ
+ELC_TAG_7_PARA_COMM_TXT,4,tag-container,<ALL>,Communication device electrical paragraph container [ISO 19650-3:2020]
+ELC_TAG_7_PARA_CONDUIT_TXT,4,tag-container,<ALL>,Conduit paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,4,tag-container,<ALL>,Elc Connectors paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,4,tag-container,<ALL>,Fab Containment paragraph [ISO 19650-3:2020]
+ELC_TAG_7_PARA_FIXTURE_TXT,4,tag-container,<ALL>,Electrical fixture TAG7 paragraph narrative
+ELC_TAG_7_PARA_LPS_TXT,4,tag-container,<ALL>,"Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]"
+ELC_TAG_7_PARA_PANEL_TXT,4,tag-container,<ALL>,DB panel paragraph container [ISO 19650-3:2020]
+ELC_TAG_7_PARA_TIEIN_TXT,4,tag-container,<ALL>,Electrical tie-in point paragraph container [ISO 19650-3:2020]
+ELC_TAG_7_PARA_TRAY_TXT,4,tag-container,<ALL>,Cable tray paragraph [ISO 19650-3:2020]
 ELC_TRANSFER_LOAD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Transfer Load Ok [STING]
 ELC_UPS_REPLACE_DT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,UPS battery replacement date ISO 8601 [H-27]
 ELC_VLT_DROP_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Vlt Drop Pct [ISO 19650-1:2018]
@@ -1185,12 +1185,12 @@ ELC_WIRE_PROFILE_ID_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|C
 ELC_WIRE_SHIELDED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]"
 ELC_WIRE_SIZE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Wire size designation (2.5mm2, 4mm2, 10mm2) [ISO 19650-1:2018]"
 ELC_WIRE_VD_PCT_NUM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Calculated voltage drop as percentage of nominal voltage [BS 7671 Appendix 12, limit 3% lighting / 5% power]"
-ELE_FIX_TAG,4,UNRESOLVED,,Electrical fixture tag container [ISO 19650-2:2018]
+ELE_FIX_TAG,4,tag-elec,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical fixture tag container [ISO 19650-2:2018]
 ENV_FAC_TAG_TXT,10,curated-fallback,Curtain Panels|Curtain Wall Mullions|Generic Models|Walls,"Facade cladding tag: material, finish, panel size, fixing system [ISO 19650-1:2018]"
 ENV_ROOF_TAG_TXT,10,curated-fallback,Generic Models|Roofs,"Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]"
-ENV_TAG_1_TXT,9,UNRESOLVED,,Environmental tag container
+ENV_TAG_1_TXT,9,tag-container,<ALL>,Environmental tag container
 ENV_WIN_TAG_TXT,10,curated-fallback,Generic Models|Windows,"Window performance tag: frame, glazing, U-value, SHGC, VLT [ISO 19650-1:2018]"
-EQP_TAG_1_TXT,1,UNRESOLVED,,Equipment tag container
+EQP_TAG_1_TXT,1,tag-container,<ALL>,Equipment tag container
 EV_CHARGER_CIRCUIT_REF,4,meta-universal,<ALL>,Ev Charger Circuit Ref [STING]
 EV_CHARGER_KW,4,meta-universal,<ALL>,Ev Charger Kw [STING]
 EV_CHARGER_TYPE_TXT,4,meta-universal,<ALL>,Ev Charger Type Txt [STING]
@@ -1204,13 +1204,13 @@ FAB_PIPE_DN_MM,16,fab-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe 
 FAB_STIFF_TYPE_TXT,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Ductwork stiffener type [SMACNA]
 FIN_CEIL_TAG_TXT,10,curated-fallback,Ceilings|Generic Models,"Ceiling finish schedule tag: finish, system, NRC, grid size [ISO 19650-1:2018]"
 FIN_FLR_TAG_TXT,10,curated-fallback,Floors|Generic Models,"Floor finish schedule tag: finish, thickness, slip resistance, material [ISO 19650-1:2018]"
-FIN_TAG_1_TXT,1,UNRESOLVED,,Finish tag container
+FIN_TAG_1_TXT,1,tag-container,<ALL>,Finish tag container
 FIN_WALL_TAG_TXT,10,curated-fallback,Curtain Panels|Generic Models|Walls,"Wall finish schedule tag: interior, exterior, paint coats, finish type [ISO 19650-1:2018]"
 FLS_ALARM_CIRCUIT_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Alarm Circuit Count Nr [ISO 19650-1:2018]
 FLS_COMPARTMENT_ID_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]
 FLS_DETECTION_COST_UGX,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detection Cost Ugx [ISO 19650-1:2018]
 FLS_DETECTOR_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detector Count Nr [ISO 19650-1:2018]
-FLS_DEV_TAG,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire/life safety device tag container [ISO 19650-2:2018]
+FLS_DEV_TAG,8,tag-container,<ALL>,Fire/life safety device tag container [ISO 19650-2:2018]
 FLS_DEV_TAG_01_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Dev tag
 FLS_DEV_TAG_02_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,"Sprinkler hydraulic tag: temp rating, design flow L/min, head type [ISO 19650-1:2018]"
 FLS_EVACUATION_TIME_MIN,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Evacuation Time Min [ISO 19650-1:2018]
@@ -1251,11 +1251,11 @@ FLS_SFTY_TRAVEL_DIST_M,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Trav
 FLS_SPRINKLER_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sprinkler Count Nr [ISO 19650-1:2018]
 FLS_SUPPRESSION_COST_UGX,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Suppression Cost Ugx [ISO 19650-1:2018]
 FLS_SUPPRESSION_PIPE_LENGTH_M,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Suppression Pipe Length M [ISO 19650-1:2018]
-FLS_TAG_7_PARA_DEVICE_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire safety device TAG7 paragraph narrative
-FLS_TAG_7_PARA_FA_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire alarm paragraph container - NEW v4.3 [ISO 19650-3:2020]
-FLS_TAG_7_PARA_FIRE_PROT_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire Prot paragraph [ISO 19650-3:2020]
-FLS_TAG_7_PARA_SPR_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Sprinkler paragraph container - NEW v4.3 [ISO 19650-3:2020]
-FLS_TAG_7_PARA_TIEIN_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire protection tie-in paragraph container [ISO 19650-3:2020]
+FLS_TAG_7_PARA_DEVICE_TXT,8,tag-container,<ALL>,Fire safety device TAG7 paragraph narrative
+FLS_TAG_7_PARA_FA_TXT,8,tag-container,<ALL>,Fire alarm paragraph container - NEW v4.3 [ISO 19650-3:2020]
+FLS_TAG_7_PARA_FIRE_PROT_TXT,8,tag-container,<ALL>,Fire Prot paragraph [ISO 19650-3:2020]
+FLS_TAG_7_PARA_SPR_TXT,8,tag-container,<ALL>,Sprinkler paragraph container - NEW v4.3 [ISO 19650-3:2020]
+FLS_TAG_7_PARA_TIEIN_TXT,8,tag-container,<ALL>,Fire protection tie-in paragraph container [ISO 19650-3:2020]
 FLS_TOTAL_DEMAND_LPM,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Total Demand Lpm [ISO 19650-1:2018]
 FLT_CATEGORIES_TXT,11,curated-fallback,Generic Models,Categories included in filter [ISO 19650-1:2018]
 FLT_CUT_PATTERN_TXT,11,curated-fallback,Generic Models,Override cut pattern [ISO 19650-1:2018]
@@ -1269,16 +1269,16 @@ FLT_STATUS_TXT,11,curated-fallback,Generic Models,Filter status [ISO 19650-2:201
 FLT_SURFACE_PATTERN_TXT,11,curated-fallback,Generic Models,Override surface pattern [ISO 19650-1:2018]
 FLT_TRANSPARENCY_INT,11,curated-fallback,Generic Models,Override transparency [ISO 19650-1:2018]
 FLT_USED_IN_TEMPLATES_TXT,11,curated-fallback,Generic Models,Templates using this filter [ISO 19650-1:2018]
-FOHLIO_REF_TXT,1,UNRESOLVED,,Fohlio item ref [link never duplicate]
+FOHLIO_REF_TXT,1,misc-meta,<ALL>,Fohlio item ref [link never duplicate]
 FOUND_BEAR_UTIL_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Bear Util Txt [STING]
 FOUND_SOIL_CLASS_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Soil Class Txt [STING]
 FOUND_SUMMARY_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Summary Txt [STING]
 GEN_HEIGHT_AT_MATURITY_M,3,meta-universal,<ALL>,Plant height at maturity in metres [ISO 19650-1:2018]
 GEN_ROAD_TYPE_TXT,3,meta-universal,<ALL>,Road type classification [ISO 19650-1:2018]
 GEN_SPECIES_TXT,3,meta-universal,<ALL>,Plant species name [ISO 19650-1:2018]
-GEN_TAG_7_PARA_EQUIP_TXT,17,meta-universal,<ALL>,General TAG7 paragraph container for equip
-GEN_TAG_7_PARA_MISC_TXT,3,meta-universal,<ALL>,Miscellaneous element paragraph container [ISO 19650-3:2020]
-GEN_TAG_7_PARA_SITE_TXT,17,meta-universal,<ALL>,General TAG7 paragraph container for site
+GEN_TAG_7_PARA_EQUIP_TXT,17,tag-container,<ALL>,General TAG7 paragraph container for equip
+GEN_TAG_7_PARA_MISC_TXT,3,tag-container,<ALL>,Miscellaneous element paragraph container [ISO 19650-3:2020]
+GEN_TAG_7_PARA_SITE_TXT,17,tag-container,<ALL>,General TAG7 paragraph container for site
 HANDOVER_MODE_CUSTOM_BOOL,25,meta-universal,<ALL>,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]
 HANDOVER_MODE_DC_BOOL,25,meta-universal,<ALL>,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]
 HANDOVER_MODE_HANDOVER_BOOL,25,meta-universal,<ALL>,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]
@@ -1308,7 +1308,7 @@ HVC_DCT_SHOP_DRAWING_REQ_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|D
 HVC_DCT_SOUNDLVL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Dct Soundlvl Db [ISO 19650-1:2018]
 HVC_DCT_SUPPORTS_SPACING_MM,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct support spacing
 HVC_DCT_SZ_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,"Duct size designation (e.g. 400x200, DN300) [ISO 19650-1:2018]"
-HVC_DCT_TAG,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC duct tag container [ISO 19650-2:2018]
+HVC_DCT_TAG,5,tag-container,<ALL>,HVAC duct tag container [ISO 19650-2:2018]
 HVC_DCT_TAG_01_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Dct tag 1
 HVC_DCT_TAG_02_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Dct tag 2
 HVC_DCT_TAG_03_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Dct tag 3
@@ -1321,14 +1321,14 @@ HVC_DUCT_CLASS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct F
 HVC_DUCT_FLOWRATE_M3H,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Duct Flowrate M3h [ISO 19650-1:2018]
 HVC_DUCT_LINING_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Duct Lining Txt [ISO 19650-1:2018]
 HVC_EFF_RATIO_NR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Eff Ratio Nr [ISO 19650-1:2018]
-HVC_EQP_TAG,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC equipment tag container [ISO 19650-2:2018]
+HVC_EQP_TAG,5,tag-container,<ALL>,HVAC equipment tag container [ISO 19650-2:2018]
 HVC_EQP_TAG_01_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_EQP_TAG
 HVC_EQP_TAG_02_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_EQP_TAG 2
 HVC_EQP_TAG_03_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_EQP_TAG 3
 HVC_FACTORY_FLASH_TEST_DATE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Factory flash test date for refrigerant equipment [BS EN 378-2:2016]
 HVC_FACTORY_QR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Mechanical factory QR code label reference [ISO 19650-3:2020]
 HVC_FLOW_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Flow Ls [STING]
-HVC_FLX_TAG,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC flex duct tag container [ISO 19650-2:2018]
+HVC_FLX_TAG,5,tag-container,<ALL>,HVAC flex duct tag container [ISO 19650-2:2018]
 HVC_FLX_TAG_01_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,"Flex duct spec tag: material, lining, length [ISO 19650-1:2018]"
 HVC_HED_M,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Hed M [ISO 19650-1:2018]
 HVC_HEPA_GRADE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HEPA grade: H13 / H14 / U15 / U16 [BS EN 1822]
@@ -1366,19 +1366,19 @@ HVC_SIZE_MODIFIED_DT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct
 HVC_SIZE_PREV_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,"Previous duct size before auto-sizing run, format WxH or Dia (audit trail) [Phase 182]"
 HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182]
 HVC_SIZE_STALE_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183]
-HVC_TAG_7_PARA_ANAL_DUCTS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Anal Ducts paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_AT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Air terminal paragraph container [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DCTACC_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct accessory paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DUCT_INSULATION_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct Insulation paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DUCT_LINING_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct Lining paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_DUCT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct paragraph container [ISO 19650-3:2020]
-HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Fab Dct Stiffeners paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Fab Ductwork paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_FLEXDUCT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Flex duct paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Mech Ctrl Dev paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Mech Equip Sets paragraph [ISO 19650-3:2020]
-HVC_TAG_7_PARA_SPEC_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC equipment paragraph container [ISO 19650-3:2020]
-HVC_TAG_7_PARA_TIEIN_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC tie-in point paragraph container [ISO 19650-3:2020]
+HVC_TAG_7_PARA_ANAL_DUCTS_TXT,5,tag-container,<ALL>,Anal Ducts paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_AT_TXT,5,tag-container,<ALL>,Air terminal paragraph container [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DCTACC_TXT,5,tag-container,<ALL>,Duct accessory paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DUCT_INSULATION_TXT,5,tag-container,<ALL>,Duct Insulation paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DUCT_LINING_TXT,5,tag-container,<ALL>,Duct Lining paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_DUCT_TXT,5,tag-container,<ALL>,Duct paragraph container [ISO 19650-3:2020]
+HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,5,tag-container,<ALL>,Fab Dct Stiffeners paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,5,tag-container,<ALL>,Fab Ductwork paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_FLEXDUCT_TXT,5,tag-container,<ALL>,Flex duct paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,5,tag-container,<ALL>,Mech Ctrl Dev paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,5,tag-container,<ALL>,Mech Equip Sets paragraph [ISO 19650-3:2020]
+HVC_TAG_7_PARA_SPEC_TXT,5,tag-container,<ALL>,HVAC equipment paragraph container [ISO 19650-3:2020]
+HVC_TAG_7_PARA_TIEIN_TXT,5,tag-container,<ALL>,HVAC tie-in point paragraph container [ISO 19650-3:2020]
 HVC_TERMINAL_DAMPER_TXT,5,prefix+sub,Air Terminals,Hvc Terminal Damper Txt [ISO 19650-1:2018]
 HVC_TERMINAL_FINISH_TXT,5,prefix+sub,Air Terminals,Hvc Terminal Finish Txt [ISO 19650-1:2018]
 HVC_TERMINAL_MAT_TXT,5,prefix+sub,Air Terminals,Hvc Terminal Mat Txt [ISO 19650-1:2018]
@@ -1387,7 +1387,7 @@ HVC_THROW_M,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings
 HVC_VEL_MPS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Vel Mps [ISO 19650-1:2018]
 HVC_VLT_V,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Vlt V [ISO 19650-1:2018]
 ICT_CAT_RATING_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Ict Cat Rating [ISO 19650]
-ICT_DEV_TAG,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,ICT device tag container [ISO 19650-2:2018]
+ICT_DEV_TAG,3,tag-container,<ALL>,ICT device tag container [ISO 19650-2:2018]
 ICT_DEV_TAG_01_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,ICT outlet tag: outlet type + port number + patch panel [ISO 19650-1:2018]
 ICT_ENDO_READER_ID_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,RFID reader at endoscope decon station [H-26]
 ICT_HEALTHIOT_ALERT_BAND_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,IoT alert band free-text [H-20]
@@ -1401,22 +1401,22 @@ ICT_RTLS_ANCHOR_ID_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephon
 ICT_RTLS_COVERAGE_M_NR,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,RTLS anchor effective coverage radius (m) [H-29]
 ICT_RTLS_TECH_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29]
 ICT_RTLS_TX_POWER_DBM_NR,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,RTLS anchor TX power (dBm) [H-29]
-ICT_TAG_7_PARA_AV_DEV_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Av Dev paragraph [ISO 19650-3:2020]
-ICT_TAG_7_PARA_DATA_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Data/telephone outlet paragraph [ISO 19650-3:2020]
-ICT_TAG_7_PARA_TEL_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Telephone device paragraph [ISO 19650-3:2020]
+ICT_TAG_7_PARA_AV_DEV_TXT,3,tag-container,<ALL>,Av Dev paragraph [ISO 19650-3:2020]
+ICT_TAG_7_PARA_DATA_TXT,3,tag-container,<ALL>,Data/telephone outlet paragraph [ISO 19650-3:2020]
+ICT_TAG_7_PARA_TEL_TXT,3,tag-container,<ALL>,Telephone device paragraph [ISO 19650-3:2020]
 ICT_TEL_OUTLET_QTY_NR,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Number of telephone outlets [ISO 19650-1:2018]
 ICT_TEL_PORT_TYPE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Telephone port type specification [ISO 19650-1:2018]
 IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host sync [IFC interop]
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
-INS_MATERIAL_TXT,5,UNRESOLVED,,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
+INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
 IPS_BRANCH_COMPLIANT,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
 LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
-LIG_FIT_TAG,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature fitting ISO 19650 tag container
+LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
 LIG_PRESSURE_REL_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Releases under load
 LIG_PRODUCT_RATING_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade)
 LIG_SELF_CLOSE_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Self-closing fitting
-LIG_TAG_7_PARA_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature TAG7 rich narrative paragraph container
+LIG_TAG_7_PARA_TXT,32,tag-container,<ALL>,Anti-ligature TAG7 rich narrative paragraph container
 LS_NAME_TXT,11,curated-fallback,Generic Models,Line style name [ISO 19650-1:2018]
 LS_PATTERN_TXT,11,curated-fallback,Generic Models,Line pattern name [ISO 19650-1:2018]
 LS_STATUS_TXT,11,curated-fallback,Generic Models,Line style status [ISO 19650-2:2018]
@@ -1436,7 +1436,7 @@ LTG_EMRG_TYPE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Emrg Type
 LTG_FIX_EFFICACY_LM_W,7,safe-prefix,Lighting Fixtures|Lighting Devices,Luminaire efficacy in lumens per watt
 LTG_FIX_LAMP_TYPE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Lamp type (LED/Fluorescent/HID/Incandescent)
 LTG_FIX_LMP_WATTAGE_W,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Lmp Wattage W [ISO 19650-1:2018]
-LTG_FIX_TAG,7,safe-prefix,Lighting Fixtures|Lighting Devices,Lighting fixture tag container [ISO 19650-2:2018]
+LTG_FIX_TAG,7,tag-container,<ALL>,Lighting fixture tag container [ISO 19650-2:2018]
 LTG_FIX_TAG_01_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Tag
 LTG_FIX_TAG_02_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Tag
 LTG_FIX_TYPE_CLASSIFICATION_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Fix Type Classification Txt [ISO 19650-1:2018]
@@ -1445,8 +1445,8 @@ LTG_HOIST_MOTOR_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Hoist M
 LTG_HOIST_WEIGHT_KG,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Hoist Weight Kg [A1 §5]
 LTG_ILLUMINANCE_LUX,7,safe-prefix,Lighting Fixtures|Lighting Devices,Illuminance level in lux
 LTG_POWER_DENSITY_W_M2,7,safe-prefix,Lighting Fixtures|Lighting Devices,Ltg Power Density W M2 [ISO 19650-1:2018]
-LTG_TAG_7_PARA_FIXTURE_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Lighting fixture TAG7 paragraph narrative
-LTG_TAG_7_PARA_SPEC_TXT,7,safe-prefix,Lighting Fixtures|Lighting Devices,Lighting fixture paragraph container [ISO 19650-3:2020]
+LTG_TAG_7_PARA_FIXTURE_TXT,7,tag-container,<ALL>,Lighting fixture TAG7 paragraph narrative
+LTG_TAG_7_PARA_SPEC_TXT,7,tag-container,<ALL>,Lighting fixture paragraph container [ISO 19650-3:2020]
 MAT_APPLICATION,12,safe-prefix,Materials,Mat Application [ISO 19650-1:2018]
 MAT_CARBON_FACTOR,12,safe-prefix,Materials,Embodied carbon factor kgCO2e per kg for this material [ISO 19650-1:2018]
 MAT_CATEGORY,12,safe-prefix,Materials,Mat Category [ISO 19650-1:2018]
@@ -1485,13 +1485,13 @@ MAT_LOCATION,12,safe-prefix,Materials,Mat Location [ISO 19650-1:2018]
 MAT_MANUFACTURER,12,safe-prefix,Materials,Mat Manufacturer [ISO 19650-1:2018]
 MAT_MEASURED_AREA_M2,12,safe-prefix,Materials,Authoritative measured area m2 -- single source for BOQ + COBie [ISO 19650-1:2018]
 MAT_NAME,12,safe-prefix,Materials,Mat Name [ISO 19650-1:2018]
-MAT_PERF_TAG_1_TXT,12,safe-prefix,Materials,"Thermal and fire performance tag: U-value, R-value, fire rating [ISO 19650-1:2018]"
+MAT_PERF_TAG_1_TXT,12,tag-container,<ALL>,"Thermal and fire performance tag: U-value, R-value, fire rating [ISO 19650-1:2018]"
 MAT_PERF_TAG_2_TXT,12,safe-prefix,Materials,"Acoustic performance tag: STC, IIC, NRC [ISO 19650-1:2018]"
 MAT_PERF_TAG_3_TXT,12,safe-prefix,Materials,"Layer build-up tag: layer count, function, material, thickness [ISO 19650-1:2018]"
 MAT_PROP_DICT_GUID_TXT,12,safe-prefix,Materials,ISO 23386 property dictionary GUID (PA001) for material data interoperability [ISO 23386:2020]
 MAT_SPECIFICATIONS,12,safe-prefix,Materials,Mat Specifications [ISO 19650-1:2018]
 MAT_STANDARD,12,safe-prefix,Materials,Mat Standard [ISO 19650-1:2018]
-MAT_TAG_1_TXT,12,safe-prefix,Materials,"Material identity tag: code, category, discipline [ISO 19650-1:2018]"
+MAT_TAG_1_TXT,12,tag-container,<ALL>,"Material identity tag: code, category, discipline [ISO 19650-1:2018]"
 MAT_TAG_2_TXT,12,safe-prefix,Materials,"Material specification tag: name, thickness, standard [ISO 19650-1:2018]"
 MAT_TAG_3_TXT,12,safe-prefix,Materials,"Material procurement tag: name, manufacturer, spec clause [ISO 19650-1:2018]"
 MAT_TAG_4_TXT,12,safe-prefix,Materials,"Material cost tag: code, unit cost UGX, durability [ISO 19650-1:2018]"
@@ -1516,7 +1516,7 @@ MEC_CTRL_FUNCTION_TXT,5,meta-universal,<ALL>,Mechanical control device function 
 MEC_CTRL_SIGNAL_TXT,5,meta-universal,<ALL>,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
 MEC_SET_CAPACITY_KW,5,meta-universal,<ALL>,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
 MEC_SYS_TXT,5,meta-universal,<ALL>,Mechanical system code
-MED_TAG_7_PARA_MED_EQUIP_TXT,3,curated-fallback,Medical Equipment,Med Equip paragraph [ISO 19650-3:2020]
+MED_TAG_7_PARA_MED_EQUIP_TXT,3,tag-container,<ALL>,Med Equip paragraph [ISO 19650-3:2020]
 MEP_CONNECTOR_COUNT_NR,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep Connector Count [ISO 19650]
 MEP_DELTA_PRESS_PA,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Differential pressure in Pascals
 MEP_DESIGN_FLOW_M3S,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,ArchiCAD IFC: MEP design flow rate m3/s (Pset_DistributionFlowElementCommon)
@@ -1531,8 +1531,8 @@ MEP_NOMINAL_DIAMETER_MM,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|D
 MEP_PUMP_HEAD_M,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Pump head pressure in metres of water
 MEP_SYSTEM_ABBREVIATION_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep System Abbreviation [ISO 19650]
 MEP_SYSTEM_NAME_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep System Name [ISO 19650]
-MEP_TAG_7_PARA_ANCILLARY_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Ancillary paragraph [ISO 19650-3:2020]
-MEP_TAG_7_PARA_FAB_HANGERS_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Fab Hangers paragraph [ISO 19650-3:2020]
+MEP_TAG_7_PARA_ANCILLARY_TXT,5,tag-container,<ALL>,Ancillary paragraph [ISO 19650-3:2020]
+MEP_TAG_7_PARA_FAB_HANGERS_TXT,5,tag-container,<ALL>,Fab Hangers paragraph [ISO 19650-3:2020]
 MEP_TIE_POINT_ID_TXT,9,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,MEP tie-in point identifier
 MEP_TYPE_TXT,6,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Plm Type Txt [ISO 19650-1:2018]
 MEP_UPSTREAM_ELEMENT_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep Upstream Element [ISO 19650]
@@ -1540,12 +1540,12 @@ MEP_WORKING_PRESSURE_PA,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|D
 MGS_AAP_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Owning area alarm panel ID
 MGS_DESIGN_FLOW_LPM_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,"Design flow l/min, free air [HTM 02-01]"
 MGS_DIVERSITY_PCT_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Diversity factor (%) [HTM 02-01 sizing]
-MGS_EQP_TAG,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Medical gas equipment ISO 19650 tag container
+MGS_EQP_TAG,29,tag-container,<ALL>,Medical gas equipment ISO 19650 tag container
 MGS_GAS_TYPE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99]
 MGS_NOM_PRESS_KPA_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Nominal design pressure (kPa) [BS EN ISO 7396-1]
 MGS_OUTLET_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Mgs Outlet Zone Txt [STING]
 MGS_PIPE_BRAZED_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Brazed under inert-gas purge [HTM 02-01]
-MGS_TAG_7_PARA_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Medical gas TAG7 rich narrative paragraph container
+MGS_TAG_7_PARA_TXT,29,tag-container,<ALL>,Medical gas TAG7 rich narrative paragraph container
 MGS_TU_BS5682_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Terminal unit complies with BS 5682
 MGS_TU_INDEXED_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Has gas-specific NIST/DISS indexing
 MGS_VERIFY_BY_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,ASSE 6030 verifier name
@@ -1574,13 +1574,13 @@ MNT_TASK_DESC_TXT,25,universal-meta,<ALL>,Mnt Task Desc Txt [STING]
 MNT_TASK_NAME_TXT,25,universal-meta,<ALL>,Mnt Task Name Txt [STING]
 MNT_TYPE_TXT,7,universal-meta,<ALL>,Ltg Mnt Type Txt [ISO 19650-1:2018]
 MNT_WARRANTY_EXPIRY_TXT,1,universal-meta,<ALL>,Warranty expiry date
-MOUNTING_REFERENCE_TXT,1,UNRESOLVED,,Mounting Reference Txt [STING]
+MOUNTING_REFERENCE_TXT,1,misc-meta,<ALL>,Mounting Reference Txt [STING]
 NCL_CALL_TYPE_TXT,3,curated-fallback,Nurse Call Devices,Call type: EMERGENCY/STAFF/ASSIST/CANCEL [ISO 19650-1:2018]
-NCL_DEV_TAG,3,curated-fallback,Nurse Call Devices,Nurse call / low-voltage device tag container [ISO 19650-2:2018]
+NCL_DEV_TAG,3,tag-container,<ALL>,Nurse call / low-voltage device tag container [ISO 19650-2:2018]
 NCL_DEV_TAG_01_TXT,3,curated-fallback,Nurse Call Devices,Nurse call device identity + zone + call type tag [ISO 19650-1:2018]
 NCL_DEV_TYPE_TXT,3,curated-fallback,Nurse Call Devices,Ncl Dev Type [ISO 19650]
-NCL_TAG_7_PARA_NURSECALL_TXT,3,curated-fallback,Nurse Call Devices,Nurse call paragraph [ISO 19650-3:2020]
-NCL_TAG_7_PARA_TXT,3,curated-fallback,Nurse Call Devices,TAG7 paragraph container for nurse call
+NCL_TAG_7_PARA_NURSECALL_TXT,3,tag-container,<ALL>,Nurse call paragraph [ISO 19650-3:2020]
+NCL_TAG_7_PARA_TXT,3,tag-container,<ALL>,TAG7 paragraph container for nurse call
 NCL_ZONE_TXT,3,curated-fallback,Nurse Call Devices,Nurse call zone or ward assignment [ISO 19650-1:2018]
 NRG_ANNUAL_COOL_KWH,11,meta-universal,<ALL>,ArchiCAD IFC: annual cooling energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualCoolingEnergy)
 NRG_ANNUAL_HEAT_KWH,11,meta-universal,<ALL>,ArchiCAD IFC: annual heating energy kWh/yr (ArchiCAD_PropertyGroup_Energy.AnnualHeatingEnergy)
@@ -1611,7 +1611,7 @@ PEN_OD_MM,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Penetrating 
 PEN_PFV_UUID_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,"Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence"
 PEN_SEALANT_TYPE_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]
 PEN_STRUCTURAL_FLAG_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules
-PERF_TAG_1_TXT,9,UNRESOLVED,,Performance tag container
+PERF_TAG_1_TXT,9,tag-container,<ALL>,Performance tag container
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,9,universal-meta,<ALL>,Per Acoustics Background Noise Db [ISO 19650-1:2018]
 PER_ACOUSTICS_IIC_RATING_TXT,9,universal-meta,<ALL>,Per Acoustics Iic Rating Txt [ISO 19650-1:2018]
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,9,universal-meta,<ALL>,Per Acoustics Isolation Req Bool [ISO 19650-1:2018]
@@ -1685,8 +1685,8 @@ PER_SUST_TRANSMITTANCE_NR,9,universal-meta,<ALL>,Per Sust Transmittance Nr [ISO 
 PER_SUST_WATER_HARVEST_L,9,universal-meta,<ALL>,Per Sust Water Harvest L [ISO 19650-1:2018]
 PER_SUST_WATER_RATING_TXT,9,universal-meta,<ALL>,Water efficiency rating
 PER_SUST_WTR_RATING_NR,9,universal-meta,<ALL>,Per Sust Wtr Rating Nr [ISO 19650-1:2018]
-PER_TAG_7_PARA_ENVIRONMENT_TXT,9,universal-meta,<ALL>,"Environmental context paragraph (climate zone, humidity, altitude, rainfall, termite protection) [ISO 19650-3:2020]"
-PER_TAG_7_PARA_ENV_TXT,9,universal-meta,<ALL>,TAG7 paragraph container for environment
+PER_TAG_7_PARA_ENVIRONMENT_TXT,9,tag-container,<ALL>,"Environmental context paragraph (climate zone, humidity, altitude, rainfall, termite protection) [ISO 19650-3:2020]"
+PER_TAG_7_PARA_ENV_TXT,9,tag-container,<ALL>,TAG7 paragraph container for environment
 PER_THERM_CONDENSATION_RISK_TXT,9,universal-meta,<ALL>,Per Therm Condensation Risk Txt [ISO 19650-1:2018]
 PER_THERM_CONDUCTIVITY_W_MK,9,universal-meta,<ALL>,Per Therm Conductivity W Mk [ISO 19650-1:2018]
 PER_THERM_DELTA_T_K,9,universal-meta,<ALL>,Per Therm Delta T K [ISO 19650-1:2018]
@@ -1710,7 +1710,7 @@ PH_NAME_TXT,11,meta-universal,<ALL>,Phase name [ISO 19650-1:2018]
 PH_NUMBER_INT,11,meta-universal,<ALL>,Phase sequence number [ISO 19650-1:2018]
 PH_START_DATE_TXT,11,meta-universal,<ALL>,Phase start date [ISO 19650-2:2018]
 PH_STATUS_TXT,11,meta-universal,<ALL>,Phase status [ISO 19650-2:2018]
-PIP_TAG_7_PARA_PIPE_TXT,6,UNRESOLVED,,Pipe system TAG7 paragraph narrative
+PIP_TAG_7_PARA_PIPE_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe system TAG7 paragraph narrative
 PLM_AAV_REQUIRED_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Air Admittance Valve required [BS EN 12380 Phase 178b]
 PLM_ACC_CONNECTION_SZ_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Acc Connection Sz Nr [ISO 19650-1:2018]
 PLM_ACC_CONNECTION_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Acc Connection Type Txt [ISO 19650-1:2018]
@@ -1719,8 +1719,8 @@ PLM_AUG_CARE_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|
 PLM_CALC_DN_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Auto-calculated minimum pipe diameter mm DrainageSizer output [Phase 178b]
 PLM_CALC_SLOPE_PCT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Auto-calculated minimum slope percent DrainageSizer output [Phase 178b]
 PLM_CAP_CU_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Cap Cu M [ISO 19650-1:2018]
-PLM_CONN_FROM_TAG,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Routed pipe connection-from fixture tag [Plumbing routing]
-PLM_CONN_TO_TAG,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Routed pipe connection-to fixture tag [Plumbing routing]
+PLM_CONN_FROM_TAG,6,tag-container,<ALL>,Routed pipe connection-from fixture tag [Plumbing routing]
+PLM_CONN_TO_TAG,6,tag-container,<ALL>,Routed pipe connection-to fixture tag [Plumbing routing]
 PLM_CONN_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Conn Type [ISO 19650]
 PLM_DEAD_LEG_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]
 PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel]
@@ -1753,7 +1753,7 @@ PLM_DRN_VNT_TERMINAL_HEIGHT_FT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessorie
 PLM_DRN_VNT_TERMINAL_LOC_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Vnt Terminal Loc Txt [ISO 19650-1:2018]
 PLM_EQP_CAPACITY_L,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing equipment storage capacity in litres [ISO 19650-1:2018]
 PLM_EQP_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing equipment design pressure in kPa [ISO 19650-1:2018]
-PLM_EQP_TAG,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing equipment tag container [ISO 19650-2:2018]
+PLM_EQP_TAG,6,tag-container,<ALL>,Plumbing equipment tag container [ISO 19650-2:2018]
 PLM_EQP_TAG_01_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm eqp tag
 PLM_EQP_TAG_02_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm eqp tag
 PLM_EXJ_ANGULAR_MOVEMENT_DEG,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exj Angular Movement Deg [ISO 19650-1:2018]
@@ -1853,17 +1853,17 @@ PLM_SUP_DP_PAM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pip
 PLM_SUP_QD_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]
 PLM_SUP_VEL_MPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]
 PLM_SYS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing system code
-PLM_TAG_7_PARA_ANAL_PIPES_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Anal Pipes paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_DRAIN_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020]"
-PLM_TAG_7_PARA_EQUIPMENT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing equipment paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_EQUIP_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TAG7 paragraph container for plumbing equipment
-PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Fab Pipework paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_FIXTURE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Sanitary fixture paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PIPEACC_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe accessory paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PIPE_INSULATION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe Insulation paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PIPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe paragraph container - NEW v4.3 [ISO 19650-3:2020]
-PLM_TAG_7_PARA_PLM_EQUIP_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Equip paragraph [ISO 19650-3:2020]
-PLM_TAG_7_PARA_TIEIN_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing tie-in point paragraph container [ISO 19650-3:2020]
+PLM_TAG_7_PARA_ANAL_PIPES_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Anal Pipes paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_DRAIN_TXT,6,tag-container,<ALL>,"Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020]"
+PLM_TAG_7_PARA_EQUIPMENT_TXT,6,tag-container,<ALL>,Plumbing equipment paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_EQUIP_TXT,6,tag-container,<ALL>,TAG7 paragraph container for plumbing equipment
+PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Fab Pipework paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_FIXTURE_TXT,6,tag-container,<ALL>,Sanitary fixture paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PIPEACC_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe accessory paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PIPE_INSULATION_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe Insulation paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PIPE_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe paragraph container - NEW v4.3 [ISO 19650-3:2020]
+PLM_TAG_7_PARA_PLM_EQUIP_TXT,6,tag-container,<ALL>,Plm Equip paragraph [ISO 19650-3:2020]
+PLM_TAG_7_PARA_TIEIN_TXT,6,tag-container,<ALL>,Plumbing tie-in point paragraph container [ISO 19650-3:2020]
 PLM_TMV_BLEND_TEMP_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV blended outlet temperature setpoint C [Phase 178b]
 PLM_TMV_CLASS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV class TMV2 TMV3 [BS 7942 Phase 178b]
 PLM_TMV_KVS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing]
@@ -2008,7 +2008,7 @@ PRJ_TEMPLATE_PROFILE_TXT,13,universal-meta,<ALL>,Compliance weight profile (defa
 PRJ_TRACE_TOLERANCE_PCT,13,universal-meta,<ALL>,Acceptance band (percent) for HvacCompareLoadsCommand vs TRACE / HAP reference loads (default 15%) [Phase 187g]
 PRJ_VOLUME_CODE,13,universal-meta,<ALL>,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m]
 PRJ_VOLUME_COD_TXT,13,universal-meta,<ALL>,ISO 19650 volume code
-PROJECT_BUDGET_UGX,13,UNRESOLVED,,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
+PROJECT_BUDGET_UGX,13,misc-meta,<ALL>,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
 PROP_ACOUSTIC_ABS,14,curated-fallback,Materials,Prop Acoustic Abs [ISO 19650-1:2018]
 PROP_CARBON_KG_M3,14,curated-fallback,Materials,Prop Carbon Kg M3 [ISO 19650-1:2018]
 PROP_COMP_STRENGTH_MPA,14,curated-fallback,Materials,Prop Comp Strength Mpa [ISO 19650-1:2018]
@@ -2018,7 +2018,7 @@ PROP_PHYSICAL_SPARE_01_TXT,14,curated-fallback,Materials,Spare parameter 1 for P
 PROP_PHYSICAL_SPARE_02_TXT,14,curated-fallback,Materials,Spare parameter 2 for PROP_PHYSICAL group
 PROP_SOUND_RED_DB,14,curated-fallback,Materials,Prop Sound Red Db [ISO 19650-1:2018]
 PROP_SPECIFIC_HEAT_J_KGK,14,curated-fallback,Materials,Prop Specific Heat J Kgk [ISO 19650-1:2018]
-PROP_TAG_7_PARA_MATERIALS_TXT,14,UNRESOLVED,,Materials paragraph [ISO 19650-3:2020]
+PROP_TAG_7_PARA_MATERIALS_TXT,14,tag-container,<ALL>,Materials paragraph [ISO 19650-3:2020]
 PROP_TENS_STRENGTH_MPA,14,curated-fallback,Materials,Prop Tens Strength Mpa [ISO 19650-1:2018]
 PROP_THERMAL_COND_W_MK,14,curated-fallback,Materials,Prop Thermal Cond W Mk [ISO 19650-1:2018]
 PROP_THERMAL_RES_M2K_W,14,curated-fallback,Materials,Prop Thermal Res M2k W [ISO 19650-1:2018]
@@ -2127,12 +2127,12 @@ Qto_WindowBaseQuantities.Perimeter,2,excluded,,IFC4 Qto_WindowBaseQuantities -> 
 Qto_WindowBaseQuantities.Width,2,excluded,,IFC4 Qto_WindowBaseQuantities -> Width [Phase 184k / P8 IFC Qto]
 RAD_BARRIER_TYPE_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Barrier type: PRIMARY / SECONDARY / SCATTER / LEAKAGE [NCRP 147]
 RAD_DOSE_DESIGN_GOAL_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147]
-RAD_EQP_TAG,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Radiation protection ISO 19650 tag container
+RAD_EQP_TAG,30,tag-container,<ALL>,Radiation protection ISO 19650 tag container
 RAD_LEAD_MM_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Pb-equivalent thickness in this element (mm) [NCRP 147]
 RAD_OCC_FACTOR_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,NCRP 147 Occupancy factor T
 RAD_QE_DT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,QE sign-off date (ISO 8601)
 RAD_QE_NAME_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Qualified Expert (medical / health physicist) signing off
-RAD_TAG_7_PARA_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Radiation protection TAG7 rich narrative paragraph container
+RAD_TAG_7_PARA_TXT,30,tag-container,<ALL>,Radiation protection TAG7 rich narrative paragraph container
 RAD_USE_FACTOR_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,NCRP 147 Use factor U
 RAD_WORKLOAD_MAWK_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures,Workload (mA.min/wk) [NCRP 147]
 RGL_ACCESSIBILITY_COMPLIANT_TXT,15,universal-meta,<ALL>,Accessibility compliance status (COBie)
@@ -2193,8 +2193,8 @@ RGL_SETBACK_FRONT_CHECK_BOOL,15,universal-meta,<ALL>,Rgl Setback Front Check Boo
 RGL_SETBACK_FRONT_M,15,universal-meta,<ALL>,Rgl Setback Front M [ISO 19650-1:2018]
 RGL_SETBACK_FRONT_MIN_M,15,universal-meta,<ALL>,Rgl Setback Front Min M [ISO 19650-1:2018]
 RGL_STD_TXT,15,universal-meta,<ALL>,Rgl Std Txt [ISO 19650-1:2018]
-RGL_TAG_7_PARA_CMPL_TXT,15,universal-meta,<ALL>,TAG7 paragraph container for regulatory compliance
-RGL_TAG_7_PARA_COMPLIANCE_TXT,15,universal-meta,<ALL>,"Regulatory compliance paragraph (KCCA, UMEME, NWSC, NEMA approvals, QA) [ISO 19650-3:2020]"
+RGL_TAG_7_PARA_CMPL_TXT,15,tag-container,<ALL>,TAG7 paragraph container for regulatory compliance
+RGL_TAG_7_PARA_COMPLIANCE_TXT,15,tag-container,<ALL>,"Regulatory compliance paragraph (KCCA, UMEME, NWSC, NEMA approvals, QA) [ISO 19650-3:2020]"
 RGL_TOTAL_FLOOR_AREA_SQ_M,15,universal-meta,<ALL>,Rgl Total Floor Area Sq M [ISO 19650-1:2018]
 RGL_UMEME_APPROVAL_BOOL,15,universal-meta,<ALL>,Rgl Umeme Approval Bool [ISO 19650-1:2018]
 RGL_UMEME_APPROVAL_REQ_BOOL,15,universal-meta,<ALL>,UMEME approval required
@@ -2211,12 +2211,12 @@ RNV_NEW_CONST_SEQ_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: new construction seq
 RNV_STATUS_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)
 SEC_CBL_NR_TXT,3,curated-fallback,Security Devices,Cable reference number feeding this security device [ISO 19650-1:2018]
 SEC_DEV_COVERAGE_TXT,3,curated-fallback,Security Devices,Sec Dev Coverage [ISO 19650]
-SEC_DEV_TAG,3,curated-fallback,Security Devices,Security device tag container [ISO 19650-2:2018]
+SEC_DEV_TAG,3,tag-container,<ALL>,Security device tag container [ISO 19650-2:2018]
 SEC_DEV_TAG_01_TXT,3,curated-fallback,Security Devices,Security device identity + zone + cable reference tag [ISO 19650-1:2018]
 SEC_DEV_TYPE_TXT,3,curated-fallback,Security Devices,Sec Dev Type [ISO 19650]
 SEC_DEV_ZONE_TXT,3,curated-fallback,Security Devices,Security device zone assignment: Z01/Z02 [ISO 19650-1:2018]
-SEC_TAG_7_PARA_SECURITY_TXT,3,curated-fallback,Security Devices,Security device paragraph [ISO 19650-3:2020]
-SEC_TAG_7_PARA_TXT,3,curated-fallback,Security Devices,TAG7 paragraph container for security
+SEC_TAG_7_PARA_SECURITY_TXT,3,tag-container,<ALL>,Security device paragraph [ISO 19650-3:2020]
+SEC_TAG_7_PARA_TXT,3,tag-container,<ALL>,TAG7 paragraph container for security
 SHT_DISC_TXT,13,excluded,,Sheet discipline derived from viewport element majority [ISO 19650-2:2018]
 SHT_FORM_TXT,13,excluded,,Sheet document form code DR SP SH M3 [ISO 19650-2:2018]
 SHT_LEVEL_TXT,13,excluded,,Sheet level derived from viewport views [ISO 19650-2:2018]
@@ -2238,8 +2238,8 @@ SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models,Seal type (intumescent/mech
 SLV_SERVICE_TXT,19,curated-fallback,Generic Models,Service passing through sleeve
 SLV_STATUS_TXT,19,curated-fallback,Generic Models,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
 SLV_SZ_MM,19,curated-fallback,Generic Models,Sleeve size in millimetres
-SLV_TAG,19,UNRESOLVED,,MEP Sleeve discipline tag container [ISO 19650-3:2020]
-SLV_TAG_7_PARA_TXT,19,UNRESOLVED,,Sleeve paragraph container [ISO 19650-3:2020]
+SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
+SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
 SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models,"Fire test standard (BS EN 1366-3, ASTM E814)"
 SLV_WALL_THICKNESS_MM,19,curated-fallback,Generic Models,Host element thickness in mm
 SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models,Host wall or floor type
@@ -2255,7 +2255,7 @@ SPC_FINISH_WALLS_TXT,3,meta-universal,<ALL>,ArchiCAD IFC: room wall finish mater
 SPC_GROSS_AREA_M2,3,meta-universal,<ALL>,ArchiCAD IFC: room gross planned floor area m2 including half-wall thickness
 SPC_MIN_HEADROOM_M,3,meta-universal,<ALL>,ArchiCAD IFC: minimum headroom clearance m (Pset_StairCommon.HeadRoom)
 SPC_PUBLIC_ACCESSIBLE_BOOL,3,meta-universal,<ALL>,ArchiCAD IFC: space is publicly accessible (Pset_SpaceCommon.PubliclyAccessible)
-SPK_TAG_7_PARA_HEAD_TXT,8,UNRESOLVED,,Sprinkler head TAG7 paragraph narrative
+SPK_TAG_7_PARA_HEAD_TXT,8,tag-fire,Sprinklers|Fire Alarm Devices,Sprinkler head TAG7 paragraph narrative
 STING_4D_END_DATE_TXT,17,universal-meta,<ALL>,Construction end date yyyy-MM-dd [ISO 19650-2:2018]
 STING_4D_START_DATE_TXT,17,universal-meta,<ALL>,Construction start date yyyy-MM-dd [ISO 19650-2:2018]
 STING_5D_COST_RATE_NUM,17,universal-meta,<ALL>,Estimated unit cost rate [ISO 19650-2:2018]
@@ -2355,14 +2355,14 @@ STING_VIEW_SYMBOL_STANDARD,27,universal-meta,<ALL>,Per-view symbol standard over
 STING_VIEW_TAG_STYLE,17,universal-meta,<ALL>,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
 STING_VIEW_TOKEN_MASK_TXT,36,universal-meta,<ALL>,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
 STING_WALL_ROUTING_FLAG,34,universal-meta,<ALL>,"When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB."
-STRUCT_COL_AXIAL_LOAD_KN,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Column axial load
-STRUCT_COL_BUCKLING_CHECK_BOOL,16,UNRESOLVED,,Column buckling check passed
-STRUCT_COL_MOMENT_KNM,16,UNRESOLVED,,Column bending moment
-STRUCT_COL_SHEAR_KN,16,UNRESOLVED,,Column shear force
-STRUCT_FRM_AXIAL_LOAD_KN,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame axial load
-STRUCT_FRM_DEFLECTION_MM,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame deflection
-STRUCT_FRM_MOMENT_KNM,16,UNRESOLVED,,Frame bending moment
-STRUCT_FRM_SHEAR_KN,16,UNRESOLVED,,Frame shear force
+STRUCT_COL_AXIAL_LOAD_KN,16,struct-col,Columns|Structural Columns,Column axial load
+STRUCT_COL_BUCKLING_CHECK_BOOL,16,struct-col,Columns|Structural Columns,Column buckling check passed
+STRUCT_COL_MOMENT_KNM,16,struct-col,Columns|Structural Columns,Column bending moment
+STRUCT_COL_SHEAR_KN,16,struct-col,Columns|Structural Columns,Column shear force
+STRUCT_FRM_AXIAL_LOAD_KN,16,struct,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame axial load
+STRUCT_FRM_DEFLECTION_MM,16,struct,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame deflection
+STRUCT_FRM_MOMENT_KNM,16,struct,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame bending moment
+STRUCT_FRM_SHEAR_KN,16,struct,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Frame shear force
 STR_ANALYTICAL_MODEL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Analytical Model [ISO 19650]
 STR_AREA_LOAD_KN_M2,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Area Load Kn M2 [ISO 19650]
 STR_BAR_MARK_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Rebar bar mark from bending schedule [BS 8666:2020]
@@ -2462,41 +2462,41 @@ STR_STEEL_TAG_TXT,10,safe-prefix,Structural Framing|Structural Columns|Structura
 STR_STRUCTURAL_USAGE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Structural Usage [ISO 19650]
 STR_SURFACE_AREA_M2_M,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: surface area per unit length m2/m for fire casing (AC_Pset_ProfileData.SurfaceAreaPerLength)
 STR_SYSTEM_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]
-STR_TAG_1_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural tag container
-STR_TAG_7_PARA_ANAL_LINKS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Anal Links paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_ANAL_MEMBERS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Anal Members paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_ANAL_NODES_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Anal Nodes paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_ANAL_OPENINGS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Anal Openings paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_ANAL_PANELS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Anal Panels paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_ANLYT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for anlyt
-STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Area Based Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_AREA_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Area Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_BEAM_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Beam/framing paragraph container [ISO 19650-3:2020]
-STR_TAG_7_PARA_BOLT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for bolt connections
-STR_TAG_7_PARA_BRACE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for brace
-STR_TAG_7_PARA_COL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Column paragraph container [ISO 19650-3:2020]
-STR_TAG_7_PARA_CONN_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for conn
-STR_TAG_7_PARA_FDN_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Foundation paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_INT_AREA_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Int Area Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_INT_LINE_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Int Line Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_INT_POINT_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Int Point Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_LINE_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Line Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_LOAD_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for load
-STR_TAG_7_PARA_POINT_LOADS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Point Loads paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_REBAR_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for rebar
-STR_TAG_7_PARA_SLAB_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for slab
-STR_TAG_7_PARA_STR_AREA_REINF_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Area Reinf paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Beam Systems paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_CONNECTIONS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Connections paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Fabric Reinf paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_PATH_REINF_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Path Reinf paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Rebar Couplers paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_REBAR_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Rebar paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_STIFFENERS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Stiffeners paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_STR_TRUSSES_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Trusses paragraph [ISO 19650-3:2020]
-STR_TAG_7_PARA_WALL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for wall
-STR_TAG_7_PARA_WELD_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for weld connections
-STR_TAG_7_PARA_WIRE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Structural TAG7 paragraph container for wire/prestress
+STR_TAG_1_TXT,16,tag-container,<ALL>,Structural tag container
+STR_TAG_7_PARA_ANAL_LINKS_TXT,16,tag-container,<ALL>,Anal Links paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_ANAL_MEMBERS_TXT,16,tag-container,<ALL>,Anal Members paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_ANAL_NODES_TXT,16,tag-container,<ALL>,Anal Nodes paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_ANAL_OPENINGS_TXT,16,tag-container,<ALL>,Anal Openings paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_ANAL_PANELS_TXT,16,tag-container,<ALL>,Anal Panels paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_ANLYT_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for anlyt
+STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,16,tag-container,<ALL>,Area Based Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_AREA_LOADS_TXT,16,tag-container,<ALL>,Area Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_BEAM_TXT,16,tag-container,<ALL>,Beam/framing paragraph container [ISO 19650-3:2020]
+STR_TAG_7_PARA_BOLT_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for bolt connections
+STR_TAG_7_PARA_BRACE_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for brace
+STR_TAG_7_PARA_COL_TXT,16,tag-container,<ALL>,Column paragraph container [ISO 19650-3:2020]
+STR_TAG_7_PARA_CONN_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for conn
+STR_TAG_7_PARA_FDN_TXT,16,tag-container,<ALL>,Foundation paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_INT_AREA_LOADS_TXT,16,tag-container,<ALL>,Int Area Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_INT_LINE_LOADS_TXT,16,tag-container,<ALL>,Int Line Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_INT_POINT_LOADS_TXT,16,tag-container,<ALL>,Int Point Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_LINE_LOADS_TXT,16,tag-container,<ALL>,Line Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_LOAD_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for load
+STR_TAG_7_PARA_POINT_LOADS_TXT,16,tag-container,<ALL>,Point Loads paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_REBAR_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for rebar
+STR_TAG_7_PARA_SLAB_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for slab
+STR_TAG_7_PARA_STR_AREA_REINF_TXT,16,tag-container,<ALL>,Str Area Reinf paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,16,tag-container,<ALL>,Str Beam Systems paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_CONNECTIONS_TXT,16,tag-container,<ALL>,Str Connections paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,16,tag-container,<ALL>,Str Fabric Reinf paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_PATH_REINF_TXT,16,tag-container,<ALL>,Str Path Reinf paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,16,tag-container,<ALL>,Str Rebar Couplers paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_REBAR_TXT,16,tag-container,<ALL>,Str Rebar paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_STIFFENERS_TXT,16,tag-container,<ALL>,Str Stiffeners paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_STR_TRUSSES_TXT,16,tag-container,<ALL>,Str Trusses paragraph [ISO 19650-3:2020]
+STR_TAG_7_PARA_WALL_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for wall
+STR_TAG_7_PARA_WELD_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for weld connections
+STR_TAG_7_PARA_WIRE_TXT,16,tag-container,<ALL>,Structural TAG7 paragraph container for wire/prestress
 STR_TREAD_COUNT_NR,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: stair number of treads (Pset_StairCommon.NumberOfTreads)
 STR_TREAD_DEPTH_MM,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: tread going depth mm
 STR_WALL_COVER_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Wall Cover Mm [ISO 19650]
@@ -2511,9 +2511,9 @@ STR_WIND_PRESSURE_PA,16,safe-prefix,Structural Framing|Structural Columns|Struct
 STR_WIND_TERRAIN_CAT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]
 STR_WLD_STRENGTH_MPA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld strength in MPa
 STR_WLD_THROAT_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld throat thickness in mm
-SUST_MAT_TAG_1_TXT,9,meta-universal,<ALL>,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"
+SUST_MAT_TAG_1_TXT,9,tag-container,<ALL>,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"
 SUST_MAT_TAG_2_TXT,9,meta-universal,<ALL>,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]"
-SUST_TAG_1_TXT,9,meta-universal,<ALL>,Sustainability tag container
+SUST_TAG_1_TXT,9,tag-container,<ALL>,Sustainability tag container
 SUS_EDGE_LEVEL_TXT,35,curated-fallback,Project Information,Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED]
 SUS_ENERGY_KWH_M2_NR,35,curated-fallback,Project Information,Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED]
 SUS_EPD_REF_TXT,35,curated-fallback,Project Information,Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]
@@ -2753,7 +2753,7 @@ TS_NAME_TXT,11,curated-fallback,Generic Models,Text style name [ISO 19650-1:2018
 TS_STATUS_TXT,11,curated-fallback,Generic Models,Text style status [ISO 19650-2:2018]
 TS_UNDERLINE_BOOL,11,curated-fallback,Generic Models,Underlined text [ISO 19650-1:2018]
 TS_WIDTH_FACTOR_NR,11,curated-fallback,Generic Models,Text width factor [ISO 19650-1:2018]
-USAGE_TXT,11,UNRESOLVED(polluted-curated),,Dimension style usage [ISO 19650-1:2018]
+USAGE_TXT,11,misc-meta,<ALL>,Dimension style usage [ISO 19650-1:2018]
 VGO_CATEGORY_TXT,11,curated-fallback,Generic Models,VG Override Scheme Category Txt [TPL_TRACKING]
 VGO_CUT_COLOR_B_INT,11,curated-fallback,Generic Models,VG Override Scheme Cut Color B Int [TPL_TRACKING]
 VGO_CUT_COLOR_G_INT,11,curated-fallback,Generic Models,VG Override Scheme Cut Color G Int [TPL_TRACKING]
@@ -2788,8 +2788,8 @@ VGPS_SURFACE_COLOR_R_INT,11,curated-fallback,Generic Models,VG Projection/Surfac
 VGPS_SURFACE_PATTERN_TXT,11,curated-fallback,Generic Models,VG Projection/Surface Surface Pattern Txt [TPL_TRACKING]
 VGPS_TRANSPARENCY_NR,11,curated-fallback,Generic Models,VG Projection/Surface Transparency Nr [TPL_TRACKING]
 VGPS_VISIBLE_BOOL,11,curated-fallback,Generic Models,VG Projection/Surface Visible Bool [TPL_TRACKING]
-VIEW_COLOR_SCHEME_TXT,17,UNRESOLVED,,Active color scheme name for view
-VIEW_DISC_FILTER_TXT,17,UNRESOLVED,,Discipline filter codes for view (comma-separated)
+VIEW_COLOR_SCHEME_TXT,17,excluded,,Active color scheme name for view
+VIEW_DISC_FILTER_TXT,17,excluded,,Discipline filter codes for view (comma-separated)
 VT_AMBIENT_OCCLUSION_BOOL,11,excluded,,Ambient occlusion enabled [ISO 19650-1:2018]
 VT_BACKGROUND_IMAGE_TXT,11,excluded,,Background image filename [ISO 19650-1:2018]
 VT_COLOR_SCHEME_TXT,11,excluded,,Color scheme applied [ISO 19650-1:2018]
@@ -2913,9 +2913,9 @@ WARN_BLE_ROOM_OCCUPANCY_SPACES,17,warn-mirror,Rooms,Tag warning: ble room occupa
 WARN_BLE_ROOM_VENTILATION_ROOMS,17,warn-mirror,Rooms,Tag warning: ble room ventilation rooms
 WARN_BLE_ROOM_VENTILATION_SPACES,17,warn-mirror,Rooms,Tag warning: ble room ventilation spaces
 WARN_BLE_SIGNAGE_HEIGHT_MM,10,warn-mirror,,Warning: Signage mounting height check [LOW]
-WARN_BLE_SIGN_ACCESSIBILITY_SIGNAGE,17,warn-mirror,,Tag warning: ble sign accessibility signage
-WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE,17,warn-mirror,,Tag warning: ble sign fire exit signage
-WARN_BLE_SIGN_HEIGHT_MM_SIGNAGE,17,warn-mirror,,Tag warning: ble sign height mm signage
+WARN_BLE_SIGN_ACCESSIBILITY_SIGNAGE,17,warn-mirror,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Tag warning: ble sign accessibility signage
+WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE,17,warn-mirror,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Tag warning: ble sign fire exit signage
+WARN_BLE_SIGN_HEIGHT_MM_SIGNAGE,17,warn-mirror,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Tag warning: ble sign height mm signage
 WARN_BLE_SLAB_EDGE_THERMAL_BRIDGE_SLAB_EDGES,17,warn-mirror,Floors,Tag warning: ble slab edge thermal bridge slab edges
 WARN_BLE_SOFFIT_VENTILATION_ROOF_SOFFITS,17,warn-mirror,,Tag warning: ble soffit ventilation roof soffits
 WARN_BLE_STAIR_GOING,10,warn-mirror,Stairs|Railings,Warning: Stair individual going minimum [CRITICAL]
@@ -3136,15 +3136,15 @@ WARN_ICT_COVERAGE_TELEPHONE,17,warn-mirror,Data Devices|Communication Devices|Te
 WARN_ICT_DATA_RATE_DATA_DEVICES,17,warn-mirror,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Tag warning: ict data rate data devices
 WARN_ICT_OUTLET_TYPE_DATA_DEVICES,17,warn-mirror,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Tag warning: ict outlet type data devices
 WARN_ICT_OUTLET_TYPE_TELEPHONE,17,warn-mirror,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Tag warning: ict outlet type telephone
-WARN_INS_ACOUSTIC_DUCT_LINING,17,warn-mirror,,Tag warning: ins acoustic duct lining
-WARN_INS_EROSION_DUCT_LINING,17,warn-mirror,,Tag warning: ins erosion duct lining
-WARN_INS_FIRE_CLASS_DUCT_INS,17,warn-mirror,,Tag warning: ins fire class duct ins
-WARN_INS_FIRE_CLASS_PIPE_INSULATION,17,warn-mirror,,Tag warning: ins fire class pipe insulation
-WARN_INS_THICKNESS_DUCT_LINING,17,warn-mirror,,Tag warning: ins thickness duct lining
-WARN_INS_THICKNESS_MM,15,warn-mirror,,Warning: Insulation thickness minimum [HIGH]
-WARN_INS_THICKNESS_PIPE_INSULATION,17,warn-mirror,,Tag warning: ins thickness pipe insulation
-WARN_INS_VAPOUR_BARRIER_DUCT_INS,17,warn-mirror,,Tag warning: ins vapour barrier duct ins
-WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,17,warn-mirror,,Tag warning: ins vapour barrier pipe insulation
+WARN_INS_ACOUSTIC_DUCT_LINING,17,warn-mirror,<ALL>,Tag warning: ins acoustic duct lining
+WARN_INS_EROSION_DUCT_LINING,17,warn-mirror,<ALL>,Tag warning: ins erosion duct lining
+WARN_INS_FIRE_CLASS_DUCT_INS,17,warn-mirror,<ALL>,Tag warning: ins fire class duct ins
+WARN_INS_FIRE_CLASS_PIPE_INSULATION,17,warn-mirror,<ALL>,Tag warning: ins fire class pipe insulation
+WARN_INS_THICKNESS_DUCT_LINING,17,warn-mirror,<ALL>,Tag warning: ins thickness duct lining
+WARN_INS_THICKNESS_MM,15,warn-mirror,<ALL>,Warning: Insulation thickness minimum [HIGH]
+WARN_INS_THICKNESS_PIPE_INSULATION,17,warn-mirror,<ALL>,Tag warning: ins thickness pipe insulation
+WARN_INS_VAPOUR_BARRIER_DUCT_INS,17,warn-mirror,<ALL>,Tag warning: ins vapour barrier duct ins
+WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,17,warn-mirror,<ALL>,Tag warning: ins vapour barrier pipe insulation
 WARN_LIG_RES_NO_RATING,32,warn-mirror,,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01]
 WARN_LTG_COLOUR_RENDERING_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg colour rendering lighting
 WARN_LTG_COLOUR_TEMP_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg colour temp lighting

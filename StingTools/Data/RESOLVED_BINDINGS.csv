@@ -6,49 +6,49 @@ AC_ELEMENT_ID_TXT,<ALL>
 AC_HOTLINK_FILE_TXT,<ALL>
 AC_HOTLINK_ID_TXT,<ALL>
 AC_REVISION_TXT,<ALL>
-ARCH_TAG_7_PARA_AREAS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_ASSEMBLIES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_CASEWORK_TXT,Casework
-ARCH_TAG_7_PARA_CEIL_TXT,Ceilings
-ARCH_TAG_7_PARA_COLUMNS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_CURTAIN_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_DOOR_TXT,Doors
-ARCH_TAG_7_PARA_ENTOURAGE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_FACADE_TXT,Walls|Curtain Panels|Curtain Wall Mullions
-ARCH_TAG_7_PARA_FLOOR_TXT,Floors
-ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_FURNITURE_TXT,Furniture|Furniture Systems
-ARCH_TAG_7_PARA_FURN_SYS_TXT,Furniture|Furniture Systems
-ARCH_TAG_7_PARA_HARDSCAPE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_MASS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_MULLION_TXT,Walls|Curtain Panels|Curtain Wall Mullions
-ARCH_TAG_7_PARA_PADS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_PARKING_TXT,Parking
-ARCH_TAG_7_PARA_PARTS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_PLANTING_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_PROFILES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_RAILING_TXT,Railings
-ARCH_TAG_7_PARA_RAMP_TXT,Ramps
-ARCH_TAG_7_PARA_ROADS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_ROOF_TXT,Roofs
-ARCH_TAG_7_PARA_ROOM_TXT,Rooms
-ARCH_TAG_7_PARA_RVT_LINKS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_SIGNAGE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_SITE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_SPACES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_STAIR_TXT,Stairs|Railings
-ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_TOPOSOLID_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_VERT_CIRC_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_WALL_TXT,Walls|Curtain Panels|Curtain Wall Mullions
-ARCH_TAG_7_PARA_WASH_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_WIN_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
-ARCH_TAG_7_PARA_ZONES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+ARCH_TAG_7_PARA_AREAS_TXT,<ALL>
+ARCH_TAG_7_PARA_ASSEMBLIES_TXT,<ALL>
+ARCH_TAG_7_PARA_CASEWORK_TXT,<ALL>
+ARCH_TAG_7_PARA_CEIL_TXT,<ALL>
+ARCH_TAG_7_PARA_COLUMNS_TXT,<ALL>
+ARCH_TAG_7_PARA_CURTAIN_TXT,<ALL>
+ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,<ALL>
+ARCH_TAG_7_PARA_DOOR_TXT,<ALL>
+ARCH_TAG_7_PARA_ENTOURAGE_TXT,<ALL>
+ARCH_TAG_7_PARA_FACADE_TXT,<ALL>
+ARCH_TAG_7_PARA_FLOOR_TXT,<ALL>
+ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,<ALL>
+ARCH_TAG_7_PARA_FURNITURE_TXT,<ALL>
+ARCH_TAG_7_PARA_FURN_SYS_TXT,<ALL>
+ARCH_TAG_7_PARA_HARDSCAPE_TXT,<ALL>
+ARCH_TAG_7_PARA_MASS_TXT,<ALL>
+ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,<ALL>
+ARCH_TAG_7_PARA_MULLION_TXT,<ALL>
+ARCH_TAG_7_PARA_PADS_TXT,<ALL>
+ARCH_TAG_7_PARA_PARKING_TXT,<ALL>
+ARCH_TAG_7_PARA_PARTS_TXT,<ALL>
+ARCH_TAG_7_PARA_PLANTING_TXT,<ALL>
+ARCH_TAG_7_PARA_PROFILES_TXT,<ALL>
+ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,<ALL>
+ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,<ALL>
+ARCH_TAG_7_PARA_RAILING_TXT,<ALL>
+ARCH_TAG_7_PARA_RAMP_TXT,<ALL>
+ARCH_TAG_7_PARA_ROADS_TXT,<ALL>
+ARCH_TAG_7_PARA_ROOF_TXT,<ALL>
+ARCH_TAG_7_PARA_ROOM_TXT,<ALL>
+ARCH_TAG_7_PARA_RVT_LINKS_TXT,<ALL>
+ARCH_TAG_7_PARA_SIGNAGE_TXT,<ALL>
+ARCH_TAG_7_PARA_SITE_TXT,<ALL>
+ARCH_TAG_7_PARA_SPACES_TXT,<ALL>
+ARCH_TAG_7_PARA_STAIR_TXT,<ALL>
+ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,<ALL>
+ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,<ALL>
+ARCH_TAG_7_PARA_TOPOSOLID_TXT,<ALL>
+ARCH_TAG_7_PARA_VERT_CIRC_TXT,<ALL>
+ARCH_TAG_7_PARA_WALL_TXT,<ALL>
+ARCH_TAG_7_PARA_WASH_TXT,<ALL>
+ARCH_TAG_7_PARA_WIN_TXT,<ALL>
+ARCH_TAG_7_PARA_ZONES_TXT,<ALL>
 ARC_FACTORY_ORDER_REF_TXT,<ALL>
 ARC_GLAZING_SPEC_TXT,<ALL>
 AREA_SQ_M,<ALL>
@@ -523,6 +523,8 @@ BLE_ROOM_NAME_TXT,Rooms
 BLE_ROOM_NUM_TXT,Rooms
 BLE_ROOM_OCCUPANCY_NR,Rooms
 BLE_ROOM_VENTILATION_RATE_LPS,Rooms
+BLE_SIGN_ILLUMINATED_BOOL,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_SIGN_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
 BLE_SLAB_BLOCK_SIZE_TXT,Floors
 BLE_SLAB_RIB_DEPTH_MM,Floors
 BLE_SLAB_RIB_SPACING_MM,Floors
@@ -565,6 +567,19 @@ BLE_STRUCT_STEEL_GRADE_TXT,Structural Framing|Structural Columns|Structural Foun
 BLE_STRUCT_STEEL_SECTION_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 BLE_STRUCT_WATERPROOFING_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 BLE_SURFACE_CONDITION_TXT,Walls|Floors|Ceilings|Roofs|Rooms
+BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_FASCIA_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_GUTTER_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_HANDRAILS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_RAILINGS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_SLAB_EDGES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_STAIR_RUNS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_TOP_RAILS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+BLE_TAG_7_PARA_WALL_SWEEPS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
 BLE_TILE_JOINT_WIDTH_MM,Walls|Floors|Ceilings|Roofs|Rooms
 BLE_TILE_SIZE_TXT,Walls|Floors|Ceilings|Roofs|Rooms
 BLE_WALL_CORE_MATERIAL_TXT,Walls|Curtain Panels|Curtain Wall Mullions
@@ -623,11 +638,11 @@ CEQ_ENDO_AER_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_EQP_TAG,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CEQ_EQP_TAG,<ALL>
 CEQ_GMDN_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_SFG20_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_TAG_7_PARA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CEQ_TAG_7_PARA_TXT,<ALL>
 CEQ_UMDNS_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLASH_COUNT_INT,<ALL>
 CLASH_LIVE_FLAG,<ALL>
@@ -645,7 +660,7 @@ CLN_DESIGN_ACH_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_PRESSURE_DELTA_PA_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_RH_PCT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_TEMP_C_DBL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_EQP_TAG,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_EQP_TAG,<ALL>
 CLN_EQUIP_WEIGHT_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_FGI_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_FLOOR_LOAD_KN_M2_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -665,11 +680,11 @@ CLN_PRIVACY_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_RF_SHIELD_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_ROOM_TAG,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_ROOM_TAG,<ALL>
 CLN_RT60_TARGET_S_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_STRUCT_SIGN_OFF_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_STRUCT_SIGN_OFF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_TAG_7_PARA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_TAG_7_PARA_TXT,<ALL>
 CLN_TRANSPORT_PATH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_VIB_VM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_WASTE_BIN_BIM_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -691,8 +706,9 @@ COMM_NOTES_TXT,<ALL>
 COMM_OPERATIVE_TXT,<ALL>
 COMM_STATE_TXT,<ALL>
 COMM_WITNESS_TXT,<ALL>
-COMP_MAT_TAG_1_TXT,Materials
+COMP_MAT_TAG_1_TXT,<ALL>
 COMP_MAT_TAG_2_TXT,Materials
+COMP_TAG_1_TXT,<ALL>
 COM_BACKBONE_CAPACITY_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_BMS_RANGE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_COMMISSION_DATE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -709,13 +725,13 @@ COM_C_PROTOCOL_TXT,Data Devices|Communication Devices|Telephone Devices|Security
 COM_C_PWR_SUPPLY_V,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_DAT_SPARE_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_DAT_SPARE_02_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-COM_DEV_TAG,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+COM_DEV_TAG,<ALL>
 COM_DEV_TAG_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_FIBER_TYPE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_HANDOVER_STATUS_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_INSTALL_DATE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_PROTOCOL_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-COM_TAG_7_PARA_BMS_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+COM_TAG_7_PARA_BMS_TXT,<ALL>
 COM_TEST_CERT_REF_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_WARRANTY_START_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 CP_ELEMENT_TYPE_TXT,Generic Models
@@ -723,9 +739,12 @@ CP_HEX_CODE_TXT,Generic Models
 CP_PALETTE_NAME_TXT,Generic Models
 CP_STYLE_TXT,Generic Models
 CP_USE_CASE_TXT,Generic Models
+CSI_SECTION_TXT,<ALL>
+CSI_TITLE_TXT,<ALL>
 CST_BOQ_COVERAGE_PCT,<ALL>
 CST_BOQ_ITEM_TXT,<ALL>
 CST_BOQ_SNAPSHOT_REF,<ALL>
+CST_BUDGET_VARIANCE_UGX,<ALL>
 CST_CALC_ADHESIVE_KG,Walls|Floors|Ceilings|Roofs|Rooms
 CST_CALC_AGGREGATE_M3,Walls|Floors|Ceilings|Roofs|Rooms
 CST_CALC_AREA_M2,Walls|Floors|Ceilings|Roofs|Rooms
@@ -749,10 +768,18 @@ CST_CALC_STEEL_KG,Walls|Floors|Ceilings|Roofs|Rooms
 CST_CALC_TILE_M2,Walls|Floors|Ceilings|Roofs|Rooms
 CST_CALC_VOLUME_M3,Walls|Floors|Ceilings|Roofs|Rooms
 CST_CALC_WATER_M3,Walls|Floors|Ceilings|Roofs|Rooms
+CST_COST_CATEGORY_TXT,<ALL>
+CST_COST_CODE_TXT,<ALL>
+CST_DELIVERY_LEAD_TIME_DAYS,<ALL>
 CST_DUTY_PCT,<ALL>
+CST_ELEMENT_COST_NR,<ALL>
 CST_EMBODIED_CARBON_KG,<ALL>
+CST_ENERGY_ANNUAL_UGX_NUM_NR,<ALL>
+CST_FIX_CAT_NR,<ALL>
+CST_FIX_LUMEN_OUTPUT_LM,<ALL>
 CST_FORMWORK_TYPE_TXT,<ALL>
 CST_FX_RATE_USD_UGX,<ALL>
+CST_IMPORT_REQUIRED_BOOL,<ALL>
 CST_INSTALL_HRS,<ALL>
 CST_INSTALL_HRS_DISP_TXT,<ALL>
 CST_INTL_PRICE_USD,<ALL>
@@ -761,10 +788,23 @@ CST_LABOUR_CREW_TXT,<ALL>
 CST_LABOUR_HOURS,<ALL>
 CST_LABOUR_RATE_GBP,<ALL>
 CST_LABOUR_RATE_UGX,<ALL>
+CST_LAST_COSTED_DATE,<ALL>
+CST_LIFECYCLE_COST_UGX,<ALL>
+CST_LOCAL_MAT_BOOL,<ALL>
+CST_MODELED_TOTAL_UGX,<ALL>
+CST_PERCENTAGE_OF_TOTAL_PCT,<ALL>
+CST_PLYWOOD_SIZE_TXT,<ALL>
 CST_PROC_SPARE_01_TXT,<ALL>
 CST_PROC_SPARE_02_TXT,<ALL>
+CST_PROVISIONAL_SUM,<ALL>
+CST_PS_DESCRIPTION,<ALL>
+CST_QTY_MEASURED,<ALL>
+CST_QUOTE_REF_TXT,<ALL>
 CST_RATE_CONFIDENCE,<ALL>
 CST_RATE_SOURCE,<ALL>
+CST_SAND_MOISTURE_TXT,<ALL>
+CST_SHIPPING_UGX,<ALL>
+CST_SPECIAL_EQUIPMENT_TXT,<ALL>
 CST_SUP_ALTERNATIVE_SUPPLIERS_TXT,<ALL>
 CST_SUP_COUNTRY_OF_ORIGIN_INT,<ALL>
 CST_SUP_CUSTOMS_CLEARANCE_DAYS,<ALL>
@@ -849,6 +889,7 @@ CST_S_REI_WEIGHT_KG,Structural Framing|Structural Columns|Structural Foundations
 CST_S_REI_WEIGHT_WASTAGE_KG,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 CST_S_REI_WIRE_WEIGHT_KG,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 CST_S_SUPPLIER_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+CST_TAG_7_PARA_CONC_TXT,<ALL>
 CST_TOTAL_ADHESIVE_COST,<ALL>
 CST_TOTAL_AGGREGATE_COST,<ALL>
 CST_TOTAL_BLOCKS_COST,<ALL>
@@ -865,6 +906,7 @@ CST_TOTAL_ROOFING_COST,<ALL>
 CST_TOTAL_SAND_COST,<ALL>
 CST_TOTAL_STEEL_COST,<ALL>
 CST_TOTAL_TILE_COST,<ALL>
+CST_TRADE_NAME_TXT,<ALL>
 CST_UG_PRICE_UGX,<ALL>
 CST_UG_PRICE_UGX_DISP_TXT,<ALL>
 CST_UNIT_COST_NR,<ALL>
@@ -938,7 +980,7 @@ ELC_CDT_SOFFIT_OFFSET_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Ca
 ELC_CDT_STALE_ANNOT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CDT_SUPPORT_SPACING_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CDT_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CDT_TAG,<ALL>
 ELC_CDT_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CDT_TAG_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -975,7 +1017,7 @@ ELC_CTR_FILL_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray
 ELC_CTR_HEIGHT_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CTR_MAT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CTR_SZ_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CTR_TAG,<ALL>
 ELC_CTR_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CTR_WIDTH_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_DIV_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -983,7 +1025,7 @@ ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tr
 ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_EQP_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_EQP_TAG,<ALL>
 ELC_EQP_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_EQP_TAG_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_EQUIPMENT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -991,7 +1033,7 @@ ELC_FACTORY_QR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tr
 ELC_FAT_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FEEDER_CSA_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FEEDER_RATING_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_FIX_TAG_1_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_FIX_TAG_1_TXT,<ALL>
 ELC_FIX_TAG_2_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -1093,18 +1135,18 @@ ELC_RECONCILE_DRIFT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Ca
 ELC_SEL_COORD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_SPARE_WAYS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_CABLE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_CIRCUIT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_CIRC_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_COMM_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_CONDUIT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_FIXTURE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_LPS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_PANEL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_TIEIN_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_TAG_7_PARA_TRAY_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_TAG_7_PARA_CABLE_TXT,<ALL>
+ELC_TAG_7_PARA_CIRCUIT_TXT,<ALL>
+ELC_TAG_7_PARA_CIRC_TXT,<ALL>
+ELC_TAG_7_PARA_COMM_TXT,<ALL>
+ELC_TAG_7_PARA_CONDUIT_TXT,<ALL>
+ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,<ALL>
+ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,<ALL>
+ELC_TAG_7_PARA_FIXTURE_TXT,<ALL>
+ELC_TAG_7_PARA_LPS_TXT,<ALL>
+ELC_TAG_7_PARA_PANEL_TXT,<ALL>
+ELC_TAG_7_PARA_TIEIN_TXT,<ALL>
+ELC_TAG_7_PARA_TRAY_TXT,<ALL>
 ELC_TRANSFER_LOAD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_UPS_REPLACE_DT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_VLT_DROP_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -1140,9 +1182,12 @@ ELC_WIRE_PROFILE_ID_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cab
 ELC_WIRE_SHIELDED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_WIRE_SIZE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_WIRE_VD_PCT_NUM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELE_FIX_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ENV_FAC_TAG_TXT,Curtain Panels|Curtain Wall Mullions|Generic Models|Walls
 ENV_ROOF_TAG_TXT,Generic Models|Roofs
+ENV_TAG_1_TXT,<ALL>
 ENV_WIN_TAG_TXT,Generic Models|Windows
+EQP_TAG_1_TXT,<ALL>
 EV_CHARGER_CIRCUIT_REF,<ALL>
 EV_CHARGER_KW,<ALL>
 EV_CHARGER_TYPE_TXT,<ALL>
@@ -1156,12 +1201,13 @@ FAB_PIPE_DN_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|P
 FAB_STIFF_TYPE_TXT,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 FIN_CEIL_TAG_TXT,Ceilings|Generic Models
 FIN_FLR_TAG_TXT,Floors|Generic Models
+FIN_TAG_1_TXT,<ALL>
 FIN_WALL_TAG_TXT,Curtain Panels|Generic Models|Walls
 FLS_ALARM_CIRCUIT_COUNT_NR,Sprinklers|Fire Alarm Devices
 FLS_COMPARTMENT_ID_TXT,Sprinklers|Fire Alarm Devices
 FLS_DETECTION_COST_UGX,Sprinklers|Fire Alarm Devices
 FLS_DETECTOR_COUNT_NR,Sprinklers|Fire Alarm Devices
-FLS_DEV_TAG,Sprinklers|Fire Alarm Devices
+FLS_DEV_TAG,<ALL>
 FLS_DEV_TAG_01_TXT,Sprinklers|Fire Alarm Devices
 FLS_DEV_TAG_02_TXT,Sprinklers|Fire Alarm Devices
 FLS_EVACUATION_TIME_MIN,Sprinklers|Fire Alarm Devices
@@ -1202,11 +1248,11 @@ FLS_SFTY_TRAVEL_DIST_M,Sprinklers|Fire Alarm Devices
 FLS_SPRINKLER_COUNT_NR,Sprinklers|Fire Alarm Devices
 FLS_SUPPRESSION_COST_UGX,Sprinklers|Fire Alarm Devices
 FLS_SUPPRESSION_PIPE_LENGTH_M,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_DEVICE_TXT,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_FA_TXT,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_FIRE_PROT_TXT,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_SPR_TXT,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_TIEIN_TXT,Sprinklers|Fire Alarm Devices
+FLS_TAG_7_PARA_DEVICE_TXT,<ALL>
+FLS_TAG_7_PARA_FA_TXT,<ALL>
+FLS_TAG_7_PARA_FIRE_PROT_TXT,<ALL>
+FLS_TAG_7_PARA_SPR_TXT,<ALL>
+FLS_TAG_7_PARA_TIEIN_TXT,<ALL>
 FLS_TOTAL_DEMAND_LPM,Sprinklers|Fire Alarm Devices
 FLT_CATEGORIES_TXT,Generic Models
 FLT_CUT_PATTERN_TXT,Generic Models
@@ -1220,6 +1266,7 @@ FLT_STATUS_TXT,Generic Models
 FLT_SURFACE_PATTERN_TXT,Generic Models
 FLT_TRANSPARENCY_INT,Generic Models
 FLT_USED_IN_TEMPLATES_TXT,Generic Models
+FOHLIO_REF_TXT,<ALL>
 FOUND_BEAR_UTIL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 FOUND_SOIL_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 FOUND_SUMMARY_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -1258,7 +1305,7 @@ HVC_DCT_SHOP_DRAWING_REQ_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fitt
 HVC_DCT_SOUNDLVL_DB,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_SUPPORTS_SPACING_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_SZ_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_DCT_TAG,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_DCT_TAG,<ALL>
 HVC_DCT_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_TAG_02_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_TAG_03_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1271,14 +1318,14 @@ HVC_DUCT_CLASS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct A
 HVC_DUCT_FLOWRATE_M3H,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DUCT_LINING_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_EFF_RATIO_NR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_EQP_TAG,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_EQP_TAG,<ALL>
 HVC_EQP_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_EQP_TAG_02_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_EQP_TAG_03_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_FACTORY_FLASH_TEST_DATE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_FACTORY_QR_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_FLOW_LS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_FLX_TAG,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_FLX_TAG,<ALL>
 HVC_FLX_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_HED_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_HEPA_GRADE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1316,19 +1363,19 @@ HVC_SIZE_MODIFIED_DT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct
 HVC_SIZE_PREV_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_RULE_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_STALE_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_ANAL_DUCTS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_AT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_DCTACC_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_DUCT_INSULATION_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_DUCT_LINING_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_DUCT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_FLEXDUCT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_SPEC_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_TIEIN_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_TAG_7_PARA_ANAL_DUCTS_TXT,<ALL>
+HVC_TAG_7_PARA_AT_TXT,<ALL>
+HVC_TAG_7_PARA_DCTACC_TXT,<ALL>
+HVC_TAG_7_PARA_DUCT_INSULATION_TXT,<ALL>
+HVC_TAG_7_PARA_DUCT_LINING_TXT,<ALL>
+HVC_TAG_7_PARA_DUCT_TXT,<ALL>
+HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT,<ALL>
+HVC_TAG_7_PARA_FAB_DUCTWORK_TXT,<ALL>
+HVC_TAG_7_PARA_FLEXDUCT_TXT,<ALL>
+HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,<ALL>
+HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT,<ALL>
+HVC_TAG_7_PARA_SPEC_TXT,<ALL>
+HVC_TAG_7_PARA_TIEIN_TXT,<ALL>
 HVC_TERMINAL_DAMPER_TXT,Air Terminals
 HVC_TERMINAL_FINISH_TXT,Air Terminals
 HVC_TERMINAL_MAT_TXT,Air Terminals
@@ -1337,7 +1384,7 @@ HVC_THROW_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessor
 HVC_VEL_MPS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_VLT_V,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 ICT_CAT_RATING_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-ICT_DEV_TAG,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+ICT_DEV_TAG,<ALL>
 ICT_DEV_TAG_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_ENDO_READER_ID_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_HEALTHIOT_ALERT_BAND_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -1351,21 +1398,22 @@ ICT_RTLS_ANCHOR_ID_TXT,Data Devices|Communication Devices|Telephone Devices|Secu
 ICT_RTLS_COVERAGE_M_NR,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_RTLS_TECH_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_RTLS_TX_POWER_DBM_NR,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-ICT_TAG_7_PARA_AV_DEV_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-ICT_TAG_7_PARA_DATA_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-ICT_TAG_7_PARA_TEL_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+ICT_TAG_7_PARA_AV_DEV_TXT,<ALL>
+ICT_TAG_7_PARA_DATA_TXT,<ALL>
+ICT_TAG_7_PARA_TEL_TXT,<ALL>
 ICT_TEL_OUTLET_QTY_NR,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_TEL_PORT_TYPE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 IFC_GLOBAL_ID_TXT,<ALL>
 IFC_PSET_OVERRIDE_TXT,<ALL>
+INS_MATERIAL_TXT,<ALL>
 IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 LIG_AREA_OBS_LOS_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_FIT_TAG,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_FIT_TAG,<ALL>
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRESSURE_REL_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRODUCT_RATING_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_SELF_CLOSE_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_TAG_7_PARA_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_TAG_7_PARA_TXT,<ALL>
 LS_NAME_TXT,Generic Models
 LS_PATTERN_TXT,Generic Models
 LS_STATUS_TXT,Generic Models
@@ -1385,7 +1433,7 @@ LTG_EMRG_TYPE_TXT,Lighting Fixtures|Lighting Devices
 LTG_FIX_EFFICACY_LM_W,Lighting Fixtures|Lighting Devices
 LTG_FIX_LAMP_TYPE_TXT,Lighting Fixtures|Lighting Devices
 LTG_FIX_LMP_WATTAGE_W,Lighting Fixtures|Lighting Devices
-LTG_FIX_TAG,Lighting Fixtures|Lighting Devices
+LTG_FIX_TAG,<ALL>
 LTG_FIX_TAG_01_TXT,Lighting Fixtures|Lighting Devices
 LTG_FIX_TAG_02_TXT,Lighting Fixtures|Lighting Devices
 LTG_FIX_TYPE_CLASSIFICATION_TXT,Lighting Fixtures|Lighting Devices
@@ -1394,8 +1442,8 @@ LTG_HOIST_MOTOR_TXT,Lighting Fixtures|Lighting Devices
 LTG_HOIST_WEIGHT_KG,Lighting Fixtures|Lighting Devices
 LTG_ILLUMINANCE_LUX,Lighting Fixtures|Lighting Devices
 LTG_POWER_DENSITY_W_M2,Lighting Fixtures|Lighting Devices
-LTG_TAG_7_PARA_FIXTURE_TXT,Lighting Fixtures|Lighting Devices
-LTG_TAG_7_PARA_SPEC_TXT,Lighting Fixtures|Lighting Devices
+LTG_TAG_7_PARA_FIXTURE_TXT,<ALL>
+LTG_TAG_7_PARA_SPEC_TXT,<ALL>
 MAT_APPLICATION,Materials
 MAT_CARBON_FACTOR,Materials
 MAT_CATEGORY,Materials
@@ -1434,13 +1482,13 @@ MAT_LOCATION,Materials
 MAT_MANUFACTURER,Materials
 MAT_MEASURED_AREA_M2,Materials
 MAT_NAME,Materials
-MAT_PERF_TAG_1_TXT,Materials
+MAT_PERF_TAG_1_TXT,<ALL>
 MAT_PERF_TAG_2_TXT,Materials
 MAT_PERF_TAG_3_TXT,Materials
 MAT_PROP_DICT_GUID_TXT,Materials
 MAT_SPECIFICATIONS,Materials
 MAT_STANDARD,Materials
-MAT_TAG_1_TXT,Materials
+MAT_TAG_1_TXT,<ALL>
 MAT_TAG_2_TXT,Materials
 MAT_TAG_3_TXT,Materials
 MAT_TAG_4_TXT,Materials
@@ -1465,7 +1513,7 @@ MEC_CTRL_FUNCTION_TXT,<ALL>
 MEC_CTRL_SIGNAL_TXT,<ALL>
 MEC_SET_CAPACITY_KW,<ALL>
 MEC_SYS_TXT,<ALL>
-MED_TAG_7_PARA_MED_EQUIP_TXT,Medical Equipment
+MED_TAG_7_PARA_MED_EQUIP_TXT,<ALL>
 MEP_CONNECTOR_COUNT_NR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_DELTA_PRESS_PA,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_DESIGN_FLOW_M3S,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
@@ -1480,8 +1528,8 @@ MEP_NOMINAL_DIAMETER_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|D
 MEP_PUMP_HEAD_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_SYSTEM_ABBREVIATION_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_SYSTEM_NAME_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
-MEP_TAG_7_PARA_ANCILLARY_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
-MEP_TAG_7_PARA_FAB_HANGERS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
+MEP_TAG_7_PARA_ANCILLARY_TXT,<ALL>
+MEP_TAG_7_PARA_FAB_HANGERS_TXT,<ALL>
 MEP_TIE_POINT_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_TYPE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_UPSTREAM_ELEMENT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
@@ -1489,12 +1537,12 @@ MEP_WORKING_PRESSURE_PA,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|D
 MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_EQP_TAG,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+MGS_EQP_TAG,<ALL>
 MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_TAG_7_PARA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+MGS_TAG_7_PARA_TXT,<ALL>
 MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_VERIFY_BY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -1523,12 +1571,13 @@ MNT_TASK_DESC_TXT,<ALL>
 MNT_TASK_NAME_TXT,<ALL>
 MNT_TYPE_TXT,<ALL>
 MNT_WARRANTY_EXPIRY_TXT,<ALL>
+MOUNTING_REFERENCE_TXT,<ALL>
 NCL_CALL_TYPE_TXT,Nurse Call Devices
-NCL_DEV_TAG,Nurse Call Devices
+NCL_DEV_TAG,<ALL>
 NCL_DEV_TAG_01_TXT,Nurse Call Devices
 NCL_DEV_TYPE_TXT,Nurse Call Devices
-NCL_TAG_7_PARA_NURSECALL_TXT,Nurse Call Devices
-NCL_TAG_7_PARA_TXT,Nurse Call Devices
+NCL_TAG_7_PARA_NURSECALL_TXT,<ALL>
+NCL_TAG_7_PARA_TXT,<ALL>
 NCL_ZONE_TXT,Nurse Call Devices
 NRG_ANNUAL_COOL_KWH,<ALL>
 NRG_ANNUAL_HEAT_KWH,<ALL>
@@ -1559,6 +1608,7 @@ PEN_OD_MM,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_PFV_UUID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_SEALANT_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_STRUCTURAL_FLAG_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
+PERF_TAG_1_TXT,<ALL>
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,<ALL>
 PER_ACOUSTICS_IIC_RATING_TXT,<ALL>
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,<ALL>
@@ -1657,6 +1707,7 @@ PH_NAME_TXT,<ALL>
 PH_NUMBER_INT,<ALL>
 PH_START_DATE_TXT,<ALL>
 PH_STATUS_TXT,<ALL>
+PIP_TAG_7_PARA_PIPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_AAV_REQUIRED_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_ACC_CONNECTION_SZ_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_ACC_CONNECTION_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1665,8 +1716,8 @@ PLM_AUG_CARE_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulatio
 PLM_CALC_DN_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_CALC_SLOPE_PCT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_CAP_CU_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_CONN_FROM_TAG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_CONN_TO_TAG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_CONN_FROM_TAG,<ALL>
+PLM_CONN_TO_TAG,<ALL>
 PLM_CONN_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DEAD_LEG_LENGTH_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DEAD_LEG_M_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1699,7 +1750,7 @@ PLM_DRN_VNT_TERMINAL_HEIGHT_FT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|P
 PLM_DRN_VNT_TERMINAL_LOC_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_CAPACITY_L,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_EQP_TAG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_EQP_TAG,<ALL>
 PLM_EQP_TAG_01_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_TAG_02_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXJ_ANGULAR_MOVEMENT_DEG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1800,16 +1851,16 @@ PLM_SUP_QD_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|P
 PLM_SUP_VEL_MPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_SYS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_DRAIN_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_EQUIPMENT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_EQUIP_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TAG_7_PARA_DRAIN_TXT,<ALL>
+PLM_TAG_7_PARA_EQUIPMENT_TXT,<ALL>
+PLM_TAG_7_PARA_EQUIP_TXT,<ALL>
 PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_FIXTURE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TAG_7_PARA_FIXTURE_TXT,<ALL>
 PLM_TAG_7_PARA_PIPEACC_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_PIPE_INSULATION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_PIPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_PLM_EQUIP_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_TAG_7_PARA_TIEIN_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_TAG_7_PARA_PLM_EQUIP_TXT,<ALL>
+PLM_TAG_7_PARA_TIEIN_TXT,<ALL>
 PLM_TMV_BLEND_TEMP_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_CLASS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_KVS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1954,6 +2005,7 @@ PRJ_TEMPLATE_PROFILE_TXT,<ALL>
 PRJ_TRACE_TOLERANCE_PCT,<ALL>
 PRJ_VOLUME_CODE,<ALL>
 PRJ_VOLUME_COD_TXT,<ALL>
+PROJECT_BUDGET_UGX,<ALL>
 PROP_ACOUSTIC_ABS,Materials
 PROP_CARBON_KG_M3,Materials
 PROP_COMP_STRENGTH_MPA,Materials
@@ -1963,6 +2015,7 @@ PROP_PHYSICAL_SPARE_01_TXT,Materials
 PROP_PHYSICAL_SPARE_02_TXT,Materials
 PROP_SOUND_RED_DB,Materials
 PROP_SPECIFIC_HEAT_J_KGK,Materials
+PROP_TAG_7_PARA_MATERIALS_TXT,<ALL>
 PROP_TENS_STRENGTH_MPA,Materials
 PROP_THERMAL_COND_W_MK,Materials
 PROP_THERMAL_RES_M2K_W,Materials
@@ -1999,12 +2052,12 @@ Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>
 RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_EQP_TAG,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+RAD_EQP_TAG,<ALL>
 RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_OCC_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_QE_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_QE_NAME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_TAG_7_PARA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+RAD_TAG_7_PARA_TXT,<ALL>
 RAD_USE_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_WORKLOAD_MAWK_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RGL_ACCESSIBILITY_COMPLIANT_TXT,<ALL>
@@ -2083,12 +2136,12 @@ RNV_NEW_CONST_SEQ_TXT,<ALL>
 RNV_STATUS_TXT,<ALL>
 SEC_CBL_NR_TXT,Security Devices
 SEC_DEV_COVERAGE_TXT,Security Devices
-SEC_DEV_TAG,Security Devices
+SEC_DEV_TAG,<ALL>
 SEC_DEV_TAG_01_TXT,Security Devices
 SEC_DEV_TYPE_TXT,Security Devices
 SEC_DEV_ZONE_TXT,Security Devices
-SEC_TAG_7_PARA_SECURITY_TXT,Security Devices
-SEC_TAG_7_PARA_TXT,Security Devices
+SEC_TAG_7_PARA_SECURITY_TXT,<ALL>
+SEC_TAG_7_PARA_TXT,<ALL>
 SLV_ANNULAR_GAP_MM,Generic Models
 SLV_FIRESTOP_MFR_TXT,Generic Models
 SLV_FIRESTOP_PRODUCT_TXT,Generic Models
@@ -2100,6 +2153,8 @@ SLV_SEAL_TYPE_TXT,Generic Models
 SLV_SERVICE_TXT,Generic Models
 SLV_STATUS_TXT,Generic Models
 SLV_SZ_MM,Generic Models
+SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models
+SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
 SLV_TESTED_TO_TXT,Generic Models
 SLV_WALL_THICKNESS_MM,Generic Models
 SLV_WALL_TYPE_TXT,Generic Models
@@ -2110,6 +2165,7 @@ SPC_FINISH_WALLS_TXT,<ALL>
 SPC_GROSS_AREA_M2,<ALL>
 SPC_MIN_HEADROOM_M,<ALL>
 SPC_PUBLIC_ACCESSIBLE_BOOL,<ALL>
+SPK_TAG_7_PARA_HEAD_TXT,Sprinklers|Fire Alarm Devices
 STING_4D_END_DATE_TXT,<ALL>
 STING_4D_START_DATE_TXT,<ALL>
 STING_5D_COST_RATE_NUM,<ALL>
@@ -2209,9 +2265,14 @@ STING_VIEW_SYMBOL_STANDARD,<ALL>
 STING_VIEW_TAG_STYLE,<ALL>
 STING_VIEW_TOKEN_MASK_TXT,<ALL>
 STING_WALL_ROUTING_FLAG,<ALL>
-STRUCT_COL_AXIAL_LOAD_KN,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STRUCT_COL_AXIAL_LOAD_KN,Columns|Structural Columns
+STRUCT_COL_BUCKLING_CHECK_BOOL,Columns|Structural Columns
+STRUCT_COL_MOMENT_KNM,Columns|Structural Columns
+STRUCT_COL_SHEAR_KN,Columns|Structural Columns
 STRUCT_FRM_AXIAL_LOAD_KN,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STRUCT_FRM_DEFLECTION_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STRUCT_FRM_MOMENT_KNM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STRUCT_FRM_SHEAR_KN,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_ANALYTICAL_MODEL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_AREA_LOAD_KN_M2,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_BAR_MARK_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -2311,41 +2372,41 @@ STR_STEEL_TAG_TXT,Structural Framing|Structural Columns|Structural Foundations|S
 STR_STRUCTURAL_USAGE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SURFACE_AREA_M2_M,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SYSTEM_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_1_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANAL_LINKS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANAL_MEMBERS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANAL_NODES_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANAL_OPENINGS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANAL_PANELS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_ANLYT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_AREA_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_BEAM_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_BOLT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_BRACE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_COL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_CONN_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_FDN_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_INT_AREA_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_INT_LINE_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_INT_POINT_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_LINE_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_LOAD_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_POINT_LOADS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_REBAR_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_SLAB_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_AREA_REINF_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_CONNECTIONS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_PATH_REINF_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_REBAR_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_STIFFENERS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_STR_TRUSSES_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_WALL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_WELD_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_7_PARA_WIRE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_TAG_1_TXT,<ALL>
+STR_TAG_7_PARA_ANAL_LINKS_TXT,<ALL>
+STR_TAG_7_PARA_ANAL_MEMBERS_TXT,<ALL>
+STR_TAG_7_PARA_ANAL_NODES_TXT,<ALL>
+STR_TAG_7_PARA_ANAL_OPENINGS_TXT,<ALL>
+STR_TAG_7_PARA_ANAL_PANELS_TXT,<ALL>
+STR_TAG_7_PARA_ANLYT_TXT,<ALL>
+STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_AREA_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_BEAM_TXT,<ALL>
+STR_TAG_7_PARA_BOLT_TXT,<ALL>
+STR_TAG_7_PARA_BRACE_TXT,<ALL>
+STR_TAG_7_PARA_COL_TXT,<ALL>
+STR_TAG_7_PARA_CONN_TXT,<ALL>
+STR_TAG_7_PARA_FDN_TXT,<ALL>
+STR_TAG_7_PARA_INT_AREA_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_INT_LINE_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_INT_POINT_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_LINE_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_LOAD_TXT,<ALL>
+STR_TAG_7_PARA_POINT_LOADS_TXT,<ALL>
+STR_TAG_7_PARA_REBAR_TXT,<ALL>
+STR_TAG_7_PARA_SLAB_TXT,<ALL>
+STR_TAG_7_PARA_STR_AREA_REINF_TXT,<ALL>
+STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,<ALL>
+STR_TAG_7_PARA_STR_CONNECTIONS_TXT,<ALL>
+STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,<ALL>
+STR_TAG_7_PARA_STR_PATH_REINF_TXT,<ALL>
+STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,<ALL>
+STR_TAG_7_PARA_STR_REBAR_TXT,<ALL>
+STR_TAG_7_PARA_STR_STIFFENERS_TXT,<ALL>
+STR_TAG_7_PARA_STR_TRUSSES_TXT,<ALL>
+STR_TAG_7_PARA_WALL_TXT,<ALL>
+STR_TAG_7_PARA_WELD_TXT,<ALL>
+STR_TAG_7_PARA_WIRE_TXT,<ALL>
 STR_TREAD_COUNT_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_TREAD_DEPTH_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WALL_COVER_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -2394,6 +2455,7 @@ TS_NAME_TXT,Generic Models
 TS_STATUS_TXT,Generic Models
 TS_UNDERLINE_BOOL,Generic Models
 TS_WIDTH_FACTOR_NR,Generic Models
+USAGE_TXT,<ALL>
 VGO_CATEGORY_TXT,Generic Models
 VGO_CUT_COLOR_B_INT,Generic Models
 VGO_CUT_COLOR_G_INT,Generic Models
@@ -2516,6 +2578,9 @@ WARN_BLE_ROOM_HEIGHT_MM_ROOMS,Rooms
 WARN_BLE_ROOM_OCCUPANCY_SPACES,Rooms
 WARN_BLE_ROOM_VENTILATION_ROOMS,Rooms
 WARN_BLE_ROOM_VENTILATION_SPACES,Rooms
+WARN_BLE_SIGN_ACCESSIBILITY_SIGNAGE,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+WARN_BLE_SIGN_FIRE_EXIT_SIGNAGE,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
+WARN_BLE_SIGN_HEIGHT_MM_SIGNAGE,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment
 WARN_BLE_SLAB_EDGE_THERMAL_BRIDGE_SLAB_EDGES,Floors
 WARN_BLE_STAIR_GOING,Stairs|Railings
 WARN_BLE_STAIR_GOING_MM_STAIRS,Stairs|Railings
@@ -2730,6 +2795,15 @@ WARN_ICT_COVERAGE_TELEPHONE,Data Devices|Communication Devices|Telephone Devices
 WARN_ICT_DATA_RATE_DATA_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_ICT_OUTLET_TYPE_DATA_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_ICT_OUTLET_TYPE_TELEPHONE,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+WARN_INS_ACOUSTIC_DUCT_LINING,<ALL>
+WARN_INS_EROSION_DUCT_LINING,<ALL>
+WARN_INS_FIRE_CLASS_DUCT_INS,<ALL>
+WARN_INS_FIRE_CLASS_PIPE_INSULATION,<ALL>
+WARN_INS_THICKNESS_DUCT_LINING,<ALL>
+WARN_INS_THICKNESS_MM,<ALL>
+WARN_INS_THICKNESS_PIPE_INSULATION,<ALL>
+WARN_INS_VAPOUR_BARRIER_DUCT_INS,<ALL>
+WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,<ALL>
 WARN_LTG_COLOUR_RENDERING_LIGHTING,Lighting Fixtures|Lighting Devices
 WARN_LTG_COLOUR_TEMP_LIGHTING,Lighting Fixtures|Lighting Devices
 WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,Lighting Fixtures|Lighting Devices

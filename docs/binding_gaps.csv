@@ -2,72 +2,8 @@ param,group,desc
 BLE_ELES_SPARE_01_TXT,2,Spare parameter 1 for BLE_ELES group
 BLE_ELES_SPARE_02_TXT,2,Spare parameter 2 for BLE_ELES group
 BLE_ELES_SPARE_03_TXT,2,Spare parameter 3 for BLE_ELES group
-BLE_SIGN_ILLUMINATED_BOOL,2,Signage is internally illuminated [ISO 19650-1:2018]
-BLE_SIGN_TYPE_TXT,2,Signage type classification [ISO 19650-1:2018]
-BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,10,Curtain Mullions paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_CURTAIN_PANELS_TXT,10,Curtain Panels paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_FASCIA_TXT,10,Fascia paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_GUTTER_TXT,10,Gutter paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_HANDRAILS_TXT,10,Handrails paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_RAILINGS_TXT,10,Railings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_ROOF_SOFFITS_TXT,10,Roof Soffits paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_SLAB_EDGES_TXT,10,Slab Edges paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_LANDINGS_TXT,10,Stair Landings paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_RUNS_TXT,10,Stair Runs paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,10,Stair Supports paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_TOP_RAILS_TXT,10,Top Rails paragraph [ISO 19650-3:2020]
-BLE_TAG_7_PARA_WALL_SWEEPS_TXT,10,Wall Sweeps paragraph [ISO 19650-3:2020]
-COMP_TAG_1_TXT,3,Compliance tag container
-CSI_SECTION_TXT,1,CSI MasterFormat section [e.g. 23 31 00]
-CSI_TITLE_TXT,1,CSI MasterFormat section title
-CST_BUDGET_VARIANCE_UGX,13,Budget variance: budget minus grand total UGX [ISO 19650-3:2020]
-CST_COST_CATEGORY_TXT,13,ArchiCAD IFC: cost trade grouping category
-CST_COST_CODE_TXT,13,ArchiCAD IFC: cost/trade code NRM1 / specification clause reference
-CST_DELIVERY_LEAD_TIME_DAYS,3,Cst Delivery Lead Time Days [ISO 19650-2:2018]
-CST_ELEMENT_COST_NR,13,ArchiCAD IFC: element cost = unit cost x quantity (computed by ArchiCAD)
-CST_ENERGY_ANNUAL_UGX_NUM_NR,3,Cst Energy Annual Ugx Num Nr [ISO 19650-2:2018]
-CST_FIX_CAT_NR,3,Cst Fix Cat Nr [ISO 19650-2:2018]
-CST_FIX_LUMEN_OUTPUT_LM,3,Cst Fix Lumen Output Lm [ISO 19650-2:2018]
-CST_IMPORT_REQUIRED_BOOL,3,Cst Import Required Bool [ISO 19650-2:2018]
-CST_LAST_COSTED_DATE,13,Date of last BOQ cost calculation [ISO 19650-3:2020]
-CST_LIFECYCLE_COST_UGX,2,Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]
-CST_LOCAL_MAT_BOOL,3,Cst Local Mat Bool [ISO 19650-2:2018]
-CST_MODELED_TOTAL_UGX,2,Computed element cost total in UGX [ISO 19650-3:2020]
-CST_PERCENTAGE_OF_TOTAL_PCT,2,Percentage of total project cost [ISO 19650-3:2020]
-CST_PLYWOOD_SIZE_TXT,3,Plywood size specification [ISO 19650-2:2018]
-CST_PROVISIONAL_SUM,2,True if this element represents a provisional sum [ISO 19650-3:2020]
-CST_PS_DESCRIPTION,2,Provisional sum scope description [ISO 19650-3:2020]
-CST_QTY_MEASURED,2,Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]
-CST_QUOTE_REF_TXT,2,Supplier quote reference number
-CST_SAND_MOISTURE_TXT,3,Sand moisture content [ISO 19650-2:2018]
-CST_SHIPPING_UGX,2,Shipping cost component in UGX
-CST_SPECIAL_EQUIPMENT_TXT,3,Cst Special Equipment Txt [ISO 19650-2:2018]
-CST_TAG_7_PARA_CONC_TXT,2,TAG7 paragraph container for concrete
-CST_TRADE_NAME_TXT,13,ArchiCAD IFC: subcontractor trade name
-ELE_FIX_TAG,4,Electrical fixture tag container [ISO 19650-2:2018]
-ENV_TAG_1_TXT,9,Environmental tag container
-EQP_TAG_1_TXT,1,Equipment tag container
-FIN_TAG_1_TXT,1,Finish tag container
-FOHLIO_REF_TXT,1,Fohlio item ref [link never duplicate]
-INS_MATERIAL_TXT,5,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
-MOUNTING_REFERENCE_TXT,1,Mounting Reference Txt [STING]
-PERF_TAG_1_TXT,9,Performance tag container
-PIP_TAG_7_PARA_PIPE_TXT,6,Pipe system TAG7 paragraph narrative
-PROJECT_BUDGET_UGX,13,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
-PROP_TAG_7_PARA_MATERIALS_TXT,14,Materials paragraph [ISO 19650-3:2020]
-SLV_TAG,19,MEP Sleeve discipline tag container [ISO 19650-3:2020]
-SLV_TAG_7_PARA_TXT,19,Sleeve paragraph container [ISO 19650-3:2020]
 SPARE_PARAM_01_TXT,11,Spare parameter 01 for future use [ISO 19650-1:2018]
 SPARE_PARAM_02_TXT,11,Spare parameter 02 for future use [ISO 19650-1:2018]
 SPARE_PARAM_03_TXT,11,Spare parameter 03 for future use [ISO 19650-1:2018]
 SPARE_PARAM_04_NR,11,Spare parameter 04 for future use [ISO 19650-1:2018]
 SPARE_PARAM_05_INT,11,Spare parameter 05 for future use [ISO 19650-1:2018]
-SPK_TAG_7_PARA_HEAD_TXT,8,Sprinkler head TAG7 paragraph narrative
-STRUCT_COL_BUCKLING_CHECK_BOOL,16,Column buckling check passed
-STRUCT_COL_MOMENT_KNM,16,Column bending moment
-STRUCT_COL_SHEAR_KN,16,Column shear force
-STRUCT_FRM_MOMENT_KNM,16,Frame bending moment
-STRUCT_FRM_SHEAR_KN,16,Frame shear force
-USAGE_TXT,11,Dimension style usage [ISO 19650-1:2018]
-VIEW_COLOR_SCHEME_TXT,17,Active color scheme name for view
-VIEW_DISC_FILTER_TXT,17,Discipline filter codes for view (comma-separated)
