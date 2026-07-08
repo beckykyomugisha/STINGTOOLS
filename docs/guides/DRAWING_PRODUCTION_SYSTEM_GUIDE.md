@@ -618,11 +618,24 @@ Why this matters: when the BIM manager updates the corporate drawing types next 
 
 Open the editor from the STING dock panel: **DOCS tab > Drawing Types section > Edit Types.**
 
-The editor has two tabs: **Drawing Types** (left tab) and **View Style Packs** (right tab). Each tab has the same three-column layout:
+The editor has **six tabs**:
+
+| Tab | What it's for |
+|---|---|
+| **Drawing Types** | Author/edit the recipes (the card-by-card form below) |
+| **View Style Packs** | Author/edit the visual style packs (Stage 5) |
+| **Viewport Tools** | Viewport-level actions — auto-place, align, viewport-type swaps |
+| **Sheet Tools** | Sheet-level helpers used during production |
+| **Title Block** | The title-block action hub — ISO 19650 code legend + Authoring (Edit CSV / Populate / Validate / Set Variant / Legend Bind / Pre-Export) + Sheet identity & transmittal + Revision + Repair. Mirrors the dock **DOCS ▸ Title Block** buttons (§7); this is where the **Build All** / family actions live in dialog form |
+| **Sheet Manager** | The dual-panel sheet manager (Stage 6) in the dialog |
+
+The **Drawing Types** and **View Style Packs** tabs share the same three-column layout:
 
 - **Left column:** search box, New/Clone/Delete buttons, list of types/packs ordered by discipline and purpose.
 - **Right column:** a scrollable form with multiple "cards" (expandable sections).
-- **Footer:** Save and Close buttons, always visible (never clipped by window resize).
+- **Footer:** Save and Close buttons, always visible (never clipped by window resize). *Save writes to the project override only (`<project>/_BIM_COORD/…`) — the corporate baseline on disk is never mutated.*
+
+The **Title Block** and **Sheet Manager** tabs are action hubs (buttons, not forms) — see §6 and §7 for every button.
 
 #### Drawing Types tab — card by card:
 
