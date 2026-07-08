@@ -1463,9 +1463,40 @@ namespace StingTools.Tags
                     catch (Exception ex) { StingLog.Warn($"PruneToSpec inspect SPE: {ex.Message}"); }
                 }
 
+                // Data-loss pre-flight cache. A narrowing ReInsert DROPS the parameter (and
+                // its stored value) from any category it removes — and Revit does not restore
+                // those values on Undo. To make the prune safe-by-construction we scan each
+                // affected category ONCE, counting per shared-param how many instances carry a
+                // non-empty value, then warn about exactly what a narrowing would delete.
+                var populatedByCat = new Dictionary<long, Dictionary<string, int>>();
+                Dictionary<string, int> PopulatedInCategory(long catId)
+                {
+                    if (populatedByCat.TryGetValue(catId, out var cached)) return cached;
+                    var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    try
+                    {
+                        var catFilter = new ElementCategoryFilter(new ElementId(catId));
+                        foreach (Element el in new FilteredElementCollector(doc)
+                                     .WherePasses(catFilter).WhereElementIsNotElementType())
+                        {
+                            foreach (Parameter pp in el.Parameters)
+                            {
+                                if (pp == null || !pp.IsShared || !pp.HasValue || pp.Definition == null) continue;
+                                string v = pp.StorageType == StorageType.String ? pp.AsString() : pp.AsValueString();
+                                if (string.IsNullOrWhiteSpace(v)) continue;
+                                string pn = pp.Definition.Name;
+                                counts[pn] = counts.TryGetValue(pn, out int c) ? c + 1 : 1;
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"PruneToSpec prescan cat {catId}: {ex.Message}"); }
+                    populatedByCat[catId] = counts;
+                    return counts;
+                }
+
                 // Plan the changes (read-only pass) before opening a transaction.
                 var plan = new List<(string name, SharedParameterElement spe, CategorySet target,
-                                     List<string> removed, List<string> added)>();
+                                     List<string> removed, List<string> added, int atRisk)>();
                 int universalSkipped = 0, notBound = 0, alreadyOk = 0, unresolved = 0;
 
                 foreach (var kvp in spec)
@@ -1494,9 +1525,16 @@ namespace StingTools.Tags
 
                     if (curIds.SetEquals(tgtIds)) { alreadyOk++; continue; } // idempotent no-op
 
-                    var removed = curIds.Except(tgtIds).Select(id => curNames[id]).OrderBy(s => s).ToList();
+                    var removedIds = curIds.Except(tgtIds).ToList();
+                    var removed = removedIds.Select(id => curNames[id]).OrderBy(s => s).ToList();
                     var added = tgtIds.Except(curIds).Select(id => tgtNames[id]).OrderBy(s => s).ToList();
-                    plan.Add((name, spe, target, removed, added));
+
+                    // How many populated values would this narrowing delete?
+                    int atRisk = 0;
+                    foreach (long remId in removedIds)
+                        if (PopulatedInCategory(remId).TryGetValue(name, out int n)) atRisk += n;
+
+                    plan.Add((name, spe, target, removed, added, atRisk));
                 }
 
                 if (plan.Count == 0)
@@ -1522,9 +1560,35 @@ namespace StingTools.Tags
                                        (p.added.Count > 0 ? $" +[{string.Join(", ", p.added)}]" : ""));
                 if (plan.Count > 12) preview.AppendLine($"  ... and {plan.Count - 12} more (see StingTools.log)");
 
+                // Data-loss verdict — the safe-by-construction gate. A narrowing ReInsert
+                // deletes populated values on removed categories (not Undo-recoverable), so
+                // the user sees exactly what would be lost BEFORE committing.
+                var riskParams = plan.Where(p => p.atRisk > 0)
+                                     .OrderByDescending(p => p.atRisk).ToList();
+                int totalAtRisk = riskParams.Sum(p => p.atRisk);
+                preview.AppendLine();
+                if (totalAtRisk == 0)
+                {
+                    preview.AppendLine("✓ SAFE: no populated values sit on any category being removed — nothing to lose.");
+                }
+                else
+                {
+                    preview.AppendLine($"⚠ DATA LOSS: {totalAtRisk} populated value(s) across {riskParams.Count} param(s) sit on");
+                    preview.AppendLine("   categories being REMOVED and will be permanently deleted (Undo will NOT restore them):");
+                    foreach (var p in riskParams.Take(10))
+                        preview.AppendLine($"     {p.name}: {p.atRisk} value(s) on -[{string.Join(", ", p.removed)}]");
+                    if (riskParams.Count > 10) preview.AppendLine($"     ... and {riskParams.Count - 10} more (see StingTools.log)");
+                    preview.AppendLine("   Cancel and work on a COPY / backup before proceeding.");
+                    foreach (var p in riskParams)
+                        StingLog.Warn($"PruneToSpec DATA-AT-RISK '{p.name}': {p.atRisk} populated value(s) on -[{string.Join(",", p.removed)}]");
+                }
+
                 var confirm = new TaskDialog("STING — Reconcile Bindings");
-                confirm.MainInstruction = $"Narrow {plan.Count} parameter binding(s) to spec?";
+                confirm.MainInstruction = totalAtRisk > 0
+                    ? $"Narrow {plan.Count} binding(s)? ⚠ {totalAtRisk} stored value(s) will be DELETED"
+                    : $"Narrow {plan.Count} parameter binding(s) to spec? (no data at risk)";
                 confirm.MainContent = preview.ToString();
+                if (totalAtRisk > 0) confirm.MainIcon = TaskDialogIcon.TaskDialogIconWarning;
                 confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
                 confirm.DefaultButton = TaskDialogResult.Cancel;
                 if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
