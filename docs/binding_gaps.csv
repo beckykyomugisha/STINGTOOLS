@@ -1,18 +1,7 @@
 param,group,desc
-ARC_FACTORY_ORDER_REF_TXT,10,Joinery factory order reference [BS 8000-5:1990]
-ARC_GLAZING_SPEC_TXT,10,Glazing specification reference [BS 6262-1:2022]
-AREA_SQ_M,1,Area [ISO 19650-1:2018]
-ASBUILT_CAPTURE_DATE_TXT,24,ISO 8601 date when as-built data captured from Planscape mobile
-ASBUILT_COVER_DEVIATION_MM,24,As-built concrete cover deviation from design in mm [BS EN 13670:2009]
-ASBUILT_COVER_DEVIATION_MM_DISP_TXT,24,As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels
-ASBUILT_DEVIATION_MM,24,As-built vs as-designed deviation in millimetres
-ASBUILT_DEVIATION_MM_DISP_TXT,24,As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels
 BLE_ELES_SPARE_01_TXT,2,Spare parameter 1 for BLE_ELES group
 BLE_ELES_SPARE_02_TXT,2,Spare parameter 2 for BLE_ELES group
 BLE_ELES_SPARE_03_TXT,2,Spare parameter 3 for BLE_ELES group
-BLE_ELE_AREA_SQ_M,2,Ble Ele Area Sq M [ISO 19650-1:2018]
-BLE_ELE_LENGTH_M,2,Element length in metres
-BLE_ELE_VOLUME_CU_M,2,Element volume in cubic metres
 BLE_SIGN_ILLUMINATED_BOOL,2,Signage is internally illuminated [ISO 19650-1:2018]
 BLE_SIGN_TYPE_TXT,2,Signage type classification [ISO 19650-1:2018]
 BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT,10,Curtain Mullions paragraph [ISO 19650-3:2020]
@@ -28,11 +17,6 @@ BLE_TAG_7_PARA_STAIR_RUNS_TXT,10,Stair Runs paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT,10,Stair Supports paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_TOP_RAILS_TXT,10,Top Rails paragraph [ISO 19650-3:2020]
 BLE_TAG_7_PARA_WALL_SWEEPS_TXT,10,Wall Sweeps paragraph [ISO 19650-3:2020]
-COMM_DATE_TXT,25,ISO 8601 date of commissioning state change
-COMM_NOTES_TXT,25,Free-text commissioning notes captured from the QR workflow
-COMM_OPERATIVE_TXT,25,Commissioning operative name or ID who performed the test
-COMM_STATE_TXT,25,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)
-COMM_WITNESS_TXT,25,Commissioning witness name or ID (client / CA representative)
 COMP_TAG_1_TXT,3,Compliance tag container
 CSI_SECTION_TXT,1,CSI MasterFormat section [e.g. 23 31 00]
 CSI_TITLE_TXT,1,CSI MasterFormat section title
@@ -63,32 +47,14 @@ CST_TRADE_NAME_TXT,13,ArchiCAD IFC: subcontractor trade name
 ELE_FIX_TAG,4,Electrical fixture tag container [ISO 19650-2:2018]
 ENV_TAG_1_TXT,9,Environmental tag container
 EQP_TAG_1_TXT,1,Equipment tag container
-EV_CHARGER_CIRCUIT_REF,4,Ev Charger Circuit Ref [STING]
-EV_CHARGER_KW,4,Ev Charger Kw [STING]
-EV_CHARGER_TYPE_TXT,4,Ev Charger Type Txt [STING]
 FIN_TAG_1_TXT,1,Finish tag container
 FOHLIO_REF_TXT,1,Fohlio item ref [link never duplicate]
-HANDOVER_MODE_CUSTOM_BOOL,25,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]
-HANDOVER_MODE_DC_BOOL,25,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]
-HANDOVER_MODE_HANDOVER_BOOL,25,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]
 INS_MATERIAL_TXT,5,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
-MEC_CTRL_FUNCTION_TXT,5,Mechanical control device function [ISO 19650-1:2018]
-MEC_CTRL_SIGNAL_TXT,5,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
-MEC_SET_CAPACITY_KW,5,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
 MOUNTING_REFERENCE_TXT,1,Mounting Reference Txt [STING]
 PERF_TAG_1_TXT,9,Performance tag container
 PIP_TAG_7_PARA_PIPE_TXT,6,Pipe system TAG7 paragraph narrative
 PROJECT_BUDGET_UGX,13,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
 PROP_TAG_7_PARA_MATERIALS_TXT,14,Materials paragraph [ISO 19650-3:2020]
-PV_PANEL_KWP,4,Pv Panel Kwp [STING]
-PV_SYSTEM_TYPE_TXT,4,Pv System Type Txt [STING]
-RMP_SLOPE_DEG,7,ArchiCAD IFC: ramp slope gradient degrees (Pset_RampCommon.Slope)
-RMP_WIDTH_M,7,ArchiCAD IFC: ramp clear width m (Pset_RampCommon.Width)
-RNV_CONTRACTOR_TXT,26,ArchiCAD IFC: demolition contractor name
-RNV_DEMOLITION_SEQ_TXT,26,ArchiCAD IFC: demolition sequence code for phasing programme
-RNV_IS_EXISTING_BOOL,26,ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain)
-RNV_NEW_CONST_SEQ_TXT,26,ArchiCAD IFC: new construction sequence identifier
-RNV_STATUS_TXT,26,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)
 SLV_TAG,19,MEP Sleeve discipline tag container [ISO 19650-3:2020]
 SLV_TAG_7_PARA_TXT,19,Sleeve paragraph container [ISO 19650-3:2020]
 SPARE_PARAM_01_TXT,11,Spare parameter 01 for future use [ISO 19650-1:2018]
@@ -102,9 +68,6 @@ STRUCT_COL_MOMENT_KNM,16,Column bending moment
 STRUCT_COL_SHEAR_KN,16,Column shear force
 STRUCT_FRM_MOMENT_KNM,16,Frame bending moment
 STRUCT_FRM_SHEAR_KN,16,Frame shear force
-SUST_MAT_TAG_1_TXT,9,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"
-SUST_MAT_TAG_2_TXT,9,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]"
-SUST_TAG_1_TXT,9,Sustainability tag container
 USAGE_TXT,11,Dimension style usage [ISO 19650-1:2018]
 VIEW_COLOR_SCHEME_TXT,17,Active color scheme name for view
 VIEW_DISC_FILTER_TXT,17,Discipline filter codes for view (comma-separated)

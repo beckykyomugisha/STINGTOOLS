@@ -75,7 +75,8 @@ def resolve(n,desc,depth=0):
     if pre in("QTO",): return "NONE","excluded"
     if pre=="FAB": return "FABX","fabrication"
     if pre=="PEN": return "PEN","penetration"
-    if pre in("SYS","BLD","WS","PH","NRG","SPC","ZON","GEN","CLS","CLASH"): return "UNIVERSAL","meta-universal"
+    if pre in("SYS","BLD","WS","PH","NRG","SPC","ZON","GEN","CLS","CLASH","ASBUILT","COMM","SUST","HANDOVER","EV","MEC","RNV","PV","RMP","ARC"): return "UNIVERSAL","meta-universal"
+    if n.startswith("BLE_ELE_") or n=="AREA_SQ_M": return "UNIVERSAL","generic-geom"
     if pre=="ARCH":
         parts=n.split("_")
         for tk in parts:
@@ -104,4 +105,9 @@ with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
+with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
+    w=csv.writer(f); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
+    for n,g,srcx,cats,d in sorted(out):
+        if cats!="": w.writerow([n,cats])
 print("code-usage recovered:",src["code-usage"])
+print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")

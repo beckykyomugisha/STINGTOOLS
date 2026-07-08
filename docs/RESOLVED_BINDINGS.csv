@@ -49,14 +49,14 @@ ARCH_TAG_7_PARA_WALL_TXT,10,arch-sub,Walls|Curtain Panels|Curtain Wall Mullions,
 ARCH_TAG_7_PARA_WASH_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Wash paragraph [ISO 19650-3:2020]
 ARCH_TAG_7_PARA_WIN_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Window paragraph container [ISO 19650-3:2020]
 ARCH_TAG_7_PARA_ZONES_TXT,10,arch-generic,Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment,Zones paragraph [ISO 19650-3:2020]
-ARC_FACTORY_ORDER_REF_TXT,10,UNRESOLVED,,Joinery factory order reference [BS 8000-5:1990]
-ARC_GLAZING_SPEC_TXT,10,UNRESOLVED,,Glazing specification reference [BS 6262-1:2022]
-AREA_SQ_M,1,UNRESOLVED,,Area [ISO 19650-1:2018]
-ASBUILT_CAPTURE_DATE_TXT,24,UNRESOLVED,,ISO 8601 date when as-built data captured from Planscape mobile
-ASBUILT_COVER_DEVIATION_MM,24,UNRESOLVED,,As-built concrete cover deviation from design in mm [BS EN 13670:2009]
-ASBUILT_COVER_DEVIATION_MM_DISP_TXT,24,UNRESOLVED,,As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels
-ASBUILT_DEVIATION_MM,24,UNRESOLVED,,As-built vs as-designed deviation in millimetres
-ASBUILT_DEVIATION_MM_DISP_TXT,24,UNRESOLVED,,As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels
+ARC_FACTORY_ORDER_REF_TXT,10,meta-universal,<ALL>,Joinery factory order reference [BS 8000-5:1990]
+ARC_GLAZING_SPEC_TXT,10,meta-universal,<ALL>,Glazing specification reference [BS 6262-1:2022]
+AREA_SQ_M,1,generic-geom,<ALL>,Area [ISO 19650-1:2018]
+ASBUILT_CAPTURE_DATE_TXT,24,meta-universal,<ALL>,ISO 8601 date when as-built data captured from Planscape mobile
+ASBUILT_COVER_DEVIATION_MM,24,meta-universal,<ALL>,As-built concrete cover deviation from design in mm [BS EN 13670:2009]
+ASBUILT_COVER_DEVIATION_MM_DISP_TXT,24,meta-universal,<ALL>,As-built concrete cover deviation from design in mm — TEXT display mirror for tag labels
+ASBUILT_DEVIATION_MM,24,meta-universal,<ALL>,As-built vs as-designed deviation in millimetres
+ASBUILT_DEVIATION_MM_DISP_TXT,24,meta-universal,<ALL>,As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels
 ASS_ACCESS_PERF_TXT,1,asset-universal,<ALL>,Accessibility performance rating [COBie V2.4]
 ASS_AREA_M2_TXT,1,asset-universal,<ALL>,Element area in square metres
 ASS_ASSEMBLY_CODE_TXT,1,asset-universal,<ALL>,Assembly code from Revit type [ISO 19650-2:2018]
@@ -393,9 +393,9 @@ BLE_DOOR_WIDTH_MM,2,ble-sub,Doors,Ble Door Width Mm [ISO 19650-1:2018]
 BLE_ELES_SPARE_01_TXT,2,UNRESOLVED(polluted-curated),,Spare parameter 1 for BLE_ELES group
 BLE_ELES_SPARE_02_TXT,2,UNRESOLVED(polluted-curated),,Spare parameter 2 for BLE_ELES group
 BLE_ELES_SPARE_03_TXT,2,UNRESOLVED(polluted-curated),,Spare parameter 3 for BLE_ELES group
-BLE_ELE_AREA_SQ_M,2,UNRESOLVED(polluted-curated),,Ble Ele Area Sq M [ISO 19650-1:2018]
-BLE_ELE_LENGTH_M,2,UNRESOLVED,,Element length in metres
-BLE_ELE_VOLUME_CU_M,2,UNRESOLVED,,Element volume in cubic metres
+BLE_ELE_AREA_SQ_M,2,generic-geom,<ALL>,Ble Ele Area Sq M [ISO 19650-1:2018]
+BLE_ELE_LENGTH_M,2,generic-geom,<ALL>,Element length in metres
+BLE_ELE_VOLUME_CU_M,2,generic-geom,<ALL>,Element volume in cubic metres
 BLE_FACADE_CLR_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Facade Clr Txt [ISO 19650-1:2018]
 BLE_FACADE_FINISH_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Facade Finish Txt [ISO 19650-1:2018]
 BLE_FACADE_FIX_SYSTEM_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Facade Fix System Txt [ISO 19650-1:2018]
@@ -704,11 +704,11 @@ CLS_UNICLASS_EF_TXT,10,meta-universal,<ALL>,ArchiCAD IFC: Uniclass 2015 EF (Enti
 COLOR_B_INT,11,curated-fallback,Generic Models,Palette color blue [ISO 19650-1:2018]
 COLOR_G_INT,11,curated-fallback,Generic Models,Palette color green [ISO 19650-1:2018]
 COLOR_R_INT,11,curated-fallback,Generic Models,Palette color red [ISO 19650-1:2018]
-COMM_DATE_TXT,25,UNRESOLVED,,ISO 8601 date of commissioning state change
-COMM_NOTES_TXT,25,UNRESOLVED,,Free-text commissioning notes captured from the QR workflow
-COMM_OPERATIVE_TXT,25,UNRESOLVED,,Commissioning operative name or ID who performed the test
-COMM_STATE_TXT,25,UNRESOLVED,,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)
-COMM_WITNESS_TXT,25,UNRESOLVED,,Commissioning witness name or ID (client / CA representative)
+COMM_DATE_TXT,25,meta-universal,<ALL>,ISO 8601 date of commissioning state change
+COMM_NOTES_TXT,25,meta-universal,<ALL>,Free-text commissioning notes captured from the QR workflow
+COMM_OPERATIVE_TXT,25,meta-universal,<ALL>,Commissioning operative name or ID who performed the test
+COMM_STATE_TXT,25,meta-universal,<ALL>,Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)
+COMM_WITNESS_TXT,25,meta-universal,<ALL>,Commissioning witness name or ID (client / CA representative)
 COMP_MAT_TAG_1_TXT,12,curated-fallback,Materials,"Standards compliance tag: code, standard, QA cert, UNBS reference [ISO 19650-1:2018]"
 COMP_MAT_TAG_2_TXT,12,curated-fallback,Materials,"ISO 19650 procurement tag: name, ISO ID, durability, approved vendor [ISO 19650-3:2020]"
 COMP_TAG_1_TXT,3,UNRESOLVED,,Compliance tag container
@@ -1191,9 +1191,9 @@ ENV_ROOF_TAG_TXT,10,curated-fallback,Generic Models|Roofs,"Roof specification ta
 ENV_TAG_1_TXT,9,UNRESOLVED,,Environmental tag container
 ENV_WIN_TAG_TXT,10,curated-fallback,Generic Models|Windows,"Window performance tag: frame, glazing, U-value, SHGC, VLT [ISO 19650-1:2018]"
 EQP_TAG_1_TXT,1,UNRESOLVED,,Equipment tag container
-EV_CHARGER_CIRCUIT_REF,4,UNRESOLVED,,Ev Charger Circuit Ref [STING]
-EV_CHARGER_KW,4,UNRESOLVED,,Ev Charger Kw [STING]
-EV_CHARGER_TYPE_TXT,4,UNRESOLVED,,Ev Charger Type Txt [STING]
+EV_CHARGER_CIRCUIT_REF,4,meta-universal,<ALL>,Ev Charger Circuit Ref [STING]
+EV_CHARGER_KW,4,meta-universal,<ALL>,Ev Charger Kw [STING]
+EV_CHARGER_TYPE_TXT,4,meta-universal,<ALL>,Ev Charger Type Txt [STING]
 FAB_CONTAINMENT_D_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication containment depth in mm [SMACNA]
 FAB_CONTAINMENT_W_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication containment width in mm [SMACNA]
 FAB_DCT_H_MM,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,MEP fabrication ductwork height in mm [SMACNA]
@@ -1279,9 +1279,9 @@ GEN_SPECIES_TXT,3,meta-universal,<ALL>,Plant species name [ISO 19650-1:2018]
 GEN_TAG_7_PARA_EQUIP_TXT,17,meta-universal,<ALL>,General TAG7 paragraph container for equip
 GEN_TAG_7_PARA_MISC_TXT,3,meta-universal,<ALL>,Miscellaneous element paragraph container [ISO 19650-3:2020]
 GEN_TAG_7_PARA_SITE_TXT,17,meta-universal,<ALL>,General TAG7 paragraph container for site
-HANDOVER_MODE_CUSTOM_BOOL,25,UNRESOLVED,,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]
-HANDOVER_MODE_DC_BOOL,25,UNRESOLVED,,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]
-HANDOVER_MODE_HANDOVER_BOOL,25,UNRESOLVED,,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]
+HANDOVER_MODE_CUSTOM_BOOL,25,meta-universal,<ALL>,Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]
+HANDOVER_MODE_DC_BOOL,25,meta-universal,<ALL>,Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]
+HANDOVER_MODE_HANDOVER_BOOL,25,meta-universal,<ALL>,Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]
 HEALTH_SCORE_DATE_TXT,23,curated-fallback,Project Information,ISO 8601 timestamp of last health score evaluation
 HEALTH_SCORE_LAST_NR,23,curated-fallback,Project Information,Last model health score 0 to 100
 HEALTH_SCORE_LAST_NR_DISP_TXT,23,curated-fallback,Project Information,Last model health score 0 to 100 — TEXT display mirror for tag labels
@@ -1512,10 +1512,10 @@ MA_PRIORITY_TXT,11,curated-fallback,Generic Models,Priority level [ISO 19650-2:2
 MA_REVIEWED_BY_TXT,11,curated-fallback,Generic Models,Reviewed by [ISO 19650-2:2018]
 MA_STATUS_TXT,11,curated-fallback,Generic Models,Audit status [ISO 19650-2:2018]
 MA_TEMPLATE_COMPLIANCE_TXT,11,curated-fallback,Generic Models,Template compliance status [ISO 19650-2:2018]
-MEC_CTRL_FUNCTION_TXT,5,UNRESOLVED,,Mechanical control device function [ISO 19650-1:2018]
-MEC_CTRL_SIGNAL_TXT,5,UNRESOLVED,,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
-MEC_SET_CAPACITY_KW,5,UNRESOLVED,,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
-MEC_SYS_TXT,5,curated-fallback,Air Terminals|Duct Accessories|Duct Fittings|Ducts|Generic Models|Mechanical Equipment,Mechanical system code
+MEC_CTRL_FUNCTION_TXT,5,meta-universal,<ALL>,Mechanical control device function [ISO 19650-1:2018]
+MEC_CTRL_SIGNAL_TXT,5,meta-universal,<ALL>,Mechanical control signal type (Pneumatic/DDC/Electric) [ISO 19650-1:2018]
+MEC_SET_CAPACITY_KW,5,meta-universal,<ALL>,Mechanical equipment set capacity in kW [ISO 19650-1:2018]
+MEC_SYS_TXT,5,meta-universal,<ALL>,Mechanical system code
 MED_TAG_7_PARA_MED_EQUIP_TXT,3,curated-fallback,Medical Equipment,Med Equip paragraph [ISO 19650-3:2020]
 MEP_CONNECTOR_COUNT_NR,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep Connector Count [ISO 19650]
 MEP_DELTA_PRESS_PA,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Differential pressure in Pascals
@@ -2045,8 +2045,8 @@ PT_TEMPLATE_NAME_TXT,11,curated-fallback,Generic Models,Presentation Template Te
 PT_VG_SCHEME_TXT,11,curated-fallback,Generic Models,Presentation Template Vg Scheme Txt [TPL_TRACKING]
 PT_VIEW_TYPE_TXT,11,curated-fallback,Generic Models,Presentation Template View Type Txt [TPL_TRACKING]
 PT_VISUAL_STYLE_TXT,11,curated-fallback,Generic Models,Presentation Template Visual Style Txt [TPL_TRACKING]
-PV_PANEL_KWP,4,UNRESOLVED,,Pv Panel Kwp [STING]
-PV_SYSTEM_TYPE_TXT,4,UNRESOLVED,,Pv System Type Txt [STING]
+PV_PANEL_KWP,4,meta-universal,<ALL>,Pv Panel Kwp [STING]
+PV_SYSTEM_TYPE_TXT,4,meta-universal,<ALL>,Pv System Type Txt [STING]
 Pset_StingCost.Currency,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> Currency [Phase 184k / P8]
 Pset_StingCost.NRM2Section,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]
 Pset_StingCost.ProvisionalSum,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]
@@ -2202,13 +2202,13 @@ RGL_UMEME_CERT_NR,15,universal-meta,<ALL>,UMEME certification number
 RGL_UNBS_STD_TXT,15,universal-meta,<ALL>,Rgl Unbs Std Txt [ISO 19650-1:2018]
 RGL_WINDOW_AREA_SQ_M,15,universal-meta,<ALL>,Rgl Window Area Sq M [ISO 19650-1:2018]
 RGL_WINDOW_WALL_RATIO_PCT,15,universal-meta,<ALL>,Window-to-wall ratio percentage [Part L]
-RMP_SLOPE_DEG,7,UNRESOLVED,,ArchiCAD IFC: ramp slope gradient degrees (Pset_RampCommon.Slope)
-RMP_WIDTH_M,7,UNRESOLVED,,ArchiCAD IFC: ramp clear width m (Pset_RampCommon.Width)
-RNV_CONTRACTOR_TXT,26,UNRESOLVED,,ArchiCAD IFC: demolition contractor name
-RNV_DEMOLITION_SEQ_TXT,26,UNRESOLVED,,ArchiCAD IFC: demolition sequence code for phasing programme
-RNV_IS_EXISTING_BOOL,26,UNRESOLVED,,ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain)
-RNV_NEW_CONST_SEQ_TXT,26,UNRESOLVED,,ArchiCAD IFC: new construction sequence identifier
-RNV_STATUS_TXT,26,UNRESOLVED,,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)
+RMP_SLOPE_DEG,7,meta-universal,<ALL>,ArchiCAD IFC: ramp slope gradient degrees (Pset_RampCommon.Slope)
+RMP_WIDTH_M,7,meta-universal,<ALL>,ArchiCAD IFC: ramp clear width m (Pset_RampCommon.Width)
+RNV_CONTRACTOR_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: demolition contractor name
+RNV_DEMOLITION_SEQ_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: demolition sequence code for phasing programme
+RNV_IS_EXISTING_BOOL,26,meta-universal,<ALL>,ArchiCAD IFC: element is existing to remain (AC_Pset_RenovationInfo.IsExistingToRemain)
+RNV_NEW_CONST_SEQ_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: new construction sequence identifier
+RNV_STATUS_TXT,26,meta-universal,<ALL>,ArchiCAD IFC: authoritative renovation status from AC_Pset_RenovationInfo (EXISTING/NEW/DEMOLISHED/TEMPORARY/RELOCATED/UNDEFINED)
 SEC_CBL_NR_TXT,3,curated-fallback,Security Devices,Cable reference number feeding this security device [ISO 19650-1:2018]
 SEC_DEV_COVERAGE_TXT,3,curated-fallback,Security Devices,Sec Dev Coverage [ISO 19650]
 SEC_DEV_TAG,3,curated-fallback,Security Devices,Security device tag container [ISO 19650-2:2018]
@@ -2511,9 +2511,9 @@ STR_WIND_PRESSURE_PA,16,safe-prefix,Structural Framing|Structural Columns|Struct
 STR_WIND_TERRAIN_CAT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]
 STR_WLD_STRENGTH_MPA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld strength in MPa
 STR_WLD_THROAT_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld throat thickness in mm
-SUST_MAT_TAG_1_TXT,9,UNRESOLVED(polluted-curated),,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"
-SUST_MAT_TAG_2_TXT,9,UNRESOLVED(polluted-curated),,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]"
-SUST_TAG_1_TXT,9,UNRESOLVED,,Sustainability tag container
+SUST_MAT_TAG_1_TXT,9,meta-universal,<ALL>,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"
+SUST_MAT_TAG_2_TXT,9,meta-universal,<ALL>,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]"
+SUST_TAG_1_TXT,9,meta-universal,<ALL>,Sustainability tag container
 SUS_EDGE_LEVEL_TXT,35,curated-fallback,Project Information,Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED]
 SUS_ENERGY_KWH_M2_NR,35,curated-fallback,Project Information,Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED]
 SUS_EPD_REF_TXT,35,curated-fallback,Project Information,Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]
@@ -3157,11 +3157,11 @@ WARN_LTG_GLARE_RATING_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices
 WARN_LTG_ILLUMINANCE,7,warn-mirror,Lighting Fixtures|Lighting Devices,Warning: Illuminance level minimum [MEDIUM]
 WARN_LTG_ILLUMINANCE_LIGHTING_DEVICES,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg illuminance lighting devices
 WARN_LTG_POWER_DENSITY_LIGHTING,17,warn-mirror,Lighting Fixtures|Lighting Devices,Tag warning: ltg power density lighting
-WARN_MEC_CTRL_CALIBRATION_CTRL_DEV,17,warn-mirror,,Tag warning: mec ctrl calibration ctrl dev
-WARN_MEC_CTRL_FUNCTION_CTRL_DEV,17,warn-mirror,,Tag warning: mec ctrl function ctrl dev
-WARN_MEC_CTRL_SIGNAL_CTRL_DEV,17,warn-mirror,,Tag warning: mec ctrl signal ctrl dev
-WARN_MEC_SET_CAPACITY_EQUIP_SETS,17,warn-mirror,,Tag warning: mec set capacity equip sets
-WARN_MEC_SET_REDUNDANCY_EQUIP_SETS,17,warn-mirror,,Tag warning: mec set redundancy equip sets
+WARN_MEC_CTRL_CALIBRATION_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl calibration ctrl dev
+WARN_MEC_CTRL_FUNCTION_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl function ctrl dev
+WARN_MEC_CTRL_SIGNAL_CTRL_DEV,17,warn-mirror,<ALL>,Tag warning: mec ctrl signal ctrl dev
+WARN_MEC_SET_CAPACITY_EQUIP_SETS,17,warn-mirror,<ALL>,Tag warning: mec set capacity equip sets
+WARN_MEC_SET_REDUNDANCY_EQUIP_SETS,17,warn-mirror,<ALL>,Tag warning: mec set redundancy equip sets
 WARN_MEP_DUCT_ACC_PRESSURE_DROP,15,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Warning: Duct accessory pressure drop limit [MEDIUM]
 WARN_MEP_DUCT_FITTING_LOSS,15,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Warning: Duct fitting pressure loss limit [MEDIUM]
 WARN_MEP_SPC_LIGHTING,15,warn-mirror,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Warning: Space lighting power density limit [MEDIUM]
