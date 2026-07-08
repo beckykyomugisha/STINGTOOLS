@@ -933,207 +933,207 @@ DS_TICK_MARK_TXT,Generic Models
 DS_TICK_SIZE_NR,Generic Models
 DS_TYPE_TXT,Generic Models
 DS_UNITS_FORMAT_TXT,Generic Models
-ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ATS_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ATS_TIME_S_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_BUSBAR_CSA_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_BUSBAR_FILL_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_BUSBAR_RATING_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment|Electrical Circuits
+ELC_ATS_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
+ELC_ATS_TIME_S_NR,Electrical Equipment|Electrical Circuits
+ELC_BUSBAR_CSA_MM2,Electrical Equipment|Electrical Circuits
+ELC_BUSBAR_FILL_PCT,Electrical Equipment|Electrical Circuits
+ELC_BUSBAR_RATING_A,Electrical Equipment|Electrical Circuits
 ELC_CABLE_CSA_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_AMPACITY_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_COND_SZ_SQ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_DERATING_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_DESTINATION_TO_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_DEST_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_FEEDER_SZ_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_INSTALL_METHOD_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_INS_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_LENGTH_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_NR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_NUM_CABLES_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_NUM_OF_CORES_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_SOURCE_FROM_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_SOURCE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_SZ_PER_CORE_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBL_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBT_FAB_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBT_SHOP_DRAWING_REQ_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CBT_SUPPORT_SPACING_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_BEND_ANGLE_DEG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_BEND_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_BEND_RADIUS_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_BREAKPOINT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_CABLE_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_CBL_FILL_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_FAB_METHOD_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_FILL_RATIO,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_INSTALL_METHOD_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_MAT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_PENETRATION_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_RUN_LENGTH_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_SOFFIT_OFFSET_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_STALE_ANNOT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_SUPPORT_SPACING_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CBL_AMPACITY_A,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_COND_SZ_SQ_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_DERATING_FCT_NR,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_DESTINATION_TO_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_DEST_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_FEEDER_SZ_MM2,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_INSTALL_METHOD_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_INS_TYPE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_LENGTH_M,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_NR_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_NUM_CABLES_NR,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_NUM_OF_CORES_NR,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_SOURCE_FROM_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_SOURCE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_SZ_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_SZ_PER_CORE_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_TYPE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBT_FAB_TYPE_TXT,Cable Trays|Cable Tray Fittings
+ELC_CBT_SHOP_DRAWING_REQ_BOOL,Cable Trays|Cable Tray Fittings
+ELC_CBT_SUPPORT_SPACING_MM,Cable Trays|Cable Tray Fittings
+ELC_CDT_BEND_ANGLE_DEG,Conduits|Conduit Fittings
+ELC_CDT_BEND_COUNT_NR,Conduits|Conduit Fittings
+ELC_CDT_BEND_RADIUS_MM,Conduits|Conduit Fittings
+ELC_CDT_BREAKPOINT_TXT,Conduits|Conduit Fittings
+ELC_CDT_CABLE_COUNT_NR,Conduits|Conduit Fittings
+ELC_CDT_CBL_FILL_PCT,Conduits|Conduit Fittings
+ELC_CDT_FAB_METHOD_TXT,Conduits|Conduit Fittings
+ELC_CDT_FILL_RATIO,Conduits|Conduit Fittings
+ELC_CDT_INSTALL_METHOD_TXT,Conduits|Conduit Fittings
+ELC_CDT_MAT_TXT,Conduits|Conduit Fittings
+ELC_CDT_PENETRATION_COUNT_NR,Conduits|Conduit Fittings
+ELC_CDT_RUN_LENGTH_M,Conduits|Conduit Fittings
+ELC_CDT_SOFFIT_OFFSET_MM,Conduits|Conduit Fittings
+ELC_CDT_STALE_ANNOT_BOOL,Conduits|Conduit Fittings
+ELC_CDT_SUPPORT_SPACING_MM,Conduits|Conduit Fittings
+ELC_CDT_SZ_MM,Conduits|Conduit Fittings
 ELC_CDT_TAG,<ALL>
-ELC_CDT_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CDT_TAG_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_LABEL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_POLES_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_RATING_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIRCUIT_TRACE_ACTIVE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_BREAKER_RATING_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_DESIGN_CURRENT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_DESIGN_LOAD_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_DIVERSITY_FACTOR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_FAULT_LEVEL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_VOLTAGE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CIR_ZS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_BRK_RATING_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_CBL_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_CBL_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_CUR_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_FINAL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_IDENTIFICATION_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_LENGTH_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_PHASE_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_PWR_KW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CKT_VLT_V,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CDT_TAG_01_TXT,Conduits|Conduit Fittings
+ELC_CDT_TAG_02_TXT,Conduits|Conduit Fittings
+ELC_CIRCUIT_GROUP_TXT,Electrical Circuits
+ELC_CIRCUIT_LABEL_TXT,Electrical Circuits
+ELC_CIRCUIT_NR,Electrical Circuits
+ELC_CIRCUIT_POLES_NR,Electrical Circuits
+ELC_CIRCUIT_RATING_TXT,Electrical Circuits
+ELC_CIRCUIT_REF_TXT,Electrical Circuits
+ELC_CIRCUIT_TRACE_ACTIVE,Electrical Circuits
+ELC_CIR_BREAKER_RATING_TXT,Electrical Circuits
+ELC_CIR_DESIGN_CURRENT_TXT,Electrical Circuits
+ELC_CIR_DESIGN_LOAD_TXT,Electrical Circuits
+ELC_CIR_DIVERSITY_FACTOR_TXT,Electrical Circuits
+ELC_CIR_FAULT_LEVEL_TXT,Electrical Circuits
+ELC_CIR_REF_TXT,Electrical Circuits
+ELC_CIR_VOLTAGE_TXT,Electrical Circuits
+ELC_CIR_ZS_TXT,Electrical Circuits
+ELC_CKT_BRK_RATING_A,Electrical Circuits
+ELC_CKT_CBL_SZ_MM,Electrical Circuits
+ELC_CKT_CBL_TYPE_TXT,Electrical Circuits
+ELC_CKT_CUR_A,Electrical Circuits
+ELC_CKT_FINAL_TXT,Electrical Circuits
+ELC_CKT_IDENTIFICATION_TXT,Electrical Circuits
+ELC_CKT_LENGTH_M,Electrical Circuits
+ELC_CKT_NR,Electrical Circuits
+ELC_CKT_PHASE_COUNT_NR,Electrical Circuits
+ELC_CKT_PWR_KW,Electrical Circuits
+ELC_CKT_VLT_V,Electrical Circuits
 ELC_CONDUIT_ROUTE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CONN_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CPC_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_DEPTH_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_FILL_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_HEIGHT_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_MAT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_SZ_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CTR_DEPTH_MM,Cable Trays|Cable Tray Fittings
+ELC_CTR_FILL_PCT,Cable Trays|Cable Tray Fittings
+ELC_CTR_HEIGHT_MM,Cable Trays|Cable Tray Fittings
+ELC_CTR_MAT_TXT,Cable Trays|Cable Tray Fittings
+ELC_CTR_SZ_TXT,Cable Trays|Cable Tray Fittings
 ELC_CTR_TAG,<ALL>
-ELC_CTR_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_CTR_WIDTH_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_CTR_TAG_01_TXT,Cable Trays|Cable Tray Fittings
+ELC_CTR_WIDTH_MM,Cable Trays|Cable Tray Fittings
 ELC_DIV_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Circuits
+ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Circuits
 ELC_EQP_TAG,<ALL>
-ELC_EQP_TAG_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_EQP_TAG_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_EQP_TAG_01_TXT,Electrical Equipment|Electrical Circuits
+ELC_EQP_TAG_02_TXT,Electrical Equipment|Electrical Circuits
 ELC_EQUIPMENT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FACTORY_QR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FAT_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_FEEDER_CSA_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_FEEDER_RATING_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_FEEDER_CSA_MM2,Cable Trays|Conduits|Electrical Circuits
+ELC_FEEDER_RATING_A,Cable Trays|Conduits|Electrical Circuits
 ELC_FIX_TAG_1_TXT,<ALL>
-ELC_FIX_TAG_2_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_FIX_TAG_2_TXT,Electrical Fixtures
+ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
+ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_IPS_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_IP_RATING_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_IT_CARDIAC_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_JB_AUTO_PLACED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_JB_REASON_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_JB_SIZE_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_JB_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_JB_UPSTREAM_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LIGHTING_GRID_SPC_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LIGHTING_ROOM_TYPE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LIGHTING_TARGET_LUX_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPD_LIMIT_W_PER_M2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPD_STATUS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPD_W_PER_M2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_AIRTERM_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_AIR_TERMINAL_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_BOND_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_BOND_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_CLASS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_COMPLIANCE_STATUS_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_CONDUCTOR_MATERIAL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_DOWNCOND_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_EARTH_ELECTRODE_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_EARTH_RESISTANCE_OHM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_EARTH_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_EARTH_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_FROM_LPZ_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_KC_FACTOR_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_MESH_SIZE_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_PROJECT_NG_OVERRIDE_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_PROTECTION_ANGLE_DEG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_RISK_ASSESSMENT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_SEPARATION_DISTANCE_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_SPD_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_SURGE_PROTECTION_LVL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_TESTCLAMP_TAG_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_TEST_DATE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_TO_LPZ_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LPS_ZONE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LP_CONNECTION_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LP_EARTH_RES_OHMS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_LP_SOIL_RESIST_OHM_M,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_JB_AUTO_PLACED_BOOL,Electrical Fixtures
+ELC_JB_REASON_TXT,Electrical Fixtures
+ELC_JB_SIZE_MM,Electrical Fixtures
+ELC_JB_TYPE_TXT,Electrical Fixtures
+ELC_JB_UPSTREAM_REF_TXT,Electrical Fixtures
+ELC_LIGHTING_GRID_SPC_MM,Lighting Fixtures|Lighting Devices
+ELC_LIGHTING_ROOM_TYPE,Lighting Fixtures|Lighting Devices
+ELC_LIGHTING_TARGET_LUX_TXT,Lighting Fixtures|Lighting Devices
+ELC_LPD_LIMIT_W_PER_M2,Lighting Fixtures|Lighting Devices
+ELC_LPD_STATUS_TXT,Lighting Fixtures|Lighting Devices
+ELC_LPD_W_PER_M2,Lighting Fixtures|Lighting Devices
+ELC_LPS_AIRTERM_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_AIR_TERMINAL_COUNT_NR,Electrical Equipment|Generic Models
+ELC_LPS_BOND_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_BOND_TYPE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_CERT_REF_TXT,Electrical Equipment|Generic Models
+ELC_LPS_CLASS_TXT,Electrical Equipment|Generic Models
+ELC_LPS_COMPLIANCE_STATUS_TXT,Electrical Equipment|Generic Models
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,Electrical Equipment|Generic Models
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,Electrical Equipment|Generic Models
+ELC_LPS_DOWNCOND_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,Electrical Equipment|Generic Models
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,Electrical Equipment|Generic Models
+ELC_LPS_EARTH_RESISTANCE_OHM,Electrical Equipment|Generic Models
+ELC_LPS_EARTH_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_EARTH_TYPE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_FROM_LPZ_TXT,Electrical Equipment|Generic Models
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment|Generic Models
+ELC_LPS_KC_FACTOR_NR,Electrical Equipment|Generic Models
+ELC_LPS_MESH_SIZE_M,Electrical Equipment|Generic Models
+ELC_LPS_PROJECT_NG_OVERRIDE_NR,Electrical Equipment|Generic Models
+ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,Electrical Equipment|Generic Models
+ELC_LPS_PROTECTION_ANGLE_DEG,Electrical Equipment|Generic Models
+ELC_LPS_RISK_ASSESSMENT_TXT,Electrical Equipment|Generic Models
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment|Generic Models
+ELC_LPS_SEPARATION_DISTANCE_MM,Electrical Equipment|Generic Models
+ELC_LPS_SPD_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_SURGE_PROTECTION_LVL_TXT,Electrical Equipment|Generic Models
+ELC_LPS_TESTCLAMP_TAG_TXT,Electrical Equipment|Generic Models
+ELC_LPS_TEST_DATE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_TO_LPZ_TXT,Electrical Equipment|Generic Models
+ELC_LPS_ZONE_TXT,Electrical Equipment|Generic Models
+ELC_LP_CONNECTION_TYPE_TXT,Electrical Equipment|Generic Models
+ELC_LP_EARTH_RES_OHMS,Electrical Equipment|Generic Models
+ELC_LP_SOIL_RESIST_OHM_M,Electrical Equipment|Generic Models
 ELC_LSC_TIER_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PANEL_MAIN_BREAKER_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PANEL_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PANEL_SCHEDULE_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_BEAM_ANGLE_DEG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_CCT_K,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_CRI_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_EFFICACY_LM_W,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_FILE_PATH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LAST_CALC_DATE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LAST_ENGINE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LUMENS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LUX_CALC,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LUX_DIALUX_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LUX_ELUMTOOLS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_LUX_RELUX_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_SYMMETRY_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_UGR_CALC,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_UNIFORMITY_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PHOTO_WATTS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_AIC_RATING_KA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_CKT_SOURCE_NAME_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_CKT_SOURCE_NAME_03_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_DESIGNATION_NAME_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_FED_FROM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_FED_FROM_PNL_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_IP_RATING_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_MAIN_BRK_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_NAME_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_NUM_OF_WAYS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_PHS_COUNT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_RATED_KW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_SHORT_CIRCUIT_KA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_SPARE_WAYS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PNL_VLT_V,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PWR_CIR_LOAD_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PWR_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PWR_KW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PWR_SPARE_01_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_PWR_SPARE_02_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_PANEL_MAIN_BREAKER_TXT,Electrical Equipment|Electrical Circuits
+ELC_PANEL_REF_TXT,Electrical Equipment|Electrical Circuits
+ELC_PANEL_SCHEDULE_REF_TXT,Electrical Equipment|Electrical Circuits
+ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_CCT_K,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_CRI_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LAST_CALC_DATE_TXT,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LAST_ENGINE_TXT,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUMENS_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUX_CALC,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUX_DIALUX_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUX_ELUMTOOLS_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUX_RELUX_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_UGR_CALC,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_UNIFORMITY_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_WATTS_NR,Lighting Fixtures|Lighting Devices
+ELC_PNL_AIC_RATING_KA,Electrical Equipment|Electrical Circuits
+ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_CKT_SOURCE_NAME_02_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_CKT_SOURCE_NAME_03_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Circuits
+ELC_PNL_DESIGNATION_NAME_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_FED_FROM,Electrical Equipment|Electrical Circuits
+ELC_PNL_FED_FROM_PNL_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_IP_RATING_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_MAIN_BRK_A,Electrical Equipment|Electrical Circuits
+ELC_PNL_NAME_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_NUM_OF_WAYS_NR,Electrical Equipment|Electrical Circuits
+ELC_PNL_PHS_COUNT_NR,Electrical Equipment|Electrical Circuits
+ELC_PNL_RATED_KW,Electrical Equipment|Electrical Circuits
+ELC_PNL_SHORT_CIRCUIT_KA,Electrical Equipment|Electrical Circuits
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Electrical Equipment|Electrical Circuits
+ELC_PNL_SPARE_WAYS_NR,Electrical Equipment|Electrical Circuits
+ELC_PNL_VLT_V,Electrical Equipment|Electrical Circuits
+ELC_PWR_CIR_LOAD_TYPE_TXT,Electrical Equipment|Electrical Circuits
+ELC_PWR_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Circuits
+ELC_PWR_KW,Electrical Equipment|Electrical Circuits
+ELC_PWR_SPARE_01_TXT,Electrical Equipment|Electrical Circuits
+ELC_PWR_SPARE_02_TXT,Electrical Equipment|Electrical Circuits
 ELC_RECEPT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_RECONCILE_DRIFT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_SEL_COORD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_SEL_COORD_OK,Electrical Equipment|Electrical Circuits
+ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment|Electrical Circuits
 ELC_SPARE_WAYS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_TAG_7_PARA_CABLE_TXT,<ALL>
 ELC_TAG_7_PARA_CIRCUIT_TXT,<ALL>
@@ -1148,40 +1148,40 @@ ELC_TAG_7_PARA_PANEL_TXT,<ALL>
 ELC_TAG_7_PARA_TIEIN_TXT,<ALL>
 ELC_TAG_7_PARA_TRAY_TXT,<ALL>
 ELC_TRANSFER_LOAD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_UPS_REPLACE_DT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_VLT_DROP_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_VLT_PRIMARY_RATING_V,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_VOLTAGE_V,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_AMPACITY_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_ANGLE_DEG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_COLOR_CODE_INT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_COMPACT_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_LINE_WEIGHT_INT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_OFFSET_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SCALE_FACTOR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SHOW_DIA_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SHOW_FILL_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SHOW_VD_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SLASH_LEN_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ANNOT_SPACING_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ARMOURED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_ARMOUR_CONT_OK_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_BEND_COUNT_INT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_CIRCUIT_BREAKER_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_CIRCUIT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_COND_MAT_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_CORE_COUNT_INT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_CSA_MM2_NUM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_EARTH_CSA_MM2,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_FIRE_RATED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_INSTALL_METHOD_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_MAX_DEMAND_A,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_PHASE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_PROFILE_ID_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_SHIELDED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_SIZE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_WIRE_VD_PCT_NUM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_UPS_REPLACE_DT,Electrical Equipment|Electrical Circuits
+ELC_VLT_DROP_PCT,Electrical Circuits
+ELC_VLT_PRIMARY_RATING_V,Electrical Circuits
+ELC_VOLTAGE_V,Electrical Fixtures
+ELC_WIRE_AMPACITY_A,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_ANGLE_DEG,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_COLOR_CODE_INT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_COMPACT_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_LINE_WEIGHT_INT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_OFFSET_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SCALE_FACTOR,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SHOW_DIA_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SHOW_FILL_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SHOW_VD_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SLASH_LEN_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ANNOT_SPACING_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ARMOURED_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_ARMOUR_CONT_OK_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_BEND_COUNT_INT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_CIRCUIT_BREAKER_A,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_CIRCUIT_TYPE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_COND_MAT_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_CORE_COUNT_INT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_CSA_MM2_NUM,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_EARTH_CSA_MM2,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_FIRE_RATED_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_INSTALL_METHOD_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_MAX_DEMAND_A,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_PHASE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_PROFILE_ID_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_SHIELDED_BOOL,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_SIZE_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_WIRE_VD_PCT_NUM,Cable Trays|Conduits|Electrical Circuits
 ELE_FIX_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ENV_FAC_TAG_TXT,Curtain Panels|Curtain Wall Mullions|Generic Models|Walls
 ENV_ROOF_TAG_TXT,Generic Models|Roofs
@@ -2647,28 +2647,28 @@ WARN_COM_C_DATA_RATE_COMM_DEVICES,Data Devices|Communication Devices|Telephone D
 WARN_COM_C_POWER_SUPPLY_COMM_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_COM_C_PROTOCOL_COMM_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_COM_DEVICE_COVERAGE,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-WARN_ELC_ATS_TIME_EXCEEDED,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_BEND_RADIUS_CONDUITS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_EARTHING_CONDUITS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_FILL_RATIO,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_FIRE_BARRIER_CONDUITS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_RUN_LENGTH_CONDUITS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CIRCUIT_LOADING_PCT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+WARN_ELC_ATS_TIME_EXCEEDED,Electrical Equipment|Electrical Circuits
+WARN_ELC_CDT_BEND_RADIUS_CONDUITS,Conduits|Conduit Fittings
+WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS,Conduits|Conduit Fittings
+WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS,Conduits|Conduit Fittings
+WARN_ELC_CDT_EARTHING_CONDUITS,Conduits|Conduit Fittings
+WARN_ELC_CDT_FILL_RATIO,Conduits|Conduit Fittings
+WARN_ELC_CDT_FIRE_BARRIER_CONDUITS,Conduits|Conduit Fittings
+WARN_ELC_CDT_RUN_LENGTH_CONDUITS,Conduits|Conduit Fittings
+WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,Conduits|Conduit Fittings
+WARN_ELC_CIRCUIT_LOADING_PCT,Electrical Circuits
+WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX,Electrical Circuits
 WARN_ELC_CONNECTOR_RATING,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_CONN_IP_CONNECTORS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_CONN_RATING_CONNECTORS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_EARTHING_CABLE_TRAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_FILL_RATIO,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_LOAD_CABLE_TRAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_EARTHING_CABLE_TRAYS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_FILL_RATIO,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_LOAD_CABLE_TRAYS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,Cable Trays|Cable Tray Fittings
+WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS,Cable Trays|Cable Tray Fittings
 WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_EARTHING_TYPE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -2679,30 +2679,30 @@ WARN_ELC_IP_RATING,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tr
 WARN_ELC_IP_RATING_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_IP_RATING_ELECTRICAL_FIX,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_LABELLING_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_INSPECTION_OVERDUE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_MESH_SIZE_EXCEEDED,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_NO_BONDING,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_NO_CLASS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_NO_RISK_ASSESSMENT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_NO_ZONE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_LPS_SEPARATION_FAIL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_AIC_INADEQUATE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_FEEDER_UNDERSIZED,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_LOAD_BALANCE,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_NO_TVSS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_SCCR_LOW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_SCHEDULE_MISSING,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_SHORT_CIRCUIT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_SPARES_LOW,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_PNL_SPARE_WAYS,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Electrical Equipment|Generic Models
+WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,Electrical Equipment|Generic Models
+WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,Electrical Equipment|Generic Models
+WARN_ELC_LPS_INSPECTION_OVERDUE,Electrical Equipment|Generic Models
+WARN_ELC_LPS_MESH_SIZE_EXCEEDED,Electrical Equipment|Generic Models
+WARN_ELC_LPS_NO_BONDING,Electrical Equipment|Generic Models
+WARN_ELC_LPS_NO_CLASS,Electrical Equipment|Generic Models
+WARN_ELC_LPS_NO_RISK_ASSESSMENT,Electrical Equipment|Generic Models
+WARN_ELC_LPS_NO_ZONE,Electrical Equipment|Generic Models
+WARN_ELC_LPS_SEPARATION_FAIL,Electrical Equipment|Generic Models
+WARN_ELC_PNL_AIC_INADEQUATE,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_FEEDER_UNDERSIZED,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_LOAD_BALANCE,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_NO_TVSS,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_SCCR_LOW,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_SCHEDULE_MISSING,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_SHORT_CIRCUIT,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_SPARES_LOW,Electrical Equipment|Electrical Circuits
+WARN_ELC_PNL_SPARE_WAYS,Electrical Equipment|Electrical Circuits
 WARN_ELC_SHORT_CIRCUIT_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 WARN_ELC_SPARE_CAPACITY_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-WARN_ELC_WIRE_AMPACITY_MISSING,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Electrical Circuits
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX,Electrical Circuits
+WARN_ELC_WIRE_AMPACITY_MISSING,Cable Trays|Conduits|Electrical Circuits
 WARN_FAB_CONTAINMENT_DIMENSIONS,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_CONTAINMENT_FILL_RATIO,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 WARN_FAB_CONTAINMENT_FIRE_RATING,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays

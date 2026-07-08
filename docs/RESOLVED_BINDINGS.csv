@@ -936,207 +936,207 @@ DS_TICK_MARK_TXT,11,curated-fallback,Generic Models,Tick mark style [ISO 19650-1
 DS_TICK_SIZE_NR,11,curated-fallback,Generic Models,Tick mark size in mm [ISO 19650-1:2018]
 DS_TYPE_TXT,11,curated-fallback,Generic Models,Dimension type [ISO 19650-1:2018]
 DS_UNITS_FORMAT_TXT,11,curated-fallback,Generic Models,Units format [ISO 19650-1:2018]
-ELC_ARC_FLASH_BOUNDARY_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]
-ELC_ARC_FLASH_IE_CAL_CM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
-ELC_ARC_FLASH_LABEL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
-ELC_ARC_FLASH_PPE_CAT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]
-ELC_ARC_FLASH_WORK_DIST_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]
-ELC_ATS_TEST_LOG_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,ATS test log document reference [H-27]
-ELC_ATS_TIME_S_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR
-ELC_BUSBAR_CSA_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]
-ELC_BUSBAR_FILL_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Busbar trunking duct fill percentage [STING Phase 179]
-ELC_BUSBAR_RATING_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]
+ELC_ARC_FLASH_BOUNDARY_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]
+ELC_ARC_FLASH_IE_CAL_CM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
+ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
+ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]
+ELC_ARC_FLASH_WORK_DIST_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]
+ELC_ATS_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ATS test log document reference [H-27]
+ELC_ATS_TIME_S_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR
+ELC_BUSBAR_CSA_MM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]
+ELC_BUSBAR_FILL_PCT,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking duct fill percentage [STING Phase 179]
+ELC_BUSBAR_RATING_A,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]
 ELC_CABLE_CSA_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable conductor cross-section for SLD annotation [Electrical SLD]
-ELC_CBL_AMPACITY_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Ampacity A [ISO 19650-1:2018]
-ELC_CBL_COND_SZ_SQ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Cond Sz Sq Mm [ISO 19650-1:2018]
-ELC_CBL_DERATING_FCT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Derating Fct Nr [ISO 19650-1:2018]
-ELC_CBL_DESTINATION_TO_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Destination To Txt [ISO 19650-1:2018]
-ELC_CBL_DEST_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Dest [ISO 19650-1:2018]
-ELC_CBL_FEEDER_SZ_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Feeder cable cross-section area in mm2 [ISO 19650-1:2018]
-ELC_CBL_INSTALL_METHOD_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Install Method Txt [ISO 19650-1:2018]
-ELC_CBL_INS_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Ins Type Txt [ISO 19650-1:2018]
-ELC_CBL_LENGTH_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Length M [ISO 19650-1:2018]
-ELC_CBL_NR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Nr Txt [ISO 19650-1:2018]
-ELC_CBL_NUM_CABLES_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Num Cables [ISO 19650]
-ELC_CBL_NUM_OF_CORES_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018]
-ELC_CBL_SOURCE_FROM_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Source From Txt [ISO 19650-1:2018]
-ELC_CBL_SOURCE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Source [ISO 19650-1:2018]
-ELC_CBL_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Sz Mm [ISO 19650-1:2018]
-ELC_CBL_SZ_PER_CORE_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cbl Sz Per Core Mm [ISO 19650-1:2018]
-ELC_CBL_TYPE_TXT,5,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical cable type [ISO 19650-2:2018]
-ELC_CBT_FAB_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray fabrication type
-ELC_CBT_SHOP_DRAWING_REQ_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray shop drawing required
-ELC_CBT_SUPPORT_SPACING_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray support spacing
-ELC_CDT_BEND_ANGLE_DEG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 _522.8]
-ELC_CDT_BEND_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Number of bends in this conduit run (BS 7671 _522.8.5 limits to 3 between draw-in points)
-ELC_CDT_BEND_RADIUS_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit bend radius
-ELC_CDT_BREAKPOINT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
-ELC_CDT_CABLE_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
-ELC_CDT_CBL_FILL_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
-ELC_CDT_FAB_METHOD_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit fabrication method
-ELC_CDT_FILL_RATIO,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit fill ratio
-ELC_CDT_INSTALL_METHOD_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit install method: SURF-MTD/CONC-EMB/TRAY/BRAC/IN-FLOOR [ISO 19650-1:2018]
-ELC_CDT_MAT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit material: GS-GALV/UPVC/SS316/AL-FLEX/EMT [ISO 19650-1:2018]
-ELC_CDT_PENETRATION_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).
-ELC_CDT_RUN_LENGTH_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit run length in metres (BS 7671 max ~6m between draw-in points)
-ELC_CDT_SOFFIT_OFFSET_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Cdt Soffit Offset Mm [STING]
-ELC_CDT_STALE_ANNOT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit wire annotation is stale and needs refresh [Electrical]
-ELC_CDT_SUPPORT_SPACING_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit support spacing
-ELC_CDT_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018]
+ELC_CBL_AMPACITY_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Ampacity A [ISO 19650-1:2018]
+ELC_CBL_COND_SZ_SQ_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Cond Sz Sq Mm [ISO 19650-1:2018]
+ELC_CBL_DERATING_FCT_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Derating Fct Nr [ISO 19650-1:2018]
+ELC_CBL_DESTINATION_TO_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Destination To Txt [ISO 19650-1:2018]
+ELC_CBL_DEST_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Dest [ISO 19650-1:2018]
+ELC_CBL_FEEDER_SZ_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Feeder cable cross-section area in mm2 [ISO 19650-1:2018]
+ELC_CBL_INSTALL_METHOD_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Install Method Txt [ISO 19650-1:2018]
+ELC_CBL_INS_TYPE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Ins Type Txt [ISO 19650-1:2018]
+ELC_CBL_LENGTH_M,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Length M [ISO 19650-1:2018]
+ELC_CBL_NR_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Nr Txt [ISO 19650-1:2018]
+ELC_CBL_NUM_CABLES_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Num Cables [ISO 19650]
+ELC_CBL_NUM_OF_CORES_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018]
+ELC_CBL_SOURCE_FROM_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Source From Txt [ISO 19650-1:2018]
+ELC_CBL_SOURCE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Source [ISO 19650-1:2018]
+ELC_CBL_SZ_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Sz Mm [ISO 19650-1:2018]
+ELC_CBL_SZ_PER_CORE_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Sz Per Core Mm [ISO 19650-1:2018]
+ELC_CBL_TYPE_TXT,5,elc-sub,Cable Trays|Conduits|Electrical Circuits,Electrical cable type [ISO 19650-2:2018]
+ELC_CBT_FAB_TYPE_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray fabrication type
+ELC_CBT_SHOP_DRAWING_REQ_BOOL,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray shop drawing required
+ELC_CBT_SUPPORT_SPACING_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray support spacing
+ELC_CDT_BEND_ANGLE_DEG,4,elc-sub,Conduits|Conduit Fittings,Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 _522.8]
+ELC_CDT_BEND_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,Number of bends in this conduit run (BS 7671 _522.8.5 limits to 3 between draw-in points)
+ELC_CDT_BEND_RADIUS_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit bend radius
+ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
+ELC_CDT_CABLE_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
+ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
+ELC_CDT_FAB_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fabrication method
+ELC_CDT_FILL_RATIO,4,elc-sub,Conduits|Conduit Fittings,Conduit fill ratio
+ELC_CDT_INSTALL_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit install method: SURF-MTD/CONC-EMB/TRAY/BRAC/IN-FLOOR [ISO 19650-1:2018]
+ELC_CDT_MAT_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit material: GS-GALV/UPVC/SS316/AL-FLEX/EMT [ISO 19650-1:2018]
+ELC_CDT_PENETRATION_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,Number of fire-rated barriers (floors / walls) this conduit crosses. Stamped by SlabPenetrationDetector each time a crossing is recorded. Drives the FRP penetration register schedule and JBAutoPlacer's avoid-collision logic (Wave J3).
+ELC_CDT_RUN_LENGTH_M,4,elc-sub,Conduits|Conduit Fittings,Conduit run length in metres (BS 7671 max ~6m between draw-in points)
+ELC_CDT_SOFFIT_OFFSET_MM,4,elc-sub,Conduits|Conduit Fittings,Elc Cdt Soffit Offset Mm [STING]
+ELC_CDT_STALE_ANNOT_BOOL,4,elc-sub,Conduits|Conduit Fittings,Conduit wire annotation is stale and needs refresh [Electrical]
+ELC_CDT_SUPPORT_SPACING_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit support spacing
+ELC_CDT_SZ_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018]
 ELC_CDT_TAG,4,tag-container,<ALL>,Electrical conduit tag container [ISO 19650-2:2018]
-ELC_CDT_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]"
-ELC_CDT_TAG_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]
-ELC_CIRCUIT_GROUP_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.
-ELC_CIRCUIT_LABEL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]
-ELC_CIRCUIT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical circuit number
-ELC_CIRCUIT_POLES_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Number of poles (1/2/3/4) for circuit breakers and switches -- rendered into SLD labels [STING Phase 175]
-ELC_CIRCUIT_RATING_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit / device rating string (e.g. 32A / 100A) -- rendered into SLD labels [STING Phase 175]
-ELC_CIRCUIT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]
-ELC_CIRCUIT_TRACE_ACTIVE,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit-trace highlight flag (active element marker) [Electrical]
-ELC_CIR_BREAKER_RATING_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Protective device rating for SLD annotation [Electrical SLD]
-ELC_CIR_DESIGN_CURRENT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit design current Ib for SLD annotation [Electrical SLD]
-ELC_CIR_DESIGN_LOAD_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit connected/design load for SLD annotation [Electrical SLD]
-ELC_CIR_DIVERSITY_FACTOR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Applied diversity factor for SLD annotation [Electrical SLD]
-ELC_CIR_FAULT_LEVEL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Prospective fault level for SLD annotation [Electrical SLD]
-ELC_CIR_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit reference / designation for SLD annotation [Electrical SLD]
-ELC_CIR_VOLTAGE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit nominal voltage for SLD annotation [Electrical SLD]
-ELC_CIR_ZS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Earth-fault loop impedance Zs for SLD annotation [Electrical SLD]
-ELC_CKT_BRK_RATING_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Brk Rating A [ISO 19650-1:2018]
-ELC_CKT_CBL_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Cbl Sz Mm [ISO 19650-1:2018]
-ELC_CKT_CBL_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Cbl Type Txt [ISO 19650-1:2018]
-ELC_CKT_CUR_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Cur A [ISO 19650-1:2018]
-ELC_CKT_FINAL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Final Txt [ISO 19650-1:2018]
-ELC_CKT_IDENTIFICATION_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Identification Txt [ISO 19650-1:2018]
-ELC_CKT_LENGTH_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Length M [ISO 19650-1:2018]
-ELC_CKT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Nr [ISO 19650-1:2018]
-ELC_CKT_PHASE_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Phase Count Nr [ISO 19650-1:2018]
-ELC_CKT_PWR_KW,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
-ELC_CKT_VLT_V,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
+ELC_CDT_TAG_01_TXT,4,elc-sub,Conduits|Conduit Fittings,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]"
+ELC_CDT_TAG_02_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]
+ELC_CIRCUIT_GROUP_TXT,4,elc-sub,Electrical Circuits,Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.
+ELC_CIRCUIT_LABEL_TXT,4,elc-sub,Electrical Circuits,Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]
+ELC_CIRCUIT_NR,4,elc-sub,Electrical Circuits,Electrical circuit number
+ELC_CIRCUIT_POLES_NR,4,elc-sub,Electrical Circuits,Number of poles (1/2/3/4) for circuit breakers and switches -- rendered into SLD labels [STING Phase 175]
+ELC_CIRCUIT_RATING_TXT,4,elc-sub,Electrical Circuits,Circuit / device rating string (e.g. 32A / 100A) -- rendered into SLD labels [STING Phase 175]
+ELC_CIRCUIT_REF_TXT,4,elc-sub,Electrical Circuits,Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]
+ELC_CIRCUIT_TRACE_ACTIVE,4,elc-sub,Electrical Circuits,Circuit-trace highlight flag (active element marker) [Electrical]
+ELC_CIR_BREAKER_RATING_TXT,4,elc-sub,Electrical Circuits,Protective device rating for SLD annotation [Electrical SLD]
+ELC_CIR_DESIGN_CURRENT_TXT,4,elc-sub,Electrical Circuits,Circuit design current Ib for SLD annotation [Electrical SLD]
+ELC_CIR_DESIGN_LOAD_TXT,4,elc-sub,Electrical Circuits,Circuit connected/design load for SLD annotation [Electrical SLD]
+ELC_CIR_DIVERSITY_FACTOR_TXT,4,elc-sub,Electrical Circuits,Applied diversity factor for SLD annotation [Electrical SLD]
+ELC_CIR_FAULT_LEVEL_TXT,4,elc-sub,Electrical Circuits,Prospective fault level for SLD annotation [Electrical SLD]
+ELC_CIR_REF_TXT,4,elc-sub,Electrical Circuits,Circuit reference / designation for SLD annotation [Electrical SLD]
+ELC_CIR_VOLTAGE_TXT,4,elc-sub,Electrical Circuits,Circuit nominal voltage for SLD annotation [Electrical SLD]
+ELC_CIR_ZS_TXT,4,elc-sub,Electrical Circuits,Earth-fault loop impedance Zs for SLD annotation [Electrical SLD]
+ELC_CKT_BRK_RATING_A,4,elc-sub,Electrical Circuits,Elc Ckt Brk Rating A [ISO 19650-1:2018]
+ELC_CKT_CBL_SZ_MM,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Sz Mm [ISO 19650-1:2018]
+ELC_CKT_CBL_TYPE_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Type Txt [ISO 19650-1:2018]
+ELC_CKT_CUR_A,4,elc-sub,Electrical Circuits,Elc Ckt Cur A [ISO 19650-1:2018]
+ELC_CKT_FINAL_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Final Txt [ISO 19650-1:2018]
+ELC_CKT_IDENTIFICATION_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Identification Txt [ISO 19650-1:2018]
+ELC_CKT_LENGTH_M,4,elc-sub,Electrical Circuits,Elc Ckt Length M [ISO 19650-1:2018]
+ELC_CKT_NR,4,elc-sub,Electrical Circuits,Elc Ckt Nr [ISO 19650-1:2018]
+ELC_CKT_PHASE_COUNT_NR,4,elc-sub,Electrical Circuits,Elc Ckt Phase Count Nr [ISO 19650-1:2018]
+ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
+ELC_CKT_VLT_V,4,elc-sub,Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
 ELC_CONDUIT_ROUTE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]
 ELC_CONN_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018]
 ELC_CPC_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit protective conductor size in mm2 per BS 7671
-ELC_CTR_DEPTH_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray depth/return: 50/75/100mm [ISO 19650-1:2018]
-ELC_CTR_FILL_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Design cable fill percentage, max 40% for future capacity [ISO 19650-1:2018]"
-ELC_CTR_HEIGHT_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ctr Height Mm [ISO 19650]
-ELC_CTR_MAT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray material: HDG/SS316/AL/GRP/PVC [ISO 19650-1:2018]
-ELC_CTR_SZ_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray size designation [ISO 19650-1:2018]
+ELC_CTR_DEPTH_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray depth/return: 50/75/100mm [ISO 19650-1:2018]
+ELC_CTR_FILL_PCT,4,elc-sub,Cable Trays|Cable Tray Fittings,"Design cable fill percentage, max 40% for future capacity [ISO 19650-1:2018]"
+ELC_CTR_HEIGHT_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Elc Ctr Height Mm [ISO 19650]
+ELC_CTR_MAT_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray material: HDG/SS316/AL/GRP/PVC [ISO 19650-1:2018]
+ELC_CTR_SZ_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray size designation [ISO 19650-1:2018]
 ELC_CTR_TAG,4,tag-container,<ALL>,Electrical cable tray tag container [ISO 19650-2:2018]
-ELC_CTR_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Cable tray spec tag: width x depth, material, fill percentage [ISO 19650-1:2018]"
-ELC_CTR_WIDTH_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018]
+ELC_CTR_TAG_01_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,"Cable tray spec tag: width x depth, material, fill percentage [ISO 19650-1:2018]"
+ELC_CTR_WIDTH_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018]
 ELC_DIV_FCT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Div Fct Nr [ISO 19650-1:2018]
 ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL
 ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
-ELC_ENERGY_COST_UGX_PA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
-ELC_ENERGY_KWH_PA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Energy Kwh Pa [ISO 19650-1:2018]
+ELC_ENERGY_COST_UGX_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
+ELC_ENERGY_KWH_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Kwh Pa [ISO 19650-1:2018]
 ELC_EQP_TAG,4,tag-container,<ALL>,Electrical equipment tag container [ISO 19650-2:2018]
-ELC_EQP_TAG_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]"
-ELC_EQP_TAG_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]"
+ELC_EQP_TAG_01_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]"
+ELC_EQP_TAG_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]"
 ELC_EQUIPMENT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Equipment Type Txt [ISO 19650-1:2018]
 ELC_FACTORY_QR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical factory QR code label reference [ISO 19650-3:2020]
 ELC_FAT_CERT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Factory Acceptance Test certificate reference [IEC 61439-1:2020]
-ELC_FEEDER_CSA_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
-ELC_FEEDER_RATING_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
+ELC_FEEDER_CSA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
+ELC_FEEDER_RATING_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
 ELC_FIX_TAG_1_TXT,4,tag-container,<ALL>,Elc fix tag 1
-ELC_FIX_TAG_2_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc fix tag 2
-ELC_GEN_RUN_HRS_TGT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
-ELC_GEN_TEST_LOG_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
+ELC_FIX_TAG_2_TXT,4,elc-sub,Electrical Fixtures,Elc fix tag 2
+ELC_GEN_RUN_HRS_TGT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
+ELC_GEN_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
 ELC_IPS_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Powered from Isolated Power System (NEC 517)
 ELC_IP_RATING_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Ip Rating Txt [ISO 19650-1:2018]
 ELC_IT_CARDIAC_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cardiac-protected outlet (IT-network NEC 517.19)
-ELC_JB_AUTO_PLACED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.
-ELC_JB_REASON_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.
-ELC_JB_SIZE_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.
-ELC_JB_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.
-ELC_JB_UPSTREAM_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Jb Upstream Ref Txt [STING]
-ELC_LIGHTING_GRID_SPC_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lighting Grid Spc Mm [STING]
-ELC_LIGHTING_ROOM_TYPE,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lighting Room Type [STING]
-ELC_LIGHTING_TARGET_LUX_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lighting Target Lux Txt [STING]
-ELC_LPD_LIMIT_W_PER_M2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
-ELC_LPD_STATUS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]
-ELC_LPD_W_PER_M2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
-ELC_LPS_AIRTERM_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]"
-ELC_LPS_AIR_TERMINAL_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Count of air terminals / lightning rods on the protected zone
-ELC_LPS_BOND_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]
-ELC_LPS_BOND_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)
-ELC_LPS_CERT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Certificate reference for the LPS inspection / commissioning
-ELC_LPS_CLASS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS class per BS EN 62305 (I / II / III / IV)
-ELC_LPS_COMPLIANCE_STATUS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)
-ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)
-ELC_LPS_CONDUCTOR_MATERIAL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor
-ELC_LPS_DOWNCOND_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]
-ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)"
-ELC_LPS_EARTH_ELECTRODE_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Count of earth electrodes serving the LPS
-ELC_LPS_EARTH_RESISTANCE_OHM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Measured earth resistance in ohms (target <10 ohm per BS EN 62305)
-ELC_LPS_EARTH_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]
-ELC_LPS_EARTH_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Earth electrode type (ROD / RING / FOUNDATION / MESH)
-ELC_LPS_ELEMENT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
-ELC_LPS_FROM_LPZ_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
-ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
-ELC_LPS_KC_FACTOR_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
-ELC_LPS_MESH_SIZE_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Air terminal mesh grid size in metres per BS EN 62305 class
-ELC_LPS_PROJECT_NG_OVERRIDE_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Project ground flash density Ng (flashes/km2/year) override from lightning location service
-ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels
-ELC_LPS_PROTECTION_ANGLE_DEG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Protection cone half-angle in degrees per BS EN 62305 class
-ELC_LPS_RISK_ASSESSMENT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Risk assessment reference document per BS EN 62305-2
-ELC_LPS_ROLLING_SPHERE_RADIUS_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)
-ELC_LPS_SEPARATION_DISTANCE_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Separation distance (s) between LPS and services in millimetres
-ELC_LPS_SPD_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]
-ELC_LPS_SURGE_PROTECTION_LVL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Surge protection device level (Type 1 / Type 2 / Type 3)
-ELC_LPS_TESTCLAMP_TAG_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]
-ELC_LPS_TEST_DATE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,ISO 8601 date of last LPS test / inspection
-ELC_LPS_TO_LPZ_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
-ELC_LPS_ZONE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)
-ELC_LP_CONNECTION_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lp Connection Type Txt [ISO 19650-1:2018]
-ELC_LP_EARTH_RES_OHMS,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lp Earth Res Ohms [ISO 19650-1:2018]
-ELC_LP_SOIL_RESIST_OHM_M,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Lp Soil Resist Ohm M [ISO 19650-1:2018]
+ELC_JB_AUTO_PLACED_BOOL,4,elc-sub,Electrical Fixtures,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.
+ELC_JB_REASON_TXT,4,elc-sub,Electrical Fixtures,Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.
+ELC_JB_SIZE_MM,4,elc-sub,Electrical Fixtures,Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.
+ELC_JB_TYPE_TXT,4,elc-sub,Electrical Fixtures,Junction box type: PULL_BOX / DRAW_IN_BOX / ADAPTABLE_BOX / TEE_BOX. Drives type-variant selection for the JB seed.
+ELC_JB_UPSTREAM_REF_TXT,4,elc-sub,Electrical Fixtures,Elc Jb Upstream Ref Txt [STING]
+ELC_LIGHTING_GRID_SPC_MM,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Grid Spc Mm [STING]
+ELC_LIGHTING_ROOM_TYPE,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Room Type [STING]
+ELC_LIGHTING_TARGET_LUX_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Target Lux Txt [STING]
+ELC_LPD_LIMIT_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
+ELC_LPD_STATUS_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]
+ELC_LPD_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
+ELC_LPS_AIRTERM_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,"LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]"
+ELC_LPS_AIR_TERMINAL_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,Count of air terminals / lightning rods on the protected zone
+ELC_LPS_BOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]
+ELC_LPS_BOND_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)
+ELC_LPS_CERT_REF_TXT,4,elc-sub,Electrical Equipment|Generic Models,Certificate reference for the LPS inspection / commissioning
+ELC_LPS_CLASS_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS class per BS EN 62305 (I / II / III / IV)
+ELC_LPS_COMPLIANCE_STATUS_TXT,4,elc-sub,Electrical Equipment|Generic Models,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,4,elc-sub,Electrical Equipment|Generic Models,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor
+ELC_LPS_DOWNCOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)"
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,Count of earth electrodes serving the LPS
+ELC_LPS_EARTH_RESISTANCE_OHM,4,elc-sub,Electrical Equipment|Generic Models,Measured earth resistance in ohms (target <10 ohm per BS EN 62305)
+ELC_LPS_EARTH_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]
+ELC_LPS_EARTH_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Earth electrode type (ROD / RING / FOUNDATION / MESH)
+ELC_LPS_ELEMENT_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
+ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,elc-sub,Electrical Equipment|Generic Models,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
+ELC_LPS_KC_FACTOR_NR,4,elc-sub,Electrical Equipment|Generic Models,Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
+ELC_LPS_MESH_SIZE_M,4,elc-sub,Electrical Equipment|Generic Models,Air terminal mesh grid size in metres per BS EN 62305 class
+ELC_LPS_PROJECT_NG_OVERRIDE_NR,4,elc-sub,Electrical Equipment|Generic Models,Project ground flash density Ng (flashes/km2/year) override from lightning location service
+ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,4,elc-sub,Electrical Equipment|Generic Models,Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels
+ELC_LPS_PROTECTION_ANGLE_DEG,4,elc-sub,Electrical Equipment|Generic Models,Protection cone half-angle in degrees per BS EN 62305 class
+ELC_LPS_RISK_ASSESSMENT_TXT,4,elc-sub,Electrical Equipment|Generic Models,Risk assessment reference document per BS EN 62305-2
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,4,elc-sub,Electrical Equipment|Generic Models,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)
+ELC_LPS_SEPARATION_DISTANCE_MM,4,elc-sub,Electrical Equipment|Generic Models,Separation distance (s) between LPS and services in millimetres
+ELC_LPS_SPD_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]
+ELC_LPS_SURGE_PROTECTION_LVL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Surge protection device level (Type 1 / Type 2 / Type 3)
+ELC_LPS_TESTCLAMP_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]
+ELC_LPS_TEST_DATE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ISO 8601 date of last LPS test / inspection
+ELC_LPS_TO_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_ZONE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)
+ELC_LP_CONNECTION_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Connection Type Txt [ISO 19650-1:2018]
+ELC_LP_EARTH_RES_OHMS,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Earth Res Ohms [ISO 19650-1:2018]
+ELC_LP_SOIL_RESIST_OHM_M,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Soil Resist Ohm M [ISO 19650-1:2018]
 ELC_LSC_TIER_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NEC 517 / NFPA 99 Tier: 1 / 2 / 3
-ELC_PANEL_MAIN_BREAKER_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Main incomer / MCCB rating label (e.g. ""250A 65kA MCCB"") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]"
-ELC_PANEL_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Panel Ref Txt [STING]
-ELC_PANEL_SCHEDULE_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical panel schedule document reference [BS 7671:2018+A2:2022]
-ELC_PHOTO_BEAM_ANGLE_DEG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Beam angle in degrees (the angle within which 50 % peak intensity is contained) [STING Phase 180]
-ELC_PHOTO_CCT_K,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Correlated colour temperature in Kelvin [STING Phase 180]
-ELC_PHOTO_CRI_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]
-ELC_PHOTO_EFFICACY_LM_W,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated luminous efficacy lm / W = Lumens / Watts [STING Phase 180]
-ELC_PHOTO_FILE_PATH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Absolute or project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]
-ELC_PHOTO_LAST_CALC_DATE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]
-ELC_PHOTO_LAST_ENGINE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]
-ELC_PHOTO_LUMENS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]
-ELC_PHOTO_LUX_CALC,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]
-ELC_PHOTO_LUX_DIALUX_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated illuminance from a DIALux evo IFC import [STING Phase 181]
-ELC_PHOTO_LUX_ELUMTOOLS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated illuminance from ElumTools shared parameters [STING Phase 181]
-ELC_PHOTO_LUX_RELUX_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated illuminance from a Relux IFC import [STING Phase 181]
-ELC_PHOTO_SYMMETRY_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]
-ELC_PHOTO_UGR_CALC,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]
-ELC_PHOTO_UNIFORMITY_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]
-ELC_PHOTO_WATTS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Total power draw from the bound photometric file (W) [STING Phase 180]
-ELC_PNL_AIC_RATING_KA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]
-ELC_PNL_CIRCUIT_GROUP_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Group key carried by a panel after the first BatchAssignCircuits run -- pins the panel to a single logical group so subsequent runs converge.
-ELC_PNL_CKT_SOURCE_NAME_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl tag
-ELC_PNL_CKT_SOURCE_NAME_03_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl tag
-ELC_PNL_CKT_SOURCE_NAME_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]
-ELC_PNL_CONNECTED_LOAD_KW,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Connected Load Kw [ISO 19650-1:2018]
-ELC_PNL_DESIGNATION_NAME_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Designation Name Txt [ISO 19650-1:2018]
-ELC_PNL_FED_FROM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Panel fed from source
-ELC_PNL_FED_FROM_PNL_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018]
-ELC_PNL_IP_RATING_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Ip Rating [ISO 19650-1:2018]
-ELC_PNL_MAIN_BRK_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Main Brk A [ISO 19650-1:2018]
-ELC_PNL_NAME_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]
-ELC_PNL_NUM_OF_WAYS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018]
-ELC_PNL_PHS_COUNT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Phs Count Nr [ISO 19650-1:2018]
-ELC_PNL_RATED_KW,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Panel rated capacity kW (for overload check) [ISO 19650-3:2020]
-ELC_PNL_SHORT_CIRCUIT_KA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Short Circuit Ka [ISO 19650-1:2018]
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018]
-ELC_PNL_SPARE_WAYS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Spare Ways [ISO 19650-1:2018]
-ELC_PNL_VLT_V,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pnl Vlt V [ISO 19650-1:2018]
-ELC_PWR_CIR_LOAD_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pwr Cir Load Type Txt [ISO 19650-1:2018]
-ELC_PWR_CONNECTED_LOAD_KW,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pwr Connected Load Kw [ISO 19650-1:2018]
-ELC_PWR_KW,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Pwr Kw [ISO 19650-1:2018]
-ELC_PWR_SPARE_01_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Spare parameter 1 for ELC_PWR group
-ELC_PWR_SPARE_02_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Spare parameter 2 for ELC_PWR group
+ELC_PANEL_MAIN_BREAKER_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Main incomer / MCCB rating label (e.g. ""250A 65kA MCCB"") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]"
+ELC_PANEL_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Panel Ref Txt [STING]
+ELC_PANEL_SCHEDULE_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Electrical panel schedule document reference [BS 7671:2018+A2:2022]
+ELC_PHOTO_BEAM_ANGLE_DEG,4,elc-sub,Lighting Fixtures|Lighting Devices,Beam angle in degrees (the angle within which 50 % peak intensity is contained) [STING Phase 180]
+ELC_PHOTO_CCT_K,4,elc-sub,Lighting Fixtures|Lighting Devices,Correlated colour temperature in Kelvin [STING Phase 180]
+ELC_PHOTO_CRI_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]
+ELC_PHOTO_EFFICACY_LM_W,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated luminous efficacy lm / W = Lumens / Watts [STING Phase 180]
+ELC_PHOTO_FILE_PATH_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Absolute or project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]
+ELC_PHOTO_LAST_CALC_DATE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]
+ELC_PHOTO_LAST_ENGINE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]
+ELC_PHOTO_LUMENS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]
+ELC_PHOTO_LUX_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]
+ELC_PHOTO_LUX_DIALUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from a DIALux evo IFC import [STING Phase 181]
+ELC_PHOTO_LUX_ELUMTOOLS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from ElumTools shared parameters [STING Phase 181]
+ELC_PHOTO_LUX_RELUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from a Relux IFC import [STING Phase 181]
+ELC_PHOTO_SYMMETRY_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]
+ELC_PHOTO_UGR_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]
+ELC_PHOTO_UNIFORMITY_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]
+ELC_PHOTO_WATTS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Total power draw from the bound photometric file (W) [STING Phase 180]
+ELC_PNL_AIC_RATING_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]
+ELC_PNL_CIRCUIT_GROUP_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Group key carried by a panel after the first BatchAssignCircuits run -- pins the panel to a single logical group so subsequent runs converge.
+ELC_PNL_CKT_SOURCE_NAME_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl tag
+ELC_PNL_CKT_SOURCE_NAME_03_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl tag
+ELC_PNL_CKT_SOURCE_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]
+ELC_PNL_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Connected Load Kw [ISO 19650-1:2018]
+ELC_PNL_DESIGNATION_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Designation Name Txt [ISO 19650-1:2018]
+ELC_PNL_FED_FROM,4,elc-sub,Electrical Equipment|Electrical Circuits,Panel fed from source
+ELC_PNL_FED_FROM_PNL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018]
+ELC_PNL_IP_RATING_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Ip Rating [ISO 19650-1:2018]
+ELC_PNL_MAIN_BRK_A,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Main Brk A [ISO 19650-1:2018]
+ELC_PNL_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]
+ELC_PNL_NUM_OF_WAYS_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018]
+ELC_PNL_PHS_COUNT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Phs Count Nr [ISO 19650-1:2018]
+ELC_PNL_RATED_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Panel rated capacity kW (for overload check) [ISO 19650-3:2020]
+ELC_PNL_SHORT_CIRCUIT_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Short Circuit Ka [ISO 19650-1:2018]
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Short Circuit Rating Ka [ISO 19650-1:2018]
+ELC_PNL_SPARE_WAYS_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Spare Ways [ISO 19650-1:2018]
+ELC_PNL_VLT_V,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Vlt V [ISO 19650-1:2018]
+ELC_PWR_CIR_LOAD_TYPE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pwr Cir Load Type Txt [ISO 19650-1:2018]
+ELC_PWR_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pwr Connected Load Kw [ISO 19650-1:2018]
+ELC_PWR_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pwr Kw [ISO 19650-1:2018]
+ELC_PWR_SPARE_01_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 1 for ELC_PWR group
+ELC_PWR_SPARE_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 2 for ELC_PWR group
 ELC_RECEPT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Receptacle type: HOSP-GR / TR / ISO / EMG-RED
 ELC_RECONCILE_DRIFT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit reconciliation drift flag [Electrical]
-ELC_SEL_COORD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
-ELC_SEL_COORD_VERIFIED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]"
+ELC_SEL_COORD_OK,4,elc-sub,Electrical Equipment|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
+ELC_SEL_COORD_VERIFIED_BOOL,4,elc-sub,Electrical Equipment|Electrical Circuits,"Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]"
 ELC_SPARE_WAYS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Spare Ways Nr [ISO 19650-1:2018]
 ELC_TAG_7_PARA_CABLE_TXT,4,tag-container,<ALL>,"Cable paragraph (destination, source, cores, size, insulation, install method, tray fill, load) [ISO 19650-3:2020]"
 ELC_TAG_7_PARA_CIRCUIT_TXT,4,tag-container,<ALL>,Circuit/point paragraph container [ISO 19650-3:2020]
@@ -1151,40 +1151,40 @@ ELC_TAG_7_PARA_PANEL_TXT,4,tag-container,<ALL>,DB panel paragraph container [ISO
 ELC_TAG_7_PARA_TIEIN_TXT,4,tag-container,<ALL>,Electrical tie-in point paragraph container [ISO 19650-3:2020]
 ELC_TAG_7_PARA_TRAY_TXT,4,tag-container,<ALL>,Cable tray paragraph [ISO 19650-3:2020]
 ELC_TRANSFER_LOAD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Transfer Load Ok [STING]
-ELC_UPS_REPLACE_DT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,UPS battery replacement date ISO 8601 [H-27]
-ELC_VLT_DROP_PCT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Vlt Drop Pct [ISO 19650-1:2018]
-ELC_VLT_PRIMARY_RATING_V,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Vlt Primary Rating V [ISO 19650-1:2018]
-ELC_VOLTAGE_V,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Device operating voltage in V [ISO 19650-1:2018]
-ELC_WIRE_AMPACITY_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A]
-ELC_WIRE_ANNOT_ANGLE_DEG,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Angle of slash marks relative to conduit axis in degrees (default 60, range 30-90). [STING annotation style]"
-ELC_WIRE_ANNOT_COLOR_CODE_INT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Annotation colour override: 0=auto (black), 1=red (overloaded/warning), 2=blue (neutral/data), 3=orange (review), 4=green (safe/spare). [STING annotation style]"
-ELC_WIRE_ANNOT_COMPACT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Compact label mode: omits panel name and install method to fit tight drawings. [STING annotation style]
-ELC_WIRE_ANNOT_LINE_WEIGHT_INT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Line weight index (1-16) for slash/tick marks. Default 3 (~0.25mm at 1:100). [STING annotation style]
-ELC_WIRE_ANNOT_OFFSET_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Perpendicular offset of label text from conduit centreline in mm (default 600). [STING annotation style]
-ELC_WIRE_ANNOT_SCALE_FACTOR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Scale multiplier applied to all annotation geometry (slash length, spacing, offset). 1.0=nominal, 0.5=half-size for congested drawings. [STING annotation style]"
-ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Show cable ampacity (Iz) and max demand (Ib) in wire annotation label. [STING annotation style]
-ELC_WIRE_ANNOT_SHOW_DIA_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Show conduit diameter in wire annotation label. [STING annotation style]
-ELC_WIRE_ANNOT_SHOW_FILL_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Show conduit fill percentage in wire annotation label. Default true when fill > 40%. [STING annotation style]
-ELC_WIRE_ANNOT_SHOW_VD_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Show voltage drop percentage in wire annotation label. Default true when VD > 3%. [STING annotation style]
-ELC_WIRE_ANNOT_SLASH_LEN_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Wire annotation slash/tick mark length in mm at model scale (default 6). Controls visual size of conductor-count slashes. [STING annotation style]
-ELC_WIRE_ANNOT_SPACING_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Spacing between adjacent slash marks in mm along conduit (default 3). [STING annotation style]
-ELC_WIRE_ARMOURED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,True if cable is SWA (steel wire armoured) or equivalent [BS 7671]
-ELC_WIRE_ARMOUR_CONT_OK_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 _543 [STING Gap 12]
-ELC_WIRE_BEND_COUNT_INT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit bend count for BS 7671 pull validation [Electrical]
-ELC_WIRE_CIRCUIT_BREAKER_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]
-ELC_WIRE_CIRCUIT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]
-ELC_WIRE_COND_MAT_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conductor material: Cu (copper) / Al (aluminium) [BS 7671]
-ELC_WIRE_CORE_COUNT_INT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]
-ELC_WIRE_CSA_MM2_NUM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conductor cross-sectional area in mm2 (1.5/2.5/4/6/10/16/25/35/50/70/95/120) [BS 7671 Table 4D1A]
-ELC_WIRE_EARTH_CSA_MM2,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Earth/CPC conductor cross-sectional area in mm2 [BS 7671 Section 543]
-ELC_WIRE_FIRE_RATED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]"
-ELC_WIRE_INSTALL_METHOD_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Installation method reference: A1/A2/B1/B2/C/D1/D2/E/F/G [BS 7671 Table 4A2 / IEC 60364-5-52]
-ELC_WIRE_MAX_DEMAND_A,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Maximum design demand current for the circuit in amperes [BS 7671 load assessment]
-ELC_WIRE_PHASE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]
-ELC_WIRE_PROFILE_ID_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Wire Profile Id Txt [STING]
-ELC_WIRE_SHIELDED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]"
-ELC_WIRE_SIZE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Wire size designation (2.5mm2, 4mm2, 10mm2) [ISO 19650-1:2018]"
-ELC_WIRE_VD_PCT_NUM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Calculated voltage drop as percentage of nominal voltage [BS 7671 Appendix 12, limit 3% lighting / 5% power]"
+ELC_UPS_REPLACE_DT,4,elc-sub,Electrical Equipment|Electrical Circuits,UPS battery replacement date ISO 8601 [H-27]
+ELC_VLT_DROP_PCT,4,elc-sub,Electrical Circuits,Elc Vlt Drop Pct [ISO 19650-1:2018]
+ELC_VLT_PRIMARY_RATING_V,4,elc-sub,Electrical Circuits,Elc Vlt Primary Rating V [ISO 19650-1:2018]
+ELC_VOLTAGE_V,4,elc-sub,Electrical Fixtures,Device operating voltage in V [ISO 19650-1:2018]
+ELC_WIRE_AMPACITY_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A]
+ELC_WIRE_ANNOT_ANGLE_DEG,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Angle of slash marks relative to conduit axis in degrees (default 60, range 30-90). [STING annotation style]"
+ELC_WIRE_ANNOT_COLOR_CODE_INT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Annotation colour override: 0=auto (black), 1=red (overloaded/warning), 2=blue (neutral/data), 3=orange (review), 4=green (safe/spare). [STING annotation style]"
+ELC_WIRE_ANNOT_COMPACT_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Compact label mode: omits panel name and install method to fit tight drawings. [STING annotation style]
+ELC_WIRE_ANNOT_LINE_WEIGHT_INT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Line weight index (1-16) for slash/tick marks. Default 3 (~0.25mm at 1:100). [STING annotation style]
+ELC_WIRE_ANNOT_OFFSET_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Perpendicular offset of label text from conduit centreline in mm (default 600). [STING annotation style]
+ELC_WIRE_ANNOT_SCALE_FACTOR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Scale multiplier applied to all annotation geometry (slash length, spacing, offset). 1.0=nominal, 0.5=half-size for congested drawings. [STING annotation style]"
+ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Show cable ampacity (Iz) and max demand (Ib) in wire annotation label. [STING annotation style]
+ELC_WIRE_ANNOT_SHOW_DIA_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Show conduit diameter in wire annotation label. [STING annotation style]
+ELC_WIRE_ANNOT_SHOW_FILL_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Show conduit fill percentage in wire annotation label. Default true when fill > 40%. [STING annotation style]
+ELC_WIRE_ANNOT_SHOW_VD_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Show voltage drop percentage in wire annotation label. Default true when VD > 3%. [STING annotation style]
+ELC_WIRE_ANNOT_SLASH_LEN_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Wire annotation slash/tick mark length in mm at model scale (default 6). Controls visual size of conductor-count slashes. [STING annotation style]
+ELC_WIRE_ANNOT_SPACING_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Spacing between adjacent slash marks in mm along conduit (default 3). [STING annotation style]
+ELC_WIRE_ARMOURED_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,True if cable is SWA (steel wire armoured) or equivalent [BS 7671]
+ELC_WIRE_ARMOUR_CONT_OK_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 _543 [STING Gap 12]
+ELC_WIRE_BEND_COUNT_INT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Conduit bend count for BS 7671 pull validation [Electrical]
+ELC_WIRE_CIRCUIT_BREAKER_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]
+ELC_WIRE_CIRCUIT_TYPE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]
+ELC_WIRE_COND_MAT_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Conductor material: Cu (copper) / Al (aluminium) [BS 7671]
+ELC_WIRE_CORE_COUNT_INT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Number of conductors/cores in the wire run (1-4). Drives slash-mark count on wire annotation tag. [BS 7671]
+ELC_WIRE_CSA_MM2_NUM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Conductor cross-sectional area in mm2 (1.5/2.5/4/6/10/16/25/35/50/70/95/120) [BS 7671 Table 4D1A]
+ELC_WIRE_EARTH_CSA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Earth/CPC conductor cross-sectional area in mm2 [BS 7671 Section 543]
+ELC_WIRE_FIRE_RATED_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]"
+ELC_WIRE_INSTALL_METHOD_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Installation method reference: A1/A2/B1/B2/C/D1/D2/E/F/G [BS 7671 Table 4A2 / IEC 60364-5-52]
+ELC_WIRE_MAX_DEMAND_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Maximum design demand current for the circuit in amperes [BS 7671 load assessment]
+ELC_WIRE_PHASE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Phase designation: L1/L2/L3/N/PE/CPC/1P/3P [BS 7671 Appendix 7]
+ELC_WIRE_PROFILE_ID_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Wire Profile Id Txt [STING]
+ELC_WIRE_SHIELDED_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]"
+ELC_WIRE_SIZE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Wire size designation (2.5mm2, 4mm2, 10mm2) [ISO 19650-1:2018]"
+ELC_WIRE_VD_PCT_NUM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Calculated voltage drop as percentage of nominal voltage [BS 7671 Appendix 12, limit 3% lighting / 5% power]"
 ELE_FIX_TAG,4,tag-elec,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical fixture tag container [ISO 19650-2:2018]
 ENV_FAC_TAG_TXT,10,curated-fallback,Curtain Panels|Curtain Wall Mullions|Generic Models|Walls,"Facade cladding tag: material, finish, panel size, fixing system [ISO 19650-1:2018]"
 ENV_ROOF_TAG_TXT,10,curated-fallback,Generic Models|Roofs,"Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]"
@@ -2988,28 +2988,28 @@ WARN_COM_C_POWER_SUPPLY_COMM_DEVICES,17,warn-mirror,Data Devices|Communication D
 WARN_COM_C_PROTOCOL_COMM_DEVICES,17,warn-mirror,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Tag warning: com c protocol comm devices
 WARN_COM_DEVICE_COVERAGE,3,warn-mirror,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Warning: Communication device coverage radius [MEDIUM]
 WARN_DOOR_FRR,15,warn-mirror,,Warning: Fire resistance rating minimum compliance [CRITICAL]
-WARN_ELC_ATS_TIME_EXCEEDED,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: ATS transfer time >10 s for LS/CR branch [CRITICAL] [NFPA 99 §6.4]
-WARN_ELC_CDT_BEND_RADIUS_CONDUITS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt bend radius conduits
-WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt bend radius conduit fittings
-WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt cbl fill pct conduits
-WARN_ELC_CDT_EARTHING_CONDUITS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt earthing conduits
-WARN_ELC_CDT_FILL_RATIO,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Conduit/tray fill ratio maximum [HIGH]
-WARN_ELC_CDT_FIRE_BARRIER_CONDUITS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt fire barrier conduits
-WARN_ELC_CDT_RUN_LENGTH_CONDUITS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt run length conduits
-WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc cdt sz conduit fittings
-WARN_ELC_CIRCUIT_LOADING_PCT,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: electrical circuit loading percentage exceeded
-WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc circuit load electrical fix
+WARN_ELC_ATS_TIME_EXCEEDED,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: ATS transfer time >10 s for LS/CR branch [CRITICAL] [NFPA 99 §6.4]
+WARN_ELC_CDT_BEND_RADIUS_CONDUITS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt bend radius conduits
+WARN_ELC_CDT_BEND_RADIUS_CONDUIT_FITTINGS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt bend radius conduit fittings
+WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt cbl fill pct conduits
+WARN_ELC_CDT_EARTHING_CONDUITS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt earthing conduits
+WARN_ELC_CDT_FILL_RATIO,4,warn-mirror,Conduits|Conduit Fittings,Warning: Conduit/tray fill ratio maximum [HIGH]
+WARN_ELC_CDT_FIRE_BARRIER_CONDUITS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt fire barrier conduits
+WARN_ELC_CDT_RUN_LENGTH_CONDUITS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt run length conduits
+WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,17,warn-mirror,Conduits|Conduit Fittings,Tag warning: elc cdt sz conduit fittings
+WARN_ELC_CIRCUIT_LOADING_PCT,17,warn-mirror,Electrical Circuits,Tag warning: electrical circuit loading percentage exceeded
+WARN_ELC_CIRCUIT_LOAD_ELECTRICAL_FIX,17,warn-mirror,Electrical Circuits,Tag warning: elc circuit load electrical fix
 WARN_ELC_CONNECTOR_RATING,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Electrical connector rating check [HIGH]
 WARN_ELC_CONN_IP_CONNECTORS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc conn ip connectors
 WARN_ELC_CONN_RATING_CONNECTORS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc conn rating connectors
-WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr bend radius cable tray ftgs
-WARN_ELC_CTR_EARTHING_CABLE_TRAYS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr earthing cable trays
-WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr fill pct cable trays
-WARN_ELC_CTR_FILL_RATIO,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Conduit/tray fill ratio maximum [HIGH]
-WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr fire rating cable trays
-WARN_ELC_CTR_LOAD_CABLE_TRAYS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr load cable trays
-WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr mat cable tray ftgs
-WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ctr segregation cable trays
+WARN_ELC_CTR_BEND_RADIUS_CABLE_TRAY_FTGS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr bend radius cable tray ftgs
+WARN_ELC_CTR_EARTHING_CABLE_TRAYS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr earthing cable trays
+WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr fill pct cable trays
+WARN_ELC_CTR_FILL_RATIO,4,warn-mirror,Cable Trays|Cable Tray Fittings,Warning: Conduit/tray fill ratio maximum [HIGH]
+WARN_ELC_CTR_FIRE_RATING_CABLE_TRAYS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr fire rating cable trays
+WARN_ELC_CTR_LOAD_CABLE_TRAYS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr load cable trays
+WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr mat cable tray ftgs
+WARN_ELC_CTR_SEGREGATION_CABLE_TRAYS,17,warn-mirror,Cable Trays|Cable Tray Fittings,Tag warning: elc ctr segregation cable trays
 WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc discrimination electrical equi
 WARN_ELC_EARTHING_TYPE,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Earthing system type compliance [CRITICAL]
 WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc earth fault electrical equi
@@ -3020,30 +3020,30 @@ WARN_ELC_IP_RATING,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable 
 WARN_ELC_IP_RATING_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ip rating electrical equi
 WARN_ELC_IP_RATING_ELECTRICAL_FIX,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc ip rating electrical fix
 WARN_ELC_LABELLING_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc labelling electrical equi
-WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]
-WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]"
-WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]
-WARN_ELC_LPS_INSPECTION_OVERDUE,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]"
-WARN_ELC_LPS_MESH_SIZE_EXCEEDED,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]"
-WARN_ELC_LPS_NO_BONDING,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]
-WARN_ELC_LPS_NO_CLASS,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]
-WARN_ELC_LPS_NO_RISK_ASSESSMENT,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]
-WARN_ELC_LPS_NO_ZONE,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]
-WARN_ELC_LPS_SEPARATION_FAIL,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]
-WARN_ELC_PNL_AIC_INADEQUATE,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 Section 434 / NFPA 70 Section 110.9)
-WARN_ELC_PNL_FEEDER_UNDERSIZED,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL]
-WARN_ELC_PNL_LOAD_BALANCE,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH]
-WARN_ELC_PNL_NO_TVSS,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 Section 443 / NFPA 70 Section 285)
-WARN_ELC_PNL_SCCR_LOW,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: ELC_PNL_SHORT_CIRCUIT_RATING_KA below incoming fault level (BS 7671 / NFPA 70)
-WARN_ELC_PNL_SCHEDULE_MISSING,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Panel schedule missing or out of date [MEDIUM]
-WARN_ELC_PNL_SHORT_CIRCUIT,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Panel short circuit rating check [CRITICAL]
-WARN_ELC_PNL_SPARES_LOW,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: ELC_PNL_SPARE_WAYS_NR < 10% of ELC_PNL_NUM_OF_WAYS_NR - insufficient spares (NHS HTM 06-01 guidance)
-WARN_ELC_PNL_SPARE_WAYS,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: Panel spare ways minimum [MEDIUM]
+WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,4,warn-mirror,Electrical Equipment|Generic Models,Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]
+WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]"
+WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,4,warn-mirror,Electrical Equipment|Generic Models,Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]
+WARN_ELC_LPS_INSPECTION_OVERDUE,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]"
+WARN_ELC_LPS_MESH_SIZE_EXCEEDED,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]"
+WARN_ELC_LPS_NO_BONDING,4,warn-mirror,Electrical Equipment|Generic Models,Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]
+WARN_ELC_LPS_NO_CLASS,4,warn-mirror,Electrical Equipment|Generic Models,Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]
+WARN_ELC_LPS_NO_RISK_ASSESSMENT,4,warn-mirror,Electrical Equipment|Generic Models,Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]
+WARN_ELC_LPS_NO_ZONE,4,warn-mirror,Electrical Equipment|Generic Models,Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]
+WARN_ELC_LPS_SEPARATION_FAIL,4,warn-mirror,Electrical Equipment|Generic Models,Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]
+WARN_ELC_PNL_AIC_INADEQUATE,17,warn-mirror,Electrical Equipment|Electrical Circuits,Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 Section 434 / NFPA 70 Section 110.9)
+WARN_ELC_PNL_FEEDER_UNDERSIZED,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL]
+WARN_ELC_PNL_LOAD_BALANCE,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH]
+WARN_ELC_PNL_NO_TVSS,17,warn-mirror,Electrical Equipment|Electrical Circuits,Tag warning: critical or essential panel without surge protective device (TVSS) (BS 7671 Section 443 / NFPA 70 Section 285)
+WARN_ELC_PNL_SCCR_LOW,17,warn-mirror,Electrical Equipment|Electrical Circuits,Tag warning: ELC_PNL_SHORT_CIRCUIT_RATING_KA below incoming fault level (BS 7671 / NFPA 70)
+WARN_ELC_PNL_SCHEDULE_MISSING,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel schedule missing or out of date [MEDIUM]
+WARN_ELC_PNL_SHORT_CIRCUIT,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel short circuit rating check [CRITICAL]
+WARN_ELC_PNL_SPARES_LOW,17,warn-mirror,Electrical Equipment|Electrical Circuits,Tag warning: ELC_PNL_SPARE_WAYS_NR < 10% of ELC_PNL_NUM_OF_WAYS_NR - insufficient spares (NHS HTM 06-01 guidance)
+WARN_ELC_PNL_SPARE_WAYS,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel spare ways minimum [MEDIUM]
 WARN_ELC_SHORT_CIRCUIT_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc short circuit electrical equi
 WARN_ELC_SPARE_CAPACITY_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc spare capacity electrical equi
-WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,4,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Warning: voltage drop >4% [IEC 60364-5-52 / BS 7671]
-WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc vlt drop pct electrical fix
-WARN_ELC_WIRE_AMPACITY_MISSING,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc wire ampacity missing
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,4,warn-mirror,Electrical Circuits,Warning: voltage drop >4% [IEC 60364-5-52 / BS 7671]
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX,17,warn-mirror,Electrical Circuits,Tag warning: elc vlt drop pct electrical fix
+WARN_ELC_WIRE_AMPACITY_MISSING,17,warn-mirror,Cable Trays|Conduits|Electrical Circuits,Tag warning: elc wire ampacity missing
 WARN_FAB_CONTAINMENT_DIMENSIONS,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment dimensions
 WARN_FAB_CONTAINMENT_FILL_RATIO,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment fill ratio
 WARN_FAB_CONTAINMENT_FIRE_RATING,17,warn-mirror,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,Tag warning: fab containment fire rating

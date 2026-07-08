@@ -37,6 +37,13 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "HVAC_TERM":"Air Terminals","PLUMB":"Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures",
 "FIRE":"Sprinklers|Fire Alarm Devices","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
+"ELEC_EQUIP":"Electrical Equipment|Electrical Circuits",
+"ELEC_FIXTURE":"Electrical Fixtures",
+"ELEC_CONDUIT":"Conduits|Conduit Fittings",
+"ELEC_TRAY":"Cable Trays|Cable Tray Fittings",
+"ELEC_CABLE":"Cable Trays|Conduits|Electrical Circuits",
+"ELEC_CIRCUIT":"Electrical Circuits",
+"ELEC_LPS":"Electrical Equipment|Generic Models",
 "DATA":"Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices",
 "STRUCT":"Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors",
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
@@ -49,6 +56,7 @@ CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORM
 catb=collections.defaultdict(set)
 for row in csv.reader(open("StingTools/Data/CATEGORY_BINDINGS.csv",encoding="utf-8",errors="replace")):
     if row and not row[0].startswith("#") and row[0]!="Parameter_Name" and len(row)>=2: catb[row[0]].add(row[1])
+ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS"}
 def resolve(n,desc,depth=0):
     p=n.split("_"); pre=p[0]; sub=p[1] if len(p)>1 else ""
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
@@ -71,6 +79,7 @@ def resolve(n,desc,depth=0):
         return resolve("_".join(p[1:]),desc,depth+1)[0],"warn-mirror"
     if pre in SAFE:
         if pre=="HVC" and sub=="TERMINAL": return "HVAC_TERM","prefix+sub"
+        if pre=="ELC" and sub in ELC: return ELC[sub],"elc-sub"
         return SAFE[pre],"safe-prefix"
     if pre=="STR": return "STRUCT","safe-prefix"
     if pre=="MAT": return "MATERIAL","safe-prefix"
