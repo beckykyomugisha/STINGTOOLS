@@ -763,8 +763,19 @@ namespace StingTools.Core
                                 }
                                 catch (Exception atEx) { StingLog.Warn($"AutoTagger MODIFIED_BY stamp: {atEx.Message}"); }
 
-                                // Visual tag placement
-                                if (_visualTaggingEnabled && doc.ActiveView != null
+                                // Visual tag placement.
+                                // MEP declutter: for categories under a one-tag-per-run
+                                // (or None) policy — pipes/ducts/conduit/tray by default —
+                                // suppress real-time per-segment tags. Placing them live as
+                                // each segment is drawn would re-create the exact clutter the
+                                // run-grouper removes, and a run can't be resolved from a
+                                // single element-addition event. Token data is already written
+                                // above; the run-level visual tag comes from Smart Place Tags.
+                                // Equipment / fixtures (policy = All) still auto-tag visually.
+                                bool visualPolicyAllows =
+                                    StingTools.Core.Mep.MepRunGrouper.ResolvePolicy(el)
+                                        == StingTools.Core.Mep.TagVisualPolicy.All;
+                                if (_visualTaggingEnabled && visualPolicyAllows && doc.ActiveView != null
                                     && !(doc.ActiveView is ViewSheet)
                                     && doc.ActiveView.CanBePrinted)
                                 {
