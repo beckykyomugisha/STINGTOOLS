@@ -38,6 +38,10 @@ namespace StingTools.Tags
     {
         private const int MaxTier = 10;
 
+        // One-time-per-session guard for the "Label must read ASS_DISPLAY_TXT" hint
+        // shown after the first live display refresh (segment mask / SEQ pad).
+        private static bool _displayHintShown;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -186,6 +190,54 @@ namespace StingTools.Tags
                     if (anySet) updated++;
                 }
                 tx.Commit();
+            }
+
+            // ── Live token-visibility + SEQ zero-pad apply ───────────────────
+            // After tier depth, refresh the on-drawing display (segment mask +
+            // SEQ zero-pad) in the Tokens & Depth scope so pressing "Set depth"
+            // updates placed tags immediately — no Build/ReTag. Display-only:
+            // recomputes ASS_DISPLAY_TXT from the canonical ASS_TAG_1_TXT, never
+            // re-deriving tokens or renumbering SEQ. Only fires on the dock/slider
+            // path so programmatic tier-only callers are unaffected. Scope defaults
+            // to the active view (fast + visible).
+            int displayUpdated = 0;
+            if (sliderPath)
+            {
+                try
+                {
+                    string mask = RefreshTagDisplayCommand.NormalizeMask(
+                        StingCommandHandler.GetExtraParam("TokenMask")) ?? "11111111";
+                    string scopeTok = StingCommandHandler.GetExtraParam("TokenScope");
+                    List<Element> dispScope =
+                        RefreshTagDisplayCommand.CollectScope(doc, uidoc, scopeTok);
+                    int seqPad = TagConfig.EffectiveSeqPad;
+                    using (Transaction txd = new Transaction(doc, "STING Set Depth — Live Display"))
+                    {
+                        txd.Start();
+                        var r = RefreshTagDisplayCommand.RefreshDisplayInScope(doc, dispScope, mask, seqPad);
+                        displayUpdated = r.updated;
+                        txd.Commit();
+                    }
+                    if (displayUpdated > 0 && !_displayHintShown)
+                    {
+                        _displayHintShown = true;
+                        StingLog.Info($"Set depth live display: mask/pad applied to {displayUpdated} element(s).");
+                        try
+                        {
+                            TaskDialog.Show("STING — Set depth",
+                                $"Token visibility + SEQ zero-pad applied live to {displayUpdated} tag(s) " +
+                                "in the current scope.\n\n" +
+                                "If a placed tag didn't change, set that tag family's Label to " +
+                                "ASS_DISPLAY_TXT (Edit Label) — that's the container the token-depth " +
+                                "control drives. (Shown once per session.)");
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception exDisp)
+                {
+                    StingLog.Warn($"Set depth live display refresh failed: {exDisp.Message}");
+                }
             }
 
             if (!sliderPath)

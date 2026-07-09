@@ -91,14 +91,8 @@ namespace StingTools.Tags
                     if (fromDock && scopeIsView && av != null)
                         ParameterHelpers.SetString(av, ParamRegistry.VIEW_TOKEN_MASK, mask, overwrite: true);
 
-                    foreach (Element el in scope)
-                    {
-                        string full = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        if (string.IsNullOrEmpty(full)) { skippedNoTag++; continue; }
-                        string disp = TagConfig.ApplySegmentMask(full, mask);
-                        if (ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, disp, overwrite: true))
-                            updated++;
-                    }
+                    var res = RefreshDisplayInScope(doc, scope, mask, TagConfig.EffectiveSeqPad);
+                    updated = res.updated; skippedNoTag = res.skippedNoTag;
                     t.Commit();
                 }
 
@@ -126,12 +120,78 @@ namespace StingTools.Tags
         }
 
         /// <summary>Return a valid 8-char 0/1 mask, or null when absent/invalid.</summary>
-        private static string NormalizeMask(string m)
+        internal static string NormalizeMask(string m)
         {
             if (string.IsNullOrWhiteSpace(m)) return null;
             m = m.Trim();
             if (m.Length != 8 || !m.All(c => c == '0' || c == '1')) return null;
             return m;
+        }
+
+        /// <summary>
+        /// Reusable, dialog-free display refresh. For each element: re-pad the SEQ
+        /// segment of the canonical ASS_TAG_1_TXT to <paramref name="seqPad"/>, apply
+        /// the segment <paramref name="mask"/>, and write the result to ASS_DISPLAY_TXT.
+        /// Display-only — ASS_TAG_1_TXT is never touched, no tokens are re-derived and
+        /// no SEQ number is reassigned (only its zero-pad width is presented). Caller
+        /// supplies the open Transaction. Shared by the standalone RefreshTagDisplay
+        /// command and the live "Set depth" apply path.
+        /// </summary>
+        internal static (int updated, int skippedNoTag) RefreshDisplayInScope(
+            Document doc, IList<Element> scope, string mask, int seqPad)
+        {
+            int updated = 0, skippedNoTag = 0;
+            if (scope == null) return (0, 0);
+            foreach (Element el in scope)
+            {
+                string full = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(full)) { skippedNoTag++; continue; }
+                string repadded = RepadSeqSegment(full, seqPad);
+                string disp = TagConfig.ApplySegmentMask(repadded, mask);
+                if (ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, disp, overwrite: true))
+                    updated++;
+            }
+            return (updated, skippedNoTag);
+        }
+
+        /// <summary>
+        /// Re-pad the SEQ (last) segment of a separator-joined tag to <paramref name="width"/>
+        /// zero-padded digits — display-only, presentational. Leaves a non-numeric SEQ
+        /// (scheme-rendered / alphanumeric) untouched, and returns the input unchanged
+        /// when width &lt;= 0 or the tag has no separable segments.
+        /// </summary>
+        internal static string RepadSeqSegment(string full, int width)
+        {
+            if (string.IsNullOrEmpty(full) || width <= 0) return full;
+            string sep = ParamRegistry.Separator;
+            if (string.IsNullOrEmpty(sep)) return full;
+            string[] parts = full.Split(new[] { sep }, StringSplitOptions.None);
+            if (parts.Length < 2) return full;
+            string seq = parts[parts.Length - 1];
+            if (seq.Length == 0 || !seq.All(char.IsDigit)) return full;
+            string digits = seq.TrimStart('0');
+            if (digits.Length == 0) digits = "0";
+            parts[parts.Length - 1] = digits.PadLeft(width, '0');
+            return string.Join(sep, parts);
+        }
+
+        /// <summary>
+        /// Collect the elements to refresh for a scope token ("View" / "Selection" /
+        /// "Project"). Defaults to the active view. Matches the Tokens &amp; Depth
+        /// "Scope" combo (TokenScope ExtraParam).
+        /// </summary>
+        internal static List<Element> CollectScope(Document doc, UIDocument uidoc, string scopeToken)
+        {
+            switch (scopeToken)
+            {
+                case "Selection":
+                    return (uidoc?.Selection?.GetElementIds() ?? new List<ElementId>())
+                        .Select(id => doc.GetElement(id)).Where(e => e != null).ToList();
+                case "Project":
+                    return CollectInProject(doc);
+                default:
+                    return CollectInView(doc, doc.ActiveView);
+            }
         }
 
         private static List<Element> CollectInView(Document doc, View view)
