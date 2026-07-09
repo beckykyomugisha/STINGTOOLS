@@ -223,12 +223,21 @@ namespace StingTools.UI
             StringComparer.OrdinalIgnoreCase)
         {
             "CombineParameters", "TagAndCombine", "FamilyStagePopulate",
-            "FullAutoPopulate", "TagStudio_Pipeline",
+            "FullAutoPopulate", "TagStudio_Pipeline", "BuildTags",
             "AutoTag", "BatchTag", "BatchTagAll", "BatchTagView", "AutoTagSelected",
             "TagNewOnly", "ReTag", "ResolveAllIssues", "RetagStale",
             "SetParagraphDepth", "PreTagAudit", "ValidateTags",
             "SmartPlaceTags", "TagStudio_SmartPlace", "BatchPlaceTags",
         };
+
+        // Session flag: true once the Tokens &amp; Depth panel has itself applied a
+        // tag-format override (separator / SEQ pad / segment order). Distinguishes a
+        // CUSTOM format loaded from project_config.json at startup (which the panel's
+        // default UI state must NOT clobber) from one the USER dialled in here (the
+        // panel is then authoritative, so a return to defaults — 4-digit / hyphen /
+        // canonical order — must be honoured instead of latching). See the clobber
+        // guard in SetTokenDepthParams.
+        private static bool _panelAppliedTagFormat;
 
         // ── Phase B Round 1 shared helpers ───────────────────────────────
         //
@@ -962,7 +971,8 @@ namespace StingTools.UI
                 if (FindName("rbSepSlash") is System.Windows.Controls.RadioButton rSl && rSl.IsChecked == true) sep = "/";
                 else if (FindName("rbSepDot") is System.Windows.Controls.RadioButton rDt && rDt.IsChecked == true) sep = ".";
                 else if (FindName("rbSepUnderscore") is System.Windows.Controls.RadioButton rUs && rUs.IsChecked == true) sep = "_";
-                StingCommandHandler.SetExtraParam("TagSeparator", sep);
+                // (separator now feeds ParamRegistry.ApplyTagFormatOverrides below —
+                //  the old SetExtraParam("TagSeparator") had no reader and was removed)
 
                 // SEQ pad combo (4-digit default)
                 string seqPad = "4";
@@ -974,14 +984,17 @@ namespace StingTools.UI
                     else if (spText.StartsWith("00001")) seqPad = "5";
                     else                                 seqPad = "4";
                 }
-                StingCommandHandler.SetExtraParam("SeqPad", seqPad);
+                // (seqPad now drives TagConfig.SeqPadWidth below — the old
+                //  SetExtraParam("SeqPad") had no reader and was removed)
 
-                // Segment order combo — pass the raw text; consumers parse it
+                // Segment order combo — parsed into the format override below.
+                string segOrderText = "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
                 if (FindName("cmbSegOrder") is System.Windows.Controls.ComboBox cSegOrder
                     && cSegOrder.SelectedItem is System.Windows.Controls.ComboBoxItem cbiOrder
                     && cbiOrder.Content is string orderText)
                 {
-                    StingCommandHandler.SetExtraParam("SegOrder", orderText);
+                    segOrderText = orderText;
+                    // (the old SetExtraParam("SegOrder") had no reader and was removed)
                 }
 
                 // Paragraph depth slider (1..10)
@@ -991,6 +1004,51 @@ namespace StingTools.UI
                 if (depth < 1) depth = 1;
                 if (depth > 10) depth = 10;
                 StingCommandHandler.SetExtraParam("ParaDepth", depth.ToString());
+
+                // ── Wire Separator / SEQ zero-pad / Segment order into the ACTUAL
+                // tag builder. TagConfig.BuildAndWriteTag reads ParamRegistry.Separator
+                // and NumPad; without this the Tokens & Depth separator + pad + order
+                // controls only ever set now-dead ExtraParams ("TagSeparator"/"SeqPad"/
+                // "SegOrder") that no command reads, so they were inert. Applying the
+                // override here means the next Build Tags / Combine / Auto-Tag picks them up.
+                //
+                // Clobber guard: if the panel still shows pure defaults (hyphen / 4-digit /
+                // canonical order) but a project has already loaded a CUSTOM format from
+                // project_config.json, leave that project format alone — only apply once the
+                // user has actually dialled in a non-default here.
+                try
+                {
+                    int padN = int.TryParse(seqPad, out int pn) ? pn : 4;
+                    string[] order = segOrderText.Split(new[] { '-' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                    for (int oi = 0; oi < order.Length; oi++)
+                        order[oi] = order[oi].Trim().ToUpperInvariant();
+
+                    bool uiIsDefault = sep == "-" && padN == 4 &&
+                        string.Join("-", order) == "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
+                    bool registryIsCustom =
+                        Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4
+                        || Core.TagConfig.SeqPadWidth != 4;
+                    // Only protect a custom format the PROJECT loaded at startup. Once the
+                    // panel itself has applied a format (_panelAppliedTagFormat), the panel
+                    // is authoritative — a return to defaults must be applied, not suppressed,
+                    // otherwise the format latches and the user can never switch back.
+                    bool projectLoadedCustom = registryIsCustom && !_panelAppliedTagFormat;
+
+                    if (!(uiIsDefault && projectLoadedCustom))
+                    {
+                        Core.ParamRegistry.ApplyTagFormatOverrides(sep, padN, order);
+                        // TagConfig.BuildAndWriteTag pads SEQ from TagConfig.SeqPadWidth when
+                        // it is > 0 — and it TAKES PRECEDENCE over NumPad — so the SEQ zero-pad
+                        // combo only bites if we drive SeqPadWidth directly, not just NumPad.
+                        Core.TagConfig.SeqPadWidth = padN;
+                        _panelAppliedTagFormat = true;
+                    }
+                }
+                catch (Exception exFmt)
+                {
+                    Core.StingLog.Warn($"Tokens&Depth ApplyTagFormatOverrides: {exFmt.Message}");
+                }
 
                 // Handover mode radios → ParagraphPreset + HandoverMode extra params
                 string handoverMode = "Handover";

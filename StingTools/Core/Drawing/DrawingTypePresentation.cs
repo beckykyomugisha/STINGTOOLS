@@ -629,6 +629,43 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
+            // Step 7.6 (FIX-3b) — refresh ASS_DISPLAY_TXT so the DrawingType's
+            // display mode + segment mask actually render on produce. The
+            // annotation pass drops IndependentTags whose label reads the host's
+            // ASS_DISPLAY_TXT; TokenProfileApplier just wrote STING_DISPLAY_MODE +
+            // TAG_SEG_MASK on those hosts, but only the interactive
+            // BuildAndWriteTag path recomputes ASS_DISPLAY_TXT — the produce path
+            // never did, so a dropped-in view showed the stale display string.
+            // Recompute it here (mask now applies in every mode — see
+            // TagConfig.BuildDisplayTag D5) so no separate tag pass is needed.
+            if (dt.TokenProfile != null
+                && (dt.TokenProfile.DisplayMode.HasValue
+                    || !string.IsNullOrWhiteSpace(dt.TokenProfile.SegmentMask)))
+            {
+                try
+                {
+                    int refreshed = 0;
+                    var ids = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds();
+                    foreach (var id in ids)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el == null) continue;
+                        try
+                        {
+                            // BuildDisplayTag self-skips elements with no tokens
+                            // (returns "" without writing), so this is safe to
+                            // run across the whole view.
+                            if (!string.IsNullOrEmpty(TagConfig.BuildDisplayTag(el))) refreshed++;
+                        }
+                        catch { /* per-element — keep going */ }
+                    }
+                    StingLog.Info($"DrawingTypePresentation: refreshed ASS_DISPLAY_TXT on {refreshed} element(s) for mask/mode.");
+                }
+                catch (Exception ex) { r.Warnings.Add($"Display refresh: {ex.Message}"); }
+            }
+
             // Phase 175 — Step 7.7 design-option scope. Resolves the
             // profile's OptionScope to a concrete option ElementId and
             // writes VIEWER_OPTION_VISIBILITY on the view. Runs after

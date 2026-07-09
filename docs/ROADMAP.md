@@ -2,6 +2,24 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## MEP print-readiness — deferred items (Phase 198)
+
+Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).
+
+- **Fire suppression drawing types (fast-follow).** Only fire *detection* exists today. There are no
+  sprinkler / suppression **layout**, **section**, or **detail** drawing types (corporate DrawingType +
+  routing + a fire style pack). Author them as a fast-follow so a fire-suppression package is
+  drop-a-view print-ready like M/E/P. Scope: a `corp-standard-fire` style pack (sprinklers + fire-alarm
+  bold `#C00000`, other MEP + arch/struct halftone), `fire-sprinkler-layout` / `fire-section` /
+  `fire-detail` types with `${PRJ_ORG_*}` title-block params + `tagFamilies` (`STING - Sprinkler Tag`,
+  `STING - Fire Alarm Device Tag`), and `F/*/SPRINKLER|SECTION|DETAIL` routing rules.
+- **SEQ zero-pad is project-global by design (not per-DrawingType).** SEQ pad lives in
+  `TagConfig.SeqPadWidth` / `EffectiveSeqPad`, set from the Tag Studio → Tokens & Depth dock tab, and
+  applies project-wide. It was **deliberately not** made an `AnnotationTokenProfile` field, so a
+  DrawingType cannot override it per drawing. If per-type SEQ pad is ever wanted, add a `seqPad` field to
+  `AnnotationTokenProfile` and push it on the produce path (mirroring how paragraph depth already flows),
+  with the project-global value as the fallback.
+
 ## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
 
 The Phase 196 binding-accuracy fix narrowed every confidently-classifiable discipline family and
@@ -31,30 +49,58 @@ should be SME-confirmed against HTM/HBN modelling conventions. See `docs/binding
 ## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
 
 Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
-schedules). **Task 4 (deprecate the now-superseded bespoke-tier machinery) was reviewed but NO
-deletions were performed** — a caller grep proved that none of the brief's candidates are true
-orphans yet, and the brief mandates deletions only "after the new paths are proven" (the Revit
-Duct smoke test is still pending). Blind-deleting now would break the build and the shipped
-tagging/placement pipeline. Recorded here as staged, gated work:
+schedules). **Staged cutover steps 1-3 are now done** — step 1-2 in Phase 196
+(`claude/universal-tag-finalize`) and the **teardown in Phase 197** (`claude/universal-tag-teardown`):
+`TagFamilyCreatorCommand` ("Create Tag Fams") was gutted of its CSV tier-authoring path (labels now
+come from `Propagate_UniversalTag`), which removed the last live callers of `FamilyLabelAuthor` and
+`TagConfigPlanResolver`; both files were then **deleted** (0 callers verified). **Steps 4-5 remain**
+(repurpose `HandoverModeHelper` DC/HO; deprecate the colour-scheme commands) — those still have live
+callers and are separately gated.
 
-| Candidate | Live callers found | Why it can't be deleted yet |
+| Candidate | Status | Notes |
 |---|---|---|
-| `Tags/FamilyLabelAuthor.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand`, `TagConfigCsvReader` | Still the tier-authoring engine invoked by the OLD path. |
-| `Tags/TagConfigPlanResolver.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand` | Loads the per-family tier plans the OLD path consumes. |
-| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | `HandoverModeHelper`, `FamilyLabelAuthor`, `TagConfigPlanResolver`, `ParamRegistry`, `TagConfig`, `TagFamilyCreatorCommand`, `PresentationModeCommand`, `FamilyParamCreatorCommand` | Heavily entangled; the v5.0 CSVs also feed `LABEL_DEFINITIONS.json` sync + creator. |
-| `Core/HandoverModeHelper.cs` (DC/HO) | `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`, `TagFamilyCreatorCommand`, + 3 more | Repurpose (not delete) DC/HO → a `PARA_STATE` view preset; remove only the dual-CSV authoring path. |
-| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
-| `MigrateTagFamiliesCommand` tier-authoring path | UI "Migrate Fams" button | **Trim** the `FamilyLabelAuthor.AuthorLabelsMulti` call once the universal path is proven; KEEP its params + the (now-shared) type-variant loop. |
+| ~~`Tags/FamilyLabelAuthor.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the Create Tag Fams gut. Nested `Options`/`ModePlan` went with it. |
+| ~~`Tags/TagConfigPlanResolver.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the gut. `TierPlan`/`TierState` live in `Core/PerFamilyTierMap.cs` (retained). |
+| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | **RETAINED** | The reader's `TierPlan` API (`LoadFile`/`LoadFiles`/`Parse`) is now caller-less (its consumer `TagConfigPlanResolver` was deleted), but the **v5.0 CSV data** it parses is the canonical *synced* source (per `reference-tag-config-sources`) and is still read by `ParamRegistry` / `TagConfig` / `HandoverModeHelper` / `PresentationModeCommand` / `FamilyParamCreatorCommand` / `LpsValidator` via their own paths. Marked `LEGACY(universal-tag)` in-file; a future pass can rewire a reader onto the typed parser or retire it with the CSVs together. **Do NOT delete the data files — still parsed.** |
+| `Core/HandoverModeHelper.cs` (DC/HO) | **RETAINED** | Live callers: `StingToolsApp.GetAllTagConfigCsvs`, `TagConfig.GetTagConfigCsv` (×3), `ApplyParagraphPresetCommand.GetSelectorBool`/`ModeSelectorBool`; `GetActiveMode` used internally. It's a mode/CSV resolver, not pure-legacy. Step 4 (repurpose DC/HO → `PARA_STATE` view preset) still open. |
+| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | **RETAINED** | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands wired to live buttons. Keep DEPTH-variant logic (also in `TagTypeVariantWriter`). Step 5 (colour-scheme deprecation) is a separate surgical refactor. |
+| ~~`MigrateTagFamiliesCommand` tier-authoring path~~ | **DONE (Phase 196)** | Trimmed to param + type-variant migrator. |
+| ~~`TagFamilyCreatorCommand` tier-authoring path~~ | **DONE (Phase 197)** | Gutted to mint (shell + params + variants); label via `Propagate_UniversalTag`. Dead alias helpers (`CsvFamilyNameCandidates`/`TryGetTierPlan`/`ContainsPlanForFamily`) removed. |
+
+**Prerequisites now in-repo (tracked):**
+- `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` — the consolidated manual walkthrough: what to
+  DELETE (T3 + discipline + warning rows), how to BUILD the 65 rows, and the status-badge system.
+- `docs/UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — the authoritative 62-row master-label build guide
+  (human-authored in the Family Editor; the API can't do it).
+- `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` — the precise Duct smoke-test checklist (the step-1 gate).
+- `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md` — the ready-to-apply step-2 trim of
+  `MigrateTagFamiliesCommand` (staged; apply only after the smoke test passes).
 
 **Staged cutover (do in order, each gated):**
-1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`).
-2. Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
-   call; retire/relabel the "Migrate Fams" tier-authoring UI. Verify build + Tags.Tests green.
-3. Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
-   v5.0-CSV tier-authoring cluster as one unit.
+1. ~~Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`)~~ —
+   **DONE.** Recategorise preserves labels/formulas/breaks (proven live on Duct).
+2. ~~Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
+   call~~ — **DONE (Phase 196).** Applied `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`; build +
+   Tags.Tests green. The remaining entry point is `TagFamilyCreatorCommand` (step 3).
+3. ~~Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` cluster~~ —
+   **DONE (Phase 197).** `TagFamilyCreatorCommand` was gutted off the CSV path first (removing the
+   last callers), then both files deleted (0 callers verified). The v5.0-CSV **reader** and **data**
+   are RETAINED (still the canonical synced source, still parsed elsewhere) — see the table above.
 4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
-   the dual-CSV authoring path only.
+   the dual-CSV authoring path only. **Still open** (helper has live callers).
 5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
+   **Still open** (live buttons + placement).
+
+**Consistency findings (Phase 196 sweep) — both APPLIED in Phase 197:**
+- ~~**`FamilyParamCreatorCommand` injects STATE/style params as INSTANCE.**~~ **FIXED (Phase 197).**
+  `InjectSharedParams` now uses an `IsTypeParam` predicate: `TagFamilyConfig.VisibilityParams` ∪
+  `StyleParams` ∪ `{ TAG_DEPTH_TIER, TAG_BOX_*, TAG_LEADER_*, TAG_POS }` bind as TYPE; container
+  values (`ASS_TAG_*`, tokens, description, label params) stay INSTANCE. `TAG_POS` preserved as type
+  (drives its offset formula). Depth-setting on "Inject Params"-built families now works.
+- ~~**SEQ zero-pad has two sources of truth.**~~ **FIXED (Phase 197).** New `TagConfig.EffectiveSeqPad`
+  (`SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad`); `BuildSeqString` and `BuildAndWriteTag`
+  route through it. Panel still writes `SeqPadWidth` (live driver); `NumPad` write kept in
+  `ApplyTagFormatOverrides` (fallback + `num_pad` export). Single accessor — can't desync.
 
 
 ## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
@@ -652,6 +698,36 @@ family authoring — no geometry / connector topology was invented.
 |---|---|---|---|
 | GAP-SYM-08 | **Seed connector coverage** — 12 MEP-category seeds ship with zero connectors, so their instances cannot be inserted inline into a duct/pipe/tray run or auto-routed. (Duct + Pipe accessory seeds were fixed in this pass; the rest need per-device connector specs — many are face-hosted annotation devices that may legitimately need only an electrical connector, or none.) Seeds: `STING_SEED_AudioVisualDevice`, `STING_SEED_CommunicationDevice`, `STING_SEED_DataDevice`, `STING_SEED_ElectricalFixture`, `STING_SEED_FireAlarmDevice`, `STING_SEED_FireDamper`, `STING_SEED_LightingDevice`, `STING_SEED_LightingFixture`, `STING_SEED_MechanicalControlDevice`, `STING_SEED_NurseCallDevice`, `STING_SEED_SecurityDevice`, `STING_SEED_TelephoneDevice`. | 1–2 days | Each device class has a different connector topology (electrical power vs data vs none vs airflow for the fire damper). Connector count/domain/systemType must be specified per device by an engineer; guessing risks wrong-domain connectors that break routing. Use the `offsetX/offsetY/offsetZ` + `facing` bindable fields (NOT `x/y/z/direction`, which do not bind). |
 | GAP-SYM-09 | **Symbol authoring backlog** — 53 unique family names referenced by concept `standardMappings` are not defined in any catalogue (of 799 concept refs, 276 dangle: 0 prefix-fixable after this pass, 218 view-context overrides that now degrade to the base family via P8a, and 58 genuinely-absent refs → 53 unique). These are specialty glyphs that must be hand-authored per standard plate: **Hazardous-area (19)** ATEX 2014/34/EU + IEC/BS EN 60079 + DSEAR zone/Ex markers (concepts `ELEC_ATEX_*`, `SLD_ATEX_*`); **Medical gas (16)** HTM 02-01 / ISO 7396 / NFPA 99 O₂·N₂O·Air·Vac·CO₂·AGSS outlets (`ELEC_MG_*`); **Lightning protection (7)** BS EN 62305 / NFPA 780 air-terminal / down-conductor / earth-electrode / bonding-bar (`SLD_LPS_*` under BS/NFPA); **Phase sequence (4)** IEC 60034-8 / BS 7671 ABC/ACB (`SLD_PHASE_SEQUENCE_*`); **Other (7)** `ELEC_DB`, `ELEC_FCU_DEVICE`, `SLD_DB_DOWNSTREAM` (+IEEE), `PLM_PUMP_INLINE`, `SLD_RCBO_COMPOUND`, `SLD_STAR_DELTA_STARTER`. | 1–2 weeks | Requires authoring ~53 standard-accurate symbol definitions across ATEX / medical-gas / LPS / motor-control domains, each verified against its standard plate. `Symbols_Validate` (check 1b) is the tracking mechanism — the "absent" count should trend to 0 as these are authored. |
+
+### Tag text-size variants (Option 2 — per-drawing sizing)
+`DrawingType.TagTextSizeMm` (0 = derive) + `EffectiveTagTextSizeMm()` resolve a per-view tag size
+from the drawing scale, returning one of 8 canonical sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm;
+ISO default 2.5 mm at 1:50). `DrawingType.TagSizeToken(mm)` → the "2.5mm" text-type/size-family token.
+**Pending (needs Revit + propagation):**
+- Human authors the 8 label **text types** (`1.0mm`…`5.0mm`) on the universal master; because a
+  single label's text size is a Type property (not param-drivable), selectable size = **one
+  size-variant family per size** (build once, SaveAs per size changing only the label Text Size,
+  propagate each). 8 sizes is generous — 2.5 mm + 3.5 mm cover most output; author the rest as needed.
+- Consumer not yet wired: `DrawingProducer`/`AnnotationRunner` should pick the size-variant tag
+  family via `EffectiveTagTextSizeMm()`/`TagSizeToken` when placing tags. Add once the size families exist.
+
+### Status delivery — in-tag badges ABANDONED, replaced by the Status Register
+The coloured status-badge glyphs cannot work in Revit: a tag family's **formulas can only
+reference the family's own parameters, not the tagged element's** (confirmed live — `vis_data_green`
+= `and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 2)` errors "not a valid parameter",
+because `STING_GATE_DATA_STATUS_INT` is an element param). Only LABELS can surface element data,
+and label text is monochrome. So per-element coloured badges are impossible.
+
+**Replacement (shipped):** `Status_Register` command (`Commands/TagStudio/StatusRegisterCommand.cs`,
+"Status Register" button) exports a colour-coded Excel register (Register + Summary sheets, reds
+sorted to top, auto-filtered) from `ComplianceScan.ComputeElementGates` — read-only, no stamp run
+needed. Element-level at-a-glance colour still available via the `coord-qa` view filters.
+
+**Now-vestigial (keep for now, no harm):** the four `STING_GATE_*_MSG_TXT` params + `Stamp Gates`
+still feed the register's message columns (useful). The `STING_TagStatus` subcategory rules in the
+view style packs are moot without in-tag glyphs but harmless. The badge-glyph sections of
+UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md / UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md are superseded — status is
+a register/view concern, not an in-family one. User deletes the drawn glyph fills + vis_* params in Revit.
 
 
 #### Title-block family — base-split debt (2026-07-06, branch `claude/tb-rest-autonomous`)

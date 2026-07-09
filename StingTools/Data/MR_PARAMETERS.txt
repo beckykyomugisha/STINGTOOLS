@@ -1586,8 +1586,8 @@ PARAM	b7f3e2a1-0001-4a01-b001-000000090001	TAG_SCALE_TIER_AUTO_BOOL	YESNO		17	1	
 PARAM	b7f3e2a1-0002-4a01-b001-000000090002	TAG_DEPTH_TIER_INT	INTEGER		17	1	Active paragraph depth tier cached on tag family type (1-10)	1	0
 PARAM	b7f3e2a1-0002-4a01-b001-0000000a0001	STING_GATE_DATA_STATUS_INT	INTEGER		17	1	Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge	1	0
 PARAM	b7f3e2a1-0002-4a01-b001-0000000a0002	STING_GATE_QA_STATUS_INT	INTEGER		17	1	QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge	1	0
-PARAM	b7f3e2a1-0002-4a01-b001-0000000a0003	STING_GATE_DATA_MSG_TXT	TEXT		17	1	Terse data-gate reason stamped by Gate_StampStatus (blank when green) — drives left universal-tag message label	1	0
-PARAM	b7f3e2a1-0002-4a01-b001-0000000a0004	STING_GATE_QA_MSG_TXT	TEXT		17	1	Terse QA-gate reason stamped by Gate_StampStatus (blank when green) — drives right universal-tag message label	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0003	STING_GATE_DATA_MSG_TXT	TEXT		17	1	Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0004	STING_GATE_QA_MSG_TXT	TEXT		17	1	QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge	1	0
 PARAM	a1b2c3d4-503c-4a01-b001-000000000160	BLE_DOOR_FUNCTION_TXT	TEXT		2	1	Door functional type (Entry/Exit/Fire/Service)	1	0
 PARAM	a1b2c3d4-503d-4a01-b001-000000000161	BLE_DOOR_HEAD_HEIGHT_MM	TEXT		2	1	Door head height from floor in mm	1	0
 PARAM	a1b2c3d4-503e-4a01-b001-000000000162	BLE_ROOM_FINISH_BASE_TXT	TEXT		2	1	Room base finish material	1	0

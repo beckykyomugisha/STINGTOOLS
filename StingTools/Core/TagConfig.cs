@@ -46,8 +46,18 @@ namespace StingTools.Core
         /// <summary>
         /// TW-02: Configurable SEQ zero-pad width. Defaults to NumPad (4) but can be
         /// overridden independently (e.g., 2 for small projects, 6 for large estates).
+        /// Set by the Tokens &amp; Depth panel (the live driver); read via
+        /// <see cref="EffectiveSeqPad"/>.
         /// </summary>
         public static int SeqPadWidth { get; internal set; } = 4;
+
+        /// <summary>
+        /// Single source of truth for the SEQ zero-pad width used across the tag builder:
+        /// the explicit <see cref="SeqPadWidth"/> when set (&gt; 0), else <see cref="ParamRegistry.NumPad"/>
+        /// (still the fallback + <c>num_pad</c> export driver). Callers must read this rather
+        /// than re-deriving <c>SeqPadWidth &gt; 0 ? SeqPadWidth : NumPad</c> so the two never desync.
+        /// </summary>
+        public static int EffectiveSeqPad => SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
 
         /// <summary>
         /// TW-03: Optional tag prefix prepended before the first segment.
@@ -462,7 +472,7 @@ namespace StingTools.Core
         /// project-configured pad width.
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
-            => SeqAssigner.BuildSeqString(n, scheme, SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad, zoneOrDisc);
+            => SeqAssigner.BuildSeqString(n, scheme, EffectiveSeqPad, zoneOrDisc);
 
         /// <summary>Convert alphabetic SEQ string back to integer (A=1, B=2... Z=26, AA=27...).</summary>
         private static int FromAlpha(string alpha)
@@ -2278,7 +2288,7 @@ namespace StingTools.Core
             // on success; on its own failure it has already rolled back).
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
-            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
+            int seqPad = EffectiveSeqPad;
             SeqResult seqRes = SeqAssigner.AssignNext(
                 seqKey, sequenceCounters, tagBody, tagSuffix,
                 CurrentSeqScheme, seqPad, seqSchemeContext,
@@ -2416,13 +2426,18 @@ namespace StingTools.Core
                 return false;
             }
 
-            // Keep ASS_DISPLAY_TXT (the presentational container that tag families
-            // read for refreshable token-depth) populated with the full canonical
-            // tag right after tagging. Depth masking is applied non-destructively
-            // and on demand by RefreshTagDisplayCommand, which re-masks
-            // ASS_DISPLAY_TXT from this canonical ASS_TAG_1_TXT — so the full tag
-            // is always recoverable. No-op when ASS_DISPLAY_TXT isn't bound.
-            ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
+            // ASS_DISPLAY_TXT is the ON-DRAWING tag: the display-mode + segment-mask
+            // resolved rendering of the canonical ASS_TAG_1_TXT. Let BuildDisplayTag
+            // compute AND write it (it resolves STING_DISPLAY_MODE / DisplayModeDefault,
+            // applies any active TAG_SEG_MASK_TXT / STING_VIEW_TOKEN_MASK_TXT / UI
+            // "TokenMask", and SetStrings the result). The token params it reads were
+            // just written above (lines ~2301/2318), so the tokens are in scope here.
+            // Fall back to the full canonical tag only when BuildDisplayTag yields
+            // nothing (element has no tokens / ASS_DISPLAY_TXT unbound) so the display
+            // never goes blank. ASS_TAG_1_TXT stays the full key — always recoverable.
+            string displayResolved = BuildDisplayTag(el);
+            if (string.IsNullOrEmpty(displayResolved))
+                ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
@@ -2750,12 +2765,17 @@ namespace StingTools.Core
             //   1. STING_VIEW_TOKEN_MASK_TXT on the active view — user-set
             //      "hide ZONE in this view" without mutating ASS_TAG_1_TXT
             //      (review fix for TAG-token-toggling #1).
-            //   2. TAG_SEG_MASK_TXT on the element — written by
-            //      TokenProfileApplier step 7.5.
+            //   2. TAG_SEG_MASK_TXT on the element — written PER-ELEMENT by
+            //      TokenProfileApplier step 7.5 (FIX-3a: was previously written
+            //      to the view, where this consumer never read it).
             //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
-            // Mask now applies in modes 1-5/0 (was 5/0 only). Modes that
-            // already drop segments by design just no-op when the mask
-            // matches, so layered masks stay safe.
+            // D5 (Phase 196): the mask now applies in EVERY display mode, not
+            // just 0/5. A mask selects which of the 8 canonical segments show,
+            // so it is applied to the FULL 8-token string — not the mode-derived
+            // compact form, whose 1-4 segments would give an 8-char mask nothing
+            // to map onto. A real mask therefore defines visibility 1:1 and
+            // overrides the mode's segment choice; when no real mask is set the
+            // mode-derived display stands.
             try
             {
                 string mask = null;
@@ -2773,10 +2793,17 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(mask))
                     mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
 
-                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111"
-                    && (mode == 0 || mode == 5))
+                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
                 {
-                    display = ApplySegmentMask(display, mask);
+                    // Map the mask over the canonical 8 segments (not the
+                    // compact mode-derived string), so it applies in every mode.
+                    string[] maskTokens = ParamRegistry.ReadTokenValues(el);
+                    if (maskTokens != null && maskTokens.Length >= 8)
+                    {
+                        string fullEight = string.Join(ParamRegistry.Separator, maskTokens);
+                        string masked = ApplySegmentMask(fullEight, mask);
+                        if (!string.IsNullOrEmpty(masked)) display = masked;
+                    }
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }

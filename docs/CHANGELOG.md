@@ -3,7 +3,302 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-<<<<<<< HEAD
+#### Completed (Phase 198 — MEP drawing-type print-readiness, branch `claude/mep-print-ready`)
+
+Made the MEP drawing types truly "drop a view in → the sheet renders and annotates correctly," and
+wired the DrawingType-configured segment mask + display mode + per-category depth through the produce
+path. Base `claude/gold-integration-20260709`. Release build **0 errors / 6 baseline warnings** (clean
+build; the base's own baseline once the WPF temp project is recompiled — see the build-fix note below).
+**Not merged to main**; **not Revit-verified** (no Revit host in this session — the in-Revit produce
+gates below are owner-run).
+
+- **STEP 0 — sibling reconciliation.** `claude/drawing-types-realign` is already an ancestor of base
+  (fully integrated). Of `claude/fix-tokens-depth-engine`'s five sub-fixes, **D1/D2** (SEQ-pad +
+  separator) and **D3** (segment-order) are already in base by content (`TagConfig.SeqPadWidth` /
+  `EffectiveSeqPad`, `StingDockPanel.SetTokenDepthParams`); **D4** and **D5** were **not** in base and
+  were **re-implemented** into base's current code (not cherry-picked — base diverged on
+  mask-precedence + SEQ-latch, so a cherry-pick would conflict).
+- **FIX 1 (blocker) — MEP discipline style packs.** MEP plans bound to `corp-standard-plan`
+  (architectural), which sets `Pipes`/`Ducts` `visible:false` → pipes/ducts rendered invisible.
+  Authored three corporate packs `corp-standard-hvac` / `-elec` / `-plumb` (extend `corp-base`): own
+  discipline **bold + CIBSE-coloured + visible** (HVAC `#1976D2`/equip `#880E4F`, Elec `#F57F17` +
+  fire-alarm `#C00000`, Plumb `#2E7D32` + sprinklers `#C00000`); every other MEP discipline + arch/struct
+  **halftone grey `#808080`**; grids/rooms/matchline kept. Rebound 10 types' `viewStylePackId`
+  (`mep-plan`, `mep-hvac-duct`, `mep-plantroom` → hvac; `elec-power/-lighting/-fire-alarm` → elec;
+  `plumb-drainage/-ag-drainage/-rwd-layout/-water-treatment` → plumb). `corp-coordination` kept for
+  coord/clash. (DrawingTypes ship no `checksum` field, so the rebind computes fresh — no origin flip.)
+- **FIX 2 — tagFamilies coverage + key naming.** Read `AnnotationRunner.ResolveTagTypeId`: the lookup is
+  `pack.TagFamilies[rule.Category]` (case-sensitive) → matched against `FamilySymbol.FamilyName`; the
+  per-rule `tagFamily` field is ignored. Existing entries were doubly broken — camelCase keys
+  (`DuctSystem`, `AirTerminals`) that never match the display-name rule categories, and `STING_TAG_*`
+  code values that match no loaded family. Rewrote 17 MEP types' `tagFamilies`: keys = exact AutoTag
+  rule categories, values = real shipped `STING - <X> Tag` families; filled the three types with rules
+  but no families (`mep-coord`, `elec-riser`, `coord-clash`). Gate: **0 blank AutoTag families; every
+  family exists** in `Data/TagFamilies/`.
+- **FIX 3 + D5 — mask scope, display refresh, mask in all modes.** (a) `TokenProfileApplier` wrote the
+  segment mask to the **view**'s `TAG_SEG_MASK`, but the consumer `TagConfig.BuildDisplayTag` reads the
+  **element**'s — moved the write into the per-element pass. (b) `DrawingTypePresentation.Apply` placed
+  tags but never recomputed `ASS_DISPLAY_TXT` on produce (only the interactive `BuildAndWriteTag` did) —
+  added a post-`TokenProfileApplier` refresh pass that calls `BuildDisplayTag` on every view element so a
+  dropped-in view renders the configured mode/mask without a separate tag pass. (c/D5) dropped the
+  `mode==0||mode==5` gate in `BuildDisplayTag`; a real mask now maps 1:1 over the full 8-token string in
+  **every** display mode.
+- **FIX D4 — numeric tier params render.** `BuildTier4To10Summaries` read T5/T6/T8/T9 via `GetString`,
+  which returns "" for non-String storage → cost/carbon/clash/as-built numeric fields rendered blank.
+  Added `ParameterHelpers.GetDisplayText` (String → Double `AsValueString` → Integer → ElementId, with a
+  `{name}_DISP_TXT` mirror) and routed those tiers through it; `ApplyParagraphPresetCommand.ReadParamAsText`
+  now delegates to the same helper so the tag path and paragraph-preset path can't diverge.
+- **FIX 4 — routing / schedules / slot / templates.** Added routing `E/*/SPOOL → elec-spool`,
+  `E/*/COORD → elec-coord` (sole first-match, reachability-checked). Added `${PRJ_ORG_*}`
+  `titleBlockParams` + `viewportTypeName` to `mech-equip-schedule` / `elec-panel-schedule` /
+  `valve-schedule`. Fixed `plumb-drainage-schematic-A1`: slot `{x,y,w,h}` → `{normX,normY,normW,normH}`
+  (unrecognised keys → the view never placed) + `viewType`/`required`, added `viewStylePackId:
+  corp-standard-plumb`, reclassified `purpose` Schedule → **Schematic**. **FIX 4(d) — confirmed
+  resolver, no change:** the synthetic `viewTemplateName "STING:<packId>:FloorPlan"` on
+  `elec-spool`/`elec-coord` is exactly the managed-template name `ManagedTemplateSyncer.EnsureTemplate`
+  mints from their (managed) `viewStylePackId`; it self-heals after first produce (one-time fallback
+  warning is by design).
+- **FIX 6 — per-category depth cumulative.** `AnnotationRunner` wrote only `TAG_PARA_STATE_{depth}_BOOL`;
+  now writes tiers 1..depth true / higher false, matching `TokenProfileApplier.WriteCategoryDepths`.
+- **FIX 5 — not implemented (documented as project-global).** SEQ zero-pad stays project-global via
+  `TagConfig.SeqPadWidth` / `EffectiveSeqPad` (set from the Tag Studio → Tokens & Depth dock tab). It is
+  **not** a per-DrawingType field, by decision — see ROADMAP.
+- **Pre-existing base build fix (separate commit).** A clean Release build of the base failed with
+  CS0120/CS1061 in `DrawingType.cs` (a `public string System` property shadows the `System` namespace at
+  `System.Math`/`System.Globalization` sites; the WPF temp project's LangVersion defaults trip on it
+  where the main csproj doesn't). `global::`-qualified those sites — a no-op that restores a green clean
+  build. A cached/incremental build never recompiled the temp project, which is why the base appeared
+  0-err.
+
+Owner-run in-Revit gates: produce one A1 plan per M/E/P → pipes/ducts visible + correctly per-category
+tagged; token + paragraph depth honoured; `ASS_DISPLAY_TXT` reflects mask + mode on produce with no
+separate tag pass; SEQ pad renders per the project-global setting.
+
+#### Completed (Phase 197 — Universal-tag legacy teardown, branch `claude/universal-tag-teardown`)
+
+Applied the two behavioural findings Phase 196 only reported, then retired the "Create Tag Fams"
+legacy label path and **deleted** the now-orphaned tier-authoring stack (caller-verified, one
+deletion group). Release build **0 errors / 4 baseline CS0618 warnings**; `StingTools.Tags.Tests`
+134 pass / 2 baseline `CsiMasterFormat` fails.
+
+- **Behavioural fixes applied (Task 1).** (a) `FamilyParamCreatorCommand.InjectSharedParams` now
+  binds STATE/style params as TYPE via an `IsTypeParam` predicate (`VisibilityParams` ∪ `StyleParams`
+  ∪ `{ TAG_DEPTH_TIER, TAG_BOX_*, TAG_LEADER_*, TAG_POS }`); container/token params stay INSTANCE.
+  Fixes the latent bug where "Inject Params"-built families carried the depth STATE bools as instance,
+  so `Set depth` (type-targeting) silently no-op'd on them. `TAG_POS` preserved as type (drives its
+  offset Calculated Value). (b) Collapsed the SEQ-pad dual source of truth into
+  `TagConfig.EffectiveSeqPad`; `BuildSeqString` + `BuildAndWriteTag` route through it.
+- **Create Tag Fams gutted (Task 2).** `TagFamilyCreatorCommand` (the last live caller of the legacy
+  stack) no longer authors per-family CSV tier rows — removed the plan-loading setup, all six
+  `AuthorFromPlanIfAvailable` call sites, the method itself, and the CSV-plan coverage diagnostics.
+  Kept the family-shell creation, `InjectSharedParams`, and the `TagTypeVariantWriter` variant loop.
+  Confirm dialog, post-creation report, class doc, button tooltip, and
+  `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` now describe the mint → `Propagate Universal` → `Set depth`
+  flow.
+- **Deleted the orphaned stack (Task 3).** `Tags/FamilyLabelAuthor.cs` and
+  `Tags/TagConfigPlanResolver.cs` — 0 code callers verified after Task 2 (only historical comments
+  remained). `TierPlan`/`TierState` (in `Core/PerFamilyTierMap.cs`) and `HandoverModeHelper` (live
+  callers: `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`) were RETAINED.
+- **CSV/data/docs disposition (Task 4).** `Core/TagConfigCsvReader.cs` RETAINED with a
+  `LEGACY(universal-tag)` marker: its `TierPlan` API is now caller-less, but the v5.0 CSV data it
+  parses is the canonical synced source and is still read by `ParamRegistry` / `TagConfig` /
+  `HandoverModeHelper` / `PresentationModeCommand` / `FamilyParamCreatorCommand` / `LpsValidator`.
+  **No data files deleted.** Removed the dead alias helpers `CsvFamilyNameCandidates` /
+  `TryGetTierPlan` / `ContainsPlanForFamily` (0 callers). ROADMAP §Task-4 updated (steps 1-3 done;
+  4-5 open).
+
+#### Completed (Phase 196 — Universal-tag finalize, branch `claude/universal-tag-finalize`)
+
+Finished the universal-tag pivot: the on-drawing tag is now the short/maskable display, and the
+old CSV tier-authoring entry point in "Migrate Fams" is retired. Release build: **0 errors** (4
+pre-existing `ClashIssueSyncCommand` CS0618 warnings); `StingTools.Tags.Tests` 134 pass / 2
+pre-existing `CsiMasterFormat` fails. Manual Family-Editor label edits remain (the Revit API
+cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finalize report / runner.
+
+- **Short + maskable display (Task A).** `ASS_DISPLAY_TXT` is the on-drawing identity line, rendered
+  as a display-mode + segment-mask resolution of the canonical `ASS_TAG_1_TXT` (which stays the full
+  unique ISO key). `ParamRegistry.DisplayModeDefault` 2→5 so the display starts from the full
+  8-segment string a mask can shorten (masks apply in modes 0/5 only). `TagConfig.BuildAndWriteTag`
+  no longer clobbers `ASS_DISPLAY_TXT` with the full tag every build — it calls `BuildDisplayTag(el)`
+  (resolves mode + `TAG_SEG_MASK_TXT` / `STING_VIEW_TOKEN_MASK_TXT` / UI `TokenMask` and writes the
+  result), falling back to the full tag only when that yields nothing. Corrected the stale
+  `BuildDisplayTag` mask-block comment that claimed "modes 1-5/0" (code is 0/5 only).
+- **Dead ExtraParam cleanup (Task B).** Verified the `TagSeparator` / `SeqPad` / `SegOrder`
+  `SetExtraParam` pushes (superseded by `ParamRegistry.ApplyTagFormatOverrides` + `TagConfig.SeqPadWidth`)
+  are gone with zero remaining readers; `TokenMask` + `ParaDepth` pushes retained (live readers). The
+  removal itself landed on the base branch.
+- **Legacy tier-authoring cutover, step 2 (Task C).** Trimmed `MigrateTagFamiliesCommand` ("Migrate
+  Fams") from a tier-authoring command to a **param + type-variant migrator only** — dropped the
+  `TagConfigPlanResolver.LoadAll*` → `FamilyLabelAuthor.AuthorLabelsMulti` CSV path and the
+  preserve-mode command links; kept `AddMissingParams` + the shared `TagTypeVariantWriter` type-variant
+  loop. Label rows now come from the propagated universal master, not per-family CSV. Caller checks
+  confirmed the ROADMAP finding — `FamilyLabelAuthor` / `TagConfigPlanResolver` / `HandoverModeHelper`
+  are **still called by `TagFamilyCreatorCommand`**, so nothing was deleted; `LEGACY(universal-tag)`
+  markers were added to the two retained classes for the next pass. (ROADMAP staged-cutover steps 1–2
+  done; steps 3–5 remain, blocked on the creator.)
+- **Consistency sweep (Task D).** Mechanical fixes: corrected the inverted `TAG_PARA_STATE_*`
+  datatype comments in `ParagraphDepthCommand.SetYesNo` and `TagTypeVariantWriter.SetFamilyBool`
+  (the params are `YESNO`/Integer on the master per `MR_PARAMETERS.txt`, so the String branch is the
+  fallback, not the default); documented Overwrite=Yes re-pad semantics in the Tokens & Depth panel
+  hint + `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md`. Two behavioural findings reported to ROADMAP (NOT
+  applied): `FamilyParamCreatorCommand.InjectSharedParams` binds STATE/style params as **instance**
+  (inverted vs the type binding used by propagation) — latent bug for families built via "Inject
+  Params"; and SEQ zero-pad has a dual source of truth (`TagConfig.SeqPadWidth` + `ParamRegistry.NumPad`)
+  kept in sync only by the panel writing both.
+#### Completed (Phase 198 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
+
+Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature
+(`LIG_*`), telecom/RTLS (`ICT_*`), and air-terminal-finish (`HVC_TERMINAL_*`) parameters that do not
+belong to ductwork. Release build: **0 errors, 4 warnings** (all pre-existing `ClashIssueSyncCommand`
+CS0618). **Not verified in Revit** — validate binding + reconcile in a real project before merge.
+
+- **Root cause (two mechanisms).** The runtime binder `LoadSharedParamsCommand` bound every parameter
+  to its container *group's whole* category set (or, for groups with no override, to the broad
+  universal core set) — it never read the per-parameter truth in `CATEGORY_BINDINGS.csv`. So
+  `HVC_SYSTEMS` params (incl. `HVC_TERMINAL_*`) bound to all MEP categories incl. Ducts, and
+  `COM_DAT`/`LIG_BEHAVIOURAL` params (no override) bound to *everything*.
+- **Data fix.** `HVC_TERMINAL_MAT/PATTERN/FINISH/DAMPER_TXT` rows corrected to **Air Terminals only**
+  (removed Ducts/Flex Ducts/Duct Fittings/Duct Accessories/Generic Models/Mechanical Equipment) across
+  all four CSVs. Added **102** discipline-scoped per-param rows to `CATEGORY_BINDINGS.csv` +
+  `PARAMETER_CATEGORIES.csv` (+ family rows) for `LIG_`/`ICT_`/`COM_`/`NCL_`/`SEC_`/`MED_`/`MGS_`/
+  `RAD_`/`CEQ_`/`CLN_` families, each scoped to its true element domain (e.g. `LIG_*` → Doors/Windows/
+  Plumbing Fixtures/Lighting Fixtures/Casework/Specialty Equipment; `ICT_*` → Data/Communication
+  Devices). Version lines appended to each edited CSV; no GUIDs/names/data-types/groups changed.
+- **Code fix.** `LoadSharedParamsCommand` now binds each **non-universal** parameter to its own
+  category set from `CATEGORY_BINDINGS.csv` (`SharedParamGuids.PerParamCategoryBindings`), clustered by
+  identical category-set signature so one `InstanceBinding` is built per signature *outside* the
+  transaction loop. Universal groups (`ASS_MNG`, `IFC_EXCH`, `CST_PROC`, cost/identity/commissioning/
+  as-built/tag groups — `LoadSharedParamsCommand.UniversalGroups`) keep the broad core set and are
+  never narrowed by an incomplete CSV row (e.g. `IFC_GLOBAL_ID_TXT` stays broad). Discipline params
+  with no CSV row and no group override are logged as coverage **GAPs** instead of silently binding to
+  everything. Material handling (`CleanMaterialBindings`) is unchanged.
+- **Existing-model remediation.** New command **`Bindings_PruneToSpec`** (`PruneBindingsToSpecCommand`,
+  tag wired in `StingCommandHandler`) reconciles an already-bound project: for every bound
+  discipline-scoped param whose CategorySet differs from spec it `ReInsert`s a corrected binding
+  (removes over-bound categories, adds missing spec categories), inside a `STING Reconcile Bindings`
+  transaction, guarding universal params and skipping already-correct params (idempotent).
+- **Validator.** `SharedParamGuids.ValidateBindingsFromCsv` now also asserts cross-CSV consistency
+  (`AuditCrossCsvConsistency`: `CATEGORY_BINDINGS.csv` ↔ `PARAMETER_CATEGORIES.csv`).
+- **Audit artifact.** `docs/binding_audit_report.csv` records before/after effective binding for all
+  3,390 parameters: **958 CHANGED, 2,432 OK, 29 GAP; 593 params moved OFF Ducts.** All 15 screenshot
+  offenders now bind `OnDuctsBefore=Y → OnDuctsAfter=N`; `IFC_*`/`ASS_*` universals confirmed unchanged
+  (broad). Residual GAPs (mislocated `GEN_`/`SPC_`/`ZON_`/`CST_S_`/`SLV_TAG` params in `COM_DAT`) are
+  deferred to `ROADMAP.md`.
+
+#### Completed (Phase 195 — Universal-tag badge/gate integration, branch `feature/universal-tag-system`)
+
+Closed the integration gap between the universal-tag status badges (data + QA gates stamped by
+`Gate_StampStatus`) and the drawing-production pipeline. Release build: **0 errors** (4 pre-existing
+`ClashIssueSyncCommand` CS0618 warnings). Not yet exercised in Revit — validate before merge.
+
+- **Gate-based AEC filters (Task 1).** Four corporate filters in `STING_AEC_FILTERS.json`
+  (`qa-gate-data-red/amber`, `qa-gate-qa-red/amber`) keyed on `STING_GATE_DATA_STATUS_INT` /
+  `STING_GATE_QA_STATUS_INT` (`kind:shared`, `op:equals`, `type:int`; op vocabulary confirmed
+  against `AecFilterFactory.BuildIntRule`). Same 11 categories as `qa-untagged`.
+- **View-driven badges (Task 2).** `STING_TagStatus` subcategory hidden (`vgOverrides
+  visible:false`) on the non-managed issue/presentation packs in `STING_VIEW_STYLE_PACKS.json`
+  (standard rcp/section/elevation/detail, clarification, demolition, presentation-rich→children,
+  pres-base→children). New `coord-qa` pack (extends `corp-coordination`) shows it and attaches the
+  four Task-1 filters by name so a coordination view auto-recolours non-compliant tags; `+routing`
+  entry `{purpose:QA→coord-qa}`. **Two loader fixes** were required for these to bind (grepped per
+  the "green json.load ≠ loader binds it" rule): `ViewStylePackLibrary` gained a `stylePacks` alias
+  (it bound only `viewStylePacks`, so the 31-pack corporate catalogue was runtime-dead → 3
+  `BuildDefaults` packs); `ResolveCategoryIdCached` (a lost-to-merge stub that resolved
+  BuiltInCategory names only) now falls back to the richer name/subcategory resolver so localised
+  and subcategory vgOverride keys bind. See ROADMAP for the Revit-validation gate this activation
+  requires.
+- **Auto-refresh gates + message labels (Task 3).** `Gate_StampStatus` step added early in
+  `WORKFLOW_DailyQA_Enhanced.json` and `WORKFLOW_MorningHealthCheck.json`, and the tag mapped in
+  `WorkflowEngine.ResolveCommand` (it was previously unresolvable). Completed the two badge message
+  labels the guides reference but which never existed in code: new instance TEXT params
+  `STING_GATE_DATA_MSG_TXT` / `STING_GATE_QA_MSG_TXT` (MR_PARAMETERS group 17 + `ParamRegistry`
+  constants); `ComplianceScan.ComputeElementGates` now emits terse reasons (data: UNTAGGED /
+  TAG INCOMPLETE / NO STATUS / EMPTY CONTAINER / ISO ERRORS; QA: NO QA / NO SIGN-OFF / QA PENDING;
+  blank when green); `StampGateStatusCommand` binds + stamps them alongside the ints.
+- **Docs (Tasks 4-6).** ROADMAP records the QA-filter rationalization plan (Task 4 — no deletions),
+  the drawing-type binding audit (Task 5 — `"STING - Generic Tag"` is a placeholder, not the
+  universal master, so no bindings repointed), and the integration follow-ups + smoke-test survival
+  items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
+  target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
+  code landed here and the guide edits are flagged in ROADMAP for that branch.
+
+#### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
+
+Because the universal tag is discipline-agnostic (Task 1), the engineering data dropped from
+the bespoke tag tiers moves into schedules. New `Schedule_DisciplineTagExpander` command builds
+one `ViewSchedule` per model category from the shipped `SCHEDULE_SPEC_all_disciplines.json` (207
+entries across ARCH/GEN/HEALTH/MEP/STR). Built against Revit 2025: **0 errors**. Not yet exercised
+in Revit. Tests: `Tags.Tests` 134 pass / 2 pre-existing `CsiMasterFormat` fails.
+
+- **Column layout** per the brief: col 1 = `ASS_TAG_1_TXT` (the tag — links drawing ↔ schedule),
+  then the entry's discipline columns, then the built-in Comments column. Fields are matched to
+  each category's `GetSchedulableFields()` by name; columns not bound to the category are omitted.
+- **Runtime category derivation** (no hand-transcription): the spec's family name is joined to
+  `LABEL_DEFINITIONS.json` `category_labels` (family_name / csv_family_alias / plural Revit key,
+  with prefix-fallback for the ~16 truncated spec names) to get the Revit model-category display
+  name, then resolved to a live `Category` in the open document. Unresolved / non-schedulable
+  categories are skipped and reported.
+- **Modes**: Sheet columns (compact `sheet_columns`) / Full as-built (`full_columns`) / Both.
+  Entries with empty columns are skipped (the universal tag already covers them). Families that
+  share a category (e.g. 16 healthcare "Medical Equipment" families) collapse to ONE schedule with
+  the de-duplicated union of their columns, capped at 24 (reported when truncated). Idempotent —
+  skips schedules that already exist by name. Wired to the CREATE tab ("Tag Schedules" button);
+  `SCHEDULE_SPEC_all_disciplines.json` copied into `Data/`.
+
+#### Completed (Phase 195 Task 2 — Universal Tag status gates, branch `feature/universal-tag-system`)
+
+Plugin side of the universal tag's two status **badges** (left = data-completeness gate,
+right = QA / sign-off gate — the human builds the glyph swap into the master per
+`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` STEP 4). Built against Revit 2025: **0 errors**. Not yet
+exercised in Revit. Tests: `Tags.Tests` 134 pass / 2 pre-existing `CsiMasterFormat` fails.
+
+- **Two new shared params** in `MR_PARAMETERS.txt` group 17 (STINGTags_ISO19650), instance
+  INTEGER: `STING_GATE_DATA_STATUS_INT`, `STING_GATE_QA_STATUS_INT` (0=red/1=amber/2=green).
+  Exposed on `ParamRegistry` as `GATE_DATA_STATUS` / `GATE_QA_STATUS`.
+- **`ComplianceScan.ComputeElementGates(doc, el)`** (new, pure — no writes) computes both gates,
+  reusing `TagConfig` completeness checks + `ISO19650Validator.ValidateElement`. Data gate:
+  red = untagged, amber = tagged-but-unresolved / missing STATUS / empty relevant containers /
+  ISO errors, green = fully resolved + STATUS + containers + zero validation errors. QA gate
+  from `COMM_STATE_TXT` / `ASS_QC_INSPECTOR_TXT` / `ASS_FAB_STATUS_TXT` / `ASS_INSTALL_DATE_TXT`
+  (respecting `RGL_QA_COMMISSIONING_REQ_TXT` = not-required → green).
+- **New `Gate_StampStatus` command** (`Commands/TagStudio/StampGateStatusCommand.cs`): ensures
+  the two params are bound (InstanceBinding over the STING category set — Insert/ReInsert) then
+  stamps every taggable element in one transaction, reports the green/amber/red histogram per
+  gate, and invalidates the compliance cache. Wired to the CREATE tab ("Stamp Gates" button).
+
+#### Completed (Phase 195 Task 1 — Universal Tag propagation, branch `feature/universal-tag-system`)
+
+**Universal-tag pivot.** The v7.8 goal of auto-propagating a *bespoke* tiered label to all
+206 tag families is impossible (Revit API can't author label rows; cross-category label
+paste is blocked; all 62 MEP family sheets have unique row structures). The settled design:
+a human builds ONE **universal, discipline-agnostic** label (65 identical rows — see
+`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`) once by hand, and this command clones it to every
+target family. Discipline engineering data moves off the tag into per-category schedules
+(Task 3). Built against Revit 2025: **0 errors** (4 pre-existing warnings). Not yet exercised
+in Revit — the one-family (Duct) smoke test is the user's next step before scaling to 206.
+
+- **New `TagTypeVariantWriter` (`Tags/TagTypeVariantWriter.cs`)** — extracted the data-driven
+  type-variant authoring loop (`CreateStandardVariants` + `SetFamilyBool` +
+  `BuildArrowheadLookup`) out of `MigrateTagFamiliesCommand` so both it and the new
+  propagation command author *identical* variants. The variants (PARA_STATE depth gating,
+  128 style BOOLs, LEADER_ARROWHEAD, TAG_DEPTH_TIER_INT) are family-independent — that is
+  what makes the recategorise conveyor safe (type props are re-created, never "lost").
+  `MigrateTagFamiliesCommand` now delegates to the helper (its private copies removed).
+- **New `Propagate_UniversalTag` command (`Commands/TagStudio/PropagateUniversalTagCommand.cs`).**
+  Pick the universal master from loaded families → per target family: `EditFamily(master)` →
+  `famDoc.OwnerFamily.FamilyCategory = <target tag category>` (the one net-new API call, a
+  documented read-write property) → rename the clone to the target family name (so
+  `LoadFamily` overwrites the right family by internal name) → add missing style/visibility
+  params + re-create type variants → atomic `SaveAs`(temp) → `LoadFamily` → `File.Move` over
+  the canonical `.rfa` (pattern reused verbatim from `MigrateTagLabelReferencesCommand`).
+  Recategorising preserves label rows (proven live), so no per-family row swapping is needed.
+- **Re-sync built in.** Re-running is a safe re-sync — overwrite is idempotent, same code path.
+- **Smoke-test-first scope picker.** A scope TaskDialog (CHOOSE / ALL) with a multi-select
+  picker (Duct families pre-ticked) enforces the "run on ONE family, eyeball, then scale"
+  discipline. Wired to the CREATE tab ("Propagate Universal" button, tag `Propagate_UniversalTag`).
+- Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
+  section-normalization failures, unrelated to this work).
+
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
 Branch `claude/placement-matrix`. Build clean `-c Release` (0/0). **Model-modifying — verify placement
@@ -408,7 +703,6 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
-=======
 #### Completed (Phase 197 — MEP visual-tag declutter: one tag per run, branch `claude/mep-tag-declutter-advice`)
 
 Smart Placement was drawing **one visual `IndependentTag` per modelled segment**, so a single pipe or
@@ -596,7 +890,6 @@ in Revit — the one-family (Duct) smoke test is the user's next step before sca
 - Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
   section-normalization failures, unrelated to this work).
 
->>>>>>> origin/claude/mep-tag-declutter-advice
 #### Completed (Symbol Library pipe systemType fixes, branch `claude/symbol-fixes-4`)
 
 Clears the 19 pre-existing `bad-systemType` connector defects the round-3 validator

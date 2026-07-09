@@ -1,3 +1,51 @@
+# Universal Tag — Task-4 step-2 patch (DO NOT APPLY until the Duct smoke test passes)
+
+**Status: STAGED, GATED.** This is the ready-to-apply change for ROADMAP step 2 of the
+universal-tag cutover: *"trim `MigrateTagFamiliesCommand`'s tier-authoring call; retire/relabel
+the tier-authoring UI."* It is written out here rather than applied because the gate
+(`UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`) has not yet passed. Applying it before the universal
+path is proven would remove the only working label-authoring path.
+
+## What it does
+
+Turns `MigrateTagFamiliesCommand` ("Migrate Fams" button) from a *tier-authoring* command
+into a **param + type-variant migrator only**:
+
+- **KEEPS** — `AddMissingParams` (style/visibility/tag params) and
+  `TagTypeVariantWriter.CreateStandardVariants` (the depth/style/colour type variants). These
+  stay valid under the universal-tag model.
+- **REMOVES** — the CSV tier-authoring path: `TagConfigPlanResolver.LoadAllPerMode/LoadAll`,
+  the `FamilyLabelAuthor.AuthorLabelsMulti` call, the `HandoverModeHelper.GetSelectorBool`
+  mode-gate wiring, the T4–T10 + warning row authoring, and the preservation-mode command
+  links. Label rows now come from the propagated universal master, not from CSV.
+
+## Why it stays build-green
+
+`FamilyLabelAuthor`, `TagConfigPlanResolver`, `HandoverModeHelper`, and the v5.0 CSVs are
+**still referenced by other files** (`TagFamilyCreatorCommand`, `PresentationModeCommand`,
+`StingToolsApp`, etc. — see the ROADMAP table). This patch only removes *this command's* use
+of them, so nothing is orphaned and the build stays green. Their deletion is a **later** step
+(ROADMAP step 3), gated separately.
+
+## Apply
+
+Only after the Duct smoke test PASSES:
+
+1. Replace the entire contents of
+   `StingTools/Commands/TagStudio/MigrateTagFamiliesCommand.cs` with the block below.
+2. Re-label the UI button (optional but recommended): in `StingTools/UI/StingDockPanel.xaml`
+   change the "Migrate Fams" button `Content`/`ToolTip` to reflect "add params + variants
+   only" (it no longer authors tier rows). Its `Tag="MigrateTagFamilies"` stays the same.
+3. `dotnet build StingTools/StingTools.csproj -c Release` — expect 0 errors.
+4. Run `StingTools.Tags.Tests` — expect the same 134 pass / 2 pre-existing CsiMasterFormat
+   fails baseline.
+5. Commit as ROADMAP step 2; leave steps 3–5 for later.
+
+---
+
+## Replacement file — `MigrateTagFamiliesCommand.cs`
+
+```csharp
 // ============================================================================
 // MigrateTagFamiliesCommand.cs — Upgrade existing STING tag families in-place.
 //
@@ -297,3 +345,18 @@ namespace StingTools.Commands.TagStudio
         }
     }
 }
+```
+
+---
+
+## Deletion checklist for later (ROADMAP steps 3–5, do NOT do now)
+
+Once nothing calls them (grep first), remove as one unit:
+- `Tags/FamilyLabelAuthor.cs`
+- `Tags/TagConfigPlanResolver.cs`
+- the v5.0-CSV tier-authoring path in `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv`
+- repurpose `Core/HandoverModeHelper.cs` DC/HO → a `PARA_STATE` view preset (don't delete outright)
+- deprecate the colour-scheme commands separately (keep depth-variant creation everywhere)
+
+Each is still wired to `TagFamilyCreatorCommand` / `PresentationModeCommand` / `StingToolsApp`
+today, so they are NOT orphans until those callers are migrated first.

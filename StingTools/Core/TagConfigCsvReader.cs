@@ -20,6 +20,13 @@ namespace StingTools.Core
     /// are default-present in every family and live outside the tier-variation
     /// plan (<see cref="PerFamilyTierMap"/> never stores T1..T3).
     /// </remarks>
+    // LEGACY(universal-tag): the TierPlan-building API (LoadFile/LoadFiles/Parse) has no
+    // direct caller since TagConfigPlanResolver was deleted (universal-tag teardown). RETAINED
+    // because the v5.0 CSV data it parses is the canonical *synced* tag-config source (see
+    // reference-tag-config-sources; LABEL_DEFINITIONS.json is canonical) and those CSVs are
+    // still read across ParamRegistry / TagConfig / HandoverModeHelper / PresentationModeCommand
+    // / FamilyParamCreatorCommand / LpsValidator via their own paths. A future pass may either
+    // rewire a live reader onto this typed parser or retire it with the CSVs together.
     public static class TagConfigCsvReader
     {
         private static readonly Regex FamilyHeaderRegex =
