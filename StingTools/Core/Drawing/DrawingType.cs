@@ -44,8 +44,8 @@ namespace StingTools.Core.Drawing
                     return (int)Convert.ToDouble(reader.Value);
                 case JsonToken.String:
                     var s = (reader.Value as string ?? string.Empty).Trim();
-                    return int.TryParse(s, System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
+                    return int.TryParse(s, global::System.Globalization.NumberStyles.Integer,
+                        global::System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
                 case JsonToken.Null:
                     return 0;
                 default:
@@ -175,7 +175,7 @@ namespace StingTools.Core.Drawing
         /// 2 → "2mm"), matching the authored tag text-type names ("1mm", "1.5mm", … "5mm").
         /// Trailing ".0" is trimmed so whole-number sizes read as "2mm", not "2.0mm".</summary>
         public static string TagSizeToken(double mm) =>
-            mm.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "mm";
+            mm.ToString("0.###", global::System.Globalization.CultureInfo.InvariantCulture) + "mm";
 
         /// <summary>Snap <see cref="EffectiveTagTextSizeMm"/> to the nearest size that has actually
         /// been authored, so a 1:200 view never asks for a 1mm family that was never built. Pass the
@@ -190,7 +190,7 @@ namespace StingTools.Core.Drawing
             foreach (double s in availableSizesMm)
             {
                 if (s <= 0) continue;
-                double d = System.Math.Abs(s - want);
+                double d = global::System.Math.Abs(s - want);
                 // Nearest wins; on a tie prefer the larger size (more legible on the sheet).
                 if (d < bestDelta || (d == bestDelta && s > best)) { best = s; bestDelta = d; }
             }
