@@ -133,7 +133,8 @@ namespace StingTools.Commands.Drawing
                 if (build.Ok) ok++; else failed++;
                 sb.AppendLine($"{(build.Ok ? "✓" : "✗")} {spec.Id,-30}  "
                     + $"params {build.ParametersAdded,3}  lines {build.LinesPlaced,3}  "
-                    + $"labels {build.LabelsPlaced,3}  slots {build.SlotsPlaced}  "
+                    + $"labels {build.LabelsPlaced,3} {(build.BuiltFromSeed ? "(seed)" : "(none)"),-6}  "
+                    + $"slots {build.SlotsPlaced}  "
                     + $"→ {build.SavedPath ?? "(not saved)"}");
                 foreach (var w in build.Warnings.Take(3)) sb.AppendLine($"    ! {w}");
                 foreach (var e in build.Errors.Take(3))   sb.AppendLine($"    ✗ {e}");
@@ -191,13 +192,14 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"  generated   : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"  status      : {(r.Ok ? "OK" : "FAILED")}");
             sb.AppendLine($"  saved       : {r.SavedPath ?? "(not saved)"}");
+            sb.AppendLine($"  seed        : {(r.BuiltFromSeed ? r.SeedSource : "(none — template fallback, label-less)")}");
             sb.AppendLine("===================================================================");
             sb.AppendLine();
             sb.AppendLine("Counts");
             sb.AppendLine("------");
             sb.AppendLine($"  parameters     : {r.ParametersAdded}");
             sb.AppendLine($"  lines          : {r.LinesPlaced}");
-            sb.AppendLine($"  labels         : {r.LabelsPlaced}");
+            sb.AppendLine($"  labels         : {r.LabelsPlaced}  {(r.BuiltFromSeed ? "(from seed)" : "(no seed — label-less fallback)")}");
             sb.AppendLine($"  static text    : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
             sb.AppendLine($"  slots          : {r.SlotsPlaced}");
@@ -253,9 +255,10 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"Title-block family: {id}");
             sb.AppendLine();
             sb.AppendLine($"  saved        : {r.SavedPath ?? "(not saved)"}");
+            sb.AppendLine($"  seed         : {(r.BuiltFromSeed ? r.SeedSource : "(none — template fallback, label-less)")}");
             sb.AppendLine($"  parameters   : {r.ParametersAdded}");
             sb.AppendLine($"  lines        : {r.LinesPlaced}");
-            sb.AppendLine($"  labels       : {r.LabelsPlaced}");
+            sb.AppendLine($"  labels       : {r.LabelsPlaced}  {(r.BuiltFromSeed ? "(from seed)" : "(no seed)")}");
             sb.AppendLine($"  static text  : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
             sb.AppendLine($"  slots        : {r.SlotsPlaced}");

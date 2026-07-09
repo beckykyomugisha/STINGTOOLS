@@ -1144,7 +1144,10 @@ namespace StingTools.Model
             double startXMm, double startYMm, double startZMm,
             double endXMm, double endYMm, double endZMm,
             string ductTypeName = null,
-            string levelName = null)
+            string levelName = null,
+            double diameterMm = 0,
+            double widthMm = 0,
+            double heightMm = 0)
         {
             try
             {
@@ -1181,11 +1184,23 @@ namespace StingTools.Model
                     duct = Duct.Create(_doc, sysType.Id, ductType.Id, level.Id,
                         new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), Units.Mm(startZMm)),
                         new XYZ(Units.Mm(endXMm), Units.Mm(endYMm), Units.Mm(endZMm)));
+                    // Apply requested size to native geometry params (best-effort; skipped if read-only)
+                    if (widthMm > 0 && heightMm > 0)
+                    {
+                        TrySetParam(duct, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, Units.Mm(widthMm));
+                        TrySetParam(duct, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, Units.Mm(heightMm));
+                    }
+                    else if (diameterMm > 0)
+                    {
+                        TrySetParam(duct, BuiltInParameter.RBS_CURVE_DIAMETER_PARAM, Units.Mm(diameterMm));
+                    }
                     ModelWorksetAssigner.Assign(_doc, duct);
                     tx.Commit();
                 }
 
-                return ModelResult.Ok($"Created duct on {level.Name}", duct.Id);
+                string sizeNote = (widthMm > 0 && heightMm > 0) ? $" {widthMm:F0}×{heightMm:F0}mm"
+                    : diameterMm > 0 ? $" Ø{diameterMm:F0}mm" : "";
+                return ModelResult.Ok($"Created{sizeNote} {ductType.Name} duct on {level.Name}", duct.Id);
             }
             catch (Exception ex)
             {
@@ -1202,7 +1217,8 @@ namespace StingTools.Model
             double endXMm, double endYMm, double endZMm,
             string pipeTypeName = null,
             string levelName = null,
-            string systemClassification = "DomesticColdWater")
+            string systemClassification = "DomesticColdWater",
+            double diameterMm = 0)
         {
             try
             {
@@ -1240,11 +1256,14 @@ namespace StingTools.Model
                     pipe = Pipe.Create(_doc, sysType.Id, pipeType.Id, level.Id,
                         new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), Units.Mm(startZMm)),
                         new XYZ(Units.Mm(endXMm), Units.Mm(endYMm), Units.Mm(endZMm)));
+                    if (diameterMm > 0)
+                        TrySetParam(pipe, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, Units.Mm(diameterMm));
                     ModelWorksetAssigner.Assign(_doc, pipe);
                     tx.Commit();
                 }
 
-                return ModelResult.Ok($"Created pipe on {level.Name}", pipe.Id);
+                string sizeNote = diameterMm > 0 ? $" Ø{diameterMm:F0}mm" : "";
+                return ModelResult.Ok($"Created{sizeNote} {pipeType.Name} pipe on {level.Name}", pipe.Id);
             }
             catch (Exception ex)
             {
@@ -1291,6 +1310,304 @@ namespace StingTools.Model
                 StingLog.Error("ModelEngine.PlaceMEPFixture", ex);
                 return ModelResult.Fail($"Fixture placement failed: {ex.Message}");
             }
+        }
+
+        // ── Floor / Roof from arbitrary profile ───────────────────────
+
+        /// <summary>
+        /// Creates a floor from an arbitrary closed polygon (mm x,y point pairs).
+        /// Points are auto-closed if the last point does not equal the first.
+        /// </summary>
+        public ModelResult CreateFloorFromProfile(
+            IList<(double xMm, double yMm)> profileMm,
+            string floorTypeName = null,
+            string levelName = null)
+        {
+            try
+            {
+                if (profileMm == null || profileMm.Count < 3)
+                    return ModelResult.Fail("A floor profile needs at least 3 points.");
+
+                var level = _resolver.ResolveLevel(levelName);
+                if (level == null) return ModelResult.Fail("No levels found.");
+
+                var typeResult = _resolver.ResolveFloorType(floorTypeName);
+                if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
+
+                CurveLoop loop = BuildCurveLoop(profileMm, out string loopErr);
+                if (loop == null) return ModelResult.Fail(loopErr);
+
+                Floor floor = null;
+                var fh = new ModelFailureHandler();
+                using (var tx = new Transaction(_doc, "STING MODEL: Create Floor (profile)"))
+                {
+                    AttachFailureHandler(tx, fh);
+                    tx.Start();
+                    try
+                    {
+                        floor = Floor.Create(_doc, new List<CurveLoop> { loop }, typeResult.TypeId, level.Id);
+                        ModelWorksetAssigner.Assign(_doc, floor);
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        return ModelResult.Fail($"Floor creation failed: {ex.Message}");
+                    }
+                }
+
+                var result = ModelResult.Ok(
+                    $"Created {profileMm.Count}-point {typeResult.TypeName} floor on {level.Name}", floor.Id);
+                result.Warnings = fh.CapturedWarnings;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ModelEngine.CreateFloorFromProfile", ex);
+                return ModelResult.Fail($"Floor creation failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Creates a footprint roof from an arbitrary closed polygon (mm x,y point pairs)
+        /// with a uniform slope on every edge.
+        /// </summary>
+        public ModelResult CreateRoofFromProfile(
+            IList<(double xMm, double yMm)> profileMm,
+            string roofTypeName = null,
+            string levelName = null,
+            double slopeDegrees = 25)
+        {
+            try
+            {
+                if (profileMm == null || profileMm.Count < 3)
+                    return ModelResult.Fail("A roof profile needs at least 3 points.");
+
+                var level = _resolver.ResolveLevel(levelName);
+                if (level == null) return ModelResult.Fail("No levels found.");
+
+                var typeResult = _resolver.ResolveRoofType(roofTypeName);
+                if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
+                var roofType = _doc.GetElement(typeResult.TypeId) as RoofType;
+
+                var pts = ClosePolygon(profileMm);
+                var footprint = new CurveArray();
+                for (int i = 0; i < pts.Count - 1; i++)
+                {
+                    var a = new XYZ(Units.Mm(pts[i].xMm), Units.Mm(pts[i].yMm), 0);
+                    var b = new XYZ(Units.Mm(pts[i + 1].xMm), Units.Mm(pts[i + 1].yMm), 0);
+                    if (a.DistanceTo(b) < 0.01) return ModelResult.Fail("Roof profile has a zero-length edge.");
+                    footprint.Append(Line.CreateBound(a, b));
+                }
+
+                FootPrintRoof roof = null;
+                using (var tx = new Transaction(_doc, "STING MODEL: Create Roof (profile)"))
+                {
+                    tx.Start();
+                    try
+                    {
+                        ModelCurveArray modelCurves;
+                        roof = _doc.Create.NewFootPrintRoof(footprint, level, roofType, out modelCurves);
+                        double slopeRad = slopeDegrees * Math.PI / 180.0;
+                        foreach (ModelCurve mc in modelCurves)
+                        {
+                            roof.set_DefinesSlope(mc, true);
+                            roof.set_SlopeAngle(mc, Math.Tan(slopeRad));
+                        }
+                        ModelWorksetAssigner.Assign(_doc, roof);
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        return ModelResult.Fail($"Roof creation failed: {ex.Message}");
+                    }
+                }
+
+                return ModelResult.Ok(
+                    $"Created {profileMm.Count}-point {roofType.Name} roof ({slopeDegrees}° slope) on {level.Name}",
+                    roof.Id);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ModelEngine.CreateRoofFromProfile", ex);
+                return ModelResult.Fail($"Roof creation failed: {ex.Message}");
+            }
+        }
+
+        // ── Room element at a point ───────────────────────────────────
+
+        /// <summary>
+        /// Places a Room element at a plan point (mm). The point must fall inside an
+        /// enclosed region for the room to bound; an unbounded room is still created
+        /// and reported. Optionally sets name + number.
+        /// </summary>
+        public ModelResult PlaceRoom(
+            double xMm, double yMm,
+            string roomName = null,
+            string roomNumber = null,
+            string levelName = null)
+        {
+            try
+            {
+                var level = _resolver.ResolveLevel(levelName);
+                if (level == null) return ModelResult.Fail("No levels found.");
+
+                Room room = null;
+                using (var tx = new Transaction(_doc, "STING MODEL: Place Room"))
+                {
+                    tx.Start();
+                    try
+                    {
+                        room = _doc.Create.NewRoom(level, new UV(Units.Mm(xMm), Units.Mm(yMm)));
+                        if (room == null) { tx.RollBack(); return ModelResult.Fail("Revit could not place a room at that point."); }
+                        if (!string.IsNullOrEmpty(roomName)) room.Name = roomName;
+                        if (!string.IsNullOrEmpty(roomNumber))
+                            room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.Set(roomNumber);
+                        ModelWorksetAssigner.Assign(_doc, room);
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        return ModelResult.Fail($"Room placement failed: {ex.Message}");
+                    }
+                }
+
+                bool bounded = false;
+                try { bounded = room.Area > 1e-6; } catch { }
+                return ModelResult.Ok(
+                    $"Placed room '{room.Name}' on {level.Name}" + (bounded ? "" : " (unbounded — not enclosed by walls)"),
+                    room.Id);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ModelEngine.PlaceRoom", ex);
+                return ModelResult.Fail($"Room placement failed: {ex.Message}");
+            }
+        }
+
+        // ── Generic family placement by name ──────────────────────────
+
+        /// <summary>
+        /// Places a loadable family instance identified by family + type name at a point (mm).
+        /// When hostId refers to a valid host element the instance is hosted on it.
+        /// </summary>
+        public ModelResult PlaceFamilyByName(
+            string familyName, string typeName,
+            double xMm, double yMm, double zMm,
+            string levelName = null,
+            long? hostId = null)
+        {
+            try
+            {
+                FamilySymbol symbol = FindSymbol(familyName, typeName);
+                if (symbol == null)
+                    return ModelResult.Fail(
+                        $"No family symbol matching family '{familyName}' / type '{typeName}'. Load the family first.");
+
+                _resolver.EnsureActive(symbol);
+                var level = _resolver.ResolveLevel(levelName);
+                var pt = new XYZ(Units.Mm(xMm), Units.Mm(yMm), Units.Mm(zMm));
+
+                Element host = null;
+                if (hostId.HasValue && hostId.Value >= 0)
+                    host = _doc.GetElement(new ElementId(hostId.Value));
+
+                FamilyInstance inst = null;
+                using (var tx = new Transaction(_doc, "STING MODEL: Place Family"))
+                {
+                    tx.Start();
+                    try
+                    {
+                        if (host != null)
+                            inst = _doc.Create.NewFamilyInstance(pt, symbol, host, StructuralType.NonStructural);
+                        else if (level != null)
+                            inst = _doc.Create.NewFamilyInstance(pt, symbol, level, StructuralType.NonStructural);
+                        else
+                            inst = _doc.Create.NewFamilyInstance(pt, symbol, StructuralType.NonStructural);
+                        ModelWorksetAssigner.Assign(_doc, inst);
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        return ModelResult.Fail($"Family placement failed: {ex.Message}");
+                    }
+                }
+
+                return ModelResult.Ok(
+                    $"Placed {symbol.FamilyName}: {symbol.Name}" + (host != null ? $" hosted on {host.Id.Value}" : ""),
+                    inst.Id);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ModelEngine.PlaceFamilyByName", ex);
+                return ModelResult.Fail($"Family placement failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Resolve a FamilySymbol by family name (+ optional type name) across all categories.</summary>
+        private FamilySymbol FindSymbol(string familyName, string typeName)
+        {
+            var symbols = new FilteredElementCollector(_doc)
+                .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().ToList();
+            if (symbols.Count == 0) return null;
+
+            IEnumerable<FamilySymbol> pool = symbols;
+            if (!string.IsNullOrEmpty(familyName))
+            {
+                var famExact = symbols.Where(s => s.FamilyName.Equals(familyName, StringComparison.OrdinalIgnoreCase)).ToList();
+                var fam = famExact.Count > 0 ? famExact
+                    : symbols.Where(s => s.FamilyName.IndexOf(familyName, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                if (fam.Count > 0) pool = fam;
+            }
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                var tExact = pool.FirstOrDefault(s => s.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
+                if (tExact != null) return tExact;
+                var tPart = pool.FirstOrDefault(s => s.Name.IndexOf(typeName, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (tPart != null) return tPart;
+            }
+            return pool.FirstOrDefault();
+        }
+
+        /// <summary>Build a closed CurveLoop from mm point pairs; null + reason on failure.</summary>
+        private CurveLoop BuildCurveLoop(IList<(double xMm, double yMm)> profileMm, out string err)
+        {
+            err = null;
+            var pts = ClosePolygon(profileMm);
+            var loop = new CurveLoop();
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                var a = new XYZ(Units.Mm(pts[i].xMm), Units.Mm(pts[i].yMm), 0);
+                var b = new XYZ(Units.Mm(pts[i + 1].xMm), Units.Mm(pts[i + 1].yMm), 0);
+                if (a.DistanceTo(b) < 0.01) { err = "Profile has a zero-length edge (duplicate consecutive points)."; return null; }
+                loop.Append(Line.CreateBound(a, b));
+            }
+            return loop;
+        }
+
+        /// <summary>Return the polygon with an explicit closing point appended when open.</summary>
+        private static List<(double xMm, double yMm)> ClosePolygon(IList<(double xMm, double yMm)> profileMm)
+        {
+            var pts = new List<(double xMm, double yMm)>(profileMm);
+            var first = pts[0];
+            var last = pts[pts.Count - 1];
+            if (Math.Abs(first.xMm - last.xMm) > 1e-6 || Math.Abs(first.yMm - last.yMm) > 1e-6)
+                pts.Add(first);
+            return pts;
+        }
+
+        /// <summary>Set a Double built-in param (internal units) if present and writable.</summary>
+        private static void TrySetParam(Element el, BuiltInParameter bip, double internalValue)
+        {
+            try
+            {
+                var p = el?.get_Parameter(bip);
+                if (p != null && !p.IsReadOnly) p.Set(internalValue);
+            }
+            catch (Exception ex) { StingLog.Warn($"TrySetParam {bip}: {ex.Message}"); }
         }
 
         // ── Batch Operations ──────────────────────────────────────────

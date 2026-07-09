@@ -1661,21 +1661,22 @@ namespace StingTools.UI
                 ("Transmittal Gate", "TransmittalGateCheck"),
             }));
 
-            // ── Author kit (file map + nested-family pointers) ──
+            // ── Built catalogue (file map + nested-family pointers) ──
             stack.Children.Add(InfoCard(
-                "Author kit (15 .rfa families): COVER_A3 · STARTUP_A3 · ASSEMBLY_PIPE · " +
-                "ASSEMBLY_DUCT · ASSEMBLY_COND · ASSEMBLY_HANGER · TECHNICAL_A1 · CLIENT_A1 · " +
-                "IFC_A1 · IFT_A1 · AS_BUILT_A1 · SUBMISSION_KCCA · SUBMISSION_ERA · " +
-                "SUBMISSION_NEMA · MARKETING_A2.\n\n" +
-                "Each family carries 37 TB_ family parameters (drawable zone, slots, reserved " +
-                "regions, nested-family pointers, visibility toggles, authority code, version " +
-                "stamp). The project carries 37 PRJ_TB_ project-info parameters that the kit " +
-                "auto-fills.\n\n" +
+                "Built catalogue (25 concrete families, minted by 'Build All'): 12 working " +
+                "sheets STING_TB_<SIZE>[_PORT]_<BIM|NONBIM>_v2.0 (A0/A1/A3 × Land/Port × " +
+                "BIM/NONBIM); 4 fabrication ASSEMBLY_{PIPE|DUCT|COND|HANGER}_v1.0 (all A1); " +
+                "specialty PRESENT_A1 (+_MONO) · COVER_A1 · DIVIDER_A1 · REGISTER_A1 · " +
+                "SUBMISSION_{KCCA|ERA|NEMA} · CLARIFICATION_A3.\n\n" +
+                "IFC / IFT / As-Built are SUITABILITY STATES of the BIM family (set via " +
+                "PRJ_DWG_SUITABILITY_COD_TXT), not separate families. A2 / A4 are not shipped.\n\n" +
+                "Each family carries its TB_ family parameters (drawable zone, slots, reserved " +
+                "regions, nested-family pointers, visibility toggles). The full 75-parameter " +
+                "title-block set (PRJ_ORG_* / PRJ_TB_* / PRJ_SHEET_* / STING_SHEET_* / ASS_*) is " +
+                "packaged at StingTools/Data/STING_TITLE_BLOCK_PARAMETERS.txt.\n\n" +
                 "Step-by-step layman guide → docs/guides/TITLE_BLOCK_CREATION_GUIDE.md\n" +
                 "Per-discipline default values → StingTools/Data/TITLE_BLOCK.csv\n" +
-                "Visual style packs (corp-base, fabrication-shop, technical-presentation, " +
-                "client-presentation, construction-issue, tender-issue, as-built, " +
-                "authority-submission, marketing-render) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
+                "Visual style packs (corp-base + 10 children) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
 
             host.Content = stack;
             return host;

@@ -166,7 +166,7 @@ namespace StingTools.BOQ
             });
             headerStack.Children.Add(new TextBlock
             {
-                Text = "Complete the fields below, then click Export to generate a tender-grade NRM2 BOQ. Values are persisted to project_config.json.",
+                Text = "Complete the fields below, then click Export to generate a tender-grade NRM2 BOQ. Values are saved with the project.",
                 Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xC0, 0xE0)),
                 FontSize = 11, Margin = new Thickness(0, 4, 0, 0)
             });
@@ -487,10 +487,10 @@ namespace StingTools.BOQ
             boxPanel.Children.Add(MakeCheckBox("Auto-inclusion boilerplate (fixings / supports / commissioning)", _config.EnableAutoInclusionBoiler, v => _config.EnableAutoInclusionBoiler = v));
             boxPanel.Children.Add(MakeCheckBox("\"Or approved equivalent\"",                              _config.EnableOrApprovedEquivalent, v => _config.EnableOrApprovedEquivalent = v));
             boxPanel.Children.Add(MakeCheckBox("Conditional design clauses (Structural / Services Engineer)", _config.EnableConditionalClauses, v => _config.EnableConditionalClauses = v));
-            boxPanel.Children.Add(MakeCheckBox("Client vocabulary overlay (BOQ_CLIENT_VOCABULARY.json)", _config.UseClientVocabulary,        v => _config.UseClientVocabulary = v));
+            boxPanel.Children.Add(MakeCheckBox("Use the client's preferred terminology",                _config.UseClientVocabulary,        v => _config.UseClientVocabulary = v));
             boxPanel.Children.Add(MakeCheckBox("Smart item naming (material + thickness + finish)",      _config.EnableSmartItemNaming,      v => _config.EnableSmartItemNaming = v));
             boxPanel.Children.Add(MakeCheckBox("Specification-clause cross-references",                  _config.EnableSpecClauseCrossRefs,  v => _config.EnableSpecClauseCrossRefs = v));
-            boxPanel.Children.Add(MakeCheckBox("Emit CSV + JSON sidecars alongside .xlsx",              _config.EmitCsvJsonSidecars,        v => _config.EmitCsvJsonSidecars = v));
+            boxPanel.Children.Add(MakeCheckBox("Also save CSV and JSON copies alongside the Excel file", _config.EmitCsvJsonSidecars,        v => _config.EmitCsvJsonSidecars = v));
 
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             Grid.SetRow(boxPanel, r); Grid.SetColumnSpan(boxPanel, 2);

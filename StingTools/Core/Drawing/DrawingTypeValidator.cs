@@ -68,18 +68,41 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Error, "DT-001", "DrawingType has no id.");
 
             // Title block -------------------------------------------------
-            if (!string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
+            // P5 — validate against the CONCRETE built family the resolver maps
+            // the profile's (possibly logical) title-block name to, not the raw
+            // dangling name (STING_TB_SHEET_A1 etc.), which is never loaded and
+            // used to false-positive every profile.
+            string declaredFam = dt.TitleBlockFamily;
+            try { declaredFam = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(declaredFam)) declaredFam = dt.TitleBlockFamily;
+            string concreteFam = declaredFam;
+            try { concreteFam = TitleBlockResolver.ToConcreteFamily(doc, dt, declaredFam); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+            string resolvedNote = string.Equals(concreteFam, declaredFam, StringComparison.OrdinalIgnoreCase)
+                ? "" : $" (resolved from '{declaredFam}')";
+
+            if (!string.IsNullOrWhiteSpace(concreteFam))
             {
-                if (!HasTitleBlockFamily(doc, dt.TitleBlockFamily))
-                    r.Add(ValidationSeverity.Error, "DT-010",
-                        $"Title block family '{dt.TitleBlockFamily}' not loaded.",
-                        "Load the family from Families/AssemblyTitleBlocks/ or point the profile at a different family.");
+                if (!HasTitleBlockFamily(doc, concreteFam))
+                {
+                    // Distinguish "not built" from "built but not loaded" (the
+                    // producer lazy-loads a built .rfa on demand).
+                    bool onDisk = false;
+                    try { onDisk = TitleBlockResolver.BuiltRfaExists(doc, concreteFam); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    if (onDisk)
+                        r.Add(ValidationSeverity.Info, "DT-010",
+                            $"Title block family '{concreteFam}'{resolvedNote} not loaded but built on disk — the producer loads it on demand (or run TitleBlock_CreateAll + reopen to preload).");
+                    else
+                        r.Add(ValidationSeverity.Warning, "DT-010",
+                            $"Title block family '{concreteFam}'{resolvedNote} is neither loaded nor built on disk.",
+                            "Run TitleBlock_CreateAll to build the STING title-block families, or point the profile at a loaded family.");
+                }
 
                 // DT-011 (Phase 168): titleBlockSymbolType references a symbol the family doesn't have.
                 if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType)
-                    && !HasTitleBlockSymbol(doc, dt.TitleBlockFamily, dt.TitleBlockSymbolType))
+                    && HasTitleBlockFamily(doc, concreteFam)
+                    && !HasTitleBlockSymbol(doc, concreteFam, dt.TitleBlockSymbolType))
                     r.Add(ValidationSeverity.Warning, "DT-011",
-                        $"Title block symbol type '{dt.TitleBlockSymbolType}' not found within family '{dt.TitleBlockFamily}'. Engine will fall back to first symbol.",
+                        $"Title block symbol type '{dt.TitleBlockSymbolType}' not found within family '{concreteFam}'. Engine will fall back to first symbol.",
                         "Open the family in Family Editor, confirm the type name, or clear titleBlockSymbolType to accept first-symbol fallback.");
             }
 
@@ -169,9 +192,11 @@ namespace StingTools.Core.Drawing
             // mismatch. Avoids the "A1 profile points at an A3 family"
             // silent-failure mode.
             if (!string.IsNullOrWhiteSpace(dt.PaperSize)
-                && !string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
+                && !string.IsNullOrWhiteSpace(concreteFam))
             {
-                var fam = dt.TitleBlockFamily.ToUpperInvariant();
+                // P5 — cross-check the RESOLVED concrete family name (which
+                // embeds the real paper-size code) rather than the logical one.
+                var fam = concreteFam.ToUpperInvariant();
                 var paper = dt.PaperSize.Trim().ToUpperInvariant();
                 string foundCode = null;
                 foreach (var code in new[] { "A0", "A1", "A2", "A3", "A4" })
@@ -190,7 +215,7 @@ namespace StingTools.Core.Drawing
                 }
                 if (foundCode != null && !string.Equals(foundCode, paper, StringComparison.Ordinal))
                     r.Add(ValidationSeverity.Warning, "DT-097",
-                        $"PaperSize '{dt.PaperSize}' may not match titleBlockFamily '{dt.TitleBlockFamily}' (family name suggests {foundCode}).",
+                        $"PaperSize '{dt.PaperSize}' may not match resolved title-block family '{concreteFam}' (family name suggests {foundCode}).",
                         "Confirm the family is sized correctly or update PaperSize to match.");
             }
 

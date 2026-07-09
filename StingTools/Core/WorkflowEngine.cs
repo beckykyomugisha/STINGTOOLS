@@ -1492,6 +1492,19 @@ namespace StingTools.Core
                 case "Electrical_WireElementAnnotateBatch": return new Commands.Electrical.WireElementAnnotateBatchCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+
+                // v4 place → route → validate pipeline (used by
+                // WORKFLOW_ElectricalRoughIn.json and WORKFLOW_PlumbingRoughIn.json).
+                // Without these three cases the rough-in workflows resolved to null
+                // in RunCommandByTag and every place/route/validate step reported
+                // FAILED despite valid JSON — the classic "green build, dead runtime"
+                // trap. PlaceFixturesCommand leaves its placed IDs selected, which
+                // AutoDropCommand then reads to route (electrical → AutoConduitDrop).
+                case "Placement_PlaceFixtures":  return new Commands.Placement.PlaceFixturesCommand();
+                case "Routing_AutoDrop":         return new Commands.Routing.AutoDropCommand();
+                case "Routing_PlaceSleeveConnectors": return new Commands.Routing.PlaceSleeveConnectorsCommand();
+                case "Routing_PlaceSleeveConnectorsAuto": return new Commands.Routing.PlaceSleeveConnectorsAutoCommand();
+                case "Validation_RunAll":        return new Commands.Validation.RunAllValidatorsCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();

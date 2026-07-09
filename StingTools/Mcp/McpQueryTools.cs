@@ -677,6 +677,186 @@ namespace StingTools.Mcp
             public readonly List<long> IncompleteIds = new List<long>();
         }
 
+        // ── get_rooms ────────────────────────────────────────────────────────────
+
+        public static McpCallResult GetRooms(JObject args)
+        {
+            return McpJobBridge.Run(uiApp =>
+            {
+                var g = Guard(uiApp, out UIDocument _, out Document doc);
+                if (g != null) return g;
+
+                string filter = args["filter"]?.Value<string>()?.Trim();
+                int    limit  = args["limit"]?.Value<int?>() ?? 50;
+                string cursor = args["cursor"]?.Value<string>();
+
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => string.IsNullOrEmpty(filter) ||
+                                (r.Name?.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                                (SafeRoomNumber(r).IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+                    .OrderBy(SafeRoomNumber)
+                    .ToList();
+
+                int placed = rooms.Count(r => { try { return r.Area > 1e-6; } catch { return false; } });
+                var (total, page, nextCursor, offset) = Paginate(rooms, limit, cursor);
+
+                var list = page.Select(r => (object)new Dictionary<string, object>
+                {
+                    ["id"]     = r.Id.Value,
+                    ["name"]   = SafeName(r),
+                    ["number"] = SafeRoomNumber(r),
+                    ["areaM2"] = RoomAreaM2(r),
+                    ["level"]  = SafeLevel(doc, r),
+                }).ToList();
+
+                var data = new Dictionary<string, object>
+                {
+                    ["total"]      = total,
+                    ["placed"]     = placed,
+                    ["returned"]   = page.Count,
+                    ["offset"]     = offset,
+                    ["nextCursor"] = nextCursor,
+                    ["rooms"]      = list,
+                };
+                return McpJobResult.Success(
+                    $"{total} room(s) ({placed} placed); showing {page.Count} from offset {offset}" +
+                    (nextCursor != null ? $" (more — cursor '{nextCursor}')" : "") + ".", data);
+            }).ToCallResult();
+        }
+
+        // ── get_levels ───────────────────────────────────────────────────────────
+
+        public static McpCallResult GetLevels()
+        {
+            return McpJobBridge.Run(uiApp =>
+            {
+                var g = Guard(uiApp, out UIDocument _, out Document doc);
+                if (g != null) return g;
+
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+
+                double Mm(double ft) => Math.Round(UnitUtils.ConvertFromInternalUnits(ft, UnitTypeId.Millimeters), 1);
+                var list = levels.Select(l => (object)new Dictionary<string, object>
+                {
+                    ["id"]          = l.Id.Value,
+                    ["name"]        = l.Name,
+                    ["elevationMm"] = Mm(l.Elevation),
+                }).ToList();
+
+                var data = new Dictionary<string, object> { ["total"] = levels.Count, ["levels"] = list };
+                return McpJobResult.Success($"{levels.Count} level(s).", data);
+            }).ToCallResult();
+        }
+
+        // ── get_grids ────────────────────────────────────────────────────────────
+
+        public static McpCallResult GetGrids()
+        {
+            return McpJobBridge.Run(uiApp =>
+            {
+                var g = Guard(uiApp, out UIDocument _, out Document doc);
+                if (g != null) return g;
+
+                var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>()
+                    .OrderBy(gr => gr.Name).ToList();
+
+                var list = grids.Select(gr =>
+                {
+                    var d = new Dictionary<string, object> { ["id"] = gr.Id.Value, ["name"] = gr.Name };
+                    try
+                    {
+                        Curve c = gr.Curve;
+                        if (c != null && c.IsBound)
+                        {
+                            d["start"] = XyzMm(c.GetEndPoint(0));
+                            d["end"]   = XyzMm(c.GetEndPoint(1));
+                            d["shape"] = c is Arc ? "arc" : "line";
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"get_grids curve: {ex.Message}"); }
+                    return (object)d;
+                }).ToList();
+
+                var data = new Dictionary<string, object> { ["total"] = grids.Count, ["grids"] = list };
+                return McpJobResult.Success($"{grids.Count} grid(s).", data);
+            }).ToCallResult();
+        }
+
+        // ── get_warnings ─────────────────────────────────────────────────────────
+
+        public static McpCallResult GetWarnings(JObject args)
+        {
+            return McpJobBridge.Run(uiApp =>
+            {
+                var g = Guard(uiApp, out UIDocument _, out Document doc);
+                if (g != null) return g;
+
+                int limit = args["limit"]?.Value<int?>() ?? 100;
+                if (limit <= 0) limit = 100;
+                if (limit > 500) limit = 500;
+
+                IList<FailureMessage> warnings;
+                try { warnings = doc.GetWarnings(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"get_warnings: {ex.Message}");
+                    return McpJobResult.Error("exception", $"Could not read warnings: {ex.Message}");
+                }
+
+                int total = warnings.Count;
+                var byDesc = new Dictionary<string, int>();
+                foreach (var w in warnings)
+                {
+                    string d = SafeDesc(w);
+                    byDesc[d] = byDesc.TryGetValue(d, out int c) ? c + 1 : 1;
+                }
+
+                var list = warnings.Take(limit).Select(w => (object)new Dictionary<string, object>
+                {
+                    ["description"] = SafeDesc(w),
+                    ["severity"]    = SafeSeverity(w),
+                    ["elementIds"]  = SafeFailingIds(w),
+                }).ToList();
+
+                var data = new Dictionary<string, object>
+                {
+                    ["total"]     = total,
+                    ["returned"]  = list.Count,
+                    ["truncated"] = total > limit,
+                    ["topTypes"]  = byDesc.OrderByDescending(k => k.Value).Take(15).ToDictionary(k => k.Key, k => k.Value),
+                    ["warnings"]  = list,
+                };
+                return McpJobResult.Success(
+                    $"{total} model warning(s)" + (total > limit ? $" (showing first {limit})" : "") + ".", data);
+            }).ToCallResult();
+        }
+
+        private static string SafeRoomNumber(Autodesk.Revit.DB.Architecture.Room r)
+        {
+            try { return r.Number ?? ""; } catch { return ""; }
+        }
+        private static double RoomAreaM2(Autodesk.Revit.DB.Architecture.Room r)
+        {
+            try { return Math.Round(UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters), 2); }
+            catch { return 0; }
+        }
+        private static string SafeDesc(FailureMessage w)
+        {
+            try { return w.GetDescriptionText() ?? ""; } catch { return ""; }
+        }
+        private static string SafeSeverity(FailureMessage w)
+        {
+            try { return w.GetSeverity().ToString(); } catch { return ""; }
+        }
+        private static List<long> SafeFailingIds(FailureMessage w)
+        {
+            try { return w.GetFailingElements().Select(i => i.Value).Take(25).ToList(); }
+            catch { return new List<long>(); }
+        }
+
         // ── shared guard + readers ───────────────────────────────────────────────
 
         /// <summary>License + document guard used by every job. Returns a typed error

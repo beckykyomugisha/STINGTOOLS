@@ -111,6 +111,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("discipline")]  public string Discipline { get; set; } = "*";
         [JsonProperty("phase")]       public string Phase { get; set; } = "*";
 
+        /// <summary>
+        /// P4 — MEP system / service code for this profile (STING SysMap
+        /// vocabulary: DCW, DHW, LTHW, HVAC, LV, LTG, MGPS…). Deterministic
+        /// per-profile value that flows into the <c>{sys}</c> token, so an MEP
+        /// design sheet carries its system in the title-block SYSTEM cell (and
+        /// optionally its number/name). Null for arch/struct/non-MEP profiles;
+        /// a null/empty value collapses cleanly (blank cell, no stray tokens).
+        /// </summary>
+        [JsonProperty("system", NullValueHandling = NullValueHandling.Ignore)]
+        public string System { get; set; }
+
         // Sheet
         [JsonProperty("paperSize")]        public string PaperSize { get; set; } = "A1";
         [JsonProperty("titleBlockFamily")] public string TitleBlockFamily { get; set; }
@@ -424,8 +435,24 @@ namespace StingTools.Core.Drawing
 
     // ─────────────────────────────────────────────────────────────────────
     //  SLOT — where a view of a given ViewType lands on the sheet.
-    //  Coordinates are fractions of the drawable zone (0..1) so the same
-    //  DrawingType works across A1 / A2 / A3 title blocks without edits.
+    //
+    //  Two ways to place a slot, resolved by SheetPlacementBridge in this
+    //  precedence order (P1 — unified slot model):
+    //
+    //    1. PurposeTag  — join into the live title-block family's own slot
+    //                     grid (TitleBlockSpec.SlotSpec.purposeTag). This is
+    //                     the SINGLE source of truth for where views land:
+    //                     the family's real drawing zones drive placement,
+    //                     not an independent guess. Semantic + stable across
+    //                     A1 / A0 / A3 (all expose "main-plan", "key-plan"…).
+    //    2. SlotRef     — join by exact family slot id ("S01", "KP"…) when a
+    //                     specific positional pocket is wanted.
+    //    3. normX/Y/W/H — legacy fallback: fractions (0..1) of the drawable
+    //                     zone, subdividing the title-block bounding box. Used
+    //                     when neither PurposeTag nor SlotRef resolves against
+    //                     the family, so historic profiles keep working
+    //                     unchanged.
+    //
     //  DrawingSlot is a superset of the existing Docs/TemplateViewSlot;
     //  future work folds SheetTemplateEngine into this engine.
     // ─────────────────────────────────────────────────────────────────────
@@ -434,6 +461,34 @@ namespace StingTools.Core.Drawing
     {
         [JsonProperty("label")]    public string Label { get; set; }
         [JsonProperty("viewType")] public string ViewType { get; set; } // Plan | Section | Elevation | 3D | ISO | Schedule | Legend | RCP | Detail
+
+        /// <summary>
+        /// P1 — preferred join key. Matches a <c>TitleBlockSpec.SlotSpec.purposeTag</c>
+        /// on the live title-block family placed on the sheet (e.g. "main-plan",
+        /// "key-plan", "quad-top-left"). When it resolves, placement uses the
+        /// family's own slot bounds — the one source of truth — and the
+        /// <c>norm*</c> fractions below are ignored. Exact match first, then the
+        /// alias chain in STING_VIEWPORT_PLACEMENT_RULES.json. Null / unmatched
+        /// falls back to <see cref="SlotRef"/> then <c>norm*</c>.
+        /// </summary>
+        [JsonProperty("purposeTag", NullValueHandling = NullValueHandling.Ignore)]
+        public string PurposeTag { get; set; }
+
+        /// <summary>
+        /// P1 — secondary join key. Matches a <c>TitleBlockSpec.SlotSpec.id</c>
+        /// ("S01", "KP"…) exactly. Use to pin a specific family pocket when the
+        /// semantic <see cref="PurposeTag"/> is ambiguous. Null / unmatched
+        /// falls back to <c>norm*</c>.
+        /// </summary>
+        [JsonProperty("slotRef", NullValueHandling = NullValueHandling.Ignore)]
+        public string SlotRef { get; set; }
+
+        // P12.E — norm* fractions and TitleBlockSpec.SlotSpec.FracAnchor/FracSize
+        // share IDENTICAL semantics: both are 0..1 fractions of the title-block
+        // family's ONE drawable rect (TitleBlockSpec.Drawable), resolved the same
+        // way by SheetPlacementBridge. A slot therefore lands in the same place
+        // regardless of which POCO declares it. (Legacy families with no drawable
+        // rect fall back to the historic title-block-bbox−25 mm frame.)
         [JsonProperty("normX")]    public double NormX { get; set; }
         [JsonProperty("normY")]    public double NormY { get; set; }
         [JsonProperty("normW")]    public double NormW { get; set; }

@@ -1270,6 +1270,7 @@
         {
           "label": "Main Plan",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.75,
@@ -1457,6 +1458,7 @@
         {
           "label": "Plan 3D Overlay",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -3450,6 +3452,7 @@
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
+      "system": "HVAC",
       "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3576,6 +3579,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3776,6 +3780,7 @@
     },
     {
       "id": "elec-power-A1-1to100",
+      "system": "LV",
       "name": "Electrical Power Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3886,6 +3891,7 @@
         "revision": "P01"
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3910,6 +3916,7 @@
     },
     {
       "id": "elec-lighting-A1-1to100",
+      "system": "LTG",
       "name": "Lighting Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -4013,6 +4020,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -7848,6 +7856,7 @@
     },
     {
       "id": "health-medgas-pln-A1-1to100",
+      "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
@@ -7887,6 +7896,7 @@
         }
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9146,6 +9156,7 @@
     },
     {
       "id": "plumb-dcw-schematic-A1-NTS",
+      "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9158,7 +9169,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DCW-{seq:D3}",
-      "sheetNamePattern": "DCW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9182,6 +9193,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9207,6 +9219,7 @@
     },
     {
       "id": "plumb-dhw-schematic-A1-NTS",
+      "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9219,7 +9232,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DHW-{seq:D3}",
-      "sheetNamePattern": "DHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9243,6 +9256,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9268,6 +9282,7 @@
     },
     {
       "id": "plumb-lthw-schematic-A1-NTS",
+      "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9280,7 +9295,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-LTHW-{seq:D3}",
-      "sheetNamePattern": "LTHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9304,6 +9319,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9817,6 +9833,137 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
+    },
+    {
+      "id": "mech-equip-schedule-A3",
+      "name": "Mechanical Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "M",
+      "system": "HVAC",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "M-SCH-EQ-{seq:D2}",
+      "sheetNamePattern": "MECHANICAL EQUIPMENT SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Mechanical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Level",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP mechanical-equipment schedule (AHU / FCU / VAV / chiller / boiler / pump). The producer emits a ViewSchedule of category Mechanical Equipment with the listed fields; unknown fields are skipped."
+    },
+    {
+      "id": "elec-panel-schedule-A3",
+      "name": "Electrical Panel / Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "E-SCH-PNL-{seq:D2}",
+      "sheetNamePattern": "ELECTRICAL PANEL SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Electrical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Panel",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP electrical panel / equipment schedule (distribution boards, panels, MCCBs). The producer emits a ViewSchedule of category Electrical Equipment; unknown fields are skipped."
+    },
+    {
+      "id": "valve-schedule-A3",
+      "name": "Valve Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "P",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "sheetNumberPattern": "P-SCH-VLV-{seq:D2}",
+      "sheetNamePattern": "VALVE SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Pipe Accessories",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Size",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped."
     }
   ],
   "routing": [
@@ -10475,6 +10622,24 @@
       "phase": "*",
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "MECH_EQUIP_SCHEDULE",
+      "drawingTypeId": "mech-equip-schedule-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ELEC_PANEL_SCHEDULE",
+      "drawingTypeId": "elec-panel-schedule-A3"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "VALVE_SCHEDULE",
+      "drawingTypeId": "valve-schedule-A3"
     }
   ]
 }

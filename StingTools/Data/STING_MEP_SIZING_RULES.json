@@ -186,7 +186,10 @@
   "conduit": {
     "_defaultRegion": "UK_SI",
     "maxFillPct": 45,
-    "source": "BS 7671 522.8 single circuit; NEC Ch 9 Table 1 for US_IP"
+    "sleeveStubSizeMm": 20,
+    "sleeveStubLengthMm": 150,
+    "source": "BS 7671 522.8 single circuit; NEC Ch 9 Table 1 for US_IP",
+    "_sleeveStubNote": "SleeveConnectorEngine authors a stub of sleeveStubSizeMm diameter x sleeveStubLengthMm long on manufacturer fixtures lacking a conduit connector, leaving a free CableTrayConduit terminal for AutoConduitDrop to extend."
   },
 
   "cableTray": {

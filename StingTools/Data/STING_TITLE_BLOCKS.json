@@ -9,6 +9,7 @@
       "abstract": true,
       "description": "A1 landscape working sheet \u2014 common base shared between BIM and NONBIM variants. Parameter set per TITLE_BLOCK_FAMILY_DESIGN.md \u00a72.1 \u2014 Group A (project / originator / consultants / contractor identity + addresses) + Group C (authoring drawn/checked/approved). Defines the bottom-strip layout, outer border, and the 8 viewport slots. Concrete variants extend this and overlay BIM-specific or NONBIM-specific cells.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "drawable": { "x": 10, "y": 120, "w": 810, "h": 470, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -255,6 +256,12 @@
           "instance": false,
           "group": "IdentityData",
           "default": "v2.0"
+        },
+        {
+          "name": "PRJ_SHEET_SYSTEM_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -547,7 +554,8 @@
             204,
             56
           ],
-          "size": 1.2
+          "size": 1.2,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -612,6 +620,15 @@
             69
           ],
           "size": 1.0
+        },
+        {
+          "text": "SYSTEM",
+          "anchor": [
+            300,
+            56
+          ],
+          "size": 1.2,
+          "id": "cap_SYSTEM"
         }
       ],
       "labels": [
@@ -763,7 +780,8 @@
           ],
           "size": 1.6,
           "hAlign": "Left",
-          "vAlign": "Middle"
+          "vAlign": "Middle",
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -884,6 +902,17 @@
           "size": 1.0,
           "hAlign": "Left",
           "vAlign": "Middle"
+        },
+        {
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            300,
+            50
+          ],
+          "size": 1.6,
+          "hAlign": "Left",
+          "vAlign": "Middle",
+          "id": "lbl_SYSTEM"
         }
       ],
       "filledRegions": [],
@@ -898,6 +927,8 @@
             810,
             470
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [1.0, 1.0],
           "purposeTag": "main-plan",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -915,6 +946,8 @@
             400,
             470
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [0.493827, 1.0],
           "purposeTag": "main-plan-half-left",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -932,6 +965,8 @@
             400,
             470
           ],
+          "fracAnchor": [0.506173, 0.0],
+          "fracSize": [0.493827, 1.0],
           "purposeTag": "main-plan-half-right",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -949,6 +984,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.0, 0.0],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-bottom-left",
           "scaleHint": 200,
           "description": "Bottom-left quadrant \u2014 4-up grid",
@@ -965,6 +1002,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.506173, 0.0],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-bottom-right",
           "scaleHint": 200,
           "description": "Bottom-right quadrant \u2014 4-up grid",
@@ -981,6 +1020,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.0, 0.510638],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-top-left",
           "scaleHint": 200,
           "description": "Top-left quadrant \u2014 4-up grid",
@@ -997,6 +1038,8 @@
             400,
             230
           ],
+          "fracAnchor": [0.506173, 0.510638],
+          "fracSize": [0.493827, 0.489362],
           "purposeTag": "quad-top-right",
           "scaleHint": 200,
           "description": "Top-right quadrant \u2014 4-up grid",
@@ -1013,6 +1056,8 @@
             120,
             100
           ],
+          "fracAnchor": [0.839506, 0.021277],
+          "fracSize": [0.148148, 0.212766],
           "purposeTag": "key-plan",
           "scaleHint": 500,
           "description": "Key-plan pocket \u2014 small location overview",
@@ -1911,6 +1956,7 @@
       "extends": "A1_common_v2.0",
       "description": "A0 landscape working sheet (1189 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 1169 \u00d7 696 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
+      "drawable": { "x": 10, "y": 135, "w": 1169, "h": 701, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -2214,7 +2260,8 @@
             265,
             67.5
           ],
-          "size": 1.17
+          "size": 1.17,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -2285,6 +2332,15 @@
           "anchor": [
             1026,
             35.0
+          ],
+          "size": 1.17
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            382,
+            67.5
           ],
           "size": 1.17
         }
@@ -2408,7 +2464,8 @@
             265,
             61.4
           ],
-          "size": 1.3
+          "size": 1.3,
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -2473,6 +2530,17 @@
             25.0
           ],
           "size": 1.3
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            382,
+            61.4
+          ],
+          "size": 1.3,
+          "hAlign": "Left",
+          "vAlign": "Middle"
         }
       ],
       "filledRegions": [],
@@ -3373,6 +3441,7 @@
       "extends": "A1_common_v2.0",
       "description": "A0 portrait working sheet (841 \u00d7 1189 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 821 \u00d7 1044 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
+      "drawable": { "x": 10, "y": 135, "w": 821, "h": 1049, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -3676,7 +3745,8 @@
             188,
             67.5
           ],
-          "size": 1.17
+          "size": 1.17,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -3747,6 +3817,15 @@
           "anchor": [
             726,
             35.0
+          ],
+          "size": 1.17
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            270,
+            67.5
           ],
           "size": 1.17
         }
@@ -3870,7 +3949,8 @@
             188,
             61.4
           ],
-          "size": 1.3
+          "size": 1.3,
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -3935,6 +4015,17 @@
             25.0
           ],
           "size": 1.3
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            270,
+            61.4
+          ],
+          "size": 1.3,
+          "hAlign": "Left",
+          "vAlign": "Middle"
         }
       ],
       "filledRegions": [],
@@ -5641,6 +5732,7 @@
       "extends": "A1_common_v2.0",
       "description": "A1 portrait working sheet (594 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 574 \u00d7 716 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "drawable": { "x": 10, "y": 115, "w": 574, "h": 721, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -5944,7 +6036,8 @@
             133,
             57.50000000000001
           ],
-          "size": 0.9
+          "size": 0.9,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -6015,6 +6108,15 @@
           "anchor": [
             513,
             30.0
+          ],
+          "size": 0.9
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            191,
+            57.5
           ],
           "size": 0.9
         }
@@ -6138,7 +6240,8 @@
             133,
             51.8
           ],
-          "size": 1.0
+          "size": 1.0,
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -6203,6 +6306,17 @@
             21.0
           ],
           "size": 1.0
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            191,
+            51.8
+          ],
+          "size": 1.0,
+          "hAlign": "Left",
+          "vAlign": "Middle"
         }
       ],
       "filledRegions": [],
@@ -7103,6 +7217,7 @@
       "extends": "A1_common_v2.0",
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 400 \u00d7 212 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": { "x": 10, "y": 75, "w": 400, "h": 217, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -7406,7 +7521,8 @@
             94,
             35.5
           ],
-          "size": 0.63
+          "size": 0.63,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -7477,6 +7593,15 @@
           "anchor": [
             363,
             18.0
+          ],
+          "size": 0.63
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            135,
+            35.5
           ],
           "size": 0.63
         }
@@ -7600,7 +7725,8 @@
             94,
             32.6
           ],
-          "size": 0.7
+          "size": 0.7,
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -7665,6 +7791,17 @@
             13.0
           ],
           "size": 0.7
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            135,
+            32.6
+          ],
+          "size": 0.7,
+          "hAlign": "Left",
+          "vAlign": "Middle"
         }
       ],
       "filledRegions": [],
@@ -8491,6 +8628,7 @@
       "extends": "A1_common_v2.0",
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 277 \u00d7 335 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": { "x": 10, "y": 75, "w": 277, "h": 340, "marginMm": 25 },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -8794,7 +8932,8 @@
             67,
             35.5
           ],
-          "size": 0.63
+          "size": 0.63,
+          "id": "cap_DISCIPLINE"
         },
         {
           "text": "RIBA STAGE",
@@ -8865,6 +9004,15 @@
           "anchor": [
             257,
             18.0
+          ],
+          "size": 0.63
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            96,
+            35.5
           ],
           "size": 0.63
         }
@@ -8988,7 +9136,8 @@
             67,
             32.6
           ],
-          "size": 0.7
+          "size": 0.7,
+          "id": "lbl_DISCIPLINE"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
@@ -9053,6 +9202,17 @@
             13.0
           ],
           "size": 0.7
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            96,
+            32.6
+          ],
+          "size": 0.7,
+          "hAlign": "Left",
+          "vAlign": "Middle"
         }
       ],
       "filledRegions": [],
@@ -9929,6 +10089,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -10450,7 +10640,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -10466,7 +10656,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -10474,7 +10664,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -10482,7 +10672,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -10490,7 +10680,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -10667,6 +10857,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -11188,7 +11408,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -11204,7 +11424,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -11212,7 +11432,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -11220,7 +11440,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -11228,7 +11448,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -11405,6 +11625,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -11926,7 +12176,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -11942,7 +12192,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -11950,7 +12200,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -11958,7 +12208,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -11966,7 +12216,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62
@@ -12143,6 +12393,36 @@
           "instance": true,
           "group": "IdentityData",
           "default": "FAB"
+        },
+        {
+          "name": "ASS_SPOOL_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_WEIGHT_KG",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_LOC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_FAB_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "ASS_BOM_REV_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -12664,7 +12944,7 @@
       ],
       "labels": [
         {
-          "param": "PRJ_TB_VARIANT_TXT",
+          "param": "ASS_SPOOL_NR_TXT",
           "anchor": [
             4,
             62
@@ -12680,7 +12960,7 @@
           "size": 1.6
         },
         {
-          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "param": "ASS_WEIGHT_KG",
           "anchor": [
             204,
             22.0
@@ -12688,7 +12968,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "ASS_FAB_LOC_TXT",
           "anchor": [
             404,
             62
@@ -12696,7 +12976,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "param": "ASS_FAB_STATUS_TXT",
           "anchor": [
             404,
             22.0
@@ -12704,7 +12984,7 @@
           "size": 1.4
         },
         {
-          "param": "PRJ_TB_REVISION_NR_TXT",
+          "param": "ASS_BOM_REV_TXT",
           "anchor": [
             564,
             62

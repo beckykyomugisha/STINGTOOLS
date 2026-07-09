@@ -437,7 +437,9 @@ namespace StingTools.Core.Fabrication
                 if (tbInst != null)
                 {
                     TrySetString(tbInst, AssyParams.SPOOL_NR_TXT,    spool);
-                    TrySetString(tbInst, AssyParams.WEIGHT_KG,       ReadString(ai, AssyParams.WEIGHT_KG));
+                    // WEIGHT_KG is a NUMBER param — the String path in TrySetString
+                    // silently skips it, so read + write it numerically.
+                    TrySetNumeric(tbInst, AssyParams.WEIGHT_KG,      ReadDouble(ai, AssyParams.WEIGHT_KG));
                     TrySetString(tbInst, AssyParams.FAB_LOC_TXT,     ReadString(ai, AssyParams.FAB_LOC_TXT));
                     TrySetString(tbInst, AssyParams.FAB_STATUS_TXT,  ReadString(ai, AssyParams.FAB_STATUS_TXT));
                     TrySetString(tbInst, AssyParams.BOM_REV_TXT,     ReadString(ai, AssyParams.BOM_REV_TXT));
@@ -702,6 +704,40 @@ namespace StingTools.Core.Fabrication
             catch (Exception ex)
             {
                 StingLog.Warn($"ShopDrawingComposer.TrySetString({param}) on {el?.Id}: {ex.Message}");
+            }
+        }
+
+        /// <summary>Read a NUMBER (Double-storage) parameter as a nullable double.
+        /// Returns null when the param is missing or not numeric.</summary>
+        private static double? ReadDouble(Element el, string param)
+        {
+            try
+            {
+                var p = el?.LookupParameter(param);
+                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
+            }
+            catch (Exception ex) { StingLog.Warn($"ShopDrawingComposer.ReadDouble({param}): {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Set a numeric value onto a param, handling both a NUMBER
+        /// (Double) target and a legacy TEXT target. No-op when val is null or
+        /// the param is missing/read-only. Fixes the WEIGHT_KG cell that the
+        /// String-only TrySetString silently skipped.</summary>
+        private static void TrySetNumeric(Element el, string param, double? val)
+        {
+            if (val == null) return;
+            try
+            {
+                var p = el.LookupParameter(param);
+                if (p == null || p.IsReadOnly) return;
+                if (p.StorageType == StorageType.Double) p.Set(val.Value);
+                else if (p.StorageType == StorageType.String)
+                    p.Set(val.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer.TrySetNumeric({param}) on {el?.Id}: {ex.Message}");
             }
         }
 

@@ -45,6 +45,14 @@ namespace StingTools.Core
         private string _claudeKey;
         private string _claudeModel;
         private bool   _enabled;
+        private string _provider;          // "claude" | "azure" — which provider to prefer
+        private int    _timeoutSeconds = 10;
+
+        /// <summary>The Claude model id currently configured (for transcripts / display). Never a secret.</summary>
+        public string ActiveModel => string.IsNullOrWhiteSpace(_claudeModel) ? "claude-haiku-4-5-20251001" : _claudeModel;
+
+        /// <summary>The preferred provider ("claude" | "azure"). Never a secret.</summary>
+        public string ActiveProvider => string.IsNullOrWhiteSpace(_provider) ? "claude" : _provider;
 
         // Valid command tags — LLM output is rejected unless it is in this whitelist
         private static readonly HashSet<string> _commandWhitelist = BuildWhitelist();
@@ -69,11 +77,37 @@ namespace StingTools.Core
                 _azureKey       = cfg["azure_api_key"]?.Value<string>();
                 _claudeKey      = cfg["claude_api_key"]?.Value<string>();
                 _claudeModel    = cfg["claude_model"]?.Value<string>()        ?? "claude-haiku-4-5-20251001";
+
+                // Provider preference (explicit key wins; otherwise inferred from which
+                // credentials are present) — keeps the settings-dialog radio meaningful
+                // without deleting the other provider's saved credentials.
+                _provider = cfg["provider"]?.Value<string>()?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(_provider))
+                    _provider = !string.IsNullOrWhiteSpace(_claudeKey) ? "claude"
+                              : (!string.IsNullOrWhiteSpace(_azureEndpoint) && !string.IsNullOrWhiteSpace(_azureKey)) ? "azure"
+                              : "claude";
+
+                int t = cfg["timeout_seconds"]?.Value<int?>() ?? 10;
+                _timeoutSeconds = t > 0 ? t : 10;
+                // HttpClient.Timeout can only be set before the first request; on a live
+                // reload it may throw — swallow it (the message carries no secret).
+                try { _http.Timeout = TimeSpan.FromSeconds(_timeoutSeconds); }
+                catch (Exception tex) { StingLog.Warn($"LLM timeout not applied (request already in flight): {tex.Message}"); }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"LLM config load failed (offline mode): {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Re-read STING_LLM_CONFIG.json so a save from the settings dialog takes effect
+        /// without restarting Revit. Never logs credential values.
+        /// </summary>
+        public void ReloadConfig()
+        {
+            LoadConfig();
+            StingLog.Info($"LLM config reloaded (enabled={_enabled}, provider={_provider}, model={_claudeModel}).");
         }
 
         // ── 1. Design brief parser ────────────────────────────────────────────
@@ -147,33 +181,98 @@ namespace StingTools.Core
         {
             if (!_enabled) return null; // LLM disabled in config — rule-based fallback handles this
 
-            // Try Azure OpenAI first
-            if (!string.IsNullOrEmpty(_azureEndpoint) && !string.IsNullOrEmpty(_azureKey))
-            {
-                try
-                {
-                    return await CallAzureOpenAiAsync(userPrompt, systemPrompt);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Azure OpenAI failed, trying Claude fallback: {ex.Message}");
-                }
-            }
+            bool azureReady  = !string.IsNullOrEmpty(_azureEndpoint) && !string.IsNullOrEmpty(_azureKey);
+            bool claudeReady = !string.IsNullOrEmpty(_claudeKey);
+            bool preferAzure = string.Equals(_provider, "azure", StringComparison.OrdinalIgnoreCase);
 
-            // Try Claude API
-            if (!string.IsNullOrEmpty(_claudeKey))
+            // Try the preferred provider first, then fall back to the other.
+            foreach (bool tryAzure in preferAzure ? new[] { true, false } : new[] { false, true })
             {
-                try
+                if (tryAzure && azureReady)
                 {
-                    return await CallClaudeAsync(userPrompt, systemPrompt);
+                    try { return await CallAzureOpenAiAsync(userPrompt, systemPrompt); }
+                    catch (Exception ex) { StingLog.Warn($"Azure OpenAI failed: {ex.Message}"); }
                 }
-                catch (Exception ex)
+                else if (!tryAzure && claudeReady)
                 {
-                    StingLog.Warn($"Claude API failed: {ex.Message}");
+                    try { return await CallClaudeAsync(userPrompt, systemPrompt); }
+                    catch (Exception ex) { StingLog.Warn($"Claude API failed: {ex.Message}"); }
                 }
             }
 
             return null; // Both unavailable — caller uses offline fallback
+        }
+
+        // ── Test connection (settings dialog) ─────────────────────────────────
+        //
+        // Sends a trivial prompt using the values PASSED IN (the dialog's current
+        // fields, not the saved config) so the user can verify before saving. Never
+        // logs the key — only the exception type + message (which carry no secret).
+
+        public async Task<(bool ok, string message)> TestConnectionAsync(
+            bool useClaude, string claudeKey, string claudeModel,
+            string azureEndpoint, string azureKey, string azureDeployment)
+        {
+            try
+            {
+                if (useClaude)
+                {
+                    if (string.IsNullOrWhiteSpace(claudeKey))
+                        return (false, "No Claude API key entered.");
+
+                    string model = string.IsNullOrWhiteSpace(claudeModel) ? "claude-haiku-4-5-20251001" : claudeModel;
+                    var body = new
+                    {
+                        model,
+                        max_tokens = 16,
+                        messages = new[] { new { role = "user", content = "Reply with the single word OK." } }
+                    };
+                    var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                    req.Headers.Add("x-api-key", claudeKey);
+                    req.Headers.Add("anthropic-version", "2023-06-01");
+                    req.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                    var resp = await _http.SendAsync(req);
+                    string json = await resp.Content.ReadAsStringAsync();
+                    if (!resp.IsSuccessStatusCode)
+                        return (false, $"Claude API {(int)resp.StatusCode}: {ExtractApiError(json) ?? "request failed"}");
+                    string text = JObject.Parse(json)["content"]?[0]?["text"]?.Value<string>();
+                    return (true, $"Claude ({model}) responded: {(text ?? "OK").Trim()}");
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(azureEndpoint) || string.IsNullOrWhiteSpace(azureKey))
+                        return (false, "Azure endpoint and API key are required.");
+
+                    string dep = string.IsNullOrWhiteSpace(azureDeployment) ? "gpt-4o-mini" : azureDeployment;
+                    string url = $"{azureEndpoint.TrimEnd('/')}/openai/deployments/{dep}/chat/completions?api-version=2024-02-01";
+                    var body = new
+                    {
+                        messages = new[] { new { role = "user", content = "Reply with the single word OK." } },
+                        max_tokens = 16,
+                        temperature = 0.0
+                    };
+                    var req = new HttpRequestMessage(HttpMethod.Post, url);
+                    req.Headers.Add("api-key", azureKey);
+                    req.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                    var resp = await _http.SendAsync(req);
+                    string json = await resp.Content.ReadAsStringAsync();
+                    if (!resp.IsSuccessStatusCode)
+                        return (false, $"Azure OpenAI {(int)resp.StatusCode}: {ExtractApiError(json) ?? "request failed"}");
+                    string text = JObject.Parse(json)["choices"]?[0]?["message"]?["content"]?.Value<string>();
+                    return (true, $"Azure ({dep}) responded: {(text ?? "OK").Trim()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LLM test connection failed: {ex.GetType().Name}: {ex.Message}");
+                return (false, $"Connection failed: {ex.Message}");
+            }
+        }
+
+        private static string ExtractApiError(string json)
+        {
+            try { return JObject.Parse(json)["error"]?["message"]?.Value<string>(); }
+            catch { return null; }
         }
 
         private async Task<string> CallAzureOpenAiAsync(string userPrompt, string systemPrompt)
@@ -232,10 +331,16 @@ namespace StingTools.Core
         private const string CopilotSystemPrompt =
             "You are the StingTools assistant inside Revit. You control a Revit BIM model through " +
             "tools. Use search_capabilities to discover commands and describe_capability to understand " +
-            "them. Prefer the Tier-1 read tools (query_elements, get_element, get_compliance, " +
-            "run_validator, get_model_info) to answer questions. For ANY write/mutation, ALWAYS call " +
-            "the tool with dryRun:true first, show the user the projected plan, and run for real only " +
-            "after the user confirms. NEVER claim a write happened unless the read-back confirms it — " +
+            "them. Prefer the Tier-1 read tools (query_elements, get_element, get_rooms, get_levels, " +
+            "get_grids, get_warnings, get_compliance, run_validator, get_model_info) to answer questions. " +
+            "You can also CREATE model geometry: create_wall, create_floor, create_floor_in_room, " +
+            "create_roof, create_duct, create_pipe, create_room, place_family, and building_shell. " +
+            "ALL coordinates and dimensions passed to create tools are in MILLIMETRES. " +
+            "For ANY write, mutation, or creation, ALWAYS call the tool with dryRun:true first, show the " +
+            "user the projected plan, and run for real only after the user confirms. building_shell (and " +
+            "any multi-element create) additionally requires confirm:true on the real run. When a create " +
+            "tool reports an unknown type/level/family (bad_args), read the listed options and pick a valid " +
+            "one or ask the user. NEVER claim a write/create happened unless the read-back confirms it — " +
             "watch for noWritesPersisted and typeScopeWrites in results and report them honestly. " +
             "Be concise; answer in plain English.";
 
@@ -254,11 +359,13 @@ namespace StingTools.Core
         /// write that returned needs_confirmation; returns true to proceed. May be null.
         /// </param>
         /// <param name="onToolStart">Optional progress callback fired with each tool name before it runs.</param>
+        /// <param name="onToolResult">Optional callback fired with (toolName, compactResultSummary) after each tool runs — for chat activity transparency.</param>
         public async Task<CopilotTurn> RunCopilotTurnAsync(
             List<CopilotMessage> conversation,
             CancellationToken ct,
             Func<string, bool> confirmCallback = null,
-            Action<string> onToolStart = null)
+            Action<string> onToolStart = null,
+            Action<string, string> onToolResult = null)
         {
             var turn = new CopilotTurn { ToolsUsed = new List<string>() };
 
@@ -284,7 +391,7 @@ namespace StingTools.Core
 
             try
             {
-                return await RunClaudeToolLoopAsync(conversation, ct, confirmCallback, onToolStart);
+                return await RunClaudeToolLoopAsync(conversation, ct, confirmCallback, onToolStart, onToolResult);
             }
             catch (OperationCanceledException)
             {
@@ -305,9 +412,18 @@ namespace StingTools.Core
             List<CopilotMessage> conversation,
             CancellationToken ct,
             Func<string, bool> confirmCallback,
-            Action<string> onToolStart)
+            Action<string> onToolStart,
+            Action<string, string> onToolResult)
         {
             var turn = new CopilotTurn { ToolsUsed = new List<string>() };
+
+            // Context auto-include: read the active view + current selection once so the
+            // model can resolve "this view" / "these" / "here" without the user restating them.
+            string contextPreamble = BuildContextPreamble();
+            string systemPrompt = string.IsNullOrEmpty(contextPreamble)
+                ? CopilotSystemPrompt
+                : CopilotSystemPrompt + "\n\nCurrent Revit context — " + contextPreamble +
+                  " Use these when the user says 'this view', 'these', 'the selection', or 'here'.";
 
             // Build the Anthropic tools array ONCE from the shared registry. Note the
             // registry serialises the schema under "inputSchema"; the Anthropic Messages
@@ -343,7 +459,7 @@ namespace StingTools.Core
                 {
                     ["model"]      = _claudeModel ?? "claude-haiku-4-5-20251001",
                     ["max_tokens"] = 1024,
-                    ["system"]     = CopilotSystemPrompt,
+                    ["system"]     = systemPrompt,
                     ["tools"]      = toolsArr,
                     ["messages"]   = messages,
                 };
@@ -403,6 +519,7 @@ namespace StingTools.Core
                     try { onToolStart?.Invoke(name); } catch { /* progress is best-effort */ }
 
                     var (text, isError) = ExecuteToolWithConfirm(name, input, confirmCallback);
+                    try { onToolResult?.Invoke(name, CompactSummary(text)); } catch { /* transparency is best-effort */ }
 
                     toolResults.Add(new JObject
                     {
@@ -460,6 +577,47 @@ namespace StingTools.Core
         {
             if (result?.Content == null || result.Content.Count == 0) return string.Empty;
             return string.Join("\n", result.Content.Select(c => c?.Text ?? string.Empty));
+        }
+
+        /// <summary>First meaningful line of a tool result (the Summary above the JSON fence), for the chat activity line.</summary>
+        private static string CompactSummary(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "(no result)";
+            int fence = text.IndexOf("```", StringComparison.Ordinal);
+            string head = (fence > 0 ? text.Substring(0, fence) : text).Trim();
+            string line = head.Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim() ?? "";
+            if (line.Length > 140) line = line.Substring(0, 137) + "…";
+            return string.IsNullOrEmpty(line) ? "(done)" : line;
+        }
+
+        /// <summary>
+        /// Read the active view name + current selection on the Revit API thread (short timeout,
+        /// no mutation) so the Copilot can resolve deictic references. Returns null on any failure.
+        /// </summary>
+        private static string BuildContextPreamble()
+        {
+            try
+            {
+                var r = McpJobBridge.Run(uiApp =>
+                {
+                    var uidoc = uiApp?.ActiveUIDocument;
+                    if (uidoc?.Document == null) return McpJobResult.Success("", null);
+                    string view = uidoc.ActiveView?.Name ?? "(none)";
+                    var sel = uidoc.Selection.GetElementIds();
+                    string selStr = sel.Count == 0
+                        ? "none"
+                        : (sel.Count <= 15
+                            ? string.Join(",", sel.Select(i => i.Value))
+                            : $"{sel.Count} elements (ids: {string.Join(",", sel.Take(15).Select(i => i.Value))}…)");
+                    return McpJobResult.Success($"active view: '{view}'; selection: {selStr}.", null);
+                }, 5000);
+                return (r != null && r.Ok && !string.IsNullOrEmpty(r.Summary)) ? r.Summary : null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Copilot context preamble failed: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
