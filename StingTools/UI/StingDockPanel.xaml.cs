@@ -1118,6 +1118,8 @@ namespace StingTools.UI
         // ══ E3 / E4 / E5 — Tokens & Depth config: capture, apply, presets, per-view, live ══
 
         private bool _suppressLiveApply;
+        private bool _suppressPresetSelect;
+        private bool _presetsInit;
         private System.Windows.Threading.DispatcherTimer _liveTimer;
         private bool _liveWired;
 
@@ -1204,6 +1206,7 @@ namespace StingTools.UI
             try
             {
                 if (!(FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb)) return;
+                _suppressPresetSelect = true;   // clearing/repopulating must not fire recall
                 string sel = ComboSelText("cmbTokenPreset");
                 cb.Items.Clear();
                 foreach (string n in StingTools.Tags.TokenDepthPresets.Names(StingCommandHandler.CurrentDocPath))
@@ -1211,10 +1214,12 @@ namespace StingTools.UI
                 if (sel != null) SelectComboByExact("cmbTokenPreset", sel);
             }
             catch (Exception ex) { StingLog.Warn($"RefreshPresetCombo: {ex.Message}"); }
+            finally { _suppressPresetSelect = false; }
         }
 
         private void OnTokenPresetSelected(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
+            if (_suppressPresetSelect) return;
             try
             {
                 if (!(sender is System.Windows.Controls.ComboBox cb)
@@ -1900,8 +1905,8 @@ namespace StingTools.UI
             {
                 try
                 {
-                    if (FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox)
-                    { WireLiveTokenDepth(); RefreshPresetCombo(); }
+                    if (!_presetsInit && FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox)
+                    { _presetsInit = true; WireLiveTokenDepth(); RefreshPresetCombo(); }
                 }
                 catch { }
             }));
