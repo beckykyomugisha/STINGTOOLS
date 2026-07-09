@@ -4259,6 +4259,19 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
+                                        <!-- PRESETS + LIVE (E3/E5) -->
+                                        <TextBlock Text="PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" IsEditable="True" IsTextSearchEnabled="False" SelectionChanged="OnTokenPresetSelected" ToolTip="Pick a preset to recall it — or type a name and click Save to store the current settings as a project preset"/>
+                                                    <Button Grid.Column="1" Content="Save" Width="50" Height="22" Margin="4,0,0,0" FontSize="9" Click="OnSaveTokenPreset" ToolTip="Save the current controls as a project preset"/>
+                                                </Grid>
+                                                <CheckBox x:Name="chkLiveTokenDepth" Content="Live — apply to active view as I change controls" FontSize="9" Margin="0,4,0,0" ToolTip="When on, mask / separator / pad / order / depth changes apply to the active view automatically (debounced) — no Set depth press."/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- TOKEN SEGMENT VISIBILITY -->
                                         <TextBlock Text="TOKEN SEGMENT VISIBILITY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4287,6 +4300,7 @@
                                                     <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
                                                         <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="01 (2-digit)"/>
                                                         <ComboBoxItem Content="00001 (5-digit)"/>
                                                     </ComboBox>
                                                 </Grid>

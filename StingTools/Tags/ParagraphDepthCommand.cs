@@ -38,6 +38,10 @@ namespace StingTools.Tags
     {
         private const int MaxTier = 10;
 
+        // One-time-per-session guard for the "Label must read ASS_DISPLAY_TXT" hint
+        // shown after the first live display refresh (segment mask / SEQ pad).
+        private static bool _displayHintShown;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -169,6 +173,7 @@ namespace StingTools.Tags
             // (10-entry static array) instead of allocating a fresh array.
             string[] paraNames = ParamRegistry.AllParaStates;
 
+            TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category tier depth
             int updated = 0;
             using (Transaction tx = new Transaction(doc, "STING Set Paragraph Depth"))
             {
@@ -177,15 +182,91 @@ namespace StingTools.Tags
                 {
                     Element typeEl = doc.GetElement(typeId);
                     if (typeEl == null) continue;
+                    // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
+                    // the panel global; otherwise every type gets the global depth.
+                    int effDepth = depth;
+                    var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
+                    if (ov != null && ov.Depth.HasValue)
+                        effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                     bool anySet = false;
                     for (int i = 0; i < MaxTier; i++)
-                    {
-                        bool enabled = (i + 1) <= depth;
-                        anySet |= SetYesNo(typeEl, paraNames[i], enabled);
-                    }
+                        anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
                     if (anySet) updated++;
                 }
                 tx.Commit();
+            }
+
+            // ── Live token-visibility + SEQ zero-pad apply ───────────────────
+            // After tier depth, refresh the on-drawing display (segment mask +
+            // SEQ zero-pad) in the Tokens & Depth scope so pressing "Set depth"
+            // updates placed tags immediately — no Build/ReTag. Display-only:
+            // recomputes ASS_DISPLAY_TXT from the canonical ASS_TAG_1_TXT, never
+            // re-deriving tokens or renumbering SEQ. Only fires on the dock/slider
+            // path so programmatic tier-only callers are unaffected. Scope defaults
+            // to the active view (fast + visible).
+            int displayUpdated = 0;
+            if (sliderPath)
+            {
+                try
+                {
+                    string mask = RefreshTagDisplayCommand.NormalizeMask(
+                        StingCommandHandler.GetExtraParam("TokenMask")) ?? "11111111";
+                    string scopeTok = StingCommandHandler.GetExtraParam("TokenScope");
+                    List<Element> dispScope =
+                        RefreshTagDisplayCommand.CollectScope(doc, uidoc, scopeTok);
+                    int seqPad = TagConfig.EffectiveSeqPad;
+                    using (Transaction txd = new Transaction(doc, "STING Set Depth — Live Display"))
+                    {
+                        txd.Start();
+                        var r = RefreshTagDisplayCommand.RefreshDisplayInScope(doc, dispScope, mask, seqPad);
+                        displayUpdated = r.updated;
+                        txd.Commit();
+                    }
+
+                    // E4: persist this config on the active view so switching away and back
+                    // restores the same tag style (repopulated on ViewActivated).
+                    try
+                    {
+                        View av = doc.ActiveView;
+                        if (av != null)
+                        {
+                            var cfg = new TokenDepthConfig
+                            {
+                                Mask = mask,
+                                Separator = ParamRegistry.Separator,
+                                SeqPad = seqPad,
+                                SegOrder = string.Join("-", ParamRegistry.SegmentOrder),
+                                Depth = depth,
+                                HandoverMode = StingCommandHandler.GetExtraParam("HandoverMode"),
+                                Scope = StingCommandHandler.GetExtraParam("TokenScope")
+                            };
+                            if (string.IsNullOrEmpty(cfg.HandoverMode)) cfg.HandoverMode = "Handover";
+                            if (string.IsNullOrEmpty(cfg.Scope)) cfg.Scope = "View";
+                            TokenDepthViewStore.Save(doc, av.UniqueId, cfg);
+                        }
+                    }
+                    catch (Exception exVs) { StingLog.Warn($"E4 view-config persist: {exVs.Message}"); }
+
+                    if (displayUpdated > 0 && !_displayHintShown)
+                    {
+                        _displayHintShown = true;
+                        StingLog.Info($"Set depth live display: mask/pad applied to {displayUpdated} element(s).");
+                        try
+                        {
+                            TaskDialog.Show("STING — Set depth",
+                                $"Token visibility + SEQ zero-pad applied live to {displayUpdated} tag(s) " +
+                                "in the current scope.\n\n" +
+                                "If a placed tag didn't change, set that tag family's Label to " +
+                                "ASS_DISPLAY_TXT (Edit Label) — that's the container the token-depth " +
+                                "control drives. (Shown once per session.)");
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception exDisp)
+                {
+                    StingLog.Warn($"Set depth live display refresh failed: {exDisp.Message}");
+                }
             }
 
             if (!sliderPath)

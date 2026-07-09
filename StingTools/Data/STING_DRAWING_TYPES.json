@@ -4429,10 +4429,10 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "MechanicalEquipment": "STING_TAG_FM_QR",
-          "ElectricalEquipment": "STING_TAG_FM_QR",
-          "PlumbingFixtures": "STING_TAG_FM_QR",
-          "Rooms": "STING_TAG_ROOM"
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Rooms": "STING - Room Tag"
         },
         "rules": [
           {

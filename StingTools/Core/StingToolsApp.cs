@@ -1277,6 +1277,8 @@ namespace StingTools.Core
             {
                 Autodesk.Revit.DB.View view = e.CurrentActiveView;
                 Document currentDoc = view?.Document;
+                // Cache doc path (API thread) for the modeless panel — no off-thread API access.
+                try { StingTools.UI.StingCommandHandler.SetDocPath(currentDoc?.PathName); } catch { }
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
                     StingAutoTagger.InvalidateContext();
@@ -1289,6 +1291,21 @@ namespace StingTools.Core
 
                 if (view != null) UpdateScaleTabInfo(view);
                 if (view != null && currentDoc != null) MaybeAutoApplyScaleSize(currentDoc, view);
+
+                // E4: repopulate the Tokens & Depth panel from this view's saved config so
+                // each view remembers its own tag style. Marshal to the panel's UI thread.
+                if (view != null && currentDoc != null)
+                {
+                    try
+                    {
+                        var cfg = StingTools.Tags.TokenDepthViewStore.Get(currentDoc, view.UniqueId);
+                        var panel = StingTools.UI.StingDockPanel.LastInstance;
+                        if (cfg != null && panel != null)
+                            panel.Dispatcher.BeginInvoke(new System.Action(() =>
+                            { try { panel.ApplyTokenDepthConfig(cfg); } catch { } }));
+                    }
+                    catch (Exception exE4) { StingLog.Warn($"E4 view-config recall: {exE4.Message}"); }
+                }
             }
             catch (Exception ex)
             {
