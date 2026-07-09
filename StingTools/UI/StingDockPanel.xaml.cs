@@ -230,6 +230,15 @@ namespace StingTools.UI
             "SmartPlaceTags", "TagStudio_SmartPlace", "BatchPlaceTags",
         };
 
+        // Session flag: true once the Tokens &amp; Depth panel has itself applied a
+        // tag-format override (separator / SEQ pad / segment order). Distinguishes a
+        // CUSTOM format loaded from project_config.json at startup (which the panel's
+        // default UI state must NOT clobber) from one the USER dialled in here (the
+        // panel is then authoritative, so a return to defaults — 4-digit / hyphen /
+        // canonical order — must be honoured instead of latching). See the clobber
+        // guard in SetTokenDepthParams.
+        private static bool _panelAppliedTagFormat;
+
         // ── Phase B Round 1 shared helpers ───────────────────────────────
         //
         // Pattern 2 (RadioButton ring) — every routing RadioButton tagged
@@ -1020,14 +1029,20 @@ namespace StingTools.UI
                     bool registryIsCustom =
                         Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4
                         || Core.TagConfig.SeqPadWidth != 4;
+                    // Only protect a custom format the PROJECT loaded at startup. Once the
+                    // panel itself has applied a format (_panelAppliedTagFormat), the panel
+                    // is authoritative — a return to defaults must be applied, not suppressed,
+                    // otherwise the format latches and the user can never switch back.
+                    bool projectLoadedCustom = registryIsCustom && !_panelAppliedTagFormat;
 
-                    if (!(uiIsDefault && registryIsCustom))
+                    if (!(uiIsDefault && projectLoadedCustom))
                     {
                         Core.ParamRegistry.ApplyTagFormatOverrides(sep, padN, order);
                         // TagConfig.BuildAndWriteTag pads SEQ from TagConfig.SeqPadWidth when
                         // it is > 0 — and it TAKES PRECEDENCE over NumPad — so the SEQ zero-pad
                         // combo only bites if we drive SeqPadWidth directly, not just NumPad.
                         Core.TagConfig.SeqPadWidth = padN;
+                        _panelAppliedTagFormat = true;
                     }
                 }
                 catch (Exception exFmt)
