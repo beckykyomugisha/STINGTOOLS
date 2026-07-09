@@ -13114,6 +13114,12 @@
       "category": "OST_TitleBlocks",
       "parameters": [
         {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
           "instance": true,
@@ -13397,6 +13403,12 @@
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
         {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
@@ -13682,6 +13694,30 @@
       "category": "OST_TitleBlocks",
       "parameters": [
         {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
           "instance": true,
@@ -13951,6 +13987,12 @@
       "category": "OST_TitleBlocks",
       "parameters": [
         {
+          "name": "PRJ_TB_DELIVERABLE_DATADROP_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
           "instance": true,
@@ -14165,6 +14207,18 @@
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
+        {
+          "name": "PRJ_TB_DELIVERABLE_DATADROP_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
         {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
@@ -14782,6 +14836,12 @@
       "category": "OST_TitleBlocks",
       "parameters": [
         {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
           "instance": true,
@@ -15114,6 +15174,12 @@
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
         {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
@@ -15448,6 +15514,12 @@
       "category": "OST_TitleBlocks",
       "parameters": [
         {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
           "instance": true,
@@ -15780,6 +15852,18 @@
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
         {
           "name": "PRJ_TB_PAPER_SZ_TXT",
           "kind": "shared",
