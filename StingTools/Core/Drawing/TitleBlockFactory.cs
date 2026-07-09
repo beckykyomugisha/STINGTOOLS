@@ -259,6 +259,25 @@ namespace StingTools.Core.Drawing
                 StingLog.Info($"TitleBlockFactory '{spec.Id}': labels {r.LabelsPlaced} "
                     + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})" : "(no seed)"));
 
+                // 4g-drift. Seed↔spec label drift check. The spec's labels[] is
+                // the authoring contract for the seed — a seed authored before
+                // the spec gained a label (e.g. P4's PRJ_SHEET_SYSTEM_TXT)
+                // silently lacks the new cell. Label→param bindings aren't
+                // readable via the 2025 API, so COUNT is the drift signal; the
+                // warning lists the spec's label params so the author can
+                // eyeball which cell is missing.
+                int specLabelCount = spec.Labels?.Count(l => !string.IsNullOrEmpty(l?.Param)) ?? 0;
+                if (fromSeed && r.LabelsPlaced < specLabelCount)
+                {
+                    var expected = string.Join(", ", spec.Labels
+                        .Where(l => !string.IsNullOrEmpty(l?.Param))
+                        .Select(l => l.Param).Distinct(StringComparer.OrdinalIgnoreCase));
+                    r.Warnings.Add(
+                        $"seed label drift: seed carries {r.LabelsPlaced} label(s) but the spec "
+                        + $"declares {specLabelCount} — update the seed .rfa (add the missing "
+                        + $"label(s) in the Family Editor). Spec label params: {expected}");
+                }
+
                 // 5. SaveAs
                 string savePath = ResolveSavePath(famDoc, spec.SaveAs);
                 Directory.CreateDirectory(Path.GetDirectoryName(savePath) ?? ".");
