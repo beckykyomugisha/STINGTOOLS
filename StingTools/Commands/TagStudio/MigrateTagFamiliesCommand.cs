@@ -112,7 +112,7 @@ namespace StingTools.Commands.TagStudio
             bool preserveHandWarnings = (mig == TaskDialogResult.CommandLink1);
 
             // ── Pre-resolve arrowhead types in the project ──
-            var arrowheads = BuildArrowheadLookup(doc);
+            var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
 
             // ── Pre-load TierPlans for active mode + every available mode (dual-wire) ──
             Dictionary<string, Dictionary<string, TierPlan>> plansByMode =
@@ -273,7 +273,7 @@ namespace StingTools.Commands.TagStudio
                             .Distinct()
                             .ToList());
 
-                    result.TypesCreated = CreateStandardVariants(fm, variants, arrowheads);
+                    result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
 
                     tx.Commit();
                 }
@@ -411,153 +411,9 @@ namespace StingTools.Commands.TagStudio
             return added;
         }
 
-        private int CreateStandardVariants(FamilyManager fm,
-            List<TypeVariantSpec> variants, Dictionary<string, ElementId> arrowheads)
-        {
-            int created = 0;
-            var paramByName = fm.GetParameters()
-                .ToDictionary(p => p.Definition.Name, p => p, StringComparer.OrdinalIgnoreCase);
-
-            var existingTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (FamilyType ft in fm.Types)
-                if (ft != null && !string.IsNullOrEmpty(ft.Name)) existingTypes.Add(ft.Name);
-
-            foreach (var spec in variants)
-            {
-                string typeName = spec.CanonicalTypeName;
-                FamilyType target;
-
-                if (existingTypes.Contains(typeName))
-                {
-                    target = null;
-                    foreach (FamilyType ft in fm.Types)
-                        if (string.Equals(ft.Name, typeName, StringComparison.OrdinalIgnoreCase))
-                        { target = ft; break; }
-                    if (target == null) continue;
-                }
-                else
-                {
-                    try { target = fm.NewType(typeName); created++; existingTypes.Add(typeName); }
-                    catch (Exception ex) { StingLog.Warn($"NewType '{typeName}': {ex.Message}"); continue; }
-                }
-
-                fm.CurrentType = target;
-
-                // 1. Depth tiers: PARA_STATE_1..depth = Yes, rest = No.
-                // Tag-formula BOOLs are TEXT in MR_PARAMETERS v5.3+ so Revit label
-                // Calculated Values can reference them inside if(...); the Integer
-                // branch keeps legacy YESNO families migrating cleanly.
-                for (int t = 1; t <= 10; t++)
-                {
-                    string pname = $"TAG_PARA_STATE_{t}_BOOL";
-                    if (paramByName.TryGetValue(pname, out var pfp))
-                    {
-                        try { SetFamilyBool(fm, pfp, t <= spec.DepthTier); }
-                        catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
-                    }
-                }
-
-                // 2. Style BOOLs: only the matching combo = Yes
-                string activeStyle = ParamRegistry.TagStyleParamName(spec.Size, spec.Style, spec.Colour);
-                foreach (string pname in ParamRegistry.AllTagStyleParams)
-                {
-                    if (!paramByName.TryGetValue(pname, out var pfp)) continue;
-                    try { SetFamilyBool(fm, pfp, string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase)); }
-                    catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
-                }
-
-                // 3. Arrowhead (type param LEADER_ARROWHEAD via BuiltInParameter)
-                try
-                {
-                    if (!string.IsNullOrEmpty(spec.Arrowhead) &&
-                        !string.Equals(spec.Arrowhead, "None", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (arrowheads.TryGetValue(spec.Arrowhead, out var arrowId) && arrowId != ElementId.InvalidElementId)
-                        {
-                            var arrowFp = fm.get_Parameter(BuiltInParameter.LEADER_ARROWHEAD);
-                            if (arrowFp != null && !arrowFp.IsReadOnly)
-                            {
-                                try { fm.Set(arrowFp, arrowId); }
-                                catch (Exception ex) { StingLog.Warn($"Set arrowhead {spec.Arrowhead} on {typeName}: {ex.Message}"); }
-                            }
-                        }
-                        else
-                        {
-                            StingLog.Warn($"MigrateTagFamilies: arrowhead '{spec.Arrowhead}' not present in project — skipped for {typeName}");
-                        }
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Arrowhead assign {typeName}: {ex.Message}"); }
-
-                // 4. Cache active depth tier on the type for fast reads (Task 2 new param)
-                if (paramByName.TryGetValue(ParamRegistry.TAG_DEPTH_TIER, out var depthFp))
-                {
-                    try { fm.Set(depthFp, spec.DepthTier); }
-                    catch (Exception ex2) { StingLog.Warn($"Set TAG_DEPTH_TIER_INT on {typeName}: {ex2.Message}"); }
-                }
-            }
-
-            return created;
-        }
-
-        /// <summary>
-        /// Set a tag-formula BOOL on a family type, regardless of whether the parameter
-        /// is stored as TEXT ("Yes"/"No") or INTEGER (1/0). TEXT is the v5.3+ default —
-        /// YESNO is not allowed as the condition of a Revit label Calculated Value.
-        /// </summary>
-        private static void SetFamilyBool(FamilyManager fm, FamilyParameter fp, bool value)
-        {
-            if (fp == null) return;
-            switch (fp.StorageType)
-            {
-                case StorageType.String:
-                    fm.Set(fp, value ? "Yes" : "No");
-                    break;
-                case StorageType.Integer:
-                    fm.Set(fp, value ? 1 : 0);
-                    break;
-                default:
-                    StingLog.Warn($"SetFamilyBool: unsupported storage {fp.StorageType} on '{fp.Definition.Name}'");
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Build a lookup of arrowhead display name → ElementType Id (OST_ArrowHeads).
-        /// Names are matched case-insensitively against TagStyleCatalogue.Arrowheads.
-        /// </summary>
-        private Dictionary<string, ElementId> BuildArrowheadLookup(Document doc)
-        {
-            var lookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                // Arrowhead ElementType has no BuiltInCategory in Revit 2025 —
-                // Category is null and FamilyName is "Arrowhead".
-                var types = new FilteredElementCollector(doc)
-                    .OfClass(typeof(ElementType))
-                    .Cast<ElementType>()
-                    .Where(et => string.Equals(et.FamilyName, "Arrowhead", StringComparison.Ordinal))
-                    .ToList();
-
-                var wanted = new HashSet<string>(TagStyleCatalogue.Arrowheads, StringComparer.OrdinalIgnoreCase);
-                foreach (var et in types)
-                {
-                    string n = et.Name ?? "";
-                    if (wanted.Contains(n)) lookup[n] = et.Id;
-                }
-
-                // Best-effort fuzzy matches so the catalogue is not held hostage to exact names
-                foreach (string want in TagStyleCatalogue.Arrowheads)
-                {
-                    if (lookup.ContainsKey(want)) continue;
-                    var match = types.FirstOrDefault(et =>
-                        et.Name != null &&
-                        et.Name.IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0);
-                    if (match != null) lookup[want] = match.Id;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"BuildArrowheadLookup: {ex.Message}"); }
-            return lookup;
-        }
+        // NOTE: the type-variant authoring loop (CreateStandardVariants),
+        // SetFamilyBool, and BuildArrowheadLookup were extracted to the shared
+        // TagTypeVariantWriter (Phase 195 universal-tag pivot) so
+        // PropagateUniversalTagCommand and this command author identical variants.
     }
 }

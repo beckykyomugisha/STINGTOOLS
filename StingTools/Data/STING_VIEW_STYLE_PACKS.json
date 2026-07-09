@@ -257,6 +257,7 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "halftone": true,
           "projWeight": 2,
@@ -303,6 +304,7 @@
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 5,
           "cutWeight": 5,
@@ -350,6 +352,7 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 3
         },
@@ -387,6 +390,7 @@
       "scaleHint": "1:20",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 6,
           "cutWeight": 6
@@ -441,6 +445,7 @@
         }
       ],
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Generic Annotations": {
           "projColor": "#FF0000",
           "projWeight": 2
@@ -736,6 +741,7 @@
       "scaleHint": "1:50",
       "colorScheme": "PresentationRich",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projColor": "#263238",
           "projWeight": 6,
@@ -853,6 +859,7 @@
         }
       ],
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "halftone": true,
           "projWeight": 2
@@ -1845,6 +1852,7 @@
       "extends": "corp-base",
       "origin": "corporate",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Ducts": {
           "visible": false
         },
@@ -2683,9 +2691,30 @@
           "projectionLineWeight": 1
         }
       }
+    },
+    {
+      "id": "coord-qa",
+      "name": "STING - Coordination / QA",
+      "description": "Coordination view that SHOWS the universal-tag status badges (STING_TagStatus subcategory ON) and recolours non-compliant tags by their stamped data / QA gate via the qa-gate-* filters. Extends corp-coordination for discipline colours + system filters.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "vgOverrides": {
+        "STING_TagStatus": { "visible": true }
+      },
+      "filters": [
+        { "name": "STING - QA: Data Gate — Red", "visible": true },
+        { "name": "STING - QA: Data Gate — Amber", "visible": true },
+        { "name": "STING - QA: QA Gate — Red", "visible": true },
+        { "name": "STING - QA: QA Gate — Amber", "visible": true }
+      ]
     }
   ],
   "routing": [
+    {
+      "purpose": "QA",
+      "discipline": "*",
+      "stylePackId": "coord-qa"
+    },
     {
       "purpose": "Spool",
       "discipline": "*",

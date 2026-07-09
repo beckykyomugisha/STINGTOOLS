@@ -8275,6 +8275,150 @@
         "surge"
       ],
       "standard": "IEC 62305-4 / IEC 61643-11"
+    },
+    {
+      "id": "qa-gate-data-red",
+      "name": "STING - QA: Data Gate — Red",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment",
+        "OST_PlumbingFixtures",
+        "OST_LightingFixtures",
+        "OST_DuctCurves",
+        "OST_PipeCurves",
+        "OST_StructuralColumns",
+        "OST_StructuralFraming"
+      ],
+      "rule": {
+        "param": "STING_GATE_DATA_STATUS_INT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "0",
+        "type": "int"
+      },
+      "override": {
+        "projColor": "#FF0000",
+        "cutColor": "#FF0000",
+        "surfFgColor": "#FFA0A0",
+        "surfFgPattern": "Solid fill",
+        "transparency": 40
+      },
+      "tags": [
+        "qa",
+        "gate"
+      ],
+      "notes": "Data-completeness gate is red (0=untagged) — stamped by Gate_StampStatus. View-level QA recolour; single source of truth is the stamped STING_GATE_DATA_STATUS_INT."
+    },
+    {
+      "id": "qa-gate-data-amber",
+      "name": "STING - QA: Data Gate — Amber",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment",
+        "OST_PlumbingFixtures",
+        "OST_LightingFixtures",
+        "OST_DuctCurves",
+        "OST_PipeCurves",
+        "OST_StructuralColumns",
+        "OST_StructuralFraming"
+      ],
+      "rule": {
+        "param": "STING_GATE_DATA_STATUS_INT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1",
+        "type": "int"
+      },
+      "override": {
+        "projColor": "#FFC000",
+        "cutColor": "#FFC000",
+        "surfFgColor": "#FFE9B0",
+        "surfFgPattern": "Solid fill",
+        "transparency": 40
+      },
+      "tags": [
+        "qa",
+        "gate"
+      ],
+      "notes": "Data-completeness gate is amber (1=tagged but not fully resolved) — stamped by Gate_StampStatus. View-level QA recolour of STING_GATE_DATA_STATUS_INT."
+    },
+    {
+      "id": "qa-gate-qa-red",
+      "name": "STING - QA: QA Gate — Red",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment",
+        "OST_PlumbingFixtures",
+        "OST_LightingFixtures",
+        "OST_DuctCurves",
+        "OST_PipeCurves",
+        "OST_StructuralColumns",
+        "OST_StructuralFraming"
+      ],
+      "rule": {
+        "param": "STING_GATE_QA_STATUS_INT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "0",
+        "type": "int"
+      },
+      "override": {
+        "projColor": "#FF0000",
+        "cutColor": "#FF0000",
+        "surfFgColor": "#FFA0A0",
+        "surfFgPattern": "Solid fill",
+        "transparency": 40
+      },
+      "tags": [
+        "qa",
+        "gate"
+      ],
+      "notes": "QA / sign-off gate is red (0=no QA data) — stamped by Gate_StampStatus. View-level QA recolour of STING_GATE_QA_STATUS_INT."
+    },
+    {
+      "id": "qa-gate-qa-amber",
+      "name": "STING - QA: QA Gate — Amber",
+      "categories": [
+        "OST_Walls",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment",
+        "OST_PlumbingFixtures",
+        "OST_LightingFixtures",
+        "OST_DuctCurves",
+        "OST_PipeCurves",
+        "OST_StructuralColumns",
+        "OST_StructuralFraming"
+      ],
+      "rule": {
+        "param": "STING_GATE_QA_STATUS_INT",
+        "kind": "shared",
+        "op": "equals",
+        "value": "1",
+        "type": "int"
+      },
+      "override": {
+        "projColor": "#FFC000",
+        "cutColor": "#FFC000",
+        "surfFgColor": "#FFE9B0",
+        "surfFgPattern": "Solid fill",
+        "transparency": 40
+      },
+      "tags": [
+        "qa",
+        "gate"
+      ],
+      "notes": "QA / sign-off gate is amber (1=QA in progress, not signed off) — stamped by Gate_StampStatus. View-level QA recolour of STING_GATE_QA_STATUS_INT."
     }
   ]
 }

@@ -617,6 +617,171 @@ namespace StingTools.Core
             return result;
         }
 
+        // ══════════════════════════════════════════════════════════════
+        // Phase 195 Task 2 — Universal-tag STATUS GATES
+        // Compute the two per-element gate statuses (data-completeness +
+        // QA/sign-off) that drive the universal tag's status badges. Pure
+        // computation (no writes); StampGateStatusCommand persists the values
+        // into STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT.
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Per-element universal-tag gate statuses (0=red / 1=amber / 2=green each).</summary>
+        public struct GateResult
+        {
+            /// <summary>STING_GATE_DATA_STATUS_INT — data-completeness gate.</summary>
+            public int DataGate;
+            /// <summary>STING_GATE_QA_STATUS_INT — QA / sign-off gate.</summary>
+            public int QaGate;
+            /// <summary>STING_GATE_DATA_MSG_TXT — terse data-gate reason (blank when green).</summary>
+            public string DataMsg;
+            /// <summary>STING_GATE_QA_MSG_TXT — terse QA-gate reason (blank when green).</summary>
+            public string QaMsg;
+        }
+
+        /// <summary>
+        /// Compute the data-completeness gate and QA / sign-off gate for a single
+        /// element (0=red / 1=amber / 2=green). Pure — performs no writes. Reuses
+        /// <see cref="TagConfig"/> completeness checks and
+        /// <see cref="ISO19650Validator.ValidateElement"/>.
+        ///
+        /// Data gate:
+        ///   red   — element is untagged (no ASS_TAG_1_TXT);
+        ///   amber — tagged but not fully resolved (incomplete/placeholder tag,
+        ///           missing STATUS, empty relevant containers, or ISO validation
+        ///           errors);
+        ///   green — tag fully resolved + STATUS present + all relevant containers
+        ///           populated + zero ISO 19650 validation errors.
+        ///
+        /// QA gate:
+        ///   green — commissioning not required, OR commissioning state signals
+        ///           "done" AND a QC inspector is recorded;
+        ///   amber — some QA data present (commissioning state / inspector /
+        ///           fabrication status / install date) but not fully signed off;
+        ///   red   — no QA data at all.
+        /// </summary>
+        public static GateResult ComputeElementGates(Document doc, Element el)
+        {
+            var r = new GateResult { DataGate = 0, QaGate = 0, DataMsg = "", QaMsg = "" };
+            if (el == null) return r;
+
+            // ── Data-completeness gate ──
+            string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(tag))
+            {
+                r.DataGate = 0; // untagged → red
+                r.DataMsg = "UNTAGGED";
+            }
+            else
+            {
+                bool complete = TagConfig.TagIsComplete(tag);
+                bool resolved = complete && !TagConfig.TagHasPlaceholders(tag);
+                bool statusOk = !string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.STATUS));
+                bool containersOk = ContainersComplete(el);
+                int validationErrors = 0;
+                try { validationErrors = ISO19650Validator.ValidateElement(el)?.Count ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"ComputeElementGates validate: {ex.Message}"); }
+
+                if (resolved && statusOk && containersOk && validationErrors == 0)
+                {
+                    r.DataGate = 2; // green
+                }
+                else
+                {
+                    r.DataGate = 1; // amber — first failing reason drives the label
+                    if (!resolved)             r.DataMsg = "TAG INCOMPLETE";
+                    else if (!statusOk)        r.DataMsg = "NO STATUS";
+                    else if (!containersOk)    r.DataMsg = "EMPTY CONTAINER";
+                    else                       r.DataMsg = "ISO ERRORS";
+                }
+            }
+
+            // ── QA / sign-off gate ──
+            r.QaGate = ComputeQaGate(el, out string qaMsg);
+            r.QaMsg = qaMsg;
+            return r;
+        }
+
+        /// <summary>True when every discipline-relevant container for the element's
+        /// category is populated (mirrors the container check in <see cref="Scan"/>).</summary>
+        private static bool ContainersComplete(Element el)
+        {
+            try
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                var containers = ParamRegistry.ContainersForCategory(cat);
+                if (containers == null || containers.Length == 0) return true;
+                string elemDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                for (int ci = 0; ci < containers.Length; ci++)
+                {
+                    if (!ParamRegistry.IsContainerRelevantForDiscPublic(containers[ci].ParamName, elemDisc))
+                        continue;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, containers[ci].ParamName)))
+                        return false;
+                }
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"ContainersComplete: {ex.Message}"); return true; }
+        }
+
+        // QA sign-off params surfaced on the universal-tag T4/T7 tiers.
+        private const string P_QA_REQ       = "RGL_QA_COMMISSIONING_REQ_TXT";
+        private const string P_COMM_STATE   = "COMM_STATE_TXT";
+        private const string P_QC_INSPECTOR = "ASS_QC_INSPECTOR_TXT";
+        private const string P_FAB_STATUS   = "ASS_FAB_STATUS_TXT";
+        private const string P_INSTALL_DATE = "ASS_INSTALL_DATE_TXT";
+
+        private static int ComputeQaGate(Element el, out string msg)
+        {
+            msg = "";
+            // Commissioning explicitly not required → nothing to sign off → green.
+            string req = ParameterHelpers.GetString(el, P_QA_REQ);
+            if (IsNegative(req)) return 2;
+
+            string comm      = ParameterHelpers.GetString(el, P_COMM_STATE);
+            string inspector = ParameterHelpers.GetString(el, P_QC_INSPECTOR);
+            string fab       = ParameterHelpers.GetString(el, P_FAB_STATUS);
+            string install   = ParameterHelpers.GetString(el, P_INSTALL_DATE);
+
+            bool commDone     = !string.IsNullOrEmpty(comm) && IsPositiveState(comm);
+            bool hasInspector = !string.IsNullOrEmpty(inspector);
+            bool anyQaData    = !string.IsNullOrEmpty(comm) || hasInspector ||
+                                !string.IsNullOrEmpty(fab) || !string.IsNullOrEmpty(install);
+
+            if (commDone && hasInspector) return 2; // green — commissioned + signed off
+            if (anyQaData)
+            {
+                // amber — some QA data but not fully signed off.
+                msg = commDone ? "NO SIGN-OFF" : "QA PENDING";
+                return 1;
+            }
+            msg = "NO QA";
+            return 0;                               // red — QA not started
+        }
+
+        /// <summary>True when a text value reads as an explicit negative
+        /// (No / None / N/A / Not required / Not applicable / 0 / False).</summary>
+        private static bool IsNegative(string v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return false;
+            string t = v.Trim().ToLowerInvariant();
+            return t == "no" || t == "none" || t == "n/a" || t == "na" || t == "0" || t == "false" ||
+                   t.StartsWith("not required") || t.StartsWith("not applicable") || t.StartsWith("not req");
+        }
+
+        /// <summary>True when a commissioning-state value reads as "done" and does
+        /// NOT read as pending/failed/outstanding.</summary>
+        private static bool IsPositiveState(string v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return false;
+            string t = v.Trim().ToLowerInvariant();
+            if (t.Contains("pending") || t.Contains("outstanding") || t.Contains("fail") ||
+                t.Contains("not ") || t.StartsWith("no") || t.Contains("progress"))
+                return false;
+            return t.Contains("complete") || t.Contains("commission") || t.Contains("done") ||
+                   t.Contains("pass") || t.Contains("sign") || t.Contains("witness") ||
+                   t.Contains("accept") || t == "yes" || t == "ok";
+        }
+
         /// <summary>
         /// LOG-01 FIX: Thread-safe accessor for cached result without triggering a new scan.
         /// Returns null if no cached result exists. Uses lock to prevent torn reads.

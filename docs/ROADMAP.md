@@ -2,6 +2,120 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
+
+The Phase 196 binding-accuracy fix narrowed every confidently-classifiable discipline family and
+preserved the universal set. The parameters below remain bound to the **broad core set** (they had no
+per-param `CATEGORY_BINDINGS.csv` row and no group override) and are logged as coverage **GAPs** by
+`LoadSharedParamsCommand`. They are semantically mis-located (space/zone/landscape/structural-cost
+params filed under the `COM_DAT` communications group) — narrowing them requires an SME decision on the
+correct element domain, so they were **not** guessed. Recommended categories noted for review; once
+confirmed, add rows to `CATEGORY_BINDINGS.csv` (+ `PARAMETER_CATEGORIES.csv`) and re-run
+`Bindings_PruneToSpec`.
+
+| Param(s) | Group | Recommended domain (needs confirmation) |
+|---|---|---|
+| `SPC_GROSS_AREA_M2`, `SPC_CEILING_HEIGHT_M`, `SPC_MIN_HEADROOM_M`, `SPC_FINISH_FLOOR/CEILING/WALLS_TXT`, `SPC_PUBLIC_ACCESSIBLE_BOOL` | COM_DAT | Rooms, Spaces |
+| `ZON_CATEGORY_NAME/CODE_TXT`, `ZON_NET/GROSS_AREA_M2`, `ZON_VOLUME_M3`, `ZON_OCCUPANTS_NR` | COM_DAT | Areas, Spaces, HVAC Zones |
+| `GEN_SPECIES_TXT`, `GEN_HEIGHT_AT_MATURITY_M`, `GEN_ROAD_TYPE_TXT`, `GEN_TAG_7_PARA_MISC_TXT` | COM_DAT | Planting, Site, Roads |
+| `CST_S_FRM_FORMWORK_AREA_SQ_M`, `CST_S_MAS_BLOCKS_NR`, `CST_S_MAS_NET_WALL_AREA_SQ_M`, `CST_S_REI_LAP_LENGTH_MM`, `CST_S_REI_TOTAL_WEIGHT_KG`, `CST_S_SUPPLIER_TXT`, `CST_FORMWORK_TYPE_TXT`, `CST_PLYWOOD_SIZE_TXT`, `CST_SAND_MOISTURE_TXT` | COM_DAT | Structural Framing/Columns/Foundations, Walls, Floors |
+| `SLV_TAG`, `SLV_TAG_7_PARA_TXT` | SLV_SLEEVE_PARAMS | Generic Models (matches rest of `SLV_*` family) |
+| `COMP_TAG_1_TXT` | COM_DAT | universal composite tag — likely keep broad |
+
+Additionally, the healthcare families `MGS_` / `RAD_` / `CLN_` / `CEQ_` were bound to reasoned
+discipline domains (medical-gas piped set, radiation-shielding set, clinical room/equipment set) that
+exclude all cross-discipline conveyance categories, but the **precise per-param category refinement**
+(e.g. which exact device vs. room vs. equipment category each WARN_/DESIGN_/TAG param belongs to)
+should be SME-confirmed against HTM/HBN modelling conventions. See `docs/binding_audit_report.csv`.
+
+## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
+
+Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
+schedules). **Task 4 (deprecate the now-superseded bespoke-tier machinery) was reviewed but NO
+deletions were performed** — a caller grep proved that none of the brief's candidates are true
+orphans yet, and the brief mandates deletions only "after the new paths are proven" (the Revit
+Duct smoke test is still pending). Blind-deleting now would break the build and the shipped
+tagging/placement pipeline. Recorded here as staged, gated work:
+
+| Candidate | Live callers found | Why it can't be deleted yet |
+|---|---|---|
+| `Tags/FamilyLabelAuthor.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand`, `TagConfigCsvReader` | Still the tier-authoring engine invoked by the OLD path. |
+| `Tags/TagConfigPlanResolver.cs` | `MigrateTagFamiliesCommand`, `TagFamilyCreatorCommand` | Loads the per-family tier plans the OLD path consumes. |
+| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | `HandoverModeHelper`, `FamilyLabelAuthor`, `TagConfigPlanResolver`, `ParamRegistry`, `TagConfig`, `TagFamilyCreatorCommand`, `PresentationModeCommand`, `FamilyParamCreatorCommand` | Heavily entangled; the v5.0 CSVs also feed `LABEL_DEFINITIONS.json` sync + creator. |
+| `Core/HandoverModeHelper.cs` (DC/HO) | `StingToolsApp`, `TagConfig`, `ApplyParagraphPresetCommand`, `TagFamilyCreatorCommand`, + 3 more | Repurpose (not delete) DC/HO → a `PARA_STATE` view preset; remove only the dual-CSV authoring path. |
+| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands (`ApplyColorScheme`/`SwitchTagStyleByDisc`/`BatchApplyColorScheme`/`ColorByVariable`) wired to live buttons | **Keep DEPTH-variant logic** (now also in `TagTypeVariantWriter`). Colour switching is a live placement + UI feature — removing it is a surgical refactor, not an orphan delete. |
+| `MigrateTagFamiliesCommand` tier-authoring path | UI "Migrate Fams" button | **Trim** the `FamilyLabelAuthor.AuthorLabelsMulti` call once the universal path is proven; KEEP its params + the (now-shared) type-variant loop. |
+
+**Staged cutover (do in order, each gated):**
+1. Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`).
+2. Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
+   call; retire/relabel the "Migrate Fams" tier-authoring UI. Verify build + Tags.Tests green.
+3. Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` /
+   v5.0-CSV tier-authoring cluster as one unit.
+4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
+   the dual-CSV authoring path only.
+5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
+
+
+## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
+
+Follow-on to the badge/gate system: wired the stamped status gates into the AEC filters,
+View Style Packs, and QA workflows (see CHANGELOG "Universal-tag badge/gate integration").
+Open items surfaced while doing it — recorded rather than force-fixed:
+
+**QA-filter rationalization (runner Task 4 — DOCS ONLY, nothing deleted).**
+The stamped **data gate** (`STING_GATE_DATA_STATUS_INT`) now computes the same completeness
+signal the old ad-hoc completeness filters derive per-view. Once `coord-qa` + the four
+`qa-gate-*` filters are proven in Revit, deprecate the overlapping completeness filters in
+favour of the gate-based ones (single source of truth = the stamped gate, not a re-derived
+per-view rule). Overlapping legacy ids in `STING_AEC_FILTERS.json`:
+`qa-untagged` (⊆ data-gate red), `qa-incomplete-tag` (⊆ data-gate amber "TAG INCOMPLETE"),
+`qa-missing-disc` / `qa-missing-loc` (⊆ data-gate amber container/ISO reasons),
+`qa-stale-element` (orthogonal — keep; staleness is not a gate input). These have live
+callers/packs, so **not deleted** — deprecate only after the Revit smoke test.
+
+**Drawing-Type tag-binding audit (runner Task 5 — reported, no change made).**
+`STING_DRAWING_TYPES.json` annotation rule packs bind `tagFamilies` per category. 22 bindings
+reference `"STING - Generic Tag"`; the rest reference specific `STING_TAG_*` families. Finding:
+`"STING - Generic Tag"` is a **placeholder generic-tag family name** (spaces / "STING - " prefix),
+NOT the universal master — the universal label is propagated *into* the 206 named `STING_TAG_*`
+families, so the specific bindings already carry it. Repointing the 22 generic bindings to a
+"universal master" would therefore be wrong. **No bindings changed.** Revisit only if a single
+universal `.rfa` master is ever loaded per-category and the names are proven to resolve.
+
+**Integration follow-ups (need Revit validation before merge — repo norm):**
+1. **View Style Pack catalogue now loads at runtime.** `ViewStylePackLibrary` gained a `stylePacks`
+   alias (it previously bound only `viewStylePacks`, so the 31-pack corporate file + editor-written
+   project overrides were runtime-dead and the registry used 3 hard-coded `BuildDefaults` packs).
+   This activates the full corporate catalogue at runtime for the first time — **validate drawing
+   production in Revit** (managed-template minting + authored vgOverrides now apply). Treat like the
+   Duct smoke test: prove before merge.
+2. **Managed issue packs still show badges.** `corp-standard-plan`, `corp-fabrication-shop`,
+   `corp-coordination` are `templateMode: managed` with `managedFields` that exclude `vgOverrides`,
+   so their `STING_TagStatus: {visible:false}` hide does not apply through the managed path. Either
+   add `"vgOverrides"` to those packs' `managedFields` (note: this also applies their existing
+   authored vgOverrides, a visible appearance change) or leave as-is (badges are opt-in —
+   `TAG_WARN_VISIBLE_BOOL` defaults off — so this is belt-and-braces). Deferred pending the Revit
+   validation in (1).
+3. **Style-pack `routing[]` is not consumed by `ViewStylePackRegistry`** (resolution is by explicit
+   pack id). The added `{purpose:QA → coord-qa}` entry (and all existing routing entries) are
+   declarative until routing consumption is wired. Low priority.
+4. **Guide edits live on a different branch.** The runner's Task 6.1 (rename badge visibility params
+   to UPPERCASE `VIS_DATA_*` / `VIS_QA_*`; document the message labels + view-driven control) targets
+   `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` + `docs/UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md`, which do
+   **not exist on `feature/universal-tag-system`** — they live on branch `claude/tag-tier-review-94c78a`
+   (worktree `awesome-kirch-94c78a`), together with the runner itself. This branch implemented the
+   *enabling* code (the `STING_GATE_*_MSG_TXT` params + message computation + stamping, and the
+   filters/packs/workflows); the guide edits must be applied on that branch (or when the two branches
+   merge). Not forked here to avoid divergent guide copies.
+
+**Smoke-test survival (carry forward):** when the Duct smoke test runs, additionally verify the
+badge subsystem survives recategorise-propagation — the 6 family-local `VIS_DATA_GREEN/AMBER/RED` +
+`VIS_QA_GREEN/AMBER/RED` Yes/No params, the `STING_TagStatus` annotation subcategory, and the coloured
+glyphs must all survive `Propagate_UniversalTag`, and `Gate_StampStatus` must repopulate the four
+`STING_GATE_*` params (2 INT + 2 MSG) so badges + message labels render.
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers

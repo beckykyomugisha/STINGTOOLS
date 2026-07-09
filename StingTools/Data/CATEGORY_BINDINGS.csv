@@ -1,4 +1,4 @@
-# v3.8 | 20260706 | +217 engine-written param bindings (P3 coverage: 28 sibling-derived params across HVC/ELC/PLM/ASS; see docs/CATEGORY_BINDING_COVERAGE_REPORT.md)
+# v3.8 | 20260708 | fix cross-discipline over-bindings: HVC_TERMINAL->Air Terminals; +LIG/ICT/COM/NCL/SEC/MED/MGS/RAD/CEQ/CLN discipline-scoped rows (param->category binding accuracy)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
 # v3.6 | 20260630 | +30 Tier-2 element-bound param bindings (electrical/plumbing/design-option/sheet/view/clash/IFC)
 # v3.5 | 20260630 | +9 material cost/carbon/EPD + fixture water-efficiency bindings (Sustainability/BOQ-cost)
@@ -6,6 +6,8 @@
 # v3.3 | 20260519 | BIM Template category_bindings (+266: ASS_CST_ currency-neutral (7) + ASS_PMT_ payment cert (4) + ASS_VAR_ variation (3) × 19 cats — Phase 184 / P0.2 + P5 alignment)
 # v3.2 | 20260518 | BIM Template category_bindings (+19: HVAC sizing audit trail, pipe service, pressure class, refrigerant, capacity — Phase 184 alignment with MR_PARAMETERS.txt v5.12)
 # v3.1 | 20260517 | BIM Template category_bindings (+134: ASS_ITEM_CODE/SYSTEMS/TERM/TRACE, HVC_DCT_INSULATION, BLE_CBL_TRAY dims, MEC_SYS, PLM_SYS — Phase 179 alignment)
+# v3.5 | LPS panel Wave 1 — 67 ELC_LPS_* bindings (project-level + per-element + bonding-candidate MEP categories)
+# Phase 195 | SUS_SUSTAINABILITY (group 35) -> Project Information (WS H3: SetBaseline persistence)
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
 ASS_CAT_TXT,Cable Trays,Type,True
@@ -4645,22 +4647,6 @@ BLE_STAIR_TREAD_FINISH_TXT,Air Terminals,Type,True
 BLE_STAIR_TREAD_FINISH_TXT,Ducts,Type,True
 BLE_STAIR_TREAD_FINISH_TXT,Generic Models,Type,True
 BLE_STAIR_TREAD_FINISH_TXT,Mechanical Equipment,Type,True
-HVC_TERMINAL_DAMPER_TXT,Air Terminals,Type,True
-HVC_TERMINAL_DAMPER_TXT,Ducts,Type,True
-HVC_TERMINAL_DAMPER_TXT,Generic Models,Type,True
-HVC_TERMINAL_DAMPER_TXT,Mechanical Equipment,Type,True
-HVC_TERMINAL_FINISH_TXT,Air Terminals,Type,True
-HVC_TERMINAL_FINISH_TXT,Ducts,Type,True
-HVC_TERMINAL_FINISH_TXT,Generic Models,Type,True
-HVC_TERMINAL_FINISH_TXT,Mechanical Equipment,Type,True
-HVC_TERMINAL_MAT_TXT,Air Terminals,Type,True
-HVC_TERMINAL_MAT_TXT,Ducts,Type,True
-HVC_TERMINAL_MAT_TXT,Generic Models,Type,True
-HVC_TERMINAL_MAT_TXT,Mechanical Equipment,Type,True
-HVC_TERMINAL_PATTERN_TXT,Air Terminals,Type,True
-HVC_TERMINAL_PATTERN_TXT,Ducts,Type,True
-HVC_TERMINAL_PATTERN_TXT,Generic Models,Type,True
-HVC_TERMINAL_PATTERN_TXT,Mechanical Equipment,Type,True
 HVC_VEL_MPS,Air Terminals,Type,True
 HVC_VEL_MPS,Ducts,Type,True
 HVC_VEL_MPS,Generic Models,Type,True
@@ -9289,10 +9275,6 @@ BLE_STAIR_HANDRAIL_MAT_TXT,Flex Ducts,Type,True
 BLE_STAIR_MAT_TXT,Flex Ducts,Type,True
 BLE_STAIR_NOSING_TYPE_TXT,Flex Ducts,Type,True
 BLE_STAIR_TREAD_FINISH_TXT,Flex Ducts,Type,True
-HVC_TERMINAL_DAMPER_TXT,Flex Ducts,Type,True
-HVC_TERMINAL_FINISH_TXT,Flex Ducts,Type,True
-HVC_TERMINAL_MAT_TXT,Flex Ducts,Type,True
-HVC_TERMINAL_PATTERN_TXT,Flex Ducts,Type,True
 HVC_VEL_MPS,Flex Ducts,Type,True
 HVC_VLT_V,Flex Ducts,Type,True
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,Flex Ducts,Type,True
@@ -9467,10 +9449,6 @@ HVC_DUCT_CLASS_TXT,Duct Accessories,Type,True
 HVC_DUCT_FLOWRATE_M3H,Duct Accessories,Type,True
 HVC_DUCT_LINING_TXT,Duct Accessories,Type,True
 HVC_EFF_RATIO_NR,Duct Accessories,Type,True
-HVC_TERMINAL_DAMPER_TXT,Duct Accessories,Type,True
-HVC_TERMINAL_FINISH_TXT,Duct Accessories,Type,True
-HVC_TERMINAL_MAT_TXT,Duct Accessories,Type,True
-HVC_TERMINAL_PATTERN_TXT,Duct Accessories,Type,True
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,Duct Accessories,Type,True
 PER_ACOUSTICS_IIC_RATING_TXT,Duct Accessories,Type,True
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,Duct Accessories,Type,True
@@ -9647,10 +9625,6 @@ HVC_DUCT_CLASS_TXT,Duct Fittings,Type,True
 HVC_DUCT_FLOWRATE_M3H,Duct Fittings,Type,True
 HVC_DUCT_LINING_TXT,Duct Fittings,Type,True
 HVC_EFF_RATIO_NR,Duct Fittings,Type,True
-HVC_TERMINAL_DAMPER_TXT,Duct Fittings,Type,True
-HVC_TERMINAL_FINISH_TXT,Duct Fittings,Type,True
-HVC_TERMINAL_MAT_TXT,Duct Fittings,Type,True
-HVC_TERMINAL_PATTERN_TXT,Duct Fittings,Type,True
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,Duct Fittings,Type,True
 PER_ACOUSTICS_IIC_RATING_TXT,Duct Fittings,Type,True
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,Duct Fittings,Type,True
@@ -16648,7 +16622,6 @@ STR_BLACK_COTTON_RISK_BOOL,Structural Foundations,Type,Yes
 STR_PUNCH_UTIL_PCT,Structural Columns,Type,Yes
 STR_PUNCH_UTIL_PCT,Structural Foundations,Type,Yes
 STR_SYSTEM_CLASS_TXT,Project Information,Instance,Yes
-# v3.5 | LPS panel Wave 1 — 67 ELC_LPS_* bindings (project-level + per-element + bonding-candidate MEP categories)
 ELC_LPS_CLASS_TXT,Project Information,Instance,Yes
 ELC_LPS_ROLLING_SPHERE_RADIUS_M,Project Information,Instance,Yes
 ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment,Instance,Yes
@@ -16838,7 +16811,6 @@ HVC_DCT_INSULATION_THK_MM_DISP_TXT,Duct Fittings,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Ducts,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Flex Ducts,Type,True
 HVC_DCT_INSULATION_THK_MM_DISP_TXT,Generic Models,Type,True
-# Phase 195 | SUS_SUSTAINABILITY (group 35) -> Project Information (WS H3: SetBaseline persistence)
 SUS_ENERGY_KWH_M2_NR,Project Information,Instance,True
 SUS_WATER_L_PD_NR,Project Information,Instance,True
 SUS_MAT_CARBON_KGM2_NR,Project Information,Instance,True
@@ -16889,221 +16861,429 @@ STING_PLACER_ASSY_ID_TXT,Detail Items,Instance,False
 STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,False
 STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,False
 STING_PLACER_VIEW_ID_TXT,Detail Items,Instance,False
-PRJ_SHEET_SYSTEM_TXT,Title Blocks,Instance,True
-ASS_LAST_TOKEN_HASH_TXT,Generic Models,Instance,False
-ASS_REV_TXT,Generic Models,Type,True
-ASS_TAG_MODIFIED_DT,Air Terminals,Type,True
-ASS_TAG_MODIFIED_DT,Cable Trays,Type,True
-ASS_TAG_MODIFIED_DT,Casework,Type,True
-ASS_TAG_MODIFIED_DT,Ceilings,Type,True
-ASS_TAG_MODIFIED_DT,Columns,Type,True
-ASS_TAG_MODIFIED_DT,Communication Devices,Type,True
-ASS_TAG_MODIFIED_DT,Conduits,Type,True
-ASS_TAG_MODIFIED_DT,Curtain Panels,Type,True
-ASS_TAG_MODIFIED_DT,Curtain Systems,Type,True
-ASS_TAG_MODIFIED_DT,Curtain Wall Mullions,Type,True
-ASS_TAG_MODIFIED_DT,Data Devices,Type,True
-ASS_TAG_MODIFIED_DT,Doors,Type,True
-ASS_TAG_MODIFIED_DT,Duct Accessories,Type,True
-ASS_TAG_MODIFIED_DT,Duct Fittings,Type,True
-ASS_TAG_MODIFIED_DT,Ducts,Type,True
-ASS_TAG_MODIFIED_DT,Electrical Equipment,Type,True
-ASS_TAG_MODIFIED_DT,Electrical Fixtures,Type,True
-ASS_TAG_MODIFIED_DT,Fire Alarm Devices,Type,True
-ASS_TAG_MODIFIED_DT,Flex Ducts,Type,True
-ASS_TAG_MODIFIED_DT,Flex Pipes,Type,True
-ASS_TAG_MODIFIED_DT,Floors,Type,True
-ASS_TAG_MODIFIED_DT,Furniture,Type,True
-ASS_TAG_MODIFIED_DT,Furniture Systems,Type,True
-ASS_TAG_MODIFIED_DT,Generic Models,Type,True
-ASS_TAG_MODIFIED_DT,Lighting Fixtures,Type,True
-ASS_TAG_MODIFIED_DT,Mechanical Equipment,Type,True
-ASS_TAG_MODIFIED_DT,Medical Equipment,Type,True
-ASS_TAG_MODIFIED_DT,Nurse Call Devices,Type,True
-ASS_TAG_MODIFIED_DT,Pipe Accessories,Type,True
-ASS_TAG_MODIFIED_DT,Pipe Fittings,Type,True
-ASS_TAG_MODIFIED_DT,Pipes,Type,True
-ASS_TAG_MODIFIED_DT,Plumbing Equipment,Type,True
-ASS_TAG_MODIFIED_DT,Plumbing Fixtures,Type,True
-ASS_TAG_MODIFIED_DT,Railings,Type,True
-ASS_TAG_MODIFIED_DT,Ramps,Type,True
-ASS_TAG_MODIFIED_DT,Roofs,Type,True
-ASS_TAG_MODIFIED_DT,Rooms,Type,True
-ASS_TAG_MODIFIED_DT,Security Devices,Type,True
-ASS_TAG_MODIFIED_DT,Specialty Equipment,Type,True
-ASS_TAG_MODIFIED_DT,Sprinklers,Type,True
-ASS_TAG_MODIFIED_DT,Stairs,Type,True
-ASS_TAG_MODIFIED_DT,Structural Foundations,Type,True
-ASS_TAG_MODIFIED_DT,Structural Framing,Type,True
-ASS_TAG_MODIFIED_DT,Telephone Devices,Type,True
-ASS_TAG_MODIFIED_DT,Walls,Type,True
-ASS_TAG_MODIFIED_DT,Windows,Type,True
-ASS_TAG_PREV_TXT,Air Terminals,Type,True
-ASS_TAG_PREV_TXT,Cable Trays,Type,True
-ASS_TAG_PREV_TXT,Casework,Type,True
-ASS_TAG_PREV_TXT,Ceilings,Type,True
-ASS_TAG_PREV_TXT,Columns,Type,True
-ASS_TAG_PREV_TXT,Communication Devices,Type,True
-ASS_TAG_PREV_TXT,Conduits,Type,True
-ASS_TAG_PREV_TXT,Curtain Panels,Type,True
-ASS_TAG_PREV_TXT,Curtain Systems,Type,True
-ASS_TAG_PREV_TXT,Curtain Wall Mullions,Type,True
-ASS_TAG_PREV_TXT,Data Devices,Type,True
-ASS_TAG_PREV_TXT,Doors,Type,True
-ASS_TAG_PREV_TXT,Duct Accessories,Type,True
-ASS_TAG_PREV_TXT,Duct Fittings,Type,True
-ASS_TAG_PREV_TXT,Ducts,Type,True
-ASS_TAG_PREV_TXT,Electrical Equipment,Type,True
-ASS_TAG_PREV_TXT,Electrical Fixtures,Type,True
-ASS_TAG_PREV_TXT,Fire Alarm Devices,Type,True
-ASS_TAG_PREV_TXT,Flex Ducts,Type,True
-ASS_TAG_PREV_TXT,Flex Pipes,Type,True
-ASS_TAG_PREV_TXT,Floors,Type,True
-ASS_TAG_PREV_TXT,Furniture,Type,True
-ASS_TAG_PREV_TXT,Furniture Systems,Type,True
-ASS_TAG_PREV_TXT,Generic Models,Type,True
-ASS_TAG_PREV_TXT,Lighting Fixtures,Type,True
-ASS_TAG_PREV_TXT,Mechanical Equipment,Type,True
-ASS_TAG_PREV_TXT,Medical Equipment,Type,True
-ASS_TAG_PREV_TXT,Nurse Call Devices,Type,True
-ASS_TAG_PREV_TXT,Pipe Accessories,Type,True
-ASS_TAG_PREV_TXT,Pipe Fittings,Type,True
-ASS_TAG_PREV_TXT,Pipes,Type,True
-ASS_TAG_PREV_TXT,Plumbing Equipment,Type,True
-ASS_TAG_PREV_TXT,Plumbing Fixtures,Type,True
-ASS_TAG_PREV_TXT,Railings,Type,True
-ASS_TAG_PREV_TXT,Ramps,Type,True
-ASS_TAG_PREV_TXT,Roofs,Type,True
-ASS_TAG_PREV_TXT,Rooms,Type,True
-ASS_TAG_PREV_TXT,Security Devices,Type,True
-ASS_TAG_PREV_TXT,Specialty Equipment,Type,True
-ASS_TAG_PREV_TXT,Sprinklers,Type,True
-ASS_TAG_PREV_TXT,Stairs,Type,True
-ASS_TAG_PREV_TXT,Structural Foundations,Type,True
-ASS_TAG_PREV_TXT,Structural Framing,Type,True
-ASS_TAG_PREV_TXT,Telephone Devices,Type,True
-ASS_TAG_PREV_TXT,Walls,Type,True
-ASS_TAG_PREV_TXT,Windows,Type,True
-ASS_WARRANTY_TXT,Air Terminals,Type,True
-ASS_WARRANTY_TXT,Cable Trays,Type,True
-ASS_WARRANTY_TXT,Casework,Type,True
-ASS_WARRANTY_TXT,Communication Devices,Type,True
-ASS_WARRANTY_TXT,Conduits,Type,True
-ASS_WARRANTY_TXT,Data Devices,Type,True
-ASS_WARRANTY_TXT,Electrical Equipment,Type,True
-ASS_WARRANTY_TXT,Electrical Fixtures,Type,True
-ASS_WARRANTY_TXT,Furniture,Type,True
-ASS_WARRANTY_TXT,Generic Models,Type,True
-ASS_WARRANTY_TXT,Lighting Fixtures,Type,True
-ASS_WARRANTY_TXT,Mechanical Equipment,Type,True
-ASS_WARRANTY_TXT,Nurse Call Devices,Type,True
-ASS_WARRANTY_TXT,Plumbing Equipment,Type,True
-ASS_WARRANTY_TXT,Plumbing Fixtures,Type,True
-ASS_WARRANTY_TXT,Security Devices,Type,True
-ASS_WARRANTY_TXT,Specialty Equipment,Type,True
-ASS_WARRANTY_TXT,Sprinklers,Type,True
-ASS_WARRANTY_TXT,Telephone Devices,Type,True
-ELC_CDT_FAB_METHOD_TXT,Conduit Fittings,Instance,True
-ELC_CDT_FAB_METHOD_TXT,Conduits,Instance,False
-ELC_CDT_FAB_METHOD_TXT,Ducts,Instance,True
-ELC_CDT_FAB_METHOD_TXT,Pipes,Instance,True
-ELC_CDT_SOFFIT_OFFSET_MM,Conduit Fittings,Instance,True
-ELC_CDT_SOFFIT_OFFSET_MM,Conduits,Instance,False
-ELC_CDT_SOFFIT_OFFSET_MM,Ducts,Instance,True
-ELC_CDT_SOFFIT_OFFSET_MM,Pipes,Instance,True
-ELC_JB_UPSTREAM_REF_TXT,Electrical Equipment,Instance,True
-ELC_PNL_IP_RATING_TXT,Air Terminals,Type,True
-ELC_PNL_IP_RATING_TXT,Cable Tray Fittings,Type,True
-ELC_PNL_IP_RATING_TXT,Cable Trays,Type,True
-ELC_PNL_IP_RATING_TXT,Casework,Type,True
-ELC_PNL_IP_RATING_TXT,Communication Devices,Type,True
-ELC_PNL_IP_RATING_TXT,Conduit Fittings,Type,True
-ELC_PNL_IP_RATING_TXT,Conduits,Type,True
-ELC_PNL_IP_RATING_TXT,Data Devices,Type,True
-ELC_PNL_IP_RATING_TXT,Electrical Circuits,Type,True
-ELC_PNL_IP_RATING_TXT,Electrical Equipment,Type,True
-ELC_PNL_IP_RATING_TXT,Electrical Fixtures,Type,True
-ELC_PNL_IP_RATING_TXT,Furniture,Type,True
-ELC_PNL_IP_RATING_TXT,Generic Models,Type,True
-ELC_PNL_IP_RATING_TXT,Lighting Fixtures,Type,True
-ELC_PNL_IP_RATING_TXT,Mechanical Equipment,Type,True
-ELC_PNL_IP_RATING_TXT,Nurse Call Devices,Type,True
-ELC_PNL_IP_RATING_TXT,Plumbing Equipment,Type,True
-ELC_PNL_IP_RATING_TXT,Plumbing Fixtures,Type,True
-ELC_PNL_IP_RATING_TXT,Security Devices,Type,True
-ELC_PNL_IP_RATING_TXT,Specialty Equipment,Type,True
-ELC_PNL_IP_RATING_TXT,Sprinklers,Type,True
-ELC_PNL_IP_RATING_TXT,Telephone Devices,Type,True
-ELC_PNL_NAME_TXT,Air Terminals,Type,True
-ELC_PNL_NAME_TXT,Cable Tray Fittings,Type,True
-ELC_PNL_NAME_TXT,Cable Trays,Type,True
-ELC_PNL_NAME_TXT,Casework,Type,True
-ELC_PNL_NAME_TXT,Communication Devices,Type,True
-ELC_PNL_NAME_TXT,Conduit Fittings,Type,True
-ELC_PNL_NAME_TXT,Conduits,Type,True
-ELC_PNL_NAME_TXT,Data Devices,Type,True
-ELC_PNL_NAME_TXT,Electrical Circuits,Type,True
-ELC_PNL_NAME_TXT,Electrical Equipment,Type,True
-ELC_PNL_NAME_TXT,Electrical Fixtures,Type,True
-ELC_PNL_NAME_TXT,Furniture,Type,True
-ELC_PNL_NAME_TXT,Generic Models,Type,True
-ELC_PNL_NAME_TXT,Lighting Fixtures,Type,True
-ELC_PNL_NAME_TXT,Mechanical Equipment,Type,True
-ELC_PNL_NAME_TXT,Nurse Call Devices,Type,True
-ELC_PNL_NAME_TXT,Plumbing Equipment,Type,True
-ELC_PNL_NAME_TXT,Plumbing Fixtures,Type,True
-ELC_PNL_NAME_TXT,Security Devices,Type,True
-ELC_PNL_NAME_TXT,Specialty Equipment,Type,True
-ELC_PNL_NAME_TXT,Sprinklers,Type,True
-ELC_PNL_NAME_TXT,Telephone Devices,Type,True
-ELC_WIRE_AMPACITY_A,Conduits,Instance,False
-ELC_WIRE_CIRCUIT_BREAKER_A,Conduits,Instance,False
-ELC_WIRE_CIRCUIT_TYPE_TXT,Conduits,Instance,False
-ELC_WIRE_COND_MAT_TXT,Conduits,Instance,False
-ELC_WIRE_CORE_COUNT_INT,Conduits,Instance,False
-ELC_WIRE_CSA_MM2_NUM,Conduits,Instance,False
-ELC_WIRE_INSTALL_METHOD_TXT,Conduits,Instance,False
-ELC_WIRE_MAX_DEMAND_A,Conduits,Instance,False
-ELC_WIRE_PHASE_TXT,Conduits,Instance,False
-ELC_WIRE_PROFILE_ID_TXT,Conduits,Instance,False
-ELC_WIRE_VD_PCT_NUM,Conduits,Instance,False
-HVC_DCT_FAB_METHOD_TXT,Air Terminals,Type,True
-HVC_DCT_FAB_METHOD_TXT,Duct Accessories,Type,True
-HVC_DCT_FAB_METHOD_TXT,Duct Fittings,Type,True
-HVC_DCT_FAB_METHOD_TXT,Ducts,Type,True
-HVC_DCT_FAB_METHOD_TXT,Flex Ducts,Type,True
-HVC_DCT_FAB_METHOD_TXT,Generic Models,Type,True
-HVC_DCT_FAB_METHOD_TXT,Mechanical Equipment,Type,True
-HVC_DCT_FAB_METHOD_TXT,Pipes,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Air Terminals,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Duct Accessories,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Duct Fittings,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Ducts,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Flex Ducts,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Generic Models,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Mechanical Equipment,Type,True
-HVC_DCT_SEAM_TYPE_TXT,Pipes,Type,True
-HVC_PRESSURE_DROP_PA,Ducts,Instance,True
-HVC_PRESSURE_DROP_PA,Flex Ducts,Instance,True
-PLM_PIPE_INS_THK_MM,Pipes,Instance,False
-PLM_PPE_FAB_METHOD_TXT,Generic Models,Type,True
-PLM_PPE_FAB_METHOD_TXT,Pipe Accessories,Type,True
-PLM_PPE_FAB_METHOD_TXT,Pipe Fittings,Type,True
-PLM_PPE_FAB_METHOD_TXT,Pipes,Type,True
-PLM_PPE_FAB_METHOD_TXT,Plumbing Equipment,Type,True
-PLM_PPE_FAB_METHOD_TXT,Plumbing Fixtures,Type,True
-PLM_PPE_FAB_METHOD_TXT,Sprinklers,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Generic Models,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Pipe Accessories,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Pipe Fittings,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Pipes,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Plumbing Equipment,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Plumbing Fixtures,Type,True
-PLM_PPE_HANGER_TYPE_TXT,Sprinklers,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Generic Models,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Pipe Accessories,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Pipe Fittings,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Pipes,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Plumbing Equipment,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Plumbing Fixtures,Type,True
-PLM_VLV_BACKFLOW_TYPE_TXT,Sprinklers,Type,True
+CEQ_EQP_TAG,Specialty Equipment,Instance,True
+CEQ_EQP_TAG,Medical Equipment,Instance,True
+CEQ_EQP_TAG,Mechanical Equipment,Instance,True
+CEQ_TAG_7_PARA_TXT,Specialty Equipment,Instance,True
+CEQ_TAG_7_PARA_TXT,Medical Equipment,Instance,True
+CEQ_TAG_7_PARA_TXT,Mechanical Equipment,Instance,True
+CLN_DESIGN_ACH_INT,Rooms,Instance,True
+CLN_DESIGN_ACH_INT,Specialty Equipment,Instance,True
+CLN_DESIGN_ACH_INT,Medical Equipment,Instance,True
+CLN_DESIGN_ACH_INT,Mechanical Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Rooms,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Specialty Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Medical Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Mechanical Equipment,Instance,True
+CLN_DESIGN_RH_PCT_INT,Rooms,Instance,True
+CLN_DESIGN_RH_PCT_INT,Specialty Equipment,Instance,True
+CLN_DESIGN_RH_PCT_INT,Medical Equipment,Instance,True
+CLN_DESIGN_RH_PCT_INT,Mechanical Equipment,Instance,True
+CLN_DESIGN_TEMP_C_DBL,Rooms,Instance,True
+CLN_DESIGN_TEMP_C_DBL,Specialty Equipment,Instance,True
+CLN_DESIGN_TEMP_C_DBL,Medical Equipment,Instance,True
+CLN_DESIGN_TEMP_C_DBL,Mechanical Equipment,Instance,True
+CLN_EQP_TAG,Rooms,Instance,True
+CLN_EQP_TAG,Specialty Equipment,Instance,True
+CLN_EQP_TAG,Medical Equipment,Instance,True
+CLN_EQP_TAG,Mechanical Equipment,Instance,True
+CLN_ROOM_TAG,Rooms,Instance,True
+CLN_ROOM_TAG,Specialty Equipment,Instance,True
+CLN_ROOM_TAG,Medical Equipment,Instance,True
+CLN_ROOM_TAG,Mechanical Equipment,Instance,True
+CLN_TAG_7_PARA_TXT,Rooms,Instance,True
+CLN_TAG_7_PARA_TXT,Specialty Equipment,Instance,True
+CLN_TAG_7_PARA_TXT,Medical Equipment,Instance,True
+CLN_TAG_7_PARA_TXT,Mechanical Equipment,Instance,True
+COM_BACKBONE_CAPACITY_TXT,Communication Devices,Instance,True
+COM_BACKBONE_CAPACITY_TXT,Data Devices,Instance,True
+COM_COMMISSION_DATE_TXT,Communication Devices,Instance,True
+COM_COMMISSION_DATE_TXT,Data Devices,Instance,True
+COM_COMMISSION_ENGINEER_TXT,Communication Devices,Instance,True
+COM_COMMISSION_ENGINEER_TXT,Data Devices,Instance,True
+COM_COMMISSION_STATUS_TXT,Communication Devices,Instance,True
+COM_COMMISSION_STATUS_TXT,Data Devices,Instance,True
+COM_C_PANEL_TXT,Communication Devices,Instance,True
+COM_C_PANEL_TXT,Data Devices,Instance,True
+COM_DEV_TAG,Communication Devices,Instance,True
+COM_DEV_TAG,Data Devices,Instance,True
+COM_FIBER_TYPE_TXT,Communication Devices,Instance,True
+COM_FIBER_TYPE_TXT,Data Devices,Instance,True
+COM_HANDOVER_STATUS_TXT,Communication Devices,Instance,True
+COM_HANDOVER_STATUS_TXT,Data Devices,Instance,True
+COM_INSTALL_DATE_TXT,Communication Devices,Instance,True
+COM_INSTALL_DATE_TXT,Data Devices,Instance,True
+COM_PROTOCOL_TXT,Communication Devices,Instance,True
+COM_PROTOCOL_TXT,Data Devices,Instance,True
+COM_TAG_7_PARA_BMS_TXT,Communication Devices,Instance,True
+COM_TAG_7_PARA_BMS_TXT,Data Devices,Instance,True
+COM_TEST_CERT_REF_TXT,Communication Devices,Instance,True
+COM_TEST_CERT_REF_TXT,Data Devices,Instance,True
+COM_WARRANTY_START_TXT,Communication Devices,Instance,True
+COM_WARRANTY_START_TXT,Data Devices,Instance,True
+HVC_TERMINAL_DAMPER_TXT,Air Terminals,Type,True
+HVC_TERMINAL_FINISH_TXT,Air Terminals,Type,True
+HVC_TERMINAL_MAT_TXT,Air Terminals,Type,True
+HVC_TERMINAL_PATTERN_TXT,Air Terminals,Type,True
+ICT_CAT_RATING_TXT,Data Devices,Instance,True
+ICT_CAT_RATING_TXT,Communication Devices,Instance,True
+ICT_DEV_TAG,Data Devices,Instance,True
+ICT_DEV_TAG,Communication Devices,Instance,True
+ICT_ENDO_READER_ID_TXT,Data Devices,Instance,True
+ICT_ENDO_READER_ID_TXT,Communication Devices,Instance,True
+ICT_HEALTHIOT_ALERT_BAND_TXT,Data Devices,Instance,True
+ICT_HEALTHIOT_ALERT_BAND_TXT,Communication Devices,Instance,True
+ICT_HEALTHIOT_DEVICE_ID_TXT,Data Devices,Instance,True
+ICT_HEALTHIOT_DEVICE_ID_TXT,Communication Devices,Instance,True
+ICT_HEALTHIOT_ENDPOINT_TXT,Data Devices,Instance,True
+ICT_HEALTHIOT_ENDPOINT_TXT,Communication Devices,Instance,True
+ICT_HEALTHIOT_PROTOCOL_TXT,Data Devices,Instance,True
+ICT_HEALTHIOT_PROTOCOL_TXT,Communication Devices,Instance,True
+ICT_RTLS_ANCHOR_ID_TXT,Data Devices,Instance,True
+ICT_RTLS_ANCHOR_ID_TXT,Communication Devices,Instance,True
+ICT_RTLS_COVERAGE_M_NR,Data Devices,Instance,True
+ICT_RTLS_COVERAGE_M_NR,Communication Devices,Instance,True
+ICT_RTLS_TECH_TXT,Data Devices,Instance,True
+ICT_RTLS_TECH_TXT,Communication Devices,Instance,True
+ICT_RTLS_TX_POWER_DBM_NR,Data Devices,Instance,True
+ICT_RTLS_TX_POWER_DBM_NR,Communication Devices,Instance,True
+ICT_TAG_7_PARA_AV_DEV_TXT,Data Devices,Instance,True
+ICT_TAG_7_PARA_AV_DEV_TXT,Communication Devices,Instance,True
+ICT_TAG_7_PARA_DATA_TXT,Data Devices,Instance,True
+ICT_TAG_7_PARA_DATA_TXT,Communication Devices,Instance,True
+ICT_TAG_7_PARA_TEL_TXT,Data Devices,Instance,True
+ICT_TAG_7_PARA_TEL_TXT,Communication Devices,Instance,True
+ICT_TEL_OUTLET_QTY_NR,Data Devices,Instance,True
+ICT_TEL_OUTLET_QTY_NR,Communication Devices,Instance,True
+ICT_TEL_PORT_TYPE_TXT,Data Devices,Instance,True
+ICT_TEL_PORT_TYPE_TXT,Communication Devices,Instance,True
+LIG_AREA_OBS_LOS_TXT,Doors,Instance,True
+LIG_AREA_OBS_LOS_TXT,Windows,Instance,True
+LIG_AREA_OBS_LOS_TXT,Plumbing Fixtures,Instance,True
+LIG_AREA_OBS_LOS_TXT,Lighting Fixtures,Instance,True
+LIG_AREA_OBS_LOS_TXT,Casework,Instance,True
+LIG_AREA_OBS_LOS_TXT,Specialty Equipment,Instance,True
+LIG_FIT_TAG,Doors,Instance,True
+LIG_FIT_TAG,Windows,Instance,True
+LIG_FIT_TAG,Plumbing Fixtures,Instance,True
+LIG_FIT_TAG,Lighting Fixtures,Instance,True
+LIG_FIT_TAG,Casework,Instance,True
+LIG_FIT_TAG,Specialty Equipment,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Doors,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Windows,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Plumbing Fixtures,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Lighting Fixtures,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Casework,Instance,True
+LIG_FORCE_LIMIT_KG_NR,Specialty Equipment,Instance,True
+LIG_PRESSURE_REL_BOOL,Doors,Instance,True
+LIG_PRESSURE_REL_BOOL,Windows,Instance,True
+LIG_PRESSURE_REL_BOOL,Plumbing Fixtures,Instance,True
+LIG_PRESSURE_REL_BOOL,Lighting Fixtures,Instance,True
+LIG_PRESSURE_REL_BOOL,Casework,Instance,True
+LIG_PRESSURE_REL_BOOL,Specialty Equipment,Instance,True
+LIG_PRODUCT_RATING_TXT,Doors,Instance,True
+LIG_PRODUCT_RATING_TXT,Windows,Instance,True
+LIG_PRODUCT_RATING_TXT,Plumbing Fixtures,Instance,True
+LIG_PRODUCT_RATING_TXT,Lighting Fixtures,Instance,True
+LIG_PRODUCT_RATING_TXT,Casework,Instance,True
+LIG_PRODUCT_RATING_TXT,Specialty Equipment,Instance,True
+LIG_SELF_CLOSE_BOOL,Doors,Instance,True
+LIG_SELF_CLOSE_BOOL,Windows,Instance,True
+LIG_SELF_CLOSE_BOOL,Plumbing Fixtures,Instance,True
+LIG_SELF_CLOSE_BOOL,Lighting Fixtures,Instance,True
+LIG_SELF_CLOSE_BOOL,Casework,Instance,True
+LIG_SELF_CLOSE_BOOL,Specialty Equipment,Instance,True
+LIG_TAG_7_PARA_TXT,Doors,Instance,True
+LIG_TAG_7_PARA_TXT,Windows,Instance,True
+LIG_TAG_7_PARA_TXT,Plumbing Fixtures,Instance,True
+LIG_TAG_7_PARA_TXT,Lighting Fixtures,Instance,True
+LIG_TAG_7_PARA_TXT,Casework,Instance,True
+LIG_TAG_7_PARA_TXT,Specialty Equipment,Instance,True
+MED_TAG_7_PARA_MED_EQUIP_TXT,Medical Equipment,Instance,True
+MGS_AAP_REF_TXT,Mechanical Equipment,Instance,True
+MGS_AAP_REF_TXT,Specialty Equipment,Instance,True
+MGS_AAP_REF_TXT,Medical Equipment,Instance,True
+MGS_AAP_REF_TXT,Pipes,Instance,True
+MGS_AAP_REF_TXT,Pipe Fittings,Instance,True
+MGS_AAP_REF_TXT,Pipe Accessories,Instance,True
+MGS_AAP_REF_TXT,Plumbing Fixtures,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Mechanical Equipment,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Medical Equipment,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Pipes,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Pipe Fittings,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Pipe Accessories,Instance,True
+MGS_DESIGN_FLOW_LPM_NR,Plumbing Fixtures,Instance,True
+MGS_DIVERSITY_PCT_NR,Mechanical Equipment,Instance,True
+MGS_DIVERSITY_PCT_NR,Specialty Equipment,Instance,True
+MGS_DIVERSITY_PCT_NR,Medical Equipment,Instance,True
+MGS_DIVERSITY_PCT_NR,Pipes,Instance,True
+MGS_DIVERSITY_PCT_NR,Pipe Fittings,Instance,True
+MGS_DIVERSITY_PCT_NR,Pipe Accessories,Instance,True
+MGS_DIVERSITY_PCT_NR,Plumbing Fixtures,Instance,True
+MGS_EQP_TAG,Mechanical Equipment,Instance,True
+MGS_EQP_TAG,Specialty Equipment,Instance,True
+MGS_EQP_TAG,Medical Equipment,Instance,True
+MGS_EQP_TAG,Pipes,Instance,True
+MGS_EQP_TAG,Pipe Fittings,Instance,True
+MGS_EQP_TAG,Pipe Accessories,Instance,True
+MGS_EQP_TAG,Plumbing Fixtures,Instance,True
+MGS_GAS_TYPE_TXT,Mechanical Equipment,Instance,True
+MGS_GAS_TYPE_TXT,Specialty Equipment,Instance,True
+MGS_GAS_TYPE_TXT,Medical Equipment,Instance,True
+MGS_GAS_TYPE_TXT,Pipes,Instance,True
+MGS_GAS_TYPE_TXT,Pipe Fittings,Instance,True
+MGS_GAS_TYPE_TXT,Pipe Accessories,Instance,True
+MGS_GAS_TYPE_TXT,Plumbing Fixtures,Instance,True
+MGS_NOM_PRESS_KPA_NR,Mechanical Equipment,Instance,True
+MGS_NOM_PRESS_KPA_NR,Specialty Equipment,Instance,True
+MGS_NOM_PRESS_KPA_NR,Medical Equipment,Instance,True
+MGS_NOM_PRESS_KPA_NR,Pipes,Instance,True
+MGS_NOM_PRESS_KPA_NR,Pipe Fittings,Instance,True
+MGS_NOM_PRESS_KPA_NR,Pipe Accessories,Instance,True
+MGS_NOM_PRESS_KPA_NR,Plumbing Fixtures,Instance,True
+MGS_OUTLET_ZONE_TXT,Mechanical Equipment,Instance,True
+MGS_OUTLET_ZONE_TXT,Specialty Equipment,Instance,True
+MGS_OUTLET_ZONE_TXT,Medical Equipment,Instance,True
+MGS_OUTLET_ZONE_TXT,Pipes,Instance,True
+MGS_OUTLET_ZONE_TXT,Pipe Fittings,Instance,True
+MGS_OUTLET_ZONE_TXT,Pipe Accessories,Instance,True
+MGS_OUTLET_ZONE_TXT,Plumbing Fixtures,Instance,True
+MGS_PIPE_BRAZED_BOOL,Mechanical Equipment,Instance,True
+MGS_PIPE_BRAZED_BOOL,Specialty Equipment,Instance,True
+MGS_PIPE_BRAZED_BOOL,Medical Equipment,Instance,True
+MGS_PIPE_BRAZED_BOOL,Pipes,Instance,True
+MGS_PIPE_BRAZED_BOOL,Pipe Fittings,Instance,True
+MGS_PIPE_BRAZED_BOOL,Pipe Accessories,Instance,True
+MGS_PIPE_BRAZED_BOOL,Plumbing Fixtures,Instance,True
+MGS_TAG_7_PARA_TXT,Mechanical Equipment,Instance,True
+MGS_TAG_7_PARA_TXT,Specialty Equipment,Instance,True
+MGS_TAG_7_PARA_TXT,Medical Equipment,Instance,True
+MGS_TAG_7_PARA_TXT,Pipes,Instance,True
+MGS_TAG_7_PARA_TXT,Pipe Fittings,Instance,True
+MGS_TAG_7_PARA_TXT,Pipe Accessories,Instance,True
+MGS_TAG_7_PARA_TXT,Plumbing Fixtures,Instance,True
+MGS_TU_BS5682_BOOL,Mechanical Equipment,Instance,True
+MGS_TU_BS5682_BOOL,Specialty Equipment,Instance,True
+MGS_TU_BS5682_BOOL,Medical Equipment,Instance,True
+MGS_TU_BS5682_BOOL,Pipes,Instance,True
+MGS_TU_BS5682_BOOL,Pipe Fittings,Instance,True
+MGS_TU_BS5682_BOOL,Pipe Accessories,Instance,True
+MGS_TU_BS5682_BOOL,Plumbing Fixtures,Instance,True
+MGS_TU_INDEXED_BOOL,Mechanical Equipment,Instance,True
+MGS_TU_INDEXED_BOOL,Specialty Equipment,Instance,True
+MGS_TU_INDEXED_BOOL,Medical Equipment,Instance,True
+MGS_TU_INDEXED_BOOL,Pipes,Instance,True
+MGS_TU_INDEXED_BOOL,Pipe Fittings,Instance,True
+MGS_TU_INDEXED_BOOL,Pipe Accessories,Instance,True
+MGS_TU_INDEXED_BOOL,Plumbing Fixtures,Instance,True
+MGS_VERIFY_BY_TXT,Mechanical Equipment,Instance,True
+MGS_VERIFY_BY_TXT,Specialty Equipment,Instance,True
+MGS_VERIFY_BY_TXT,Medical Equipment,Instance,True
+MGS_VERIFY_BY_TXT,Pipes,Instance,True
+MGS_VERIFY_BY_TXT,Pipe Fittings,Instance,True
+MGS_VERIFY_BY_TXT,Pipe Accessories,Instance,True
+MGS_VERIFY_BY_TXT,Plumbing Fixtures,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Mechanical Equipment,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Specialty Equipment,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Medical Equipment,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Pipes,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Pipe Fittings,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Pipe Accessories,Instance,True
+MGS_VERIFY_CERT_REF_TXT,Plumbing Fixtures,Instance,True
+MGS_VERIFY_DT,Mechanical Equipment,Instance,True
+MGS_VERIFY_DT,Specialty Equipment,Instance,True
+MGS_VERIFY_DT,Medical Equipment,Instance,True
+MGS_VERIFY_DT,Pipes,Instance,True
+MGS_VERIFY_DT,Pipe Fittings,Instance,True
+MGS_VERIFY_DT,Pipe Accessories,Instance,True
+MGS_VERIFY_DT,Plumbing Fixtures,Instance,True
+MGS_VERIFY_PASS_BOOL,Mechanical Equipment,Instance,True
+MGS_VERIFY_PASS_BOOL,Specialty Equipment,Instance,True
+MGS_VERIFY_PASS_BOOL,Medical Equipment,Instance,True
+MGS_VERIFY_PASS_BOOL,Pipes,Instance,True
+MGS_VERIFY_PASS_BOOL,Pipe Fittings,Instance,True
+MGS_VERIFY_PASS_BOOL,Pipe Accessories,Instance,True
+MGS_VERIFY_PASS_BOOL,Plumbing Fixtures,Instance,True
+MGS_WORKING_PRESSURE_KPA,Mechanical Equipment,Instance,True
+MGS_WORKING_PRESSURE_KPA,Specialty Equipment,Instance,True
+MGS_WORKING_PRESSURE_KPA,Medical Equipment,Instance,True
+MGS_WORKING_PRESSURE_KPA,Pipes,Instance,True
+MGS_WORKING_PRESSURE_KPA,Pipe Fittings,Instance,True
+MGS_WORKING_PRESSURE_KPA,Pipe Accessories,Instance,True
+MGS_WORKING_PRESSURE_KPA,Plumbing Fixtures,Instance,True
+MGS_ZVB_REF_TXT,Mechanical Equipment,Instance,True
+MGS_ZVB_REF_TXT,Specialty Equipment,Instance,True
+MGS_ZVB_REF_TXT,Medical Equipment,Instance,True
+MGS_ZVB_REF_TXT,Pipes,Instance,True
+MGS_ZVB_REF_TXT,Pipe Fittings,Instance,True
+MGS_ZVB_REF_TXT,Pipe Accessories,Instance,True
+MGS_ZVB_REF_TXT,Plumbing Fixtures,Instance,True
+NCL_DEV_TAG,Nurse Call Devices,Instance,True
+NCL_DEV_TYPE_TXT,Nurse Call Devices,Instance,True
+NCL_TAG_7_PARA_NURSECALL_TXT,Nurse Call Devices,Instance,True
+NCL_TAG_7_PARA_TXT,Nurse Call Devices,Instance,True
+RAD_EQP_TAG,Walls,Instance,True
+RAD_EQP_TAG,Doors,Instance,True
+RAD_EQP_TAG,Windows,Instance,True
+RAD_EQP_TAG,Floors,Instance,True
+RAD_EQP_TAG,Ceilings,Instance,True
+RAD_EQP_TAG,Specialty Equipment,Instance,True
+RAD_EQP_TAG,Medical Equipment,Instance,True
+RAD_TAG_7_PARA_TXT,Walls,Instance,True
+RAD_TAG_7_PARA_TXT,Doors,Instance,True
+RAD_TAG_7_PARA_TXT,Windows,Instance,True
+RAD_TAG_7_PARA_TXT,Floors,Instance,True
+RAD_TAG_7_PARA_TXT,Ceilings,Instance,True
+RAD_TAG_7_PARA_TXT,Specialty Equipment,Instance,True
+RAD_TAG_7_PARA_TXT,Medical Equipment,Instance,True
+SEC_DEV_COVERAGE_TXT,Security Devices,Instance,True
+SEC_DEV_TAG,Security Devices,Instance,True
+SEC_DEV_TYPE_TXT,Security Devices,Instance,True
+SEC_TAG_7_PARA_SECURITY_TXT,Security Devices,Instance,True
+SEC_TAG_7_PARA_TXT,Security Devices,Instance,True
+WARN_CEQ_GMDN_MISSING,Specialty Equipment,Instance,True
+WARN_CEQ_GMDN_MISSING,Medical Equipment,Instance,True
+WARN_CEQ_GMDN_MISSING,Mechanical Equipment,Instance,True
+WARN_CEQ_IMAGING_STRUCT_LOAD,Specialty Equipment,Instance,True
+WARN_CEQ_IMAGING_STRUCT_LOAD,Medical Equipment,Instance,True
+WARN_CEQ_IMAGING_STRUCT_LOAD,Mechanical Equipment,Instance,True
+WARN_CLN_ACOUSTIC_STC_LOW,Rooms,Instance,True
+WARN_CLN_ACOUSTIC_STC_LOW,Specialty Equipment,Instance,True
+WARN_CLN_ACOUSTIC_STC_LOW,Medical Equipment,Instance,True
+WARN_CLN_ACOUSTIC_STC_LOW,Mechanical Equipment,Instance,True
+WARN_CLN_AIIR_NOT_NEGATIVE,Rooms,Instance,True
+WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment,Instance,True
+WARN_CLN_AIIR_NOT_NEGATIVE,Medical Equipment,Instance,True
+WARN_CLN_AIIR_NOT_NEGATIVE,Mechanical Equipment,Instance,True
+WARN_CLN_ANTERM_MISSING,Rooms,Instance,True
+WARN_CLN_ANTERM_MISSING,Specialty Equipment,Instance,True
+WARN_CLN_ANTERM_MISSING,Medical Equipment,Instance,True
+WARN_CLN_ANTERM_MISSING,Mechanical Equipment,Instance,True
+WARN_CLN_HEPA_GRADE_INVALID,Rooms,Instance,True
+WARN_CLN_HEPA_GRADE_INVALID,Specialty Equipment,Instance,True
+WARN_CLN_HEPA_GRADE_INVALID,Medical Equipment,Instance,True
+WARN_CLN_HEPA_GRADE_INVALID,Mechanical Equipment,Instance,True
+WARN_CLN_IOT_STALE,Rooms,Instance,True
+WARN_CLN_IOT_STALE,Specialty Equipment,Instance,True
+WARN_CLN_IOT_STALE,Medical Equipment,Instance,True
+WARN_CLN_IOT_STALE,Mechanical Equipment,Instance,True
+WARN_CLN_MRI_ZONE_UNASSIGNED,Rooms,Instance,True
+WARN_CLN_MRI_ZONE_UNASSIGNED,Specialty Equipment,Instance,True
+WARN_CLN_MRI_ZONE_UNASSIGNED,Medical Equipment,Instance,True
+WARN_CLN_MRI_ZONE_UNASSIGNED,Mechanical Equipment,Instance,True
+WARN_CLN_OR_LOW_ACH,Rooms,Instance,True
+WARN_CLN_OR_LOW_ACH,Specialty Equipment,Instance,True
+WARN_CLN_OR_LOW_ACH,Medical Equipment,Instance,True
+WARN_CLN_OR_LOW_ACH,Mechanical Equipment,Instance,True
+WARN_CLN_OR_ULTRA_LOW_ACH,Rooms,Instance,True
+WARN_CLN_OR_ULTRA_LOW_ACH,Specialty Equipment,Instance,True
+WARN_CLN_OR_ULTRA_LOW_ACH,Medical Equipment,Instance,True
+WARN_CLN_OR_ULTRA_LOW_ACH,Mechanical Equipment,Instance,True
+WARN_CLN_PE_NOT_POSITIVE,Rooms,Instance,True
+WARN_CLN_PE_NOT_POSITIVE,Specialty Equipment,Instance,True
+WARN_CLN_PE_NOT_POSITIVE,Medical Equipment,Instance,True
+WARN_CLN_PE_NOT_POSITIVE,Mechanical Equipment,Instance,True
+WARN_CLN_PRESS_REGIME_INVALID,Rooms,Instance,True
+WARN_CLN_PRESS_REGIME_INVALID,Specialty Equipment,Instance,True
+WARN_CLN_PRESS_REGIME_INVALID,Medical Equipment,Instance,True
+WARN_CLN_PRESS_REGIME_INVALID,Mechanical Equipment,Instance,True
+WARN_CLN_RDS_INCOMPLETE,Rooms,Instance,True
+WARN_CLN_RDS_INCOMPLETE,Specialty Equipment,Instance,True
+WARN_CLN_RDS_INCOMPLETE,Medical Equipment,Instance,True
+WARN_CLN_RDS_INCOMPLETE,Mechanical Equipment,Instance,True
+WARN_CLN_RF_SHIELD_UNSPECIFIED,Rooms,Instance,True
+WARN_CLN_RF_SHIELD_UNSPECIFIED,Specialty Equipment,Instance,True
+WARN_CLN_RF_SHIELD_UNSPECIFIED,Medical Equipment,Instance,True
+WARN_CLN_RF_SHIELD_UNSPECIFIED,Mechanical Equipment,Instance,True
+WARN_CLN_RTLS_NO_COVERAGE,Rooms,Instance,True
+WARN_CLN_RTLS_NO_COVERAGE,Specialty Equipment,Instance,True
+WARN_CLN_RTLS_NO_COVERAGE,Medical Equipment,Instance,True
+WARN_CLN_RTLS_NO_COVERAGE,Mechanical Equipment,Instance,True
+WARN_CLN_WASTE_ROUTE_UNRESOLVED,Rooms,Instance,True
+WARN_CLN_WASTE_ROUTE_UNRESOLVED,Specialty Equipment,Instance,True
+WARN_CLN_WASTE_ROUTE_UNRESOLVED,Medical Equipment,Instance,True
+WARN_CLN_WASTE_ROUTE_UNRESOLVED,Mechanical Equipment,Instance,True
+WARN_LIG_RES_NO_RATING,Doors,Instance,True
+WARN_LIG_RES_NO_RATING,Windows,Instance,True
+WARN_LIG_RES_NO_RATING,Plumbing Fixtures,Instance,True
+WARN_LIG_RES_NO_RATING,Lighting Fixtures,Instance,True
+WARN_LIG_RES_NO_RATING,Casework,Instance,True
+WARN_LIG_RES_NO_RATING,Specialty Equipment,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Mechanical Equipment,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Specialty Equipment,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Medical Equipment,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Pipes,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Pipe Fittings,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Pipe Accessories,Instance,True
+WARN_MGS_FLOW_RATE_LOW,Plumbing Fixtures,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Mechanical Equipment,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Specialty Equipment,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Medical Equipment,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Pipes,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Pipe Fittings,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Pipe Accessories,Instance,True
+WARN_MGS_GAS_TYPE_MISSING,Plumbing Fixtures,Instance,True
+WARN_MGS_NOT_BRAZED,Mechanical Equipment,Instance,True
+WARN_MGS_NOT_BRAZED,Specialty Equipment,Instance,True
+WARN_MGS_NOT_BRAZED,Medical Equipment,Instance,True
+WARN_MGS_NOT_BRAZED,Pipes,Instance,True
+WARN_MGS_NOT_BRAZED,Pipe Fittings,Instance,True
+WARN_MGS_NOT_BRAZED,Pipe Accessories,Instance,True
+WARN_MGS_NOT_BRAZED,Plumbing Fixtures,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Mechanical Equipment,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Specialty Equipment,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Medical Equipment,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Pipes,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Pipe Fittings,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Pipe Accessories,Instance,True
+WARN_MGS_PRESSURE_DROP_HIGH,Plumbing Fixtures,Instance,True
+WARN_MGS_VERIFY_FAILED,Mechanical Equipment,Instance,True
+WARN_MGS_VERIFY_FAILED,Specialty Equipment,Instance,True
+WARN_MGS_VERIFY_FAILED,Medical Equipment,Instance,True
+WARN_MGS_VERIFY_FAILED,Pipes,Instance,True
+WARN_MGS_VERIFY_FAILED,Pipe Fittings,Instance,True
+WARN_MGS_VERIFY_FAILED,Pipe Accessories,Instance,True
+WARN_MGS_VERIFY_FAILED,Plumbing Fixtures,Instance,True
+WARN_MGS_ZVB_NO_REF,Mechanical Equipment,Instance,True
+WARN_MGS_ZVB_NO_REF,Specialty Equipment,Instance,True
+WARN_MGS_ZVB_NO_REF,Medical Equipment,Instance,True
+WARN_MGS_ZVB_NO_REF,Pipes,Instance,True
+WARN_MGS_ZVB_NO_REF,Pipe Fittings,Instance,True
+WARN_MGS_ZVB_NO_REF,Pipe Accessories,Instance,True
+WARN_MGS_ZVB_NO_REF,Plumbing Fixtures,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Walls,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Doors,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Windows,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Floors,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Ceilings,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Specialty Equipment,Instance,True
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Medical Equipment,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Walls,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Doors,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Windows,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Floors,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Ceilings,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Specialty Equipment,Instance,True
+WARN_RAD_DOOR_NO_INTERLOCKS,Medical Equipment,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Walls,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Doors,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Windows,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Floors,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Ceilings,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Specialty Equipment,Instance,True
+WARN_RAD_DOSIMETRY_POST_MISSING,Medical Equipment,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Walls,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Doors,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Windows,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Floors,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Ceilings,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Specialty Equipment,Instance,True
+WARN_RAD_LEAD_INSUFFICIENT,Medical Equipment,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Walls,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Doors,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Windows,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Floors,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Ceilings,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Specialty Equipment,Instance,True
+WARN_RAD_QE_NOT_SIGNED,Medical Equipment,Instance,True

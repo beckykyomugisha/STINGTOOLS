@@ -1,6 +1,11 @@
+# v3.3 | 20260708 | HVC_TERMINAL->Air Terminals (removed Ducts/Generic/Mech) + discipline-scoped family rows (param->category binding accuracy)
 # v3.2 | 20260630 | +26 Tier-2 electrical/plumbing/design-option/IFC family bindings
 # v3.1 | 20260630 | +7 material cost/carbon/EPD family bindings (Sustainability/BOQ-cost)
 # v3.0 | 20260313 | BIM Template family_parameter_bindings
+# Phase 184 P0.2 + P5 — currency-neutral cost / payment cert / variation params
+# Phase 182-183 — HVAC sizing-registry audit-trail + refrigerant/capacity params
+# STING Tag Style Parameters (TAG_* — injected by Phase 187i audit, 2026-06-08)
+# STING Tag Style Parameters (dot-notation + extras — Phase 187i supplement, 2026-06-08)
 ParameterGroup,ParameterName,GUID,DataType,BindingType,Description,RevitCategory,Maps_To_Shared_Param_GUID
 ASS_MNG,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,Type,Catalog Number,Casework,f8fe813a-44e9-5e47-9109-921171dc53b6
 ASS_MNG,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,Type,Catalog Number,Electrical Equipment,f8fe813a-44e9-5e47-9109-921171dc53b6
@@ -2015,10 +2020,6 @@ ASS_MNG,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,
 ASS_MNG,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020],Plumbing Fixtures,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49
 ASS_MNG,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020],Specialty Equipment,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49
 ASS_MNG,ASS_CST_UNIT_PRICE_UGX_NR,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49,CURRENCY,Type,Ass Cst Unit Price Ugx Nr [ISO 19650-3:2020],Sprinklers,57d29e0c-b1ef-50e6-9c3d-d58e751c9f49
-HVC_SYSTEMS,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],Air Terminals,5ba3a60c-0497-56c2-9f44-5f2e6f58320b
-HVC_SYSTEMS,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],Ducts,5ba3a60c-0497-56c2-9f44-5f2e6f58320b
-HVC_SYSTEMS,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],Generic Models,5ba3a60c-0497-56c2-9f44-5f2e6f58320b
-HVC_SYSTEMS,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],Mechanical Equipment,5ba3a60c-0497-56c2-9f44-5f2e6f58320b
 TPL_TRACKING,DS_TEXT_FONT_TXT,8a55440d-e288-4c5f-9f5f-c2fcadf3a0af,TEXT,Type,Text font [ISO 19650-1:2018],Generic Models,8a55440d-e288-4c5f-9f5f-c2fcadf3a0af
 MAT_INFO,MAT_TAG_2_TXT,0d78850d-45b1-4179-9079-3e3ec525a4ef,TEXT,Instance,"Material specification tag: name, thickness, standard [ISO 19650-1:2018]",Materials,0d78850d-45b1-4179-9079-3e3ec525a4ef
 PRJ_INFORMATION,PRJ_INFORMATION_SPARE_02_TXT,b4e2d00d-a873-4fa9-bdc4-3d57fe742671,TEXT,Type,Spare parameter 2 for PRJ_INFORMATION group,Project Information,b4e2d00d-a873-4fa9-bdc4-3d57fe742671
@@ -2310,10 +2311,6 @@ TPL_TRACKING,MA_PRIORITY_TXT,55b66c29-7946-4a91-9f2c-fecb2e944447,TEXT,Type,Prio
 RGL_CMPL,RGL_CMPL_SPARE_01_TXT,4982cb29-ea74-4497-bc4f-3d4ebbcc7840,TEXT,Type,Spare parameter 1 for RGL_CMPL group,Generic Models,4982cb29-ea74-4497-bc4f-3d4ebbcc7840
 TPL_TRACKING,LS_STATUS_TXT,c416f32a-59da-493c-9a94-cc6cc238153f,TEXT,Type,Line style status [ISO 19650-2:2018],Generic Models,c416f32a-59da-493c-9a94-cc6cc238153f
 TPL_TRACKING,PH_NUMBER_INT,a9b92c2b-d5a5-47ab-a3a1-9cec4e1f4c31,INTEGER,Type,Phase sequence number [ISO 19650-1:2018],Generic Models,a9b92c2b-d5a5-47ab-a3a1-9cec4e1f4c31
-HVC_SYSTEMS,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],Air Terminals,c22dc02b-885d-51a6-a02b-10e8b225d871
-HVC_SYSTEMS,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],Ducts,c22dc02b-885d-51a6-a02b-10e8b225d871
-HVC_SYSTEMS,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],Generic Models,c22dc02b-885d-51a6-a02b-10e8b225d871
-HVC_SYSTEMS,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],Mechanical Equipment,c22dc02b-885d-51a6-a02b-10e8b225d871
 COM_DAT,CST_TOTAL_SAND_COST,d090e92b-0946-4c30-a1cc-f03d1fd653c7,CURRENCY,Type,Total sand cost in UGX [ISO 19650-3:2020],Air Terminals,d090e92b-0946-4c30-a1cc-f03d1fd653c7
 COM_DAT,CST_TOTAL_SAND_COST,d090e92b-0946-4c30-a1cc-f03d1fd653c7,CURRENCY,Type,Total sand cost in UGX [ISO 19650-3:2020],Cable Trays,d090e92b-0946-4c30-a1cc-f03d1fd653c7
 COM_DAT,CST_TOTAL_SAND_COST,d090e92b-0946-4c30-a1cc-f03d1fd653c7,CURRENCY,Type,Total sand cost in UGX [ISO 19650-3:2020],Casework,d090e92b-0946-4c30-a1cc-f03d1fd653c7
@@ -2351,10 +2348,6 @@ PLM_DRN,PLM_STRAINER_PRESSURE_RATING_BAR,9642cb31-ebe8-5019-8045-5460a30d91e3,NU
 PLM_DRN,PLM_STRAINER_PRESSURE_RATING_BAR,9642cb31-ebe8-5019-8045-5460a30d91e3,NUMBER,Type,Plm Strainer Pressure Rating Bar [ISO 19650-1:2018],Plumbing Equipment,9642cb31-ebe8-5019-8045-5460a30d91e3
 PLM_DRN,PLM_STRAINER_PRESSURE_RATING_BAR,9642cb31-ebe8-5019-8045-5460a30d91e3,NUMBER,Type,Plm Strainer Pressure Rating Bar [ISO 19650-1:2018],Plumbing Fixtures,9642cb31-ebe8-5019-8045-5460a30d91e3
 PLM_DRN,PLM_STRAINER_PRESSURE_RATING_BAR,9642cb31-ebe8-5019-8045-5460a30d91e3,NUMBER,Type,Plm Strainer Pressure Rating Bar [ISO 19650-1:2018],Sprinklers,9642cb31-ebe8-5019-8045-5460a30d91e3
-HVC_SYSTEMS,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],Air Terminals,b4b20432-2a18-5392-809e-8768a0c45401
-HVC_SYSTEMS,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],Ducts,b4b20432-2a18-5392-809e-8768a0c45401
-HVC_SYSTEMS,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],Generic Models,b4b20432-2a18-5392-809e-8768a0c45401
-HVC_SYSTEMS,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],Mechanical Equipment,b4b20432-2a18-5392-809e-8768a0c45401
 PRJ_INFORMATION,PRJ_INFORMATION_SPARE_01_TXT,7080d132-e4e6-4b1c-9419-8f8403f52183,TEXT,Type,Spare parameter 1 for PRJ_INFORMATION group,Project Information,7080d132-e4e6-4b1c-9419-8f8403f52183
 HVC_SYSTEMS,HVC_FLX_TAG_01_TXT,cd984834-8273-4d2c-89c4-dfe33520e2d2,TEXT,Type,"Flex duct spec tag: material, lining, length [ISO 19650-1:2018]",Flex Ducts,cd984834-8273-4d2c-89c4-dfe33520e2d2
 TPL_TRACKING,DS_TEXT_SIZE_NR,62aaa434-fb79-426d-b5c7-79498e70bffb,NUMBER,Type,Text size in mm [ISO 19650-1:2018],Generic Models,62aaa434-fb79-426d-b5c7-79498e70bffb
@@ -2792,10 +2785,6 @@ ELC_PWR,ELC_CKT_CBL_SZ_MM,5fdec965-f61d-51e4-9fdb-a2461a9b8241,LENGTH,Type,Elc C
 ELC_PWR,ELC_CKT_CBL_SZ_MM,5fdec965-f61d-51e4-9fdb-a2461a9b8241,LENGTH,Type,Elc Ckt Cbl Sz Mm [ISO 19650-1:2018],Generic Models,5fdec965-f61d-51e4-9fdb-a2461a9b8241
 TPL_TRACKING,SYS_DESIGN_VELOCITY_TXT,5e054f66-e3c4-4ed1-a4ca-34f79617f71d,TEXT,Type,Design velocity [ISO 19650-1:2018],Generic Models,5e054f66-e3c4-4ed1-a4ca-34f79617f71d
 TPL_TRACKING,VT_VISUAL_STYLE_TXT,58999b66-3923-4ee8-b5f7-3fe2b130e131,TEXT,Type,Visual style setting [ISO 19650-1:2018],Generic Models,58999b66-3923-4ee8-b5f7-3fe2b130e131
-HVC_SYSTEMS,HVC_TERMINAL_DAMPER_TXT,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,TEXT,Type,Hvc Terminal Damper Txt [ISO 19650-1:2018],Air Terminals,05a44669-a8ec-5f2d-abca-5bf15bcbbe76
-HVC_SYSTEMS,HVC_TERMINAL_DAMPER_TXT,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,TEXT,Type,Hvc Terminal Damper Txt [ISO 19650-1:2018],Ducts,05a44669-a8ec-5f2d-abca-5bf15bcbbe76
-HVC_SYSTEMS,HVC_TERMINAL_DAMPER_TXT,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,TEXT,Type,Hvc Terminal Damper Txt [ISO 19650-1:2018],Generic Models,05a44669-a8ec-5f2d-abca-5bf15bcbbe76
-HVC_SYSTEMS,HVC_TERMINAL_DAMPER_TXT,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,TEXT,Type,Hvc Terminal Damper Txt [ISO 19650-1:2018],Mechanical Equipment,05a44669-a8ec-5f2d-abca-5bf15bcbbe76
 PLM_DRN,PLM_SPT_ANCHOR_TYPE_TXT,f6da6369-1dcd-581b-8bcc-44a572e623ef,TEXT,Type,Plm Spt Anchor Type Txt [ISO 19650-1:2018],Generic Models,f6da6369-1dcd-581b-8bcc-44a572e623ef
 PLM_DRN,PLM_SPT_ANCHOR_TYPE_TXT,f6da6369-1dcd-581b-8bcc-44a572e623ef,TEXT,Type,Plm Spt Anchor Type Txt [ISO 19650-1:2018],Pipe Accessories,f6da6369-1dcd-581b-8bcc-44a572e623ef
 PLM_DRN,PLM_SPT_ANCHOR_TYPE_TXT,f6da6369-1dcd-581b-8bcc-44a572e623ef,TEXT,Type,Plm Spt Anchor Type Txt [ISO 19650-1:2018],Pipe Fittings,f6da6369-1dcd-581b-8bcc-44a572e623ef
@@ -5872,7 +5861,6 @@ SLV_SLEEVE_PARAMS,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,
 SLV_SLEEVE_PARAMS,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,Instance,Fire test standard,Generic Models,0a2943a3-036b-55ae-89ee-01055824fad8
 SLV_SLEEVE_PARAMS,SLV_STATUS_TXT,91403abb-2a37-5571-9435-d68bc6cacec1,TEXT,Instance,Sleeve status,Generic Models,91403abb-2a37-5571-9435-d68bc6cacec1
 SLV_SLEEVE_PARAMS,SLV_INSPECTION_DATE_TXT,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7,TEXT,Instance,Last inspection date,Generic Models,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7
-# Phase 184 P0.2 + P5 — currency-neutral cost / payment cert / variation params
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Casework,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Electrical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
 CST_PROC,ASS_CST_UNIT_RATE_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41,NUMBER,Type,Currency-neutral unit rate,Furniture,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d41
@@ -5971,7 +5959,6 @@ CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,V
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Mechanical Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Plumbing Fixtures,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
 CST_PROC,ASS_VAR_VALUATION_NR,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62,NUMBER,Type,Variation valuation,Specialty Equipment,b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d62
-# Phase 182-183 — HVAC sizing-registry audit-trail + refrigerant/capacity params
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Air Terminals,5bf0485f-08dd-53d1-9cc5-d956305d42e0
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Accessories,5bf0485f-08dd-53d1-9cc5-d956305d42e0
 HVC_SYSTEMS,HVC_SEGMENT_ROLE_TXT,5bf0485f-08dd-53d1-9cc5-d956305d42e0,TEXT,Type,Duct segment role,Duct Fittings,5bf0485f-08dd-53d1-9cc5-d956305d42e0
@@ -6039,7 +6026,6 @@ HVC_SYSTEMS,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,TEXT,Type,S
 HVC_SYSTEMS,HVC_REFRIGERANT_KG_NR,b99d07d1-6eca-50cf-b983-b6fe2442bc8c,TEXT,Type,Refrigerant charge mass kg,Mechanical Equipment,b99d07d1-6eca-50cf-b983-b6fe2442bc8c
 HVC_SYSTEMS,HVC_REFRIGERANT_TYPE_TXT,10d87a6e-b7d8-5058-81a9-bc62394d9bad,TEXT,Type,Refrigerant id,Mechanical Equipment,10d87a6e-b7d8-5058-81a9-bc62394d9bad
 HVC_SYSTEMS,HVC_CAPACITY_KW,397ee526-7af0-5516-a2a1-48db5a42f249,TEXT,Type,Equipment design capacity kW,Mechanical Equipment,397ee526-7af0-5516-a2a1-48db5a42f249
-# STING Tag Style Parameters (TAG_* — injected by Phase 187i audit, 2026-06-08)
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,TEXT,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Air Terminals,d5a1b2c3-2013-4e01-a1c1-200000000013
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,TEXT,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Cable Tray Fittings,d5a1b2c3-2013-4e01-a1c1-200000000013
 STINGTags_ISO19650,TAG_2BOLDITALIC_BLACK_BOOL,d5a1b2c3-2013-4e01-a1c1-200000000013,TEXT,Type,Tag 2Bolditalic Black [ISO 19650-3:2020],Cable Trays,d5a1b2c3-2013-4e01-a1c1-200000000013
@@ -10156,7 +10142,6 @@ STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TE
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TEXT,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Doors,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TEXT,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Floors,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
 STINGTags_ISO19650,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,TEXT,Type,Enable/disable warning text in tags [ISO 19650-3:2020],Roofs,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f
-# STING Tag Style Parameters (dot-notation + extras — Phase 187i supplement, 2026-06-08)
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,TEXT,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Air Terminals,d5a1b2c3-2513-4e01-a1c1-250000000013
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,TEXT,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Cable Tray Fittings,d5a1b2c3-2513-4e01-a1c1-250000000013
 STINGTags_ISO19650,TAG_2.5BOLDITALIC_BLACK_BOOL,d5a1b2c3-2513-4e01-a1c1-250000000013,TEXT,Type,Tag 2.5Bolditalic Black [ISO 19650-3:2020],Cable Trays,d5a1b2c3-2513-4e01-a1c1-250000000013
@@ -12878,3 +12863,429 @@ ASS_MNG,ASS_OPTION_PRIMARY_BOOL,a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a,YESNO,Insta
 ASS_MNG,ASS_LAST_PARA_CONTAINER_TXT,d026a860-0000-5d0f-8f9a-192fef886734,TEXT,Instance,Cache of the last TAG7 paragraph container written [Tagging],Generic Models,d026a860-0000-5d0f-8f9a-192fef886734
 ASS_MNG,STING_COMPOUND_PARENT_ID,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F,TEXT,Instance,Parent compound-symbol element id (multi-connector grouping) [Symbols],Generic Models,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F
 IFC_EXCH,IFC_GLOBAL_ID_TXT,c3e0ef84-0950-55cf-a5b2-d1cc67786128,TEXT,Instance,Stable IFC GlobalId snapshot for cross-host sync [IFC interop],Generic Models,c3e0ef84-0950-55cf-a5b2-d1cc67786128
+CEQ_CLINICAL,CEQ_EQP_TAG,c724bdf9-9a08-53f9-92f3-a6b33470fc1e,TEXT,Instance,Clinical specialist equipment ISO 19650 tag container,Specialty Equipment,c724bdf9-9a08-53f9-92f3-a6b33470fc1e
+CEQ_CLINICAL,CEQ_EQP_TAG,c724bdf9-9a08-53f9-92f3-a6b33470fc1e,TEXT,Instance,Clinical specialist equipment ISO 19650 tag container,Medical Equipment,c724bdf9-9a08-53f9-92f3-a6b33470fc1e
+CEQ_CLINICAL,CEQ_EQP_TAG,c724bdf9-9a08-53f9-92f3-a6b33470fc1e,TEXT,Instance,Clinical specialist equipment ISO 19650 tag container,Mechanical Equipment,c724bdf9-9a08-53f9-92f3-a6b33470fc1e
+CEQ_CLINICAL,CEQ_TAG_7_PARA_TXT,d3e4cf7f-2e40-5d11-aefd-662ceb933060,TEXT,Instance,Clinical specialist equipment TAG7 rich narrative paragraph container,Specialty Equipment,d3e4cf7f-2e40-5d11-aefd-662ceb933060
+CEQ_CLINICAL,CEQ_TAG_7_PARA_TXT,d3e4cf7f-2e40-5d11-aefd-662ceb933060,TEXT,Instance,Clinical specialist equipment TAG7 rich narrative paragraph container,Medical Equipment,d3e4cf7f-2e40-5d11-aefd-662ceb933060
+CEQ_CLINICAL,CEQ_TAG_7_PARA_TXT,d3e4cf7f-2e40-5d11-aefd-662ceb933060,TEXT,Instance,Clinical specialist equipment TAG7 rich narrative paragraph container,Mechanical Equipment,d3e4cf7f-2e40-5d11-aefd-662ceb933060
+CLN_CLINICAL,CLN_DESIGN_ACH_INT,08f57959-5176-5c5f-b063-94c5b1904e64,INTEGER,Instance,Cln Design Ach Int [STING],Rooms,08f57959-5176-5c5f-b063-94c5b1904e64
+CLN_CLINICAL,CLN_DESIGN_ACH_INT,08f57959-5176-5c5f-b063-94c5b1904e64,INTEGER,Instance,Cln Design Ach Int [STING],Specialty Equipment,08f57959-5176-5c5f-b063-94c5b1904e64
+CLN_CLINICAL,CLN_DESIGN_ACH_INT,08f57959-5176-5c5f-b063-94c5b1904e64,INTEGER,Instance,Cln Design Ach Int [STING],Medical Equipment,08f57959-5176-5c5f-b063-94c5b1904e64
+CLN_CLINICAL,CLN_DESIGN_ACH_INT,08f57959-5176-5c5f-b063-94c5b1904e64,INTEGER,Instance,Cln Design Ach Int [STING],Mechanical Equipment,08f57959-5176-5c5f-b063-94c5b1904e64
+CLN_CLINICAL,CLN_DESIGN_PRESSURE_DELTA_PA_INT,53c1b8af-57a1-5954-80ca-d66b7255a42d,INTEGER,Instance,Cln Design Pressure Delta Pa Int [STING],Rooms,53c1b8af-57a1-5954-80ca-d66b7255a42d
+CLN_CLINICAL,CLN_DESIGN_PRESSURE_DELTA_PA_INT,53c1b8af-57a1-5954-80ca-d66b7255a42d,INTEGER,Instance,Cln Design Pressure Delta Pa Int [STING],Specialty Equipment,53c1b8af-57a1-5954-80ca-d66b7255a42d
+CLN_CLINICAL,CLN_DESIGN_PRESSURE_DELTA_PA_INT,53c1b8af-57a1-5954-80ca-d66b7255a42d,INTEGER,Instance,Cln Design Pressure Delta Pa Int [STING],Medical Equipment,53c1b8af-57a1-5954-80ca-d66b7255a42d
+CLN_CLINICAL,CLN_DESIGN_PRESSURE_DELTA_PA_INT,53c1b8af-57a1-5954-80ca-d66b7255a42d,INTEGER,Instance,Cln Design Pressure Delta Pa Int [STING],Mechanical Equipment,53c1b8af-57a1-5954-80ca-d66b7255a42d
+CLN_CLINICAL,CLN_DESIGN_RH_PCT_INT,dabc6b68-6368-5f61-949c-3128f5d85ed7,INTEGER,Instance,Cln Design Rh Pct Int [STING],Rooms,dabc6b68-6368-5f61-949c-3128f5d85ed7
+CLN_CLINICAL,CLN_DESIGN_RH_PCT_INT,dabc6b68-6368-5f61-949c-3128f5d85ed7,INTEGER,Instance,Cln Design Rh Pct Int [STING],Specialty Equipment,dabc6b68-6368-5f61-949c-3128f5d85ed7
+CLN_CLINICAL,CLN_DESIGN_RH_PCT_INT,dabc6b68-6368-5f61-949c-3128f5d85ed7,INTEGER,Instance,Cln Design Rh Pct Int [STING],Medical Equipment,dabc6b68-6368-5f61-949c-3128f5d85ed7
+CLN_CLINICAL,CLN_DESIGN_RH_PCT_INT,dabc6b68-6368-5f61-949c-3128f5d85ed7,INTEGER,Instance,Cln Design Rh Pct Int [STING],Mechanical Equipment,dabc6b68-6368-5f61-949c-3128f5d85ed7
+CLN_CLINICAL,CLN_DESIGN_TEMP_C_DBL,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0,NUMBER,Instance,Cln Design Temp C Dbl [STING],Rooms,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0
+CLN_CLINICAL,CLN_DESIGN_TEMP_C_DBL,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0,NUMBER,Instance,Cln Design Temp C Dbl [STING],Specialty Equipment,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0
+CLN_CLINICAL,CLN_DESIGN_TEMP_C_DBL,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0,NUMBER,Instance,Cln Design Temp C Dbl [STING],Medical Equipment,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0
+CLN_CLINICAL,CLN_DESIGN_TEMP_C_DBL,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0,NUMBER,Instance,Cln Design Temp C Dbl [STING],Mechanical Equipment,60275dcf-fe5c-51c7-a030-a8d1f6ec63e0
+CLN_CLINICAL,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,Instance,Clinical equipment ISO 19650 tag container,Rooms,c1a00001-0000-4c1a-0000-000000000001
+CLN_CLINICAL,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,Instance,Clinical equipment ISO 19650 tag container,Specialty Equipment,c1a00001-0000-4c1a-0000-000000000001
+CLN_CLINICAL,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,Instance,Clinical equipment ISO 19650 tag container,Medical Equipment,c1a00001-0000-4c1a-0000-000000000001
+CLN_CLINICAL,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,Instance,Clinical equipment ISO 19650 tag container,Mechanical Equipment,c1a00001-0000-4c1a-0000-000000000001
+CLN_CLINICAL,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,Instance,Clinical room ISO 19650 tag container,Rooms,c1a00001-0000-4c1a-0000-000000000002
+CLN_CLINICAL,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,Instance,Clinical room ISO 19650 tag container,Specialty Equipment,c1a00001-0000-4c1a-0000-000000000002
+CLN_CLINICAL,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,Instance,Clinical room ISO 19650 tag container,Medical Equipment,c1a00001-0000-4c1a-0000-000000000002
+CLN_CLINICAL,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,Instance,Clinical room ISO 19650 tag container,Mechanical Equipment,c1a00001-0000-4c1a-0000-000000000002
+CLN_CLINICAL,CLN_TAG_7_PARA_TXT,c1a00001-0000-4c1a-0000-000000000003,TEXT,Instance,Clinical TAG7 rich narrative paragraph container,Rooms,c1a00001-0000-4c1a-0000-000000000003
+CLN_CLINICAL,CLN_TAG_7_PARA_TXT,c1a00001-0000-4c1a-0000-000000000003,TEXT,Instance,Clinical TAG7 rich narrative paragraph container,Specialty Equipment,c1a00001-0000-4c1a-0000-000000000003
+CLN_CLINICAL,CLN_TAG_7_PARA_TXT,c1a00001-0000-4c1a-0000-000000000003,TEXT,Instance,Clinical TAG7 rich narrative paragraph container,Medical Equipment,c1a00001-0000-4c1a-0000-000000000003
+CLN_CLINICAL,CLN_TAG_7_PARA_TXT,c1a00001-0000-4c1a-0000-000000000003,TEXT,Instance,Clinical TAG7 rich narrative paragraph container,Mechanical Equipment,c1a00001-0000-4c1a-0000-000000000003
+COM_DAT,COM_BACKBONE_CAPACITY_TXT,c1a47da9-f17f-5371-b3b4-e949133cb4c5,TEXT,Instance,Communications backbone capacity (Gbps/fibre count),Communication Devices,c1a47da9-f17f-5371-b3b4-e949133cb4c5
+COM_DAT,COM_BACKBONE_CAPACITY_TXT,c1a47da9-f17f-5371-b3b4-e949133cb4c5,TEXT,Instance,Communications backbone capacity (Gbps/fibre count),Data Devices,c1a47da9-f17f-5371-b3b4-e949133cb4c5
+COM_DAT,COM_COMMISSION_DATE_TXT,36d5f430-fbc5-5aef-a5c2-cb7e95ac06f7,TEXT,Instance,Commissioning date (COBie),Communication Devices,36d5f430-fbc5-5aef-a5c2-cb7e95ac06f7
+COM_DAT,COM_COMMISSION_DATE_TXT,36d5f430-fbc5-5aef-a5c2-cb7e95ac06f7,TEXT,Instance,Commissioning date (COBie),Data Devices,36d5f430-fbc5-5aef-a5c2-cb7e95ac06f7
+COM_DAT,COM_COMMISSION_ENGINEER_TXT,3ce4b03f-192a-574b-85c8-99157e33e9b6,TEXT,Instance,Commissioning engineer (COBie),Communication Devices,3ce4b03f-192a-574b-85c8-99157e33e9b6
+COM_DAT,COM_COMMISSION_ENGINEER_TXT,3ce4b03f-192a-574b-85c8-99157e33e9b6,TEXT,Instance,Commissioning engineer (COBie),Data Devices,3ce4b03f-192a-574b-85c8-99157e33e9b6
+COM_DAT,COM_COMMISSION_STATUS_TXT,4d8b0acf-5149-5e0b-9195-15abaebf246f,TEXT,Instance,Commissioning status (COBie),Communication Devices,4d8b0acf-5149-5e0b-9195-15abaebf246f
+COM_DAT,COM_COMMISSION_STATUS_TXT,4d8b0acf-5149-5e0b-9195-15abaebf246f,TEXT,Instance,Commissioning status (COBie),Data Devices,4d8b0acf-5149-5e0b-9195-15abaebf246f
+COM_DAT,COM_C_PANEL_TXT,d2828a98-abba-5a71-825c-e8b1c6355fe9,TEXT,Instance,Com C Panel [ISO 19650],Communication Devices,d2828a98-abba-5a71-825c-e8b1c6355fe9
+COM_DAT,COM_C_PANEL_TXT,d2828a98-abba-5a71-825c-e8b1c6355fe9,TEXT,Instance,Com C Panel [ISO 19650],Data Devices,d2828a98-abba-5a71-825c-e8b1c6355fe9
+COM_DAT,COM_DEV_TAG,61d0d77d-c061-5d3b-9f64-5f0f8b279eef,TEXT,Instance,Communications device tag container [ISO 19650-2:2018],Communication Devices,61d0d77d-c061-5d3b-9f64-5f0f8b279eef
+COM_DAT,COM_DEV_TAG,61d0d77d-c061-5d3b-9f64-5f0f8b279eef,TEXT,Instance,Communications device tag container [ISO 19650-2:2018],Data Devices,61d0d77d-c061-5d3b-9f64-5f0f8b279eef
+COM_DAT,COM_FIBER_TYPE_TXT,90103260-cba6-50da-8114-31a1cb2bd1e8,TEXT,Instance,Fibre optic cable type (SM/MM/OM3/OM4),Communication Devices,90103260-cba6-50da-8114-31a1cb2bd1e8
+COM_DAT,COM_FIBER_TYPE_TXT,90103260-cba6-50da-8114-31a1cb2bd1e8,TEXT,Instance,Fibre optic cable type (SM/MM/OM3/OM4),Data Devices,90103260-cba6-50da-8114-31a1cb2bd1e8
+COM_DAT,COM_HANDOVER_STATUS_TXT,c7283cb7-804f-6024-edfc-bd3f2085facc,TEXT,Instance,Com Handover Status [ISO 19650],Communication Devices,c7283cb7-804f-6024-edfc-bd3f2085facc
+COM_DAT,COM_HANDOVER_STATUS_TXT,c7283cb7-804f-6024-edfc-bd3f2085facc,TEXT,Instance,Com Handover Status [ISO 19650],Data Devices,c7283cb7-804f-6024-edfc-bd3f2085facc
+COM_DAT,COM_INSTALL_DATE_TXT,f8a42943-9f11-52d1-b373-6b9b0b7db29f,TEXT,Instance,Installation date (COBie),Communication Devices,f8a42943-9f11-52d1-b373-6b9b0b7db29f
+COM_DAT,COM_INSTALL_DATE_TXT,f8a42943-9f11-52d1-b373-6b9b0b7db29f,TEXT,Instance,Installation date (COBie),Data Devices,f8a42943-9f11-52d1-b373-6b9b0b7db29f
+COM_DAT,COM_PROTOCOL_TXT,06dd171f-a679-57ad-92f2-630bd05e5634,TEXT,Instance,Communications protocol (Ethernet/WiFi6/5G/BACnet),Communication Devices,06dd171f-a679-57ad-92f2-630bd05e5634
+COM_DAT,COM_PROTOCOL_TXT,06dd171f-a679-57ad-92f2-630bd05e5634,TEXT,Instance,Communications protocol (Ethernet/WiFi6/5G/BACnet),Data Devices,06dd171f-a679-57ad-92f2-630bd05e5634
+COM_DAT,COM_TAG_7_PARA_BMS_TXT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,TEXT,Instance,BMS device paragraph [ISO 19650-3:2020],Communication Devices,10c0be4c-8534-5a16-85a5-2c2c5335e6bf
+COM_DAT,COM_TAG_7_PARA_BMS_TXT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,TEXT,Instance,BMS device paragraph [ISO 19650-3:2020],Data Devices,10c0be4c-8534-5a16-85a5-2c2c5335e6bf
+COM_DAT,COM_TEST_CERT_REF_TXT,a380bb76-6058-906b-bf3c-0c82930bfc32,TEXT,Instance,Com Test Cert Ref [ISO 19650],Communication Devices,a380bb76-6058-906b-bf3c-0c82930bfc32
+COM_DAT,COM_TEST_CERT_REF_TXT,a380bb76-6058-906b-bf3c-0c82930bfc32,TEXT,Instance,Com Test Cert Ref [ISO 19650],Data Devices,a380bb76-6058-906b-bf3c-0c82930bfc32
+COM_DAT,COM_WARRANTY_START_TXT,4c40b92b-76eb-5140-ae41-8823580d4a5d,TEXT,Instance,Warranty start date (COBie),Communication Devices,4c40b92b-76eb-5140-ae41-8823580d4a5d
+COM_DAT,COM_WARRANTY_START_TXT,4c40b92b-76eb-5140-ae41-8823580d4a5d,TEXT,Instance,Warranty start date (COBie),Data Devices,4c40b92b-76eb-5140-ae41-8823580d4a5d
+HVC_SYSTEMS,HVC_TERMINAL_DAMPER_TXT,05a44669-a8ec-5f2d-abca-5bf15bcbbe76,TEXT,Type,Hvc Terminal Damper Txt [ISO 19650-1:2018],Air Terminals,05a44669-a8ec-5f2d-abca-5bf15bcbbe76
+HVC_SYSTEMS,HVC_TERMINAL_FINISH_TXT,5ba3a60c-0497-56c2-9f44-5f2e6f58320b,TEXT,Type,Hvc Terminal Finish Txt [ISO 19650-1:2018],Air Terminals,5ba3a60c-0497-56c2-9f44-5f2e6f58320b
+HVC_SYSTEMS,HVC_TERMINAL_MAT_TXT,b4b20432-2a18-5392-809e-8768a0c45401,TEXT,Type,Hvc Terminal Mat Txt [ISO 19650-1:2018],Air Terminals,b4b20432-2a18-5392-809e-8768a0c45401
+HVC_SYSTEMS,HVC_TERMINAL_PATTERN_TXT,c22dc02b-885d-51a6-a02b-10e8b225d871,TEXT,Type,Hvc Terminal Pattern Txt [ISO 19650-1:2018],Air Terminals,c22dc02b-885d-51a6-a02b-10e8b225d871
+COM_DAT,ICT_CAT_RATING_TXT,3c04d5a6-e4d1-5ed8-8e72-8246bb484680,TEXT,Instance,Ict Cat Rating [ISO 19650],Data Devices,3c04d5a6-e4d1-5ed8-8e72-8246bb484680
+COM_DAT,ICT_CAT_RATING_TXT,3c04d5a6-e4d1-5ed8-8e72-8246bb484680,TEXT,Instance,Ict Cat Rating [ISO 19650],Communication Devices,3c04d5a6-e4d1-5ed8-8e72-8246bb484680
+COM_DAT,ICT_DEV_TAG,63eea465-921a-5218-b38e-c15f5793549f,TEXT,Instance,ICT device tag container [ISO 19650-2:2018],Data Devices,63eea465-921a-5218-b38e-c15f5793549f
+COM_DAT,ICT_DEV_TAG,63eea465-921a-5218-b38e-c15f5793549f,TEXT,Instance,ICT device tag container [ISO 19650-2:2018],Communication Devices,63eea465-921a-5218-b38e-c15f5793549f
+COM_DAT,ICT_ENDO_READER_ID_TXT,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005,TEXT,Instance,RFID reader at endoscope decon station [H-26],Data Devices,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005
+COM_DAT,ICT_ENDO_READER_ID_TXT,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005,TEXT,Instance,RFID reader at endoscope decon station [H-26],Communication Devices,c8d4f6e2-2205-4d27-8c61-0e7a3f9bd005
+COM_DAT,ICT_HEALTHIOT_ALERT_BAND_TXT,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,TEXT,Instance,IoT alert band free-text [H-20],Data Devices,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004
+COM_DAT,ICT_HEALTHIOT_ALERT_BAND_TXT,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004,TEXT,Instance,IoT alert band free-text [H-20],Communication Devices,c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004
+COM_DAT,ICT_HEALTHIOT_DEVICE_ID_TXT,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,TEXT,Instance,Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20],Data Devices,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001
+COM_DAT,ICT_HEALTHIOT_DEVICE_ID_TXT,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001,TEXT,Instance,Generic healthcare IoT device ID (consumed by IoTDeviceRegistry) [H-20],Communication Devices,c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001
+COM_DAT,ICT_HEALTHIOT_ENDPOINT_TXT,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,TEXT,Instance,IoT endpoint URI [H-20],Data Devices,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003
+COM_DAT,ICT_HEALTHIOT_ENDPOINT_TXT,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003,TEXT,Instance,IoT endpoint URI [H-20],Communication Devices,c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003
+COM_DAT,ICT_HEALTHIOT_PROTOCOL_TXT,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,TEXT,Instance,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],Data Devices,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002
+COM_DAT,ICT_HEALTHIOT_PROTOCOL_TXT,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002,TEXT,Instance,IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20],Communication Devices,c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002
+COM_DAT,ICT_RTLS_ANCHOR_ID_TXT,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001,TEXT,Instance,RTLS anchor / reader ID [H-29],Data Devices,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001
+COM_DAT,ICT_RTLS_ANCHOR_ID_TXT,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001,TEXT,Instance,RTLS anchor / reader ID [H-29],Communication Devices,c8d4f6e2-2401-4d27-8c61-0e7a3f9bf001
+COM_DAT,ICT_RTLS_COVERAGE_M_NR,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,NUMBER,Instance,RTLS anchor effective coverage radius (m) [H-29],Data Devices,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004
+COM_DAT,ICT_RTLS_COVERAGE_M_NR,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004,NUMBER,Instance,RTLS anchor effective coverage radius (m) [H-29],Communication Devices,c8d4f6e2-2404-4d27-8c61-0e7a3f9bf004
+COM_DAT,ICT_RTLS_TECH_TXT,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002,TEXT,Instance,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29],Data Devices,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002
+COM_DAT,ICT_RTLS_TECH_TXT,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002,TEXT,Instance,RTLS tech: BLE / UWB / Wi-Fi-RSSI / IR / RFID-1356 [H-29],Communication Devices,c8d4f6e2-2402-4d27-8c61-0e7a3f9bf002
+COM_DAT,ICT_RTLS_TX_POWER_DBM_NR,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003,NUMBER,Instance,RTLS anchor TX power (dBm) [H-29],Data Devices,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003
+COM_DAT,ICT_RTLS_TX_POWER_DBM_NR,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003,NUMBER,Instance,RTLS anchor TX power (dBm) [H-29],Communication Devices,c8d4f6e2-2403-4d27-8c61-0e7a3f9bf003
+COM_DAT,ICT_TAG_7_PARA_AV_DEV_TXT,2b072ef2-21e1-5be8-9221-e71c2665ed49,TEXT,Instance,Av Dev paragraph [ISO 19650-3:2020],Data Devices,2b072ef2-21e1-5be8-9221-e71c2665ed49
+COM_DAT,ICT_TAG_7_PARA_AV_DEV_TXT,2b072ef2-21e1-5be8-9221-e71c2665ed49,TEXT,Instance,Av Dev paragraph [ISO 19650-3:2020],Communication Devices,2b072ef2-21e1-5be8-9221-e71c2665ed49
+COM_DAT,ICT_TAG_7_PARA_DATA_TXT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,TEXT,Instance,Data/telephone outlet paragraph [ISO 19650-3:2020],Data Devices,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8
+COM_DAT,ICT_TAG_7_PARA_DATA_TXT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,TEXT,Instance,Data/telephone outlet paragraph [ISO 19650-3:2020],Communication Devices,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8
+COM_DAT,ICT_TAG_7_PARA_TEL_TXT,bbddf716-c33b-56ba-9449-19a113cabe0a,TEXT,Instance,Telephone device paragraph [ISO 19650-3:2020],Data Devices,bbddf716-c33b-56ba-9449-19a113cabe0a
+COM_DAT,ICT_TAG_7_PARA_TEL_TXT,bbddf716-c33b-56ba-9449-19a113cabe0a,TEXT,Instance,Telephone device paragraph [ISO 19650-3:2020],Communication Devices,bbddf716-c33b-56ba-9449-19a113cabe0a
+COM_DAT,ICT_TEL_OUTLET_QTY_NR,c2ca3e24-ee24-5245-a398-ea4eed6e42ee,TEXT,Instance,Number of telephone outlets [ISO 19650-1:2018],Data Devices,c2ca3e24-ee24-5245-a398-ea4eed6e42ee
+COM_DAT,ICT_TEL_OUTLET_QTY_NR,c2ca3e24-ee24-5245-a398-ea4eed6e42ee,TEXT,Instance,Number of telephone outlets [ISO 19650-1:2018],Communication Devices,c2ca3e24-ee24-5245-a398-ea4eed6e42ee
+COM_DAT,ICT_TEL_PORT_TYPE_TXT,6c66b629-6a4d-5cef-8712-2be9b02a4124,TEXT,Instance,Telephone port type specification [ISO 19650-1:2018],Data Devices,6c66b629-6a4d-5cef-8712-2be9b02a4124
+COM_DAT,ICT_TEL_PORT_TYPE_TXT,6c66b629-6a4d-5cef-8712-2be9b02a4124,TEXT,Instance,Telephone port type specification [ISO 19650-1:2018],Communication Devices,6c66b629-6a4d-5cef-8712-2be9b02a4124
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Doors,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Windows,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Plumbing Fixtures,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Lighting Fixtures,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Casework,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_AREA_OBS_LOS_TXT,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005,TEXT,Instance,Observation line-of-sight code,Specialty Equipment,c8d4f6e2-e005-4d27-8c61-0e7a3f9b4005
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Doors,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Windows,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Plumbing Fixtures,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Lighting Fixtures,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Casework,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FIT_TAG,11900001-0000-1190-0000-000000000001,TEXT,Instance,Anti-ligature fitting ISO 19650 tag container,Specialty Equipment,11900001-0000-1190-0000-000000000001
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Doors,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Windows,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Plumbing Fixtures,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Lighting Fixtures,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Casework,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_FORCE_LIMIT_KG_NR,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004,NUMBER,Instance,Release threshold (kg),Specialty Equipment,c8d4f6e2-e004-4d27-8c61-0e7a3f9b4004
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Doors,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Windows,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Plumbing Fixtures,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Lighting Fixtures,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Casework,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRESSURE_REL_BOOL,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003,YESNO,Instance,Releases under load,Specialty Equipment,c8d4f6e2-e003-4d27-8c61-0e7a3f9b4003
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Doors,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Windows,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Plumbing Fixtures,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Lighting Fixtures,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Casework,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_PRODUCT_RATING_TXT,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001,TEXT,Instance,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade),Specialty Equipment,c8d4f6e2-e001-4d27-8c61-0e7a3f9b4001
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Doors,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Windows,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Plumbing Fixtures,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Lighting Fixtures,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Casework,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_SELF_CLOSE_BOOL,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002,YESNO,Instance,Self-closing fitting,Specialty Equipment,c8d4f6e2-e002-4d27-8c61-0e7a3f9b4002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Doors,11900001-0000-1190-0000-000000000002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Windows,11900001-0000-1190-0000-000000000002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Plumbing Fixtures,11900001-0000-1190-0000-000000000002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Lighting Fixtures,11900001-0000-1190-0000-000000000002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Casework,11900001-0000-1190-0000-000000000002
+LIG_BEHAVIOURAL,LIG_TAG_7_PARA_TXT,11900001-0000-1190-0000-000000000002,TEXT,Instance,Anti-ligature TAG7 rich narrative paragraph container,Specialty Equipment,11900001-0000-1190-0000-000000000002
+COM_DAT,MED_TAG_7_PARA_MED_EQUIP_TXT,d7036940-1cbb-538d-aa9b-b98c19575f7b,TEXT,Instance,Med Equip paragraph [ISO 19650-3:2020],Medical Equipment,d7036940-1cbb-538d-aa9b-b98c19575f7b
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Mechanical Equipment,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Specialty Equipment,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Medical Equipment,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Pipes,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Pipe Fittings,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Pipe Accessories,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_AAP_REF_TXT,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008,TEXT,Instance,Owning area alarm panel ID,Plumbing Fixtures,c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Mechanical Equipment,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Specialty Equipment,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Medical Equipment,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Pipes,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Pipe Fittings,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Pipe Accessories,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DESIGN_FLOW_LPM_NR,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003,NUMBER,Instance,Design flow l/min; free air [HTM 02-01],Plumbing Fixtures,c8d4f6e2-b003-4d27-8c61-0e7a3f9b1003
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Mechanical Equipment,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Specialty Equipment,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Medical Equipment,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Pipes,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Pipe Fittings,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Pipe Accessories,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_DIVERSITY_PCT_NR,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004,NUMBER,Instance,Diversity factor (%) [HTM 02-01 sizing],Plumbing Fixtures,c8d4f6e2-b004-4d27-8c61-0e7a3f9b1004
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Mechanical Equipment,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Specialty Equipment,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Medical Equipment,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Pipes,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Pipe Fittings,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Pipe Accessories,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_EQP_TAG,4d677001-0000-4d67-0000-000000000001,TEXT,Instance,Medical gas equipment ISO 19650 tag container,Plumbing Fixtures,4d677001-0000-4d67-0000-000000000001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Mechanical Equipment,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Specialty Equipment,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Medical Equipment,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Pipes,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Pipe Fittings,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Pipe Accessories,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_GAS_TYPE_TXT,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001,TEXT,Instance,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99],Plumbing Fixtures,c8d4f6e2-b001-4d27-8c61-0e7a3f9b1001
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Mechanical Equipment,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Specialty Equipment,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Medical Equipment,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Pipes,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Pipe Fittings,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Pipe Accessories,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_NOM_PRESS_KPA_NR,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002,NUMBER,Instance,Nominal design pressure (kPa) [BS EN ISO 7396-1],Plumbing Fixtures,c8d4f6e2-b002-4d27-8c61-0e7a3f9b1002
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Mechanical Equipment,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Specialty Equipment,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Medical Equipment,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Pipes,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Pipe Fittings,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Pipe Accessories,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_OUTLET_ZONE_TXT,839c6424-1d7d-5b9b-ae11-f38e433abf64,TEXT,Instance,Mgs Outlet Zone Txt [STING],Plumbing Fixtures,839c6424-1d7d-5b9b-ae11-f38e433abf64
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Mechanical Equipment,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Specialty Equipment,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Medical Equipment,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Pipes,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Pipe Fittings,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Pipe Accessories,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_PIPE_BRAZED_BOOL,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009,YESNO,Instance,Brazed under inert-gas purge [HTM 02-01],Plumbing Fixtures,c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Mechanical Equipment,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Specialty Equipment,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Medical Equipment,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Pipes,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Pipe Fittings,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Pipe Accessories,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TAG_7_PARA_TXT,4d677001-0000-4d67-0000-000000000002,TEXT,Instance,Medical gas TAG7 rich narrative paragraph container,Plumbing Fixtures,4d677001-0000-4d67-0000-000000000002
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Mechanical Equipment,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Specialty Equipment,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Medical Equipment,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Pipes,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Pipe Fittings,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Pipe Accessories,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_BS5682_BOOL,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005,YESNO,Instance,Terminal unit complies with BS 5682,Plumbing Fixtures,c8d4f6e2-b005-4d27-8c61-0e7a3f9b1005
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Mechanical Equipment,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Specialty Equipment,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Medical Equipment,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Pipes,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Pipe Fittings,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Pipe Accessories,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_TU_INDEXED_BOOL,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006,YESNO,Instance,Has gas-specific NIST/DISS indexing,Plumbing Fixtures,c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Mechanical Equipment,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Specialty Equipment,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Medical Equipment,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Pipes,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Pipe Fittings,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Pipe Accessories,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_BY_TXT,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011,TEXT,Instance,ASSE 6030 verifier name,Plumbing Fixtures,c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Mechanical Equipment,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Specialty Equipment,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Medical Equipment,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Pipes,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Pipe Fittings,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Pipe Accessories,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_CERT_REF_TXT,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013,TEXT,Instance,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT),Plumbing Fixtures,c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Mechanical Equipment,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Specialty Equipment,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Medical Equipment,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Pipes,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Pipe Fittings,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Pipe Accessories,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_DT,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010,TEXT,Instance,NFPA 99 _5.1.12 verification date (ISO 8601),Plumbing Fixtures,c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Mechanical Equipment,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Specialty Equipment,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Medical Equipment,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Pipes,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Pipe Fittings,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Pipe Accessories,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_VERIFY_PASS_BOOL,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012,YESNO,Instance,Latest verification passed,Plumbing Fixtures,c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Mechanical Equipment,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Specialty Equipment,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Medical Equipment,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Pipes,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Pipe Fittings,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Pipe Accessories,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_WORKING_PRESSURE_KPA,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625,TEXT,Instance,Mgs Working Pressure Kpa [STING],Plumbing Fixtures,bacdc8b2-9dfb-538f-bb79-c5c29c0ac625
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Mechanical Equipment,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Specialty Equipment,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Medical Equipment,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Pipes,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Pipe Fittings,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Pipe Accessories,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+MGS_SYSTEMS,MGS_ZVB_REF_TXT,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007,TEXT,Instance,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT),Plumbing Fixtures,c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007
+COM_DAT,NCL_DEV_TAG,1c1a61fc-29d0-57c8-8e74-e8b9b4502126,TEXT,Instance,Nurse call / low-voltage device tag container [ISO 19650-2:2018],Nurse Call Devices,1c1a61fc-29d0-57c8-8e74-e8b9b4502126
+COM_DAT,NCL_DEV_TYPE_TXT,fe44039b-0bff-5357-9553-9fb057a3806d,TEXT,Instance,Ncl Dev Type [ISO 19650],Nurse Call Devices,fe44039b-0bff-5357-9553-9fb057a3806d
+COM_DAT,NCL_TAG_7_PARA_NURSECALL_TXT,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d,TEXT,Instance,Nurse call paragraph [ISO 19650-3:2020],Nurse Call Devices,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d
+COM_DAT,NCL_TAG_7_PARA_TXT,a1b2c3d4-5055-4a01-b001-000000000185,TEXT,Instance,TAG7 paragraph container for nurse call,Nurse Call Devices,a1b2c3d4-5055-4a01-b001-000000000185
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Walls,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Doors,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Windows,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Floors,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Ceilings,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Specialty Equipment,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_EQP_TAG,12ad0001-0000-12ad-0000-000000000001,TEXT,Instance,Radiation protection ISO 19650 tag container,Medical Equipment,12ad0001-0000-12ad-0000-000000000001
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Walls,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Doors,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Windows,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Floors,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Ceilings,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Specialty Equipment,12ad0001-0000-12ad-0000-000000000002
+RAD_PROTECTION,RAD_TAG_7_PARA_TXT,12ad0001-0000-12ad-0000-000000000002,TEXT,Instance,Radiation protection TAG7 rich narrative paragraph container,Medical Equipment,12ad0001-0000-12ad-0000-000000000002
+COM_DAT,SEC_DEV_COVERAGE_TXT,f4bc288f-3cb3-515f-9ac9-1bc54e8f7b3c,TEXT,Instance,Sec Dev Coverage [ISO 19650],Security Devices,f4bc288f-3cb3-515f-9ac9-1bc54e8f7b3c
+COM_DAT,SEC_DEV_TAG,de2cd955-4727-5488-a783-5d9be9942169,TEXT,Instance,Security device tag container [ISO 19650-2:2018],Security Devices,de2cd955-4727-5488-a783-5d9be9942169
+COM_DAT,SEC_DEV_TYPE_TXT,2eaa65b5-25f2-5955-92d0-fd2597aacb4d,TEXT,Instance,Sec Dev Type [ISO 19650],Security Devices,2eaa65b5-25f2-5955-92d0-fd2597aacb4d
+COM_DAT,SEC_TAG_7_PARA_SECURITY_TXT,d10b0b0c-12d1-55b8-9d48-feda6544696a,TEXT,Instance,Security device paragraph [ISO 19650-3:2020],Security Devices,d10b0b0c-12d1-55b8-9d48-feda6544696a
+COM_DAT,SEC_TAG_7_PARA_TXT,a1b2c3d4-5056-4a01-b001-000000000186,TEXT,Instance,TAG7 paragraph container for security,Security Devices,a1b2c3d4-5056-4a01-b001-000000000186
+CEQ_CLINICAL,WARN_CEQ_GMDN_MISSING,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4,TEXT,Instance,Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare],Specialty Equipment,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4
+CEQ_CLINICAL,WARN_CEQ_GMDN_MISSING,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4,TEXT,Instance,Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare],Medical Equipment,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4
+CEQ_CLINICAL,WARN_CEQ_GMDN_MISSING,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4,TEXT,Instance,Warning: Clinical asset missing GMDN classification code [MEDIUM] [COBie healthcare],Mechanical Equipment,3cfc47f5-93d5-5b0e-adaa-48d61fed97e4
+CEQ_CLINICAL,WARN_CEQ_IMAGING_STRUCT_LOAD,fd323310-5b49-5007-bc47-4061bad379ad,TEXT,Instance,Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1],Specialty Equipment,fd323310-5b49-5007-bc47-4061bad379ad
+CEQ_CLINICAL,WARN_CEQ_IMAGING_STRUCT_LOAD,fd323310-5b49-5007-bc47-4061bad379ad,TEXT,Instance,Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1],Medical Equipment,fd323310-5b49-5007-bc47-4061bad379ad
+CEQ_CLINICAL,WARN_CEQ_IMAGING_STRUCT_LOAD,fd323310-5b49-5007-bc47-4061bad379ad,TEXT,Instance,Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1],Mechanical Equipment,fd323310-5b49-5007-bc47-4061bad379ad
+CLN_CLINICAL,WARN_CLN_ACOUSTIC_STC_LOW,4a00bae5-4325-5829-a901-fd75849703ea,TEXT,Instance,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93],Rooms,4a00bae5-4325-5829-a901-fd75849703ea
+CLN_CLINICAL,WARN_CLN_ACOUSTIC_STC_LOW,4a00bae5-4325-5829-a901-fd75849703ea,TEXT,Instance,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93],Specialty Equipment,4a00bae5-4325-5829-a901-fd75849703ea
+CLN_CLINICAL,WARN_CLN_ACOUSTIC_STC_LOW,4a00bae5-4325-5829-a901-fd75849703ea,TEXT,Instance,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93],Medical Equipment,4a00bae5-4325-5829-a901-fd75849703ea
+CLN_CLINICAL,WARN_CLN_ACOUSTIC_STC_LOW,4a00bae5-4325-5829-a901-fd75849703ea,TEXT,Instance,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93],Mechanical Equipment,4a00bae5-4325-5829-a901-fd75849703ea
+CLN_CLINICAL,WARN_CLN_AIIR_NOT_NEGATIVE,0384fd83-a860-5b94-8006-9bc092bace69,TEXT,Instance,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC],Rooms,0384fd83-a860-5b94-8006-9bc092bace69
+CLN_CLINICAL,WARN_CLN_AIIR_NOT_NEGATIVE,0384fd83-a860-5b94-8006-9bc092bace69,TEXT,Instance,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC],Specialty Equipment,0384fd83-a860-5b94-8006-9bc092bace69
+CLN_CLINICAL,WARN_CLN_AIIR_NOT_NEGATIVE,0384fd83-a860-5b94-8006-9bc092bace69,TEXT,Instance,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC],Medical Equipment,0384fd83-a860-5b94-8006-9bc092bace69
+CLN_CLINICAL,WARN_CLN_AIIR_NOT_NEGATIVE,0384fd83-a860-5b94-8006-9bc092bace69,TEXT,Instance,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC],Mechanical Equipment,0384fd83-a860-5b94-8006-9bc092bace69
+CLN_CLINICAL,WARN_CLN_ANTERM_MISSING,00455f0c-317c-55e0-9d74-4f721b2ed405,TEXT,Instance,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC],Rooms,00455f0c-317c-55e0-9d74-4f721b2ed405
+CLN_CLINICAL,WARN_CLN_ANTERM_MISSING,00455f0c-317c-55e0-9d74-4f721b2ed405,TEXT,Instance,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC],Specialty Equipment,00455f0c-317c-55e0-9d74-4f721b2ed405
+CLN_CLINICAL,WARN_CLN_ANTERM_MISSING,00455f0c-317c-55e0-9d74-4f721b2ed405,TEXT,Instance,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC],Medical Equipment,00455f0c-317c-55e0-9d74-4f721b2ed405
+CLN_CLINICAL,WARN_CLN_ANTERM_MISSING,00455f0c-317c-55e0-9d74-4f721b2ed405,TEXT,Instance,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC],Mechanical Equipment,00455f0c-317c-55e0-9d74-4f721b2ed405
+CLN_CLINICAL,WARN_CLN_HEPA_GRADE_INVALID,b396a219-baa0-509e-8e13-cb6d3038b964,TEXT,Instance,Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822],Rooms,b396a219-baa0-509e-8e13-cb6d3038b964
+CLN_CLINICAL,WARN_CLN_HEPA_GRADE_INVALID,b396a219-baa0-509e-8e13-cb6d3038b964,TEXT,Instance,Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822],Specialty Equipment,b396a219-baa0-509e-8e13-cb6d3038b964
+CLN_CLINICAL,WARN_CLN_HEPA_GRADE_INVALID,b396a219-baa0-509e-8e13-cb6d3038b964,TEXT,Instance,Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822],Medical Equipment,b396a219-baa0-509e-8e13-cb6d3038b964
+CLN_CLINICAL,WARN_CLN_HEPA_GRADE_INVALID,b396a219-baa0-509e-8e13-cb6d3038b964,TEXT,Instance,Warning: HEPA grade not H13/H14/U15/U16 [HIGH] [BS EN 1822],Mechanical Equipment,b396a219-baa0-509e-8e13-cb6d3038b964
+CLN_CLINICAL,WARN_CLN_IOT_STALE,d6d730c4-7205-5476-92be-fb655c523290,TEXT,Instance,Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3],Rooms,d6d730c4-7205-5476-92be-fb655c523290
+CLN_CLINICAL,WARN_CLN_IOT_STALE,d6d730c4-7205-5476-92be-fb655c523290,TEXT,Instance,Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3],Specialty Equipment,d6d730c4-7205-5476-92be-fb655c523290
+CLN_CLINICAL,WARN_CLN_IOT_STALE,d6d730c4-7205-5476-92be-fb655c523290,TEXT,Instance,Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3],Medical Equipment,d6d730c4-7205-5476-92be-fb655c523290
+CLN_CLINICAL,WARN_CLN_IOT_STALE,d6d730c4-7205-5476-92be-fb655c523290,TEXT,Instance,Warning: RTLS or IoT tag last seen > staleness threshold [MEDIUM] [ISO 15686-3],Mechanical Equipment,d6d730c4-7205-5476-92be-fb655c523290
+CLN_CLINICAL,WARN_CLN_MRI_ZONE_UNASSIGNED,e1601c32-8c9d-5101-bb90-9b5de4915af1,TEXT,Instance,Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33],Rooms,e1601c32-8c9d-5101-bb90-9b5de4915af1
+CLN_CLINICAL,WARN_CLN_MRI_ZONE_UNASSIGNED,e1601c32-8c9d-5101-bb90-9b5de4915af1,TEXT,Instance,Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33],Specialty Equipment,e1601c32-8c9d-5101-bb90-9b5de4915af1
+CLN_CLINICAL,WARN_CLN_MRI_ZONE_UNASSIGNED,e1601c32-8c9d-5101-bb90-9b5de4915af1,TEXT,Instance,Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33],Medical Equipment,e1601c32-8c9d-5101-bb90-9b5de4915af1
+CLN_CLINICAL,WARN_CLN_MRI_ZONE_UNASSIGNED,e1601c32-8c9d-5101-bb90-9b5de4915af1,TEXT,Instance,Warning: Generic model in MRI suite area has no zone classification [HIGH] [IEC 60601-2-33],Mechanical Equipment,e1601c32-8c9d-5101-bb90-9b5de4915af1
+CLN_CLINICAL,WARN_CLN_OR_LOW_ACH,1e7da874-6477-57ef-9a94-bc654a71a993,TEXT,Instance,Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170],Rooms,1e7da874-6477-57ef-9a94-bc654a71a993
+CLN_CLINICAL,WARN_CLN_OR_LOW_ACH,1e7da874-6477-57ef-9a94-bc654a71a993,TEXT,Instance,Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170],Specialty Equipment,1e7da874-6477-57ef-9a94-bc654a71a993
+CLN_CLINICAL,WARN_CLN_OR_LOW_ACH,1e7da874-6477-57ef-9a94-bc654a71a993,TEXT,Instance,Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170],Medical Equipment,1e7da874-6477-57ef-9a94-bc654a71a993
+CLN_CLINICAL,WARN_CLN_OR_LOW_ACH,1e7da874-6477-57ef-9a94-bc654a71a993,TEXT,Instance,Warning: OR-CONV or OR-HYBRID ACH below 20 minimum [HIGH] [HTM 03-01 / ASHRAE 170],Mechanical Equipment,1e7da874-6477-57ef-9a94-bc654a71a993
+CLN_CLINICAL,WARN_CLN_OR_ULTRA_LOW_ACH,ea06d7ef-e9a1-580c-8583-ed02a00f3e36,TEXT,Instance,Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01],Rooms,ea06d7ef-e9a1-580c-8583-ed02a00f3e36
+CLN_CLINICAL,WARN_CLN_OR_ULTRA_LOW_ACH,ea06d7ef-e9a1-580c-8583-ed02a00f3e36,TEXT,Instance,Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01],Specialty Equipment,ea06d7ef-e9a1-580c-8583-ed02a00f3e36
+CLN_CLINICAL,WARN_CLN_OR_ULTRA_LOW_ACH,ea06d7ef-e9a1-580c-8583-ed02a00f3e36,TEXT,Instance,Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01],Medical Equipment,ea06d7ef-e9a1-580c-8583-ed02a00f3e36
+CLN_CLINICAL,WARN_CLN_OR_ULTRA_LOW_ACH,ea06d7ef-e9a1-580c-8583-ed02a00f3e36,TEXT,Instance,Warning: Ultra-clean OR ACH below 300 minimum [HIGH] [HTM 03-01],Mechanical Equipment,ea06d7ef-e9a1-580c-8583-ed02a00f3e36
+CLN_CLINICAL,WARN_CLN_PE_NOT_POSITIVE,541f6426-66f4-5e92-a533-b51e92464752,TEXT,Instance,Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC],Rooms,541f6426-66f4-5e92-a533-b51e92464752
+CLN_CLINICAL,WARN_CLN_PE_NOT_POSITIVE,541f6426-66f4-5e92-a533-b51e92464752,TEXT,Instance,Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC],Specialty Equipment,541f6426-66f4-5e92-a533-b51e92464752
+CLN_CLINICAL,WARN_CLN_PE_NOT_POSITIVE,541f6426-66f4-5e92-a533-b51e92464752,TEXT,Instance,Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC],Medical Equipment,541f6426-66f4-5e92-a533-b51e92464752
+CLN_CLINICAL,WARN_CLN_PE_NOT_POSITIVE,541f6426-66f4-5e92-a533-b51e92464752,TEXT,Instance,Warning: Protective Environment room not under positive pressure [CRITICAL] [HTM 03-01 / CDC],Mechanical Equipment,541f6426-66f4-5e92-a533-b51e92464752
+CLN_CLINICAL,WARN_CLN_PRESS_REGIME_INVALID,160fde7f-69e8-5a79-adce-8ad38a66d523,TEXT,Instance,Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170],Rooms,160fde7f-69e8-5a79-adce-8ad38a66d523
+CLN_CLINICAL,WARN_CLN_PRESS_REGIME_INVALID,160fde7f-69e8-5a79-adce-8ad38a66d523,TEXT,Instance,Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170],Specialty Equipment,160fde7f-69e8-5a79-adce-8ad38a66d523
+CLN_CLINICAL,WARN_CLN_PRESS_REGIME_INVALID,160fde7f-69e8-5a79-adce-8ad38a66d523,TEXT,Instance,Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170],Medical Equipment,160fde7f-69e8-5a79-adce-8ad38a66d523
+CLN_CLINICAL,WARN_CLN_PRESS_REGIME_INVALID,160fde7f-69e8-5a79-adce-8ad38a66d523,TEXT,Instance,Warning: CLN_PRESS_REGIME_TXT not in (NEG / POS / NEUTRAL) [CRITICAL] [HTM 03-01 / ASHRAE 170],Mechanical Equipment,160fde7f-69e8-5a79-adce-8ad38a66d523
+CLN_CLINICAL,WARN_CLN_RDS_INCOMPLETE,cbbfc12d-36b0-5e86-89ba-87fad928437d,TEXT,Instance,Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM],Rooms,cbbfc12d-36b0-5e86-89ba-87fad928437d
+CLN_CLINICAL,WARN_CLN_RDS_INCOMPLETE,cbbfc12d-36b0-5e86-89ba-87fad928437d,TEXT,Instance,Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM],Specialty Equipment,cbbfc12d-36b0-5e86-89ba-87fad928437d
+CLN_CLINICAL,WARN_CLN_RDS_INCOMPLETE,cbbfc12d-36b0-5e86-89ba-87fad928437d,TEXT,Instance,Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM],Medical Equipment,cbbfc12d-36b0-5e86-89ba-87fad928437d
+CLN_CLINICAL,WARN_CLN_RDS_INCOMPLETE,cbbfc12d-36b0-5e86-89ba-87fad928437d,TEXT,Instance,Warning: Room Data Sheet mandatory parameters incomplete [HIGH] [HBN / HTM],Mechanical Equipment,cbbfc12d-36b0-5e86-89ba-87fad928437d
+CLN_CLINICAL,WARN_CLN_RF_SHIELD_UNSPECIFIED,5920b7c7-60c7-53fd-8beb-c5b35407d677,TEXT,Instance,Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33],Rooms,5920b7c7-60c7-53fd-8beb-c5b35407d677
+CLN_CLINICAL,WARN_CLN_RF_SHIELD_UNSPECIFIED,5920b7c7-60c7-53fd-8beb-c5b35407d677,TEXT,Instance,Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33],Specialty Equipment,5920b7c7-60c7-53fd-8beb-c5b35407d677
+CLN_CLINICAL,WARN_CLN_RF_SHIELD_UNSPECIFIED,5920b7c7-60c7-53fd-8beb-c5b35407d677,TEXT,Instance,Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33],Medical Equipment,5920b7c7-60c7-53fd-8beb-c5b35407d677
+CLN_CLINICAL,WARN_CLN_RF_SHIELD_UNSPECIFIED,5920b7c7-60c7-53fd-8beb-c5b35407d677,TEXT,Instance,Warning: MRI Faraday cage panel has no RF shielding method specified [MEDIUM] [IEC 60601-2-33],Mechanical Equipment,5920b7c7-60c7-53fd-8beb-c5b35407d677
+CLN_CLINICAL,WARN_CLN_RTLS_NO_COVERAGE,cb1161ef-9b45-503e-9f96-3ecdabf2c4af,TEXT,Instance,Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard],Rooms,cb1161ef-9b45-503e-9f96-3ecdabf2c4af
+CLN_CLINICAL,WARN_CLN_RTLS_NO_COVERAGE,cb1161ef-9b45-503e-9f96-3ecdabf2c4af,TEXT,Instance,Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard],Specialty Equipment,cb1161ef-9b45-503e-9f96-3ecdabf2c4af
+CLN_CLINICAL,WARN_CLN_RTLS_NO_COVERAGE,cb1161ef-9b45-503e-9f96-3ecdabf2c4af,TEXT,Instance,Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard],Medical Equipment,cb1161ef-9b45-503e-9f96-3ecdabf2c4af
+CLN_CLINICAL,WARN_CLN_RTLS_NO_COVERAGE,cb1161ef-9b45-503e-9f96-3ecdabf2c4af,TEXT,Instance,Warning: Clinical space has no RTLS reader within coverage radius [HIGH] [RTLS design standard],Mechanical Equipment,cb1161ef-9b45-503e-9f96-3ecdabf2c4af
+CLN_CLINICAL,WARN_CLN_WASTE_ROUTE_UNRESOLVED,145a7c7c-5f65-567b-9dea-34886fde7853,TEXT,Instance,Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01],Rooms,145a7c7c-5f65-567b-9dea-34886fde7853
+CLN_CLINICAL,WARN_CLN_WASTE_ROUTE_UNRESOLVED,145a7c7c-5f65-567b-9dea-34886fde7853,TEXT,Instance,Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01],Specialty Equipment,145a7c7c-5f65-567b-9dea-34886fde7853
+CLN_CLINICAL,WARN_CLN_WASTE_ROUTE_UNRESOLVED,145a7c7c-5f65-567b-9dea-34886fde7853,TEXT,Instance,Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01],Medical Equipment,145a7c7c-5f65-567b-9dea-34886fde7853
+CLN_CLINICAL,WARN_CLN_WASTE_ROUTE_UNRESOLVED,145a7c7c-5f65-567b-9dea-34886fde7853,TEXT,Instance,Warning: Clinical waste route conflicts with clean corridor [HIGH] [HTM 07-01],Mechanical Equipment,145a7c7c-5f65-567b-9dea-34886fde7853
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Doors,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Windows,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Plumbing Fixtures,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Lighting Fixtures,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Casework,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+LIG_BEHAVIOURAL,WARN_LIG_RES_NO_RATING,a4b5deca-ac9b-5bc5-ad77-e0983055b76d,TEXT,Instance,Warning: Anti-ligature room has fitting with no product rating [HIGH] [HBN 03-01],Specialty Equipment,a4b5deca-ac9b-5bc5-ad77-e0983055b76d
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Mechanical Equipment,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Specialty Equipment,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Medical Equipment,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Pipes,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Pipe Fittings,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Pipe Accessories,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_FLOW_RATE_LOW,5458b359-0d5c-58e8-b2a7-6758a3aa46af,TEXT,Instance,Warning: Calculated flow rate below NFPA 99 diversity requirement [HIGH] [NFPA 99 §5.1.13],Plumbing Fixtures,5458b359-0d5c-58e8-b2a7-6758a3aa46af
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Mechanical Equipment,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Specialty Equipment,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Medical Equipment,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Pipes,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Pipe Fittings,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Pipe Accessories,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_GAS_TYPE_MISSING,459dd20d-ed74-5792-8acc-77e635efb89a,TEXT,Instance,Warning: Terminal unit or pipeline missing gas type [CRITICAL] [BS 5682 / HTM 02-01],Plumbing Fixtures,459dd20d-ed74-5792-8acc-77e635efb89a
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Mechanical Equipment,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Specialty Equipment,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Medical Equipment,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Pipes,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Pipe Fittings,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Pipe Accessories,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_NOT_BRAZED,45588562-6bb3-55b1-8120-fe7ebffdef25,TEXT,Instance,Warning: Medical gas pipework must be inert-gas brazed [HIGH] [HTM 02-01],Plumbing Fixtures,45588562-6bb3-55b1-8120-fe7ebffdef25
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Mechanical Equipment,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Specialty Equipment,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Medical Equipment,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Pipes,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Pipe Fittings,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Pipe Accessories,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_PRESSURE_DROP_HIGH,6a90ee96-13a4-506c-94f5-17fe68bb0447,TEXT,Instance,Warning: Pipeline segment pressure drop exceeds allowable limit [HIGH] [HTM 02-01 / NFPA 99],Plumbing Fixtures,6a90ee96-13a4-506c-94f5-17fe68bb0447
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Mechanical Equipment,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Specialty Equipment,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Medical Equipment,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Pipes,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Pipe Fittings,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Pipe Accessories,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_VERIFY_FAILED,837dd978-f34e-5b61-be1d-58fa9b2508a0,TEXT,Instance,Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12],Plumbing Fixtures,837dd978-f34e-5b61-be1d-58fa9b2508a0
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Mechanical Equipment,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Specialty Equipment,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Medical Equipment,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Pipes,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Pipe Fittings,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Pipe Accessories,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+MGS_SYSTEMS,WARN_MGS_ZVB_NO_REF,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd,TEXT,Instance,Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01],Plumbing Fixtures,3bde10e2-47fa-5c7f-bfdf-4477d71f30dd
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Walls,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Doors,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Windows,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Floors,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Ceilings,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Specialty Equipment,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,6e559368-acab-5a14-bc67-5555391112d5,TEXT,Instance,Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP],Medical Equipment,6e559368-acab-5a14-bc67-5555391112d5
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Walls,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Doors,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Windows,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Floors,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Ceilings,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Specialty Equipment,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOOR_NO_INTERLOCKS,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed,TEXT,Instance,Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR],Medical Equipment,a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Walls,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Doors,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Windows,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Floors,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Ceilings,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Specialty Equipment,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_DOSIMETRY_POST_MISSING,27e1d293-a360-5253-b05c-952712c921c9,TEXT,Instance,Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17],Medical Equipment,27e1d293-a360-5253-b05c-952712c921c9
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Walls,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Doors,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Windows,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Floors,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Ceilings,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Specialty Equipment,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_LEAD_INSUFFICIENT,5b02ba28-da6d-5919-8242-f418ddc26fb0,TEXT,Instance,Warning: Lead-equivalent shielding below minimum 2 mm [HIGH] [NCRP 147],Medical Equipment,5b02ba28-da6d-5919-8242-f418ddc26fb0
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Walls,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Doors,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Windows,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Floors,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Ceilings,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Specialty Equipment,831e0efd-53ea-5647-9423-0d0dee96e5cc
+RAD_PROTECTION,WARN_RAD_QE_NOT_SIGNED,831e0efd-53ea-5647-9423-0d0dee96e5cc,TEXT,Instance,Warning: Primary barrier missing Qualified Expert sign-off [HIGH] [NCRP 147],Medical Equipment,831e0efd-53ea-5647-9423-0d0dee96e5cc

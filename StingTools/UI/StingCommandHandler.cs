@@ -1487,6 +1487,7 @@ namespace StingTools.UI
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
                     case "ScaffoldTiers": RunCommand<Tags.ScaffoldTiersCommand>(app); break;
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
+                    case "Bindings_PruneToSpec": RunCommand<Tags.PruneBindingsToSpecCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
                     case "DisciplineProfiles":
@@ -1543,6 +1544,9 @@ namespace StingTools.UI
                     case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
                     case "MigrateTagLabelRefs": RunCommand<Commands.TagStudio.MigrateTagLabelReferencesCommand>(app); break;
+                    case "Propagate_UniversalTag": RunCommand<Commands.TagStudio.PropagateUniversalTagCommand>(app); break;
+                    case "Gate_StampStatus": RunCommand<Commands.TagStudio.StampGateStatusCommand>(app); break;
+                    case "Schedule_DisciplineTagExpander": RunCommand<Commands.TagStudio.ScheduleDisciplineTagExpanderCommand>(app); break;
                     case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 
                     // ── Populate tokens ──
@@ -2969,6 +2973,7 @@ namespace StingTools.UI
                     // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
                     case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
                     case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+                    case "MepTagPolicy": RunCommand<Organise.SetMepTagPolicyCommand>(app); break;
 
                     // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
                     case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;

@@ -2073,6 +2073,10 @@ namespace StingTools.Core
                 case "Sustain_LeedScorecard":  return new Commands.Sustainability.SustainLeedScorecardCommand();
                 case "Sustain_Scorecard":      return new Commands.Sustainability.SustainLeedScorecardCommand(); // friendly alias
 
+                // Phase 195 — Universal Tag: refresh the stamped status gates
+                // (data + QA) so QA workflows never surface stale badges.
+                case "Gate_StampStatus":       return new Commands.TagStudio.StampGateStatusCommand();
+
                 default: return null;
             }
         }
