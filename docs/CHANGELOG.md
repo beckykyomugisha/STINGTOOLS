@@ -3,6 +3,44 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 198b — MEP print-ready cross-check punch-list, branch `claude/mep-punchlist`)
+
+Fixes the correctness/consistency defects a cross-check found in Phase 198's MEP work. Base
+`claude/mep-print-ready`. Release build **0 err / 6 baseline warn**. **Not merged to main.** In-Revit
+gates could not run — the plugin is **not activated** on the test machine (owner task), so #1's runtime
+behaviour is reasoned + statically proven, not Revit-confirmed.
+
+- **#1 segment-mask "Type-bound" bug — FALSE POSITIVE, no change.** The cross-check read the `Type`
+  column in `FAMILY_PARAMETER_BINDINGS.csv` / `MR_PARAMETERS.csv` and concluded `TAG_SEG_MASK_TXT` /
+  `STING_DISPLAY_MODE` / `TAG_7_SECTION_VISIBLE_*` are Type-bound, so the per-instance produce-path
+  write/read no-ops. Investigation shows that column is **non-authoritative** for the runtime binding:
+  `LoadSharedParamsCommand` (the tag-param binder) creates **only `NewInstanceBinding`** — it never reads
+  those CSVs and never makes a Type binding; `FamilyParamCreatorCommand` decides tag-family Type/Instance
+  from `TagFamilyConfig` sets, not that column. **Proof:** `ASS_TAG_1_TXT` / `STING_DISPLAY_MODE` /
+  `ASS_DISPLAY_TXT` are in the same group and *also* marked `Type` in those CSVs, yet per-element tagging
+  and display-mode are shipped working features — so `TAG_SEG_MASK_TXT` is bound Instance identically and
+  the instance write/read works. The prescribed CSV rebind would be a **no-op for the runtime binder**, so
+  it was **not** applied (schema-decision trade-off surfaced per the runner). Recommend a 30-s Revit
+  param-inspection once the licence is applied to confirm `TAG_SEG_MASK_TXT` shows as an Instance param on
+  a model element.
+- **#2 drift-detector false positive — fixed.** `DrawingDriftDetector` read `TAG_SEG_MASK` from the
+  **view**, but FIX-3a writes it **per-element** → an unhealable `TOKEN_PROFILE: TAG_SEG_MASK` drift on
+  every mask-configured type. Now samples the view's model elements (matches the writer) and flags drift
+  only when a *populated* element disagrees with the profile (empty/untagged views → no false positive).
+- **#3 `fm-asset-location-A1-1to100` data fix.** Unspaced keys (`MechanicalEquipment`…) + non-existent
+  `STING_TAG_FM_QR` → its 3 equipment AutoTags double-failed. Rewrote `tagFamilies` with spaced keys
+  matching the rule categories + real families (`STING - Mechanical/Electrical Equipment Tag`, `STING -
+  Plumbing Fixture Tag`, `STING - Room Tag`).
+- **#4 `corp-standard-hvac` amendment — show piping.** HVAC carries CHW/HW/condensate/refrigerant pipe,
+  so `Pipes` / `Pipe Fittings` / `Flex Pipes` are now own-tier (`visible:true, halftone:false, #1976D2`)
+  like ductwork; `Plumbing Fixtures` (+ `Pipe Accessories`) stay halftone. elec/plumb packs unchanged.
+- **#5 arch/struct/health tag debt → ROADMAP.** Logged the pre-existing (non-MEP) ~87 key mismatches,
+  19 `STING_TAG_*` non-existent families on ~14 arch/struct types, and `STING - Generic Tag` on ~22
+  health types as a separately-scoped follow-up, so "MEP fixed" isn't read as "whole file fixed".
+
+Cross-check gate re-run: 18 in-scope AutoTag types, **0** key/family failures. Owner-run in-Revit gate
+for #1: set a SegmentMask, Produce → `ASS_DISPLAY_TXT` shortens; display-mode + TAG7 sections materialise.
+
 #### Completed (Phase 198 — MEP drawing-type print-readiness, branch `claude/mep-print-ready`)
 
 Made the MEP drawing types truly "drop a view in → the sheet renders and annotates correctly," and

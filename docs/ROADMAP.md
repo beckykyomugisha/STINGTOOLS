@@ -19,6 +19,15 @@ Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198
   DrawingType cannot override it per drawing. If per-type SEQ pad is ever wanted, add a `seqPad` field to
   `AnnotationTokenProfile` and push it on the produce path (mirroring how paragraph depth already flows),
   with the project-global value as the fallback.
+- **Arch / structural / health `tagFamilies` debt (NOT fixed — separate scope).** The Phase-198 punch-list
+  cross-check found the same key-alignment + family-existence defects the MEP fix cleared, still present on
+  **non-MEP** drawing types: ~87 `tagFamilies` key↔AutoTag-category mismatches (camelCase keys like
+  `StructuralColumns` that never match the display-name rule category), **19 `STING_TAG_*`
+  non-existent family values across ~14 arch/structural types**, and `STING - Generic Tag` (should be
+  `STING - Generic Model Tag`) on ~22 healthcare types. So "MEP print-ready" ≠ "whole file fixed". Real
+  target families exist (`STING - Door/Window/Room Tag`, `STING - Structural Column/Rebar Tag`,
+  `STING - Generic Model Tag`), so the same mechanical fix applies — do it only when explicitly scoped as
+  an arch/struct/health pass (out of scope for the MEP runner).
 
 ## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
 
