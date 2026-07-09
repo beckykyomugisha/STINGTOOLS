@@ -222,6 +222,31 @@ namespace StingTools.Tags
                         displayUpdated = r.updated;
                         txd.Commit();
                     }
+
+                    // E4: persist this config on the active view so switching away and back
+                    // restores the same tag style (repopulated on ViewActivated).
+                    try
+                    {
+                        View av = doc.ActiveView;
+                        if (av != null)
+                        {
+                            var cfg = new TokenDepthConfig
+                            {
+                                Mask = mask,
+                                Separator = ParamRegistry.Separator,
+                                SeqPad = seqPad,
+                                SegOrder = string.Join("-", ParamRegistry.SegmentOrder),
+                                Depth = depth,
+                                HandoverMode = StingCommandHandler.GetExtraParam("HandoverMode"),
+                                Scope = StingCommandHandler.GetExtraParam("TokenScope")
+                            };
+                            if (string.IsNullOrEmpty(cfg.HandoverMode)) cfg.HandoverMode = "Handover";
+                            if (string.IsNullOrEmpty(cfg.Scope)) cfg.Scope = "View";
+                            TokenDepthViewStore.Save(doc, av.UniqueId, cfg);
+                        }
+                    }
+                    catch (Exception exVs) { StingLog.Warn($"E4 view-config persist: {exVs.Message}"); }
+
                     if (displayUpdated > 0 && !_displayHintShown)
                     {
                         _displayHintShown = true;

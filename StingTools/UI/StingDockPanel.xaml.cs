@@ -1115,6 +1115,201 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"Read Tokens & Depth params failed: {ex.Message}"); }
         }
 
+        // ══ E3 / E4 / E5 — Tokens & Depth config: capture, apply, presets, per-view, live ══
+
+        private bool _suppressLiveApply;
+        private System.Windows.Threading.DispatcherTimer _liveTimer;
+        private bool _liveWired;
+
+        private static Autodesk.Revit.DB.Document PanelDoc()
+        {
+            try { return StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document; } catch { return null; }
+        }
+
+        private char MaskChar(string name)
+            => (FindName(name) is System.Windows.Controls.CheckBox cb && cb.IsChecked != false) ? '1' : '0';
+        private bool RbChecked(string name)
+            => (FindName(name) is System.Windows.Controls.Primitives.ToggleButton tb && tb.IsChecked == true);
+        private void SetTgl(string name, bool v)
+            { if (FindName(name) is System.Windows.Controls.Primitives.ToggleButton tb) tb.IsChecked = v; }
+        private string ComboSelText(string name)
+            => (FindName(name) is System.Windows.Controls.ComboBox cb
+                && cb.SelectedItem is System.Windows.Controls.ComboBoxItem it && it.Content is string s) ? s : null;
+        private void SelectComboByPrefix(string name, string prefix)
+        {
+            if (!(FindName(name) is System.Windows.Controls.ComboBox cb)) return;
+            foreach (var o in cb.Items)
+                if (o is System.Windows.Controls.ComboBoxItem it && it.Content is string s
+                    && s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = it; return; }
+        }
+        private void SelectComboByExact(string name, string val)
+        {
+            if (!(FindName(name) is System.Windows.Controls.ComboBox cb) || val == null) return;
+            foreach (var o in cb.Items)
+                if (o is System.Windows.Controls.ComboBoxItem it && it.Content is string s
+                    && string.Equals(s, val, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = it; return; }
+        }
+        private static string SeqPadPrefix(int pad)
+        { switch (pad) { case 2: return "01 "; case 3: return "001 "; case 5: return "00001"; default: return "0001 "; } }
+
+        /// <summary>Capture current Tokens &amp; Depth controls into a config (E3 save / E4 persist).</summary>
+        private StingTools.Tags.TokenDepthConfig ReadTokenDepthConfig()
+        {
+            var c = new StingTools.Tags.TokenDepthConfig();
+            try
+            {
+                var m = new char[8];
+                m[0]=MaskChar("chkMaskDISC"); m[1]=MaskChar("chkMaskLOC"); m[2]=MaskChar("chkMaskZONE");
+                m[3]=MaskChar("chkMaskLVL");  m[4]=MaskChar("chkMaskSYS"); m[5]=MaskChar("chkMaskFUNC");
+                m[6]=MaskChar("chkMaskPROD"); m[7]=MaskChar("chkMaskSEQ");
+                c.Mask = new string(m);
+                c.Separator = RbChecked("rbSepSlash") ? "/" : RbChecked("rbSepDot") ? "." : RbChecked("rbSepUnderscore") ? "_" : "-";
+                string sp = ComboSelText("cmbSeqPad") ?? "";
+                c.SeqPad = sp.StartsWith("01 ") ? 2 : sp.StartsWith("001 ") ? 3 : sp.StartsWith("00001") ? 5 : 4;
+                c.SegOrder = ComboSelText("cmbSegOrder") ?? c.SegOrder;
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    c.Depth = Math.Max(1, Math.Min(10, (int)Math.Round(sd.Value)));
+                c.HandoverMode = RbChecked("rbModeDesign") ? "DesignConstruction" : RbChecked("rbModeCustom") ? "Custom" : "Handover";
+                string sc = ComboSelText("cmbTokenScope") ?? "";
+                c.Scope = sc.IndexOf("Active view", StringComparison.OrdinalIgnoreCase) >= 0 ? "View"
+                        : sc.IndexOf("Selected", StringComparison.OrdinalIgnoreCase) >= 0 ? "Selection" : "Project";
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadTokenDepthConfig: {ex.Message}"); }
+            return c;
+        }
+
+        /// <summary>Push a config onto the Tokens &amp; Depth controls (E3 preset recall / E4 view recall).</summary>
+        public void ApplyTokenDepthConfig(StingTools.Tags.TokenDepthConfig c)
+        {
+            if (c == null) return;
+            _suppressLiveApply = true;
+            try
+            {
+                string m = (!string.IsNullOrEmpty(c.Mask) && c.Mask.Length >= 8) ? c.Mask : "11111111";
+                SetTgl("chkMaskDISC", m[0]=='1'); SetTgl("chkMaskLOC", m[1]=='1'); SetTgl("chkMaskZONE", m[2]=='1');
+                SetTgl("chkMaskLVL", m[3]=='1');  SetTgl("chkMaskSYS", m[4]=='1'); SetTgl("chkMaskFUNC", m[5]=='1');
+                SetTgl("chkMaskPROD", m[6]=='1'); SetTgl("chkMaskSEQ", m[7]=='1');
+                SetTgl("rbSepHyphen", c.Separator=="-"); SetTgl("rbSepSlash", c.Separator=="/");
+                SetTgl("rbSepDot", c.Separator=="."); SetTgl("rbSepUnderscore", c.Separator=="_");
+                SelectComboByPrefix("cmbSeqPad", SeqPadPrefix(c.SeqPad));
+                SelectComboByExact("cmbSegOrder", c.SegOrder);
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    sd.Value = Math.Max(1, Math.Min(10, c.Depth));
+                SetTgl("rbModeHandover", c.HandoverMode=="Handover"); SetTgl("rbModeDesign", c.HandoverMode=="DesignConstruction");
+                SetTgl("rbModeCustom", c.HandoverMode=="Custom");
+                SelectComboByPrefix("cmbTokenScope", c.Scope=="View" ? "Active" : c.Scope=="Selection" ? "Selected" : "Project");
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyTokenDepthConfig: {ex.Message}"); }
+            finally { _suppressLiveApply = false; }
+        }
+
+        /// <summary>E3 — (re)populate the preset combo from corporate + project presets.</summary>
+        public void RefreshPresetCombo()
+        {
+            try
+            {
+                if (!(FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb)) return;
+                string sel = ComboSelText("cmbTokenPreset");
+                cb.Items.Clear();
+                foreach (string n in StingTools.Tags.TokenDepthPresets.Names(PanelDoc()))
+                    cb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = n });
+                if (sel != null) SelectComboByExact("cmbTokenPreset", sel);
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshPresetCombo: {ex.Message}"); }
+        }
+
+        private void OnTokenPresetSelected(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (!(sender is System.Windows.Controls.ComboBox cb)
+                    || !(cb.SelectedItem is System.Windows.Controls.ComboBoxItem it) || !(it.Content is string name)) return;
+                var cfg = StingTools.Tags.TokenDepthPresets.Get(PanelDoc(), name);
+                if (cfg != null) { ApplyTokenDepthConfig(cfg); UpdateStatus($"Preset '{name}' loaded — press Set depth to apply."); }
+            }
+            catch (Exception ex) { StingLog.Warn($"OnTokenPresetSelected: {ex.Message}"); }
+        }
+
+        private void OnSaveTokenPreset(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string name = PromptText("Save Tokens & Depth preset", "Preset name:", ComboSelText("cmbTokenPreset") ?? "");
+                if (string.IsNullOrWhiteSpace(name)) return;
+                string err = StingTools.Tags.TokenDepthPresets.Save(PanelDoc(), name.Trim(), ReadTokenDepthConfig());
+                if (err != null) { UpdateStatus("Preset save failed: " + err); return; }
+                RefreshPresetCombo();
+                SelectComboByExact("cmbTokenPreset", name.Trim());
+                UpdateStatus($"Preset '{name.Trim()}' saved.");
+            }
+            catch (Exception ex) { StingLog.Warn($"OnSaveTokenPreset: {ex.Message}"); }
+        }
+
+        /// <summary>Minimal modal text prompt (Topmost so it clears the always-on-top panel).</summary>
+        private static string PromptText(string title, string prompt, string def)
+        {
+            string result = null;
+            var w = new System.Windows.Window
+            {
+                Title = title, Width = 360, Height = 156, ResizeMode = System.Windows.ResizeMode.NoResize,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen, Topmost = true, ShowInTaskbar = false
+            };
+            var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+            sp.Children.Add(new System.Windows.Controls.TextBlock { Text = prompt, Margin = new System.Windows.Thickness(0,0,0,6) });
+            var tb = new System.Windows.Controls.TextBox { Text = def ?? "" };
+            sp.Children.Add(tb);
+            var ok = new System.Windows.Controls.Button { Content = "Save", Width = 80,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right, Margin = new System.Windows.Thickness(0,12,0,0) };
+            ok.Click += (s, ev) => { result = tb.Text; w.DialogResult = true; };
+            sp.Children.Add(ok);
+            w.Content = sp;
+            try { w.ShowDialog(); } catch { }
+            return result;
+        }
+
+        /// <summary>E5 — wire live-apply handlers onto the format controls (once).</summary>
+        public void WireLiveTokenDepth()
+        {
+            if (_liveWired) return;
+            _liveWired = true;
+            try
+            {
+                _liveTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(350) };
+                _liveTimer.Tick += (s, e) => { _liveTimer.Stop(); DispatchLiveSetDepth(); };
+                string[] toggles = { "chkMaskDISC","chkMaskLOC","chkMaskZONE","chkMaskLVL","chkMaskSYS",
+                    "chkMaskFUNC","chkMaskPROD","chkMaskSEQ","rbSepHyphen","rbSepSlash","rbSepDot","rbSepUnderscore" };
+                foreach (string n in toggles)
+                    if (FindName(n) is System.Windows.Controls.Primitives.ToggleButton tb)
+                        { tb.Checked += LiveControlChanged; tb.Unchecked += LiveControlChanged; }
+                foreach (string n in new[] { "cmbSeqPad","cmbSegOrder","cmbTokenScope" })
+                    if (FindName(n) is System.Windows.Controls.ComboBox cb)
+                        cb.SelectionChanged += LiveControlChanged;
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    sd.ValueChanged += (s, e) => LiveControlChanged(s, e);
+            }
+            catch (Exception ex) { StingLog.Warn($"WireLiveTokenDepth: {ex.Message}"); }
+        }
+
+        private void LiveControlChanged(object sender, RoutedEventArgs e)
+        {
+            if (_suppressLiveApply) return;
+            if (!(FindName("chkLiveTokenDepth") is System.Windows.Controls.CheckBox cb) || cb.IsChecked != true) return;
+            try { _liveTimer?.Stop(); _liveTimer?.Start(); } catch { }
+        }
+
+        private void DispatchLiveSetDepth()
+        {
+            try
+            {
+                SetTokenDepthParams();
+                SetCategoryFilterParams();
+                _handler?.SetCommand("SetParagraphDepth");
+                _externalEvent?.Raise();
+            }
+            catch (Exception ex) { StingLog.Warn($"DispatchLiveSetDepth: {ex.Message}"); }
+        }
+
         /// <summary>
         /// Read the merged Categories sub-tab state and push it as ExtraParams so
         /// <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/> can
@@ -1723,6 +1918,18 @@ namespace StingTools.UI
             // from inner controls (e.g. ComboBox inside a sub-tab).
             if (!ReferenceEquals(sender, tagStudioTabs)) return;
             e.Handled = true;
+
+            // E3/E5: once the Tokens & Depth sub-tab controls exist, populate the preset
+            // combo and wire the live-apply handlers (both idempotent / guarded).
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+            {
+                try
+                {
+                    if (FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox)
+                    { WireLiveTokenDepth(); RefreshPresetCombo(); }
+                }
+                catch { }
+            }));
 
             // If a tag op is running, revert the selection to the locked tab.
             if (_tagOpRunning && tagStudioTabs != null)
