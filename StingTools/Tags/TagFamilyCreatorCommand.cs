@@ -2245,51 +2245,41 @@ namespace StingTools.Tags
                 // Use provided param list or fallback to basic TagParams
                 var paramsToAdd = paramNames ?? new List<string>(TagFamilyConfig.TagParams);
 
+                int skippedExists = 0, skippedConflict = 0;
                 using (Transaction tx = new Transaction(famDoc, "STING Add Tag Params"))
                 {
+                    // Phase 196: install the conflict swallower BEFORE Start as the
+                    // commit-time safety net (mirrors LoadSharedParamsCommand).
+                    TagParamInjector.InstallSwallower(tx);
                     tx.Start();
 
+                    // Phase 196: index the family doc's existing SharedParameterElements
+                    // once, then pre-skip any GUID/name/type conflict so a stale
+                    // TEXT vs YESNO gate never reaches the unrecoverable Error modal.
+                    var idx = TagParamInjector.BuildIndex(famDoc);
                     foreach (string paramName in paramsToAdd)
                     {
-                        // Find the definition in the shared parameter file
                         ExternalDefinition extDef = FindSharedDefinition(defFile, paramName);
                         if (extDef == null)
                         {
                             StingLog.Warn($"Shared parameter '{paramName}' not found in file");
                             continue;
                         }
-
-                        // Check if already added
-                        bool exists = false;
-                        foreach (FamilyParameter fp in famMan.Parameters)
+                        switch (TagParamInjector.EnsureFamilyParam(famMan, extDef, idx, GroupTypeId.General, true))
                         {
-                            if (fp.Definition.Name == paramName)
-                            {
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if (exists) continue;
-
-                        try
-                        {
-                            famMan.AddParameter(
-                                extDef,
-                                GroupTypeId.General,
-                                true); // isInstance = true (tags display instance values)
-                            added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Cannot add param '{paramName}' to family: {ex.Message}");
+                            case TagParamInjector.InjectResult.Added: added++; break;
+                            case TagParamInjector.InjectResult.SkippedExists: skippedExists++; break;
+                            case TagParamInjector.InjectResult.SkippedConflict: skippedConflict++; break;
                         }
                     }
 
                     tx.Commit();
                 }
 
-                StingLog.Info($"Added {added} shared parameters to tag family");
-                return added > 0;
+                StingLog.Info($"AddSharedParameters: added {added}, skipped-exists {skippedExists}, " +
+                              $"skipped-conflict {skippedConflict} (TEXT↔YESNO drift if >0; family kept its definition)");
+                // Treat "all already present" as success too — the family is complete.
+                return added > 0 || skippedExists > 0;
             }
             catch (Exception ex)
             {

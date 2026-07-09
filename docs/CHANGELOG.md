@@ -4889,6 +4889,61 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+#### Completed (Phase 196 — tag-creation inject path: pre-skip type conflicts + failure swallower, mirrors LoadSharedParams)
+
+`CreateTagFamilies` could throw the unrecoverable Revit modal **"… cannot be
+added (Text) — conflicts with the existing parameter … (Yes/No)"** (the 141-error
+dialog) whenever the loaded `MR_PARAMETERS.txt` declared a gate param as a
+different data type than the family/template already held. The tag-creation
+inject path called `FamilyManager.AddParameter` from the shared-parameter file
+with **no** conflict handling, whereas `LoadSharedParamsCommand` had long
+handled the same situation gracefully for the project (pre-skip in its "step 3b"
++ a `BindingWarningSwallower` `IFailuresPreprocessor`). This phase gives every
+family-param inject site the same two protections.
+
+**Root cause.** The conflict is an **Error-severity failure raised at commit**,
+not an exception at `AddParameter`, so the existing per-param `try/catch` could
+not prevent the modal. And the conflict lives at the **`SharedParameterElement`
+/ document** level, so the old name-only check against `FamilyManager.Parameters`
+missed it.
+
+**Changes (no parameter types, data files, `GateToken` or formulas touched):**
+
+1. **New `Tags/TagParamInjector.cs`** (`internal static`) factoring the shared
+   logic so the three call sites are identical, not duplicated:
+   - `BuildIndex(famDoc)` — indexes the **family document's**
+     `SharedParameterElement`s by GUID and by name (with
+     `GetDefinition().GetDataType().TypeId`), exactly as LoadSharedParams step 3b
+     does for the project.
+   - `EnsureFamilyParam(fm, extDef, idx, group, isInstance)` → `Added` /
+     `SkippedExists` / `SkippedConflict` / `Failed`. Pre-skips a def whose GUID
+     **or** name already exists in the family with a different data type (or a
+     name held by a different GUID, or an indeterminate type) — keeping the
+     family's existing definition and logging `StingLog.Warn`.
+   - `InstallSwallower(tx)` — sets `BindingWarningSwallower` (reused, **not**
+     forked) via `tx.GetFailureHandlingOptions().SetFailuresPreprocessor(...)`
+     before `tx.Start()` as the commit-time safety net.
+2. **Wired into all three family-param inject sites in the tag path:**
+   `TagFamilyCreatorCommand.AddSharedParameters`,
+   `FamilyParamCreatorCommand.InjectSharedParams` (swallower installed on its two
+   callers' transactions — `ProcessFamily` + `ProcessFamilyDocument`), and
+   `FamilyLabelAuthor.BindSharedParameters` (T4–T10 binding).
+3. **Counts surfaced.** `AddSharedParameters` logs `added / skipped-exists /
+   skipped-conflict` so a stale-TEXT `MR_PARAMETERS.txt` is visible in the log
+   without blocking the user; the label-author path adds a per-param warning on
+   conflict.
+
+**Contract.** A gate already present in the family as Yes/No (from template/seed)
+keeps its Yes/No; the Text re-add is skipped → the family stays complete and
+correct, and `TagConfig.GateToken` emits the bare `if(GATE, …)` for it.
+`CreateTagFamilies` completes with **0 modals** even against a stale TEXT
+`MR_PARAMETERS.txt`.
+
+**Verification.** Release build on Windows (Revit 2025 API) — **0 errors,
+0 warnings**. Built without in-Revit verification in this pass; verify in Revit
+that `CreateTagFamilies` completes with no "cannot be added" modal and produces
+working tag families (gates render, tiers toggle), including against a TEXT
+`MR_PARAMETERS.txt` to prove the resilience.
 
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 

@@ -267,7 +267,9 @@ namespace StingTools.Tags
                 FamilyManager fm = fdoc.FamilyManager;
                 using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — bind tier params"))
                 {
+                    TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
+                    var idx = TagParamInjector.BuildIndex(fdoc);
                     foreach (string name in paramNames)
                     {
                         ExternalDefinition ext = FindSharedDefinition(defFile, name);
@@ -276,15 +278,17 @@ namespace StingTools.Tags
                             result.Warnings.Add($"Shared param '{name}' not in {Path.GetFileName(opts.SharedParamFile)}");
                             continue;
                         }
-                        if (HasParameter(fm, name)) continue;
-                        try
+                        // Phase 196: pre-skip TEXT↔YESNO conflicts so a stale MR file
+                        // can't raise the unrecoverable "cannot be added" modal here.
+                        switch (TagParamInjector.EnsureFamilyParam(fm, ext, idx, GroupTypeId.General, true))
                         {
-                            fm.AddParameter(ext, GroupTypeId.General, true); // instance
-                            added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Warnings.Add($"AddParameter('{name}') failed: {ex.Message}");
+                            case TagParamInjector.InjectResult.Added:
+                                added++;
+                                break;
+                            case TagParamInjector.InjectResult.SkippedConflict:
+                                result.Warnings.Add($"'{name}': type conflict with the family's existing definition — kept existing (TEXT↔YESNO drift)");
+                                break;
+                            // SkippedExists / Failed: no-op (Failed already logged by the injector).
                         }
                     }
                     tx.Commit();
