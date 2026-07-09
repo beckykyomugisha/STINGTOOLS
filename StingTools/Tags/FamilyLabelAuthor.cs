@@ -451,11 +451,22 @@ namespace StingTools.Tags
             return null;
         }
 
-        private static bool HasParameter(FamilyManager fm, string name)
+        /// <summary>
+        /// Locate an already-bound family parameter by name, or null. Exposed
+        /// <c>internal</c> so the title-block seed-augment path
+        /// (<see cref="StingTools.Core.Drawing.TitleBlockFactory"/>) can reuse
+        /// the same idempotency check when opening a pre-authored seed .rfa that
+        /// already carries its shared parameters — see the shared-param binding
+        /// idiom in <see cref="BindSharedParameters"/>.
+        /// </summary>
+        internal static FamilyParameter FindParameter(FamilyManager fm, string name)
         {
             foreach (FamilyParameter fp in fm.Parameters)
-                if (fp.Definition?.Name == name) return true;
-            return false;
+                if (fp.Definition?.Name == name) return fp;
+            return null;
         }
+
+        internal static bool HasParameter(FamilyManager fm, string name)
+            => FindParameter(fm, name) != null;
     }
 }

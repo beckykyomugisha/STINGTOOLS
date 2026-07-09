@@ -39,6 +39,7 @@ using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System.Collections.Concurrent;
+using StingTools.Tags;   // FamilyLabelAuthor.FindParameter — seed-augment idempotency reuse
 
 namespace StingTools.Core.Drawing
 {
@@ -53,6 +54,13 @@ namespace StingTools.Core.Drawing
         public int    StaticTextPlaced { get; set; }
         public int    FilledRegionsPlaced { get; set; }
         public int    SlotsPlaced { get; set; }
+        /// <summary>True when this family was built by opening a pre-authored
+        /// seed .rfa (labels render) rather than a blank .rft template
+        /// (label-less fallback). See <see cref="SeedSource"/>.</summary>
+        public bool   BuiltFromSeed { get; set; }
+        /// <summary>The seed .rfa path the build augmented, when
+        /// <see cref="BuiltFromSeed"/> is true; null otherwise.</summary>
+        public string SeedSource { get; set; }
         /// <summary>Brief slot id + bbox lines, surfaced in the report so
         /// the operator can verify slot layout without opening the .rfa.</summary>
         public List<string> SlotSummary { get; set; } = new List<string>();
@@ -103,25 +111,74 @@ namespace StingTools.Core.Drawing
             _slotRefPlanesPermittedFailCount = 0;
             _slotRefPlanesNotPermittedWarned = false;
 
-            // 1. Resolve template
-            string rftPath = ResolveTemplatePath(spec.TemplateRft);
-            if (string.IsNullOrEmpty(rftPath))
+            // 1. Resolve seed vs template.
+            //    Revit 2025 removed FamilyItemFactory.NewLabel (confirmed by
+            //    reflection over RevitAPI.dll — the method is gone, no renamed
+            //    replacement), so the factory cannot AUTHOR label elements. A
+            //    template-built family therefore renders every title-block value
+            //    cell (project name, SYSTEM, revision, spool, client, sheet no.)
+            //    blank. Work around it the same way STING already does for tag
+            //    families (see StingTools.Tags.FamilyLabelAuthor, lines 33–41):
+            //    pre-author the labels ONCE into a seed .rfa, then OPEN + augment
+            //    that seed here instead of building from a blank .rft. When no
+            //    seed exists we fall back to the template path (label-less) so
+            //    un-seeded families still build 25/0.
+            string seedPath = ResolveSeedPath(app, spec);
+            bool fromSeed = !string.IsNullOrEmpty(seedPath);
+
+            string rftPath = null;
+            if (!fromSeed)
             {
-                r.Errors.Add($"template not found: {spec.TemplateRft}");
-                return r;
+                rftPath = ResolveTemplatePath(spec.TemplateRft);
+                if (string.IsNullOrEmpty(rftPath))
+                {
+                    r.Errors.Add($"template not found: {spec.TemplateRft}");
+                    return r;
+                }
             }
 
-            // 2. Open template
+            // 2. Open the augment base.
             Document famDoc = null;
             string originalSpFile = null;
+            string seedTempCopy = null;
             try
             {
                 try { originalSpFile = app.SharedParametersFilename; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                famDoc = app.NewFamilyDocument(rftPath);
-                if (famDoc == null || !famDoc.IsFamilyDocument)
+
+                if (fromSeed)
                 {
-                    r.Errors.Add($"NewFamilyDocument returned null for {rftPath}");
-                    return r;
+                    // Copy the pristine seed to a unique temp path and open the
+                    // COPY — never mutate the seed itself, so every re-run
+                    // regenerates from a clean base (idempotent).
+                    seedTempCopy = MakeSeedTempCopy(seedPath, spec.Id, r);
+                    if (string.IsNullOrEmpty(seedTempCopy))
+                    {
+                        r.Errors.Add($"could not stage seed copy for '{spec.Id}' from {seedPath}");
+                        return r;
+                    }
+                    famDoc = app.OpenDocumentFile(seedTempCopy);
+                    if (famDoc == null || !famDoc.IsFamilyDocument)
+                    {
+                        r.Errors.Add($"OpenDocumentFile returned a non-family document for seed {seedPath}");
+                        return r;
+                    }
+                    r.BuiltFromSeed = true;
+                    r.SeedSource    = seedPath;
+                }
+                else
+                {
+                    famDoc = app.NewFamilyDocument(rftPath);
+                    if (famDoc == null || !famDoc.IsFamilyDocument)
+                    {
+                        r.Errors.Add($"NewFamilyDocument returned null for {rftPath}");
+                        return r;
+                    }
+                    // ONE summary warning — not one per missing label.
+                    r.Warnings.Add(
+                        $"no seed for '{spec.Id}' — built without labels; author a seed at "
+                        + $"Families/TitleBlocks/_seeds/{spec.Id}.rfa to render title-block value "
+                        + "cells (Revit 2025 removed the NewLabel API, so labels cannot be created "
+                        + "from a blank template).");
                 }
 
                 // 3. Point at shared param file
@@ -131,11 +188,7 @@ namespace StingTools.Core.Drawing
 
                 DefinitionFile defFile = app.OpenSharedParameterFile();
 
-                // 4. Build inside a transaction — declarative, monomorphic
-                // pipeline. No more BIM-mode toggle, no reflow groups, no
-                // label pairs (Phase 170 hybrid removed). Each family is
-                // a single visually-clean .rfa; the BIM/non-BIM split is
-                // handled by shipping two families per paper size.
+                // 4. Augment inside a transaction.
                 using (var tx = new Transaction(famDoc, $"STING Build {spec.Id}"))
                 {
                     tx.Start();
@@ -149,38 +202,62 @@ namespace StingTools.Core.Drawing
                         return r;
                     }
 
-                    // 4a. Parameters
+                    // 4a. Parameters — idempotent. AddSharedParameter /
+                    // AddInternalParameter reuse FamilyLabelAuthor.FindParameter
+                    // (the proven tag-family idempotency check) so a seed's
+                    // pre-bound shared params are never re-added. Spec defaults
+                    // still apply = the DrawingType / BIM-mode / version stamp
+                    // every sheet inherits from the family.
                     var paramByName = new Dictionary<string, FamilyParameter>(
                         StringComparer.OrdinalIgnoreCase);
                     AddAllParameters(fm, defFile, spec, paramByName, r);
 
-                    // 4b. Lines
-                    foreach (var line in spec.Lines)
-                        PlaceLine(famDoc, fm, view, line, paramByName, r);
+                    // 4b. Lines — seed carries the border/strip already, so only
+                    // the template fallback draws them (drawing them onto a seed
+                    // would duplicate the border).
+                    if (!fromSeed)
+                        foreach (var line in spec.Lines)
+                            PlaceLine(famDoc, fm, view, line, paramByName, r);
 
-                    // 4c. Static text
+                    // 4c. Static text — factory-authored on BOTH paths. Static
+                    // text is a TextNote (not a label), so it creates fine on
+                    // 2025; the seed carries only the label VALUE cells, not the
+                    // fixed captions.
                     foreach (var st in spec.StaticText)
                         PlaceStaticText(famDoc, fm, view, st, paramByName, r);
 
-                    // 4d. Labels
-                    foreach (var lbl in spec.Labels)
-                        PlaceLabel(famDoc, fm, view, lbl, paramByName, r);
+                    // 4d. Labels — NEVER placed here. On the seed path they live
+                    // in the seed; on the template path they can't be created on
+                    // Revit 2025 (NewLabel removed). PlaceLabel / InvokeNewLabel
+                    // are retained (dormant) for a future Revit that restores the
+                    // API, but no longer invoked — so no per-label warnings and no
+                    // NewLabel-discovery probe runs.
 
-                    // 4e. Filled regions
-                    foreach (var fr in spec.FilledRegions)
-                        PlaceFilledRegion(famDoc, fm, view, fr, paramByName, r);
+                    // 4e. Filled regions — like lines, authored in the seed; only
+                    // the template fallback draws them.
+                    if (!fromSeed)
+                        foreach (var fr in spec.FilledRegions)
+                            PlaceFilledRegion(famDoc, fm, view, fr, paramByName, r);
 
-                    // 4f. Slots — viewport zones with optional reference
-                    // planes + a slot-id marker at the top-left corner.
-                    // Drawing-Type / Sheet-Manager system reads slot
-                    // bounds back via the named reference planes
-                    // (`<id>_TOP/BOT/LFT/RGT`) and routes viewports here
-                    // based on PurposeTag (see TitleBlock_AutoPlaceViewports).
+                    // 4f. Slots — viewport zones with optional reference planes +
+                    // a slot-id marker. Factory-authored on BOTH paths: slot
+                    // bounds are read from STING_TITLE_BLOCKS.json at
+                    // AutoPlaceViewports time (not from the .rfa), so this only
+                    // adds the operator's visual cue and the report summary.
                     foreach (var slot in spec.Slots)
                         PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
                     tx.Commit();
                 }
+
+                // 4g. Report the label count the family carries. Labels are
+                // TextElement instances that are NOT TextNote (verified against
+                // RevitAPI.dll 2025: TextElement is concrete, TextNote is its
+                // only subclass) — this distinguishes the seed's value cells from
+                // static-text captions. N>0 ⇒ the value cells will render.
+                r.LabelsPlaced = CountLabels(famDoc);
+                StingLog.Info($"TitleBlockFactory '{spec.Id}': labels {r.LabelsPlaced} "
+                    + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})" : "(no seed)"));
 
                 // 5. SaveAs
                 string savePath = ResolveSavePath(famDoc, spec.SaveAs);
@@ -206,6 +283,12 @@ namespace StingTools.Core.Drawing
                         app.SharedParametersFilename = originalSpFile;
                 }
                 catch { /* best-effort */ }
+                // Best-effort cleanup of the staged seed copy.
+                if (!string.IsNullOrEmpty(seedTempCopy))
+                {
+                    try { if (File.Exists(seedTempCopy)) File.Delete(seedTempCopy); }
+                    catch (Exception exDel) { StingLog.Warn($"seed temp cleanup '{seedTempCopy}': {exDel.Message}"); }
+                }
             }
             return r;
         }
@@ -314,6 +397,118 @@ namespace StingTools.Core.Drawing
             return Path.Combine(asmDir, specPath);
         }
 
+        // ── Seed resolution + staging ────────────────────────────────────
+        //
+        // A seed is a pre-authored .rfa that already CONTAINS the label
+        // elements (the only piece the Revit 2025 API can't create). The
+        // factory opens a copy of it and augments the data-driven parts. Seeds
+        // are looked up by spec id under Families/TitleBlocks/_seeds — first in
+        // the open project's directory (project overrides win), then alongside
+        // the addin DLL (corporate baseline).
+
+        private const string SeedRelDir = @"Families\TitleBlocks\_seeds";
+
+        /// <summary>Resolve the seed .rfa for a spec, or null when none exists.
+        /// Probes the project directory first, then the addin directory.</summary>
+        private static string ResolveSeedPath(Application app, TitleBlockSpec spec)
+        {
+            if (spec == null || string.IsNullOrEmpty(spec.Id)) return null;
+            string fileName = spec.Id + ".rfa";
+            foreach (var root in EnumerateSeedRoots(app))
+            {
+                if (string.IsNullOrEmpty(root)) continue;
+                try
+                {
+                    var candidate = Path.Combine(root, SeedRelDir, fileName);
+                    if (File.Exists(candidate)) return candidate;
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveSeedPath probe '{root}': {ex.Message}"); }
+            }
+            return null;
+        }
+
+        /// <summary>Seed search roots in priority order: open project dir(s),
+        /// then the addin DLL directory.</summary>
+        private static IEnumerable<string> EnumerateSeedRoots(Application app)
+        {
+            // Project directories of any open non-family documents.
+            if (app?.Documents != null)
+            {
+                foreach (Document d in app.Documents)
+                {
+                    string dir = null;
+                    try
+                    {
+                        if (!d.IsFamilyDocument && !string.IsNullOrEmpty(d.PathName))
+                            dir = Path.GetDirectoryName(d.PathName);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    if (!string.IsNullOrEmpty(dir)) yield return dir;
+                }
+            }
+            // Addin DLL directory (AssemblyPath is the DLL file path).
+            string asmDir = null;
+            try
+            {
+                var asm = StingToolsApp.AssemblyPath;
+                if (!string.IsNullOrEmpty(asm)) asmDir = Path.GetDirectoryName(asm);
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            if (!string.IsNullOrEmpty(asmDir)) yield return asmDir;
+        }
+
+        /// <summary>Copy the pristine seed to a unique writable temp path and
+        /// return it. Never mutates the source, so re-runs always regenerate
+        /// from a clean base. Returns null on failure.</summary>
+        private static string MakeSeedTempCopy(string seedPath, string specId, TitleBlockBuildResult r)
+        {
+            try
+            {
+                var safeId = string.Concat((specId ?? "seed")
+                    .Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.' || c == '-'));
+                var dest = Path.Combine(Path.GetTempPath(),
+                    $"STING_seed_{safeId}_{Guid.NewGuid():N}.rfa");
+                File.Copy(seedPath, dest, overwrite: true);
+                // Clear ReadOnly in case the source carried it (File.Copy
+                // preserves attributes) — the copy is a working file.
+                try
+                {
+                    var attrs = File.GetAttributes(dest);
+                    if ((attrs & FileAttributes.ReadOnly) != 0)
+                        File.SetAttributes(dest, attrs & ~FileAttributes.ReadOnly);
+                }
+                catch (Exception ex) { StingLog.Warn($"seed copy attr reset: {ex.Message}"); }
+                return dest;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"MakeSeedTempCopy '{seedPath}': {ex.Message}");
+                StingLog.Error("TitleBlockFactory.MakeSeedTempCopy", ex);
+                return null;
+            }
+        }
+
+        /// <summary>Count the label elements in a family document. Labels are
+        /// TextElement instances that are NOT TextNote (RevitAPI.dll 2025:
+        /// TextElement is concrete, TextNote is its sole subclass). Static-text
+        /// captions are TextNote and are excluded. Uses WhereElementIsNotElement-
+        /// Type + an `is` test rather than OfClass(typeof(TextElement)), which
+        /// some Revit builds reject for the TextElement base type.</summary>
+        private static int CountLabels(Document famDoc)
+        {
+            int count = 0;
+            try
+            {
+                foreach (Element e in new FilteredElementCollector(famDoc)
+                    .WhereElementIsNotElementType())
+                {
+                    if (e is TextElement && !(e is TextNote)) count++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CountLabels: {ex.Message}"); }
+            return count;
+        }
+
         // ── Parameter creation ───────────────────────────────────────────
 
         private static void AddAllParameters(FamilyManager fm, DefinitionFile defFile,
@@ -410,6 +605,13 @@ namespace StingTools.Core.Drawing
             DefinitionFile defFile, string paramName, string group,
             bool isInstance, TitleBlockBuildResult r)
         {
+            // Idempotent for the seed-augment path: a pre-authored seed .rfa
+            // already carries its shared params — reuse the tag-family
+            // idempotency check (FamilyLabelAuthor.FindParameter) and return the
+            // existing binding instead of re-adding (which would throw / warn).
+            var existing = FamilyLabelAuthor.FindParameter(fm, paramName);
+            if (existing != null) return existing;
+
             if (defFile == null)
             {
                 r.Warnings.Add($"shared param '{paramName}' skipped: no shared param file open");
@@ -450,7 +652,10 @@ namespace StingTools.Core.Drawing
             {
                 var groupId = ResolveGroupTypeId(group);
                 var specId  = ResolveSpecTypeId(type);
-                var fp = fm.AddParameter(name, groupId, specId, isInstance);
+                // Idempotent for the seed-augment path — reuse an internal param
+                // the seed already declared rather than adding a duplicate.
+                var fp = FamilyLabelAuthor.FindParameter(fm, name)
+                         ?? fm.AddParameter(name, groupId, specId, isInstance);
                 if (!string.IsNullOrEmpty(formula))
                 {
                     try { fm.SetFormula(fp, formula); }
