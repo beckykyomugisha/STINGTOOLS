@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 440" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0.5" y="0.5" width="759" height="439" rx="10" fill="#ffffff" stroke="#CFD8DC"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#263238">Anatomy of a STING wire annotation</text>
+  <text x="30" y="66" font-size="13" fill="#607D8B">What each part of the drawing markup means</text>
+
+  <!-- board / panel -->
+  <rect x="42" y="250" width="30" height="56" rx="3" fill="#90A4AE" stroke="#455A64" stroke-width="1.5"/>
+  <text x="57" y="330" font-size="12" fill="#455A64" text-anchor="middle">Board</text>
+  <text x="57" y="345" font-size="12" fill="#455A64" text-anchor="middle">DB-1</text>
+
+  <!-- conduit line -->
+  <line x1="72" y1="278" x2="500" y2="278" stroke="#455A64" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- tick marks (2 cores) -->
+  <line x1="243" y1="298" x2="263" y2="258" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="263" y1="298" x2="283" y2="258" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- leader to label -->
+  <polyline points="283,270 360,210 402,210" fill="none" stroke="#1565C0" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- label box -->
+  <rect x="402" y="176" width="328" height="70" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="418" y="206" font-size="15" font-weight="600" fill="#0D47A1">2 &#215; 4mm&#178; Cu  |  1&#216;  |  L1-06  |  DB-1</text>
+  <text x="418" y="230" font-size="13" fill="#37474F">Meth.C | &#216;20mm | Fill 28% | <tspan fill="#C62828" font-weight="700">** VD=3.4%</tspan></text>
+
+  <!-- legend -->
+  <g font-size="14">
+    <circle cx="42" cy="372" r="7" fill="#455A64"/>
+    <text x="58" y="377" fill="#37474F"><tspan font-weight="700">&#9312; Conduit</tspan> — the route the cable takes on the drawing</text>
+    <circle cx="42" cy="398" r="7" fill="#00897B"/>
+    <text x="58" y="403" fill="#37474F"><tspan font-weight="700">&#9313; Tick marks</tspan> — how many wires are in the cable (count them: 2)</text>
+    <circle cx="430" cy="372" r="7" fill="#1565C0"/>
+    <text x="446" y="377" fill="#37474F"><tspan font-weight="700">&#9314; Text label</tspan> — the full spec in words</text>
+    <circle cx="430" cy="398" r="7" fill="#C62828"/>
+    <text x="446" y="403" fill="#37474F"><tspan font-weight="700">&#9315; Red ** VD flag</tspan> — check this run</text>
+  </g>
+</svg>

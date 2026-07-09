@@ -1109,6 +1109,110 @@ Verified safe against interference: the conduit drift detector
 **Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
 `StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
 `StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+#### Completed (STALE-P2 — Make the dashboard STALE count actionable: Select / Highlight / Clear, branch `claude/stale-select-filter`)
+
+Follow-up to STALE-1…STALE-4. The dashboards show a `ComplianceScan.StaleCount`
+(elements with `STING_STALE_BOOL == 1`) but nothing let you act on *that exact
+set* — the existing `SelectStale` command recomputes staleness live (stored vs
+current LVL/SYS/PROD/FUNC), a related-but-different set. Adds a small trio keyed
+to the persisted flag so select / highlight / count all agree. Build 0 errors
+(Revit 2025 API); the four warnings are pre-existing (`Clash/ClashIssueSyncCommand.cs`).
+**Compiles; not runtime-verified in Revit.**
+
+New file `StingTools/Select/StaleFlagCommands.cs` (4 commands + `StaleFlagHelper`):
+
+| Tag | Command | What |
+|---|---|---|
+| `SelectStaleFlagged` | `SelectStaleFlaggedCommand` | Selects `STING_STALE_BOOL == 1` (honours the project/view scope toggle) — the exact set the dashboard counts |
+| `HighlightStale` | `HighlightStaleCommand` | Finds-or-creates the `STING - Stale Elements` `ParameterFilterElement` (`STING_STALE_BOOL == 1`), adds it to the active view with a red projection + surface override; guards `AreGraphicsOverridesAllowed()` and an unbound stale param |
+| `ClearStaleHighlight` | `ClearStaleHighlightCommand` | Removes the highlight filter from the active view (leaves the reusable filter definition) |
+| `StaleCountAction` | `StaleCountActionCommand` | Dashboard-count entry point: a 3-way chooser (Select project-wide / Highlight / Re-tag) |
+
+Filter idiom mirrors `ViewStylePackApplier` (`GetFilters().Contains` → `AddFilter`
+→ `GetFilterOverrides ?? new` → set colours → `SetFilterOverrides` → `SetFilterVisibility`);
+category set is `SharedParamGuids.AllCategoryEnums` ∩ `ParameterFilterUtilities.GetAllFilterableCategories()`;
+the rule is `ParameterFilterRuleFactory.CreateEqualsRule(staleParamId, 1)`.
+
+Wiring: registered in `StingCommandHandler` (panel), `WorkflowEngine.ResolveCommand`
+(so the BCC `ActionDispatcher` → `DispatchCoordAction` → `GetCommandInstance` path
+resolves them), four buttons on the TAGS/QA panel next to the existing `Stale`
+button, and **both** BIM Coordination Center **STALE** KPI cards (Overview + Validation)
+repointed from `RetagStale` to `StaleCountAction` (the dedicated "Retag Stale" buttons
+elsewhere are untouched). Commands are null-`ExternalCommandData` safe (BCC dispatches
+with `null`; `ParameterHelpers.GetContext` falls back to `StingCommandHandler.CurrentApp`).
+
+Accuracy: `StaleFlagHelper.CollectFlagged` applies the same
+`SharedParamGuids.AllCategoryEnums` multicategory filter `ComplianceScan` uses, so the
+selected/highlighted set equals the dashboard `StaleCount` by construction (and the
+project-wide scan is faster). The closed loop works: the chooser's "Re-tag" delegates to
+`RetagStaleCommand`, which clears `STING_STALE_BOOL` (`Set(0)`), so the count drops and the
+red view-filter override stops matching those elements automatically.
+
+Deferred: the general Auto-Tag pipeline (`RunFullPipeline`) doesn't clear the flag — only
+`RetagStale` does; and there's no Revit schedule column for the flag yet.
+
+#### Completed (STALE-1…STALE-4 — Wire up the dead stale subsystem + wire-annotation VD accuracy, branch `claude/wire-annotation-stale-review`)
+
+Fixes a flagship feature that was wired into the UI/dashboard but never actuated:
+two stale IUpdaters were defined and toggled from the UI but registered nowhere,
+so `ComplianceScan.StaleCount` (and the HVAC load-stale flag) permanently read 0.
+Build 0 errors (Revit 2025 API); the four warnings are pre-existing
+(`Clash/ClashIssueSyncCommand.cs`, deprecated `ElementId(int)`). **Compiles;
+runtime stale-marking must still be verified in Revit** — no Revit host here.
+
+| Item | Status | What |
+|---|---|---|
+| **STALE-1** Dead updaters registered (P0) | **DONE** | `StingStaleMarker` + `HvacEnvelopeStaleUpdater` now `Register()`ed in `OnStartup`, symmetrically `Unregister()`ed in `OnShutdown` |
+| **STALE-2** 20-element silent-drop (P1) | **DONE** | Both stale IUpdaters + the cost stale marker no longer drop the whole bulk batch; first N inline + remainder deferred |
+| **STALE-3** Document-keyed material cache (P1) | **DONE** | `StingStaleMarker._matIdSnapshot`/`_matIdLru` cleared on document close |
+| **STALE-4** Wire-annotation VD accuracy | **DONE** (4.1/4.2); 4.3 deferred | Real circuit voltage; no 16 A guess |
+
+**STALE-1** — `StingToolsApp.OnStartup` now calls
+`StingStaleMarker.Register(application)` and
+`Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Register(application)` next to the
+existing `StingCostStaleMarker.Register` (all take `UIControlledApplication`).
+`OnShutdown` gains `StingStaleMarker.Unregister()` (the HVAC one was already
+unregistered). Both markers are **off by default** — `IsEnabled` starts false,
+and `StingStaleMarker` is restored from `TagConfig.AutoTaggerStaleMarker` on
+document open — so registering them only connects the actuator the existing UI
+toggle already controls; no behaviour changes until a user turns the marker on.
+
+**STALE-2** — the guard `if (count > MaxElementsPerTrigger) { …; return; }` in
+`StingStaleMarker.Execute`, `StingCostStaleMarker.Execute` and (already-correct
+shape in) the HVAC updater dropped the ENTIRE batch on a bulk edit, so bulk edits
+marked ZERO elements stale. `StingStaleMarker` and `StingCostStaleMarker` now
+process the first `MaxElementsPerTrigger` inline and defer the remainder to a
+single `IIdlingJob` (`StaleRemarkJob` / `CostStaleRemarkJob`) enqueued on
+`StingIdlingScheduler`, which re-marks them in its own transaction on the next
+idle tick. **Note:** the review suggested `StingAutoTagger.EnqueueDeferred` for
+the tag stale marker, but that queue drains through the *auto-tag* pipeline
+(`RunFullPipeline`), which never sets stale flags — so it is the wrong facility
+for stale marking. `StingIdlingScheduler` (which the review itself pointed to for
+the cost marker) is used for both, giving genuine deferral rather than a silent
+drop or a semantically-wrong enqueue. The per-element stale detection was
+extracted into `StingStaleMarker.TryMarkElementStale` so the inline and deferred
+paths share one implementation. The overflow job captures the originating
+`Document` and drops (via `ReferenceEquals`) if the user has switched documents
+before the tick fires, so ids never mis-resolve against another model.
+
+**STALE-3** — `StingStaleMarker._matIdSnapshot` was keyed by `ElementId` only, so
+across a session with multiple projects a reused ElementId compared against the
+previous document's material and produced a false-positive "material changed →
+stale". Both `_matIdSnapshot` and its LRU list `_matIdLru` are now cleared inside
+`ClearRoomIndexCache()`, which `StingToolsApp.OnDocumentClosing` already calls —
+matching the existing per-document cache-clear convention.
+
+**STALE-4** — `WireAnnotationEngine.ReadWireData`'s VD-recompute fallback assumed
+16 A when no circuit current was stored and pinned voltage to the nominal UK LV
+pair (400 V 3φ / 230 V 1φ), printing a confidently-wrong VD% on the drawing. It
+now (1) reads the connected circuit's real `Voltage` (falling back to the UK pair
+only when unreadable) and (2) recomputes VD only when a real `ApparentCurrent` is
+available — otherwise it omits VD from the label and logs a rate-limited warning
+rather than assuming 16 A. **Deferred (4.3):** honouring a branch-vs-feeder VD
+alarm threshold from `AutoUpsizeWiresCommand`'s VD-options snapshot (instead of
+the single `VdAlarmPct` default) — that only affects the display alarm colour,
+not the VD magnitude, and threading the snapshot in is out of scope for this
+minimal accuracy pass.
 
 #### Completed (RC-1…RC-4 — Parameter-Driven Ratio/Cost Hardening, branch `claude/pm-complete`)
 

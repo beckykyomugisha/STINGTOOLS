@@ -736,6 +736,10 @@ namespace StingTools.UI
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
                     case "SelectStale": RunCommand<Select.SelectStaleElementsCommand>(app); break;
+                    case "SelectStaleFlagged": RunCommand<Select.SelectStaleFlaggedCommand>(app); break;
+                    case "HighlightStale": RunCommand<Select.HighlightStaleCommand>(app); break;
+                    case "ClearStaleHighlight": RunCommand<Select.ClearStaleHighlightCommand>(app); break;
+                    case "StaleCountAction": RunCommand<Select.StaleCountActionCommand>(app); break;
                     case "QuickTagPreview": RunCommand<Select.QuickTagPreviewCommand>(app); break;
 
                     // ── Bulk param write ──
