@@ -3,6 +3,39 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 197 — MEP visual-tag declutter: one tag per run, branch `claude/mep-tag-declutter-advice`)
+
+Smart Placement was drawing **one visual `IndependentTag` per modelled segment**, so a single pipe or
+duct run — often 5–15 segments — produced a wall of identical tags. Real MEP sets tag a run **once**,
+with a new tag only at a size change, a branch, or a riser ([VDCI](https://vdci.edu/learn/revit-mep/tagging-pipe-sizes-in-enlarged-views-a-detailed-guide),
+[Autodesk Community](https://forums.autodesk.com/t5/revit-mep-forum/tagging-pipes/td-p/7561447)). This
+phase makes STING place tags that way by default. Release build: **0 errors, 4 warnings** (all
+pre-existing `ClashIssueSyncCommand` CS0618). **Not verified in Revit** — validate placement on a real
+MEP model before merge.
+
+- **New engine `Core/Mep/MepRunGrouper.cs`** — walks the MEP connector network (Union-Find) and
+  collapses linear-MEP segments to one representative (longest segment) per **run**. A run is a maximal
+  chain of same-system, same-size segments joined through inline pass-through fittings (couplings /
+  elbows / valves — fitting & accessory categories only, never equipment). The run **breaks** at: a
+  size change (reducer / differing `RBS_CALCULATED_SIZE`), a branch (tee/cross — a fitting with 3+ End
+  connectors), a system change, and **risers/drops** (vertical segments are their own run, so each
+  riser keeps its own tag). Introduces `enum TagVisualPolicy { All, PerRun, None }`.
+- **Visual-only.** Runs *after* the data-tag pipeline in `SmartTagPlacementCommand.PlaceTagsInView`, so
+  every segment still gets its `ASS_TAG_1` / container tokens for schedules & BOQ — only the count of
+  *drawn* tags drops. Fail-safe: any grouping error keeps all that category's segments (never silently
+  drops a tag the drafter expected). Equipment / fixtures pass through untouched (`All`).
+- **Config `TagConfig.CategoryVisualPolicy`** (`CATEGORY_VISUAL_POLICY` in `project_config.json`) —
+  per-category override of the policy. Absent categories default to `PerRun` for the six linear-MEP
+  categories (Pipes/Ducts/Conduits/Cable Trays/Flex Pipes/Flex Ducts) and `All` for everything else.
+  Loaded/saved alongside `CategorySkipList` / `CategoryForceSys`.
+- **New command `MepTagPolicy`** (`Organise.SetMepTagPolicyCommand`) — mode picker to set the linear-MEP
+  policy (One-tag-per-run / Tag-every-segment / No-visual-tags) and persist it; registered in both
+  `StingCommandHandler` and `OrganiseCommandModule` next to `ClusterTags`/`DeclusterTags`.
+- **Reporting** — `SkipBreakdown` gains `RunSuppressed`/`Runs`; the Smart Place summary now reports how
+  many segment tags were collapsed into how many runs.
+- **Distinct from `ClusterTags`.** `ClusterTags` is a *reactive* post-process that merges already-placed
+  tags into an `[×N]` badge; this is *preventive* — the redundant tags are never drawn.
+
 #### Completed (Phase 196 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
 
 Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature

@@ -367,6 +367,18 @@ namespace StingTools.Core
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Per-category VISUAL tag policy override. Key = category name, Value =
+        /// "All" | "PerRun" | "None" (see <see cref="StingTools.Core.Mep.TagVisualPolicy"/>).
+        /// Governs how many <c>IndependentTag</c> annotations Smart Placement draws —
+        /// NOT how token data is written (every element still gets its ASS_TAG_1).
+        /// When a category is absent, linear MEP (pipes / ducts / conduit / tray)
+        /// defaults to PerRun (one tag per connected run) and everything else to All.
+        /// Set via CATEGORY_VISUAL_POLICY in project_config.json.
+        /// </summary>
+        public static Dictionary<string, string> CategoryVisualPolicy { get; internal set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
 
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
@@ -793,6 +805,12 @@ namespace StingTools.Core
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
 
+                // MEP declutter: per-category visual tag policy overrides (All/PerRun/None)
+                CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var visPolicy = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_VISUAL_POLICY");
+                if (visPolicy != null)
+                    foreach (var kvp in visPolicy) CategoryVisualPolicy[kvp.Key] = kvp.Value;
+
                 // Load custom token validators from config
                 ISO19650Validator.CustomDiscCodes = LoadCustomCodes(data, "CUSTOM_VALID_DISC");
                 ISO19650Validator.CustomSysCodes = LoadCustomCodes(data, "CUSTOM_VALID_SYS");
@@ -1139,6 +1157,7 @@ namespace StingTools.Core
             TagSuffix = string.Empty;
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
             LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1379,6 +1398,7 @@ namespace StingTools.Core
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
                     ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
+                    ["CATEGORY_VISUAL_POLICY"] = CategoryVisualPolicy,
                     ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
                     ["TAG1_ONLY"] = Tag1Only,
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,

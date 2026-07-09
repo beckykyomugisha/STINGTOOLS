@@ -2970,6 +2970,7 @@ namespace StingTools.UI
                     // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
                     case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
                     case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+                    case "MepTagPolicy": RunCommand<Organise.SetMepTagPolicyCommand>(app); break;
 
                     // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
                     case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;
