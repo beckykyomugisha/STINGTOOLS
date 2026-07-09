@@ -146,12 +146,52 @@ namespace StingTools.Tags
             {
                 string full = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(full)) { skippedNoTag++; continue; }
-                string repadded = RepadSeqSegment(full, seqPad);
-                string disp = TagConfig.ApplySegmentMask(repadded, mask);
+                // Build from the source TOKENS so the CURRENT separator + SEQ pad +
+                // mask all apply live. (ASS_TAG_1 has a baked separator; masking it
+                // after the user switches separator would split on the wrong char and
+                // silently no-op — the "only hyphen works" bug.) Fall back to the
+                // baked tag when the element carries no source tokens.
+                string disp = BuildMaskedDisplayFromTokens(el, mask, seqPad)
+                              ?? TagConfig.ApplySegmentMask(RepadSeqSegment(full, seqPad), mask);
                 if (ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, disp, overwrite: true))
                     updated++;
             }
             return (updated, skippedNoTag);
+        }
+
+        /// <summary>
+        /// Assemble the presentational display from the 8 source tokens (DISC LOC ZONE
+        /// LVL SYS FUNC PROD SEQ) using the CURRENT separator, SEQ zero-pad and 8-char
+        /// mask — independent of how ASS_TAG_1_TXT was baked, so separator + pad + mask
+        /// changes all apply live. Keeps mask=1 positions (matching ApplySegmentMask
+        /// semantics). Returns null when the element carries no source tokens (caller
+        /// falls back to the canonical tag).
+        /// </summary>
+        internal static string BuildMaskedDisplayFromTokens(Element el, string mask, int seqPad)
+        {
+            string[] tp = ParamRegistry.AllTokenParams;
+            if (tp == null || tp.Length < 8) return null;
+            var vals = new string[8];
+            bool any = false;
+            for (int i = 0; i < 8; i++)
+            {
+                vals[i] = ParameterHelpers.GetString(el, tp[i]) ?? string.Empty;
+                if (vals[i].Length > 0) any = true;
+            }
+            if (!any) return null;
+            // Re-pad SEQ (slot 7), numeric only — presentational, never renumbers.
+            if (seqPad > 0 && vals[7].Length > 0 && vals[7].All(char.IsDigit))
+            {
+                string d = vals[7].TrimStart('0');
+                if (d.Length == 0) d = "0";
+                vals[7] = d.PadLeft(seqPad, '0');
+            }
+            string sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
+            string m = (!string.IsNullOrEmpty(mask) && mask.Length >= 8) ? mask : "11111111";
+            var visible = new List<string>();
+            for (int i = 0; i < 8; i++)
+                if (m[i] == '1') visible.Add(vals[i]);
+            return visible.Count > 0 ? string.Join(sep, visible) : null;
         }
 
         /// <summary>

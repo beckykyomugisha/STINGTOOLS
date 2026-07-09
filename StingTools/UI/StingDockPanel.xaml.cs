@@ -980,7 +980,8 @@ namespace StingTools.UI
                     && cSeqPad.SelectedItem is System.Windows.Controls.ComboBoxItem cbiSeq
                     && cbiSeq.Content is string spText)
                 {
-                    if (spText.StartsWith("001 "))      seqPad = "3";
+                    if (spText.StartsWith("01 "))       seqPad = "2";
+                    else if (spText.StartsWith("001 ")) seqPad = "3";
                     else if (spText.StartsWith("00001")) seqPad = "5";
                     else                                 seqPad = "4";
                 }

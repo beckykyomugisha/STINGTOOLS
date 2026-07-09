@@ -4284,6 +4284,7 @@
                                                     <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
                                                         <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="01 (2-digit)"/>
                                                         <ComboBoxItem Content="00001 (5-digit)"/>
                                                     </ComboBox>
                                                 </Grid>
