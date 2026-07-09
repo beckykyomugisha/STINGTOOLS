@@ -4262,7 +4262,7 @@
                                             <StackPanel>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" SelectionChanged="OnTokenPresetSelected" ToolTip="Recall a saved Tokens &amp; Depth configuration"/>
+                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" IsEditable="True" IsTextSearchEnabled="False" SelectionChanged="OnTokenPresetSelected" ToolTip="Pick a preset to recall it — or type a name and click Save to store the current settings as a project preset"/>
                                                     <Button Grid.Column="1" Content="Save" Width="50" Height="22" Margin="4,0,0,0" FontSize="9" Click="OnSaveTokenPreset" ToolTip="Save the current controls as a project preset"/>
                                                 </Grid>
                                                 <CheckBox x:Name="chkLiveTokenDepth" Content="Live — apply to active view as I change controls" FontSize="9" Margin="0,4,0,0" ToolTip="When on, mask / separator / pad / order / depth changes apply to the active view automatically (debounced) — no Set depth press."/>

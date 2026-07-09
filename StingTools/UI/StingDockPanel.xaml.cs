@@ -1121,11 +1121,6 @@ namespace StingTools.UI
         private System.Windows.Threading.DispatcherTimer _liveTimer;
         private bool _liveWired;
 
-        private static Autodesk.Revit.DB.Document PanelDoc()
-        {
-            try { return StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document; } catch { return null; }
-        }
-
         private char MaskChar(string name)
             => (FindName(name) is System.Windows.Controls.CheckBox cb && cb.IsChecked != false) ? '1' : '0';
         private bool RbChecked(string name)
@@ -1211,7 +1206,7 @@ namespace StingTools.UI
                 if (!(FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb)) return;
                 string sel = ComboSelText("cmbTokenPreset");
                 cb.Items.Clear();
-                foreach (string n in StingTools.Tags.TokenDepthPresets.Names(PanelDoc()))
+                foreach (string n in StingTools.Tags.TokenDepthPresets.Names(StingCommandHandler.CurrentDocPath))
                     cb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = n });
                 if (sel != null) SelectComboByExact("cmbTokenPreset", sel);
             }
@@ -1224,7 +1219,7 @@ namespace StingTools.UI
             {
                 if (!(sender is System.Windows.Controls.ComboBox cb)
                     || !(cb.SelectedItem is System.Windows.Controls.ComboBoxItem it) || !(it.Content is string name)) return;
-                var cfg = StingTools.Tags.TokenDepthPresets.Get(PanelDoc(), name);
+                var cfg = StingTools.Tags.TokenDepthPresets.Get(StingCommandHandler.CurrentDocPath, name);
                 if (cfg != null) { ApplyTokenDepthConfig(cfg); UpdateStatus($"Preset '{name}' loaded — press Set depth to apply."); }
             }
             catch (Exception ex) { StingLog.Warn($"OnTokenPresetSelected: {ex.Message}"); }
@@ -1234,37 +1229,17 @@ namespace StingTools.UI
         {
             try
             {
-                string name = PromptText("Save Tokens & Depth preset", "Preset name:", ComboSelText("cmbTokenPreset") ?? "");
-                if (string.IsNullOrWhiteSpace(name)) return;
-                string err = StingTools.Tags.TokenDepthPresets.Save(PanelDoc(), name.Trim(), ReadTokenDepthConfig());
+                // Name is typed into the editable preset combo — no modal dialog (a modal
+                // from a dockable pane can deadlock the pane).
+                string name = (FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb ? cb.Text : null)?.Trim();
+                if (string.IsNullOrWhiteSpace(name)) { UpdateStatus("Type a preset name in the box, then Save."); return; }
+                string err = StingTools.Tags.TokenDepthPresets.Save(StingCommandHandler.CurrentDocPath, name, ReadTokenDepthConfig());
                 if (err != null) { UpdateStatus("Preset save failed: " + err); return; }
                 RefreshPresetCombo();
-                SelectComboByExact("cmbTokenPreset", name.Trim());
-                UpdateStatus($"Preset '{name.Trim()}' saved.");
+                SelectComboByExact("cmbTokenPreset", name);
+                UpdateStatus($"Preset '{name}' saved.");
             }
             catch (Exception ex) { StingLog.Warn($"OnSaveTokenPreset: {ex.Message}"); }
-        }
-
-        /// <summary>Minimal modal text prompt (Topmost so it clears the always-on-top panel).</summary>
-        private static string PromptText(string title, string prompt, string def)
-        {
-            string result = null;
-            var w = new System.Windows.Window
-            {
-                Title = title, Width = 360, Height = 156, ResizeMode = System.Windows.ResizeMode.NoResize,
-                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen, Topmost = true, ShowInTaskbar = false
-            };
-            var sp = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
-            sp.Children.Add(new System.Windows.Controls.TextBlock { Text = prompt, Margin = new System.Windows.Thickness(0,0,0,6) });
-            var tb = new System.Windows.Controls.TextBox { Text = def ?? "" };
-            sp.Children.Add(tb);
-            var ok = new System.Windows.Controls.Button { Content = "Save", Width = 80,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right, Margin = new System.Windows.Thickness(0,12,0,0) };
-            ok.Click += (s, ev) => { result = tb.Text; w.DialogResult = true; };
-            sp.Children.Add(ok);
-            w.Content = sp;
-            try { w.ShowDialog(); } catch { }
-            return result;
         }
 
         /// <summary>E5 — wire live-apply handlers onto the format controls (once).</summary>

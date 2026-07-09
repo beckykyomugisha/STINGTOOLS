@@ -1262,6 +1262,8 @@ namespace StingTools.Core
             {
                 Autodesk.Revit.DB.View view = e.CurrentActiveView;
                 Document currentDoc = view?.Document;
+                // Cache doc path (API thread) for the modeless panel — no off-thread API access.
+                try { StingTools.UI.StingCommandHandler.SetDocPath(currentDoc?.PathName); } catch { }
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
                     StingAutoTagger.InvalidateContext();

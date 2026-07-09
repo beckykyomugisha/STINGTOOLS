@@ -34,41 +34,41 @@ namespace StingTools.Tags
         private static Dictionary<string, TokenDepthConfig> _map =
             new Dictionary<string, TokenDepthConfig>(StringComparer.OrdinalIgnoreCase);
 
-        public static void EnsureLoaded(Document doc)
+        public static void EnsureLoaded(string docPath)
         {
-            string key = doc?.PathName ?? "";
+            string key = docPath ?? "";
             lock (_lock)
             {
                 if (_loadedKey == key) return;
                 _loadedKey = key;
                 var map = new Dictionary<string, TokenDepthConfig>(StringComparer.OrdinalIgnoreCase);
                 Merge(map, CorporatePath());
-                Merge(map, ProjectPath(doc));
+                Merge(map, ProjectPath(docPath));
                 _map = map;
                 StingLog.Info($"TokenDepthPresets: {_map.Count} preset(s) loaded.");
             }
         }
 
-        public static List<string> Names(Document doc)
+        public static List<string> Names(string docPath)
         {
-            EnsureLoaded(doc);
+            EnsureLoaded(docPath);
             var list = new List<string>(_map.Keys);
             list.Sort(StringComparer.OrdinalIgnoreCase);
             return list;
         }
 
-        public static TokenDepthConfig Get(Document doc, string name)
+        public static TokenDepthConfig Get(string docPath, string name)
         {
-            EnsureLoaded(doc);
+            EnsureLoaded(docPath);
             if (name != null && _map.TryGetValue(name, out TokenDepthConfig c)) return c;
             return null;
         }
 
         /// <summary>Save/replace a project preset. Returns null on success else an error.</summary>
-        public static string Save(Document doc, string name, TokenDepthConfig cfg)
+        public static string Save(string docPath, string name, TokenDepthConfig cfg)
         {
             if (string.IsNullOrWhiteSpace(name)) return "Preset name is required.";
-            string path = ProjectPath(doc);
+            string path = ProjectPath(docPath);
             if (string.IsNullOrEmpty(path)) return "Save the project first (presets live in _BIM_COORD).";
             try
             {
@@ -88,13 +88,12 @@ namespace StingTools.Tags
         private static string CorporatePath()
         { try { return StingToolsApp.FindDataFile("STING_TOKEN_DEPTH_PRESETS.json"); } catch { return null; } }
 
-        private static string ProjectPath(Document doc)
+        private static string ProjectPath(string docPath)
         {
             try
             {
-                string p = doc?.PathName;
-                if (string.IsNullOrEmpty(p)) return null;
-                string dir = Path.GetDirectoryName(p);
+                if (string.IsNullOrEmpty(docPath)) return null;
+                string dir = Path.GetDirectoryName(docPath);
                 if (string.IsNullOrEmpty(dir)) return null;
                 return Path.Combine(dir, "_BIM_COORD", "token_depth_presets.json");
             }
