@@ -173,6 +173,7 @@ namespace StingTools.Tags
             // (10-entry static array) instead of allocating a fresh array.
             string[] paraNames = ParamRegistry.AllParaStates;
 
+            TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category tier depth
             int updated = 0;
             using (Transaction tx = new Transaction(doc, "STING Set Paragraph Depth"))
             {
@@ -181,12 +182,15 @@ namespace StingTools.Tags
                 {
                     Element typeEl = doc.GetElement(typeId);
                     if (typeEl == null) continue;
+                    // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
+                    // the panel global; otherwise every type gets the global depth.
+                    int effDepth = depth;
+                    var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
+                    if (ov != null && ov.Depth.HasValue)
+                        effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                     bool anySet = false;
                     for (int i = 0; i < MaxTier; i++)
-                    {
-                        bool enabled = (i + 1) <= depth;
-                        anySet |= SetYesNo(typeEl, paraNames[i], enabled);
-                    }
+                        anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
                     if (anySet) updated++;
                 }
                 tx.Commit();

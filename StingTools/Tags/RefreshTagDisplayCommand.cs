@@ -142,17 +142,27 @@ namespace StingTools.Tags
         {
             int updated = 0, skippedNoTag = 0;
             if (scope == null) return (0, 0);
+            TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category overrides
             foreach (Element el in scope)
             {
                 string full = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(full)) { skippedNoTag++; continue; }
-                // Build from the source TOKENS so the CURRENT separator + SEQ pad +
-                // mask all apply live. (ASS_TAG_1 has a baked separator; masking it
-                // after the user switches separator would split on the wrong char and
-                // silently no-op — the "only hyphen works" bug.) Fall back to the
-                // baked tag when the element carries no source tokens.
-                string disp = BuildMaskedDisplayFromTokens(el, mask, seqPad)
-                              ?? TagConfig.ApplySegmentMask(RepadSeqSegment(full, seqPad), mask);
+                // E2: a category override (e.g. Doors 2-digit/compact, Equipment 4-digit/
+                // full) takes precedence over the panel globals; null fields fall back.
+                string eMask = mask; int ePad = seqPad;
+                var ov = TokenDepthOverrides.Resolve(ParameterHelpers.GetCategoryName(el));
+                if (ov != null)
+                {
+                    if (!string.IsNullOrEmpty(ov.Mask) && ov.Mask.Length >= 8) eMask = ov.Mask;
+                    if (ov.SeqPad.HasValue && ov.SeqPad.Value > 0) ePad = ov.SeqPad.Value;
+                }
+                // Build from the source TOKENS so the CURRENT separator + SEQ pad + mask
+                // all apply live. (ASS_TAG_1 has a baked separator; masking it after the
+                // user switches separator would split on the wrong char and silently
+                // no-op — the "only hyphen works" bug.) Fall back to the baked tag when
+                // the element carries no source tokens.
+                string disp = BuildMaskedDisplayFromTokens(el, eMask, ePad)
+                              ?? TagConfig.ApplySegmentMask(RepadSeqSegment(full, ePad), eMask);
                 if (ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, disp, overwrite: true))
                     updated++;
             }
@@ -188,10 +198,37 @@ namespace StingTools.Tags
             }
             string sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
             string m = (!string.IsNullOrEmpty(mask) && mask.Length >= 8) ? mask : "11111111";
+            // E1: emit segments in the configured display order (ParamRegistry.SegmentOrder),
+            // masking by TOKEN IDENTITY (canonical slot 0=DISC … 7=SEQ) not display position
+            // — so a reorder hides the same tokens the mask checkboxes chose.
             var visible = new List<string>();
-            for (int i = 0; i < 8; i++)
-                if (m[i] == '1') visible.Add(vals[i]);
+            foreach (int slot in ResolveSlotOrder())
+                if (slot >= 0 && slot < 8 && m[slot] == '1') visible.Add(vals[slot]);
             return visible.Count > 0 ? string.Join(sep, visible) : null;
+        }
+
+        /// <summary>
+        /// Map the configured segment order (ParamRegistry.SegmentOrder names) to canonical
+        /// slot indices (DISC=0 … SEQ=7). A slot missing from a partial order string is
+        /// appended in canonical order so tokens are never silently dropped; falls back to
+        /// canonical 0..7 when the order is unavailable.
+        /// </summary>
+        private static int[] ResolveSlotOrder()
+        {
+            string[] order = null;
+            try { order = ParamRegistry.SegmentOrder; } catch { }
+            if (order == null || order.Length == 0)
+                return new[] { 0, 1, 2, 3, 4, 5, 6, 7 };
+            var slots = new List<int>(8);
+            foreach (string name in order)
+            {
+                var td = Array.Find(ParamRegistry.SourceTokens,
+                    t => t != null && string.Equals(t.Key, name, StringComparison.OrdinalIgnoreCase));
+                if (td != null && td.Slot >= 0 && td.Slot < 8 && !slots.Contains(td.Slot))
+                    slots.Add(td.Slot);
+            }
+            for (int s = 0; s < 8; s++) if (!slots.Contains(s)) slots.Add(s);
+            return slots.ToArray();
         }
 
         /// <summary>
