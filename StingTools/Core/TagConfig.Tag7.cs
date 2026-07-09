@@ -1478,12 +1478,16 @@ namespace StingTools.Core
             // T5 — Cost & procurement
             try
             {
-                string ugx      = ParameterHelpers.GetString(el, ParamRegistry.CST_UG_PRICE_UGX);
-                string usd      = ParameterHelpers.GetString(el, ParamRegistry.CST_INTL_PRICE_USD);
-                string quote    = ParameterHelpers.GetString(el, ParamRegistry.CST_QUOTE_REF_TXT);
-                string hrs      = ParameterHelpers.GetString(el, ParamRegistry.CST_INSTALL_HRS);
-                string crew     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_CREW_TXT);
-                string rate     = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP);
+                // D4: GetDisplayText (not GetString) — CST_UG_PRICE_UGX /
+                // CST_INTL_PRICE_USD / CST_INSTALL_HRS / CST_LABOUR_RATE_GBP are
+                // NUMBER storage and render blank through GetString. TEXT fields
+                // route through the same helper unchanged.
+                string ugx      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_UG_PRICE_UGX);
+                string usd      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INTL_PRICE_USD);
+                string quote    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_QUOTE_REF_TXT);
+                string hrs      = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_INSTALL_HRS);
+                string crew     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_CREW_TXT);
+                string rate     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CST_LABOUR_RATE_GBP);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(ugx))   parts.Add($"UGX {ugx}");
                 if (!string.IsNullOrEmpty(usd))   parts.Add($"USD {usd}");
@@ -1498,13 +1502,15 @@ namespace StingTools.Core
             // T6 — Carbon & sustainability (BS EN 15978 lifecycle stages)
             try
             {
-                string a13   = ParameterHelpers.GetString(el, ParamRegistry.CBN_A1_A3_KG_CO2E);
-                string a4    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A4_KG_CO2E);
-                string a5    = ParameterHelpers.GetString(el, ParamRegistry.CBN_A5_KG_CO2E);
-                string b6    = ParameterHelpers.GetString(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
-                string c1    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C1_KG_CO2E);
-                string c2    = ParameterHelpers.GetString(el, ParamRegistry.CBN_C2_KG_CO2E);
-                string c34   = ParameterHelpers.GetString(el, ParamRegistry.CBN_C3_C4_KG_CO2E);
+                // D4: GetDisplayText — every CBN_* carbon field is NUMBER
+                // storage, so T6 was always blank through GetString.
+                string a13   = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_A1_A3_KG_CO2E);
+                string a4    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_A4_KG_CO2E);
+                string a5    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_A5_KG_CO2E);
+                string b6    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
+                string c1    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_C1_KG_CO2E);
+                string c2    = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_C2_KG_CO2E);
+                string c34   = ParameterHelpers.GetDisplayText(el, ParamRegistry.CBN_C3_C4_KG_CO2E);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(a13)) parts.Add($"A1-A3 {a13} kgCO2e");
                 if (!string.IsNullOrEmpty(a4))  parts.Add($"A4 {a4}");
@@ -1534,11 +1540,13 @@ namespace StingTools.Core
             // T8 — Clash triage & resolution
             try
             {
-                string sev     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SEVERITY_NR);
-                string cat     = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_CATEGORY_TXT);
-                string resStat = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_STATUS_TXT);
-                string score   = ParameterHelpers.GetString(el, ParamRegistry.CLASH_TRIAGE_SCORE);
-                string action  = ParameterHelpers.GetString(el, ParamRegistry.CLASH_RESOLUTION_ACTION_TXT);
+                // D4: GetDisplayText — CLASH_TRIAGE_SEVERITY_NR /
+                // CLASH_TRIAGE_SCORE are numeric.
+                string sev     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CLASH_TRIAGE_SEVERITY_NR);
+                string cat     = ParameterHelpers.GetDisplayText(el, ParamRegistry.CLASH_TRIAGE_CATEGORY_TXT);
+                string resStat = ParameterHelpers.GetDisplayText(el, ParamRegistry.CLASH_RESOLUTION_STATUS_TXT);
+                string score   = ParameterHelpers.GetDisplayText(el, ParamRegistry.CLASH_TRIAGE_SCORE);
+                string action  = ParameterHelpers.GetDisplayText(el, ParamRegistry.CLASH_RESOLUTION_ACTION_TXT);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(sev))     parts.Add($"sev {sev}");
                 if (!string.IsNullOrEmpty(cat))     parts.Add(cat);
@@ -1552,10 +1560,12 @@ namespace StingTools.Core
             // T9 — As-built reconciliation & model health
             try
             {
-                string dev      = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_DEVIATION_MM);
-                string capDate  = ParameterHelpers.GetString(el, ParamRegistry.ASBUILT_CAPTURE_DATE_TXT);
-                string health   = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_LAST_NR);
-                string healthDt = ParameterHelpers.GetString(el, ParamRegistry.HEALTH_SCORE_DATE_TXT);
+                // D4: GetDisplayText — ASBUILT_DEVIATION_MM / HEALTH_SCORE_LAST_NR
+                // are numeric.
+                string dev      = ParameterHelpers.GetDisplayText(el, ParamRegistry.ASBUILT_DEVIATION_MM);
+                string capDate  = ParameterHelpers.GetDisplayText(el, ParamRegistry.ASBUILT_CAPTURE_DATE_TXT);
+                string health   = ParameterHelpers.GetDisplayText(el, ParamRegistry.HEALTH_SCORE_LAST_NR);
+                string healthDt = ParameterHelpers.GetDisplayText(el, ParamRegistry.HEALTH_SCORE_DATE_TXT);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(dev))      parts.Add($"Δ {dev} mm");
                 if (!string.IsNullOrEmpty(capDate))  parts.Add($"captured {capDate}");

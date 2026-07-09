@@ -195,6 +195,54 @@ namespace StingTools.Core
             return string.Empty;
         }
 
+        /// <summary>
+        /// Display text for a parameter regardless of storage type. Unlike
+        /// <see cref="GetString"/> (which returns "" for any non-String storage),
+        /// this formats NUMBER / INTEGER / ElementId values so numeric tier params
+        /// (T5 cost, T6 carbon, T8 clash, T9 as-built/health) render in tags instead
+        /// of blank. Resolution order:
+        ///   (a) a "{paramName}_DISP_TXT" mirror param, if present + non-empty;
+        ///   (b) String  storage → AsString();
+        ///   (c) Double  storage → AsValueString() (fallback: raw double, 0.### trimmed);
+        ///   (d) Integer storage → the int as a string;
+        ///   (e) ElementId       → the id value (or "" for invalid);
+        ///   (f) otherwise "".
+        /// D4 (Phase 196): single source of truth shared by
+        /// TagConfig.BuildTier4To10Summaries and
+        /// ApplyParagraphPresetCommand.ReadParamAsText so the tag path and the
+        /// paragraph-preset path format identical data identically.
+        /// </summary>
+        public static string GetDisplayText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+
+            // (a) prefer a pre-formatted display mirror when one exists.
+            Parameter disp = CachedLookup(el, paramName + "_DISP_TXT");
+            if (disp != null && disp.StorageType == StorageType.String)
+            {
+                string dv = disp.AsString();
+                if (!string.IsNullOrEmpty(dv)) return dv;
+            }
+
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return string.Empty;
+            switch (p.StorageType)
+            {
+                case StorageType.String:
+                    return p.AsString() ?? string.Empty;
+                case StorageType.Double:
+                    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
+                case StorageType.Integer:
+                    return p.AsInteger().ToString();
+                case StorageType.ElementId:
+                    ElementId eid = p.AsElementId();
+                    return (eid == null || eid == ElementId.InvalidElementId)
+                        ? string.Empty : eid.Value.ToString();
+                default:
+                    return string.Empty;
+            }
+        }
+
         /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
         public static int GetInt(Element el, string paramName, int defaultValue = 0)
         {

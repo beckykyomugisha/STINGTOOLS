@@ -2745,13 +2745,17 @@ namespace StingTools.Core
             //   1. STING_VIEW_TOKEN_MASK_TXT on the active view — user-set
             //      "hide ZONE in this view" without mutating ASS_TAG_1_TXT
             //      (review fix for TAG-token-toggling #1).
-            //   2. TAG_SEG_MASK_TXT on the element — written by
-            //      TokenProfileApplier step 7.5.
+            //   2. TAG_SEG_MASK_TXT on the element — written PER-ELEMENT by
+            //      TokenProfileApplier step 7.5 (FIX-3a: was previously written
+            //      to the view, where this consumer never read it).
             //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
-            // Mask applies in modes 0/5 ONLY — the two modes that render all 8
-            // segments (a full 8-char mask has nothing to shorten in modes 1-4,
-            // which already drop segments by design). The mode-5 default (see
-            // ParamRegistry.DisplayModeDefault) makes this the common path.
+            // D5 (Phase 196): the mask now applies in EVERY display mode, not
+            // just 0/5. A mask selects which of the 8 canonical segments show,
+            // so it is applied to the FULL 8-token string — not the mode-derived
+            // compact form, whose 1-4 segments would give an 8-char mask nothing
+            // to map onto. A real mask therefore defines visibility 1:1 and
+            // overrides the mode's segment choice; when no real mask is set the
+            // mode-derived display stands.
             try
             {
                 string mask = null;
@@ -2769,10 +2773,17 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(mask))
                     mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
 
-                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111"
-                    && (mode == 0 || mode == 5))
+                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
                 {
-                    display = ApplySegmentMask(display, mask);
+                    // Map the mask over the canonical 8 segments (not the
+                    // compact mode-derived string), so it applies in every mode.
+                    string[] maskTokens = ParamRegistry.ReadTokenValues(el);
+                    if (maskTokens != null && maskTokens.Length >= 8)
+                    {
+                        string fullEight = string.Join(ParamRegistry.Separator, maskTokens);
+                        string masked = ApplySegmentMask(fullEight, mask);
+                        if (!string.IsNullOrEmpty(masked)) display = masked;
+                    }
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }

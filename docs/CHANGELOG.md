@@ -3,6 +3,77 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 198 — MEP drawing-type print-readiness, branch `claude/mep-print-ready`)
+
+Made the MEP drawing types truly "drop a view in → the sheet renders and annotates correctly," and
+wired the DrawingType-configured segment mask + display mode + per-category depth through the produce
+path. Base `claude/gold-integration-20260709`. Release build **0 errors / 6 baseline warnings** (clean
+build; the base's own baseline once the WPF temp project is recompiled — see the build-fix note below).
+**Not merged to main**; **not Revit-verified** (no Revit host in this session — the in-Revit produce
+gates below are owner-run).
+
+- **STEP 0 — sibling reconciliation.** `claude/drawing-types-realign` is already an ancestor of base
+  (fully integrated). Of `claude/fix-tokens-depth-engine`'s five sub-fixes, **D1/D2** (SEQ-pad +
+  separator) and **D3** (segment-order) are already in base by content (`TagConfig.SeqPadWidth` /
+  `EffectiveSeqPad`, `StingDockPanel.SetTokenDepthParams`); **D4** and **D5** were **not** in base and
+  were **re-implemented** into base's current code (not cherry-picked — base diverged on
+  mask-precedence + SEQ-latch, so a cherry-pick would conflict).
+- **FIX 1 (blocker) — MEP discipline style packs.** MEP plans bound to `corp-standard-plan`
+  (architectural), which sets `Pipes`/`Ducts` `visible:false` → pipes/ducts rendered invisible.
+  Authored three corporate packs `corp-standard-hvac` / `-elec` / `-plumb` (extend `corp-base`): own
+  discipline **bold + CIBSE-coloured + visible** (HVAC `#1976D2`/equip `#880E4F`, Elec `#F57F17` +
+  fire-alarm `#C00000`, Plumb `#2E7D32` + sprinklers `#C00000`); every other MEP discipline + arch/struct
+  **halftone grey `#808080`**; grids/rooms/matchline kept. Rebound 10 types' `viewStylePackId`
+  (`mep-plan`, `mep-hvac-duct`, `mep-plantroom` → hvac; `elec-power/-lighting/-fire-alarm` → elec;
+  `plumb-drainage/-ag-drainage/-rwd-layout/-water-treatment` → plumb). `corp-coordination` kept for
+  coord/clash. (DrawingTypes ship no `checksum` field, so the rebind computes fresh — no origin flip.)
+- **FIX 2 — tagFamilies coverage + key naming.** Read `AnnotationRunner.ResolveTagTypeId`: the lookup is
+  `pack.TagFamilies[rule.Category]` (case-sensitive) → matched against `FamilySymbol.FamilyName`; the
+  per-rule `tagFamily` field is ignored. Existing entries were doubly broken — camelCase keys
+  (`DuctSystem`, `AirTerminals`) that never match the display-name rule categories, and `STING_TAG_*`
+  code values that match no loaded family. Rewrote 17 MEP types' `tagFamilies`: keys = exact AutoTag
+  rule categories, values = real shipped `STING - <X> Tag` families; filled the three types with rules
+  but no families (`mep-coord`, `elec-riser`, `coord-clash`). Gate: **0 blank AutoTag families; every
+  family exists** in `Data/TagFamilies/`.
+- **FIX 3 + D5 — mask scope, display refresh, mask in all modes.** (a) `TokenProfileApplier` wrote the
+  segment mask to the **view**'s `TAG_SEG_MASK`, but the consumer `TagConfig.BuildDisplayTag` reads the
+  **element**'s — moved the write into the per-element pass. (b) `DrawingTypePresentation.Apply` placed
+  tags but never recomputed `ASS_DISPLAY_TXT` on produce (only the interactive `BuildAndWriteTag` did) —
+  added a post-`TokenProfileApplier` refresh pass that calls `BuildDisplayTag` on every view element so a
+  dropped-in view renders the configured mode/mask without a separate tag pass. (c/D5) dropped the
+  `mode==0||mode==5` gate in `BuildDisplayTag`; a real mask now maps 1:1 over the full 8-token string in
+  **every** display mode.
+- **FIX D4 — numeric tier params render.** `BuildTier4To10Summaries` read T5/T6/T8/T9 via `GetString`,
+  which returns "" for non-String storage → cost/carbon/clash/as-built numeric fields rendered blank.
+  Added `ParameterHelpers.GetDisplayText` (String → Double `AsValueString` → Integer → ElementId, with a
+  `{name}_DISP_TXT` mirror) and routed those tiers through it; `ApplyParagraphPresetCommand.ReadParamAsText`
+  now delegates to the same helper so the tag path and paragraph-preset path can't diverge.
+- **FIX 4 — routing / schedules / slot / templates.** Added routing `E/*/SPOOL → elec-spool`,
+  `E/*/COORD → elec-coord` (sole first-match, reachability-checked). Added `${PRJ_ORG_*}`
+  `titleBlockParams` + `viewportTypeName` to `mech-equip-schedule` / `elec-panel-schedule` /
+  `valve-schedule`. Fixed `plumb-drainage-schematic-A1`: slot `{x,y,w,h}` → `{normX,normY,normW,normH}`
+  (unrecognised keys → the view never placed) + `viewType`/`required`, added `viewStylePackId:
+  corp-standard-plumb`, reclassified `purpose` Schedule → **Schematic**. **FIX 4(d) — confirmed
+  resolver, no change:** the synthetic `viewTemplateName "STING:<packId>:FloorPlan"` on
+  `elec-spool`/`elec-coord` is exactly the managed-template name `ManagedTemplateSyncer.EnsureTemplate`
+  mints from their (managed) `viewStylePackId`; it self-heals after first produce (one-time fallback
+  warning is by design).
+- **FIX 6 — per-category depth cumulative.** `AnnotationRunner` wrote only `TAG_PARA_STATE_{depth}_BOOL`;
+  now writes tiers 1..depth true / higher false, matching `TokenProfileApplier.WriteCategoryDepths`.
+- **FIX 5 — not implemented (documented as project-global).** SEQ zero-pad stays project-global via
+  `TagConfig.SeqPadWidth` / `EffectiveSeqPad` (set from the Tag Studio → Tokens & Depth dock tab). It is
+  **not** a per-DrawingType field, by decision — see ROADMAP.
+- **Pre-existing base build fix (separate commit).** A clean Release build of the base failed with
+  CS0120/CS1061 in `DrawingType.cs` (a `public string System` property shadows the `System` namespace at
+  `System.Math`/`System.Globalization` sites; the WPF temp project's LangVersion defaults trip on it
+  where the main csproj doesn't). `global::`-qualified those sites — a no-op that restores a green clean
+  build. A cached/incremental build never recompiled the temp project, which is why the base appeared
+  0-err.
+
+Owner-run in-Revit gates: produce one A1 plan per M/E/P → pipes/ducts visible + correctly per-category
+tagged; token + paragraph depth honoured; `ASS_DISPLAY_TXT` reflects mask + mode on produce with no
+separate tag pass; SEQ pad renders per the project-global setting.
+
 #### Completed (Phase 197 — Universal-tag legacy teardown, branch `claude/universal-tag-teardown`)
 
 Applied the two behavioural findings Phase 196 only reported, then retired the "Create Tag Fams"

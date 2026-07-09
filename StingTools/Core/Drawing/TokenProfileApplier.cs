@@ -88,29 +88,32 @@ namespace StingTools.Core.Drawing
                         r.ViewParamWrites++;
                 }
 
-                // ── Step E. Segment mask (view-level) ──────────────────
+                // ── Step E. Segment mask — validate here, WRITE PER-ELEMENT ──
+                // FIX-3a: the mask must live on the ELEMENT — the consumer
+                // (TagConfig.BuildDisplayTag) reads ParamRegistry.TAG_SEG_MASK
+                // off the element, not the view. The previous view-level write
+                // was read by nobody, so a DrawingType-configured mask never
+                // reached produced tags. The actual write happens inside the
+                // single per-element pass below.
+                bool needSegMask = false;
                 if (!string.IsNullOrWhiteSpace(segMask))
                 {
                     if (segMask.Length == 8 && segMask.All(c => c == '0' || c == '1'))
-                    {
-                        if (TryWriteViewParam(view, ParamRegistry.TAG_SEG_MASK, segMask))
-                            r.ViewParamWrites++;
-                    }
+                        needSegMask = true;
                     else
-                    {
                         r.Warnings.Add($"SegmentMask '{segMask}' must be 8 chars of 0/1; ignored.");
-                    }
                 }
 
-                // ── Steps F + C: per-element writes in a SINGLE pass ──
+                // ── Steps E + F + C: per-element writes in a SINGLE pass ──
                 // PERF-03: previously the display-mode write, the section-
                 // visibility write, and the per-category depth write each
                 // ran their own FilteredElementCollector. Merge them into
                 // one collector pass so a 500-element view doesn't pay the
-                // 3× scan cost.
+                // 3× scan cost. FIX-3a folds the per-element segment-mask
+                // write into the same pass.
                 bool needDispMode = dispMode.HasValue && dispMode.Value >= 1 && dispMode.Value <= 5;
                 bool needSectVis  = sectVis != null && sectVis.Count > 0;
-                if (needDispMode || needSectVis)
+                if (needDispMode || needSectVis || needSegMask)
                 {
                     var canonicalSectVis = needSectVis
                         ? CanonicaliseSectionVisibility(sectVis)
@@ -132,6 +135,17 @@ namespace StingTools.Core.Drawing
                                 {
                                     p.Set(dispMode.Value); r.ElementWrites++;
                                 }
+                            }
+                            catch { /* element-level failure — keep going */ }
+                        }
+                        if (needSegMask)
+                        {
+                            // FIX-3a: element-level TAG_SEG_MASK — the mask the
+                            // consumer (TagConfig.BuildDisplayTag) actually reads.
+                            try
+                            {
+                                if (ParameterHelpers.SetString(el, ParamRegistry.TAG_SEG_MASK, segMask, overwrite: true))
+                                    r.ElementWrites++;
                             }
                             catch { /* element-level failure — keep going */ }
                         }

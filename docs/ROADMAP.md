@@ -2,6 +2,24 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## MEP print-readiness — deferred items (Phase 198)
+
+Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).
+
+- **Fire suppression drawing types (fast-follow).** Only fire *detection* exists today. There are no
+  sprinkler / suppression **layout**, **section**, or **detail** drawing types (corporate DrawingType +
+  routing + a fire style pack). Author them as a fast-follow so a fire-suppression package is
+  drop-a-view print-ready like M/E/P. Scope: a `corp-standard-fire` style pack (sprinklers + fire-alarm
+  bold `#C00000`, other MEP + arch/struct halftone), `fire-sprinkler-layout` / `fire-section` /
+  `fire-detail` types with `${PRJ_ORG_*}` title-block params + `tagFamilies` (`STING - Sprinkler Tag`,
+  `STING - Fire Alarm Device Tag`), and `F/*/SPRINKLER|SECTION|DETAIL` routing rules.
+- **SEQ zero-pad is project-global by design (not per-DrawingType).** SEQ pad lives in
+  `TagConfig.SeqPadWidth` / `EffectiveSeqPad`, set from the Tag Studio → Tokens & Depth dock tab, and
+  applies project-wide. It was **deliberately not** made an `AnnotationTokenProfile` field, so a
+  DrawingType cannot override it per drawing. If per-type SEQ pad is ever wanted, add a `seqPad` field to
+  `AnnotationTokenProfile` and push it on the produce path (mirroring how paragraph depth already flows),
+  with the project-global value as the fallback.
+
 ## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
 
 The Phase 196 binding-accuracy fix narrowed every confidently-classifiable discipline family and
