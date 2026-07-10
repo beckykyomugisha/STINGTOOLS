@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Text;
 using Autodesk.Revit.ApplicationServices;
@@ -173,12 +174,9 @@ namespace StingTools.Core.Drawing
                         r.Errors.Add($"NewFamilyDocument returned null for {rftPath}");
                         return r;
                     }
-                    // ONE summary warning — not one per missing label.
-                    r.Warnings.Add(
-                        $"no seed for '{spec.Id}' — built without labels; author a seed at "
-                        + $"Families/TitleBlocks/_seeds/{spec.Id}.rfa to render title-block value "
-                        + "cells (Revit 2025 removed the NewLabel API, so labels cannot be created "
-                        + "from a blank template).");
+                    // The "built without labels" warning is emitted AFTER the
+                    // master-seed propagation attempt below — a family that
+                    // received the A1 master's labels is not label-less.
                 }
 
                 // 3. Point at shared param file
@@ -219,12 +217,13 @@ namespace StingTools.Core.Drawing
                         foreach (var line in spec.Lines)
                             PlaceLine(famDoc, fm, view, line, paramByName, r);
 
-                    // 4c. Static text — factory-authored on BOTH paths. Static
-                    // text is a TextNote (not a label), so it creates fine on
-                    // 2025; the seed carries only the label VALUE cells, not the
-                    // fixed captions.
-                    foreach (var st in spec.StaticText)
-                        PlaceStaticText(famDoc, fm, view, st, paramByName, r);
+                    // 4c. Static text — template path only. A hand-authored seed
+                    // is the COMPLETE visual design (captions included, at the
+                    // author's own coordinates); overlaying the JSON captions on
+                    // top would double every heading at a different position.
+                    if (!fromSeed)
+                        foreach (var st in spec.StaticText)
+                            PlaceStaticText(famDoc, fm, view, st, paramByName, r);
 
                     // 4d. Labels — NEVER placed here. On the seed path they live
                     // in the seed; on the template path they can't be created on
@@ -239,15 +238,35 @@ namespace StingTools.Core.Drawing
                         foreach (var fr in spec.FilledRegions)
                             PlaceFilledRegion(famDoc, fm, view, fr, paramByName, r);
 
-                    // 4f. Slots — viewport zones with optional reference planes +
-                    // a slot-id marker. Factory-authored on BOTH paths: slot
-                    // bounds are read from STING_TITLE_BLOCKS.json at
-                    // AutoPlaceViewports time (not from the .rfa), so this only
-                    // adds the operator's visual cue and the report summary.
-                    foreach (var slot in spec.Slots)
-                        PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
+                    // 4f. Slots — template path only. Slot BOUNDS are read from
+                    // STING_TITLE_BLOCKS.json at placement time (never from the
+                    // .rfa), so the authored ref-planes/corner markers are just a
+                    // visual cue — cluttering a hand-authored seed design with
+                    // them helps nobody.
+                    if (!fromSeed)
+                        foreach (var slot in spec.Slots)
+                            PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
                     tx.Commit();
+                }
+
+                // 4f2. No-own-seed working sheets: propagate the label set from
+                // the A1 master seed of the same BIM mode. USER-PROVEN in Revit
+                // 2025: cross-document label paste preserves the shared-param
+                // binding (the GUID travels with the label element) — creation
+                // is banned, copying is not. Positions are remapped
+                // proportionally master-drawable → target-drawable, so ONE
+                // hand-authored A1 seed serves every size and orientation.
+                int propagated = 0;
+                if (!fromSeed)
+                {
+                    propagated = PropagateLabelsFromMasterSeed(app, famDoc, spec, r);
+                    if (propagated <= 0)
+                        r.Warnings.Add(
+                            $"no seed for '{spec.Id}' — built without labels; author a seed at "
+                            + $"Families/TitleBlocks/_seeds/{spec.Id}.rfa, or author the A1 master "
+                            + "seed of the same mode to propagate from (Revit 2025 removed the "
+                            + "NewLabel API, so labels cannot be created from a blank template).");
                 }
 
                 // 4g. Report the label count the family carries. Labels are
@@ -257,7 +276,9 @@ namespace StingTools.Core.Drawing
                 // static-text captions. N>0 ⇒ the value cells will render.
                 r.LabelsPlaced = CountLabels(famDoc);
                 StingLog.Info($"TitleBlockFactory '{spec.Id}': labels {r.LabelsPlaced} "
-                    + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})" : "(no seed)"));
+                    + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})"
+                       : propagated > 0 ? "(propagated from A1 master seed)"
+                       : "(no seed)"));
 
                 // 4g-drift. Seed↔spec label drift check. The spec's labels[] is
                 // the authoring contract for the seed — a seed authored before
@@ -504,6 +525,150 @@ namespace StingTools.Core.Drawing
                 r.Warnings.Add($"MakeSeedTempCopy '{seedPath}': {ex.Message}");
                 StingLog.Error("TitleBlockFactory.MakeSeedTempCopy", ex);
                 return null;
+            }
+        }
+
+        // ── Master-seed label propagation ───────────────────────────────────
+        // Labels cannot be CREATED on Revit 2025, but they CAN be COPIED
+        // between family documents with their shared-param binding intact
+        // (user-verified in Revit: pasted PRJ_TB_* labels kept their binding).
+        // So one hand-authored A1 master seed can supply the label set for
+        // every working-sheet size/orientation of the same BIM mode.
+
+        /// <summary>Working-sheet ids map to an A1 master of the same mode:
+        /// STING_TB_A0_PORT_BIM_v2.0 → STING_TB_A1_BIM_v2.0. Returns null for
+        /// the A1 masters themselves and for fab/specialty families (their
+        /// layouts are not derivable from a working-sheet master).</summary>
+        private static string ResolveMasterSeedId(string specId)
+        {
+            var m = Regex.Match(specId ?? "",
+                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return null;
+            string master = $"STING_TB_A1_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
+            return string.Equals(master, specId, StringComparison.OrdinalIgnoreCase)
+                ? null : master;
+        }
+
+        /// <summary>CopyElements duplicate-type collisions resolve to the
+        /// destination's types so the target family's text styles win.</summary>
+        private sealed class UseDestinationTypesHandler : IDuplicateTypeNamesHandler
+        {
+            public DuplicateTypeAction OnDuplicateTypeNamesFound(DuplicateTypeNamesHandlerArgs args)
+                => DuplicateTypeAction.UseDestinationTypes;
+        }
+
+        /// <summary>Copy every label from the A1 master seed into
+        /// <paramref name="famDoc"/> and remap positions proportionally from
+        /// the master's drawable rect to the target's. Returns the number of
+        /// labels propagated (0 = no master resolvable / nothing copied).</summary>
+        private static int PropagateLabelsFromMasterSeed(Application app, Document famDoc,
+            TitleBlockSpec spec, TitleBlockBuildResult r)
+        {
+            string masterId = ResolveMasterSeedId(spec?.Id);
+            if (masterId == null) return 0;
+
+            // Locate the master seed with the same probe order as ResolveSeedPath.
+            string masterPath = null;
+            foreach (var root in EnumerateSeedRoots(app))
+            {
+                if (string.IsNullOrEmpty(root)) continue;
+                try
+                {
+                    var candidate = Path.Combine(root, SeedRelDir, masterId + ".rfa");
+                    if (File.Exists(candidate)) { masterPath = candidate; break; }
+                }
+                catch (Exception ex) { StingLog.Warn($"master-seed probe '{root}': {ex.Message}"); }
+            }
+            if (masterPath == null) return 0;
+
+            // Source/target drawable rects drive the proportional remap.
+            DrawableRect srcRect = null;
+            try
+            {
+                var lib = TitleBlockSpecRegistry.Load();
+                var masterSpec = lib?.Families?.FirstOrDefault(f =>
+                    string.Equals(f.Id, masterId, StringComparison.OrdinalIgnoreCase));
+                if (masterSpec != null) masterSpec = TitleBlockSpecRegistry.Resolve(lib, masterSpec);
+                srcRect = masterSpec?.Drawable;
+            }
+            catch (Exception ex) { StingLog.Warn($"master-seed spec resolve: {ex.Message}"); }
+            DrawableRect tgtRect = spec?.Drawable;
+
+            string tempCopy = null;
+            Document masterDoc = null;
+            try
+            {
+                tempCopy = MakeSeedTempCopy(masterPath, masterId + "_master", r);
+                if (string.IsNullOrEmpty(tempCopy)) return 0;
+                masterDoc = app.OpenDocumentFile(tempCopy);
+                if (masterDoc == null || !masterDoc.IsFamilyDocument) return 0;
+
+                var labelIds = new List<ElementId>();
+                foreach (Element e in new FilteredElementCollector(masterDoc)
+                    .WhereElementIsNotElementType())
+                {
+                    if (e is TextElement && !(e is TextNote)) labelIds.Add(e.Id);
+                }
+                if (labelIds.Count == 0) return 0;
+
+                var opts = new CopyPasteOptions();
+                opts.SetDuplicateTypeNamesHandler(new UseDestinationTypesHandler());
+
+                using (var tx = new Transaction(famDoc, "STING Propagate master seed labels"))
+                {
+                    tx.Start();
+                    var copied = ElementTransformUtils.CopyElements(
+                        masterDoc, labelIds, famDoc, Transform.Identity, opts);
+
+                    if (copied != null && srcRect != null && tgtRect != null
+                        && srcRect.W > 1e-9 && srcRect.H > 1e-9)
+                    {
+                        double sx0 = MmToFt(srcRect.X), sy0 = MmToFt(srcRect.Y);
+                        double tx0 = MmToFt(tgtRect.X), ty0 = MmToFt(tgtRect.Y);
+                        double kx = tgtRect.W / srcRect.W, ky = tgtRect.H / srcRect.H;
+                        foreach (var id in copied)
+                        {
+                            try
+                            {
+                                if (!(famDoc.GetElement(id) is TextElement te)) continue;
+                                XYZ p = te.Coord;
+                                if (p == null) continue;
+                                var np = new XYZ(tx0 + (p.X - sx0) * kx,
+                                                 ty0 + (p.Y - sy0) * ky, p.Z);
+                                ElementTransformUtils.MoveElement(famDoc, id, np - p);
+                            }
+                            catch (Exception exMove)
+                            { StingLog.Warn($"master-label remap {id}: {exMove.Message}"); }
+                        }
+                    }
+                    else if (srcRect == null || tgtRect == null)
+                    {
+                        r.Warnings.Add("master-seed propagation: drawable rect missing "
+                            + $"({(srcRect == null ? masterId : spec.Id)}) — labels copied 1:1; "
+                            + "positions may need adjustment in the Family Editor.");
+                    }
+                    tx.Commit();
+                    StingLog.Info($"TitleBlockFactory '{spec.Id}': propagated "
+                        + $"{copied?.Count ?? 0} label(s) from master seed {masterId}");
+                    return copied?.Count ?? 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"master-seed propagation failed: {ex.Message}");
+                StingLog.Error($"PropagateLabelsFromMasterSeed({spec?.Id})", ex);
+                return 0;
+            }
+            finally
+            {
+                try { masterDoc?.Close(false); }
+                catch (Exception exC) { StingLog.Warn($"Suppressed: {exC.Message}"); }
+                if (!string.IsNullOrEmpty(tempCopy))
+                {
+                    try { if (File.Exists(tempCopy)) File.Delete(tempCopy); }
+                    catch (Exception exD) { StingLog.Warn($"master temp cleanup: {exD.Message}"); }
+                }
             }
         }
 
