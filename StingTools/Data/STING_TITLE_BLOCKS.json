@@ -804,7 +804,8 @@
           "vAlign": "Middle"
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             404,
             90
@@ -2476,7 +2477,8 @@
           "size": 1.3
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             502,
             104.0
@@ -2740,6 +2742,18 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [ 1134, 137 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",
@@ -3961,7 +3975,8 @@
           "size": 1.3
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             356,
             104.0
@@ -4225,6 +4240,18 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [ 786, 137 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",
@@ -5434,7 +5461,8 @@
           "size": 1.0
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             355,
             88.0
@@ -5687,6 +5715,18 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [ 786, 117 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",
@@ -6252,7 +6292,8 @@
           "size": 1.0
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             251,
             88.0
@@ -6516,6 +6557,18 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [ 539, 117 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",
@@ -7737,7 +7790,8 @@
           "size": 0.7
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             178,
             56.0
@@ -7927,6 +7981,18 @@
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "QR",
+          "anchor": [ 365, 77 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",
@@ -9148,7 +9214,8 @@
           "size": 0.7
         },
         {
-          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "param": "Sheet Name",
+          "builtin": true,
           "anchor": [
             127,
             56.0
@@ -9338,6 +9405,18 @@
           "description": "Top-right quadrant",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "QR",
+          "anchor": [ 242, 77 ],
+          "size": [ 16, 16 ],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "TitleBlock_StampQR"
         },
         {
           "id": "NA",

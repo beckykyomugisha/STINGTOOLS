@@ -3,6 +3,50 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Title-block / Legends / Notes / QR — branch `claude/tb-w1w5-impl`)
+
+Five title-block-and-documentation workstreams. Base `claude/gold-all-integration` (`3821c2ab4`).
+Release build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025). **Not merged to main**;
+**not Revit-verified** (owner runs the in-Revit acceptance sweep). Cell-authoring work that the
+Revit 2025 API cannot do (label creation was removed) is captured in [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md).
+
+- **W1 — Legend/Notes wired into drawing production.** `DrawingProducer` had no `Legend` case
+  (`Legend` rules hit the `default` → null + "Unknown rule.ViewType 'Legend'" warning) and no `Notes`
+  purpose at all. Added `DrawingPurpose.Notes` + the `Notes` vocabulary entry; `SynthesizeSingleRule`
+  now maps Legend→`Legend` and Notes→`Notes` (previously both silently synthesized a FloorPlan). New
+  `ProduceLegendOrNotesView` short-circuits before `ResolveViewFamilyType` (legends/notes have no
+  ViewFamilyType): Legend → `DisciplineLegendEngine` (native legend / drafting fallback), Notes →
+  `DisciplineNotesRegistry` drafting view. `DrawingTypeValidator` DT-095 now exempts Legend/Notes from
+  the positive-scale rule. New shared engine `Core/Drawing/DisciplineLegendEngine.cs`.
+- **W2 — Discipline symbol legends for M / P / S.** `MechanicalDrawingLegendCommand` /
+  `PlumbingDrawingLegendCommand` / `StructuralDrawingLegendCommand` (`Commands/Reports/`) mirror the
+  electrical legend via the shared `DisciplineLegendEngine` (walk placed components → dedupe → resolve
+  STING concept → LegendBuilder). Registered `Hvac_DrawingLegend` (HVAC panel + handler),
+  `Plumb_DrawingLegend` (Plumbing panel + handler), `Str_DrawingLegend` (main handler + DOCS button).
+  Architectural omitted — no dedicated architectural symbol catalogue (noted in SEED_FOLLOWUP).
+- **W3 — General/discipline notes automation.** New `Data/STING_DISCIPLINE_NOTES.json` (General +
+  M/E/P/A/S), `Core/Drawing/DisciplineNotesRegistry.cs` (baseline + `_BIM_COORD/discipline_notes.json`
+  override, per-doc cache, TextNote renderer), and `NotesBlockCommand` (`Notes_PlaceBlock`) placing a
+  numbered notes block on the active sheet's `notes` slot; discipline inferred from the sheet's
+  drawing-type stamp. JSON edits change output without a rebuild.
+- **W4 — QR stamp on the sheet.** `TitleBlock_StampQR` / `TitleBlock_StampQRAll`
+  (`Commands/Drawing/TitleBlockStampQRCommand.cs`) place a QR **raster on the sheet** (`ImageType`/
+  `ImageInstance` — first use in the repo), sidestepping the label-API limit. Payload
+  `<app.planscape.build>/sheet/{STING_SHEET_FULL_REF_TXT}` (base URL configurable via the Planscape
+  client settings; `sting://` divergence flagged as an app follow-up). Gated by `TB_SHOW_QR_CODE_BOOL`,
+  idempotent (removes prior STING QR before re-placing). Added a `qr-code` slot to the 6 symbol-bearing
+  title-block families in `STING_TITLE_BLOCKS.json`; `TB_SHOW_QR_CODE_BOOL` already existed in
+  `MR_PARAMETERS.txt` (added a `ParamRegistry` constant + bool-coercion entry).
+- **W5 — Missing title-block info (data = code, cells = Revit follow-up).**
+  (a) Repointed the 7 DRAWING-TITLE labels in `STING_TITLE_BLOCKS.json` from the wrong
+  `PRJ_ORG_PROJECT_NAME_TXT` to the built-in **Sheet Name** via a new `LabelSpec.builtin` flag
+  (`TitleBlockFactory.PlaceLabel` records + skips authoring cleanly). (b) Added 6 shared params
+  (`TB_COPYRIGHT_TXT`, `TB_DO_NOT_SCALE_TXT`, `PRJ_ORG_CONTACT_PHONE/EMAIL/WEBSITE_TXT`,
+  `PRJ_ORG_REG_NO_TXT`; deterministic UUIDv5) to `MR_PARAMETERS.txt` + `PARAMETER_REGISTRY.json` +
+  `ParamRegistry`. (c) Wired them into all 93 drawing types' `titleBlockParams` for auto-stamp. (d)
+  `SEED_FOLLOWUP.md` is the human/Revit cell-authoring worklist. `PRJ_SHEET_SYSTEM_TXT` left as-is
+  (out of scope).
+
 #### Completed (Phase 198 — MEP drawing-type print-readiness, branch `claude/mep-print-ready`)
 
 Made the MEP drawing types truly "drop a view in → the sheet renders and annotates correctly," and

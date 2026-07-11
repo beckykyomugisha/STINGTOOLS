@@ -3485,3 +3485,9 @@ PARAM	5e189877-e121-53f8-ac57-849685c272e6	STING_PLACER_ASSY_ID_TXT	TEXT		37	1	S
 PARAM	091ab7ea-32fc-57dd-94e4-89a0af05c31c	STING_PLACER_MEMBER_ID_TXT	TEXT		37	1	Source assembly-member element id for the placed symbol [Symbols]	1	0
 PARAM	f44c8c2c-5981-517e-91e0-2a1c2970a74d	STING_PLACER_SYMBOL_CODE_TXT	TEXT		37	1	Resolved symbol code stamped on the placed symbol [Symbols]	1	0
 PARAM	e2b1686a-8c6a-5db8-ba02-144add1cc43f	STING_PLACER_VIEW_ID_TXT	TEXT		37	1	View id where the symbol was placed (per-view idempotency) [Symbols]	1	0
+PARAM	7bab41ba-b65c-5e43-9793-e741034ad054	TB_COPYRIGHT_TXT	TEXT		26	1	Copyright / rights-reserved notice for the title block [STING TB v1]	1	0
+PARAM	eb9170de-891b-5b35-ae2c-e41dddc28888	TB_DO_NOT_SCALE_TXT	TEXT		26	1	Do-not-scale caption for the title block [STING TB v1]	1	0
+PARAM	502ebdf8-4104-5e7e-8684-94e488b53025	PRJ_ORG_CONTACT_PHONE_TXT	TEXT		26	1	Originator contact telephone number [STING TB v1]	1	0
+PARAM	5eea15d0-fcb8-51da-8048-c9044c18b800	PRJ_ORG_CONTACT_EMAIL_TXT	TEXT		26	1	Originator contact email address [STING TB v1]	1	0
+PARAM	568275cf-468d-5333-ae12-8ee849d81ee9	PRJ_ORG_CONTACT_WEBSITE_TXT	TEXT		26	1	Originator website URL [STING TB v1]	1	0
+PARAM	960efd58-1fad-55a3-97e0-496b795f3465	PRJ_ORG_REG_NO_TXT	TEXT		26	1	Company registration number [STING TB v1]	1	0

@@ -19491,6 +19491,78 @@
       "curated": true
     },
     {
+      "param_name": "TB_COPYRIGHT_TXT",
+      "guid": "7bab41ba-b65c-5e43-9793-e741034ad054",
+      "description": "Copyright / rights-reserved notice for the title block [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
+      "param_name": "TB_DO_NOT_SCALE_TXT",
+      "guid": "eb9170de-891b-5b35-ae2c-e41dddc28888",
+      "description": "Do-not-scale caption for the title block [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_CONTACT_PHONE_TXT",
+      "guid": "502ebdf8-4104-5e7e-8684-94e488b53025",
+      "description": "Originator contact telephone number [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_CONTACT_EMAIL_TXT",
+      "guid": "5eea15d0-fcb8-51da-8048-c9044c18b800",
+      "description": "Originator contact email address [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_CONTACT_WEBSITE_TXT",
+      "guid": "568275cf-468d-5333-ae12-8ee849d81ee9",
+      "description": "Originator website URL [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_REG_NO_TXT",
+      "guid": "960efd58-1fad-55a3-97e0-496b795f3465",
+      "description": "Company registration number [STING TB v1]",
+      "datatype": "TEXT",
+      "group_id": 26,
+      "group_name": "TBL_TITLEBLOCK",
+      "binding": "project",
+      "required": false,
+      "discipline": "Title Block",
+      "curated": true
+    },
+    {
       "param_name": "TB_SHOW_SCALEBAR_BOOL",
       "guid": "afcd0647-42e0-537f-bd18-5f46ed1871df",
       "description": "Visibility toggle for nested scale bar [STING TB v1]",

@@ -1120,6 +1120,15 @@ namespace StingTools.Core.Drawing
         {
             if (spec?.Anchor == null || spec.Anchor.Length < 2
                 || string.IsNullOrEmpty(spec.Param)) return;
+            // W5 — built-in labels (e.g. the built-in "Sheet Name" for the
+            // DRAWING TITLE cell) are authored in the seed .rfa; Revit 2025 has
+            // no label-authoring API, so record the intent and skip without a
+            // warning rather than trying (and failing) to bind a shared param.
+            if (spec.Builtin)
+            {
+                StingLog.Info($"PlaceLabel: built-in '{spec.Param}' — authored in seed .rfa, factory skips authoring.");
+                return;
+            }
             if (!map.TryGetValue(spec.Param, out var fp))
             { r.Warnings.Add($"PlaceLabel: param '{spec.Param}' not added — skipped"); return; }
             try

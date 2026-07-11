@@ -535,6 +535,22 @@ namespace StingTools.Core
         public const string TB_LAST_TRANSMITTAL_DATE_GUID= "8edb7300-d8a4-5df3-b0ba-b21710da9724";
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
+        // W4 — QR-code visibility toggle (already in MR_PARAMETERS.txt group 26).
+        public const string TB_SHOW_QRCODE               = "TB_SHOW_QR_CODE_BOOL";
+        public const string TB_SHOW_QRCODE_GUID          = "77246dff-2e64-5986-baa8-7ba6d38a8e1b";
+        // W5 — title-block presentation + originator contact params (STING TB v1).
+        public const string TB_COPYRIGHT                 = "TB_COPYRIGHT_TXT";
+        public const string TB_COPYRIGHT_GUID            = "7bab41ba-b65c-5e43-9793-e741034ad054";
+        public const string TB_DO_NOT_SCALE              = "TB_DO_NOT_SCALE_TXT";
+        public const string TB_DO_NOT_SCALE_GUID         = "eb9170de-891b-5b35-ae2c-e41dddc28888";
+        public const string ORG_CONTACT_PHONE            = "PRJ_ORG_CONTACT_PHONE_TXT";
+        public const string ORG_CONTACT_PHONE_GUID       = "502ebdf8-4104-5e7e-8684-94e488b53025";
+        public const string ORG_CONTACT_EMAIL            = "PRJ_ORG_CONTACT_EMAIL_TXT";
+        public const string ORG_CONTACT_EMAIL_GUID       = "5eea15d0-fcb8-51da-8048-c9044c18b800";
+        public const string ORG_CONTACT_WEBSITE          = "PRJ_ORG_CONTACT_WEBSITE_TXT";
+        public const string ORG_CONTACT_WEBSITE_GUID     = "568275cf-468d-5333-ae12-8ee849d81ee9";
+        public const string ORG_REG_NO                   = "PRJ_ORG_REG_NO_TXT";
+        public const string ORG_REG_NO_GUID              = "960efd58-1fad-55a3-97e0-496b795f3465";
 
         /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
         public static readonly string[] AllTitleBlockParams = new[]
@@ -549,7 +565,8 @@ namespace StingTools.Core
         /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
-            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_QRCODE
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──

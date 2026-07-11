@@ -2,6 +2,31 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Title-block / Legends / Notes / QR — follow-ups (branch `claude/tb-w1w5-impl`)
+
+The W1–W5 work landed the DATA/CONTRACT + CODE; the items below remain (see
+[`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md) for the full Revit-UI cell-authoring worklist).
+
+- **SEED-AUTHORING (Revit UI) — required before cells render.** Revit 2025 removed the label-authoring
+  API, so these must be authored by hand in the seed `.rfa`: rebind the DRAWING TITLE cell to the
+  built-in **Sheet Name** (7 families); author label cells for the 6 new shared params
+  (`TB_COPYRIGHT_TXT`, `TB_DO_NOT_SCALE_TXT`, `PRJ_ORG_CONTACT_PHONE/EMAIL/WEBSITE_TXT`,
+  `PRJ_ORG_REG_NO_TXT`) + the already-defined security-class / project-north / coord-system / CDE-ref /
+  LOIN-LOD / authorised-by / issue-purpose / revision-description params; verify scale bar / north arrow
+  / projection symbol / key plan / suitability legend / discipline colour strip.
+- **Architectural symbol legend (W2 gap).** No `MechanicalDrawingLegendCommand`-style Architectural
+  legend shipped because there is no dedicated architectural symbol catalogue (`Data/Symbols/` has no
+  `"discipline": "Architectural"` set). `DisciplineLegendEngine` already carries an `A` scope (Doors /
+  Windows / Furniture / Casework / SpecialityEquipment) that would work off placed instances — add an
+  `ArchitecturalDrawingLegendCommand` + a symbol catalogue if an A legend is wanted.
+- **QR payload scheme (app-side).** `TitleBlock_StampQR` encodes
+  `https://app.planscape.build/sheet/{fullRef}`. Decide whether the web/mobile app should add a
+  `/sheet/{ref}` route and/or a `planscape://` custom scheme, and whether to retire the legacy
+  `sting://asset/...` deep link in `StingQRHelper.BuildAssetUrl`.
+- **QR slot placement.** The `qr-code` slots use seed-default coordinates next to each family's north
+  arrow; refine per family in `STING_TITLE_BLOCKS.json` (or draw a reference-plane box in the `.rfa`).
+  With no slot, the command falls back to the sheet's bottom-right corner.
+
 ## MEP print-readiness — deferred items (Phase 198)
 
 Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).

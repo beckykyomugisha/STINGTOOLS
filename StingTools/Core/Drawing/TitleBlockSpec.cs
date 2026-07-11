@@ -175,6 +175,15 @@ namespace StingTools.Core.Drawing
     {
         [JsonProperty("param")]   public string   Param { get; set; }
 
+        /// <summary>W5 — true when <see cref="Param"/> names a Revit BUILT-IN
+        /// title-block parameter (e.g. the built-in "Sheet Name") rather than a
+        /// STING shared parameter. Built-in labels are authored in the seed
+        /// .rfa — Revit 2025 removed the label-authoring API — so the factory
+        /// records the binding intent and skips authoring instead of emitting a
+        /// "param not added" warning. See SEED_FOLLOWUP.md.</summary>
+        [JsonProperty("builtin", NullValueHandling = NullValueHandling.Ignore)]
+        public bool     Builtin { get; set; }
+
         /// <summary>P10 — optional stable id. A child spec re-declaring a label
         /// with the SAME id (case-insensitive) OVERRIDES the parent's (position,
         /// size, bound param, …) rather than duplicating it — lets each size

@@ -718,6 +718,13 @@ namespace StingTools.UI
                     case "TitleBlock_ToggleBIMMode":      RunCommand<Commands.Drawing.TitleBlockToggleBIMModeCommand>(app); break;
                     case "TitleBlock_AuditLegacy":        RunCommand<Commands.Drawing.TitleBlockAuditLegacyCommand>(app); break;
                     case "TitleBlock_MigrateLegacy":      RunCommand<Commands.Drawing.TitleBlockMigrateLegacyCommand>(app); break;
+                    // ── W4 — QR stamp on the sheet's title-block slot ──
+                    case "TitleBlock_StampQR":            RunCommand<Commands.Drawing.TitleBlockStampQRCommand>(app); break;
+                    case "TitleBlock_StampQRAll":         RunCommand<Commands.Drawing.TitleBlockStampQRAllCommand>(app); break;
+
+                    // ── W2/W3 — discipline legends + standard notes ──
+                    case "Str_DrawingLegend":             RunCommand<Commands.Reports.StructuralDrawingLegendCommand>(app); break;
+                    case "Notes_PlaceBlock":              RunCommand<Commands.Drawing.NotesBlockCommand>(app); break;
 
 
                     // ── Selection scope ──
