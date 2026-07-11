@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "description": "STING standard drawing notes — General + per-discipline. Corporate baseline; projects may override or extend per discipline key at <project>/_BIM_COORD/discipline_notes.json (project wins by key). Rendered by NotesBlockCommand and the DrawingProducer Notes production path.",
+  "disciplines": {
+    "General": {
+      "title": "GENERAL NOTES",
+      "notes": [
+        "Do not scale from this drawing. Use figured dimensions only; report any discrepancies to the design team before proceeding.",
+        "All dimensions are in millimetres and all levels in metres to project datum unless noted otherwise.",
+        "This drawing is to be read in conjunction with all relevant architectural, structural and services drawings and specifications.",
+        "All work is to comply with the current Building Regulations, applicable British/EN Standards and the project specification.",
+        "Contractor to verify all dimensions and site conditions on site prior to commencing work or fabrication.",
+        "Setting out to be agreed with the design team prior to construction.",
+        "Report any discrepancy between drawings, specification and site conditions to the design team for resolution before proceeding.",
+        "This drawing remains the property of the originator and must not be reproduced without written consent."
+      ]
+    },
+    "A": {
+      "title": "ARCHITECTURAL NOTES",
+      "notes": [
+        "All setting-out dimensions are to structural grid lines or finished faces as indicated.",
+        "Refer to door, window and room-finish schedules for ironmongery, glazing and finishes.",
+        "Fire-rated construction to be installed strictly in accordance with the fire strategy and manufacturer's certified details.",
+        "All junctions and penetrations to maintain the acoustic and fire performance of the element.",
+        "Wet-area finishes and falls to gullies to comply with Approved Document / project waterproofing specification."
+      ]
+    },
+    "S": {
+      "title": "STRUCTURAL NOTES",
+      "notes": [
+        "All structural work to comply with the relevant Eurocodes and their UK National Annexes.",
+        "Concrete grades, cover and reinforcement to be as shown on the structural drawings and bar schedules.",
+        "Do not commence fabrication until drawings are issued for construction and dimensions confirmed on site.",
+        "Temporary works and stability during construction are the responsibility of the contractor.",
+        "Foundation bearing strata and design bearing pressure to be confirmed on site by the engineer prior to pouring."
+      ]
+    },
+    "M": {
+      "title": "MECHANICAL NOTES",
+      "notes": [
+        "All mechanical installations to comply with the relevant CIBSE guides, Building Regulations Part F/L and the project specification.",
+        "Ductwork to be constructed and sealed to DW/144 and the specified pressure/leakage class.",
+        "Provide access panels and clear maintenance access to all dampers, valves, coils and in-line equipment.",
+        "All ductwork and pipework to be insulated as specified; identify systems with flow direction and service labels.",
+        "Commission and balance all systems to the specified design flow rates and record on commissioning sheets."
+      ]
+    },
+    "E": {
+      "title": "ELECTRICAL NOTES",
+      "notes": [
+        "All electrical installations to comply with BS 7671 (current edition) and the project specification.",
+        "Cable sizes, protective devices and circuit references are indicated on the drawings and schedules — verify against final loads.",
+        "Provide segregation between LV, ELV and data/comms services in accordance with BS 7671 and BS EN 50174.",
+        "All final circuits to be tested and certified; issue electrical installation certificates on completion.",
+        "Emergency lighting and fire-alarm installations to comply with BS 5266 and BS 5839 respectively."
+      ]
+    },
+    "P": {
+      "title": "PUBLIC HEALTH / PLUMBING NOTES",
+      "notes": [
+        "All above- and below-ground drainage to comply with BS EN 12056 / BS EN 752 and Approved Document H.",
+        "Hot and cold water services to comply with BS EN 806, BS 8558 and the Water Supply (Water Fittings) Regulations.",
+        "Provide backflow protection appropriate to the fluid category in accordance with BS EN 1717.",
+        "Pipework gradients, invert levels and cover depths to be as indicated; confirm connections to existing on site.",
+        "Pressure-test and disinfect all water services and record results prior to handover."
+      ]
+    }
+  }
+}
