@@ -86,3 +86,9 @@ PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		6	1	Fabrication
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		6	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1	0
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		6	1	Spool or bundle number assigned by AssemblyBuilder	1	0
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		6	1	Assembly total weight in kilograms (sum of member volume x material density)	1	0
+PARAM	502ebdf8-4104-5e7e-8684-94e488b53025	PRJ_ORG_CONTACT_PHONE_TXT	TEXT		1	1	Originator contact telephone number [STING TB v1]	1	0
+PARAM	5eea15d0-fcb8-51da-8048-c9044c18b800	PRJ_ORG_CONTACT_EMAIL_TXT	TEXT		1	1	Originator contact email address [STING TB v1]	1	0
+PARAM	568275cf-468d-5333-ae12-8ee849d81ee9	PRJ_ORG_CONTACT_WEBSITE_TXT	TEXT		1	1	Originator website URL [STING TB v1]	1	0
+PARAM	960efd58-1fad-55a3-97e0-496b795f3465	PRJ_ORG_REG_NO_TXT	TEXT		1	1	Company registration number [STING TB v1]	1	0
+PARAM	7bab41ba-b65c-5e43-9793-e741034ad054	TB_COPYRIGHT_TXT	TEXT		2	1	Copyright / rights-reserved notice for the title block [STING TB v1]	1	0
+PARAM	eb9170de-891b-5b35-ae2c-e41dddc28888	TB_DO_NOT_SCALE_TXT	TEXT		2	1	Do-not-scale caption for the title block [STING TB v1]	1	0
