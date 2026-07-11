@@ -167,7 +167,11 @@ namespace StingTools.Core.Drawing
             if (dt.Scale <= 0)
             {
                 bool isThreeD = string.Equals(dt.Purpose, DrawingPurpose.ThreeD, StringComparison.OrdinalIgnoreCase)
-                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase);
+                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase)
+                             // W1 — Legend / Notes are scale-independent (drafting /
+                             // native-legend views); a zero scale is expected there.
+                             || string.Equals(dt.Purpose, DrawingPurpose.Legend, StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(dt.Purpose, DrawingPurpose.Notes, StringComparison.OrdinalIgnoreCase);
                 if (!isThreeD)
                     r.Add(ValidationSeverity.Warning, "DT-095",
                         $"Scale is {dt.Scale} — must be a positive integer for non-3D drawing types. Set scale > 0 or use purpose '3D'/'Perspective' for views where scale is not applicable.");

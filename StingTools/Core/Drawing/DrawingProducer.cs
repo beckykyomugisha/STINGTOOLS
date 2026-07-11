@@ -210,6 +210,10 @@ namespace StingTools.Core.Drawing
                 case DrawingPurpose.Detail:       vt = "Detail"; break;
                 case DrawingPurpose.ThreeD:       vt = "ThreeD"; break;
                 case DrawingPurpose.Schedule:     vt = "Schedule"; break;
+                // W1 — Legend / Notes are their own view types; without these
+                // cases they silently synthesized a FloorPlan rule.
+                case DrawingPurpose.Legend:       vt = "Legend"; break;
+                case DrawingPurpose.Notes:        vt = "Notes"; break;
                 default:                          vt = "FloorPlan"; break;
             }
             return new ProductionRule { Idx = 0, ViewType = vt, Required = true, SlotIndex = 0 };
@@ -253,6 +257,18 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
+                // W1 — Legend / Notes have no ViewFamilyType and cannot be
+                // created via the generic collector + .Create path (native
+                // legends are duplicated; notes go on a drafting view). Route
+                // them to the dedicated builder so a Legend/Notes DrawingType
+                // produces a populated view instead of an "Unknown ViewType"
+                // warning.
+                var vtNorm = (rule.ViewType ?? "").Trim();
+                if (vtNorm.Equals("Legend", StringComparison.OrdinalIgnoreCase)
+                    || vtNorm.Equals("Notes", StringComparison.OrdinalIgnoreCase))
+                    return ProduceLegendOrNotesView(doc, dt, rule, ctx, opts, result,
+                        isNotes: vtNorm.Equals("Notes", StringComparison.OrdinalIgnoreCase));
+
                 var vft = ResolveViewFamilyType(doc, rule, result);
                 if (vft == null) return ElementId.InvalidElementId;
 
@@ -289,6 +305,63 @@ namespace StingTools.Core.Drawing
             catch (Exception ex)
             {
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        // W1 — build a Legend or Notes view for a Legend/Notes-purpose rule.
+        // Legend → DisciplineLegendEngine (native legend or drafting-view
+        // fallback, always populated). Notes → DisciplineNotesRegistry
+        // drafting view carrying the discipline's standard notes. Presentation
+        // is applied with annotation skipped so the DrawingType stamp (needed
+        // for idempotent re-runs) + scale/template still land.
+        private static ElementId ProduceLegendOrNotesView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result, bool isNotes)
+        {
+            try
+            {
+                View view;
+                if (isNotes)
+                {
+                    view = DisciplineNotesRegistry.CreateNotesView(doc, dt.Discipline, result.Warnings);
+                }
+                else
+                {
+                    view = DisciplineLegendEngine.CreateDisciplineLegend(doc, dt.Discipline, out _);
+                }
+                if (view == null)
+                {
+                    result.Warnings.Add($"{(isNotes ? "Notes" : "Legend")} production for '{dt.Id}' produced no view.");
+                    return ElementId.InvalidElementId;
+                }
+
+                try { view.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+                var applyOpts = new DrawingTypePresentation.ApplyOptions
+                {
+                    AnnotationOptions = new AnnotationRunOptions
+                    {
+                        SkipAutoTag = true, SkipAutoDim = true,
+                        SkipDecorative = true, SkipSpots = true
+                    },
+                    SkipSymbolDriftCheck = true
+                };
+                try
+                {
+                    var pres = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
+                    result.Warnings.AddRange(pres.Warnings);
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"{(isNotes ? "Notes" : "Legend")} presentation ({view.Id}): {ex.Message}");
+                }
+
+                return view.Id;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Produce{(isNotes ? "Notes" : "Legend")}View('{dt.Id}'): {ex.Message}");
                 return ElementId.InvalidElementId;
             }
         }
