@@ -104,3 +104,60 @@ Author or verify in the seed `.rfa` (nested families / detail items):
 
 - `PRJ_SHEET_SYSTEM_TXT` — display-only, drives nothing; not changed.
 - Any merge to `main` — this branch is for the in-Revit acceptance sweep only.
+
+---
+
+## STATUS — seed authoring session 2026-07-12 (STING_TB_A1_BIM_v2.0.rfa)
+
+Authored **live in the Revit Family Editor** by computer-use against the user's master
+seed at `D:\Work 2026\tendo test\Families\TitleBlocks\_seeds\STING_TB_A1_BIM_v2.0.rfa`
+(seed lives outside the repo per the seed-family pattern). Saved.
+
+### DONE — "Core compliance set" (user-confirmed scope)
+
+The three previously-empty gridded boxes in the bottom row (below DRG NO, left of the
+SYSTEM cell) were authored as inline `CAPTION: value` Tag-Label cells, type **`2`**
+(2 mm regular) to match the row, each bound to its shared param:
+
+| Cell | Prefix caption | Shared param (verified bound) | Sample |
+|---|---|---|---|
+| Box 1 | `SECURITY: ` | `PRJ_ORG_SECURITY_CLASS_TXT` | OFFICIAL |
+| Box 2 | `CDE REF: ` | `PRJ_TB_DELIVERABLE_CDE_TXT` | PLNS-BIM |
+| Box 3 | `PURPOSE: ` | `PRJ_DWG_ISSUE_PURPOSE_TXT` | CONSTRUCTION |
+
+- **SYSTEM cell normalised:** was Tag-Label type `B 2` (2.5 mm bold); reassigned to
+  type `2` so the whole bottom row (`SECURITY | CDE REF | PURPOSE | SYSTEM`) is a
+  uniform 2 mm regular row, left-aligned at a consistent inset.
+- **Standing notes** added as static **Text** (type `2mm`) in the NOTES box, below the
+  `PRJ_TB_NOTES_LEGEND_REF_TXT` label (single cell, no divider crossing):
+  - `DO NOT SCALE - USE FIGURED DIMENSIONS ONLY`
+  - `(C) PLANSCAPE LIMITED - ALL RIGHTS RESERVED`
+  (Authored as fixed text rather than binding `TB_DO_NOT_SCALE_TXT` /
+  `TB_COPYRIGHT_TXT`, since these are standing corporate notices; the params remain
+  available if a project ever needs to override them per §3 above.)
+
+### DRAWING TITLE (W5a) — appears already correct
+
+The DRAWING TITLE cell in this seed displays the built-in **Sheet Name** sample
+("Drawing title"), i.e. it is already bound to Sheet Name, not
+`PRJ_ORG_PROJECT_NAME_TXT`. Confirmed by inspection; no rebind performed. **Verify**
+on next open (select the cell → Edit Label shows *Sheet Name*).
+
+### REMAINING — graphics (need symbol families)
+
+Per the user's chosen option "load as symbol families" (hand-drawing declined), these
+graphic conventions were **not** authored this session because suitable annotation
+symbol `.rfa` families were not available/identified while working unattended. Supply
+the families and place them (or point to them) to finish:
+
+- **North arrow** — annotation symbol; natural home is the KEY PLAN cell.
+- **Scale bar** — graphic scale annotation; near the SCALE cell / bottom.
+- **Projection symbol** (1st/3rd-angle) — small standard TB graphic.
+- (Optional) **Contact block** — phone/email/website/reg-no labels were the *Full set*,
+  not selected this pass; params are deployed (§3) if wanted later.
+
+### Deploy note
+
+`MR_PARAMETERS.txt` (with the 6 new params) was deployed to
+`C:\Dev\STING_PLACEMENT_GOLD\data\MR_PARAMETERS.txt` (backup kept) and Revit's active
+shared-parameter file already points there, so the params above were available to bind.
