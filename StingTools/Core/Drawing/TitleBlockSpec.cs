@@ -64,7 +64,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("abstract")]             public bool   Abstract { get; set; }
 
         /// <summary>"BIM" or "NONBIM" — written into the family's
-        /// STING_SHEET_BIM_MODE_TXT shared parameter as the default
+        /// PRJ_SHEET_BIM_MODE_TXT shared parameter as the default
         /// value, so each sheet inherits the right marker. Empty for
         /// abstract bases and for specialty families that aren't
         /// BIM-mode-relevant (cover sheet, transmittal cover, etc.).</summary>
@@ -312,13 +312,13 @@ namespace StingTools.Core.Drawing
         /// <summary>If true, the operator's `TB_SHOW_*_BOOL` toggle on
         /// the title-block instance can hide this slot's contents at
         /// sheet level. Mapping by purposeTag:
-        ///   key-plan         → TB_SHOW_KEY_PLAN_BOOL
-        ///   north-arrow      → TB_SHOW_NORTH_ARROW_BOOL
-        ///   scale-bar        → TB_SHOW_SCALEBAR_BOOL
-        ///   revision-history → TB_SHOW_REV_TABLE_BOOL
+        ///   key-plan         → PRJ_TB_SHOW_KEY_PLAN_BOOL
+        ///   north-arrow      → PRJ_TB_SHOW_NORTH_ARROW_BOOL
+        ///   scale-bar        → PRJ_TB_SHOW_SCALE_BAR_BOOL
+        ///   revision-history → PRJ_TB_SHOW_REV_TABLE_BOOL
         ///   notes            → (no toggle — always visible)
-        ///   discipline-band  → TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL
-        ///   qr-code          → TB_SHOW_QR_CODE_BOOL
+        ///   discipline-band  → PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL
+        ///   qr-code          → PRJ_TB_SHOW_QR_CODE_BOOL
         /// </summary>
         [JsonProperty("respectShowToggle")] public bool RespectShowToggle { get; set; } = false;
 

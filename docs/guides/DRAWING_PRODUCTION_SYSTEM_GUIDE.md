@@ -93,7 +93,7 @@ A purposeTag is a short label like `main-plan` or `key-plan`. The auto-placer re
 
 | Purpose tag | Colour code | Plain-English description | Toggle parameter |
 |---|---|---|---|
-| `key-plan` | Green | Small thumbnail showing where this area sits in the building | `TB_SHOW_KEY_PLAN_BOOL` |
+| `key-plan` | Green | Small thumbnail showing where this area sits in the building | `PRJ_TB_SHOW_KEY_PLAN_BOOL` |
 | `aerial-key` | Light green | Aerial view showing site context | — |
 | `notes` | Slate | General notes panel | — |
 | `discipline-legend` | Orange | Symbol legend for one discipline | — |
@@ -105,20 +105,20 @@ A purposeTag is a short label like `main-plan` or `key-plan`. The auto-placer re
 | `schedule` | Deep purple | Generic Revit schedule view | — |
 | `bom` | Deep purple | Bill of Materials (alias of `schedule`) | — |
 | `cut-list` | Dark pink | Lengths and cut summary for fabrication | — |
-| `revision-history` | Red | Revit revision schedule table | `TB_SHOW_REV_TABLE_BOOL` |
+| `revision-history` | Red | Revit revision schedule table | `PRJ_TB_SHOW_REV_TABLE_BOOL` |
 | `caption` | Brown | Drawing title caption (presentation sheets) | — |
 | `recipient-to` | Slate | Transmittal "To" address block | — |
 | `recipient-from` | Slate | Transmittal "From" address block | — |
 | `regulator-stamp` | Brown | Authority seal placeholder | — |
-| `discipline-band` | Orange | Discipline-coloured banner strip | `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` |
+| `discipline-band` | Orange | Discipline-coloured banner strip | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` |
 
 #### Symbol tags (tiny graphics)
 
 | Purpose tag | Colour code | Plain-English description | Toggle parameter |
 |---|---|---|---|
-| `north-arrow` | Teal | North arrow nested family | `TB_SHOW_NORTH_ARROW_BOOL` |
-| `scale-bar` | Teal | Scale bar nested family | `TB_SHOW_SCALEBAR_BOOL` |
-| `qr-code` | Dark grey | QR code post-export stamp | `TB_SHOW_QR_CODE_BOOL` |
+| `north-arrow` | Teal | North arrow nested family | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
+| `scale-bar` | Teal | Scale bar nested family | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
+| `qr-code` | Dark grey | QR code post-export stamp | `PRJ_TB_SHOW_QR_CODE_BOOL` |
 
 #### Overlay and specialty tags
 
@@ -155,7 +155,7 @@ STING ships title block families in two variants:
 
 **Which one do you need?** For any project where STING will auto-produce sheets, always use the BIM family. The Non-BIM variant exists for legacy situations where hand-typed info is acceptable. On a new project, start with BIM.
 
-Every sheet stamped by a BIM title block carries the parameter `STING_SHEET_BIM_MODE_TXT` = `"BIM"`. Audit commands flag mismatches (e.g., someone swapped a BIM family for a Non-BIM one on an existing sheet).
+Every sheet stamped by a BIM title block carries the parameter `PRJ_SHEET_BIM_MODE_TXT` = `"BIM"`. Audit commands flag mismatches (e.g., someone swapped a BIM family for a Non-BIM one on an existing sheet).
 
 ### The 20-stage title block workflow
 
@@ -240,13 +240,13 @@ STING controls which features appear on each sheet using a family of `TB_SHOW_*_
 
 | Parameter | Controls |
 |---|---|
-| `TB_SHOW_COMPANY_STRIP_BOOL` | The company logo and info strip |
-| `TB_SHOW_KEY_PLAN_BOOL` | The key plan slot |
-| `TB_SHOW_NORTH_ARROW_BOOL` | The north arrow symbol |
-| `TB_SHOW_SCALEBAR_BOOL` | The scale bar symbol |
-| `TB_SHOW_REV_TABLE_BOOL` | The revision history table |
-| `TB_SHOW_QR_CODE_BOOL` | The QR code stamp |
-| `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` | The discipline colour band on the right edge |
+| `PRJ_TB_SHOW_COMPANY_STRIP_BOOL` | The company logo and info strip |
+| `PRJ_TB_SHOW_KEY_PLAN_BOOL` | The key plan slot |
+| `PRJ_TB_SHOW_NORTH_ARROW_BOOL` | The north arrow symbol |
+| `PRJ_TB_SHOW_SCALE_BAR_BOOL` | The scale bar symbol |
+| `PRJ_TB_SHOW_REV_TABLE_BOOL` | The revision history table |
+| `PRJ_TB_SHOW_QR_CODE_BOOL` | The QR code stamp |
+| `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` | The discipline colour band on the right edge |
 
 Set each to `1` (visible) or `0` (hidden) in Family Types. These defaults can be overridden per sheet instance.
 
@@ -291,10 +291,10 @@ The engine reads this list and keeps those areas free when placing viewports.
 **Stage 15 — Draw the revision history table.**
 The revision table is a simple grid inside the company strip. Typical columns: Rev / Description / Date / By. 8 rows is enough for most deliverables (older revisions archive to the start-up page's revision schedule). Bind the row fields to `TB_REV_1_CODE_TXT`, `TB_REV_1_DATE_TXT`, etc. from `MR_PARAMETERS.txt`.
 
-Wrap the whole table in a visibility parameter linked to `TB_SHOW_REV_TABLE_BOOL`.
+Wrap the whole table in a visibility parameter linked to `PRJ_TB_SHOW_REV_TABLE_BOOL`.
 
 **Stage 16 — Add the BIM mode marker parameter.**
-Add `STING_SHEET_BIM_MODE_TXT` as a family parameter with default value `"BIM"`. This is what audit commands check to confirm the right family type is loaded on each sheet.
+Add `PRJ_SHEET_BIM_MODE_TXT` as a family parameter with default value `"BIM"`. This is what audit commands check to confirm the right family type is loaded on each sheet.
 
 **Stage 17 — Add the authority-code parameter (for submission families only).**
 For authority submission families (KCCA, ERA, NEMA), add `TB_AUTHORITY_CODE_TXT` with the authority name as the default. Also ensure the required project-information parameters for that authority are listed in `TB_REQUIRED_PRJ_PARAMS_JSON_TXT` — the validator reads this list and fails the pre-flight check if any are empty.

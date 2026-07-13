@@ -161,3 +161,58 @@ the families and place them (or point to them) to finish:
 `MR_PARAMETERS.txt` (with the 6 new params) was deployed to
 `C:\Dev\STING_PLACEMENT_GOLD\data\MR_PARAMETERS.txt` (backup kept) and Revit's active
 shared-parameter file already points there, so the params above were available to bind.
+
+---
+
+## STATUS — parameter naming normalization (Work Item A, 2026-07-13)
+
+Shared parameters were **renamed (GUID-preserved)** to a consistent `PRJ_*` scheme.
+No `.rfa` was touched. Because **GUIDs are preserved**, any title-block family cell
+already bound to a renamed parameter keeps working — Revit binds label cells by GUID,
+not by name — but the **Family Editor will display the OLD parameter name** on that
+cell until the shared-parameter file is re-loaded and the family is re-bound.
+
+### Renames (GUID preserved, 1:1)
+
+| Old parameter | New parameter |
+|---|---|
+| `STING_SHEET_*_TXT` (10: BIM_MODE / FULL_REF / LEVEL / OF_TOTAL / ORIG / PROJECT / ROLE / SEQ / TYPE / VOLUME) | `PRJ_SHEET_*_TXT` |
+| `STING_SHEET_SEQUENCE_INT` | `PRJ_SHEET_SEQUENCE_INT` |
+| `STING_SUITABILITY_DESC_TXT` | `PRJ_DWG_SUITABILITY_DESC_TXT` |
+| `STING_LOIN_LOD_TXT` | `PRJ_DWG_LOIN_LOD_TXT` |
+| `STING_FEDERATION_STATUS_TXT` | `PRJ_TB_FEDERATION_STATUS_TXT` |
+| `STING_AUTHORISED_BY_TXT` | `PRJ_TB_AUTHORISED_BY_TXT` |
+| `STING_AUTHORISED_DATE_TXT` | `PRJ_TB_AUTHORISED_DATE_TXT` |
+| `TB_COPYRIGHT_TXT` | `PRJ_TB_COPYRIGHT_TXT` |
+| `TB_DO_NOT_SCALE_TXT` | `PRJ_TB_DO_NOT_SCALE_TXT` |
+
+### Consolidations (A2 — duplicate toggles merged to ONE canonical)
+
+The legacy GROUP 13 `PRJ_INFORMATION` toggle variants were **deleted** (their GUIDs
+dropped from `MR_PARAMETERS.txt` / `.csv` / `PARAMETER_REGISTRY.json`); the surviving
+canonical toggle carries the **GROUP 26 `TBL_TITLEBLOCK`** GUID under a new `PRJ_TB_SHOW_*`
+name:
+
+| Merged from | Canonical (surviving GUID) |
+|---|---|
+| `TB_SHOW_KEY_PLAN_BOOL` + `PRJ_TB_SHOW_KEYPLAN_BOOL` (dropped `8dd6b517…`) | `PRJ_TB_SHOW_KEY_PLAN_BOOL` (`9a64e982…`) |
+| `TB_SHOW_NORTH_ARROW_BOOL` + `PRJ_TB_SHOW_NORTHARROW_BOOL` (dropped `58c6e51f…`) | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` (`0981c0a9…`) |
+| `TB_SHOW_SCALEBAR_BOOL` + `PRJ_TB_SHOW_SCALEBAR_BOOL` (dropped `fa841ad5…`) | `PRJ_TB_SHOW_SCALE_BAR_BOOL` (`afcd0647…`) |
+| `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` + `PRJ_TB_SHOW_DISCBAND_BOOL` (dropped `483f47d7…`) | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` (`fcd1f7f2…`) |
+| `TB_SHOW_QR_CODE_BOOL` | `PRJ_TB_SHOW_QR_CODE_BOOL` (`77246dff…`) |
+| `TB_SHOW_COMPANY_STRIP_BOOL` | `PRJ_TB_SHOW_COMPANY_STRIP_BOOL` (`46ee0d08…`) |
+| `TB_SHOW_REV_TABLE_BOOL` | `PRJ_TB_SHOW_REV_TABLE_BOOL` (`da7b6ce4…`) |
+
+> A dropped legacy toggle's GUID is gone. A family cell/visibility param that was bound
+> to a dropped legacy toggle (e.g. `PRJ_TB_SHOW_DISCBAND_BOOL`) must be **re-bound** to the
+> surviving canonical param in Family Editor. Cells bound to the surviving GUID are unaffected.
+
+### Seed re-bind impact (what a human must still do)
+
+1. **Re-copy the shared-parameter file** to GOLD: the renamed `MR_PARAMETERS.txt` needs to
+   replace `C:\Dev\STING_PLACEMENT_GOLD\data\MR_PARAMETERS.txt` so Revit's active SP file
+   shows the new names. *(Explicitly OUT OF SCOPE for this branch — do it at deploy.)*
+2. In each seed `.rfa`, run **Manage → Shared Parameters → reload**, then for any cell that
+   now shows an old name, **rebind** it to the new-named parameter (same GUID → same data).
+3. Rebind the four dropped legacy toggles to their canonical survivors (previous table).
+4. `.rfa` files were **NOT** touched in code (Revit 2025 has no label-authoring API).

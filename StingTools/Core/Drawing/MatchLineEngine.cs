@@ -371,7 +371,7 @@ namespace StingTools.Core.Drawing
                     if (!(vp is Viewport viewport)) continue;
                     if (viewport.ViewId != view.Id) continue;
                     if (!(doc.GetElement(viewport.SheetId) is ViewSheet sheet)) continue;
-                    var pFull = sheet.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (pFull != null && pFull.HasValue)
                     {
                         var v = pFull.AsString();
@@ -777,7 +777,7 @@ namespace StingTools.Core.Drawing
                 foreach (var sh in new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue) sheetRefs.Add(p.AsString() ?? "");
                     sheetRefs.Add(sh.SheetNumber ?? "");
                 }
@@ -855,7 +855,7 @@ namespace StingTools.Core.Drawing
                 foreach (var id in bundle)
                 {
                     if (!(doc.GetElement(id) is ViewSheet sh)) continue;
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue)
                         bundleRefs.Add(p.AsString() ?? "");
                     bundleRefs.Add(sh.SheetNumber ?? "");

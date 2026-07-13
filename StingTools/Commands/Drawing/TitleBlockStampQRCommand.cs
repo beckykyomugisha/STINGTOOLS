@@ -20,10 +20,10 @@ namespace StingTools.Commands.Drawing
     /// Payload: <c>&lt;web-app-base&gt;/sheet/{fullRef}</c>, where the base URL is
     /// resolved from the Planscape client settings (env var → machine file →
     /// baked <c>app.planscape.build</c>). <c>{fullRef}</c> is the ISO 19650
-    /// full sheet reference (<c>STING_SHEET_FULL_REF_TXT</c>), falling back to
+    /// full sheet reference (<c>PRJ_SHEET_FULL_REF_TXT</c>), falling back to
     /// the Revit sheet number.
     ///
-    /// Gated by <c>TB_SHOW_QR_CODE_BOOL</c> on the title-block instance (skips
+    /// Gated by <c>PRJ_TB_SHOW_QR_CODE_BOOL</c> on the title-block instance (skips
     /// when explicitly toggled off). Idempotent: existing STING QR images on the
     /// sheet are removed and re-created, so re-runs never duplicate and the code
     /// regenerates when the reference changes.
@@ -46,7 +46,7 @@ namespace StingTools.Commands.Drawing
                 // Respect the visibility toggle when present on the title block.
                 if (titleBlock != null)
                 {
-                    var toggle = titleBlock.LookupParameter("TB_SHOW_QR_CODE_BOOL");
+                    var toggle = titleBlock.LookupParameter("PRJ_TB_SHOW_QR_CODE_BOOL");
                     if (toggle != null && toggle.StorageType == StorageType.Integer && toggle.AsInteger() == 0)
                     {
                         RemoveExistingQr(doc, sheet);
@@ -116,7 +116,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var p = sheet.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                var p = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                 if (p != null && p.HasValue)
                 {
                     var v = p.AsString();
@@ -243,7 +243,7 @@ namespace StingTools.Commands.Drawing
                     return Result.Succeeded;
                 case TitleBlockQrStamper.StampOutcome.SkippedToggleOff:
                     TaskDialog.Show("STING QR Stamp",
-                        $"TB_SHOW_QR_CODE_BOOL is off on sheet {sheet.SheetNumber} — QR skipped (any existing QR removed).");
+                        $"PRJ_TB_SHOW_QR_CODE_BOOL is off on sheet {sheet.SheetNumber} — QR skipped (any existing QR removed).");
                     return Result.Cancelled;
                 case TitleBlockQrStamper.StampOutcome.SkippedNoRef:
                     TaskDialog.Show("STING QR Stamp",

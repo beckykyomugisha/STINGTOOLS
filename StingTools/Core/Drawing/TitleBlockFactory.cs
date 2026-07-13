@@ -845,7 +845,7 @@ namespace StingTools.Core.Drawing
             // Two-family architecture (Phase 170 revision): no BIM_MODE_BOOL
             // is minted by the factory itself. Each spec carries its own
             // declared parameter list (typically including a shared
-            // STING_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
+            // PRJ_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
             // each sheet records the variant in use). Specs that need
             // family-internal calculated parameters declare them via the
             // standard ParamSpec.Kind = "internal" + Formula path.
@@ -867,7 +867,7 @@ namespace StingTools.Core.Drawing
                     fp = AddSharedParameter(fm, defFile, p.Name, p.Group,
                         p.Instance, r);
                     // For shared params, write the spec-supplied default
-                    // value if any (e.g. STING_SHEET_BIM_MODE_TXT default
+                    // value if any (e.g. PRJ_SHEET_BIM_MODE_TXT default
                     // "BIM" / "NONBIM" — the marker every sheet inherits
                     // from the loaded title-block family).
                     if (fp != null && !string.IsNullOrEmpty(p.Default))

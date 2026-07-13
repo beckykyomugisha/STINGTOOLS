@@ -382,7 +382,7 @@ namespace StingTools.Core
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+        public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -509,14 +509,18 @@ namespace StingTools.Core
         // constants below are kept on ViewSheet for backwards compat with sheets that
         // were authored before STING TB v1; new title block families should bind to the
         // GROUP 26 TB_ versions.
-        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
-        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
-        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
-        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // A2 consolidation: the disc-band toggle is now the single canonical
+        // PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL, carried on the surviving GROUP 26
+        // definition (was TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL). The legacy
+        // GROUP 13 PRJ_TB_SHOW_DISCBAND_BOOL (guid 483f47d7…) was dropped.
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
@@ -536,12 +540,12 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
         // W4 — QR-code visibility toggle (already in MR_PARAMETERS.txt group 26).
-        public const string TB_SHOW_QRCODE               = "TB_SHOW_QR_CODE_BOOL";
+        public const string TB_SHOW_QRCODE               = "PRJ_TB_SHOW_QR_CODE_BOOL";
         public const string TB_SHOW_QRCODE_GUID          = "77246dff-2e64-5986-baa8-7ba6d38a8e1b";
         // W5 — title-block presentation + originator contact params (STING TB v1).
-        public const string TB_COPYRIGHT                 = "TB_COPYRIGHT_TXT";
+        public const string TB_COPYRIGHT                 = "PRJ_TB_COPYRIGHT_TXT";
         public const string TB_COPYRIGHT_GUID            = "7bab41ba-b65c-5e43-9793-e741034ad054";
-        public const string TB_DO_NOT_SCALE              = "TB_DO_NOT_SCALE_TXT";
+        public const string TB_DO_NOT_SCALE              = "PRJ_TB_DO_NOT_SCALE_TXT";
         public const string TB_DO_NOT_SCALE_GUID         = "eb9170de-891b-5b35-ae2c-e41dddc28888";
         public const string ORG_CONTACT_PHONE            = "PRJ_ORG_CONTACT_PHONE_TXT";
         public const string ORG_CONTACT_PHONE_GUID       = "502ebdf8-4104-5e7e-8684-94e488b53025";

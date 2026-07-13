@@ -1075,70 +1075,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -1152,7 +1152,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -1234,27 +1234,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -1614,7 +1614,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             404,
             96
@@ -1624,7 +1624,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             432,
             96
@@ -1634,7 +1634,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             460,
             96
@@ -1644,7 +1644,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             482,
             96
@@ -1654,7 +1654,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             504,
             96
@@ -1664,7 +1664,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             528,
             96
@@ -1674,7 +1674,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             550,
             96
@@ -1684,7 +1684,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             596,
             96
@@ -1694,7 +1694,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             404,
             75
@@ -1704,7 +1704,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_SUITABILITY_DESC_TXT",
+          "param": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "anchor": [
             510,
             65
@@ -1734,7 +1734,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             510,
             45
@@ -1744,7 +1744,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             510,
             20
@@ -1764,7 +1764,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_AUTHORISED_BY_TXT",
+          "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
             624,
             48
@@ -1774,7 +1774,7 @@
           "vAlign": "Middle"
         },
         {
-          "param": "STING_AUTHORISED_DATE_TXT",
+          "param": "PRJ_TB_AUTHORISED_DATE_TXT",
           "anchor": [
             754,
             48
@@ -1829,7 +1829,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -2749,7 +2749,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -2767,7 +2767,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -2785,7 +2785,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -2801,70 +2801,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A0_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -2878,7 +2878,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -2930,27 +2930,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -3268,7 +3268,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             835.867,
             140.8
@@ -3276,7 +3276,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             1014.217,
             140.8
@@ -3284,7 +3284,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             3.567,
             136.48
@@ -3292,7 +3292,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             152.192,
             136.48
@@ -3300,7 +3300,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             300.817,
             136.48
@@ -3308,7 +3308,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             449.442,
             136.48
@@ -3316,7 +3316,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             598.067,
             136.48
@@ -3324,7 +3324,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             746.692,
             136.48
@@ -3332,7 +3332,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             895.317,
             136.48
@@ -3340,7 +3340,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             1043.942,
             136.48
@@ -3383,7 +3383,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A0_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -4247,7 +4247,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -4265,7 +4265,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -4283,7 +4283,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -4299,70 +4299,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A0_PORT_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -4376,7 +4376,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -4428,27 +4428,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -4766,7 +4766,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             591.223,
             140.8
@@ -4774,7 +4774,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             717.373,
             140.8
@@ -4782,7 +4782,7 @@
           "size": 1.3
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             2.523,
             136.48
@@ -4790,7 +4790,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             107.648,
             136.48
@@ -4798,7 +4798,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             212.773,
             136.48
@@ -4806,7 +4806,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             317.898,
             136.48
@@ -4814,7 +4814,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             423.023,
             136.48
@@ -4822,7 +4822,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             528.148,
             136.48
@@ -4830,7 +4830,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             633.273,
             136.48
@@ -4838,7 +4838,7 @@
           "size": 1.56
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             738.398,
             136.48
@@ -4881,7 +4881,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A0_PORT_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -5722,7 +5722,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -5740,7 +5740,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -5758,7 +5758,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -6564,7 +6564,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -6582,7 +6582,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -6600,7 +6600,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -6616,70 +6616,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A1_PORT_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -6693,7 +6693,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -6745,27 +6745,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -7083,7 +7083,7 @@
           "size": 1.0
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             417.58199999999994,
             119.0
@@ -7091,7 +7091,7 @@
           "size": 1.0
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             506.68199999999996,
             119.0
@@ -7099,7 +7099,7 @@
           "size": 1.0
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             1.782,
             115.4
@@ -7107,7 +7107,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             76.032,
             115.4
@@ -7115,7 +7115,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             150.282,
             115.4
@@ -7123,7 +7123,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             224.532,
             115.4
@@ -7131,7 +7131,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             298.782,
             115.4
@@ -7139,7 +7139,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             373.032,
             115.4
@@ -7147,7 +7147,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             447.282,
             115.4
@@ -7155,7 +7155,7 @@
           "size": 1.2
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             521.532,
             115.4
@@ -7198,7 +7198,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A1_PORT_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -7988,7 +7988,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -8006,7 +8006,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -8024,7 +8024,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -8040,70 +8040,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A3_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -8117,7 +8117,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -8169,27 +8169,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -8507,7 +8507,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             295.5,
             76.0
@@ -8515,7 +8515,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             358.5,
             76.0
@@ -8523,7 +8523,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             1.5,
             73.6
@@ -8531,7 +8531,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             54.0,
             73.6
@@ -8539,7 +8539,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             106.5,
             73.6
@@ -8547,7 +8547,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             159.0,
             73.6
@@ -8555,7 +8555,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             211.5,
             73.6
@@ -8563,7 +8563,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             264.0,
             73.6
@@ -8571,7 +8571,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             316.5,
             73.6
@@ -8579,7 +8579,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             369.0,
             73.6
@@ -8622,7 +8622,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A3_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -9412,7 +9412,7 @@
           "size": [ 16, 16 ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -9430,7 +9430,7 @@
           ],
           "purposeTag": "north-arrow",
           "category": "symbol",
-          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "description": "North-arrow symbol \u2014 nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -9448,7 +9448,7 @@
           ],
           "purposeTag": "scale-bar",
           "category": "symbol",
-          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "description": "Scale-bar \u2014 nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -9464,70 +9464,70 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A3_PORT_BIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_PROJECT_TXT",
+          "name": "PRJ_SHEET_PROJECT_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG"
         },
         {
-          "name": "STING_SHEET_ORIG_TXT",
+          "name": "PRJ_SHEET_ORIG_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "PLNS"
         },
         {
-          "name": "STING_SHEET_VOLUME_TXT",
+          "name": "PRJ_SHEET_VOLUME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "ZZ"
         },
         {
-          "name": "STING_SHEET_LEVEL_TXT",
+          "name": "PRJ_SHEET_LEVEL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "01"
         },
         {
-          "name": "STING_SHEET_TYPE_TXT",
+          "name": "PRJ_SHEET_TYPE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "DR"
         },
         {
-          "name": "STING_SHEET_ROLE_TXT",
+          "name": "PRJ_SHEET_ROLE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "A"
         },
         {
-          "name": "STING_SHEET_SEQ_TXT",
+          "name": "PRJ_SHEET_SEQ_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "0001"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001"
         },
         {
-          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -9541,7 +9541,7 @@
           "default": "S2"
         },
         {
-          "name": "STING_SUITABILITY_DESC_TXT",
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -9593,27 +9593,27 @@
           "group": "IdentityData"
         },
         {
-          "name": "STING_FEDERATION_STATUS_TXT",
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "Federated"
         },
         {
-          "name": "STING_LOIN_LOD_TXT",
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "LOD 300"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
-          "name": "STING_AUTHORISED_DATE_TXT",
+          "name": "PRJ_TB_AUTHORISED_DATE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -9931,7 +9931,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_LOIN_LOD_TXT",
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
             209.39999999999998,
             76.0
@@ -9939,7 +9939,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_FEDERATION_STATUS_TXT",
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
             253.95,
             76.0
@@ -9947,7 +9947,7 @@
           "size": 0.7
         },
         {
-          "param": "STING_SHEET_PROJECT_TXT",
+          "param": "PRJ_SHEET_PROJECT_TXT",
           "anchor": [
             1.5,
             73.6
@@ -9955,7 +9955,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_ORIG_TXT",
+          "param": "PRJ_SHEET_ORIG_TXT",
           "anchor": [
             38.625,
             73.6
@@ -9963,7 +9963,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_VOLUME_TXT",
+          "param": "PRJ_SHEET_VOLUME_TXT",
           "anchor": [
             75.75,
             73.6
@@ -9971,7 +9971,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_LEVEL_TXT",
+          "param": "PRJ_SHEET_LEVEL_TXT",
           "anchor": [
             112.875,
             73.6
@@ -9979,7 +9979,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_TYPE_TXT",
+          "param": "PRJ_SHEET_TYPE_TXT",
           "anchor": [
             150.0,
             73.6
@@ -9987,7 +9987,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_ROLE_TXT",
+          "param": "PRJ_SHEET_ROLE_TXT",
           "anchor": [
             187.125,
             73.6
@@ -9995,7 +9995,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_SEQ_TXT",
+          "param": "PRJ_SHEET_SEQ_TXT",
           "anchor": [
             224.25,
             73.6
@@ -10003,7 +10003,7 @@
           "size": 0.84
         },
         {
-          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "param": "PRJ_SHEET_OF_TOTAL_TXT",
           "anchor": [
             261.375,
             73.6
@@ -10046,7 +10046,7 @@
       "saveAs": "Families/TitleBlocks/STING_TB_A3_PORT_NONBIM_v2.0.rfa",
       "parameters": [
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -10142,14 +10142,14 @@
           "default": "PIPE"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -10783,7 +10783,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             704,
             22.0
@@ -10910,14 +10910,14 @@
           "default": "DUCT"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -11551,7 +11551,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             704,
             22.0
@@ -11678,14 +11678,14 @@
           "default": "COND"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -12319,7 +12319,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             704,
             22.0
@@ -12446,14 +12446,14 @@
           "default": "HANGER"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "BIM"
         },
         {
-          "name": "STING_SHEET_FULL_REF_TXT",
+          "name": "PRJ_SHEET_FULL_REF_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -13087,7 +13087,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             704,
             22.0
@@ -13213,7 +13213,7 @@
           "default": "PRESENT"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -13503,7 +13503,7 @@
           "default": "PRESENT-MONO"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -13811,7 +13811,7 @@
           "default": "COVER"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -14086,7 +14086,7 @@
           "default": "DIVIDER"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -14313,7 +14313,7 @@
           "default": "REGISTER"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
@@ -14935,14 +14935,14 @@
           "default": "SUBMISSION-KCCA"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "NONBIM"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -15158,7 +15158,7 @@
           "size": 2.0
         },
         {
-          "param": "STING_AUTHORISED_BY_TXT",
+          "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
             634.75,
             35
@@ -15274,14 +15274,14 @@
           "default": "SUBMISSION-ERA"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "NONBIM"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -15497,7 +15497,7 @@
           "size": 2.0
         },
         {
-          "param": "STING_AUTHORISED_BY_TXT",
+          "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
             634.75,
             35
@@ -15613,14 +15613,14 @@
           "default": "SUBMISSION-NEMA"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
           "default": "NONBIM"
         },
         {
-          "name": "STING_AUTHORISED_BY_TXT",
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -15836,7 +15836,7 @@
           "size": 2.0
         },
         {
-          "param": "STING_AUTHORISED_BY_TXT",
+          "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
             634.75,
             35
@@ -15958,7 +15958,7 @@
           "default": "CLARIFICATION"
         },
         {
-          "name": "STING_SHEET_BIM_MODE_TXT",
+          "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",

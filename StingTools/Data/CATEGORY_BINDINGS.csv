@@ -15864,8 +15864,8 @@ PRJ_TB_LAST_SYNC_BY_TXT,Generic Models,Type,True
 PRJ_TB_LAST_SYNC_BY_TXT,Project Information,Type,True
 PRJ_TB_LOCK_BOOL,Generic Models,Type,True
 PRJ_TB_LOCK_BOOL,Project Information,Type,True
-PRJ_TB_SHOW_DISCBAND_BOOL,Generic Models,Type,True
-PRJ_TB_SHOW_DISCBAND_BOOL,Project Information,Type,True
+PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,Generic Models,Type,True
+PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,Project Information,Type,True
 PRJ_TB_SCALE_OVERRIDE_TXT,Generic Models,Type,True
 PRJ_TB_SCALE_OVERRIDE_TXT,Project Information,Type,True
 PRJ_TB_ISSUE_SUMMARY_TXT,Generic Models,Type,True
@@ -16088,24 +16088,24 @@ RAD_USE_FACTOR_NR,Rooms,Instance,True
 RAD_USE_FACTOR_NR,Specialty Equipment,Instance,True
 RAD_WORKLOAD_MAWK_NR,Rooms,Instance,True
 RAD_WORKLOAD_MAWK_NR,Specialty Equipment,Instance,True
-STING_AUTHORISED_BY_TXT,Project Information,Instance,True
-STING_AUTHORISED_DATE_TXT,Project Information,Instance,True
+PRJ_TB_AUTHORISED_BY_TXT,Project Information,Instance,True
+PRJ_TB_AUTHORISED_DATE_TXT,Project Information,Instance,True
 STING_BOX_LOCATION_ID,Project Information,Instance,True
-STING_FEDERATION_STATUS_TXT,Project Information,Instance,True
-STING_LOIN_LOD_TXT,Project Information,Instance,True
+PRJ_TB_FEDERATION_STATUS_TXT,Project Information,Instance,True
+PRJ_DWG_LOIN_LOD_TXT,Project Information,Instance,True
 STING_NOGGIN_REQUIRED,Generic Models,Instance,True
-STING_SHEET_BIM_MODE_TXT,Sheets,Instance,True
-STING_SHEET_FULL_REF_TXT,Sheets,Instance,True
-STING_SHEET_LEVEL_TXT,Sheets,Instance,True
-STING_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
-STING_SHEET_ORIG_TXT,Sheets,Instance,True
-STING_SHEET_PROJECT_TXT,Sheets,Instance,True
-STING_SHEET_ROLE_TXT,Sheets,Instance,True
-STING_SHEET_SEQUENCE_INT,Sheets,Instance,True
-STING_SHEET_SEQ_TXT,Sheets,Instance,True
-STING_SHEET_TYPE_TXT,Sheets,Instance,True
-STING_SHEET_VOLUME_TXT,Sheets,Instance,True
-STING_SUITABILITY_DESC_TXT,Project Information,Instance,True
+PRJ_SHEET_BIM_MODE_TXT,Sheets,Instance,True
+PRJ_SHEET_FULL_REF_TXT,Sheets,Instance,True
+PRJ_SHEET_LEVEL_TXT,Sheets,Instance,True
+PRJ_SHEET_OF_TOTAL_TXT,Sheets,Instance,True
+PRJ_SHEET_ORIG_TXT,Sheets,Instance,True
+PRJ_SHEET_PROJECT_TXT,Sheets,Instance,True
+PRJ_SHEET_ROLE_TXT,Sheets,Instance,True
+PRJ_SHEET_SEQUENCE_INT,Sheets,Instance,True
+PRJ_SHEET_SEQ_TXT,Sheets,Instance,True
+PRJ_SHEET_TYPE_TXT,Sheets,Instance,True
+PRJ_SHEET_VOLUME_TXT,Sheets,Instance,True
+PRJ_DWG_SUITABILITY_DESC_TXT,Project Information,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Conduits,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Pipes,Instance,True
 ELC_CDT_PENETRATION_COUNT_NR,Ducts,Instance,True

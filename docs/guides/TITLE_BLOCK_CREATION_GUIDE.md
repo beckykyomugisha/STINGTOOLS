@@ -24,7 +24,7 @@
 >
 > 1. **Each working-sheet paper size now ships TWO families** — `STING_TB_<SIZE>_BIM_v<MAJOR>.<MINOR>.rfa` and `STING_TB_<SIZE>_NONBIM_v<MAJOR>.<MINOR>.rfa`. The earlier hybrid (single family + `STING_BIM_MODE_BOOL` Yes/No toggle + reflow groups + two-label trick) is **removed** — Revit's family-formula parser rejected every conditional/text-concat form we tried in production. See `TITLE_BLOCK_FAMILY_DESIGN.md` § 3.1 for the full rationale.
 > 2. **JSON `extends` inheritance** — common identity-data parameters, the bottom-strip framework and the 8 viewport slots are authored once in an abstract `<SIZE>_common_v*` base, and the BIM + NONBIM concrete variants only declare the cells unique to their mode. Generator regenerates both per build, so there's no drift.
-> 3. **Per-sheet BIM marker** — every sheet inherits `STING_SHEET_BIM_MODE_TXT` (`"BIM"` or `"NONBIM"`) from whichever title-block family is loaded. Audit commands flag mismatches.
+> 3. **Per-sheet BIM marker** — every sheet inherits `PRJ_SHEET_BIM_MODE_TXT` (`"BIM"` or `"NONBIM"`) from whichever title-block family is loaded. Audit commands flag mismatches.
 > 4. **Slot-routing automation** — each slot now declares a `purposeTag` (`main-plan` / `key-plan` / `section` / `axon` / `detail` / `legend` / `schedule`). `Data/STING_VIEWPORT_PLACEMENT_RULES.json` maps `(viewType, namePattern)` to a `purposeTag`. The new `TitleBlock_AutoPlaceViewports` command routes each selected view to its matching slot.
 > 5. **`TitleBlock_ToggleBIMMode` command** — swaps the active sheet's title-block family between BIM and NONBIM variants. Viewports transfer 1:1 since slot ids are stable across modes.
 >
@@ -283,12 +283,12 @@ A: Yes — but then every project has to re-build the layout, the font sizes dri
     TB_DRAWZONE_W_MM           = 0      ← critical: zero means "no viewports allowed"
     TB_DRAWZONE_H_MM           = 0
     TB_MAX_VIEWPORTS_INT       = 0
-    TB_SHOW_COMPANY_STRIP_BOOL = 1
-    TB_SHOW_KEY_PLAN_BOOL      = 0
-    TB_SHOW_NORTH_ARROW_BOOL   = 0
-    TB_SHOW_SCALEBAR_BOOL      = 0
-    TB_SHOW_REV_TABLE_BOOL     = 0
-    TB_SHOW_QR_CODE_BOOL       = 1     ← QR links back to CDE record
+    PRJ_TB_SHOW_COMPANY_STRIP_BOOL = 1
+    PRJ_TB_SHOW_KEY_PLAN_BOOL      = 0
+    PRJ_TB_SHOW_NORTH_ARROW_BOOL   = 0
+    PRJ_TB_SHOW_SCALE_BAR_BOOL      = 0
+    PRJ_TB_SHOW_REV_TABLE_BOOL     = 0
+    PRJ_TB_SHOW_QR_CODE_BOOL       = 1     ← QR links back to CDE record
     ```
 
 12. **Save As** ▸ `STING_TB_COVER_A3.rfa` into `Families/AssemblyTitleBlocks/` (or your project's title-block library).
@@ -366,8 +366,8 @@ Tender packs, IFC bundles, and authority submissions all need a "this is what's 
         {"name":"sheet_index","x":8,"y":180,"w":280,"h":80,"kind":"schedule"},
         {"name":"rev_history","x":8,"y":100,"w":280,"h":70,"kind":"schedule"}
     ]'
-    TB_SHOW_KEY_PLAN_BOOL      = 0
-    TB_SHOW_QR_CODE_BOOL       = 1
+    PRJ_TB_SHOW_KEY_PLAN_BOOL      = 0
+    PRJ_TB_SHOW_QR_CODE_BOOL       = 1
     ```
 
 6. Save into the kit folder.
@@ -454,12 +454,12 @@ A1 (594 × 841 mm) gives 5 viewport slots (PLAN, ISO, ELEV0, ELEV90, 3D) plus a 
     TB_DRAWZONE_H_MM           = 559
     TB_MAX_VIEWPORTS_INT       = 5
     TB_DRAWING_TYPE_ID_TXT     = "pipe-spool-A1-1to50"     ← for PIPE family
-    TB_SHOW_COMPANY_STRIP_BOOL = 1
-    TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL = 1
-    TB_SHOW_KEY_PLAN_BOOL      = 0
-    TB_SHOW_NORTH_ARROW_BOOL   = 0
-    TB_SHOW_SCALEBAR_BOOL      = 1
-    TB_SHOW_QR_CODE_BOOL       = 1
+    PRJ_TB_SHOW_COMPANY_STRIP_BOOL = 1
+    PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL = 1
+    PRJ_TB_SHOW_KEY_PLAN_BOOL      = 0
+    PRJ_TB_SHOW_NORTH_ARROW_BOOL   = 0
+    PRJ_TB_SHOW_SCALE_BAR_BOOL      = 1
+    PRJ_TB_SHOW_QR_CODE_BOOL       = 1
     TB_NESTED_GRID_BUBBLE_FAMILY_TXT     = "STING_GRID_M"
     TB_NESTED_SECTION_MARKER_FAMILY_TXT  = "STING_SECTION_M"
     TB_NESTED_ELEVATION_MARKER_FAMILY_TXT= "STING_ELEVATION_M"
@@ -496,7 +496,7 @@ Technical presentation is for the **internal coordination meeting** — the IDR 
 | Strip | Content |
 |---|---|
 | Top | Project name, deliverable status banner (e.g. `S2 — SHARED`) |
-| Right | **Discipline colour band** (Mech blue, Elec yellow, Plumb green, Arch grey, Struct red) — driven by `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` |
+| Right | **Discipline colour band** (Mech blue, Elec yellow, Plumb green, Arch grey, Struct red) — driven by `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` |
 | Bottom-right | Standard project info strip (drawn by, checked by, approved by, scale, paper size, sheet number/total) |
 | Bottom-left | Revision history table (max 8 rows; older revs auto-archive to the Revision Schedule on the start-up page) |
 | Top-right | **North arrow** (auto-rotates to True North if `TB_NORTH_ARROW_AUTO_ROTATE_BOOL = 1`) |
@@ -505,7 +505,7 @@ Technical presentation is for the **internal coordination meeting** — the IDR 
 ### 8.2 Author it — step by step
 
 1. **File ▸ New ▸ Family ▸ Title Block ▸ A1 metric.rft**.
-2. Reserve a **15 mm right-edge band** for the discipline colour strip. Draw a filled region the full height of the sheet, parameter-driven by `M_DISC_COLOR` family parameter (a colour family parameter that is overridden per type). Wrap the filled region in a visibility parameter linked to `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` so it can be hidden per sheet.
+2. Reserve a **15 mm right-edge band** for the discipline colour strip. Draw a filled region the full height of the sheet, parameter-driven by `M_DISC_COLOR` family parameter (a colour family parameter that is overridden per type). Wrap the filled region in a visibility parameter linked to `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` so it can be hidden per sheet.
 3. Lay out the project info strip at the bottom-right, 220 × 60 mm.
 4. Lay out the revision history table at the bottom-left, 220 × 80 mm. 8 rows × 4 cols (Rev / Description / Date / By).
 5. Place the north arrow in a 30 × 30 mm reserved circle at the top-right. The nested family is `STING_NORTH_ARROW_STD`; the rotation parameter is wired to a *True North* angle.
@@ -525,13 +525,13 @@ Technical presentation is for the **internal coordination meeting** — the IDR 
     TB_DRAWZONE_MARKER_ID_TXT  = "STING_DRAWZONE"
     TB_DRAWING_TYPE_ID_TXT     = "mep-coord-A1-1to50"
     TB_MAX_VIEWPORTS_INT       = 4                    ← typical 4-up coord layout
-    TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL = 1
-    TB_SHOW_KEY_PLAN_BOOL      = 1
-    TB_SHOW_NORTH_ARROW_BOOL   = 1
-    TB_SHOW_SCALEBAR_BOOL      = 1
-    TB_SHOW_REV_TABLE_BOOL     = 1
-    TB_SHOW_COMPANY_STRIP_BOOL = 1
-    TB_SHOW_QR_CODE_BOOL       = 1
+    PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL = 1
+    PRJ_TB_SHOW_KEY_PLAN_BOOL      = 1
+    PRJ_TB_SHOW_NORTH_ARROW_BOOL   = 1
+    PRJ_TB_SHOW_SCALE_BAR_BOOL      = 1
+    PRJ_TB_SHOW_REV_TABLE_BOOL     = 1
+    PRJ_TB_SHOW_COMPANY_STRIP_BOOL = 1
+    PRJ_TB_SHOW_QR_CODE_BOOL       = 1
     TB_NORTH_ARROW_AUTO_ROTATE_BOOL = 1
     ```
 
@@ -563,7 +563,7 @@ Client presentation is for the **client steering committee, marketing brochure o
 | Large, readable typography | All labels in Arial, **18 pt minimum** |
 | Lots of breathing room | 30 mm margin on all sides; the drawable zone is small (≈ 60 % of the sheet) |
 | Strong client branding | Top 80 mm reserved for client logo + tagline; STING company strip at bottom only 8 mm tall |
-| No technical clutter (no CDE state, no revision table, no QR code unless requested) | `TB_SHOW_REV_TABLE_BOOL = 0`, `TB_SHOW_QR_CODE_BOOL = 0`, deliverable status hidden |
+| No technical clutter (no CDE state, no revision table, no QR code unless requested) | `PRJ_TB_SHOW_REV_TABLE_BOOL = 0`, `PRJ_TB_SHOW_QR_CODE_BOOL = 0`, deliverable status hidden |
 
 ### 9.2 Author it — step by step
 
@@ -584,13 +584,13 @@ Client presentation is for the **client steering committee, marketing brochure o
     TB_DRAWZONE_H_MM           = 486
     TB_MAX_VIEWPORTS_INT       = 1               ← ONE big rendered viewport
     TB_DRAWING_TYPE_ID_TXT     = "client-render-A1-1to100"
-    TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL = 0
-    TB_SHOW_KEY_PLAN_BOOL      = 0
-    TB_SHOW_NORTH_ARROW_BOOL   = 0
-    TB_SHOW_SCALEBAR_BOOL      = 0
-    TB_SHOW_REV_TABLE_BOOL     = 0
-    TB_SHOW_COMPANY_STRIP_BOOL = 1
-    TB_SHOW_QR_CODE_BOOL       = 0
+    PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL = 0
+    PRJ_TB_SHOW_KEY_PLAN_BOOL      = 0
+    PRJ_TB_SHOW_NORTH_ARROW_BOOL   = 0
+    PRJ_TB_SHOW_SCALE_BAR_BOOL      = 0
+    PRJ_TB_SHOW_REV_TABLE_BOOL     = 0
+    PRJ_TB_SHOW_COMPANY_STRIP_BOOL = 1
+    PRJ_TB_SHOW_QR_CODE_BOOL       = 0
     ```
 
 6. Save as `STING_TB_CLIENT_A1.rfa`.
@@ -615,8 +615,8 @@ Four siblings, all derived from the technical-presentation block but with differ
 |---|---|---|
 | Drawing-type id | `construction-issue-A1-1to50` | Routes to `construction-issue` style pack |
 | Status banner | "ISSUED FOR CONSTRUCTION" — solid red bar 25 mm tall across the top | Site can see the status without reading the strip |
-| `TB_SHOW_REV_TABLE_BOOL` | 1 | Site needs the rev history |
-| `TB_SHOW_QR_CODE_BOOL` | 1 (links to RFI portal) | Site can scan to ask an RFI |
+| `PRJ_TB_SHOW_REV_TABLE_BOOL` | 1 | Site needs the rev history |
+| `PRJ_TB_SHOW_QR_CODE_BOOL` | 1 (links to RFI portal) | Site can scan to ask an RFI |
 | Required project params | `PRJ_TB_DESIGN_STAGE_TXT == "C"` (Construction) | Validator refuses if stage is still "DE" |
 
 ### 10.2 IFT — Issued For Tender (`STING_TB_IFT_A1.rfa`)
@@ -634,7 +634,7 @@ Four siblings, all derived from the technical-presentation block but with differ
 |---|---|---|
 | Drawing-type id | `as-built-A1-1to100` | Routes to `as-built` style pack |
 | Status banner | "AS-BUILT — RECORD" green | Distinguishes record drawings |
-| `TB_SHOW_REV_TABLE_BOOL` | 1 (frozen — final rev only) | Historical clarity |
+| `PRJ_TB_SHOW_REV_TABLE_BOOL` | 1 (frozen — final rev only) | Historical clarity |
 | Watermark | none (record is record) | – |
 | Existing-phase un-halftoned | View template handles it | New / demolished is gone — only existing (built) survives |
 
@@ -898,13 +898,13 @@ The 37 family-level title-block parameters in `GROUP 26 TBL_TITLEBLOCK` (defined
 | 14 | `TB_MAX_VIEWPORTS_INT` | INTEGER | Capacity hint used by overflow logic |
 | 15 | `TB_TEMPLATE_VERSION_TXT` | TEXT | Semver — major.minor.patch |
 | 16 | `TB_LAST_VALIDATED_DT_TXT` | TEXT | ISO date of last validator pass |
-| 17 | `TB_SHOW_NORTH_ARROW_BOOL` | YESNO | Visibility toggle |
-| 18 | `TB_SHOW_SCALEBAR_BOOL` | YESNO | Visibility toggle |
-| 19 | `TB_SHOW_KEY_PLAN_BOOL` | YESNO | Visibility toggle |
-| 20 | `TB_SHOW_REV_TABLE_BOOL` | YESNO | Visibility toggle |
-| 21 | `TB_SHOW_QR_CODE_BOOL` | YESNO | Visibility toggle |
-| 22 | `TB_SHOW_COMPANY_STRIP_BOOL` | YESNO | Visibility toggle |
-| 23 | `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` | YESNO | Visibility toggle |
+| 17 | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` | YESNO | Visibility toggle |
+| 18 | `PRJ_TB_SHOW_SCALE_BAR_BOOL` | YESNO | Visibility toggle |
+| 19 | `PRJ_TB_SHOW_KEY_PLAN_BOOL` | YESNO | Visibility toggle |
+| 20 | `PRJ_TB_SHOW_REV_TABLE_BOOL` | YESNO | Visibility toggle |
+| 21 | `PRJ_TB_SHOW_QR_CODE_BOOL` | YESNO | Visibility toggle |
+| 22 | `PRJ_TB_SHOW_COMPANY_STRIP_BOOL` | YESNO | Visibility toggle |
+| 23 | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` | YESNO | Visibility toggle |
 | 24 | `TB_NORTH_ARROW_AUTO_ROTATE_BOOL` | YESNO | Engine rotates north arrow to True North |
 | 25 | `TB_QR_PAYLOAD_TXT` | TEXT | Payload baked into QR (deliverable id + CDE permalink) |
 | 26 | `TB_REQUIRED_SEALS_JSON_TXT` | TEXT | Submission seals expected (role + bbox) |
@@ -994,10 +994,10 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 | `PRJ_TB_LAST_SYNC_TXT` | Last sync timestamp (server) |
 | `PRJ_TB_LAST_SYNC_BY_TXT` | Last sync user (server) |
 | `PRJ_TB_LOCK_BOOL` | Per-project lock — when `1`, rev bumps require admin |
-| `PRJ_TB_SHOW_KEYPLAN_BOOL` | Project-wide override for key-plan visibility |
-| `PRJ_TB_SHOW_SCALEBAR_BOOL` | Project-wide override for scale-bar visibility |
-| `PRJ_TB_SHOW_NORTHARROW_BOOL` | Project-wide override for north-arrow visibility |
-| `PRJ_TB_SHOW_DISCBAND_BOOL` | Project-wide override for discipline-band visibility |
+| `PRJ_TB_SHOW_KEY_PLAN_BOOL` | Project-wide override for key-plan visibility |
+| `PRJ_TB_SHOW_SCALE_BAR_BOOL` | Project-wide override for scale-bar visibility |
+| `PRJ_TB_SHOW_NORTH_ARROW_BOOL` | Project-wide override for north-arrow visibility |
+| `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` | Project-wide override for discipline-band visibility |
 | `PRJ_TB_SCALE_OVERRIDE_TXT` | If non-empty, overrides the scale shown in the strip |
 | `PRJ_TB_ISSUE_SUMMARY_TXT` | Multi-line summary printed on the start-up page |
 
@@ -1042,7 +1042,7 @@ Drop the eight families into `Families/Annotations/` (or your project's annotati
 | Title block placed but viewports overlap reserved areas | `TB_RESERVED_REGIONS_JSON_TXT` is malformed JSON, so the engine ignored it | Validate the JSON in any online linter; commas / quotes are common culprits |
 | Validator reports "slot 3 exceeds drawable zone" | Slot rectangle (norm coords) extends past the drawable-zone boundary | Either widen the drawable zone or shrink the slot |
 | North arrow does not auto-rotate | Either `TB_NORTH_ARROW_AUTO_ROTATE_BOOL = 0` *or* the nested arrow family overrides its own rotation | Set the toggle, then open the nested family and unlock the rotation parameter |
-| Discipline colour band invisible | `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` set to 0, *or* the project-wide override `PRJ_TB_SHOW_DISCBAND_BOOL` set to 0 | Set both to 1 |
+| Discipline colour band invisible | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` set to 0, *or* the project-wide override `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` set to 0 | Set both to 1 |
 | QR code stamps wrong URL | `TB_QR_PAYLOAD_TXT` was hand-edited and didn't match the deliverable id | Don't hand-edit; let `IssueDeliverable` rebuild it |
 | Authority submission fails on missing seal | The reserved seal rectangle is empty | Insert the seal image into the rectangle, save the project |
 | `corp-base` view template not applied | Project-scoped override missing or `STING_VIEW_STYLE_PACKS.json` invalid | Run **Drawing Types ▸ Inspect**; the diagnostic lists every routing rule and validation issue |

@@ -17558,54 +17558,10 @@
       "discipline": "Project",
       "curated": true
     },
-    {
-      "param_name": "PRJ_TB_SHOW_KEYPLAN_BOOL",
-      "guid": "8dd6b517-7173-5a8d-b951-a08807fed830",
-      "description": "LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]",
-      "datatype": "YESNO",
-      "group_id": 13,
-      "group_name": "PRJ_INFORMATION",
-      "binding": "project",
-      "required": false,
-      "discipline": "Project",
-      "curated": true
-    },
-    {
-      "param_name": "PRJ_TB_SHOW_SCALEBAR_BOOL",
-      "guid": "fa841ad5-15e1-5ec2-91bc-a69d70cf9c42",
-      "description": "LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]",
-      "datatype": "YESNO",
-      "group_id": 13,
-      "group_name": "PRJ_INFORMATION",
-      "binding": "project",
-      "required": false,
-      "discipline": "Project",
-      "curated": true
-    },
-    {
-      "param_name": "PRJ_TB_SHOW_NORTHARROW_BOOL",
-      "guid": "58c6e51f-6f22-546b-ac02-086ab6f6fbbf",
-      "description": "LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]",
-      "datatype": "YESNO",
-      "group_id": 13,
-      "group_name": "PRJ_INFORMATION",
-      "binding": "project",
-      "required": false,
-      "discipline": "Project",
-      "curated": true
-    },
-    {
-      "param_name": "PRJ_TB_SHOW_DISCBAND_BOOL",
-      "guid": "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178",
-      "description": "Show discipline colour band on title block [ISO 19650-1:2018]",
-      "datatype": "YESNO",
-      "group_id": 13,
-      "group_name": "PRJ_INFORMATION",
-      "binding": "project",
-      "required": false,
-      "discipline": "Project",
-      "curated": true
-    },
+
+
+
+
     {
       "param_name": "PRJ_TB_SCALE_OVERRIDE_TXT",
       "guid": "624563ac-3067-5990-ba13-a4d750e9ffc2",
@@ -18807,7 +18763,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_BIM_MODE_TXT",
+      "param_name": "PRJ_SHEET_BIM_MODE_TXT",
       "guid": "c6796da5-3755-5074-b19f-493318188ac8",
       "description": "Per-sheet BIM mode marker -- \"BIM\" or \"NONBIM\" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]",
       "datatype": "TEXT",
@@ -18843,7 +18799,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_PROJECT_TXT",
+      "param_name": "PRJ_SHEET_PROJECT_TXT",
       "guid": "d6b56315-8f12-5bc5-b984-039d2b46bb77",
       "description": "ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. \"STG\"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18855,7 +18811,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_ORIG_TXT",
+      "param_name": "PRJ_SHEET_ORIG_TXT",
       "guid": "94cb197e-5358-5bdb-9759-7aca37d9c15c",
       "description": "ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. \"PLNS\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18867,7 +18823,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_VOLUME_TXT",
+      "param_name": "PRJ_SHEET_VOLUME_TXT",
       "guid": "498273b7-a814-57e4-8316-8359609a8bdd",
       "description": "ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. \"ZZ\" / \"01\" / \"M01\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18879,7 +18835,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_LEVEL_TXT",
+      "param_name": "PRJ_SHEET_LEVEL_TXT",
       "guid": "43a870ab-1356-5f0e-977e-d9df46688a3b",
       "description": "ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. \"01\" / \"GF\" / \"ZZ\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18891,7 +18847,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_TYPE_TXT",
+      "param_name": "PRJ_SHEET_TYPE_TXT",
       "guid": "c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a",
       "description": "ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. \"DR\" drawing / \"M3\" model / \"SH\" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18903,7 +18859,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_ROLE_TXT",
+      "param_name": "PRJ_SHEET_ROLE_TXT",
       "guid": "75667436-72f2-5b47-af1a-2d861e754989",
       "description": "ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. \"A\" architect / \"S\" structural / \"M\" mechanical / \"E\" electrical / \"P\" plumbing / \"FP\" fire / \"LV\" landscape / \"G\" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18915,7 +18871,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_SEQ_TXT",
+      "param_name": "PRJ_SHEET_SEQ_TXT",
       "guid": "b11bf925-8cf7-5941-b8aa-9ccea031253d",
       "description": "ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. \"0001\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18927,7 +18883,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_FULL_REF_TXT",
+      "param_name": "PRJ_SHEET_FULL_REF_TXT",
       "guid": "fdb62488-a957-546e-9c2c-95eb4c605559",
       "description": "ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. \"STG-PLNS-ZZ-01-DR-A-0001\"). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]",
       "datatype": "TEXT",
@@ -18939,7 +18895,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_OF_TOTAL_TXT",
+      "param_name": "PRJ_SHEET_OF_TOTAL_TXT",
       "guid": "da8b102d-0dcc-5dce-83d1-82abc3bdbab5",
       "description": "\"Sheet n of total\" string for the title block (e.g. \"03 / 12\"). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]",
       "datatype": "TEXT",
@@ -18951,7 +18907,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SUITABILITY_DESC_TXT",
+      "param_name": "PRJ_DWG_SUITABILITY_DESC_TXT",
       "guid": "7d12b6b6-9c62-515e-a611-92ab4e74e93f",
       "description": "Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for \"S2\" the description is \"Shared, Non-contractual\" [BS EN ISO 19650-2:2018 _5.6 Annex A]",
       "datatype": "TEXT",
@@ -18963,7 +18919,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_FEDERATION_STATUS_TXT",
+      "param_name": "PRJ_TB_FEDERATION_STATUS_TXT",
       "guid": "9ba3db45-85dd-5f83-92e3-6b9f5a07b52d",
       "description": "Federation status of the sheet's host model at issue time -- e.g. \"Federated v.4\", \"Discipline-isolated\", \"Coordination-pending\" [ISO 19650-2:2018]",
       "datatype": "TEXT",
@@ -18975,7 +18931,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_LOIN_LOD_TXT",
+      "param_name": "PRJ_DWG_LOIN_LOD_TXT",
       "guid": "3a2b846f-94ae-5dfd-8ab2-aa5800d48f92",
       "description": "Level of Information Need / Level of Detail at issue -- e.g. \"LOD 300\" / \"LOIN-3\" / \"LOD 350\" [BS EN 17412-1:2020]",
       "datatype": "TEXT",
@@ -18987,7 +18943,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_AUTHORISED_BY_TXT",
+      "param_name": "PRJ_TB_AUTHORISED_BY_TXT",
       "guid": "862eb92a-b8c6-5429-9330-e43afd73744b",
       "description": "4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]",
       "datatype": "TEXT",
@@ -18999,9 +18955,9 @@
       "curated": true
     },
     {
-      "param_name": "STING_AUTHORISED_DATE_TXT",
+      "param_name": "PRJ_TB_AUTHORISED_DATE_TXT",
       "guid": "380b2001-f9db-5977-be90-a98d214353cc",
-      "description": "Date of 4-eyes authorisation signature -- paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018]",
+      "description": "Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]",
       "datatype": "TEXT",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -19479,7 +19435,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_NORTH_ARROW_BOOL",
+      "param_name": "PRJ_TB_SHOW_NORTH_ARROW_BOOL",
       "guid": "0981c0a9-7805-568a-8fee-abb012f6239c",
       "description": "Visibility toggle for nested north arrow [STING TB v1]",
       "datatype": "YESNO",
@@ -19491,7 +19447,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_COPYRIGHT_TXT",
+      "param_name": "PRJ_TB_COPYRIGHT_TXT",
       "guid": "7bab41ba-b65c-5e43-9793-e741034ad054",
       "description": "Copyright / rights-reserved notice for the title block [STING TB v1]",
       "datatype": "TEXT",
@@ -19503,7 +19459,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_DO_NOT_SCALE_TXT",
+      "param_name": "PRJ_TB_DO_NOT_SCALE_TXT",
       "guid": "eb9170de-891b-5b35-ae2c-e41dddc28888",
       "description": "Do-not-scale caption for the title block [STING TB v1]",
       "datatype": "TEXT",
@@ -19563,7 +19519,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_SCALEBAR_BOOL",
+      "param_name": "PRJ_TB_SHOW_SCALE_BAR_BOOL",
       "guid": "afcd0647-42e0-537f-bd18-5f46ed1871df",
       "description": "Visibility toggle for nested scale bar [STING TB v1]",
       "datatype": "YESNO",
@@ -19575,7 +19531,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_KEY_PLAN_BOOL",
+      "param_name": "PRJ_TB_SHOW_KEY_PLAN_BOOL",
       "guid": "9a64e982-1b97-5922-9831-0948aaf1cf76",
       "description": "Visibility toggle for nested key plan [STING TB v1]",
       "datatype": "YESNO",
@@ -19587,7 +19543,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_REV_TABLE_BOOL",
+      "param_name": "PRJ_TB_SHOW_REV_TABLE_BOOL",
       "guid": "da7b6ce4-8e29-5985-9211-2c5a917bbc4b",
       "description": "Visibility toggle for embedded revision schedule [STING TB v1]",
       "datatype": "YESNO",
@@ -19599,7 +19555,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_QR_CODE_BOOL",
+      "param_name": "PRJ_TB_SHOW_QR_CODE_BOOL",
       "guid": "77246dff-2e64-5986-baa8-7ba6d38a8e1b",
       "description": "Visibility toggle for QR code stamp [STING TB v1]",
       "datatype": "YESNO",
@@ -19611,7 +19567,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_COMPANY_STRIP_BOOL",
+      "param_name": "PRJ_TB_SHOW_COMPANY_STRIP_BOOL",
       "guid": "46ee0d08-0b63-55af-9099-9b1f4a11e2a9",
       "description": "Visibility toggle for company info strip logo address contacts [STING TB v1]",
       "datatype": "YESNO",
@@ -19623,7 +19579,7 @@
       "curated": true
     },
     {
-      "param_name": "TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL",
+      "param_name": "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL",
       "guid": "fcd1f7f2-8b64-5cd7-9d27-982d604a231e",
       "description": "Visibility toggle for discipline color strip [STING TB v1]",
       "datatype": "YESNO",
@@ -19851,7 +19807,7 @@
       "curated": true
     },
     {
-      "param_name": "STING_SHEET_SEQUENCE_INT",
+      "param_name": "PRJ_SHEET_SEQUENCE_INT",
       "guid": "a7c0b2e4-4d91-4a55-9c7e-aa0001000005",
       "description": "Production sheet sequence number [STING DT v137]",
       "datatype": "INTEGER",

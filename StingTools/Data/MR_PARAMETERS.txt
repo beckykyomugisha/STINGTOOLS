@@ -2472,10 +2472,6 @@ PARAM	3bb5edc1-54f9-56ff-92c9-405a8dde646c	PRJ_TB_LOGO_PATH_TXT	TEXT		13	1	File 
 PARAM	1817eeb3-4c56-50c2-b386-6b3be3d98fc4	PRJ_TB_LAST_SYNC_TXT	TEXT		13	1	ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]	0	0
 PARAM	eb514ec7-6636-5987-9667-8e85c31a8f85	PRJ_TB_LAST_SYNC_BY_TXT	TEXT		13	1	Username who triggered the last Planscape Server sync [ISO 19650-2:2018]	0	0
 PARAM	74c9d75f-840c-5263-9acf-8fecf80ec6aa	PRJ_TB_LOCK_BOOL	YESNO		13	1	When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]	1	0
-PARAM	8dd6b517-7173-5a8d-b951-a08807fed830	PRJ_TB_SHOW_KEYPLAN_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]	1	0
-PARAM	fa841ad5-15e1-5ec2-91bc-a69d70cf9c42	PRJ_TB_SHOW_SCALEBAR_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]	1	0
-PARAM	58c6e51f-6f22-546b-ac02-086ab6f6fbbf	PRJ_TB_SHOW_NORTHARROW_BOOL	YESNO		13	1	LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]	1	0
-PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	Show discipline colour band on title block [ISO 19650-1:2018]	1	0
 PARAM	624563ac-3067-5990-ba13-a4d750e9ffc2	PRJ_TB_SCALE_OVERRIDE_TXT	TEXT		13	1	Override scale label shown on title block (e.g. "NTS", "1:100"). Empty = use view scale. [ISO 19650-1:2018]	1	0
 PARAM	a3408dee-9ced-5ccd-970c-0958bcc713a9	PRJ_TB_ISSUE_SUMMARY_TXT	TEXT		13	1	Short free-text summary of the issue purpose (e.g. "For Construction") [ISO 19650-1:2018]	1	0
 PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT		13	1	ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]	0	0
@@ -2615,23 +2611,23 @@ PARAM	cef45220-b201-5c44-baed-275a0fd556a7	PRJ_ORG_CLASS_TXT	TEXT		13	1	ISO 1965
 PARAM	48a26ee9-211d-5525-8fbb-9f8eb1f38878	PRJ_ORG_WORKFLOW_PROFILE_TXT	TEXT		13	1	Workflow profile key (default "default") [template engine v1.1]	1	0
 PARAM	e669eea3-d1fa-51b7-b820-83fa21d40877	PRJ_ORG_SIGNATURE_PROVIDER_TXT	TEXT		13	1	Signature provider id (empty = signatures disabled) [template engine v1.1]	1	0
 PARAM	a7c93ee1-9df2-5531-b873-1df826526e82	PRJ_ORG_AI_EXTRACT_ENABLED_BOOL	YESNO		13	1	Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]	1	0
-PARAM	c6796da5-3755-5074-b19f-493318188ac8	STING_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker -- "BIM" or "NONBIM" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1	0
+PARAM	c6796da5-3755-5074-b19f-493318188ac8	PRJ_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker -- "BIM" or "NONBIM" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1	0
 PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1	0
 PARAM	72432a96-c7b4-5459-8579-18d5f095edd8	PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1	0
-PARAM	d6b56315-8f12-5bc5-b984-039d2b46bb77	STING_SHEET_PROJECT_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. "STG"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	94cb197e-5358-5bdb-9759-7aca37d9c15c	STING_SHEET_ORIG_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. "PLNS"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	498273b7-a814-57e4-8316-8359609a8bdd	STING_SHEET_VOLUME_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	43a870ab-1356-5f0e-977e-d9df46688a3b	STING_SHEET_LEVEL_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. "01" / "GF" / "ZZ"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	STING_SHEET_TYPE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. "DR" drawing / "M3" model / "SH" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	75667436-72f2-5b47-af1a-2d861e754989	STING_SHEET_ROLE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. "A" architect / "S" structural / "M" mechanical / "E" electrical / "P" plumbing / "FP" fire / "LV" landscape / "G" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	b11bf925-8cf7-5941-b8aa-9ccea031253d	STING_SHEET_SEQ_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. "0001"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
-PARAM	fdb62488-a957-546e-9c2c-95eb4c605559	STING_SHEET_FULL_REF_TXT	TEXT		13	1	ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. "STG-PLNS-ZZ-01-DR-A-0001"). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]	1	0
-PARAM	da8b102d-0dcc-5dce-83d1-82abc3bdbab5	STING_SHEET_OF_TOTAL_TXT	TEXT		13	1	"Sheet n of total" string for the title block (e.g. "03 / 12"). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]	1	0
-PARAM	7d12b6b6-9c62-515e-a611-92ab4e74e93f	STING_SUITABILITY_DESC_TXT	TEXT		13	1	Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for "S2" the description is "Shared, Non-contractual" [BS EN ISO 19650-2:2018 _5.6 Annex A]	1	0
-PARAM	9ba3db45-85dd-5f83-92e3-6b9f5a07b52d	STING_FEDERATION_STATUS_TXT	TEXT		13	1	Federation status of the sheet's host model at issue time -- e.g. "Federated v.4", "Discipline-isolated", "Coordination-pending" [ISO 19650-2:2018]	1	0
-PARAM	3a2b846f-94ae-5dfd-8ab2-aa5800d48f92	STING_LOIN_LOD_TXT	TEXT		13	1	Level of Information Need / Level of Detail at issue -- e.g. "LOD 300" / "LOIN-3" / "LOD 350" [BS EN 17412-1:2020]	1	0
-PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	STING_AUTHORISED_BY_TXT	TEXT		13	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1	0
-PARAM	380b2001-f9db-5977-be90-a98d214353cc	STING_AUTHORISED_DATE_TXT	TEXT		13	1	Date of 4-eyes authorisation signature -- paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018]	1	0
+PARAM	d6b56315-8f12-5bc5-b984-039d2b46bb77	PRJ_SHEET_PROJECT_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. "STG"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	94cb197e-5358-5bdb-9759-7aca37d9c15c	PRJ_SHEET_ORIG_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. "PLNS"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	498273b7-a814-57e4-8316-8359609a8bdd	PRJ_SHEET_VOLUME_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	43a870ab-1356-5f0e-977e-d9df46688a3b	PRJ_SHEET_LEVEL_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. "01" / "GF" / "ZZ"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	PRJ_SHEET_TYPE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. "DR" drawing / "M3" model / "SH" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	75667436-72f2-5b47-af1a-2d861e754989	PRJ_SHEET_ROLE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. "A" architect / "S" structural / "M" mechanical / "E" electrical / "P" plumbing / "FP" fire / "LV" landscape / "G" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	b11bf925-8cf7-5941-b8aa-9ccea031253d	PRJ_SHEET_SEQ_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. "0001"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
+PARAM	fdb62488-a957-546e-9c2c-95eb4c605559	PRJ_SHEET_FULL_REF_TXT	TEXT		13	1	ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. "STG-PLNS-ZZ-01-DR-A-0001"). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]	1	0
+PARAM	da8b102d-0dcc-5dce-83d1-82abc3bdbab5	PRJ_SHEET_OF_TOTAL_TXT	TEXT		13	1	"Sheet n of total" string for the title block (e.g. "03 / 12"). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]	1	0
+PARAM	7d12b6b6-9c62-515e-a611-92ab4e74e93f	PRJ_DWG_SUITABILITY_DESC_TXT	TEXT		13	1	Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for "S2" the description is "Shared, Non-contractual" [BS EN ISO 19650-2:2018 _5.6 Annex A]	1	0
+PARAM	9ba3db45-85dd-5f83-92e3-6b9f5a07b52d	PRJ_TB_FEDERATION_STATUS_TXT	TEXT		13	1	Federation status of the sheet's host model at issue time -- e.g. "Federated v.4", "Discipline-isolated", "Coordination-pending" [ISO 19650-2:2018]	1	0
+PARAM	3a2b846f-94ae-5dfd-8ab2-aa5800d48f92	PRJ_DWG_LOIN_LOD_TXT	TEXT		13	1	Level of Information Need / Level of Detail at issue -- e.g. "LOD 300" / "LOIN-3" / "LOD 350" [BS EN 17412-1:2020]	1	0
+PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		13	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1	0
+PARAM	380b2001-f9db-5977-be90-a98d214353cc	PRJ_TB_AUTHORISED_DATE_TXT	TEXT		13	1	Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]	1	0
 PARAM	d09f3202-3748-5fcd-ae64-9531b2e71db1	PRJ_ORG_UNICLASS_CO_TXT	TEXT		13	1	Project Uniclass 2015 Complex (Co_) classification, e.g. "Co_25_30 Office buildings" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]	1	0
 PARAM	27a03309-63b6-5b89-9545-0e5fc5124d33	PRJ_ORG_COORD_SYSTEM_TXT	TEXT		13	1	Project geodetic coordinate system, e.g. "OS GB / British National Grid" / "WGS 84 UTM 36N" / "Uganda Cassini-Soldner" -- surveyors / GIS reference [BS 7666-2:2006]	1	0
 PARAM	783db6dd-fccc-5efa-b126-b724db119f8f	PRJ_ORG_PROJECT_NORTH_TXT	TEXT		13	1	Project north angle relative to true north, e.g. "12.5deg E of true north" -- for sheet-level coordination + wayfinding [ISO 19650-1:2018]	1	0
@@ -2671,13 +2667,13 @@ PARAM	156fb9f9-00c7-5e73-9b8a-9868d4274966	TB_AUTHORITY_CODE_TXT	TEXT		26	1	Auth
 PARAM	7083f7de-6c03-521e-bbb4-65724c4142b2	TB_MAX_VIEWPORTS_INT	INTEGER		26	1	Capacity hint for overflow logic [STING TB v1]	1	0
 PARAM	02de282c-b472-5abd-b7f4-e62e12d6c6e8	TB_TEMPLATE_VERSION_TXT	TEXT		26	1	Family template semantic version eg 1.2.0 [STING TB v1]	1	0
 PARAM	243f2ce9-cfdf-5855-891d-2acf5f9006e8	TB_LAST_VALIDATED_DT_TXT	TEXT		26	1	ISO date string YYYY-MM-DD when family last passed validator [STING TB v1]	1	0
-PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	TB_SHOW_NORTH_ARROW_BOOL	YESNO		26	1	Visibility toggle for nested north arrow [STING TB v1]	1	0
-PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	TB_SHOW_SCALEBAR_BOOL	YESNO		26	1	Visibility toggle for nested scale bar [STING TB v1]	1	0
-PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	TB_SHOW_KEY_PLAN_BOOL	YESNO		26	1	Visibility toggle for nested key plan [STING TB v1]	1	0
-PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	TB_SHOW_REV_TABLE_BOOL	YESNO		26	1	Visibility toggle for embedded revision schedule [STING TB v1]	1	0
-PARAM	77246dff-2e64-5986-baa8-7ba6d38a8e1b	TB_SHOW_QR_CODE_BOOL	YESNO		26	1	Visibility toggle for QR code stamp [STING TB v1]	1	0
-PARAM	46ee0d08-0b63-55af-9099-9b1f4a11e2a9	TB_SHOW_COMPANY_STRIP_BOOL	YESNO		26	1	Visibility toggle for company info strip logo address contacts [STING TB v1]	1	0
-PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL	YESNO		26	1	Visibility toggle for discipline color strip [STING TB v1]	1	0
+PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	PRJ_TB_SHOW_NORTH_ARROW_BOOL	YESNO		26	1	Visibility toggle for nested north arrow [STING TB v1]	1	0
+PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	PRJ_TB_SHOW_SCALE_BAR_BOOL	YESNO		26	1	Visibility toggle for nested scale bar [STING TB v1]	1	0
+PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	PRJ_TB_SHOW_KEY_PLAN_BOOL	YESNO		26	1	Visibility toggle for nested key plan [STING TB v1]	1	0
+PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	PRJ_TB_SHOW_REV_TABLE_BOOL	YESNO		26	1	Visibility toggle for embedded revision schedule [STING TB v1]	1	0
+PARAM	77246dff-2e64-5986-baa8-7ba6d38a8e1b	PRJ_TB_SHOW_QR_CODE_BOOL	YESNO		26	1	Visibility toggle for QR code stamp [STING TB v1]	1	0
+PARAM	46ee0d08-0b63-55af-9099-9b1f4a11e2a9	PRJ_TB_SHOW_COMPANY_STRIP_BOOL	YESNO		26	1	Visibility toggle for company info strip logo address contacts [STING TB v1]	1	0
+PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL	YESNO		26	1	Visibility toggle for discipline color strip [STING TB v1]	1	0
 PARAM	f5374df4-b048-5fd2-97cf-552d304ed134	TB_NORTH_ARROW_AUTO_ROTATE_BOOL	YESNO		26	1	Engine rotates nested north arrow to match viewport rotation [STING TB v1]	1	0
 PARAM	33472683-7bb0-572a-bcfb-af85c0a9dbcd	TB_QR_PAYLOAD_TXT	TEXT		26	1	Engine populates with deep link URL to CDE record [STING TB v1]	1	0
 PARAM	a480a6e8-5038-56ff-b773-9bc8547c8e18	TB_REQUIRED_SEALS_JSON_TXT	TEXT		26	1	JSON array of required signature seals for submission TBs [STING TB v1]	1	0
@@ -2696,7 +2692,7 @@ PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000001	STING_VIEW_CONTEXT_TAG_TXT	TEXT		27	1
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000002	STING_DRAWING_PACKAGE_ID_TXT	TEXT		27	1	Drawing package this view or sheet belongs to [STING DT v137]	1	0
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000003	STING_AUTO_PLACED_BOOL	YESNO		27	1	Flags views auto-placed onto sheets by the STING production engine [STING DT v137]	1	0
 PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000004	STING_PRODUCTION_RULE_IDX_INT	INTEGER		27	1	ProductionRule index that produced this view [STING DT v137]	1	0
-PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	STING_SHEET_SEQUENCE_INT	INTEGER		27	1	Production sheet sequence number [STING DT v137]	1	0
+PARAM	a7c0b2e4-4d91-4a55-9c7e-aa0001000005	PRJ_SHEET_SEQUENCE_INT	INTEGER		27	1	Production sheet sequence number [STING DT v137]	1	0
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567801	HANDOVER_MODE_HANDOVER_BOOL	YESNO		25	1	Pattern selector -- Handover / FM T4-T10 payload visible [STING Phase 165]	1	0
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567802	HANDOVER_MODE_DC_BOOL	YESNO		25	1	Pattern selector -- Design & Construction T4-T10 payload visible [STING Phase 165]	1	0
 PARAM	a8f3c1d2-4e56-7890-abcd-ef1234567803	HANDOVER_MODE_CUSTOM_BOOL	YESNO		25	1	Pattern selector -- Custom (user-defined) T4-T10 payload visible [STING Phase 165]	1	0
@@ -3485,8 +3481,8 @@ PARAM	5e189877-e121-53f8-ac57-849685c272e6	STING_PLACER_ASSY_ID_TXT	TEXT		37	1	S
 PARAM	091ab7ea-32fc-57dd-94e4-89a0af05c31c	STING_PLACER_MEMBER_ID_TXT	TEXT		37	1	Source assembly-member element id for the placed symbol [Symbols]	1	0
 PARAM	f44c8c2c-5981-517e-91e0-2a1c2970a74d	STING_PLACER_SYMBOL_CODE_TXT	TEXT		37	1	Resolved symbol code stamped on the placed symbol [Symbols]	1	0
 PARAM	e2b1686a-8c6a-5db8-ba02-144add1cc43f	STING_PLACER_VIEW_ID_TXT	TEXT		37	1	View id where the symbol was placed (per-view idempotency) [Symbols]	1	0
-PARAM	7bab41ba-b65c-5e43-9793-e741034ad054	TB_COPYRIGHT_TXT	TEXT		26	1	Copyright / rights-reserved notice for the title block [STING TB v1]	1	0
-PARAM	eb9170de-891b-5b35-ae2c-e41dddc28888	TB_DO_NOT_SCALE_TXT	TEXT		26	1	Do-not-scale caption for the title block [STING TB v1]	1	0
+PARAM	7bab41ba-b65c-5e43-9793-e741034ad054	PRJ_TB_COPYRIGHT_TXT	TEXT		26	1	Copyright / rights-reserved notice for the title block [STING TB v1]	1	0
+PARAM	eb9170de-891b-5b35-ae2c-e41dddc28888	PRJ_TB_DO_NOT_SCALE_TXT	TEXT		26	1	Do-not-scale caption for the title block [STING TB v1]	1	0
 PARAM	502ebdf8-4104-5e7e-8684-94e488b53025	PRJ_ORG_CONTACT_PHONE_TXT	TEXT		26	1	Originator contact telephone number [STING TB v1]	1	0
 PARAM	5eea15d0-fcb8-51da-8048-c9044c18b800	PRJ_ORG_CONTACT_EMAIL_TXT	TEXT		26	1	Originator contact email address [STING TB v1]	1	0
 PARAM	568275cf-468d-5333-ae12-8ee849d81ee9	PRJ_ORG_CONTACT_WEBSITE_TXT	TEXT		26	1	Originator website URL [STING TB v1]	1	0
