@@ -34,7 +34,12 @@ discipline colour strip) still need the seed `.rfa` UI follow-up below.
   `sting://asset/...` deep link in `StingQRHelper.BuildAssetUrl`.
 - **QR slot placement.** The `qr-code` slots use seed-default coordinates next to each family's north
   arrow; refine per family in `STING_TITLE_BLOCKS.json` (or draw a reference-plane box in the `.rfa`).
-  With no slot, the command falls back to the sheet's bottom-right corner.
+  Per the G2-d unified policy, when a family declares no `qr-code` slot the command now SKIPS (the slot
+  is the placement target) rather than falling back to the sheet corner.
+- **Runtime verification of the slot-graphics placers (G2/G3).** The legend-reuse, in-view north arrow,
+  auto-scaling in-view scale bar, and the family-builder geometry/factory (`NewSymbolicCurve`) compile
+  clean but need a live Revit run to confirm at runtime (idempotency: one legend + one viewport per
+  sheet; scale-bar drawn length differs 1:50 vs 1:100; the builder emits non-zero-geometry `.rfa`).
 
 ## MEP print-readiness — deferred items (Phase 198)
 

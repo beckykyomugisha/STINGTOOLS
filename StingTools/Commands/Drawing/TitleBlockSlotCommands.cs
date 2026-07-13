@@ -824,6 +824,44 @@ namespace StingTools.Commands.Drawing
             catch (Exception ex) { StingLog.Warn($"RemoveStingFamilyInstancesOnSheet: {ex.Message}"); return 0; }
         }
 
+        /// <summary>G3-a: delete every FamilyInstance in the given VIEW whose
+        /// family name starts with <paramref name="familyNamePrefix"/>. Used to
+        /// keep in-view graphics (north arrow) idempotent.</summary>
+        public static int RemoveStingFamilyInstancesInView(Document doc, ElementId viewId, string familyNamePrefix)
+        {
+            try
+            {
+                var ids = new FilteredElementCollector(doc, viewId)
+                    .OfClass(typeof(FamilyInstance))
+                    .OfType<FamilyInstance>()
+                    .Where(fi => fi.Symbol?.Family?.Name != null
+                                 && fi.Symbol.Family.Name.StartsWith(familyNamePrefix, StringComparison.OrdinalIgnoreCase))
+                    .Select(fi => fi.Id).ToList();
+                if (ids.Count > 0) doc.Delete(ids);
+                return ids.Count;
+            }
+            catch (Exception ex) { StingLog.Warn($"RemoveStingFamilyInstancesInView: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>A world-coordinate point near a corner of the view's crop box
+        /// (fractional insets 0..1 from min). Falls back to the origin when the
+        /// view has no active crop. Used to seat in-view graphics.</summary>
+        public static XYZ ViewCropCorner(View view, double fx, double fy)
+        {
+            try
+            {
+                if (view != null && view.CropBoxActive && view.CropBox != null)
+                {
+                    var cb = view.CropBox;
+                    double x = cb.Min.X + fx * (cb.Max.X - cb.Min.X);
+                    double y = cb.Min.Y + fy * (cb.Max.Y - cb.Min.Y);
+                    return cb.Transform.OfPoint(new XYZ(x, y, 0));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ViewCropCorner: {ex.Message}"); }
+            return XYZ.Zero;
+        }
+
         /// <summary>The existing viewport on the sheet showing <paramref name="viewId"/>,
         /// or null.</summary>
         public static Viewport FindViewportForView(Document doc, ViewSheet sheet, ElementId viewId)

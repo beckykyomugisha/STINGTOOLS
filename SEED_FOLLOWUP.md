@@ -5,6 +5,16 @@ completed by a human in the Revit Family Editor (or by a future Revit version th
 restores the label-authoring API). It is the companion to the W1–W5 data/contract
 changes on branch `claude/tb-w1w5-impl`.
 
+> **Review fixes G1–G3 (2026-07-13) — needs a live Revit run.** These build 0/0 but were
+> NOT exercised in Revit; verify at runtime on the next in-Revit sweep:
+> - **G2-a** legend idempotency: run `TitleBlock_StampSheetGraphics` twice → exactly one legend
+>   view + one viewport per sheet (no duplicate leak).
+> - **G3-a** north arrow lands in the primary plan view (and reflects the view's north);
+>   sheet-symbol fallback only when a sheet has no plan viewport.
+> - **G3-b** scale bar: drawn (paper) length differs between a 1:50 and a 1:100 plan.
+> - **G3-c** `TitleBlock_BuildGraphicsFamilies` emits `.rfa` with non-zero geometry (reports
+>   `[FAIL]` if the `NewSymbolicCurve`/`NewDetailCurve` factory authored nothing).
+
 > **Why this exists.** Revit 2025 removed `Document.FamilyCreate.NewLabel` — the only
 > API that could add or rebind a Tag-Label cell in a title-block `.rfa`. Proven by
 > reflection scan + binary grep (0 hits). Everything below is therefore

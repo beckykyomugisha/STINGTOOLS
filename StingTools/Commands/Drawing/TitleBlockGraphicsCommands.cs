@@ -46,11 +46,13 @@ namespace StingTools.Commands.Drawing
     {
         // kind → (family name authored in the .rfa, relative path under a
         // Families/Annotations search root).
+        // kind -> family. The scale bar is NOT a family (G3-b draws it as in-view
+        // detail lines that auto-scale with the view), so only the north arrow and
+        // key-plan base are symbol families.
         private static readonly Dictionary<string, (string Family, string File)> Map =
             new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)
         {
             ["north-arrow"] = ("STING_TB_NorthArrow",  "Annotations/STING_TB_NorthArrow.rfa"),
-            ["scale-bar"]   = ("STING_TB_ScaleBar",    "Annotations/STING_TB_ScaleBar.rfa"),
             ["key-plan"]    = ("STING_TB_KeyPlanBase", "Annotations/STING_TB_KeyPlanBase.rfa"),
         };
 
@@ -108,6 +110,12 @@ namespace StingTools.Commands.Drawing
             try { asm = Path.GetDirectoryName(StingToolsApp.AssemblyPath); }
             catch (Exception ex) { StingLog.Warn($"SearchRoots asm: {ex.Message}"); }
             if (asm != null) { yield return asm; yield return Path.Combine(asm, "data"); }
+            // G3-d: %TEMP% fallback — where the builder writes when neither the
+            // project nor the add-in folder is writable.
+            string tmp = null;
+            try { tmp = Path.Combine(Path.GetTempPath(), "STING"); }
+            catch (Exception ex) { StingLog.Warn($"SearchRoots tmp: {ex.Message}"); }
+            if (tmp != null) yield return tmp;
         }
     }
 
@@ -127,18 +135,42 @@ namespace StingTools.Commands.Drawing
             {
                 var tb = TitleBlockSlotUtils.FindTitleBlockOnSheet(doc, sheet);
                 var famPrefix = TitleBlockGraphicsRegistry.FamilyName("north-arrow");
+                var plan = TitleBlockSlotUtils.FindPrimaryPlanViewport(doc, sheet);
+                View planView = plan != null ? doc.GetElement(plan.ViewId) as View : null;
+
                 if (TitleBlockSlotUtils.IsShowToggleOff(tb, ToggleParam))
                 {
+                    // remove from BOTH the sheet and the plan view (either path
+                    // could have placed it on a prior run).
                     TitleBlockSlotUtils.RemoveStingFamilyInstancesOnSheet(doc, sheet, famPrefix);
+                    if (planView != null)
+                        TitleBlockSlotUtils.RemoveStingFamilyInstancesInView(doc, planView.Id, famPrefix);
                     return GraphicOutcome.SkippedToggleOff;
                 }
-                if (!TitleBlockSlotUtils.TryResolveSlotCentre(doc, tb, "north-arrow", out var centre, out _, out _))
-                    return GraphicOutcome.SkippedNoSlot;
 
                 var sym = TitleBlockGraphicsRegistry.ResolveSymbol(doc, "north-arrow");
                 if (sym == null) return GraphicOutcome.SkippedNoFamily;
 
+                // Clear any prior instance on either surface so switching paths
+                // (or re-running) never duplicates.
                 TitleBlockSlotUtils.RemoveStingFamilyInstancesOnSheet(doc, sheet, famPrefix);
+                if (planView != null)
+                    TitleBlockSlotUtils.RemoveStingFamilyInstancesInView(doc, planView.Id, famPrefix);
+
+                // G3-a: primary path — place the arrow IN the primary plan view so
+                // it inherits the view's north orientation (a view set to True North
+                // then makes it point true north automatically). Fall back to a
+                // sheet-level symbol at the slot only when no plan viewport exists.
+                if (planView != null)
+                {
+                    var loc = TitleBlockSlotUtils.ViewCropCorner(planView, 0.90, 0.90); // top-right of crop
+                    doc.Create.NewFamilyInstance(loc, sym, planView);
+                    log?.Add($"{sheet.SheetNumber}: north arrow placed in plan view '{planView.Name}' (reflects view north).");
+                    return GraphicOutcome.Placed;
+                }
+
+                if (!TitleBlockSlotUtils.TryResolveSlotCentre(doc, tb, "north-arrow", out var centre, out _, out _))
+                    return GraphicOutcome.SkippedNoSlot;
                 var fi = doc.Create.NewFamilyInstance(centre, sym, sheet);
                 double rad = ResolveProjectNorthRadians(doc);
                 if (Math.Abs(rad) > 1e-6 && fi != null)
@@ -147,6 +179,7 @@ namespace StingTools.Commands.Drawing
                     try { ElementTransformUtils.RotateElement(doc, fi.Id, axis, rad); }
                     catch (Exception ex) { StingLog.Warn($"North-arrow rotate {sheet.SheetNumber}: {ex.Message}"); }
                 }
+                log?.Add($"{sheet.SheetNumber}: north arrow placed as sheet symbol at slot (no plan viewport; PRJ_ORG_PROJECT_NORTH_TXT rotation).");
                 return GraphicOutcome.Placed;
             }
             catch (Exception ex)
@@ -179,48 +212,41 @@ namespace StingTools.Commands.Drawing
         }
     }
 
-    /// <summary>Scale-bar stamper. Places the scale-bar annotation at the
-    /// scale-bar slot and sets its "Scale" param to the primary plan
-    /// viewport's View.Scale.</summary>
+    /// <summary>Scale-bar stamper. G3-b: instead of a fixed-size sheet symbol,
+    /// draws a TRUE graphic scale as model-space detail lines IN the primary plan
+    /// view — a fixed real-world length rendered by the view, so the drawn paper
+    /// length is <c>realLength / viewScale</c> and therefore differs between e.g.
+    /// 1:50 and 1:100 automatically. Idempotent via a dedicated "STING_ScaleBar"
+    /// line subcategory (all prior STING scale-bar lines in the view are removed
+    /// before re-drawing, or when the toggle is off).</summary>
     internal static class ScaleBarStamper
     {
         public const string ToggleParam = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
+        private const string LineStyleName = "STING_ScaleBar";
+        private const double FtPerMetre = 1.0 / 0.3048;
+        private const int Segments = 5;
 
         public static GraphicOutcome Stamp(Document doc, ViewSheet sheet, List<string> log)
         {
             try
             {
                 var tb = TitleBlockSlotUtils.FindTitleBlockOnSheet(doc, sheet);
-                var famPrefix = TitleBlockGraphicsRegistry.FamilyName("scale-bar");
+                var plan = TitleBlockSlotUtils.FindPrimaryPlanViewport(doc, sheet);
+                var pv = plan != null ? doc.GetElement(plan.ViewId) as View : null;
+                if (pv == null) return GraphicOutcome.SkippedNoData;   // graphic scale needs a plan view
+                int scale = pv.Scale;
+                if (scale <= 0) return GraphicOutcome.SkippedNoData;
+
+                var gsId = EnsureLineStyle(doc);
+
                 if (TitleBlockSlotUtils.IsShowToggleOff(tb, ToggleParam))
                 {
-                    TitleBlockSlotUtils.RemoveStingFamilyInstancesOnSheet(doc, sheet, famPrefix);
+                    RemoveScaleBar(doc, pv, gsId);
                     return GraphicOutcome.SkippedToggleOff;
                 }
-                if (!TitleBlockSlotUtils.TryResolveSlotCentre(doc, tb, "scale-bar", out var centre, out _, out _))
-                    return GraphicOutcome.SkippedNoSlot;
 
-                var plan = TitleBlockSlotUtils.FindPrimaryPlanViewport(doc, sheet);
-                int scale = 0;
-                if (plan != null && doc.GetElement(plan.ViewId) is View pv) scale = pv.Scale;
-                if (scale <= 0) return GraphicOutcome.SkippedNoData;  // no plan viewport / no scale
-
-                var sym = TitleBlockGraphicsRegistry.ResolveSymbol(doc, "scale-bar");
-                if (sym == null) return GraphicOutcome.SkippedNoFamily;
-
-                TitleBlockSlotUtils.RemoveStingFamilyInstancesOnSheet(doc, sheet, famPrefix);
-                var fi = doc.Create.NewFamilyInstance(centre, sym, sheet);
-                var sp = fi?.LookupParameter("Scale");
-                if (sp != null && !sp.IsReadOnly)
-                {
-                    try
-                    {
-                        if (sp.StorageType == StorageType.Integer) sp.Set(scale);
-                        else if (sp.StorageType == StorageType.Double) sp.Set((double)scale);
-                        else if (sp.StorageType == StorageType.String) sp.Set($"1:{scale}");
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Scale-bar scale set {sheet.SheetNumber}: {ex.Message}"); }
-                }
+                RemoveScaleBar(doc, pv, gsId);   // idempotent redraw
+                DrawScaleBar(doc, pv, scale, gsId, log);
                 return GraphicOutcome.Placed;
             }
             catch (Exception ex)
@@ -229,6 +255,82 @@ namespace StingTools.Commands.Drawing
                 log?.Add($"{sheet?.SheetNumber}: scale bar failed — {ex.Message}");
                 return GraphicOutcome.Failed;
             }
+        }
+
+        /// <summary>Choose a "nice" real-world bar length (m) so the drawn bar is
+        /// ~30-80 mm on paper at the given view scale.</summary>
+        private static double PickRealLengthMetres(int scale)
+        {
+            double[] nice = { 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 };
+            foreach (var m in nice)
+            {
+                double paperMm = m * 1000.0 / scale;
+                if (paperMm >= 30 && paperMm <= 80) return m;
+            }
+            return 0.050 * scale; // fallback: exactly 50 mm on paper
+        }
+
+        private static void DrawScaleBar(Document doc, View pv, int scale, ElementId gsId, List<string> log)
+        {
+            double realM = PickRealLengthMetres(scale);
+            double lenFt = realM * FtPerMetre;
+            // tick height ~ 3 mm on paper -> model length = 0.003 m * scale.
+            double tickFt = 0.003 * scale * FtPerMetre;
+            var origin = TitleBlockSlotUtils.ViewCropCorner(pv, 0.05, 0.05); // bottom-left of crop
+
+            var lines = new List<Curve>();
+            lines.Add(Line.CreateBound(origin, origin + new XYZ(lenFt, 0, 0)));           // baseline
+            for (int i = 0; i <= Segments; i++)
+            {
+                double x = lenFt * i / Segments;
+                var b = origin + new XYZ(x, 0, 0);
+                lines.Add(Line.CreateBound(b, b + new XYZ(0, tickFt, 0)));                // tick
+            }
+            foreach (var c in lines)
+            {
+                try
+                {
+                    var dl = doc.Create.NewDetailCurve(pv, c);
+                    if (gsId != ElementId.InvalidElementId && dl != null)
+                        dl.LineStyle = doc.GetElement(gsId) as GraphicsStyle;
+                }
+                catch (Exception ex) { StingLog.Warn($"Scale-bar line: {ex.Message}"); }
+            }
+            log?.Add($"{pv.Name}: scale bar = {realM:0.###} m @ 1:{scale} ({realM * 1000.0 / scale:0.#} mm on paper).");
+        }
+
+        /// <summary>Delete all STING scale-bar detail lines in the view (matched
+        /// by the dedicated line subcategory).</summary>
+        private static void RemoveScaleBar(Document doc, View pv, ElementId gsId)
+        {
+            if (gsId == ElementId.InvalidElementId) return;
+            try
+            {
+                var ids = new FilteredElementCollector(doc, pv.Id)
+                    .OfClass(typeof(CurveElement))
+                    .OfType<CurveElement>()
+                    .Where(ce => ce.LineStyle != null && ce.LineStyle.Id == gsId)
+                    .Select(ce => ce.Id).ToList();
+                if (ids.Count > 0) doc.Delete(ids);
+            }
+            catch (Exception ex) { StingLog.Warn($"RemoveScaleBar: {ex.Message}"); }
+        }
+
+        /// <summary>Ensure the "STING_ScaleBar" line subcategory exists; return its
+        /// projection GraphicsStyle id (InvalidElementId on failure).</summary>
+        private static ElementId EnsureLineStyle(Document doc)
+        {
+            try
+            {
+                var lines = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                Category sub = null;
+                foreach (Category c in lines.SubCategories)
+                    if (string.Equals(c.Name, LineStyleName, StringComparison.OrdinalIgnoreCase)) { sub = c; break; }
+                if (sub == null) sub = doc.Settings.Categories.NewSubcategory(lines, LineStyleName);
+                var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                return gs?.Id ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex) { StingLog.Warn($"EnsureLineStyle: {ex.Message}"); return ElementId.InvalidElementId; }
         }
     }
 

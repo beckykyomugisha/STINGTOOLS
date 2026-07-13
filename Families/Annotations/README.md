@@ -3,11 +3,14 @@
 These are the minimal Generic-Annotation families the **Work Item C** slot
 placers load through `TitleBlockGraphicsRegistry`:
 
-| Family (`.rfa`) | Category | Placed by | Key params |
+| Family (`.rfa`) | Category | Placed by | Notes |
 |---|---|---|---|
-| `STING_TB_NorthArrow.rfa`  | Generic Annotation | `TitleBlock_PlaceNorthArrow` | instance `Rotation Angle` (Angle) |
-| `STING_TB_ScaleBar.rfa`    | Generic Annotation | `TitleBlock_PlaceScaleBar`   | instance `Scale` (Integer), `Bar Length` (Length, formula) |
+| `STING_TB_NorthArrow.rfa`  | Generic Annotation | `TitleBlock_PlaceNorthArrow` | shaft + head; oriented by the placer (in the plan view, or rotated from `PRJ_ORG_PROJECT_NORTH_TXT`) |
 | `STING_TB_KeyPlanBase.rfa` | Generic Annotation | `TitleBlock_PlaceKeyPlan`    | outline + highlight filled region |
+
+> The **scale bar is not a family** — `TitleBlock_PlaceScaleBar` draws it as
+> auto-scaling model-space detail lines directly in the primary plan view (a fixed
+> real-world length rendered at `length / viewScale`), so no `.rfa` is generated for it.
 
 ## How they get here
 

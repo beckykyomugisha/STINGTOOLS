@@ -3,6 +3,36 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Title-block slot graphics — three-reviewer fixes G1–G3, branch `claude/tb-w1w5-impl`)
+
+Twelve review findings over the Work Items A–E work below. Release build **0/0**
+(`-t:Rebuild`, Revit 2025) after each group. **Not merged.** Items marked ⚠ still need a
+live Revit run to verify at runtime (see [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md)).
+
+- **G1 (data/contract).** `TitleBlockParamApplier.Apply` now resolves each `titleBlockParams`
+  key against a friendly-alias→canonical-param map first, then the literal key — so seeded
+  friendly keys ("Suitability", "Client Name", … audited across all 93 drawing types) reach
+  their bound shared params; the two emptiness validators read the suitability code from the
+  title-block instance (where it is stamped). Added `PRJ_SHEET_SYSTEM_TXT` to
+  `PARAMETER_REGISTRY.json`; wired a `PRJ_DWG_SUITABILITY_DESC_TXT` setter from the ISO 19650
+  code→desc map; de-conflated `PRJ_DWG_ISSUE_PURPOSE_TXT`'s group + documented the local vs
+  master group schemes and the GROUP-26 programmatic toggles.
+- **G2 (placement).** ⚠ Legend duplicate-leak fixed — the finder matches the engine's real
+  view name (`STING Legend - {Title}`, Legend **or** Drafting) so the view is reused and its
+  viewport moved, not recreated. `Document.EditFamily` (ref-plane slot override) is now guarded
+  by `!doc.IsModifiable` and slot bounds are pre-resolved outside the transaction via
+  `WarmSlotBounds` (family-scoped cache). Key-plan toggle-off deletes the orphaned per-sheet
+  drafting view. Unified the slot-absent policy — QR now SKIPS (was: bottom-right fallback),
+  matching the four placers.
+- **G3 (families / view-aware).** ⚠ North arrow is placed IN the primary plan view (inherits
+  the view's north), falling back to a sheet symbol at the slot only when there is no plan
+  viewport, logging the path. ⚠ Scale bar is now a true graphic scale drawn as auto-scaling
+  in-view detail lines (fixed real length ⇒ paper length = length ÷ viewScale, so 1:50 and
+  1:100 differ), idempotent via a dedicated `STING_ScaleBar` line subcategory — it is no longer
+  a family. ⚠ The family builder counts authored curves and reports FAILURE (not `[OK]`) when a
+  family ends up with zero geometry, and uses `NewSymbolicCurve` (→ `NewDetailCurve` fallback).
+  Added a `%TEMP%` search root and removed the dead north-arrow "Rotation Angle" param.
+
 #### Completed (Title-block param normalization + slot graphics — Work Items A–E, branch `claude/tb-w1w5-impl`)
 
 Follow-on to the W1–W5 title-block work below. Release build **0 errors / 0 warnings**

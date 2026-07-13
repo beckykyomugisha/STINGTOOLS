@@ -61,14 +61,16 @@ namespace StingTools.Commands.Drawing
             try { Directory.CreateDirectory(outDir); }
             catch (Exception ex) { msg = $"Cannot create {outDir}: {ex.Message}"; return Result.Failed; }
 
+            // G3-b: the scale bar is no longer a family (it is drawn as auto-scaling
+            // in-view detail lines), so only the north arrow + key-plan base build here.
             var report = new List<string>();
             report.Add(BuildOne(app, doc, template, outDir, "STING_TB_NorthArrow",  BuildNorthArrow));
-            report.Add(BuildOne(app, doc, template, outDir, "STING_TB_ScaleBar",    BuildScaleBar));
             report.Add(BuildOne(app, doc, template, outDir, "STING_TB_KeyPlanBase", BuildKeyPlanBase));
 
             TaskDialog.Show("STING — Build Graphics Families",
                 $"Output: {outDir}\n\n" + string.Join("\n", report)
-                + "\n\nNow run TitleBlock_PlaceNorthArrow / PlaceScaleBar / PlaceKeyPlan.");
+                + "\n\nNow run TitleBlock_PlaceNorthArrow / PlaceKeyPlan. (The scale bar is drawn\n"
+                + "directly in-view by TitleBlock_PlaceScaleBar — no family needed.)");
             return Result.Succeeded;
         }
 
@@ -81,12 +83,24 @@ namespace StingTools.Commands.Drawing
                 fam = app.NewFamilyDocument(template);
                 if (fam == null) return $"[FAIL] {familyName} — NewFamilyDocument returned null";
 
+                int curveCount;
                 using (var tx = new Transaction(fam, "STING author annotation"))
                 {
                     tx.Start();
                     try { author(fam); }
                     catch (Exception ex) { StingLog.Warn($"{familyName} geometry: {ex.Message}"); }
+                    curveCount = CountGeometry(fam);
                     tx.Commit();
+                }
+
+                // G3-c: don't report success when the annotation geometry factory
+                // silently produced nothing — a family with zero authored curves is
+                // a FAILURE, not [OK].
+                if (curveCount == 0)
+                {
+                    try { fam.Close(false); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+                    fam = null;
+                    return $"[FAIL] {familyName} — 0 geometry curves authored (check the annotation geometry factory)";
                 }
 
                 string path = Path.Combine(outDir, familyName + ".rfa");
@@ -102,7 +116,7 @@ namespace StingTools.Commands.Drawing
                         tx.Commit();
                     }
                 }
-                return $"[OK]   {familyName} -> {Path.GetFileName(path)}";
+                return $"[OK]   {familyName} ({curveCount} curves) -> {Path.GetFileName(path)}";
             }
             catch (Exception ex)
             {
@@ -123,30 +137,10 @@ namespace StingTools.Commands.Drawing
             // arrow head (two strokes)
             AddLine(fam, v, new XYZ(0, h / 2, 0), new XYZ(-w / 2, h / 2 - w, 0));
             AddLine(fam, v, new XYZ(0, h / 2, 0), new XYZ(w / 2, h / 2 - w, 0));
-            AddInstanceParam(fam, "Rotation Angle", SpecTypeId.Angle);
+            // G3-d: the placer orients the arrow via the plan view's north (in-view
+            // path) or an ElementTransformUtils rotation (sheet fallback), so the
+            // old "Rotation Angle" family param drove nothing and was removed.
             AddText(fam, v, new XYZ(0, -h / 2 - Mm(3), 0), "N");
-        }
-
-        private void BuildScaleBar(Document fam)
-        {
-            var v = fam.ActiveView;
-            double len = Mm(50), ht = Mm(3);
-            // frame
-            AddLine(fam, v, new XYZ(0, 0, 0), new XYZ(len, 0, 0));
-            AddLine(fam, v, new XYZ(0, ht, 0), new XYZ(len, ht, 0));
-            AddLine(fam, v, new XYZ(0, 0, 0), new XYZ(0, ht, 0));
-            AddLine(fam, v, new XYZ(len, 0, 0), new XYZ(len, ht, 0));
-            // 5 divisions
-            for (int i = 1; i < 5; i++)
-                AddLine(fam, v, new XYZ(len * i / 5.0, 0, 0), new XYZ(len * i / 5.0, ht, 0));
-
-            var scale  = AddInstanceParam(fam, "Scale", SpecTypeId.Int.Integer);
-            var barLen = AddInstanceParam(fam, "Bar Length", SpecTypeId.Length);
-            // formula: 50 mm bar represents (Scale * 50 mm) at real world; expose
-            // the represented length so a designer can dimension-drive ticks.
-            try { if (scale != null && barLen != null) fam.FamilyManager.SetFormula(barLen, "Scale * 1 mm"); }
-            catch (Exception ex) { StingLog.Warn($"ScaleBar formula: {ex.Message}"); }
-            AddText(fam, v, new XYZ(0, ht + Mm(1), 0), "SCALE");
         }
 
         private void BuildKeyPlanBase(Document fam)
@@ -178,10 +172,39 @@ namespace StingTools.Commands.Drawing
 
         // --- helpers ---
 
+        /// <summary>G3-c: draw one line into the annotation family. Generic
+        /// Annotation geometry is authored with FamilyItemFactory.NewSymbolicCurve
+        /// (2D symbolic line) — the correct factory for annotation symbols; falls
+        /// back to NewDetailCurve. Failures are logged and later surfaced by the
+        /// zero-geometry FAIL check.</summary>
         private static void AddLine(Document fam, View v, XYZ a, XYZ b)
         {
-            try { fam.FamilyCreate.NewDetailCurve(v, Autodesk.Revit.DB.Line.CreateBound(a, b)); }
+            var line = Autodesk.Revit.DB.Line.CreateBound(a, b);
+            // Preferred: symbolic curve on the family's active-view sketch plane.
+            try
+            {
+                var sp = v.SketchPlane ?? SketchPlane.Create(fam, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
+                fam.FamilyCreate.NewSymbolicCurve(line, sp);
+                return;
+            }
+            catch (Exception ex) { StingLog.Warn($"symbolic line: {ex.Message}"); }
+            // Fallback: detail curve in the view.
+            try { fam.FamilyCreate.NewDetailCurve(v, line); }
             catch (Exception ex) { StingLog.Warn($"detail line: {ex.Message}"); }
+        }
+
+        /// <summary>Count the visible 2D geometry authored in the family
+        /// (symbolic/detail curves + filled regions). Zero ⇒ the factory rejected
+        /// everything ⇒ the build should report FAILURE, not [OK].</summary>
+        private static int CountGeometry(Document fam)
+        {
+            try
+            {
+                int curves = new FilteredElementCollector(fam).OfClass(typeof(CurveElement)).GetElementCount();
+                int regions = new FilteredElementCollector(fam).OfClass(typeof(FilledRegion)).GetElementCount();
+                return curves + regions;
+            }
+            catch (Exception ex) { StingLog.Warn($"CountGeometry: {ex.Message}"); return 0; }
         }
 
         private static void AddText(Document fam, View v, XYZ p, string s)
@@ -194,17 +217,6 @@ namespace StingTools.Commands.Drawing
                     TextNote.Create(fam, v.Id, p, s, tnt);
             }
             catch (Exception ex) { StingLog.Warn($"text note: {ex.Message}"); }
-        }
-
-        private static FamilyParameter AddInstanceParam(Document fam, string name, ForgeTypeId spec)
-        {
-            try
-            {
-                var existing = fam.FamilyManager.get_Parameter(name);
-                if (existing != null) return existing;
-                return fam.FamilyManager.AddParameter(name, GroupTypeId.Graphics, spec, true);
-            }
-            catch (Exception ex) { StingLog.Warn($"AddParameter {name}: {ex.Message}"); return null; }
         }
 
         private static string ResolveAnnotationTemplate(Application app)
