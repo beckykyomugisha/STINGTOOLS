@@ -542,6 +542,11 @@ namespace StingTools.Core
         // W4 — QR-code visibility toggle (already in MR_PARAMETERS.txt group 26).
         public const string TB_SHOW_QRCODE               = "PRJ_TB_SHOW_QR_CODE_BOOL";
         public const string TB_SHOW_QRCODE_GUID          = "77246dff-2e64-5986-baa8-7ba6d38a8e1b";
+        // Remaining two visibility toggles (parity with the graphics slot taxonomy).
+        public const string TB_SHOW_REV_TABLE            = "PRJ_TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE_GUID       = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
+        public const string TB_SHOW_COMPANY_STRIP        = "PRJ_TB_SHOW_COMPANY_STRIP_BOOL";
+        public const string TB_SHOW_COMPANY_STRIP_GUID   = "46ee0d08-0b63-55af-9099-9b1f4a11e2a9";
         // W5 — title-block presentation + originator contact params (STING TB v1).
         public const string TB_COPYRIGHT                 = "PRJ_TB_COPYRIGHT_TXT";
         public const string TB_COPYRIGHT_GUID            = "7bab41ba-b65c-5e43-9793-e741034ad054";
@@ -570,7 +575,7 @@ namespace StingTools.Core
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
-            TB_SHOW_QRCODE
+            TB_SHOW_QRCODE, TB_SHOW_REV_TABLE, TB_SHOW_COMPANY_STRIP
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──
