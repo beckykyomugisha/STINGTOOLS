@@ -433,6 +433,14 @@ namespace StingTools.Core.Placement
                 return res;
             }
 
+            // §9 — workshared ownership: never mutate a family owned by another user.
+            if (IsOwnedByOther(doc, fam, out string owner))
+            {
+                res.PathUsed = "Skipped";
+                res.Notes.Add($"Skipped: family is checked out / owned by '{owner}' in this workshared model. Take ownership (or ask them to relinquish) then re-run.");
+                return res;
+            }
+
             var tpl = FamilyHostTemplateRegistry.Get(doc);
             var target = tpl.ById(req.TargetId) ?? tpl.ByLabel(req.TargetId);
             if (target == null)
@@ -451,6 +459,11 @@ namespace StingTools.Core.Placement
                 res.Notes.Add("Family is already at the target placement — no change.");
                 return res;
             }
+
+            // §9 — flag nested usage (instances hosted inside another family
+            // instance). We convert the top-level family only.
+            if (HasNestedUsage(doc, fam))
+                res.Notes.Add("NEXT STEP: this family also appears nested inside other family instances — only the top-level placements are converted; review the host families that nest it.");
 
             string path = ResolvePath(tpl, sourceId, target.Id, fpt);
             try
@@ -923,6 +936,40 @@ namespace StingTools.Core.Placement
             if (string.IsNullOrEmpty(name)) return "family";
             foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
             return name;
+        }
+
+        // §9 — in a workshared model, is the family owned/checked-out by another
+        // user? Only defers when the current user is resolvable (so a Username
+        // lookup failure never blocks a non-workshared / single-user edit).
+        private static bool IsOwnedByOther(Document doc, Element el, out string owner)
+        {
+            owner = "";
+            try
+            {
+                if (doc == null || el == null || !doc.IsWorkshared) return false;
+                string me = doc.Application.Username;
+                var info = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                if (!string.IsNullOrEmpty(me) && !string.IsNullOrEmpty(info?.Owner) && info.Owner != me)
+                {
+                    owner = info.Owner;
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"IsOwnedByOther: {ex.Message}"); }
+            return false;
+        }
+
+        // §9 — does any instance of this family sit nested inside another family
+        // instance (non-null SuperComponent)? Cheap best-effort flag for the report.
+        private static bool HasNestedUsage(Document doc, Family fam)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                    .Any(fi => fi.Symbol?.Family?.Id == fam.Id && fi.SuperComponent != null);
+            }
+            catch (Exception ex) { StingLog.Warn($"HasNestedUsage: {ex.Message}"); return false; }
         }
     }
 }
