@@ -687,5 +687,150 @@ namespace StingTools.Commands.Drawing
 
         private const double MmPerFoot = 304.8;
         private static double MmToFt(double mm) => mm / MmPerFoot;
+
+        // ---------------------------------------------------------------
+        // W-C shared helpers — slot-driven graphics placement.
+        //   Used by the QR stamper and the north-arrow / scale-bar /
+        //   key-plan / legend placement commands + the StampSheetGraphics
+        //   orchestrator. All are toggle-aware + idempotent.
+        // ---------------------------------------------------------------
+
+        /// <summary>True when a <c>PRJ_TB_SHOW_*_BOOL</c> integer toggle on the
+        /// title-block instance is present and explicitly set to 0. A missing
+        /// toggle is treated as "on" (visible) so legacy blocks still stamp.</summary>
+        public static bool IsShowToggleOff(Element titleBlock, string toggleParamName)
+        {
+            if (titleBlock == null || string.IsNullOrEmpty(toggleParamName)) return false;
+            try
+            {
+                var p = titleBlock.LookupParameter(toggleParamName);
+                return p != null && p.StorageType == StorageType.Integer && p.AsInteger() == 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsShowToggleOff: {ex.Message}"); return false; }
+        }
+
+        /// <summary>Resolve a slot's centre + size (feet, sheet coords) by
+        /// purpose tag. Returns false when the title block has no matching
+        /// slot.</summary>
+        public static bool TryResolveSlotCentre(Document doc, Element titleBlock, string purposeTag,
+            out XYZ centre, out double widthFt, out double heightFt)
+        {
+            centre = XYZ.Zero; widthFt = 0; heightFt = 0;
+            if (titleBlock == null) return false;
+            try
+            {
+                var slotMap = ReadSlotBoundsFromTitleBlock(doc, titleBlock);
+                var slotId  = ResolveSlotIdForTag(slotMap, purposeTag, null);
+                if (slotId == null || !slotMap.TryGetValue(slotId, out var b) || b.Bbox == null) return false;
+                var min = b.Min; var max = b.Max;
+                centre   = new XYZ((min.X + max.X) / 2.0, (min.Y + max.Y) / 2.0, 0);
+                widthFt  = Math.Abs(max.X - min.X);
+                heightFt = Math.Abs(max.Y - min.Y);
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"TryResolveSlotCentre '{purposeTag}': {ex.Message}"); return false; }
+        }
+
+        private static readonly ViewType[] PlanViewTypes =
+        {
+            ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.EngineeringPlan,
+            ViewType.AreaPlan,
+        };
+
+        /// <summary>Find the largest plan viewport on a sheet — the "primary
+        /// plan" used to key the scale bar / orient the north arrow. Null when
+        /// the sheet has no plan viewport.</summary>
+        public static Viewport FindPrimaryPlanViewport(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                Viewport best = null; double bestArea = -1;
+                foreach (var vpId in sheet.GetAllViewports())
+                {
+                    if (!(doc.GetElement(vpId) is Viewport vp)) continue;
+                    if (!(doc.GetElement(vp.ViewId) is View v)) continue;
+                    if (Array.IndexOf(PlanViewTypes, v.ViewType) < 0) continue;
+                    var ol = vp.GetBoxOutline();
+                    double area = Math.Abs((ol.MaximumPoint.X - ol.MinimumPoint.X)
+                                         * (ol.MaximumPoint.Y - ol.MinimumPoint.Y));
+                    if (area > bestArea) { bestArea = area; best = vp; }
+                }
+                return best;
+            }
+            catch (Exception ex) { StingLog.Warn($"FindPrimaryPlanViewport: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Delete every FamilyInstance on the sheet whose family name
+        /// starts with <paramref name="familyNamePrefix"/>. Used to make graphic
+        /// placement idempotent (drop the prior instance before re-placing, or
+        /// when the toggle goes off).</summary>
+        public static int RemoveStingFamilyInstancesOnSheet(Document doc, ViewSheet sheet, string familyNamePrefix)
+        {
+            try
+            {
+                var ids = new FilteredElementCollector(doc, sheet.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .OfType<FamilyInstance>()
+                    .Where(fi => fi.Symbol?.Family?.Name != null
+                                 && fi.Symbol.Family.Name.StartsWith(familyNamePrefix, StringComparison.OrdinalIgnoreCase))
+                    .Select(fi => fi.Id).ToList();
+                if (ids.Count > 0) doc.Delete(ids);
+                return ids.Count;
+            }
+            catch (Exception ex) { StingLog.Warn($"RemoveStingFamilyInstancesOnSheet: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>The existing viewport on the sheet showing <paramref name="viewId"/>,
+        /// or null.</summary>
+        public static Viewport FindViewportForView(Document doc, ViewSheet sheet, ElementId viewId)
+        {
+            try
+            {
+                foreach (var vpId in sheet.GetAllViewports())
+                    if (doc.GetElement(vpId) is Viewport vp && vp.ViewId == viewId) return vp;
+            }
+            catch (Exception ex) { StingLog.Warn($"FindViewportForView: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Place <paramref name="view"/> as a viewport at the given
+        /// sheet-coordinate centre, or move the existing viewport there.
+        /// Idempotent per (sheet, view). Returns the viewport or null.</summary>
+        public static Viewport PlaceOrMoveViewport(Document doc, ViewSheet sheet, View view, XYZ centre)
+        {
+            try
+            {
+                var existing = FindViewportForView(doc, sheet, view.Id);
+                if (existing != null) { existing.SetBoxCenter(centre); return existing; }
+                if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id)) return null;
+                return Viewport.Create(doc, sheet.Id, view.Id, centre);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlaceOrMoveViewport: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Resolve the first Drafting ViewFamilyType in the document.</summary>
+        public static ElementId ResolveDraftingViewFamilyType(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType)).OfType<ViewFamilyType>()
+                    .Where(t => t.ViewFamily == ViewFamily.Drafting)
+                    .Select(t => t.Id).FirstOrDefault() ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveDraftingViewFamilyType: {ex.Message}"); return ElementId.InvalidElementId; }
+        }
+
+        /// <summary>Find a drafting view by exact name, or null.</summary>
+        public static ViewDrafting FindDraftingViewByName(Document doc, string name)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewDrafting)).OfType<ViewDrafting>()
+                    .FirstOrDefault(v => !v.IsTemplate && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) { StingLog.Warn($"FindDraftingViewByName: {ex.Message}"); return null; }
+        }
     }
 }
