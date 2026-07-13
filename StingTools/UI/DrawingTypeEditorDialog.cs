@@ -1672,7 +1672,7 @@ namespace StingTools.UI
                 "PRJ_DWG_SUITABILITY_COD_TXT), not separate families. A2 / A4 are not shipped.\n\n" +
                 "Each family carries its TB_ family parameters (drawable zone, slots, reserved " +
                 "regions, nested-family pointers, visibility toggles). The full 75-parameter " +
-                "title-block set (PRJ_ORG_* / PRJ_TB_* / PRJ_SHEET_* / STING_SHEET_* / ASS_*) is " +
+                "title-block set (PRJ_ORG_* / PRJ_TB_* / PRJ_SHEET_* / PRJ_DWG_* / ASS_*) is " +
                 "packaged at StingTools/Data/STING_TITLE_BLOCK_PARAMETERS.txt.\n\n" +
                 "Step-by-step layman guide → docs/guides/TITLE_BLOCK_CREATION_GUIDE.md\n" +
                 "Per-discipline default values → StingTools/Data/TITLE_BLOCK.csv\n" +

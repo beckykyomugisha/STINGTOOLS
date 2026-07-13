@@ -237,8 +237,8 @@ namespace StingTools.Docs
 
         /// <summary>
         /// Derive an ISO 19650 Level code from a sheet, used as a fallback when
-        /// the sheet has no <c>STING_LVL_COD_TXT</c> parameter. Tries (in order):
-        ///   1) Sheet's own "Level"/"STING_LVL_COD_TXT" parameter
+        /// the sheet has no <c>PRJ_SHEET_LEVEL_TXT</c> parameter. Tries (in order):
+        ///   1) Sheet's own "Level"/"PRJ_SHEET_LEVEL_TXT" parameter
         ///   2) Common patterns in the sheet name ("Level 01", "Ground Floor",
         ///      "Basement 2", "Roof", "L01", "GF", "B2", "RF")
         ///   3) The level of any plan view placed on the sheet (first one wins)
@@ -352,12 +352,12 @@ namespace StingTools.Docs
                     catch (Exception ex) { StingLog.Warn($"DrawingType lookup '{stampedDtId}': {ex.Message}"); }
                 }
 
-                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? dtIso?.Volume      ?? "ZZ";
-                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? GetLevelFromSheet(doc, sheet) ?? "XX";
-                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? dtIso?.Type        ?? "DR";
+                t["Volume"]      = ReadParam(sheet, "PRJ_SHEET_VOLUME_TXT")      ?? dtIso?.Volume      ?? "ZZ";
+                t["Level"]       = ReadParam(sheet, "PRJ_SHEET_LEVEL_TXT")     ?? GetLevelFromSheet(doc, sheet) ?? "XX";
+                t["Type"]        = ReadParam(sheet, "PRJ_SHEET_TYPE_TXT")    ?? dtIso?.Type        ?? "DR";
                 string disc      = t["Discipline"];
-                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? dtIso?.Role        ?? (string.IsNullOrEmpty(disc) ? "Z" : disc);
-                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? dtIso?.Suitability ?? "S2";
+                t["Role"]        = ReadParam(sheet, "PRJ_SHEET_ROLE_TXT")        ?? dtIso?.Role        ?? (string.IsNullOrEmpty(disc) ? "Z" : disc);
+                t["Suitability"] = ReadParam(sheet, "PRJ_DWG_SUITABILITY_COD_TXT") ?? dtIso?.Suitability ?? "S2";
                 t["Revision"]    = !string.IsNullOrEmpty(rev) ? rev : (dtIso?.Revision ?? "P01");
                 t["Format"]      = ""; // filled in by caller per format
             }

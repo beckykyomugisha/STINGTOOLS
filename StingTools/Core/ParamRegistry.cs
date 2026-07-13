@@ -392,7 +392,7 @@ namespace StingTools.Core
         // ── Phase 168 — Match-line subsystem ─────────────────────────────
         // Stamped onto every auto-placed match-line DetailCurve + caption
         // tag by MatchLineEngine.PlacePair. STING_MATCH_REF_TXT carries
-        // the paired sheet's STING_SHEET_FULL_REF (so cross-references
+        // the paired sheet's PRJ_SHEET_FULL_REF_TXT (so cross-references
         // re-resolve when sheets are renumbered); STING_MATCH_LINE_GUID
         // is the stable pair identifier that lets re-runs find existing
         // pairs and update them in place; STING_MATCH_DIR encodes
