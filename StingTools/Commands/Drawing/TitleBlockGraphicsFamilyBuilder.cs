@@ -1,12 +1,14 @@
 // StingTools — Work Item D · Annotation family builder
 //
-// Builds the 3 minimal parametric Generic-Annotation families the slot
+// Builds the 2 minimal parametric Generic-Annotation families the slot
 // graphics placers (Work Item C) load via TitleBlockGraphicsRegistry:
 //
 //   STING_TB_NorthArrow   — arrow shaft + head; instance "Rotation Angle".
-//   STING_TB_ScaleBar     — divided graphic bar; instance "Scale" (int) +
-//                           formula-linked "Bar Length".
 //   STING_TB_KeyPlanBase  — outline rectangle + a highlight filled region.
+//
+// (G3-b: the scale bar is no longer a nested family — it is drawn as
+// auto-scaling in-view detail lines by TitleBlock_PlaceScaleBar, so
+// STING_TB_ScaleBar is not built here.)
 //
 // The families are authored programmatically (Application.NewFamilyDocument
 // from a Generic Annotation .rft + famDoc.FamilyCreate detail curves +
