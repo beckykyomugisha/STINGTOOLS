@@ -86,12 +86,16 @@ namespace StingTools.Commands.Drawing
 
             var log = new List<string>();
             SheetGraphicsResult r;
+            // G2-b: pre-resolve slot bounds outside the transaction (EditFamily
+            // ref-plane override can't run inside a tx); served from cache below.
+            TitleBlockSlotUtils.WarmSlotBounds(doc, new[] { sheet });
             using (var tx = new Transaction(doc, "STING Stamp Sheet Graphics"))
             {
                 tx.Start();
                 r = TitleBlockGraphicsOrchestrator.StampSheet(doc, sheet, log);
                 tx.Commit();
             }
+            TitleBlockSlotUtils.ClearSlotBoundsCache();
 
             var report = $"Sheet {sheet.SheetNumber}\n\nPlaced: {r.Placed}\nSkipped: {r.Skipped} "
                        + $"(toggle off / no slot / no family / no data)\nFailed: {r.Failed}.";
@@ -118,6 +122,8 @@ namespace StingTools.Commands.Drawing
 
             var total = new SheetGraphicsResult();
             var log = new List<string>();
+            // G2-b: pre-resolve slot bounds outside the transaction.
+            TitleBlockSlotUtils.WarmSlotBounds(doc, sheets);
             using (var tg = new TransactionGroup(doc, "STING Stamp Sheet Graphics (all)"))
             {
                 tg.Start();
@@ -133,6 +139,7 @@ namespace StingTools.Commands.Drawing
                 }
                 tg.Assimilate();
             }
+            TitleBlockSlotUtils.ClearSlotBoundsCache();
 
             var report = $"{sheets.Count} sheet(s).\n\nGraphics placed: {total.Placed}\n"
                        + $"Skipped: {total.Skipped}\nFailed: {total.Failed}.";

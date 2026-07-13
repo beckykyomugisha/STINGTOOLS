@@ -248,11 +248,14 @@ namespace StingTools.Commands.Drawing
 
                 if (TitleBlockSlotUtils.IsShowToggleOff(tb, ToggleParam))
                 {
+                    // G2-c: the key-plan drafting view is per-sheet, so on
+                    // toggle-off remove its viewport AND the now-orphaned view.
                     var existingV = TitleBlockSlotUtils.FindDraftingViewByName(doc, viewName);
                     if (existingV != null)
                     {
                         var vp = TitleBlockSlotUtils.FindViewportForView(doc, sheet, existingV.Id);
-                        if (vp != null) doc.Delete(vp.Id);
+                        if (vp != null) { try { doc.Delete(vp.Id); } catch (Exception ex) { StingLog.Warn($"KeyPlan vp del: {ex.Message}"); } }
+                        try { doc.Delete(existingV.Id); } catch (Exception ex) { StingLog.Warn($"KeyPlan view del: {ex.Message}"); }
                     }
                     return GraphicOutcome.SkippedToggleOff;
                 }
@@ -347,11 +350,16 @@ namespace StingTools.Commands.Drawing
                 if (string.IsNullOrEmpty(disc) || !Core.Drawing.DisciplineLegendEngine.SupportsDiscipline(disc))
                     return GraphicOutcome.SkippedNoData;
 
-                string legendName = $"{Core.Drawing.DisciplineLegendEngine.DisciplineName(disc)} Symbols Legend";
+                // G2-a: the engine (LegendBuilder.CreateLegendView) names the view
+                // "STING Legend - {config.Title}" and it may be a native Legend OR a
+                // Drafting fallback. The old finder searched "{DiscName} Symbols
+                // Legend" + ViewType.Legend only, always missed, and minted a fresh
+                // view + viewport every run. Match the REAL name (any view type) so
+                // the view is reused and its viewport is MOVED, not recreated.
+                string legendName = $"STING Legend - {Core.Drawing.DisciplineLegendEngine.DisciplineName(disc)} Symbols Legend";
                 var legend = FindLegendByName(doc, legendName);
 
-                // Resolve slot first so a toggle-off / no-slot short-circuits
-                // before we mint a legend view.
+                // Resolve slot first so a no-slot short-circuits before we mint a view.
                 if (!TitleBlockSlotUtils.TryResolveSlotCentre(doc, tb, "discipline-legend", out var centre, out _, out _)
                     && !TitleBlockSlotUtils.TryResolveSlotCentre(doc, tb, "notes", out centre, out _, out _))
                 {
@@ -375,12 +383,16 @@ namespace StingTools.Commands.Drawing
             }
         }
 
+        /// <summary>Find the engine-created legend view by its stable name,
+        /// accepting either a native Legend or the Drafting fallback (the engine
+        /// uses whichever the project supports, same name for both).</summary>
         private static View FindLegendByName(Document doc, string name)
         {
             try
             {
                 return new FilteredElementCollector(doc).OfClass(typeof(View)).OfType<View>()
-                    .FirstOrDefault(v => v.ViewType == ViewType.Legend && !v.IsTemplate
+                    .FirstOrDefault(v => !v.IsTemplate
+                                         && (v.ViewType == ViewType.Legend || v.ViewType == ViewType.DraftingView)
                                          && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex) { StingLog.Warn($"FindLegendByName: {ex.Message}"); return null; }
@@ -430,6 +442,9 @@ namespace StingTools.Commands.Drawing
 
             int placed = 0, skipped = 0, failed = 0;
             var log = new List<string>();
+            // G2-b: resolve slot bounds (incl. the EditFamily ref-plane override)
+            // BEFORE the transaction; served from cache during placement.
+            TitleBlockSlotUtils.WarmSlotBounds(doc, sheets);
             using (var tg = new TransactionGroup(doc, txName))
             {
                 tg.Start();
@@ -447,6 +462,7 @@ namespace StingTools.Commands.Drawing
                 }
                 tg.Assimilate();
             }
+            TitleBlockSlotUtils.ClearSlotBoundsCache();
 
             var report = $"{title}\n\nPlaced: {placed}\nSkipped: {skipped} (toggle off / no slot / no family / no data)\nFailed: {failed}.";
             if (log.Count > 0) report += "\n\n" + string.Join("\n", log.Take(15));

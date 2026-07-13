@@ -536,10 +536,47 @@ namespace StingTools.Commands.Drawing
         ///      or migrated layouts may still have them.
         ///
         /// JSON is the authoritative source.</summary>
+        // G2-b: slot bounds are family-scoped (identical for every instance of a
+        // title-block family), and the ref-plane override step calls
+        // Document.EditFamily which THROWS if a transaction is open. Placement
+        // commands therefore WarmSlotBounds() outside their transaction; this
+        // cache serves those pre-resolved bounds to callers running inside the tx.
+        private static readonly Dictionary<string, Dictionary<string, SlotBounds>> _slotBoundsCache =
+            new Dictionary<string, Dictionary<string, SlotBounds>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Pre-resolve slot bounds for every distinct title-block family
+        /// on the given sheets, OUTSIDE any transaction, so the ref-plane override
+        /// (Document.EditFamily) runs safely and later in-transaction reads hit the
+        /// cache. Call this before opening the placement transaction.</summary>
+        public static void WarmSlotBounds(Document doc, IEnumerable<ViewSheet> sheets)
+        {
+            if (doc == null || sheets == null) return;
+            _slotBoundsCache.Clear();
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    var tb = FindTitleBlockOnSheet(doc, sheet);
+                    if (tb == null) continue;
+                    var fam = GetFamilyName(doc, tb);
+                    if (_slotBoundsCache.ContainsKey(fam)) continue;
+                    ReadSlotBoundsFromTitleBlock(doc, tb);   // populates the cache
+                }
+                catch (Exception ex) { StingLog.Warn($"WarmSlotBounds: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>Drop the warmed slot-bounds cache (call after a placement run
+        /// so a later edit to a family is picked up).</summary>
+        public static void ClearSlotBoundsCache() => _slotBoundsCache.Clear();
+
         public static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlock(Document doc, Element titleBlock)
         {
-            var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
             var familyName = GetFamilyName(doc, titleBlock);
+            // Serve pre-warmed bounds when available (resolved outside any tx).
+            if (_slotBoundsCache.TryGetValue(familyName, out var cachedBounds)) return cachedBounds;
+
+            var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
 
             // 1. Primary source — STING_TITLE_BLOCKS.json (extends-resolved).
             try
@@ -588,15 +625,19 @@ namespace StingTools.Commands.Drawing
             }
 
             // 2. Optional override — if the family has named reference planes,
-            // they take precedence (the operator may have manually nudged
-            // slots in Family Editor and we want to honour that).
+            // they take precedence (the operator may have manually nudged slots
+            // in Family Editor). Document.EditFamily is ILLEGAL inside an open
+            // transaction, so this step only runs when the document is not
+            // modifiable (no tx). Placement commands reach this path via
+            // WarmSlotBounds() BEFORE they open their transaction; the warmed
+            // result is then served from cache during placement.
+            if (!doc.IsModifiable)
             try
             {
                 var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
                 var family = sym?.Family;
-                if (family == null) return result;
-                var famDoc = doc.EditFamily(family);
-                if (famDoc == null) return result;
+                var famDoc = family != null ? doc.EditFamily(family) : null;
+                if (famDoc != null)
                 try
                 {
                     var byId = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
@@ -648,6 +689,9 @@ namespace StingTools.Commands.Drawing
             {
                 StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
+            // Cache family-scoped bounds so a subsequent in-transaction read
+            // (which cannot run EditFamily) returns the fully-resolved set.
+            if (!string.IsNullOrEmpty(familyName)) _slotBoundsCache[familyName] = result;
             return result;
         }
 

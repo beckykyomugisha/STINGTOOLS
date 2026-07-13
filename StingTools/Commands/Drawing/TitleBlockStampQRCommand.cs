@@ -31,9 +31,8 @@ namespace StingTools.Commands.Drawing
     internal static class TitleBlockQrStamper
     {
         private const string ImageTypeNamePrefix = "STING_QR_";
-        private const double MmPerFoot = 304.8;
 
-        public enum StampOutcome { Placed, SkippedToggleOff, SkippedNoRef, Failed }
+        public enum StampOutcome { Placed, SkippedToggleOff, SkippedNoRef, SkippedNoSlot, Failed }
 
         /// <summary>Stamp (or refresh) the QR image on one sheet. Caller must
         /// have an open transaction.</summary>
@@ -65,8 +64,11 @@ namespace StingTools.Commands.Drawing
                 // Idempotent: drop any prior STING QR on this sheet before placing.
                 RemoveExistingQr(doc, sheet);
 
-                // Resolve the qr-code slot (feet, sheet coords). Fall back to a
-                // bottom-right corner box when the title block has no slot.
+                // G2-d: unified slot-absent policy — the title block RESERVES the
+                // slot; the slot IS the placement target. When the family declares
+                // no 'qr-code' slot we SKIP (having already removed any prior QR),
+                // consistent with the north-arrow / scale-bar / key-plan / legend
+                // placers. (Previously QR fell back to a bottom-right corner box.)
                 XYZ center;
                 double sizeFt;
                 if (TryResolveQrSlot(doc, titleBlock, out var slotCenter, out var slotSizeFt))
@@ -76,12 +78,8 @@ namespace StingTools.Commands.Drawing
                 }
                 else
                 {
-                    var outline = sheet.Outline;
-                    double margin = 25.0 / MmPerFoot;
-                    sizeFt = 18.0 / MmPerFoot;
-                    center = new XYZ(outline.Max.U - margin - sizeFt / 2.0,
-                                     outline.Min.V + margin + sizeFt / 2.0, 0);
-                    log?.Add($"{sheet.SheetNumber}: no 'qr-code' slot — placed in bottom-right corner.");
+                    log?.Add($"{sheet.SheetNumber}: no 'qr-code' slot — QR skipped.");
+                    return StampOutcome.SkippedNoSlot;
                 }
 
                 var typeOpts = new ImageTypeOptions(pngPath, false, ImageTypeSource.Import);
@@ -248,6 +246,10 @@ namespace StingTools.Commands.Drawing
                 case TitleBlockQrStamper.StampOutcome.SkippedNoRef:
                     TaskDialog.Show("STING QR Stamp",
                         $"Sheet {sheet.SheetNumber} has no sheet reference to encode.");
+                    return Result.Cancelled;
+                case TitleBlockQrStamper.StampOutcome.SkippedNoSlot:
+                    TaskDialog.Show("STING QR Stamp",
+                        $"Sheet {sheet.SheetNumber}'s title block has no 'qr-code' slot — QR skipped.");
                     return Result.Cancelled;
                 default:
                     msg = log.Count > 0 ? string.Join("\n", log) : "QR stamp failed.";
