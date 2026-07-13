@@ -3239,6 +3239,325 @@ namespace StingTools.UI.PlacementCenter
                 StingLog.Warn($"StingPlacementCenter.EnsureResources: {ex.Message}");
             }
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        #region Family Converter
+        // Family Converter tab — change a family's host / placement type and keep
+        // it working across the project. All model/family work marshals to the
+        // Revit API thread via RunInlineAction (mirrors OnRebuildSeeds_Click); all
+        // output renders into the shared inline Report panel. The grid is the
+        // single source of truth; buttons act on grid state. OS file/folder
+        // pickers are the only allowed dialogs and always run on the WPF thread
+        // FIRST, before the ExternalEvent is raised.
+
+        private readonly FamilyHostConverter _fcConverter = new FamilyHostConverter();
+        private readonly System.Collections.ObjectModel.ObservableCollection<FamilyConverterRow> _fcRows
+            = new System.Collections.ObjectModel.ObservableCollection<FamilyConverterRow>();
+        private FamilyHostTemplates _fcTemplates;
+        private bool _fcGridBound;
+
+        private void FcEnsureGrid()
+        {
+            if (_fcGridBound || gridConverter == null) return;
+            gridConverter.ItemsSource = _fcRows;
+            _fcGridBound = true;
+        }
+
+        // Repopulate the grid on the WPF thread from a fresh scan.
+        private void FcPopulate(Document doc, IReadOnlyList<FamilyHostInfo> infos)
+        {
+            try
+            {
+                FcEnsureGrid();
+                _fcTemplates = FamilyHostTemplateRegistry.Get(doc);
+                _fcRows.Clear();
+                if (infos != null)
+                    foreach (var i in infos) _fcRows.Add(new FamilyConverterRow(_fcTemplates, i));
+                Toast($"Loaded {_fcRows.Count} families into the converter grid.");
+            }
+            catch (Exception ex) { StingLog.Warn($"FcPopulate: {ex.Message}"); }
+        }
+
+        private void OnFcScan_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Scan Families", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ScanProjectFamilies(doc);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport("Family Converter — Scan", infos);
+            });
+        }
+
+        private void OnFcImportFolder_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            string folder = null;
+            using (var fbd = new System.Windows.Forms.FolderBrowserDialog
+            { Description = "Pick a folder of .rfa families to load (searched recursively)" })
+            {
+                if (fbd.ShowDialog() == System.Windows.Forms.DialogResult.OK) folder = fbd.SelectedPath;
+            }
+            if (string.IsNullOrEmpty(folder)) { Toast("Import cancelled."); return; }
+
+            RunInlineAction("Import Folder", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ImportFolder(doc, folder);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport($"Family Converter — Import Folder", infos)
+                    .AddSection("SOURCE").Text(folder);
+            });
+        }
+
+        private void OnFcLoadRfa_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Revit Family (*.rfa)|*.rfa",
+                Multiselect = false,
+                Title = "Load a family (.rfa)"
+            };
+            if (dlg.ShowDialog() != true) { Toast("Load cancelled."); return; }
+            string path = dlg.FileName;
+
+            RunInlineAction("Load .rfa", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ImportFile(doc, path);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport("Family Converter — Load .rfa", infos)
+                    .AddSection("SOURCE").Text(path);
+            });
+        }
+
+        private StingResultPanel.Builder FcBuildScanReport(string title, IReadOnlyList<FamilyHostInfo> infos)
+        {
+            infos = infos ?? new List<FamilyHostInfo>();
+            int conv = infos.Count(i => i.Convertible);
+            var panel = StingResultPanel.Create($"STING — {title}")
+                .SetSubtitle("Loaded model families with their current host / placement type (read-only).")
+                .AddSection("SUMMARY")
+                .Metric("Families", infos.Count.ToString())
+                .Metric("Convertible", conv.ToString())
+                .Metric("Not convertible", (infos.Count - conv).ToString());
+            panel.AddSection("FAMILIES (top 60)");
+            foreach (var i in infos.Take(60))
+                panel.Text($"{i.Name}  ·  {i.Category}  ·  {i.CurrentPlacementType} ({i.CurrentHostKind})  ·  {i.InstanceCount} inst"
+                    + (i.Convertible ? "" : $"  — {i.BlockReason}"));
+            if (infos.Count > 60) panel.Text($"… and {infos.Count - 60} more (see the grid).");
+            return panel;
+        }
+
+        // Dry run — no model changes. Reads the grid's current pending targets.
+        private void OnFcAudit_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = _fcRows.ToList();
+            if (rows.Count == 0) { Toast("Run 'Scan Project Families' first."); return; }
+
+            var pending = rows.Where(r => r.HasPendingTarget).ToList();
+            var panel = StingResultPanel.Create("STING — Family Converter Audit (dry run)")
+                .SetSubtitle("No model changes. Conversion path + fidelity risk per pending row.")
+                .AddSection("SUMMARY")
+                .Metric("Rows", rows.Count.ToString())
+                .Metric("Pending", pending.Count.ToString())
+                .Metric("P1 lossless", pending.Count(r => r.PathHint.StartsWith("P1")).ToString())
+                .Metric("P2 rebuild", pending.Count(r => r.PathHint.StartsWith("P2")).ToString());
+
+            if (pending.Count == 0)
+            {
+                panel.AddSection("NOTE").Text("No rows have a Target Host selected. Pick a target in the '→ Target Host' column, then Audit or Apply.");
+            }
+            else
+            {
+                panel.AddSection("PER-FAMILY");
+                foreach (var r in pending)
+                {
+                    if (r.PathHint.StartsWith("P1"))
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P1 lossless (checkbox toggle — geometry/params/connectors untouched, instances survive)");
+                    else
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors drop, host-relative geometry re-anchors to template default; review after){(r.InstanceCount > 0 ? $"; {r.InstanceCount} instance(s) may need manual rehost" : "")}");
+                }
+                if (pending.Any(r => r.PathHint.StartsWith("P2")))
+                    panel.AddSection("NOTE").Text("Enable '⚠ Allow lossy rebuild (P2)' before Apply, or the P2 rows report as Skipped.");
+            }
+            Report("Audit Only", panel);
+        }
+
+        private void OnFcApplySelected_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = gridConverter?.SelectedItems?.Cast<FamilyConverterRow>()
+                .Where(r => r != null && r.HasPendingTarget).ToList() ?? new List<FamilyConverterRow>();
+            FcApply(rows, "Apply Selected", batch: false);
+        }
+
+        private void OnFcApplyAll_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = _fcRows.Where(r => r.HasPendingTarget).ToList();
+            FcApply(rows, "Apply All Pending", batch: true);
+        }
+
+        private void FcApply(List<FamilyConverterRow> rows, string title, bool batch)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            if (rows == null || rows.Count == 0)
+            {
+                Toast("No pending conversions — pick a Target Host on a row first.");
+                return;
+            }
+
+            bool rehost = chkFcRehost?.IsChecked == true;
+            bool allowLossy = chkFcAllowLossy?.IsChecked == true;
+
+            // Capture request data on the WPF thread; the row objects travel with
+            // the jobs so statuses can be updated after each conversion.
+            var jobs = rows.Select(r => (Row: r, Request: new FamilyHostConversionRequest
+            {
+                FamilyId = r.Id,
+                TargetId = _fcTemplates?.ByLabel(r.TargetLabel)?.Id ?? r.TargetLabel,
+                RehostInstances = rehost,
+                AllowLossyRebuild = allowLossy
+            })).ToList();
+
+            RunInlineAction(title, app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var results = new List<(FamilyConverterRow Row, FamilyHostConversionResult Res)>();
+
+                // Batch: bracket the run in a TransactionGroup so it is one undo
+                // item; per-family failures are isolated (continue on error) so
+                // one bad family never aborts the whole batch.
+                TransactionGroup grp = null;
+                if (batch)
+                {
+                    try { grp = new TransactionGroup(doc, "STING Family Convert (batch)"); grp.Start(); }
+                    catch (Exception ex) { StingLog.Warn($"FcApply batch group: {ex.Message}"); grp = null; }
+                }
+                try
+                {
+                    foreach (var job in jobs)
+                    {
+                        FamilyHostConversionResult res;
+                        try { res = _fcConverter.Convert(doc, job.Request); }
+                        catch (Exception ex)
+                        {
+                            res = new FamilyHostConversionResult { FamilyName = job.Row.Name, PathUsed = "Skipped" };
+                            res.Warnings.Add(ex.Message);
+                            StingLog.Error($"FcApply Convert '{job.Row.Name}'", ex);
+                        }
+                        results.Add((job.Row, res));
+                        var rr = res; var rn = job.Row.Name;
+                        try { Dispatcher.BeginInvoke(new Action(() => Toast($"{title}: {rn} — {(rr.Success ? "ok" : rr.PathUsed)}"))); } catch { }
+                    }
+                }
+                finally
+                {
+                    if (grp != null)
+                    {
+                        try { grp.Assimilate(); }
+                        catch (Exception ex) { StingLog.Warn($"FcApply assimilate: {ex.Message}"); try { grp.RollBack(); } catch { } }
+                    }
+                }
+
+                // Update per-row Status on the WPF thread.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    foreach (var (row, res) in results) row.Status = FcStatus(res);
+                }));
+
+                return FcBuildApplyReport(title, results);
+            });
+        }
+
+        private static string FcStatus(FamilyHostConversionResult res)
+        {
+            if (res == null) return "";
+            if (res.PathUsed == "Skipped") return "⚠ skipped";
+            if (res.Success) return $"✓ {res.PathUsed}" + (res.Warnings.Count > 0 ? " (warnings)" : "");
+            return "✗ failed";
+        }
+
+        private StingResultPanel.Builder FcBuildApplyReport(string title,
+            List<(FamilyConverterRow Row, FamilyHostConversionResult Res)> results)
+        {
+            int converted = results.Count(x => x.Res.Success);
+            int skipped = results.Count(x => x.Res.PathUsed == "Skipped");
+            int failed = results.Count(x => !x.Res.Success && x.Res.PathUsed != "Skipped");
+            int rehosted = results.Sum(x => x.Res.InstancesRehosted);
+            int rehostFail = results.Sum(x => x.Res.InstancesFailed);
+
+            var panel = StingResultPanel.Create($"STING — {title}")
+                .AddSection("SUMMARY")
+                .Metric("Converted", converted.ToString())
+                .Metric("Skipped", skipped.ToString())
+                .Metric("Failed", failed.ToString())
+                .Metric("Instances re-placed", rehosted.ToString())
+                .Metric("Instances needing manual rehost", rehostFail.ToString());
+
+            panel.AddSection("PER-FAMILY");
+            foreach (var (row, res) in results)
+            {
+                string outcome = res.Success ? "OK" : res.PathUsed == "Skipped" ? "skipped" : "FAILED";
+                panel.Text($"{res.FamilyName}: {res.FromPlacement} → {res.ToPlacement}  ·  {res.PathUsed}  ·  {outcome}");
+                foreach (var w in res.Warnings) panel.Text($"   ! {w}");
+            }
+
+            var nextSteps = results.SelectMany(x => x.Res.Notes).Where(n => n.Contains("NEXT STEP")).Distinct().ToList();
+            var otherNotes = results.SelectMany(x => x.Res.Notes).Where(n => !n.Contains("NEXT STEP")).ToList();
+            if (nextSteps.Count > 0)
+            {
+                panel.AddSection("NEXT STEPS");
+                foreach (var n in nextSteps) panel.Text(n);
+            }
+            if (otherNotes.Count > 0)
+            {
+                panel.AddSection("NOTES");
+                foreach (var n in otherNotes.Take(40)) panel.Text(n);
+            }
+            var rfas = results.Where(x => !string.IsNullOrEmpty(x.Res.NewRfaPath)).Select(x => x.Res.NewRfaPath).ToList();
+            if (rfas.Count > 0)
+            {
+                panel.AddSection("NEW .RFA FILES");
+                foreach (var p in rfas) panel.Text(p);
+            }
+            return panel;
+        }
+
+        private void OnFcSaveReload_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Save / Reload", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                string dir = FamilyHostConverter.ResolveConvertedDir(doc);
+                var panel = StingResultPanel.Create("STING — Family Converter Save / Reload")
+                    .SetSubtitle("Reload converted families from disk (belt-and-braces — P1/P2 already load on apply).")
+                    .AddSection("RESULT");
+
+                string[] files = System.IO.Directory.Exists(dir)
+                    ? System.IO.Directory.GetFiles(dir, "*.rfa")
+                    : Array.Empty<string>();
+                int loaded = 0, failed = 0;
+                var opts = new StingTools.Tags.StingFamilyLoadOptions(true);
+                foreach (var f in files)
+                {
+                    try { if (doc.LoadFamily(f, opts, out _)) loaded++; else failed++; }
+                    catch (Exception ex) { failed++; StingLog.Warn($"FcSaveReload '{f}': {ex.Message}"); }
+                }
+                panel.Metric("Converted-family folder", dir)
+                     .Metric("Reloaded", loaded.ToString())
+                     .Metric("Failed", failed.ToString());
+                if (files.Length == 0)
+                    panel.Text("No converted .rfa files on disk yet — run a P2 rebuild first (P1 conversions don't write a new file).");
+
+                var infos = _fcConverter.ScanProjectFamilies(doc);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return panel;
+            });
+        }
+        #endregion
     }
 
     /// <summary>
@@ -3275,6 +3594,81 @@ namespace StingTools.UI.PlacementCenter
         }
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// One row in the Family Converter grid. Exposes the family's current host
+    /// info plus a two-way <see cref="TargetLabel"/> whose setter recomputes the
+    /// live <see cref="PathHint"/> (P1 lossless / P2 rebuild) so the Path cell
+    /// updates the moment the user changes the Target Host combo.
+    /// </summary>
+    public sealed class FamilyConverterRow : INotifyPropertyChanged
+    {
+        private readonly FamilyHostTemplates _tpl;
+        private readonly FamilyPlacementType _fpt;
+
+        public ElementId Id { get; }
+        public string Name { get; }
+        public string Category { get; }
+        public string CurrentPlacementType { get; }
+        public string CurrentHostKind { get; }
+        public string SourceTargetId { get; }
+        public int InstanceCount { get; }
+        public bool Convertible { get; }
+        public string BlockReason { get; }
+        public List<string> AllowedTargets { get; }
+        public string CurrentHostDisplay => $"{CurrentPlacementType} · {CurrentHostKind}";
+
+        public FamilyConverterRow(FamilyHostTemplates tpl, FamilyHostInfo info)
+        {
+            _tpl = tpl;
+            _fpt = info.Placement;
+            Id = info.Id;
+            Name = info.Name;
+            Category = info.Category;
+            CurrentPlacementType = info.CurrentPlacementType;
+            CurrentHostKind = info.CurrentHostKind;
+            SourceTargetId = info.SourceTargetId;
+            InstanceCount = info.InstanceCount;
+            Convertible = info.Convertible;
+            BlockReason = string.IsNullOrEmpty(info.BlockReason) ? "Convertible" : info.BlockReason;
+            AllowedTargets = info.AllowedTargets ?? new List<string>();
+        }
+
+        private string _targetLabel;
+        public string TargetLabel
+        {
+            get => _targetLabel;
+            set { if (_targetLabel == value) return; _targetLabel = value; OnPropertyChanged(nameof(TargetLabel)); RecomputePath(); }
+        }
+
+        private string _pathHint = "";
+        public string PathHint
+        {
+            get => _pathHint;
+            private set { if (_pathHint == value) return; _pathHint = value; OnPropertyChanged(nameof(PathHint)); }
+        }
+
+        private string _status = "";
+        public string Status
+        {
+            get => _status;
+            set { if (_status == value) return; _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+
+        public bool HasPendingTarget => Convertible && !string.IsNullOrEmpty(TargetLabel);
+
+        private void RecomputePath()
+        {
+            if (string.IsNullOrEmpty(_targetLabel) || _tpl == null) { PathHint = ""; return; }
+            var tgt = _tpl.ByLabel(_targetLabel);
+            if (tgt == null) { PathHint = ""; return; }
+            string p = FamilyHostConverter.ResolvePath(_tpl, SourceTargetId, tgt.Id, _fpt);
+            PathHint = p == "P1_Checkbox" ? "P1 lossless" : "P2 rebuild";
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 
     /// <summary>
