@@ -1,6 +1,15 @@
 # This is a Revit shared parameter file.
 # STING Tools - Title Block parameter set - generated from STING_TITLE_BLOCKS.json + MR_PARAMETERS.txt
 # Load: Revit > Manage > Shared Parameters > Browse. Bind to category 'Title Blocks' (instance).
+#
+# G1-d: the GROUP ids 1-6 below are a *presentation* grouping local to this
+# title-block file; they do NOT match the master PARAMETER_REGISTRY.json /
+# MR_PARAMETERS.txt group_ids. The drawing/sheet params here map to the master
+# PRJ_INFORMATION group (id 13) in the registry - e.g. PRJ_DWG_ISSUE_PURPOSE_TXT
+# is local group 4 (04_Sheet_Context) here but master group 13 (PRJ_INFORMATION).
+# By design, the 7 PRJ_TB_SHOW_*_BOOL visibility toggles are NOT in this file:
+# they live in MR_PARAMETERS.txt master GROUP 26 (TBL_TITLEBLOCK) and are applied
+# programmatically to the title-block instance, not bound as label cells here.
 *META	VERSION	MINVERSION
 META	2	1
 *GROUP	ID	NAME
@@ -63,7 +72,7 @@ PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS
 PARAM	deb67fc4-80aa-505c-b25f-760a26c6c4ec	PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT	TEXT		2	1	Structural engineering consultant firm name [ISO 19650-1:2018]	1	0
 PARAM	e534fdd7-7c80-5a60-ba13-ff7715184000	PRJ_TB_TOTAL_NO_SHEETS_TXT	TEXT		2	1	Total number of sheets in this drawing package or issue [ISO 19650-1:2018]	1	0
 PARAM	e4c060c3-1c31-5860-b0d0-ef9472016895	PRJ_TB_VARIANT_TXT	TEXT		2	1	Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]	1	0
-PARAM	a3bf9281-16ad-5bc3-a389-da4fa300b2d4	PRJ_DWG_ISSUE_PURPOSE_TXT	TEXT		3	1	Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]	1	0
+PARAM	a3bf9281-16ad-5bc3-a389-da4fa300b2d4	PRJ_DWG_ISSUE_PURPOSE_TXT	TEXT		4	1	Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]	1	0
 PARAM	2e8087b2-691d-5882-a589-4e25a6e4a777	PRJ_DWG_SUITABILITY_COD_TXT	TEXT		3	1	Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]	1	0
 PARAM	972024c1-53c5-5b57-b9f7-98e89fa53572	PRJ_SHEET_SYSTEM_TXT	TEXT		4	1	MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]	1	0
 PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		5	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1	0

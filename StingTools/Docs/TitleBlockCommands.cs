@@ -563,7 +563,12 @@ namespace StingTools.Docs
                 }
 
                 string variant = ParameterHelpers.GetString(tb, ParamRegistry.TB_VARIANT);
-                string suit = ParameterHelpers.GetString(sheet, "PRJ_DWG_SUITABILITY_COD_TXT");
+                // G1-a: TitleBlockParamApplier stamps the suitability code onto the
+                // title-block INSTANCE, so read the TB first, then fall back to the
+                // sheet / ProjectInformation.
+                string suit = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_COD_TXT");
+                if (string.IsNullOrEmpty(suit))
+                    suit = ParameterHelpers.GetString(sheet, "PRJ_DWG_SUITABILITY_COD_TXT");
                 if (string.IsNullOrEmpty(suit))
                     suit = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT");
                 if (!string.IsNullOrEmpty(suit) && !TitleBlockEngine.ValidSuitabilityCodes.Contains(suit.Trim()))
@@ -1329,7 +1334,12 @@ namespace StingTools.Docs
                 var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, s);
                 if (tb == null)
                 { failures.Add($"{s.SheetNumber}: no title block placed"); continue; }
-                string suit = ParameterHelpers.GetString(s, "PRJ_DWG_SUITABILITY_COD_TXT");
+                // G1-a: read the suitability code from the title-block INSTANCE
+                // (where TitleBlockParamApplier stamps it) before the sheet /
+                // ProjectInformation fallback, so a seeded sheet stops false-firing.
+                string suit = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_COD_TXT");
+                if (string.IsNullOrEmpty(suit))
+                    suit = ParameterHelpers.GetString(s, "PRJ_DWG_SUITABILITY_COD_TXT");
                 if (string.IsNullOrEmpty(suit))
                     suit = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT");
                 if (string.IsNullOrWhiteSpace(suit))

@@ -18811,6 +18811,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_SHEET_SYSTEM_TXT",
+      "guid": "972024c1-53c5-5b57-b9f7-98e89fa53572",
+      "description": "MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "STING",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_SHEET_ORIG_TXT",
       "guid": "94cb197e-5358-5bdb-9759-7aca37d9c15c",
       "description": "ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. \"PLNS\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
