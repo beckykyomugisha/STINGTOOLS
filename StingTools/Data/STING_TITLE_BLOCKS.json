@@ -13757,7 +13757,6 @@
     },
     {
       "id": "STING_TB_COVER_A1_v1.0",
-      "extends": "A1_common_v2.0",
       "description": "Project / package cover sheet \u2014 A1 landscape, modern corporate BIM layout. Light header (company wordmark + doc no + client-logo slot) with a full-width project title below (long titles never clash with the logos). Document-control + BIM/coordination panels, project directory, a live-QR-to-CDE block, a multi-row REVISION HISTORY (revision-schedule zone + latest-issue fallback row), and a full-height splittable DRAWING REGISTER (sheet-list schedule zone). Optional consultant-logo strip pushed to the bottom, off by default. Dark text on light bands (legible with stock text types); navy/teal/amber accents. NO main drawable \u2014 viewport placement deliberately blocked. Labels authored once into the seed .rfa (Revit 2025 removed NewLabel), then auto-populate from ProjectInformation.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -14017,6 +14016,122 @@
           "instance": true,
           "group": "IdentityData",
           "default": "NONBIM"
+        },
+        {
+          "name": "PRJ_ORG_PROJECT_CODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_COMPANY_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_PARTICIPANTS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_RIBA_STAGE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_UNICLASS_CO_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_CLIENT_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_COMPANY_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_CONTRACTOR_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DISCIPLINE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LOGO_PATH_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DATE_CHECKED_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DATE_APVD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_SCALE_OVERRIDE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "1:100"
+        },
+        {
+          "name": "PRJ_TB_SCHEMA_VERSION_TXT",
+          "kind": "shared",
+          "instance": false,
+          "group": "IdentityData",
+          "default": "v2.0"
+        },
+        {
+          "name": "PRJ_SHEET_SYSTEM_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
