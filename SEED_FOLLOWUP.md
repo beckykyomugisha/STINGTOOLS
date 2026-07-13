@@ -110,6 +110,39 @@ Author or verify in the seed `.rfa` (nested families / detail items):
   web app should also register a `planscape://` custom scheme and add a
   `/sheet/{ref}` route to the web app so scanned codes resolve.
 
+## Param propagation pass (2026-07-13) — needs a live Revit run
+
+Cross-file definition/seed propagation for the W1–W5 title-block params (build 0/0,
+NOT yet exercised in Revit):
+
+- **7 `PRJ_TB_SHOW_*_BOOL` toggles are now in `STING_TITLE_BLOCK_PARAMETERS.txt`**
+  under new local **GROUP 7 `07_Visibility_Toggles`** (canonical names:
+  `PRJ_TB_SHOW_NORTH_ARROW_BOOL` / `_SCALE_BAR_BOOL` / `_KEY_PLAN_BOOL` /
+  `_DISCIPLINE_BAND_BOOL` / `_REV_TABLE_BOOL` / `_QR_CODE_BOOL` / `_COMPANY_STRIP_BOOL`
+  — these supersede the older `TB_SHOW_*_BOOL` names still referenced in §5 above).
+  **Author step:** bind these 7 as **YESNO instance** params on the title-block family
+  alongside the label cells, then wire each nested/drawn graphic's visibility to its
+  toggle. The graphics placers read them per-instance via `LookupParameter`.
+- **`STING_DRAWING_TYPES.json` `${PRJ_ORG_*}` refs were missing the `_TXT` suffix**
+  (Project Code / Originator / Company Name / Company Address / Client Name /
+  Appointing Party / Lead Appointed Party — 645 occurrences across ~90 drawing types).
+  They resolved to empty and left those title-block cells **blank on every sheet**.
+  Now fixed to the canonical `..._TXT` ProjectInformation param names. **Verify:** on
+  sheet creation the PROJECT / ORIGINATOR / COMPANY / CLIENT / APPOINTING-PARTY cells
+  populate from ProjectInformation.
+- **`TITLE_BLOCK.csv` seed defaults** added for the 3 missing toggles (`QR_CODE`,
+  `REV_TABLE`, `COMPANY_STRIP` → `1`), `PRJ_TB_COPYRIGHT_TXT` (`© Planscape Limited`),
+  `PRJ_TB_DO_NOT_SCALE_TXT`, contacts (blank), `PRJ_DWG_LOIN_LOD_TXT` (`LOD 300`),
+  suitability-desc / federation / authorised (blank). **Known limitation:**
+  `TitleBlock_PopulateFromCsv` iterates only `ParamRegistry.AllTitleBlockParams`
+  (the legacy 19 `PRJ_TB_*` set), so the newly-seeded toggle/text rows outside that
+  set are editable defaults but are **not yet applied by that command** — the
+  `PRJ_ORG_*` / `PRJ_DWG_*` cells are populated instead by `TitleBlockParamApplier`
+  from ProjectInformation. Expanding `AllTitleBlockParams` (and adding
+  `PRJ_TB_SHOW_REV_TABLE_BOOL` / `_COMPANY_STRIP_BOOL` to `TitleBlockBoolParams`,
+  which currently lack `ParamRegistry` constants) is a follow-up code change, not a
+  data fix — left for the in-Revit sweep to confirm the intended behaviour first.
+
 ## Out of scope (left as-is by design)
 
 - `PRJ_SHEET_SYSTEM_TXT` — display-only, drives nothing; not changed.

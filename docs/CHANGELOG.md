@@ -3,6 +3,40 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Title-block param propagation + gap fixes, branch `claude/tb-w1w5-impl`)
+
+Cross-file consistency pass for the W1–W5 title-block shared params. Release build
+**0/0** (`-t:Rebuild`, Revit 2025). **Not merged.** No live Revit run yet — see
+[`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md) "Param propagation pass (2026-07-13)".
+
+**Binding-model decision.** All in-scope title-block params are **family-carried
+instance parameters** (added to the title-block `.rfa` in the Family Editor; written
+per-sheet by `TitleBlockParamApplier` for `PRJ_ORG_*`/`PRJ_DWG_*` ${ProjectInfo} refs,
+by the graphics placers for the `PRJ_TB_SHOW_*` toggles, and by the sheet-ID commands
+for `PRJ_SHEET_*`). They therefore need consistent **definition** (MR/registry/TB
+subset) + **seed defaults** (TITLE_BLOCK.csv), but **not** a project-level "Title
+Blocks" `CATEGORY_BINDINGS.csv` row. `CATEGORY_BINDINGS.csv` left unchanged — the 2
+existing "Title Blocks" rows are the consultant-address params that sheet schedules /
+QA read at project scope, a different use case.
+
+- **Definition consistency.** Added the 7 lagging rows to `MR_PARAMETERS.csv`
+  (`PRJ_TB_COPYRIGHT_TXT`, `PRJ_TB_DO_NOT_SCALE_TXT`, `PRJ_ORG_CONTACT_PHONE/EMAIL/
+  WEBSITE_TXT`, `PRJ_ORG_REG_NO_TXT`, `PRJ_SHEET_SYSTEM_TXT`) with GUIDs matching
+  `MR_PARAMETERS.txt`. Added the 7 `PRJ_TB_SHOW_*_BOOL` toggles to
+  `STING_TITLE_BLOCK_PARAMETERS.txt` under new local **GROUP 7 `07_Visibility_Toggles`**
+  (they are YESNO instance params bound to the family so the placers can read them via
+  `LookupParameter`); header note rewritten (was "excluded by design").
+- **Seed defaults.** Added the 3 missing toggles + new text params to `TITLE_BLOCK.csv`.
+- **Gap fixes.** `STING_DRAWING_TYPES.json`: 645 `${PRJ_ORG_*}` refs were missing the
+  `_TXT` suffix (Project Code / Originator / Company / Client / Appointing / Lead
+  Appointed Party) and resolved to blank on every sheet — fixed to canonical `_TXT`
+  names. Stale "builds 3 families / STING_TB_ScaleBar" header comment in
+  `TitleBlockGraphicsFamilyBuilder.cs` corrected (scale bar is now drawn in-view; only
+  2 families build). Verified `STING_TITLE_BLOCKS.json` (78 param refs) all defined;
+  the `PRJ_DWG_ISSUE_PURPOSE_TXT` group "drift" (local 4 vs master 13) is intentional
+  and already documented; alias map covers every friendly key ("Sheet Number"/"Sheet
+  Title" resolve as literal Revit built-ins, no alias needed).
+
 #### Completed (Title-block slot graphics — three-reviewer fixes G1–G3, branch `claude/tb-w1w5-impl`)
 
 Twelve review findings over the Work Items A–E work below. Release build **0/0**
