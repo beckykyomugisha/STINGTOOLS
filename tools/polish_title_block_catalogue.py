@@ -303,7 +303,7 @@ def polish_working_common(size, orientation):
                       "anchor": [w - na_w - 15, sh + 7],
                       "size": [na_w, na_h],
                       "purposeTag": "north-arrow", "category": "symbol",
-                      "description": "North-arrow symbol — nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+                      "description": "North-arrow symbol — nested family, hides via PRJ_TB_SHOW_NORTH_ARROW_BOOL",
                       "createReferencePlanes": False, "showCornerMarker": False,
                       "respectShowToggle": True,
                       "automationHook": "Symbol_PlaceNorthArrow"})
@@ -313,7 +313,7 @@ def polish_working_common(size, orientation):
                       "anchor": [15, sh + 5],
                       "size": [sb_w, sb_h],
                       "purposeTag": "scale-bar", "category": "symbol",
-                      "description": "Scale-bar — nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+                      "description": "Scale-bar — nested family, hides via PRJ_TB_SHOW_SCALE_BAR_BOOL",
                       "createReferencePlanes": False, "showCornerMarker": False,
                       "respectShowToggle": True,
                       "automationHook": "Symbol_PlaceScaleBar"})
@@ -401,18 +401,18 @@ def polish_concrete(size, orientation, mode, common_id):
             {"param": "PRJ_DWG_SUITABILITY_COD_TXT",   "anchor": [w*0.22 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.4)},
             {"param": "PRJ_TB_REVISION_NR_TXT",        "anchor": [w*0.42 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.4)},
             {"param": "PRJ_TB_REVISION_DATE_TXT",      "anchor": [w*0.55 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.0)},
-            {"param": "STING_LOIN_LOD_TXT",            "anchor": [w*0.70 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.0)},
-            {"param": "STING_FEDERATION_STATUS_TXT",   "anchor": [w*0.85 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.0)},
+            {"param": "PRJ_DWG_LOIN_LOD_TXT",            "anchor": [w*0.70 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.0)},
+            {"param": "PRJ_TB_FEDERATION_STATUS_TXT",   "anchor": [w*0.85 + sw_pad, y1 - bsh*0.7], "size": t(size, 1.0)},
 
             # 7-segment cells
-            {"param": "STING_SHEET_PROJECT_TXT", "anchor": [seg_w*0 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_ORIG_TXT",    "anchor": [seg_w*1 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_VOLUME_TXT",  "anchor": [seg_w*2 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_LEVEL_TXT",   "anchor": [seg_w*3 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_TYPE_TXT",    "anchor": [seg_w*4 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_ROLE_TXT",    "anchor": [seg_w*5 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_SEQ_TXT",     "anchor": [seg_w*6 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
-            {"param": "STING_SHEET_OF_TOTAL_TXT","anchor": [seg_w*7 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.0)},
+            {"param": "PRJ_SHEET_PROJECT_TXT", "anchor": [seg_w*0 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_ORIG_TXT",    "anchor": [seg_w*1 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_VOLUME_TXT",  "anchor": [seg_w*2 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_LEVEL_TXT",   "anchor": [seg_w*3 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_TYPE_TXT",    "anchor": [seg_w*4 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_ROLE_TXT",    "anchor": [seg_w*5 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_SEQ_TXT",     "anchor": [seg_w*6 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.2)},
+            {"param": "PRJ_SHEET_OF_TOTAL_TXT","anchor": [seg_w*7 + sw_pad, y0 + bsh*0.18], "size": t(size, 1.0)},
         ]
 
         filled_regions = [
@@ -425,18 +425,18 @@ def polish_concrete(size, orientation, mode, common_id):
         ]
 
         params = [
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
-            {"name": "STING_SHEET_PROJECT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG"},
-            {"name": "STING_SHEET_ORIG_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "PLNS"},
-            {"name": "STING_SHEET_VOLUME_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "ZZ"},
-            {"name": "STING_SHEET_LEVEL_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "01"},
-            {"name": "STING_SHEET_TYPE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "DR"},
-            {"name": "STING_SHEET_ROLE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "A"},
-            {"name": "STING_SHEET_SEQ_TXT",      "kind": "shared", "instance": True, "group": "IdentityData", "default": "0001"},
-            {"name": "STING_SHEET_FULL_REF_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001"},
-            {"name": "STING_SHEET_OF_TOTAL_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "01 / 01"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
+            {"name": "PRJ_SHEET_PROJECT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG"},
+            {"name": "PRJ_SHEET_ORIG_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "PLNS"},
+            {"name": "PRJ_SHEET_VOLUME_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "ZZ"},
+            {"name": "PRJ_SHEET_LEVEL_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "01"},
+            {"name": "PRJ_SHEET_TYPE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "DR"},
+            {"name": "PRJ_SHEET_ROLE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "A"},
+            {"name": "PRJ_SHEET_SEQ_TXT",      "kind": "shared", "instance": True, "group": "IdentityData", "default": "0001"},
+            {"name": "PRJ_SHEET_FULL_REF_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001"},
+            {"name": "PRJ_SHEET_OF_TOTAL_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "01 / 01"},
             {"name": "PRJ_DWG_SUITABILITY_COD_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "S2"},
-            {"name": "STING_SUITABILITY_DESC_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared, Non-contractual"},
+            {"name": "PRJ_DWG_SUITABILITY_DESC_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared, Non-contractual"},
             {"name": "PRJ_DWG_ISSUE_PURPOSE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "FOR INFORMATION"},
             {"name": "PRJ_TB_DELIVERABLE_STATUS_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared"},
             {"name": "PRJ_TB_REVISION_NR_TXT",        "kind": "shared", "instance": True, "group": "IdentityData", "default": "P01"},
@@ -444,17 +444,17 @@ def polish_concrete(size, orientation, mode, common_id):
             {"name": "PRJ_TB_REVISION_DESCRIPTION_TXT","kind": "shared", "instance": True, "group": "IdentityData"},
             {"name": "PRJ_TB_LAST_TRANSMITTAL_TXT",   "kind": "shared", "instance": True, "group": "IdentityData"},
             {"name": "PRJ_TB_DELIVERABLE_CDE_TXT",    "kind": "shared", "instance": True, "group": "IdentityData"},
-            {"name": "STING_FEDERATION_STATUS_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "Federated"},
-            {"name": "STING_LOIN_LOD_TXT",            "kind": "shared", "instance": True, "group": "IdentityData", "default": "LOD 300"},
-            {"name": "STING_AUTHORISED_BY_TXT",       "kind": "shared", "instance": True, "group": "IdentityData"},
-            {"name": "STING_AUTHORISED_DATE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData"},
+            {"name": "PRJ_TB_FEDERATION_STATUS_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "Federated"},
+            {"name": "PRJ_DWG_LOIN_LOD_TXT",            "kind": "shared", "instance": True, "group": "IdentityData", "default": "LOD 300"},
+            {"name": "PRJ_TB_AUTHORISED_BY_TXT",       "kind": "shared", "instance": True, "group": "IdentityData"},
+            {"name": "PRJ_TB_AUTHORISED_DATE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData"},
         ]
     else:
         # NONBIM — minimal sheet-number block in the right column of the
         # parent's strip. Just a couple of lines + sheet number label.
         c4 = round(w * 0.86)
         params = [
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
             {"name": "PRJ_TB_SHEET_NR_TXT",      "kind": "shared", "instance": True, "group": "IdentityData", "default": "A-001"},
             {"name": "PRJ_TB_REVISION_NR_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "0"},
             {"name": "PRJ_TB_REVISION_DATE_TXT", "kind": "shared", "instance": True, "group": "IdentityData"},
@@ -558,12 +558,12 @@ def polish_assembly(fam_id: str, discipline: str, accent_color: str) -> dict:
         {"param": "PRJ_TB_VARIANT_TXT",          "anchor": [4,   title_h - 18], "size": 3.0},
         {"param": "PRJ_TB_DISCIPLINE_TXT",       "anchor": [204, title_h - 18], "size": 1.6},
         {"param": "PRJ_TB_NOTES_LEGEND_REF_TXT", "anchor": [204, title_h*0.5 - 18], "size": 1.4},
-        {"param": "STING_FEDERATION_STATUS_TXT", "anchor": [404, title_h - 18], "size": 1.4},
+        {"param": "PRJ_TB_FEDERATION_STATUS_TXT", "anchor": [404, title_h - 18], "size": 1.4},
         {"param": "PRJ_TB_DELIVERABLE_STATUS_TXT","anchor":[404, title_h*0.5 - 18], "size": 1.4},
         {"param": "PRJ_TB_REVISION_NR_TXT",      "anchor": [564, title_h - 18], "size": 1.4},
         {"param": "PRJ_TB_DATE_DRAWN_TXT",       "anchor": [564, title_h*0.5 - 18], "size": 1.4},
         {"param": "PRJ_ORG_PROJECT_NAME_TXT",    "anchor": [704, title_h - 18], "size": 1.4},
-        {"param": "STING_SHEET_FULL_REF_TXT",    "anchor": [704, title_h*0.5 - 18], "size": 1.4},
+        {"param": "PRJ_SHEET_FULL_REF_TXT",    "anchor": [704, title_h*0.5 - 18], "size": 1.4},
     ]
     filled_regions = [
         # Discipline accent stripe across the top of the title strip
@@ -615,8 +615,8 @@ def polish_assembly(fam_id: str, discipline: str, accent_color: str) -> dict:
             {"name": "PRJ_TB_PAPER_SZ_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": f"FAB-{discipline}"},
             {"name": "PRJ_TB_DISCIPLINE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": discipline},
-            {"name": "STING_SHEET_BIM_MODE_TXT","kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
-            {"name": "STING_SHEET_FULL_REF_TXT","kind": "shared", "instance": True, "group": "IdentityData", "default": f"STG-PLNS-ZZ-01-FB-{discipline[0]}-0001"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT","kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
+            {"name": "PRJ_SHEET_FULL_REF_TXT","kind": "shared", "instance": True, "group": "IdentityData", "default": f"STG-PLNS-ZZ-01-FB-{discipline[0]}-0001"},
             {"name": "PRJ_TB_REVISION_NR_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "P01"},
             {"name": "PRJ_TB_DELIVERABLE_STATUS_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "FAB"},
         ],
@@ -698,7 +698,7 @@ def polish_present(fam_id: str, mono: bool) -> dict:
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData",
              "default": "PRESENT-MONO" if mono else "PRESENT"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
         ],
         "lines": lines,
         "staticText": static,
@@ -764,7 +764,7 @@ def polish_cover() -> dict:
         "parameters": [
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "COVER"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
         ],
         "lines": lines,
         "staticText": static,
@@ -818,7 +818,7 @@ def polish_divider() -> dict:
         "parameters": [
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "DIVIDER"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
         ],
         "lines": lines,
         "staticText": static,
@@ -908,7 +908,7 @@ def polish_register() -> dict:
         "parameters": [
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "REGISTER"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
         ],
         "lines": lines,
         "staticText": static,
@@ -982,7 +982,7 @@ def polish_transmittal() -> dict:
         "parameters": [
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A4"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "TRANSMITTAL"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
         ],
         "lines": lines,
         "staticText": static,
@@ -1053,7 +1053,7 @@ def polish_submission(authority: str, accent_color: str, full_name: str, statuto
         {"param": "PRJ_ORG_PROJECT_NAME_TXT",     "anchor": [4, 35], "size": 2.4},
         {"param": "PRJ_TB_LAST_TRANSMITTAL_TXT",  "anchor": [w/4 + 4, 35], "size": 2.0},
         {"param": "PRJ_TB_DATE_DRAWN_TXT",        "anchor": [w/2 + 4, 35], "size": 2.0},
-        {"param": "STING_AUTHORISED_BY_TXT",      "anchor": [3*w/4 + 4, 35], "size": 2.0},
+        {"param": "PRJ_TB_AUTHORISED_BY_TXT",      "anchor": [3*w/4 + 4, 35], "size": 2.0},
         {"param": "PRJ_ORG_PROJECT_ADDRESS_TXT",  "anchor": [4, 12], "size": 1.4},
     ]
     filled_regions = [
@@ -1096,8 +1096,8 @@ def polish_submission(authority: str, accent_color: str, full_name: str, statuto
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A1"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData",
              "default": f"SUBMISSION-{authority}"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
-            {"name": "STING_AUTHORISED_BY_TXT",  "kind": "shared", "instance": True, "group": "IdentityData"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_TB_AUTHORISED_BY_TXT",  "kind": "shared", "instance": True, "group": "IdentityData"},
         ],
         "lines": lines,
         "staticText": static,
@@ -1178,7 +1178,7 @@ def polish_clarification() -> dict:
         "parameters": [
             {"name": "PRJ_TB_PAPER_SZ_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "A3"},
             {"name": "PRJ_TB_VARIANT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "CLARIFICATION"},
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
         ],
         "lines": lines,
         "staticText": static,
