@@ -304,8 +304,9 @@ namespace StingTools.Docs
     // ═══════════════════════════════════════════════════════════════════════
     //  Command 1 / Tier 1 — TitleBlockPopulate  (spec §7.1)
     //
-    //  Bulk-writes every PRJ_TB_* value from TITLE_BLOCK.csv into every sheet's
-    //  placed title block in one transaction. Locked sheets (PRJ_TB_LOCK_BOOL
+    //  Bulk-writes every parameter row in TITLE_BLOCK.csv into every sheet's
+    //  placed title block in one transaction (data-driven over the CSV rows,
+    //  not a fixed param list). Locked sheets (PRJ_TB_LOCK_BOOL
     //  = Yes) are skipped. Stamps PRJ_TB_LAST_SYNC_TXT / LAST_SYNC_BY on each
     //  populated sheet and PRJ_TB_TOTAL_NO_SHEETS_TXT on ProjectInformation.
     // ═══════════════════════════════════════════════════════════════════════
@@ -396,7 +397,12 @@ namespace StingTools.Docs
                     string disc = TitleBlockEngine.ResolveDiscipline(sheet);
                     int paramsWrittenThisSheet = 0;
 
-                    foreach (string paramName in ParamRegistry.AllTitleBlockParams)
+                    // Data-driven: populate every parameter row present in
+                    // TITLE_BLOCK.csv (not just the legacy 19), so newly-seeded
+                    // rows (visibility toggles, copyright/do-not-scale, contacts,
+                    // LOD, …) are applied. Params this title-block family does
+                    // not carry are skipped quietly (not counted as failures).
+                    foreach (string paramName in csv.DefaultValues.Keys)
                     {
                         // Never let the CSV overwrite sync/transmittal audit fields
                         if (paramName == ParamRegistry.TB_LAST_SYNC
@@ -409,6 +415,10 @@ namespace StingTools.Docs
 
                         string val = csv.ValueFor(paramName, disc);
                         if (string.IsNullOrEmpty(val)) continue;
+
+                        // Skip params this title block doesn't expose — "not
+                        // applicable", not a write failure.
+                        if (tb.LookupParameter(paramName) == null) continue;
 
                         bool ok;
                         if (ParamRegistry.TitleBlockBoolParams.Contains(paramName))
