@@ -1532,7 +1532,7 @@
           "size": 0.9
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             510,
             27
@@ -1753,16 +1753,7 @@
           "hAlign": "Left",
           "vAlign": "Middle"
         },
-        {
-          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
-          "anchor": [
-            510,
-            3
-          ],
-          "size": 1.0,
-          "hAlign": "Left",
-          "vAlign": "Middle"
-        },
+
         {
           "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
@@ -3146,7 +3137,7 @@
           "size": 1.17
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             835.867,
             163.4
@@ -4644,7 +4635,7 @@
           "size": 1.17
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             591.223,
             163.4
@@ -6961,7 +6952,7 @@
           "size": 0.9
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             417.58199999999994,
             138.0
@@ -8385,7 +8376,7 @@
           "size": 0.63
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             295.5,
             88.6
@@ -9809,7 +9800,7 @@
           "size": 0.63
         },
         {
-          "text": "LOIN/LOD",
+          "text": "LOD",
           "anchor": [
             209.39999999999998,
             88.6
@@ -13987,15 +13978,7 @@
           "size": 3.0,
           "hAlign": "Center"
         },
-        {
-          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
-          "anchor": [
-            420.5,
-            187.0
-          ],
-          "size": 4.0,
-          "hAlign": "Center"
-        },
+
         {
           "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
           "anchor": [

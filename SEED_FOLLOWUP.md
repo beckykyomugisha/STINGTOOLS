@@ -216,3 +216,32 @@ name:
    now shows an old name, **rebind** it to the new-named parameter (same GUID → same data).
 3. Rebind the four dropped legacy toggles to their canonical survivors (previous table).
 4. `.rfa` files were **NOT** touched in code (Revit 2025 has no label-authoring API).
+
+---
+
+## STATUS — suitability/purpose row fix (Work Item B, 2026-07-13)
+
+The default title-block compliance row was **de-duplicated**: the suitability *code*
+and the *issue purpose* overlapped semantically, and the master seed stacked both a
+**LOD** and a **PURPOSE** label cell in the same pocket.
+
+### Data/contract changes (done in code)
+
+- **`STING_TITLE_BLOCKS.json`** — removed the 2 `PRJ_DWG_ISSUE_PURPOSE_TXT` **label
+  cells** (Box 3) from the seed `labels[]`; the parameter stays **DEFINED** in every
+  family's `parameters[]` (7 defs, unchanged) so a project can still surface it if
+  wanted — it is just no longer placed in the default row. Normalized the 6 `"LOIN/LOD"`
+  captions to `"LOD"`.
+- Suitability is already split correctly: the **chip** binds to
+  `PRJ_DWG_SUITABILITY_COD_TXT` (a CODE, default `"S2"`) and the **description** to the
+  separate `PRJ_DWG_SUITABILITY_DESC_TXT` — no change needed.
+- **`STING_DRAWING_TYPES.json`** — added `"PRJ_DWG_LOIN_LOD_TXT": "LOD 300"` to the
+  `titleBlockParams` of all 93 production drawing types so the repurposed Box 3 (now LOD)
+  is auto-stamped. Result: the row reads **SECURITY | CDE REF | LOD | SYSTEM**.
+
+### Seed re-bind impact (what a human must still do)
+
+- In the master seed `.rfa`, the bottom-row **Box 3** cell authored as `PURPOSE:`
+  (bound to `PRJ_DWG_ISSUE_PURPOSE_TXT`) must be **re-captioned `LOD:`** and **re-bound to
+  `PRJ_DWG_LOIN_LOD_TXT`**. `PRJ_DWG_ISSUE_PURPOSE_TXT` remains a valid shared param — leave
+  it available but do not place it in the default row.

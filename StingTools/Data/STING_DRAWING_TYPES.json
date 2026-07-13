@@ -226,6 +226,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01",
         "Sheet Number": "A-{lvl}-{seq:D3}"
@@ -408,6 +409,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -593,6 +595,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -786,6 +789,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -998,6 +1002,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -1122,6 +1127,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -1251,6 +1257,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -1426,6 +1433,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -1613,6 +1621,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -1795,6 +1804,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Pipe",
         "Suitability": "A",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "FOR FABRICATION",
         "Spool Number": "{spool}",
         "System Code": "{sys}",
@@ -1980,6 +1990,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2113,6 +2124,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2223,6 +2235,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2329,6 +2342,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2433,6 +2447,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2541,6 +2556,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2662,6 +2678,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2793,6 +2810,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -2920,6 +2938,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3057,6 +3076,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3257,6 +3277,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3361,6 +3382,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3484,6 +3506,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3610,6 +3633,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3768,6 +3792,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -3948,6 +3973,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4101,6 +4127,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4240,6 +4267,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4391,6 +4419,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4523,6 +4552,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4653,6 +4683,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -4834,6 +4865,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5019,6 +5051,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Presentation",
         "Suitability": "S1",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "ISSUED FOR INFORMATION",
         "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
       },
@@ -5178,6 +5211,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5290,6 +5324,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5406,6 +5441,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5527,6 +5563,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5646,6 +5683,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5770,6 +5808,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -5901,6 +5940,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6011,6 +6051,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6116,6 +6157,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6211,6 +6253,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6311,6 +6354,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6406,6 +6450,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6516,6 +6561,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
@@ -6615,6 +6661,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6717,6 +6764,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6856,6 +6904,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -6966,6 +7015,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7100,6 +7150,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7231,6 +7282,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7385,6 +7437,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7540,6 +7593,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7722,6 +7776,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -7887,6 +7942,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
@@ -8047,6 +8103,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8111,6 +8168,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8185,6 +8243,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8259,6 +8318,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8335,6 +8395,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8409,6 +8470,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8483,6 +8545,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8557,6 +8620,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8631,6 +8695,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8705,6 +8770,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8779,6 +8845,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8853,6 +8920,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -8927,6 +8995,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9001,6 +9070,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9075,6 +9145,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9149,6 +9220,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9229,6 +9301,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9303,6 +9376,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9377,6 +9451,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9451,6 +9526,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9525,6 +9601,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9599,6 +9676,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9673,6 +9751,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9746,6 +9825,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9815,6 +9895,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9884,6 +9965,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -9952,6 +10034,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10020,6 +10103,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10088,6 +10172,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10155,6 +10240,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10232,6 +10318,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
@@ -10290,6 +10377,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10365,6 +10453,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       },
@@ -10437,6 +10526,7 @@
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
@@ -10469,6 +10559,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01",
         "Sheet Number": "M-SCH-EQ-{seq:D2}"
@@ -10533,6 +10624,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Electrical",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01",
         "Sheet Number": "E-SCH-PNL-{seq:D2}"
@@ -10596,6 +10688,7 @@
         "Registration No": "${PRJ_ORG_REG_NO_TXT}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
+        "PRJ_DWG_LOIN_LOD_TXT": "LOD 300",
         "Sheet Status": "WIP",
         "Revision": "P01",
         "Sheet Number": "P-SCH-VLV-{seq:D2}"
