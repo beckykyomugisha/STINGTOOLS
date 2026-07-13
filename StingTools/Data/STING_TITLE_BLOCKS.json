@@ -13758,13 +13758,97 @@
     {
       "id": "STING_TB_COVER_A1_v1.0",
       "extends": "A1_common_v2.0",
-      "description": "Project / package cover sheet \u2014 A1 landscape, NO drawable zone (viewport placement deliberately blocked). Top dark-blue banner, amber accent band, large centred project name + address + client + RIBA stage. Bottom strip carries deliverable status, revision, issue date, transmittal ref.",
+      "description": "Project / package cover sheet \u2014 A1 landscape, modern corporate BIM layout. Light header (company wordmark + doc no + client-logo slot) with a full-width project title below (long titles never clash with the logos). Document-control + BIM/coordination panels, project directory, a live-QR-to-CDE block, a multi-row REVISION HISTORY (revision-schedule zone + latest-issue fallback row), and a full-height splittable DRAWING REGISTER (sheet-list schedule zone). Optional consultant-logo strip pushed to the bottom, off by default. Dark text on light bands (legible with stock text types); navy/teal/amber accents. NO main drawable \u2014 viewport placement deliberately blocked. Labels authored once into the seed .rfa (Revit 2025 removed NewLabel), then auto-populate from ProjectInformation.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
         {
-          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "name": "PRJ_ORG_COMPANY_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_PROJECT_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_PROJECT_NUMBER_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_CLIENT_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_APPOINTING_PARTY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_ORIGINATOR_CODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_COORD_SYSTEM_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_PROJECT_NORTH_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_GROUND_LEVEL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_REGION_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_CLASS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_ORG_SECURITY_CLASS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_CLIENT_NAME_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -13776,13 +13860,103 @@
           "group": "IdentityData"
         },
         {
-          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "name": "PRJ_TB_DELIVERABLE_CDE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_FEDERATION_STATUS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
         },
         {
           "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DESCRIPTION_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DRAWN_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_CHECKED_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_APVD_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_AUTHORISED_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DATE_DRAWN_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_CONTRACTOR_NAME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_COPYRIGHT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DO_NOT_SCALE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_SHEET_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_TOTAL_NO_SHEETS_TXT",
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
@@ -13802,6 +13976,42 @@
           "default": "COVER"
         },
         {
+          "name": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_DWG_SUITABILITY_DESC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_DWG_LOIN_LOD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_SHEET_FULL_REF_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_SHEET_OF_TOTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
           "name": "PRJ_SHEET_BIM_MODE_TXT",
           "kind": "shared",
           "instance": true,
@@ -13813,18 +14023,7 @@
         {
           "from": [
             0,
-            0
-          ],
-          "to": [
-            841,
-            0
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            841,
-            0
+            594
           ],
           "to": [
             841,
@@ -13838,15 +14037,15 @@
             594
           ],
           "to": [
-            0,
-            594
+            841,
+            0
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            594
+            841,
+            0
           ],
           "to": [
             0,
@@ -13857,159 +14056,1584 @@
         {
           "from": [
             0,
-            534
+            0
           ],
           "to": [
-            841,
-            534
+            0,
+            594
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
             0,
-            100
+            548
           ],
           "to": [
             841,
-            100
+            548
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            60
+            250,
+            552
           ],
           "to": [
-            841,
-            60
+            250,
+            590
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            690,
+            590
+          ],
+          "to": [
+            835,
+            590
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            835,
+            590
+          ],
+          "to": [
+            835,
+            552
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            835,
+            552
+          ],
+          "to": [
+            690,
+            552
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            690,
+            552
+          ],
+          "to": [
+            690,
+            590
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            446
+          ],
+          "to": [
+            578,
+            446
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            433
+          ],
+          "to": [
+            292,
+            433
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            292,
+            433
+          ],
+          "to": [
+            292,
+            294
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            292,
+            294
+          ],
+          "to": [
+            13,
+            294
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            294
+          ],
+          "to": [
+            13,
+            433
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            20,
+            414
+          ],
+          "to": [
+            108,
+            414
           ],
           "style": "Medium Lines"
         },
         {
           "from": [
-            420.5,
-            0
+            112,
+            414
           ],
           "to": [
-            420.5,
-            100
+            200,
+            414
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            204,
+            414
+          ],
+          "to": [
+            288,
+            414
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            20,
+            359
+          ],
+          "to": [
+            286,
+            359
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            298,
+            433
+          ],
+          "to": [
+            576,
+            433
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            433
+          ],
+          "to": [
+            576,
+            294
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            294
+          ],
+          "to": [
+            298,
+            294
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            298,
+            294
+          ],
+          "to": [
+            298,
+            433
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            305,
+            357
+          ],
+          "to": [
+            570,
+            357
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            285
+          ],
+          "to": [
+            399,
+            285
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            399,
+            285
+          ],
+          "to": [
+            399,
+            178
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            399,
+            178
+          ],
+          "to": [
+            13,
+            178
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            178
+          ],
+          "to": [
+            13,
+            285
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            20,
+            192
+          ],
+          "to": [
+            393,
+            192
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            405,
+            285
+          ],
+          "to": [
+            576,
+            285
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            285
+          ],
+          "to": [
+            576,
+            178
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            178
+          ],
+          "to": [
+            405,
+            178
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            405,
+            178
+          ],
+          "to": [
+            405,
+            285
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            412,
+            252
+          ],
+          "to": [
+            450,
+            252
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            450,
+            252
+          ],
+          "to": [
+            450,
+            214
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            450,
+            214
+          ],
+          "to": [
+            412,
+            214
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            412,
+            214
+          ],
+          "to": [
+            412,
+            252
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            412,
+            208
+          ],
+          "to": [
+            570,
+            208
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            170
+          ],
+          "to": [
+            576,
+            170
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            170
+          ],
+          "to": [
+            576,
+            86
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            576,
+            86
+          ],
+          "to": [
+            13,
+            86
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            86
+          ],
+          "to": [
+            13,
+            170
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            144
+          ],
+          "to": [
+            576,
+            144
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            80
+          ],
+          "to": [
+            578,
+            80
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            578,
+            80
+          ],
+          "to": [
+            578,
+            59
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            578,
+            59
+          ],
+          "to": [
+            13,
+            59
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            13,
+            59
+          ],
+          "to": [
+            13,
+            80
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            590,
+            530
+          ],
+          "to": [
+            828,
+            530
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            828,
+            530
+          ],
+          "to": [
+            828,
+            56
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            828,
+            56
+          ],
+          "to": [
+            590,
+            56
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            590,
+            56
+          ],
+          "to": [
+            590,
+            530
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            590,
+            494
+          ],
+          "to": [
+            828,
+            494
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0,
+            46
+          ],
+          "to": [
+            841,
+            46
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            560,
+            6
+          ],
+          "to": [
+            560,
+            40
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            720,
+            6
+          ],
+          "to": [
+            720,
+            40
           ],
           "style": "Thin Lines"
         }
       ],
       "staticText": [
         {
-          "text": "PROJECT",
+          "text": "CONSULTING ENGINEERS  \u00b7  LEAD APPOINTED PARTY",
           "anchor": [
-            4,
-            580
+            15,
+            559
           ],
-          "size": 1.4
+          "size": 1.6,
+          "hAlign": "Left"
         },
         {
-          "text": "DELIVERABLE",
+          "text": "DOCUMENT No.",
           "anchor": [
-            4,
-            80
+            258,
+            580
           ],
-          "size": 1.0
+          "size": 1.5,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CLIENT / APPOINTING PARTY",
+          "anchor": [
+            692,
+            586
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PROJECT",
+          "anchor": [
+            14,
+            536
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LOCATION",
+          "anchor": [
+            14,
+            470
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DOCUMENT CONTROL",
+          "anchor": [
+            20,
+            428
+          ],
+          "size": 2.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SUITABILITY",
+          "anchor": [
+            23,
+            410
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "STATUS",
+          "anchor": [
+            115,
+            410
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
         },
         {
           "text": "REVISION",
           "anchor": [
-            4,
-            40
+            207,
+            410
           ],
-          "size": 1.0
+          "size": 1.1,
+          "hAlign": "Left"
         },
         {
-          "text": "ISSUE DATE",
+          "text": "PURPOSE OF ISSUE",
           "anchor": [
-            424.5,
-            80
+            20,
+            388
           ],
-          "size": 1.0
+          "size": 1.3,
+          "hAlign": "Left"
         },
         {
-          "text": "TRANSMITTAL",
+          "text": "SECURITY",
           "anchor": [
-            424.5,
-            40
+            20,
+            377
           ],
-          "size": 1.0
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LOD / LOIN",
+          "anchor": [
+            20,
+            366
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PREPARED",
+          "anchor": [
+            20,
+            349
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CHECKED",
+          "anchor": [
+            165,
+            349
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "APPROVED",
+          "anchor": [
+            20,
+            337
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "AUTHORISED",
+          "anchor": [
+            165,
+            337
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DATE OF ISSUE",
+          "anchor": [
+            20,
+            325
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "BIM & COORDINATION",
+          "anchor": [
+            305,
+            428
+          ],
+          "size": 2.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CDE STATE",
+          "anchor": [
+            305,
+            404
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "FED.",
+          "anchor": [
+            470,
+            404
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "COORD SYS",
+          "anchor": [
+            305,
+            391
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PROJECT N",
+          "anchor": [
+            305,
+            378
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "GROUND LVL",
+          "anchor": [
+            470,
+            378
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "REGION",
+          "anchor": [
+            305,
+            365
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CLASS",
+          "anchor": [
+            470,
+            365
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SUITABILITY CODES",
+          "anchor": [
+            305,
+            349
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "S0 WIP \u00b7 S1 \u00b7 S2 Shared/Info \u00b7 S3 Review \u00b7 S4 Stage Appr",
+          "anchor": [
+            305,
+            340
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "A/B/C Authorised \u00b7 Published \u00b7 Contractual",
+          "anchor": [
+            305,
+            331
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Naming standard: BS EN ISO 19650-2 : 2018",
+          "anchor": [
+            305,
+            320
+          ],
+          "size": 1.35,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Units mm \u00b7 Software Revit 2025 \u00b7 IFC 4",
+          "anchor": [
+            305,
+            309
+          ],
+          "size": 1.35,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PROJECT DIRECTORY",
+          "anchor": [
+            20,
+            280
+          ],
+          "size": 2.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "roles per ISO 19650-2",
+          "anchor": [
+            393,
+            280
+          ],
+          "size": 1.2,
+          "hAlign": "Right"
+        },
+        {
+          "text": "APPOINTING",
+          "anchor": [
+            20,
+            258
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LEAD PARTY",
+          "anchor": [
+            20,
+            246
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "STRUCTURAL",
+          "anchor": [
+            20,
+            234
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "MEP ENGINEER",
+          "anchor": [
+            20,
+            222
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CONTRACTOR",
+          "anchor": [
+            20,
+            210
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "ORIGINATOR",
+          "anchor": [
+            20,
+            198
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Information Manager: Mayanja Davis \u2014 Planscape \u00b7 contacts in the BEP",
+          "anchor": [
+            20,
+            185
+          ],
+          "size": 1.25,
+          "hAlign": "Left"
+        },
+        {
+          "text": "VERIFY \u2014 CDE",
+          "anchor": [
+            412,
+            280
+          ],
+          "size": 2.0,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SCAN FOR CURRENT ISSUE",
+          "anchor": [
+            456,
+            256
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Confirms the latest revision",
+          "anchor": [
+            456,
+            247
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "on the project CDE.",
+          "anchor": [
+            456,
+            239
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LINKS TO",
+          "anchor": [
+            456,
+            226
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Live QR \u2014 24 mm, 4-module quiet zone.",
+          "anchor": [
+            412,
+            200
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "REVISION HISTORY",
+          "anchor": [
+            20,
+            165
+          ],
+          "size": 2.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "revision schedule \u2014 full history, auto-grows",
+          "anchor": [
+            570,
+            165
+          ],
+          "size": 1.2,
+          "hAlign": "Right"
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            20,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DESCRIPTION",
+          "anchor": [
+            55,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SUIT.",
+          "anchor": [
+            360,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DATE",
+          "anchor": [
+            412,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DRAWN",
+          "anchor": [
+            470,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CHK'D",
+          "anchor": [
+            525,
+            148
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "\u25b2 latest issue \u2014 earlier revisions listed by the revision schedule",
+          "anchor": [
+            20,
+            96
+          ],
+          "size": 1.2,
+          "hAlign": "Left",
+          "visibility": "PRJ_TB_SHOW_REV_TABLE_BOOL"
+        },
+        {
+          "text": "OPTIONAL \u2014 consultant logo strip (off by default; enable only if a client mandates logos)",
+          "anchor": [
+            18,
+            71
+          ],
+          "size": 1.3,
+          "hAlign": "Left",
+          "visibility": "PRJ_TB_SHOW_COMPANY_STRIP_BOOL"
+        },
+        {
+          "text": "DRAWING REGISTER",
+          "anchor": [
+            597,
+            524
+          ],
+          "size": 2.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LIVE",
+          "anchor": [
+            822,
+            524
+          ],
+          "size": 1.2,
+          "hAlign": "Right"
+        },
+        {
+          "text": "Sheet-list schedule \u2014 auto-populated.",
+          "anchor": [
+            597,
+            507
+          ],
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SHEET",
+          "anchor": [
+            597,
+            499
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "TITLE",
+          "anchor": [
+            648,
+            499
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            822,
+            499
+          ],
+          "size": 1.2,
+          "hAlign": "Right"
+        },
+        {
+          "text": "HANDLES ANY SIZE",
+          "anchor": [
+            598,
+            106
+          ],
+          "size": 1.4,
+          "hAlign": "Left"
+        },
+        {
+          "text": "\u25b8 grows with the sheet set",
+          "anchor": [
+            598,
+            98
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "\u25b8 splits into columns",
+          "anchor": [
+            598,
+            90
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "\u25b8 overflows to a continuation sheet",
+          "anchor": [
+            598,
+            82
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "STANDARDS",
+          "anchor": [
+            568,
+            34
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
+        },
+        {
+          "text": "ISO 19650 \u00b7 BS 7671 \u00b7 EN 12056 \u00b7 CIBSE",
+          "anchor": [
+            568,
+            24
+          ],
+          "size": 1.4,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SHEET",
+          "anchor": [
+            728,
+            34
+          ],
+          "size": 1.2,
+          "hAlign": "Left"
         }
       ],
       "labels": [
         {
+          "param": "PRJ_ORG_COMPANY_NAME_TXT",
+          "anchor": [
+            14,
+            574
+          ],
+          "size": 5.5,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_SHEET_FULL_REF_TXT",
+          "anchor": [
+            258,
+            564
+          ],
+          "size": 3.4,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
+          "anchor": [
+            762,
+            566
+          ],
+          "size": 2.0,
+          "hAlign": "Center"
+        },
+        {
           "param": "PRJ_ORG_PROJECT_NAME_TXT",
           "anchor": [
-            420.5,
-            327.0
+            14,
+            512
           ],
-          "size": 16.0,
-          "hAlign": "Center"
+          "size": 12.0,
+          "hAlign": "Left"
         },
         {
           "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
           "anchor": [
-            420.5,
-            302.0
+            70,
+            470
           ],
-          "size": 4.0,
-          "hAlign": "Center"
+          "size": 2.8,
+          "hAlign": "Left"
         },
         {
-          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "param": "PRJ_ORG_PROJECT_NUMBER_TXT",
           "anchor": [
-            420.5,
-            257.0
+            14,
+            456
           ],
-          "size": 6.0,
-          "hAlign": "Center"
+          "size": 2.4,
+          "hAlign": "Left",
+          "prefix": "PROJECT No.  "
         },
         {
-          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
-            420.5,
-            217.0
+            250,
+            456
           ],
-          "size": 3.0,
+          "size": 2.4,
+          "hAlign": "Left",
+          "prefix": "CLIENT:  "
+        },
+        {
+          "param": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "anchor": [
+            64.0,
+            401
+          ],
+          "size": 2.8,
           "hAlign": "Center"
         },
-
         {
           "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
           "anchor": [
-            4,
-            70
+            156.0,
+            401
           ],
-          "size": 2.0
+          "size": 2.8,
+          "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_REVISION_NR_TXT",
           "anchor": [
-            4,
-            30
+            246.0,
+            401
           ],
-          "size": 3.0
+          "size": 2.8,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "anchor": [
+            118,
+            388
+          ],
+          "size": 1.9,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_SECURITY_CLASS_TXT",
+          "anchor": [
+            118,
+            377
+          ],
+          "size": 1.9,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_DWG_LOIN_LOD_TXT",
+          "anchor": [
+            118,
+            366
+          ],
+          "size": 1.9,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_DRAWN_BY_TXT",
+          "anchor": [
+            70,
+            349
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_CHECKED_BY_TXT",
+          "anchor": [
+            215,
+            349
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_APVD_BY_TXT",
+          "anchor": [
+            70,
+            337
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_AUTHORISED_BY_TXT",
+          "anchor": [
+            222,
+            337
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_DATE_DRAWN_TXT",
           "anchor": [
-            424.5,
-            70
+            118,
+            325
           ],
-          "size": 2.0
+          "size": 1.8,
+          "hAlign": "Left"
         },
         {
-          "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "param": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "anchor": [
-            424.5,
-            30
+            20,
+            311
           ],
-          "size": 2.0
+          "size": 1.6,
+          "hAlign": "Left",
+          "prefix": "Suitability: "
+        },
+        {
+          "param": "PRJ_TB_DELIVERABLE_CDE_TXT",
+          "anchor": [
+            372,
+            404
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_FEDERATION_STATUS_TXT",
+          "anchor": [
+            500,
+            404
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_COORD_SYSTEM_TXT",
+          "anchor": [
+            372,
+            391
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_NORTH_TXT",
+          "anchor": [
+            372,
+            378
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_GROUND_LEVEL_TXT",
+          "anchor": [
+            540,
+            378
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_REGION_TXT",
+          "anchor": [
+            372,
+            365
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_CLASS_TXT",
+          "anchor": [
+            512,
+            365
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_APPOINTING_PARTY_TXT",
+          "anchor": [
+            98,
+            258
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
+          "anchor": [
+            98,
+            246
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            98,
+            234
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            98,
+            222
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_NAME_TXT",
+          "anchor": [
+            98,
+            210
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_ORIGINATOR_CODE_TXT",
+          "anchor": [
+            98,
+            198
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_SHEET_FULL_REF_TXT",
+          "anchor": [
+            456,
+            218
+          ],
+          "size": 1.4,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            20,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_REVISION_DESCRIPTION_TXT",
+          "anchor": [
+            55,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "anchor": [
+            360,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_REVISION_DATE_TXT",
+          "anchor": [
+            412,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_DRAWN_BY_TXT",
+          "anchor": [
+            470,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_CHECKED_BY_TXT",
+          "anchor": [
+            525,
+            136
+          ],
+          "size": 1.8,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_COPYRIGHT_TXT",
+          "anchor": [
+            14,
+            34
+          ],
+          "size": 1.6,
+          "hAlign": "Left",
+          "prefix": "\u00a9 "
+        },
+        {
+          "param": "PRJ_TB_DO_NOT_SCALE_TXT",
+          "anchor": [
+            14,
+            22
+          ],
+          "size": 1.6,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_SHEET_NR_TXT",
+          "anchor": [
+            728,
+            20
+          ],
+          "size": 3.2,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_TOTAL_NO_SHEETS_TXT",
+          "anchor": [
+            762,
+            20
+          ],
+          "size": 3.2,
+          "hAlign": "Left",
+          "prefix": " / "
         }
       ],
       "filledRegions": [
@@ -14020,25 +15644,222 @@
           ],
           "bottomRight": [
             841,
-            534
+            548
           ],
           "fillTypeName": "Solid fill",
-          "color": "#1F4E79"
+          "color": "#EEF2F5"
         },
         {
           "topLeft": [
             0,
-            100
+            594
+          ],
+          "bottomRight": [
+            6,
+            548
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#2F7D8F"
+        },
+        {
+          "topLeft": [
+            13,
+            433
+          ],
+          "bottomRight": [
+            292,
+            417
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            20,
+            414
+          ],
+          "bottomRight": [
+            108,
+            396
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            112,
+            414
+          ],
+          "bottomRight": [
+            200,
+            396
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            204,
+            414
+          ],
+          "bottomRight": [
+            288,
+            396
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            298,
+            433
+          ],
+          "bottomRight": [
+            576,
+            417
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            13,
+            285
+          ],
+          "bottomRight": [
+            399,
+            269
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            405,
+            285
+          ],
+          "bottomRight": [
+            576,
+            269
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            13,
+            170
+          ],
+          "bottomRight": [
+            576,
+            154
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            590,
+            530
+          ],
+          "bottomRight": [
+            828,
+            514
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            592,
+            114
+          ],
+          "bottomRight": [
+            826,
+            60
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            0,
+            46
           ],
           "bottomRight": [
             841,
-            95
+            0
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#EEF2F5"
+        },
+        {
+          "topLeft": [
+            0,
+            46
+          ],
+          "bottomRight": [
+            6,
+            0
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
         }
       ],
-      "slots": []
+      "slots": [
+        {
+          "id": "qr-code",
+          "anchor": [
+            412,
+            214
+          ],
+          "size": [
+            38,
+            38
+          ],
+          "purposeTag": "qr-code",
+          "description": "Live sheet-level QR to the CDE record"
+        },
+        {
+          "id": "revision-schedule",
+          "anchor": [
+            14,
+            90
+          ],
+          "size": [
+            560,
+            50
+          ],
+          "purposeTag": "revision-schedule",
+          "description": "Live Revit revision schedule \u2014 full issue history"
+        },
+        {
+          "id": "company-strip",
+          "anchor": [
+            300,
+            60
+          ],
+          "size": [
+            270,
+            18
+          ],
+          "purposeTag": "company-strip",
+          "description": "Optional consultant logo band"
+        },
+        {
+          "id": "drawing-register",
+          "anchor": [
+            592,
+            122
+          ],
+          "size": [
+            234,
+            370
+          ],
+          "purposeTag": "sheet-list",
+          "description": "Live project sheet-list schedule"
+        }
+      ]
     },
     {
       "id": "STING_TB_DIVIDER_A1_v1.0",
