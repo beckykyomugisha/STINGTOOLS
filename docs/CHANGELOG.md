@@ -3,6 +3,50 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Family Converter — change a family's host / placement type)
+
+Branch `claude/family-converter-7fa3c2`. **Build-verified** `dotnet build -t:Rebuild` = 0 errors /
+0 new warnings vs the 6-warning baseline (new files emit 0 warnings). **Runtime-unverified** — the
+sandbox compiles but cannot drive Revit's UI; the tab appearing and a real conversion re-hosting an
+instance need a running Revit (see the PR handover checklist).
+
+A durable tool that changes a Revit family's host / placement type (e.g. Ceiling-hosted → Face-based)
+and keeps it working across the project library. `Family.FamilyPlacementType` is read-only in the API,
+so the engine picks one of two mechanisms per `(source → target)` pair:
+
+- **New `Core/Placement/FamilyHostConverter.cs`** — pure engine (no UI / no `TaskDialog`).
+  - **P1 — checkbox toggle (lossless):** Unhosted level-based → Face-based by setting
+    `BuiltInParameter.FAMILY_WORK_PLANE_BASED` on the `OwnerFamily` inside the family doc, then
+    `LoadFamily` overwrite. Geometry / params / connectors untouched; existing instances survive.
+    (The design spec named `FAMILY_WORK_PLANE_BASED_PARAM`, which does not exist in the Revit 2025 API —
+    the real member is `FAMILY_WORK_PLANE_BASED`.)
+  - **P2 — template rebuild (lossy, gated behind the "Allow lossy rebuild" toggle):** `NewFamilyDocument`
+    from the target host `.rft`, `ElementTransformUtils.CopyElements` for geometry + reference planes,
+    recreate family parameters (shared by GUID via the shared-parameter file where present, family by
+    name/type otherwise), formulas, and types via `FamilyManager`, re-apply the original category
+    (gated through `FamilyCategoryCompatibility.ModelFamilyGroup`), `SaveAs` a new `.rfa` under
+    `_BIM_COORD/Families/Converted`, then `LoadFamily` overwrite. Best-effort non-interactive instance
+    rehost (free-standing re-place for Face-based / Unhosted targets; hosted targets are flagged for a
+    manual host pick — a face/host cannot be picked in batch). MEP connectors do **not** survive
+    `CopyElements` and are honestly flagged as a manual step; host-relative geometry re-anchors to the
+    template default and is flagged for review.
+  - Per-document registry (`FamilyHostTemplateRegistry`) layering corporate baseline over a
+    `<project>/_BIM_COORD/family_host_templates.json` override, mirroring `MepSizingRegistry`.
+  - §9 edge cases: non-model / in-place / curve-driven families refused; already-at-target reported as
+    no-change; missing `.rft` skipped with the resolved path; workshared families owned by another user
+    skipped with an ownership note; nested-usage families flagged.
+- **New `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`** — 6-target matrix (Face / Unhosted / Wall /
+  Ceiling / Floor / Roof) + path rules (`Unhosted → FaceBased` = P1; everything else = P2).
+- **New "Family Converter" tab** in the modeless Placement Centre (`StingPlacementCenter.xaml[.cs]`),
+  immediately after "Library". Scan / Import-folder / Load-`.rfa` toolbar, a per-row
+  `DataGridTemplateColumn` target combo (per-row `AllowedTargets`, not a column-wide list) with a live
+  P1/P2 Path hint that recomputes on selection, and Apply Selected / Apply All Pending / Save-Reload /
+  Audit Only. Everything routes through the existing `RunInlineAction` bridge and renders into the shared
+  inline Report panel (`bdrReport`) — no pop-ups except the OS file/folder pickers. Batch runs isolate
+  per-family failures so one bad family never aborts the run. Reuses `StingFamilyLoadOptions`,
+  `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
+  `SymbolLibraryCreator.ResolveTemplateFolder`.
+
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
 Branch `claude/placement-matrix`. Build clean `-c Release` (0/0). **Model-modifying — verify placement
