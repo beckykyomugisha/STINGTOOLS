@@ -2,14 +2,17 @@
 # STING Tools - Title Block parameter set - generated from STING_TITLE_BLOCKS.json + MR_PARAMETERS.txt
 # Load: Revit > Manage > Shared Parameters > Browse. Bind to category 'Title Blocks' (instance).
 #
-# G1-d: the GROUP ids 1-6 below are a *presentation* grouping local to this
+# G1-d: the GROUP ids 1-7 below are a *presentation* grouping local to this
 # title-block file; they do NOT match the master PARAMETER_REGISTRY.json /
 # MR_PARAMETERS.txt group_ids. The drawing/sheet params here map to the master
 # PRJ_INFORMATION group (id 13) in the registry - e.g. PRJ_DWG_ISSUE_PURPOSE_TXT
 # is local group 4 (04_Sheet_Context) here but master group 13 (PRJ_INFORMATION).
-# By design, the 7 PRJ_TB_SHOW_*_BOOL visibility toggles are NOT in this file:
-# they live in MR_PARAMETERS.txt master GROUP 26 (TBL_TITLEBLOCK) and are applied
-# programmatically to the title-block instance, not bound as label cells here.
+# The 7 PRJ_TB_SHOW_*_BOOL visibility toggles live in local group 7 here (master
+# GROUP 26 TBL_TITLEBLOCK). They are YESNO *instance* params bound to the
+# title-block family so the graphics placers (TitleBlock_PlaceNorthArrow /
+# PlaceScaleBar / PlaceKeyPlan, TitleBlock_StampQR, ...) can read them per
+# instance via LookupParameter and gate the nested/drawn graphic. Bind them
+# together with the label cells when authoring the family (see SEED_FOLLOWUP.md).
 *META	VERSION	MINVERSION
 META	2	1
 *GROUP	ID	NAME
@@ -19,6 +22,7 @@ GROUP	3	03_Drawing_Suitability
 GROUP	4	04_Sheet_Context
 GROUP	5	05_ISO_SheetID_Federation
 GROUP	6	06_Fabrication_Assembly
+GROUP	7	07_Visibility_Toggles
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
 PARAM	b9df91ba-d8ee-561c-9786-d0ce3c74c55e	PRJ_ORG_APPOINTING_PARTY_TXT	TEXT		1	1	ISO 19650 appointing party name [template engine v1.1]	1	0
 PARAM	834df80b-0472-5724-afab-1c90ce7eac80	PRJ_ORG_COMPANY_ADDRESS_TXT	TEXT		1	1	Producing company address (default Kampala, Uganda) [template engine v1.1]	1	0
@@ -101,3 +105,10 @@ PARAM	568275cf-468d-5333-ae12-8ee849d81ee9	PRJ_ORG_CONTACT_WEBSITE_TXT	TEXT		1	1
 PARAM	960efd58-1fad-55a3-97e0-496b795f3465	PRJ_ORG_REG_NO_TXT	TEXT		1	1	Company registration number [STING TB v1]	1	0
 PARAM	7bab41ba-b65c-5e43-9793-e741034ad054	PRJ_TB_COPYRIGHT_TXT	TEXT		2	1	Copyright / rights-reserved notice for the title block [STING TB v1]	1	0
 PARAM	eb9170de-891b-5b35-ae2c-e41dddc28888	PRJ_TB_DO_NOT_SCALE_TXT	TEXT		2	1	Do-not-scale caption for the title block [STING TB v1]	1	0
+PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	PRJ_TB_SHOW_NORTH_ARROW_BOOL	YESNO		7	1	Visibility toggle for nested north arrow [STING TB v1]	1	0
+PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	PRJ_TB_SHOW_SCALE_BAR_BOOL	YESNO		7	1	Visibility toggle for nested scale bar [STING TB v1]	1	0
+PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	PRJ_TB_SHOW_KEY_PLAN_BOOL	YESNO		7	1	Visibility toggle for nested key plan [STING TB v1]	1	0
+PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL	YESNO		7	1	Visibility toggle for discipline color strip [STING TB v1]	1	0
+PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	PRJ_TB_SHOW_REV_TABLE_BOOL	YESNO		7	1	Visibility toggle for embedded revision schedule [STING TB v1]	1	0
+PARAM	77246dff-2e64-5986-baa8-7ba6d38a8e1b	PRJ_TB_SHOW_QR_CODE_BOOL	YESNO		7	1	Visibility toggle for QR code stamp [STING TB v1]	1	0
+PARAM	46ee0d08-0b63-55af-9099-9b1f4a11e2a9	PRJ_TB_SHOW_COMPANY_STRIP_BOOL	YESNO		7	1	Visibility toggle for company info strip logo address contacts [STING TB v1]	1	0
