@@ -40,6 +40,11 @@ namespace StingTools.Core.Drawing
         public string OverrideSheetNumber { get; set; }
         public string OverrideSheetName { get; set; }
         public DrawingProductionPreset Preset { get; set; }
+        /// <summary>W-E — after the title block is stamped, optionally place the
+        /// toggle-gated slot graphics (QR + north arrow + scale bar + key plan +
+        /// legend). Off by default; graphics failures are collected as warnings
+        /// and never abort the producer run.</summary>
+        public bool StampTitleBlockGraphics { get; set; } = false;
     }
 
     public sealed class ProduceResult
@@ -713,6 +718,20 @@ namespace StingTools.Core.Drawing
                         result.Warnings.Add("TitleBlockParams: " + w);
                 }
                 catch (Exception ex2) { result.Warnings.Add($"TitleBlockParams: {ex2.Message}"); }
+            }
+
+            // W-E — optional slot-graphics pass (toggle-gated, best-effort).
+            // Runs inside the producer's existing transaction; a graphics
+            // failure is a warning, never a producer failure.
+            if (opts.StampTitleBlockGraphics)
+            {
+                try
+                {
+                    var gLog = new List<string>();
+                    StingTools.Commands.Drawing.TitleBlockGraphicsOrchestrator.StampSheet(doc, sheet, gLog);
+                    foreach (var w in gLog) result.Warnings.Add("SheetGraphics: " + w);
+                }
+                catch (Exception exg) { result.Warnings.Add($"SheetGraphics: {exg.Message}"); }
             }
 
             return sheet.Id;

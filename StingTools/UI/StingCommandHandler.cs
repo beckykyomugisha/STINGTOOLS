@@ -721,6 +721,14 @@ namespace StingTools.UI
                     // ── W4 — QR stamp on the sheet's title-block slot ──
                     case "TitleBlock_StampQR":            RunCommand<Commands.Drawing.TitleBlockStampQRCommand>(app); break;
                     case "TitleBlock_StampQRAll":         RunCommand<Commands.Drawing.TitleBlockStampQRAllCommand>(app); break;
+                    // ── W-C/D/E — slot-driven title-block graphics ──
+                    case "TitleBlock_PlaceNorthArrow":    RunCommand<Commands.Drawing.TitleBlockPlaceNorthArrowCommand>(app); break;
+                    case "TitleBlock_PlaceScaleBar":      RunCommand<Commands.Drawing.TitleBlockPlaceScaleBarCommand>(app); break;
+                    case "TitleBlock_PlaceKeyPlan":       RunCommand<Commands.Drawing.TitleBlockPlaceKeyPlanCommand>(app); break;
+                    case "TitleBlock_PlaceLegend":        RunCommand<Commands.Drawing.TitleBlockPlaceLegendCommand>(app); break;
+                    case "TitleBlock_BuildGraphicsFamilies": RunCommand<Commands.Drawing.TitleBlockBuildGraphicsFamiliesCommand>(app); break;
+                    case "TitleBlock_StampSheetGraphics":    RunCommand<Commands.Drawing.TitleBlockStampSheetGraphicsCommand>(app); break;
+                    case "TitleBlock_StampSheetGraphicsAll": RunCommand<Commands.Drawing.TitleBlockStampSheetGraphicsAllCommand>(app); break;
 
                     // ── W2/W3 — discipline legends + standard notes ──
                     case "Str_DrawingLegend":             RunCommand<Commands.Reports.StructuralDrawingLegendCommand>(app); break;

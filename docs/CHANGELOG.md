@@ -3,6 +3,45 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Title-block param normalization + slot graphics — Work Items A–E, branch `claude/tb-w1w5-impl`)
+
+Follow-on to the W1–W5 title-block work below. Release build **0 errors / 0 warnings**
+(`-t:Rebuild`, Revit 2025) after every work-item. **Not merged to main**; **no `.rfa` touched**
+(Revit 2025 has no label-authoring API — cell rebinds captured in [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md)).
+
+- **A — Parameter naming normalization (GUID-preserved).** Renamed the title-block shared params to a
+  consistent `PRJ_*` scheme: `STING_SHEET_*` → `PRJ_SHEET_*` (10 TXT + `SEQUENCE_INT`),
+  `STING_SUITABILITY_DESC` → `PRJ_DWG_SUITABILITY_DESC_TXT`, `STING_LOIN_LOD` → `PRJ_DWG_LOIN_LOD_TXT`,
+  `STING_FEDERATION_STATUS` → `PRJ_TB_FEDERATION_STATUS_TXT`, `STING_AUTHORISED_BY/DATE` →
+  `PRJ_TB_AUTHORISED_*`, `TB_COPYRIGHT`/`TB_DO_NOT_SCALE` → `PRJ_TB_*`. Consolidated 7 duplicate
+  visibility toggles to one canonical `PRJ_TB_SHOW_*` each (dropped the legacy GROUP-13 GUIDs, kept the
+  GROUP-26 GUIDs). Swept every reference across `MR_PARAMETERS.txt/.csv`, `PARAMETER_REGISTRY.json`,
+  the binding CSVs, `STING_TITLE_BLOCK_PARAMETERS.txt`, `STING_TITLE_BLOCKS.json`,
+  `STING_DRAWING_TYPES.json`, `ParamRegistry.cs`, all title-block `.cs`, and `StingDockPanel.xaml`;
+  zero `STING_`-prefixed param refs remain in source.
+- **B — Suitability/purpose row fix.** Default compliance row de-duplicated to
+  **SECURITY | CDE REF | LOD | SYSTEM**: removed the 2 `PRJ_DWG_ISSUE_PURPOSE_TXT` label cells from the
+  seed (param stays defined, just unused in the default row), normalized the LOD caption, and added
+  `PRJ_DWG_LOIN_LOD_TXT` to all 93 drawing types' `titleBlockParams`. Suitability chip already binds the
+  CODE param with a separate description param.
+- **C — Slot-driven graphics placement.** Generalised the W4 QR pattern into four toggle-gated,
+  idempotent, remove-when-off placers — `TitleBlock_PlaceNorthArrow` / `PlaceScaleBar` / `PlaceKeyPlan`
+  / `PlaceLegend` — landing on the reserved `north-arrow` / `scale-bar` / `key-plan` /
+  `discipline-legend` slots. North arrow rotates to project north; scale bar keys to the primary plan
+  viewport's scale; key plan is a per-sheet drafting view; legend reuses `DisciplineLegendEngine`
+  (closes the W1 legend gap). New shared helpers in `TitleBlockSlotUtils`.
+- **D — Annotation family builder.** `TitleBlock_BuildGraphicsFamilies` authors the 3 minimal
+  Generic-Annotation families (`STING_TB_NorthArrow` / `ScaleBar` / `KeyPlanBase`) via
+  `Application.NewFamilyDocument` + `FamilyManager`, into `Families/Annotations/` where
+  `TitleBlockGraphicsRegistry` loads them. `.rfa` are generated on first run (binary format, not
+  committed); placers skip cleanly until they exist. `Families/Annotations/README.md` documents it.
+- **E — Orchestrator + producer wiring.** `TitleBlock_StampSheetGraphics` (active) /
+  `TitleBlock_StampSheetGraphicsAll` run QR + north + scale + key-plan + legend in one TransactionGroup,
+  each toggle-gated, collecting per-graphic failures without aborting. `DrawingProducer` gained an
+  optional `ProduceOptions.StampTitleBlockGraphics` flag (default off) that runs the same orchestrator
+  after the title block is stamped, folding graphics issues into producer warnings. All new commands
+  registered in `StingCommandHandler` + the DOCS panel.
+
 #### Completed (Title-block / Legends / Notes / QR — branch `claude/tb-w1w5-impl`)
 
 Five title-block-and-documentation workstreams. Base `claude/gold-all-integration` (`3821c2ab4`).
