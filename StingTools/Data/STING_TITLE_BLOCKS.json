@@ -2737,7 +2737,7 @@
         {
           "id": "QR",
           "anchor": [ 1134, 137 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
@@ -4235,7 +4235,7 @@
         {
           "id": "QR",
           "anchor": [ 786, 137 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
@@ -5710,7 +5710,7 @@
         {
           "id": "QR",
           "anchor": [ 786, 117 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
@@ -6552,7 +6552,7 @@
         {
           "id": "QR",
           "anchor": [ 539, 117 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
@@ -7976,7 +7976,7 @@
         {
           "id": "QR",
           "anchor": [ 365, 77 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
@@ -9400,7 +9400,7 @@
         {
           "id": "QR",
           "anchor": [ 242, 77 ],
-          "size": [ 16, 16 ],
+          "size": [ 24, 24 ],
           "purposeTag": "qr-code",
           "category": "symbol",
           "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
