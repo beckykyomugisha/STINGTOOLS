@@ -9,7 +9,13 @@
       "abstract": true,
       "description": "A1 landscape working sheet \u2014 common base shared between BIM and NONBIM variants. Parameter set per TITLE_BLOCK_FAMILY_DESIGN.md \u00a72.1 \u2014 Group A (project / originator / consultants / contractor identity + addresses) + Group C (authoring drawn/checked/approved). Defines the bottom-strip layout, outer border, and the 8 viewport slots. Concrete variants extend this and overlay BIM-specific or NONBIM-specific cells.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
-      "drawable": { "x": 10, "y": 120, "w": 810, "h": 470, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 120,
+        "w": 810,
+        "h": 470,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -928,8 +934,14 @@
             810,
             470
           ],
-          "fracAnchor": [0.0, 0.0],
-          "fracSize": [1.0, 1.0],
+          "fracAnchor": [
+            0.0,
+            0.0
+          ],
+          "fracSize": [
+            1.0,
+            1.0
+          ],
           "purposeTag": "main-plan",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -947,8 +959,14 @@
             400,
             470
           ],
-          "fracAnchor": [0.0, 0.0],
-          "fracSize": [0.493827, 1.0],
+          "fracAnchor": [
+            0.0,
+            0.0
+          ],
+          "fracSize": [
+            0.493827,
+            1.0
+          ],
           "purposeTag": "main-plan-half-left",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -966,8 +984,14 @@
             400,
             470
           ],
-          "fracAnchor": [0.506173, 0.0],
-          "fracSize": [0.493827, 1.0],
+          "fracAnchor": [
+            0.506173,
+            0.0
+          ],
+          "fracSize": [
+            0.493827,
+            1.0
+          ],
           "purposeTag": "main-plan-half-right",
           "viewportType": "Title w/ Line",
           "scaleHint": 100,
@@ -985,8 +1009,14 @@
             400,
             230
           ],
-          "fracAnchor": [0.0, 0.0],
-          "fracSize": [0.493827, 0.489362],
+          "fracAnchor": [
+            0.0,
+            0.0
+          ],
+          "fracSize": [
+            0.493827,
+            0.489362
+          ],
           "purposeTag": "quad-bottom-left",
           "scaleHint": 200,
           "description": "Bottom-left quadrant \u2014 4-up grid",
@@ -1003,8 +1033,14 @@
             400,
             230
           ],
-          "fracAnchor": [0.506173, 0.0],
-          "fracSize": [0.493827, 0.489362],
+          "fracAnchor": [
+            0.506173,
+            0.0
+          ],
+          "fracSize": [
+            0.493827,
+            0.489362
+          ],
           "purposeTag": "quad-bottom-right",
           "scaleHint": 200,
           "description": "Bottom-right quadrant \u2014 4-up grid",
@@ -1021,8 +1057,14 @@
             400,
             230
           ],
-          "fracAnchor": [0.0, 0.510638],
-          "fracSize": [0.493827, 0.489362],
+          "fracAnchor": [
+            0.0,
+            0.510638
+          ],
+          "fracSize": [
+            0.493827,
+            0.489362
+          ],
           "purposeTag": "quad-top-left",
           "scaleHint": 200,
           "description": "Top-left quadrant \u2014 4-up grid",
@@ -1039,8 +1081,14 @@
             400,
             230
           ],
-          "fracAnchor": [0.506173, 0.510638],
-          "fracSize": [0.493827, 0.489362],
+          "fracAnchor": [
+            0.506173,
+            0.510638
+          ],
+          "fracSize": [
+            0.493827,
+            0.489362
+          ],
           "purposeTag": "quad-top-right",
           "scaleHint": 200,
           "description": "Top-right quadrant \u2014 4-up grid",
@@ -1057,8 +1105,14 @@
             120,
             100
           ],
-          "fracAnchor": [0.839506, 0.021277],
-          "fracSize": [0.148148, 0.212766],
+          "fracAnchor": [
+            0.839506,
+            0.021277
+          ],
+          "fracSize": [
+            0.148148,
+            0.212766
+          ],
           "purposeTag": "key-plan",
           "scaleHint": 500,
           "description": "Key-plan pocket \u2014 small location overview",
@@ -1753,7 +1807,6 @@
           "hAlign": "Left",
           "vAlign": "Middle"
         },
-
         {
           "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
@@ -1948,7 +2001,13 @@
       "extends": "A1_common_v2.0",
       "description": "A0 landscape working sheet (1189 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 1169 \u00d7 696 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
-      "drawable": { "x": 10, "y": 135, "w": 1169, "h": 701, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 135,
+        "w": 1169,
+        "h": 701,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -2736,11 +2795,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 1134, 137 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            1134,
+            137
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -3446,7 +3511,13 @@
       "extends": "A1_common_v2.0",
       "description": "A0 portrait working sheet (841 \u00d7 1189 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 821 \u00d7 1044 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
-      "drawable": { "x": 10, "y": 135, "w": 821, "h": 1049, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 135,
+        "w": 821,
+        "h": 1049,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -4234,11 +4305,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 786, 137 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            786,
+            137
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -5709,11 +5786,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 786, 117 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            786,
+            117
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -5763,7 +5846,13 @@
       "extends": "A1_common_v2.0",
       "description": "A1 portrait working sheet (594 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 574 \u00d7 716 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
-      "drawable": { "x": 10, "y": 115, "w": 574, "h": 721, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 115,
+        "w": 574,
+        "h": 721,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -6551,11 +6640,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 539, 117 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            539,
+            117
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -7261,7 +7356,13 @@
       "extends": "A1_common_v2.0",
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 400 \u00d7 212 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
-      "drawable": { "x": 10, "y": 75, "w": 400, "h": 217, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 75,
+        "w": 400,
+        "h": 217,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -7975,11 +8076,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 365, 77 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            365,
+            77
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -8685,7 +8792,13 @@
       "extends": "A1_common_v2.0",
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 277 \u00d7 335 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
-      "drawable": { "x": 10, "y": 75, "w": 277, "h": 340, "marginMm": 25 },
+      "drawable": {
+        "x": 10,
+        "y": 75,
+        "w": 277,
+        "h": 340,
+        "marginMm": 25
+      },
       "category": "OST_TitleBlocks",
       "parameters": [
         {
@@ -9399,11 +9512,17 @@
         },
         {
           "id": "QR",
-          "anchor": [ 242, 77 ],
-          "size": [ 24, 24 ],
+          "anchor": [
+            242,
+            77
+          ],
+          "size": [
+            24,
+            24
+          ],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR code stamp — SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default — refine in the .rfa (see SEED_FOLLOWUP.md).",
+          "description": "QR code stamp \u2014 SHEET-level raster placed by TitleBlock_StampQR (not a nested family); hides via PRJ_TB_SHOW_QR_CODE_BOOL. Position is a seed default \u2014 refine in the .rfa (see SEED_FOLLOWUP.md).",
           "createReferencePlanes": false,
           "showCornerMarker": false,
           "respectShowToggle": true,
@@ -13757,7 +13876,7 @@
     },
     {
       "id": "STING_TB_COVER_A1_v1.0",
-      "description": "Project / package cover sheet \u2014 A1 landscape, modern corporate BIM layout. Light header (company wordmark + doc no + client-logo slot) with a full-width project title below (long titles never clash with the logos). Document-control + BIM/coordination panels, project directory, a live-QR-to-CDE block, a multi-row REVISION HISTORY (revision-schedule zone + latest-issue fallback row), and a full-height splittable DRAWING REGISTER (sheet-list schedule zone). Optional consultant-logo strip pushed to the bottom, off by default. Dark text on light bands (legible with stock text types); navy/teal/amber accents. NO main drawable \u2014 viewport placement deliberately blocked. Labels authored once into the seed .rfa (Revit 2025 removed NewLabel), then auto-populate from ProjectInformation.",
+      "description": "Project / package cover sheet \u2014 A1 landscape, v8 corporate BIM layout. Light header (company wordmark + doc no + issue + suit/rev + discipline colour block). Big project title. DOCUMENT CONTROL (chips + fields + embedded QR) and BIM & COORDINATION (geodesy + discipline-colour legend) row. LATEST ISSUES (bounded last-4 revision schedule) + CHANGES IN THIS ISSUE box. PROJECT DIRECTORY as six stakeholder logo-cards (directory + logos combined). Full-height right column: DRAWING REGISTER (live sheet-list) over a tabular STANDARDS & REFERENCES panel. Factory builds graphics only \u2014 labels are donor-copied from the prior .rfa and the 7 discipline-colour family types are hand-set in the Family Editor (Revit 2025 removed NewLabel; factory has no per-type region visibility or coloured text).",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
@@ -14132,611 +14251,749 @@
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_ISSUE_SUMMARY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
         {
           "from": [
-            0,
-            594
+            8,
+            8
           ],
           "to": [
-            841,
-            594
+            833,
+            8
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            841,
-            594
+            833,
+            8
           ],
           "to": [
-            841,
-            0
+            833,
+            586
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            841,
-            0
+            833,
+            586
           ],
           "to": [
-            0,
-            0
+            8,
+            586
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            0
+            8,
+            586
           ],
           "to": [
-            0,
-            594
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            0,
-            548
-          ],
-          "to": [
-            841,
-            548
+            8,
+            8
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
             250,
-            552
+            551
           ],
           "to": [
             250,
-            590
+            580
           ],
           "style": "Thin Lines"
         },
         {
           "from": [
-            690,
-            590
+            470,
+            551
           ],
           "to": [
-            835,
-            590
+            470,
+            580
           ],
           "style": "Thin Lines"
         },
         {
           "from": [
-            835,
-            590
+            560,
+            551
           ],
           "to": [
-            835,
-            552
+            560,
+            580
           ],
           "style": "Thin Lines"
         },
         {
           "from": [
-            835,
-            552
+            14,
+            499
           ],
           "to": [
-            690,
-            552
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            690,
-            552
-          ],
-          "to": [
-            690,
-            590
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            446
-          ],
-          "to": [
-            578,
-            446
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            433
-          ],
-          "to": [
-            292,
-            433
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            292,
-            433
-          ],
-          "to": [
-            292,
-            294
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            292,
-            294
-          ],
-          "to": [
-            13,
-            294
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            294
-          ],
-          "to": [
-            13,
-            433
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            20,
-            414
-          ],
-          "to": [
-            108,
-            414
+            574,
+            499
           ],
           "style": "Medium Lines"
         },
         {
           "from": [
-            112,
-            414
+            10,
+            330
+          ],
+          "to": [
+            300,
+            330
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            300,
+            330
+          ],
+          "to": [
+            300,
+            492
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            300,
+            492
+          ],
+          "to": [
+            10,
+            492
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            10,
+            492
+          ],
+          "to": [
+            10,
+            330
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            18,
+            417
+          ],
+          "to": [
+            292,
+            417
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            18,
+            376
+          ],
+          "to": [
+            292,
+            376
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            306,
+            330
+          ],
+          "to": [
+            574,
+            330
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            574,
+            330
+          ],
+          "to": [
+            574,
+            492
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            574,
+            492
+          ],
+          "to": [
+            306,
+            492
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            306,
+            492
+          ],
+          "to": [
+            306,
+            330
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            314,
+            423
+          ],
+          "to": [
+            566,
+            423
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            314,
+            398
+          ],
+          "to": [
+            566,
+            398
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            10,
+            150
+          ],
+          "to": [
+            360,
+            150
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            360,
+            150
+          ],
+          "to": [
+            360,
+            322
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            360,
+            322
+          ],
+          "to": [
+            10,
+            322
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            10,
+            322
+          ],
+          "to": [
+            10,
+            150
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            14,
+            291
+          ],
+          "to": [
+            356,
+            291
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            14,
+            175
+          ],
+          "to": [
+            356,
+            175
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            366,
+            150
+          ],
+          "to": [
+            574,
+            150
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            574,
+            150
+          ],
+          "to": [
+            574,
+            322
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            574,
+            322
+          ],
+          "to": [
+            366,
+            322
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            366,
+            322
+          ],
+          "to": [
+            366,
+            150
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            374,
+            168
+          ],
+          "to": [
+            566,
+            168
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            14,
+            64
+          ],
+          "to": [
+            104,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            104,
+            64
+          ],
+          "to": [
+            104,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            104,
+            128
+          ],
+          "to": [
+            14,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            14,
+            128
+          ],
+          "to": [
+            14,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            107,
+            64
+          ],
+          "to": [
+            197,
+            64
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            197,
+            64
+          ],
+          "to": [
+            197,
+            128
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            197,
+            128
+          ],
+          "to": [
+            107,
+            128
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            107,
+            128
+          ],
+          "to": [
+            107,
+            64
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            200,
+            64
+          ],
+          "to": [
+            290,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            290,
+            64
+          ],
+          "to": [
+            290,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            290,
+            128
           ],
           "to": [
             200,
-            414
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            200,
+            128
+          ],
+          "to": [
+            200,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            293,
+            64
+          ],
+          "to": [
+            383,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            383,
+            64
+          ],
+          "to": [
+            383,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            383,
+            128
+          ],
+          "to": [
+            293,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            293,
+            128
+          ],
+          "to": [
+            293,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            386,
+            64
+          ],
+          "to": [
+            476,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            476,
+            64
+          ],
+          "to": [
+            476,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            476,
+            128
+          ],
+          "to": [
+            386,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            386,
+            128
+          ],
+          "to": [
+            386,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            479,
+            64
+          ],
+          "to": [
+            569,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            569,
+            64
+          ],
+          "to": [
+            569,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            569,
+            128
+          ],
+          "to": [
+            479,
+            128
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            479,
+            128
+          ],
+          "to": [
+            479,
+            64
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            10,
+            52
+          ],
+          "to": [
+            574,
+            52
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            580,
+            300
+          ],
+          "to": [
+            831,
+            300
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            831,
+            300
+          ],
+          "to": [
+            831,
+            544
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            831,
+            544
+          ],
+          "to": [
+            580,
+            544
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            580,
+            544
+          ],
+          "to": [
+            580,
+            300
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            588,
+            515
+          ],
+          "to": [
+            823,
+            515
           ],
           "style": "Medium Lines"
         },
         {
           "from": [
-            204,
-            414
+            580,
+            58
           ],
           "to": [
-            288,
-            414
+            831,
+            58
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            831,
+            58
+          ],
+          "to": [
+            831,
+            292
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            831,
+            292
+          ],
+          "to": [
+            580,
+            292
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            580,
+            292
+          ],
+          "to": [
+            580,
+            58
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            588,
+            263
+          ],
+          "to": [
+            823,
+            263
           ],
           "style": "Medium Lines"
         },
         {
           "from": [
-            20,
-            359
+            588,
+            162
           ],
           "to": [
-            286,
-            359
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            298,
-            433
-          ],
-          "to": [
-            576,
-            433
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            433
-          ],
-          "to": [
-            576,
-            294
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            294
-          ],
-          "to": [
-            298,
-            294
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            298,
-            294
-          ],
-          "to": [
-            298,
-            433
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            305,
-            357
-          ],
-          "to": [
-            570,
-            357
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            285
-          ],
-          "to": [
-            399,
-            285
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            399,
-            285
-          ],
-          "to": [
-            399,
-            178
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            399,
-            178
-          ],
-          "to": [
-            13,
-            178
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            178
-          ],
-          "to": [
-            13,
-            285
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            20,
-            192
-          ],
-          "to": [
-            393,
-            192
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            405,
-            285
-          ],
-          "to": [
-            576,
-            285
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            285
-          ],
-          "to": [
-            576,
-            178
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            178
-          ],
-          "to": [
-            405,
-            178
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            405,
-            178
-          ],
-          "to": [
-            405,
-            285
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            412,
-            252
-          ],
-          "to": [
-            450,
-            252
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            450,
-            252
-          ],
-          "to": [
-            450,
-            214
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            450,
-            214
-          ],
-          "to": [
-            412,
-            214
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            412,
-            214
-          ],
-          "to": [
-            412,
-            252
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            412,
-            208
-          ],
-          "to": [
-            570,
-            208
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            170
-          ],
-          "to": [
-            576,
-            170
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            170
-          ],
-          "to": [
-            576,
-            86
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            576,
-            86
-          ],
-          "to": [
-            13,
-            86
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            86
-          ],
-          "to": [
-            13,
-            170
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            144
-          ],
-          "to": [
-            576,
-            144
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            80
-          ],
-          "to": [
-            578,
-            80
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            578,
-            80
-          ],
-          "to": [
-            578,
-            59
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            578,
-            59
-          ],
-          "to": [
-            13,
-            59
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            13,
-            59
-          ],
-          "to": [
-            13,
-            80
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            590,
-            530
-          ],
-          "to": [
-            828,
-            530
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            828,
-            530
-          ],
-          "to": [
-            828,
-            56
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            828,
-            56
-          ],
-          "to": [
-            590,
-            56
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            590,
-            56
-          ],
-          "to": [
-            590,
-            530
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            590,
-            494
-          ],
-          "to": [
-            828,
-            494
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            0,
-            46
-          ],
-          "to": [
-            841,
-            46
-          ],
-          "style": "Wide Lines"
-        },
-        {
-          "from": [
-            560,
-            6
-          ],
-          "to": [
-            560,
-            40
-          ],
-          "style": "Thin Lines"
-        },
-        {
-          "from": [
-            720,
-            6
-          ],
-          "to": [
-            720,
-            40
+            823,
+            162
           ],
           "style": "Thin Lines"
         }
@@ -14745,53 +15002,71 @@
         {
           "text": "CONSULTING ENGINEERS  \u00b7  LEAD APPOINTED PARTY",
           "anchor": [
-            15,
-            559
+            23,
+            556
           ],
-          "size": 1.6,
+          "size": 1.4,
           "hAlign": "Left"
         },
         {
           "text": "DOCUMENT No.",
           "anchor": [
             258,
-            580
+            573
           ],
-          "size": 1.5,
+          "size": 1.4,
           "hAlign": "Left"
         },
         {
-          "text": "CLIENT / APPOINTING PARTY",
+          "text": "ISSUE DATE",
           "anchor": [
-            692,
-            586
+            478,
+            573
           ],
-          "size": 1.1,
+          "size": 1.4,
           "hAlign": "Left"
+        },
+        {
+          "text": "SUIT \u00b7 REV",
+          "anchor": [
+            568,
+            573
+          ],
+          "size": 1.4,
+          "hAlign": "Left"
+        },
+        {
+          "text": "\u00b7",
+          "anchor": [
+            596,
+            561
+          ],
+          "size": 2.4,
+          "hAlign": "Left"
+        },
+        {
+          "text": "DISCIPLINE",
+          "anchor": [
+            757,
+            571
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
         },
         {
           "text": "PROJECT",
           "anchor": [
             14,
-            536
+            538
           ],
           "size": 1.8,
           "hAlign": "Left"
         },
         {
-          "text": "LOCATION",
-          "anchor": [
-            14,
-            470
-          ],
-          "size": 1.2,
-          "hAlign": "Left"
-        },
-        {
           "text": "DOCUMENT CONTROL",
           "anchor": [
-            20,
-            428
+            18,
+            481
           ],
           "size": 2.2,
           "hAlign": "Left"
@@ -14799,35 +15074,35 @@
         {
           "text": "SUITABILITY",
           "anchor": [
-            23,
-            410
+            64.0,
+            463
           ],
-          "size": 1.1,
-          "hAlign": "Left"
+          "size": 1.2,
+          "hAlign": "Center"
         },
         {
           "text": "STATUS",
           "anchor": [
-            115,
-            410
+            162.0,
+            463
           ],
-          "size": 1.1,
-          "hAlign": "Left"
+          "size": 1.2,
+          "hAlign": "Center"
         },
         {
           "text": "REVISION",
           "anchor": [
-            207,
-            410
+            255.0,
+            463
           ],
-          "size": 1.1,
-          "hAlign": "Left"
+          "size": 1.2,
+          "hAlign": "Center"
         },
         {
-          "text": "PURPOSE OF ISSUE",
+          "text": "PURPOSE",
           "anchor": [
-            20,
-            388
+            18,
+            436
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14835,71 +15110,80 @@
         {
           "text": "SECURITY",
           "anchor": [
-            20,
-            377
+            18,
+            425
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "LOD / LOIN",
+          "text": "LOD",
           "anchor": [
-            20,
-            366
+            165,
+            425
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "PREPARED",
+          "text": "DRAWN",
           "anchor": [
-            20,
-            349
+            18,
+            406
           ],
-          "size": 1.2,
+          "size": 1.3,
           "hAlign": "Left"
         },
         {
           "text": "CHECKED",
           "anchor": [
             165,
-            349
+            406
           ],
-          "size": 1.2,
+          "size": 1.3,
           "hAlign": "Left"
         },
         {
           "text": "APPROVED",
           "anchor": [
-            20,
-            337
+            18,
+            395
           ],
-          "size": 1.2,
+          "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "AUTHORISED",
+          "text": "AUTH.",
           "anchor": [
             165,
-            337
+            395
           ],
-          "size": 1.2,
+          "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "DATE OF ISSUE",
+          "text": "DATE",
           "anchor": [
-            20,
-            325
+            18,
+            384
           ],
-          "size": 1.2,
+          "size": 1.3,
+          "hAlign": "Left"
+        },
+        {
+          "text": "SCAN \u2014 VERIFY ISSUE",
+          "anchor": [
+            214,
+            333
+          ],
+          "size": 1.1,
           "hAlign": "Left"
         },
         {
           "text": "BIM & COORDINATION",
           "anchor": [
-            305,
-            428
+            314,
+            481
           ],
           "size": 2.2,
           "hAlign": "Left"
@@ -14907,17 +15191,17 @@
         {
           "text": "CDE STATE",
           "anchor": [
-            305,
-            404
+            314,
+            464
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "FED.",
+          "text": "FEDERATION",
           "anchor": [
             470,
-            404
+            464
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14925,8 +15209,8 @@
         {
           "text": "COORD SYS",
           "anchor": [
-            305,
-            391
+            314,
+            453
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14934,8 +15218,8 @@
         {
           "text": "PROJECT N",
           "anchor": [
-            305,
-            378
+            314,
+            442
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14944,7 +15228,7 @@
           "text": "GROUND LVL",
           "anchor": [
             470,
-            378
+            442
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14952,8 +15236,8 @@
         {
           "text": "REGION",
           "anchor": [
-            305,
-            365
+            314,
+            431
           ],
           "size": 1.3,
           "hAlign": "Left"
@@ -14962,214 +15246,124 @@
           "text": "CLASS",
           "anchor": [
             470,
-            365
+            431
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "SUITABILITY CODES",
+          "text": "Naming standard:  BS EN ISO 19650-2 : 2018",
           "anchor": [
-            305,
-            349
+            314,
+            414
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "S0 WIP \u00b7 S1 \u00b7 S2 Shared/Info \u00b7 S3 Review \u00b7 S4 Stage Appr",
+          "text": "Units mm  \u00b7  Revit 2025  \u00b7  IFC 4",
           "anchor": [
-            305,
-            340
-          ],
-          "size": 1.15,
-          "hAlign": "Left"
-        },
-        {
-          "text": "A/B/C Authorised \u00b7 Published \u00b7 Contractual",
-          "anchor": [
-            305,
-            331
-          ],
-          "size": 1.15,
-          "hAlign": "Left"
-        },
-        {
-          "text": "Naming standard: BS EN ISO 19650-2 : 2018",
-          "anchor": [
-            305,
-            320
-          ],
-          "size": 1.35,
-          "hAlign": "Left"
-        },
-        {
-          "text": "Units mm \u00b7 Software Revit 2025 \u00b7 IFC 4",
-          "anchor": [
-            305,
-            309
-          ],
-          "size": 1.35,
-          "hAlign": "Left"
-        },
-        {
-          "text": "PROJECT DIRECTORY",
-          "anchor": [
-            20,
-            280
-          ],
-          "size": 2.2,
-          "hAlign": "Left"
-        },
-        {
-          "text": "roles per ISO 19650-2",
-          "anchor": [
-            393,
-            280
-          ],
-          "size": 1.2,
-          "hAlign": "Right"
-        },
-        {
-          "text": "APPOINTING",
-          "anchor": [
-            20,
-            258
+            314,
+            405
           ],
           "size": 1.3,
           "hAlign": "Left"
         },
         {
-          "text": "LEAD PARTY",
+          "text": "DISCIPLINE COLOUR \u2014 WHOLE SHEET TAKES ONE (family type, hand-set)",
           "anchor": [
-            20,
-            246
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "STRUCTURAL",
-          "anchor": [
-            20,
-            234
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "MEP ENGINEER",
-          "anchor": [
-            20,
-            222
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "CONTRACTOR",
-          "anchor": [
-            20,
-            210
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "ORIGINATOR",
-          "anchor": [
-            20,
-            198
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "Information Manager: Mayanja Davis \u2014 Planscape \u00b7 contacts in the BEP",
-          "anchor": [
-            20,
-            185
-          ],
-          "size": 1.25,
-          "hAlign": "Left"
-        },
-        {
-          "text": "VERIFY \u2014 CDE",
-          "anchor": [
-            412,
-            280
-          ],
-          "size": 2.0,
-          "hAlign": "Left"
-        },
-        {
-          "text": "SCAN FOR CURRENT ISSUE",
-          "anchor": [
-            456,
-            256
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "Confirms the latest revision",
-          "anchor": [
-            456,
-            247
+            314,
+            390
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "on the project CDE.",
+          "text": "ARCH",
           "anchor": [
-            456,
-            239
-          ],
-          "size": 1.2,
-          "hAlign": "Left"
-        },
-        {
-          "text": "LINKS TO",
-          "anchor": [
-            456,
-            226
+            323,
+            377
           ],
           "size": 1.1,
           "hAlign": "Left"
         },
         {
-          "text": "Live QR \u2014 24 mm, 4-module quiet zone.",
+          "text": "STRUCT",
           "anchor": [
-            412,
-            200
+            355.4,
+            377
           ],
-          "size": 1.15,
+          "size": 1.1,
           "hAlign": "Left"
         },
         {
-          "text": "REVISION HISTORY",
+          "text": "MECH",
           "anchor": [
-            20,
-            165
+            393.0,
+            377
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "ELEC",
+          "anchor": [
+            425.4,
+            377
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PLUMB",
+          "anchor": [
+            457.79999999999995,
+            377
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "FIRE",
+          "anchor": [
+            492.79999999999995,
+            377
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "COMBINED",
+          "anchor": [
+            525.1999999999999,
+            377
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "LATEST ISSUES",
+          "anchor": [
+            18,
+            311
           ],
           "size": 2.2,
           "hAlign": "Left"
         },
         {
-          "text": "revision schedule \u2014 full history, auto-grows",
+          "text": "last 4 \u2014 full history on register + CDE",
           "anchor": [
-            570,
-            165
+            354,
+            311
           ],
-          "size": 1.2,
+          "size": 1.1,
           "hAlign": "Right"
         },
         {
           "text": "REV",
           "anchor": [
-            20,
-            148
+            18,
+            297
           ],
           "size": 1.2,
           "hAlign": "Left"
@@ -15177,8 +15371,8 @@
         {
           "text": "DESCRIPTION",
           "anchor": [
-            55,
-            148
+            50,
+            297
           ],
           "size": 1.2,
           "hAlign": "Left"
@@ -15186,8 +15380,8 @@
         {
           "text": "SUIT.",
           "anchor": [
-            360,
-            148
+            230,
+            297
           ],
           "size": 1.2,
           "hAlign": "Left"
@@ -15195,55 +15389,206 @@
         {
           "text": "DATE",
           "anchor": [
-            412,
-            148
+            270,
+            297
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "DRAWN",
+          "text": "BY",
           "anchor": [
-            470,
-            148
+            330,
+            297
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "CHK'D",
-          "anchor": [
-            525,
-            148
-          ],
-          "size": 1.2,
-          "hAlign": "Left"
-        },
-        {
-          "text": "\u25b2 latest issue \u2014 earlier revisions listed by the revision schedule",
-          "anchor": [
-            20,
-            96
-          ],
-          "size": 1.2,
-          "hAlign": "Left",
-          "visibility": "PRJ_TB_SHOW_REV_TABLE_BOOL"
-        },
-        {
-          "text": "OPTIONAL \u2014 consultant logo strip (off by default; enable only if a client mandates logos)",
+          "text": "Shows the last 4 issues; the table can never outgrow the sheet.",
           "anchor": [
             18,
-            71
+            168
           ],
-          "size": 1.3,
-          "hAlign": "Left",
-          "visibility": "PRJ_TB_SHOW_COMPANY_STRIP_BOOL"
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Older issues remain queryable on the CDE and register sheet.",
+          "anchor": [
+            18,
+            160
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CHANGES IN THIS ISSUE",
+          "anchor": [
+            374,
+            311
+          ],
+          "size": 2.0,
+          "hAlign": "Left"
+        },
+        {
+          "text": "One bullet per clouded change; clouds on plans",
+          "anchor": [
+            374,
+            162
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "carry the matching revision tag.",
+          "anchor": [
+            374,
+            155
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "PROJECT DIRECTORY \u2014 STAKEHOLDERS & CONSULTANTS",
+          "anchor": [
+            18,
+            133
+          ],
+          "size": 2.0,
+          "hAlign": "Left"
+        },
+        {
+          "text": "roles per ISO 19650-2  \u00b7  contacts in the BEP",
+          "anchor": [
+            566,
+            133
+          ],
+          "size": 1.1,
+          "hAlign": "Right"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            59.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "APPOINTING PARTY",
+          "anchor": [
+            59.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            152.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "LEAD APPOINTED \u00b7 MEP",
+          "anchor": [
+            152.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            245.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "STRUCTURAL",
+          "anchor": [
+            245.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            338.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "MEP ENGINEER",
+          "anchor": [
+            338.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            431.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "MAIN CONTRACTOR",
+          "anchor": [
+            431.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "[ logo ]",
+          "anchor": [
+            524.0,
+            114
+          ],
+          "size": 1.0,
+          "hAlign": "Center"
+        },
+        {
+          "text": "ORIGINATOR / IM",
+          "anchor": [
+            524.0,
+            100
+          ],
+          "size": 1.05,
+          "hAlign": "Center"
+        },
+        {
+          "text": "SHEET",
+          "anchor": [
+            588,
+            34
+          ],
+          "size": 1.4,
+          "hAlign": "Left"
         },
         {
           "text": "DRAWING REGISTER",
           "anchor": [
-            597,
-            524
+            588,
+            537
           ],
           "size": 2.2,
           "hAlign": "Left"
@@ -15251,26 +15596,17 @@
         {
           "text": "LIVE",
           "anchor": [
-            822,
-            524
+            823,
+            537
           ],
           "size": 1.2,
           "hAlign": "Right"
         },
         {
-          "text": "Sheet-list schedule \u2014 auto-populated.",
+          "text": "SHEET No.",
           "anchor": [
-            597,
-            507
-          ],
-          "size": 1.3,
-          "hAlign": "Left"
-        },
-        {
-          "text": "SHEET",
-          "anchor": [
-            597,
-            499
+            588,
+            521
           ],
           "size": 1.2,
           "hAlign": "Left"
@@ -15278,8 +15614,8 @@
         {
           "text": "TITLE",
           "anchor": [
-            648,
-            499
+            680,
+            521
           ],
           "size": 1.2,
           "hAlign": "Left"
@@ -15287,73 +15623,289 @@
         {
           "text": "REV",
           "anchor": [
-            822,
-            499
+            823,
+            521
           ],
           "size": 1.2,
           "hAlign": "Right"
         },
         {
-          "text": "HANDLES ANY SIZE",
+          "text": "Auto-filters to this discipline; splits to columns.",
           "anchor": [
-            598,
-            106
+            588,
+            306
           ],
-          "size": 1.4,
+          "size": 1.1,
           "hAlign": "Left"
         },
         {
-          "text": "\u25b8 grows with the sheet set",
+          "text": "STANDARDS & REFERENCES",
           "anchor": [
-            598,
-            98
+            588,
+            285
+          ],
+          "size": 2.0,
+          "hAlign": "Left"
+        },
+        {
+          "text": "REF / STANDARD",
+          "anchor": [
+            588,
+            269
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "\u25b8 splits into columns",
+          "text": "SCOPE",
           "anchor": [
-            598,
-            90
+            706,
+            269
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "\u25b8 overflows to a continuation sheet",
+          "text": "USED IN",
           "anchor": [
-            598,
-            82
+            790,
+            269
           ],
           "size": 1.2,
           "hAlign": "Left"
         },
         {
-          "text": "STANDARDS",
+          "text": "BS EN ISO 19650-2",
           "anchor": [
-            568,
-            34
+            588,
+            254
           ],
-          "size": 1.2,
+          "size": 1.15,
           "hAlign": "Left"
         },
         {
-          "text": "ISO 19650 \u00b7 BS 7671 \u00b7 EN 12056 \u00b7 CIBSE",
+          "text": "Info mgmt",
           "anchor": [
-            568,
-            24
+            706,
+            254
           ],
-          "size": 1.4,
+          "size": 1.1,
           "hAlign": "Left"
         },
         {
-          "text": "SHEET",
+          "text": "All",
           "anchor": [
-            728,
-            34
+            790,
+            254
           ],
-          "size": 1.2,
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "BS 7671:2018+A2",
+          "anchor": [
+            588,
+            242
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Wiring regs",
+          "anchor": [
+            706,
+            242
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Power",
+          "anchor": [
+            790,
+            242
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "BS EN 62305 \u00a74.3",
+          "anchor": [
+            588,
+            230
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Lightning",
+          "anchor": [
+            706,
+            230
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "E-4001",
+          "anchor": [
+            790,
+            230
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "BS 5839-1 \u00a714",
+          "anchor": [
+            588,
+            218
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Fire detect",
+          "anchor": [
+            706,
+            218
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "E-5001",
+          "anchor": [
+            790,
+            218
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "BS EN 12464-1",
+          "anchor": [
+            588,
+            206
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Lighting",
+          "anchor": [
+            706,
+            206
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "E-1101",
+          "anchor": [
+            790,
+            206
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "CIBSE Guide K",
+          "anchor": [
+            588,
+            194
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Electricity",
+          "anchor": [
+            706,
+            194
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "E-2001",
+          "anchor": [
+            790,
+            194
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "IEEE 1584",
+          "anchor": [
+            588,
+            182
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Arc flash",
+          "anchor": [
+            706,
+            182
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "E-9001",
+          "anchor": [
+            790,
+            182
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Uganda NBC 2019",
+          "anchor": [
+            588,
+            170
+          ],
+          "size": 1.15,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Natl code",
+          "anchor": [
+            706,
+            170
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "All",
+          "anchor": [
+            790,
+            170
+          ],
+          "size": 1.1,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Project rows via PRJ_TB_NOTES_LEGEND_REF_TXT.",
+          "anchor": [
+            588,
+            154
+          ],
+          "size": 1.05,
+          "hAlign": "Left"
+        },
+        {
+          "text": "Quote the clause/section where each standard governs.",
+          "anchor": [
+            588,
+            146
+          ],
+          "size": 1.05,
           "hAlign": "Left"
         }
       ],
@@ -15361,63 +15913,90 @@
         {
           "param": "PRJ_ORG_COMPANY_NAME_TXT",
           "anchor": [
-            14,
-            574
+            22,
+            566
           ],
-          "size": 5.5,
+          "size": 6.0,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_SHEET_FULL_REF_TXT",
           "anchor": [
             258,
-            564
+            561
           ],
-          "size": 3.4,
+          "size": 3.0,
           "hAlign": "Left"
         },
         {
-          "param": "PRJ_ORG_CLIENT_NAME_TXT",
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
           "anchor": [
-            762,
-            566
+            478,
+            561
           ],
-          "size": 2.0,
+          "size": 2.4,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "anchor": [
+            568,
+            561
+          ],
+          "size": 2.4,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            604,
+            561
+          ],
+          "size": 2.4,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_DISCIPLINE_TXT",
+          "anchor": [
+            757,
+            560
+          ],
+          "size": 2.6,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_ORG_PROJECT_NAME_TXT",
           "anchor": [
             14,
-            512
+            522
           ],
-          "size": 12.0,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
-          "anchor": [
-            70,
-            470
-          ],
-          "size": 2.8,
+          "size": 9.0,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_ORG_PROJECT_NUMBER_TXT",
           "anchor": [
             14,
-            456
+            505
           ],
           "size": 2.4,
           "hAlign": "Left",
           "prefix": "PROJECT No.  "
         },
         {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            190,
+            505
+          ],
+          "size": 2.4,
+          "hAlign": "Left"
+        },
+        {
           "param": "PRJ_ORG_CLIENT_NAME_TXT",
           "anchor": [
-            250,
-            456
+            380,
+            505
           ],
           "size": 2.4,
           "hAlign": "Left",
@@ -15427,61 +16006,61 @@
           "param": "PRJ_DWG_SUITABILITY_COD_TXT",
           "anchor": [
             64.0,
-            401
+            452
           ],
-          "size": 2.8,
+          "size": 2.6,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
           "anchor": [
-            156.0,
-            401
+            162.0,
+            452
           ],
-          "size": 2.8,
+          "size": 2.6,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_REVISION_NR_TXT",
           "anchor": [
-            246.0,
-            401
+            255.0,
+            452
           ],
-          "size": 2.8,
+          "size": 2.6,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
           "anchor": [
-            118,
-            388
+            78,
+            436
           ],
-          "size": 1.9,
+          "size": 1.8,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_ORG_SECURITY_CLASS_TXT",
           "anchor": [
-            118,
-            377
+            78,
+            425
           ],
-          "size": 1.9,
+          "size": 1.8,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_DWG_LOIN_LOD_TXT",
           "anchor": [
-            118,
-            366
+            192,
+            425
           ],
-          "size": 1.9,
+          "size": 1.8,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_DRAWN_BY_TXT",
           "anchor": [
-            70,
-            349
+            78,
+            406
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15489,8 +16068,8 @@
         {
           "param": "PRJ_TB_CHECKED_BY_TXT",
           "anchor": [
-            215,
-            349
+            210,
+            406
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15498,8 +16077,8 @@
         {
           "param": "PRJ_TB_APVD_BY_TXT",
           "anchor": [
-            70,
-            337
+            78,
+            395
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15507,8 +16086,8 @@
         {
           "param": "PRJ_TB_AUTHORISED_BY_TXT",
           "anchor": [
-            222,
-            337
+            210,
+            395
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15516,8 +16095,8 @@
         {
           "param": "PRJ_TB_DATE_DRAWN_TXT",
           "anchor": [
-            118,
-            325
+            78,
+            384
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15525,18 +16104,18 @@
         {
           "param": "PRJ_DWG_SUITABILITY_DESC_TXT",
           "anchor": [
-            20,
-            311
+            18,
+            368
           ],
-          "size": 1.6,
+          "size": 1.5,
           "hAlign": "Left",
-          "prefix": "Suitability: "
+          "prefix": "Suitability:  "
         },
         {
           "param": "PRJ_TB_DELIVERABLE_CDE_TXT",
           "anchor": [
-            372,
-            404
+            396,
+            464
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15544,8 +16123,8 @@
         {
           "param": "PRJ_TB_FEDERATION_STATUS_TXT",
           "anchor": [
-            500,
-            404
+            520,
+            464
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15553,8 +16132,8 @@
         {
           "param": "PRJ_ORG_COORD_SYSTEM_TXT",
           "anchor": [
-            372,
-            391
+            396,
+            453
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15562,8 +16141,8 @@
         {
           "param": "PRJ_ORG_PROJECT_NORTH_TXT",
           "anchor": [
-            372,
-            378
+            396,
+            442
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15571,8 +16150,8 @@
         {
           "param": "PRJ_ORG_GROUND_LEVEL_TXT",
           "anchor": [
-            540,
-            378
+            528,
+            442
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15580,8 +16159,8 @@
         {
           "param": "PRJ_ORG_REGION_TXT",
           "anchor": [
-            372,
-            365
+            396,
+            431
           ],
           "size": 1.8,
           "hAlign": "Left"
@@ -15590,135 +16169,126 @@
           "param": "PRJ_ORG_CLASS_TXT",
           "anchor": [
             512,
-            365
+            431
           ],
           "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_ORG_APPOINTING_PARTY_TXT",
-          "anchor": [
-            98,
-            258
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
-          "anchor": [
-            98,
-            246
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
-          "anchor": [
-            98,
-            234
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
-          "anchor": [
-            98,
-            222
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_TB_CONTRACTOR_NAME_TXT",
-          "anchor": [
-            98,
-            210
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_ORG_ORIGINATOR_CODE_TXT",
-          "anchor": [
-            98,
-            198
-          ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_SHEET_FULL_REF_TXT",
-          "anchor": [
-            456,
-            218
-          ],
-          "size": 1.4,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_REVISION_NR_TXT",
           "anchor": [
-            20,
-            136
+            18,
+            285
           ],
-          "size": 1.8,
+          "size": 1.6,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_REVISION_DESCRIPTION_TXT",
           "anchor": [
-            55,
-            136
+            50,
+            285
           ],
-          "size": 1.8,
+          "size": 1.6,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_DWG_SUITABILITY_COD_TXT",
           "anchor": [
-            360,
-            136
+            230,
+            285
           ],
-          "size": 1.8,
+          "size": 1.6,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_REVISION_DATE_TXT",
           "anchor": [
-            412,
-            136
+            270,
+            285
           ],
-          "size": 1.8,
-          "hAlign": "Left"
-        },
-        {
-          "param": "PRJ_TB_DRAWN_BY_TXT",
-          "anchor": [
-            470,
-            136
-          ],
-          "size": 1.8,
+          "size": 1.6,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_CHECKED_BY_TXT",
           "anchor": [
-            525,
-            136
+            330,
+            285
           ],
-          "size": 1.8,
+          "size": 1.6,
           "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_TB_ISSUE_SUMMARY_TXT",
+          "anchor": [
+            374,
+            296
+          ],
+          "size": 1.6,
+          "hAlign": "Left"
+        },
+        {
+          "param": "PRJ_ORG_APPOINTING_PARTY_TXT",
+          "anchor": [
+            59.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
+          "anchor": [
+            152.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            245.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            338.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_NAME_TXT",
+          "anchor": [
+            431.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_ORIGINATOR_CODE_TXT",
+          "anchor": [
+            524.0,
+            90
+          ],
+          "size": 1.4,
+          "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_COPYRIGHT_TXT",
           "anchor": [
             14,
-            34
+            40
           ],
-          "size": 1.6,
+          "size": 1.5,
           "hAlign": "Left",
           "prefix": "\u00a9 "
         },
@@ -15726,25 +16296,25 @@
           "param": "PRJ_TB_DO_NOT_SCALE_TXT",
           "anchor": [
             14,
-            22
+            26
           ],
-          "size": 1.6,
+          "size": 1.5,
           "hAlign": "Left"
         },
         {
           "param": "PRJ_TB_SHEET_NR_TXT",
           "anchor": [
-            728,
-            20
+            700,
+            32
           ],
           "size": 3.2,
-          "hAlign": "Left"
+          "hAlign": "Right"
         },
         {
           "param": "PRJ_TB_TOTAL_NO_SHEETS_TXT",
           "anchor": [
-            762,
-            20
+            706,
+            32
           ],
           "size": 3.2,
           "hAlign": "Left",
@@ -15754,168 +16324,408 @@
       "filledRegions": [
         {
           "topLeft": [
-            0,
-            594
+            10,
+            584
           ],
           "bottomRight": [
-            841,
+            831,
             548
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#F6F1E7"
         },
         {
           "topLeft": [
-            0,
-            594
+            10,
+            584
           ],
           "bottomRight": [
-            6,
+            831,
+            581
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            676,
+            584
+          ],
+          "bottomRight": [
+            831,
             548
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F6ECD2"
+        },
+        {
+          "topLeft": [
+            676,
+            584
+          ],
+          "bottomRight": [
+            680,
+            548
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            10,
+            492
+          ],
+          "bottomRight": [
+            300,
+            476
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            18,
+            470
+          ],
+          "bottomRight": [
+            110,
+            446
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            18,
+            470
+          ],
+          "bottomRight": [
+            110,
+            468
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            116,
+            470
+          ],
+          "bottomRight": [
+            208,
+            446
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            116,
+            470
+          ],
+          "bottomRight": [
+            208,
+            468
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#16324F"
+        },
+        {
+          "topLeft": [
+            214,
+            470
+          ],
+          "bottomRight": [
+            296,
+            446
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            214,
+            470
+          ],
+          "bottomRight": [
+            296,
+            468
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            306,
+            492
+          ],
+          "bottomRight": [
+            574,
+            476
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F5F7F9"
+        },
+        {
+          "topLeft": [
+            314,
+            383
+          ],
+          "bottomRight": [
+            321,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#6B7280"
+        },
+        {
+          "topLeft": [
+            346.4,
+            383
+          ],
+          "bottomRight": [
+            353.4,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#B5493A"
+        },
+        {
+          "topLeft": [
+            384.0,
+            383
+          ],
+          "bottomRight": [
+            391.0,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#2563A8"
+        },
+        {
+          "topLeft": [
+            416.4,
+            383
+          ],
+          "bottomRight": [
+            423.4,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            448.79999999999995,
+            383
+          ],
+          "bottomRight": [
+            455.79999999999995,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#2E7D4F"
+        },
+        {
+          "topLeft": [
+            483.79999999999995,
+            383
+          ],
+          "bottomRight": [
+            490.79999999999995,
+            376
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C0392B"
+        },
+        {
+          "topLeft": [
+            516.1999999999999,
+            383
+          ],
+          "bottomRight": [
+            523.1999999999999,
+            376
           ],
           "fillTypeName": "Solid fill",
           "color": "#2F7D8F"
         },
         {
           "topLeft": [
-            13,
-            433
+            10,
+            322
           ],
           "bottomRight": [
-            292,
-            417
-          ],
-          "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
-        },
-        {
-          "topLeft": [
-            20,
-            414
-          ],
-          "bottomRight": [
-            108,
-            396
+            360,
+            306
           ],
           "fillTypeName": "Solid fill",
           "color": "#F5F7F9"
         },
         {
           "topLeft": [
-            112,
-            414
+            366,
+            322
           ],
           "bottomRight": [
-            200,
-            396
+            574,
+            306
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F5F7F9"
+          "color": "#F6F1E7"
+        },
+        {
+          "topLeft": [
+            366,
+            322
+          ],
+          "bottomRight": [
+            574,
+            319
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            10,
+            142
+          ],
+          "bottomRight": [
+            574,
+            58
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F6F1E7"
+        },
+        {
+          "topLeft": [
+            10,
+            142
+          ],
+          "bottomRight": [
+            574,
+            139
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#C98A2B"
+        },
+        {
+          "topLeft": [
+            18,
+            124
+          ],
+          "bottomRight": [
+            100,
+            108
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F6ECD2"
+        },
+        {
+          "topLeft": [
+            111,
+            124
+          ],
+          "bottomRight": [
+            193,
+            108
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F6ECD2"
         },
         {
           "topLeft": [
             204,
-            414
+            124
           ],
           "bottomRight": [
-            288,
-            396
+            286,
+            108
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F5F7F9"
+          "color": "#FFFFFF"
         },
         {
           "topLeft": [
-            298,
-            433
+            297,
+            124
           ],
           "bottomRight": [
-            576,
-            417
+            379,
+            108
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#FFFFFF"
         },
         {
           "topLeft": [
-            13,
-            285
+            390,
+            124
           ],
           "bottomRight": [
-            399,
-            269
+            472,
+            108
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#FFFFFF"
         },
         {
           "topLeft": [
-            405,
-            285
+            483,
+            124
           ],
           "bottomRight": [
-            576,
-            269
+            565,
+            108
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#FFFFFF"
         },
         {
           "topLeft": [
-            13,
-            170
+            580,
+            544
           ],
           "bottomRight": [
-            576,
-            154
+            831,
+            528
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#F6F1E7"
         },
         {
           "topLeft": [
-            590,
-            530
+            580,
+            544
           ],
           "bottomRight": [
-            828,
-            514
+            831,
+            541
           ],
           "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
+          "color": "#C98A2B"
         },
         {
           "topLeft": [
-            592,
-            114
+            580,
+            292
           ],
           "bottomRight": [
-            826,
-            60
+            831,
+            276
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F5F7F9"
+          "color": "#F6F1E7"
         },
         {
           "topLeft": [
-            0,
-            46
+            580,
+            292
           ],
           "bottomRight": [
-            841,
-            0
-          ],
-          "fillTypeName": "Solid fill",
-          "color": "#EEF2F5"
-        },
-        {
-          "topLeft": [
-            0,
-            46
-          ],
-          "bottomRight": [
-            6,
-            0
+            831,
+            289
           ],
           "fillTypeName": "Solid fill",
           "color": "#C98A2B"
@@ -15925,12 +16735,12 @@
         {
           "id": "qr-code",
           "anchor": [
-            412,
-            214
+            236,
+            336
           ],
           "size": [
-            38,
-            38
+            44,
+            44
           ],
           "purposeTag": "qr-code",
           "description": "Live sheet-level QR to the CDE record"
@@ -15939,40 +16749,27 @@
           "id": "revision-schedule",
           "anchor": [
             14,
-            90
+            180
           ],
           "size": [
-            560,
-            50
+            346,
+            105
           ],
           "purposeTag": "revision-schedule",
-          "description": "Live Revit revision schedule \u2014 full issue history"
-        },
-        {
-          "id": "company-strip",
-          "anchor": [
-            300,
-            60
-          ],
-          "size": [
-            270,
-            18
-          ],
-          "purposeTag": "company-strip",
-          "description": "Optional consultant logo band"
+          "description": "Bounded revision schedule \u2014 shows the last 4 issues"
         },
         {
           "id": "drawing-register",
           "anchor": [
-            592,
-            122
+            586,
+            312
           ],
           "size": [
-            234,
-            370
+            239,
+            196
           ],
           "purposeTag": "sheet-list",
-          "description": "Live project sheet-list schedule"
+          "description": "Live sheet-list schedule \u2014 auto-populates, overflows to a continuation sheet"
         }
       ]
     },

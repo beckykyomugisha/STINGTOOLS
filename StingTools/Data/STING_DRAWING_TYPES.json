@@ -10785,7 +10785,8 @@
         "PRJ_TB_MEP_CONSULTANTS_NAME_TXT": "${PRJ_TB_MEP_CONSULTANTS_NAME_TXT}",
         "PRJ_TB_CONTRACTOR_NAME_TXT": "${PRJ_TB_CONTRACTOR_NAME_TXT}",
         "PRJ_TB_COPYRIGHT_TXT": "${PRJ_TB_COPYRIGHT_TXT}",
-        "PRJ_TB_DO_NOT_SCALE_TXT": "${PRJ_TB_DO_NOT_SCALE_TXT}"
+        "PRJ_TB_DO_NOT_SCALE_TXT": "${PRJ_TB_DO_NOT_SCALE_TXT}",
+        "PRJ_TB_ISSUE_SUMMARY_TXT": "${PRJ_TB_ISSUE_SUMMARY_TXT}"
       },
       "isoNaming": true,
       "description": "Project cover / title sheet. Binds the STING_TB_COVER_A1_v1.0 family; every PRJ_* field auto-populates from ProjectInformation on sheet production. SHEET_NR/TOTAL_NO_SHEETS/FULL_REF are computed by NativeParamMapper.MapSheets + the ISO ref step; SUITABILITY_DESC is auto-derived from the code by TitleBlockParamApplier. Drawing register + revision history are live schedules placed on the sheet; QR is a sheet-level stamp.",
