@@ -2002,7 +2002,7 @@
     },
     {
       "id": "elec-riser-A3-1to200",
-      "name": "Electrical Riser — A3 @ 1:200",
+      "name": "Electrical Riser \u2014 A3 @ 1:200",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "E",
@@ -2153,7 +2153,7 @@
     },
     {
       "id": "door-schedule-A3",
-      "name": "Door Schedule — A3",
+      "name": "Door Schedule \u2014 A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -2365,7 +2365,7 @@
     },
     {
       "id": "legend-A3",
-      "name": "Legend Sheet — A3",
+      "name": "Legend Sheet \u2014 A3",
       "origin": "corporate",
       "purpose": "Legend",
       "discipline": "*",
@@ -3300,7 +3300,7 @@
     },
     {
       "id": "arch-window-schedule-A3",
-      "name": "Window Schedule — A3",
+      "name": "Window Schedule \u2014 A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -5958,7 +5958,7 @@
     },
     {
       "id": "arch-setting-out-A1-1to50",
-      "name": "Setting Out / Dimensioned Plan — A1 @ 1:50",
+      "name": "Setting Out / Dimensioned Plan \u2014 A1 @ 1:50",
       "description": "Construction setting-out plan. Ordinate dimensions from origin grid; gridlines and level annotations enabled; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -5972,7 +5972,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SP-{seq:D4}",
-      "sheetNamePattern": "Setting Out Plan — Level {lvl}",
+      "sheetNamePattern": "Setting Out Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -6066,7 +6066,7 @@
     },
     {
       "id": "arch-partition-layout-A1-1to50",
-      "name": "Internal Partition Layout — A1 @ 1:50",
+      "name": "Internal Partition Layout \u2014 A1 @ 1:50",
       "description": "Partition / wall layout with door + window tags. Linear dims; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6080,7 +6080,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-PL-{seq:D4}",
-      "sheetNamePattern": "Partition Layout — Level {lvl}",
+      "sheetNamePattern": "Partition Layout \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -6172,7 +6172,7 @@
     },
     {
       "id": "arch-demolition-A1-1to100",
-      "name": "Demolition Plan — A1 @ 1:100",
+      "name": "Demolition Plan \u2014 A1 @ 1:100",
       "description": "Demolition phase plan. Existing-to-remain halftoned; demolished elements red dashed; new work bold.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6186,7 +6186,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-demolition-phase",
       "sheetNumberPattern": "{disc}-{lvl}-DP-{seq:D4}",
-      "sheetNamePattern": "Demolition Plan — Level {lvl}",
+      "sheetNamePattern": "Demolition Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 75
@@ -6268,7 +6268,7 @@
     },
     {
       "id": "arch-sanitary-layout-A1-1to50",
-      "name": "Sanitary / Wet Room Layout — A1 @ 1:50",
+      "name": "Sanitary / Wet Room Layout \u2014 A1 @ 1:50",
       "description": "Sanitary fixture layout cropped to room boundary. Auto-tags fixtures and rooms; linear dims; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6282,7 +6282,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-SL-{seq:D4}",
-      "sheetNamePattern": "Sanitary Layout — Level {lvl}",
+      "sheetNamePattern": "Sanitary Layout \u2014 Level {lvl}",
       "crop": {
         "kind": "RoomBoundary",
         "marginMm": 200
@@ -6369,7 +6369,7 @@
     },
     {
       "id": "arch-raised-floor-A1-1to50",
-      "name": "Raised Access Floor Plan — A1 @ 1:50",
+      "name": "Raised Access Floor Plan \u2014 A1 @ 1:50",
       "description": "Raised access floor (RAF) panel grid layout. Ordinate dimensions from origin; mono print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6383,7 +6383,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-RF-{seq:D4}",
-      "sheetNamePattern": "Raised Access Floor — Level {lvl}",
+      "sheetNamePattern": "Raised Access Floor \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -6465,7 +6465,7 @@
     },
     {
       "id": "arch-screed-buildup-A3-1to10",
-      "name": "Floor Build-Up Detail — A3 @ 1:10",
+      "name": "Floor Build-Up Detail \u2014 A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
       "purpose": "Detail",
@@ -6568,7 +6568,7 @@
     },
     {
       "id": "arch-area-plan-A1-1to200",
-      "name": "GIA / NIA Area Plan — A1 @ 1:200",
+      "name": "GIA / NIA Area Plan \u2014 A1 @ 1:200",
       "description": "Gross / net internal area plan with area + room tags. Coarse detail level; presentation print.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6582,7 +6582,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{disc}-{lvl}-AP-{seq:D4}",
-      "sheetNamePattern": "Area Plan — Level {lvl}",
+      "sheetNamePattern": "Area Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 75
@@ -6676,7 +6676,7 @@
     },
     {
       "id": "pres-floor-plan-A1",
-      "name": "Presentation Floor Plan — A1",
+      "name": "Presentation Floor Plan \u2014 A1",
       "description": "Client presentation floor plan. Rich material colours, room tags only, no dimensions.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6690,7 +6690,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{disc}-{lvl}-PR-{seq:D4}",
-      "sheetNamePattern": "Presentation Floor Plan — Level {lvl}",
+      "sheetNamePattern": "Presentation Floor Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -6779,7 +6779,7 @@
     },
     {
       "id": "pres-narrative-A1",
-      "name": "Client Narrative — A1 (TAG7 prose)",
+      "name": "Client Narrative \u2014 A1 (TAG7 prose)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -6792,7 +6792,7 @@
       "viewTemplateName": "STING - Presentation Plan",
       "viewportTypeName": "STING - Standard Viewport",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-PR-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "CLIENT NARRATIVE — {lvl}",
+      "sheetNamePattern": "CLIENT NARRATIVE \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -6919,7 +6919,7 @@
     },
     {
       "id": "mep-plan-presentation",
-      "name": "MEP Plan — Presentation (Phase 135)",
+      "name": "MEP Plan \u2014 Presentation (Phase 135)",
       "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -6932,7 +6932,7 @@
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP PRESENTATION — {lvl}",
+      "sheetNamePattern": "MEP PRESENTATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -7031,7 +7031,7 @@
     },
     {
       "id": "mep-plan-technical",
-      "name": "MEP Plan — Technical (Phase 135)",
+      "name": "MEP Plan \u2014 Technical (Phase 135)",
       "description": "Engineering-issue MEP plan. Full paragraph tier 5, all TAG7 sections visible, System variable colour scheme, BOLD tags, full 8-segment tag mask.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -7044,7 +7044,7 @@
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP TECHNICAL — {lvl}",
+      "sheetNamePattern": "MEP TECHNICAL \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -7166,7 +7166,7 @@
     },
     {
       "id": "mep-plan-fabrication",
-      "name": "MEP Plan — Fabrication (Phase 135)",
+      "name": "MEP Plan \u2014 Fabrication (Phase 135)",
       "description": "Workshop-floor MEP plan. Tier 10 audit-trail TAG7, all sections, System variable colours, BOLD-RED tags, mask shows DISC-SYS-PROD-SEQ for spool-pack readability.",
       "origin": "corporate",
       "purpose": "Plan",
@@ -7179,7 +7179,7 @@
       "viewTemplateName": "STING - Fabrication Shop",
       "viewStylePackId": "corp-fabrication-shop",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP FABRICATION — {lvl}",
+      "sheetNamePattern": "MEP FABRICATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 80
@@ -7311,7 +7311,7 @@
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
+      "sheetNamePattern": "Presentation \u2014 {discipline} Exterior 3D",
       "crop": {
         "kind": "None",
         "marginMm": 0
@@ -7467,7 +7467,7 @@
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-interior-sage",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
+      "sheetNamePattern": "Presentation \u2014 {discipline} Interior Cut-Away",
       "crop": {
         "kind": "None",
         "marginMm": 0
@@ -7609,7 +7609,7 @@
     {
       "id": "pres-composite-A1",
       "name": "Presentation Composite Sheet",
-      "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
+      "description": "4-slot composite presentation sheet \u2014 main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "*",
@@ -7620,7 +7620,7 @@
       "detailLevel": "Coarse",
       "viewStylePackId": "pres-burgund-green",
       "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
-      "sheetNamePattern": "Presentation — {discipline} Composite",
+      "sheetNamePattern": "Presentation \u2014 {discipline} Composite",
       "crop": {
         "kind": "None",
         "marginMm": 0
@@ -7793,7 +7793,7 @@
     },
     {
       "id": "elec-spool-A1-1to50",
-      "name": "Electrical Spool — A1 @ 1:50",
+      "name": "Electrical Spool \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "E",
@@ -7949,7 +7949,7 @@
     },
     {
       "id": "elec-coord-A1-1to50",
-      "name": "Electrical Coordination — A1 @ 1:50",
+      "name": "Electrical Coordination \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "E",
@@ -7960,7 +7960,7 @@
       "viewTemplateName": "STING:corp-coordination:FloorPlan",
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "ELECTRICAL COORDINATION — {lvl}",
+      "sheetNamePattern": "ELECTRICAL COORDINATION \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -8114,7 +8114,7 @@
     },
     {
       "id": "health-rds-A3",
-      "name": "Healthcare — Room Data Sheet (A3)",
+      "name": "Healthcare \u2014 Room Data Sheet (A3)",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "H",
@@ -8128,7 +8128,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
-      "sheetNamePattern": "Room Data Sheet — {room}",
+      "sheetNamePattern": "Room Data Sheet \u2014 {room}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8189,7 +8189,7 @@
     },
     {
       "id": "health-eqp-pln-A1-1to50",
-      "name": "Healthcare — Clinical Equipment Plan (A1 1:50)",
+      "name": "Healthcare \u2014 Clinical Equipment Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -8203,7 +8203,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Clinical Equipment Plan — Level {lvl}",
+      "sheetNamePattern": "Clinical Equipment Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8264,7 +8264,7 @@
     },
     {
       "id": "health-mep-coord-A1-1to50",
-      "name": "Healthcare — MEP Coordination + Shielding (A1 1:50)",
+      "name": "Healthcare \u2014 MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "M",
@@ -8278,7 +8278,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP Coordination + Shielding — {lvl}",
+      "sheetNamePattern": "MEP Coordination + Shielding \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8340,7 +8340,7 @@
     {
       "id": "health-medgas-pln-A1-1to100",
       "system": "MGPS",
-      "name": "Healthcare — Medical Gas Layout (A1 1:100)",
+      "name": "Healthcare \u2014 Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "MG",
@@ -8354,7 +8354,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Medical Gas Layout — Level {lvl}",
+      "sheetNamePattern": "Medical Gas Layout \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8416,7 +8416,7 @@
     },
     {
       "id": "health-medgas-schem-A1",
-      "name": "Healthcare — Medical Gas Schematic (A1)",
+      "name": "Healthcare \u2014 Medical Gas Schematic (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "MG",
@@ -8430,7 +8430,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
-      "sheetNamePattern": "Medical Gas Schematic — {gas}",
+      "sheetNamePattern": "Medical Gas Schematic \u2014 {gas}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8486,12 +8486,12 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "_description": "Manifold → riser → ZVB → AAP → terminal-unit schematic",
+      "_description": "Manifold \u2192 riser \u2192 ZVB \u2192 AAP \u2192 terminal-unit schematic",
       "description": "Medical Gas schematic on A1 at NA."
     },
     {
       "id": "health-pressure-pln-A1-1to100",
-      "name": "Healthcare — Pressure Regime Plan (A1 1:100)",
+      "name": "Healthcare \u2014 Pressure Regime Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -8505,7 +8505,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-pressure",
       "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Pressure Regime Plan — Level {lvl}",
+      "sheetNamePattern": "Pressure Regime Plan \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8561,12 +8561,12 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
-      "_description": "Δp arrows, AIIR/PE/anteroom cascade per HTM 03-01",
+      "_description": "\u0394p arrows, AIIR/PE/anteroom cascade per HTM 03-01",
       "description": "Healthcare plan on A1 at 1:100."
     },
     {
       "id": "health-ess-power-riser-A1",
-      "name": "Healthcare — Essential Power Single-Line (A1)",
+      "name": "Healthcare \u2014 Essential Power Single-Line (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "E",
@@ -8580,7 +8580,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-EES-{seq:D3}",
-      "sheetNamePattern": "Essential Power Single-Line — {area}",
+      "sheetNamePattern": "Essential Power Single-Line \u2014 {area}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8641,7 +8641,7 @@
     },
     {
       "id": "health-ips-pln-A1-1to50",
-      "name": "Healthcare — Isolated Power Plan (A1 1:50)",
+      "name": "Healthcare \u2014 Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -8655,7 +8655,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "IPS Plan — {lvl}",
+      "sheetNamePattern": "IPS Plan \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8716,7 +8716,7 @@
     },
     {
       "id": "health-decon-flow-A1-1to50",
-      "name": "Healthcare — Decontamination Flow Plan (A1 1:50)",
+      "name": "Healthcare \u2014 Decontamination Flow Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -8730,7 +8730,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Decon Flow Plan — {lvl}",
+      "sheetNamePattern": "Decon Flow Plan \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8791,7 +8791,7 @@
     },
     {
       "id": "health-mortuary-pln-A3-1to100",
-      "name": "Healthcare — Mortuary Plan (A3 1:100)",
+      "name": "Healthcare \u2014 Mortuary Plan (A3 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -8805,7 +8805,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Mortuary Plan — {lvl}",
+      "sheetNamePattern": "Mortuary Plan \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8866,7 +8866,7 @@
     },
     {
       "id": "health-fire-comp-A1-1to100",
-      "name": "Healthcare — Fire Compartment + PHE Plan (A1 1:100)",
+      "name": "Healthcare \u2014 Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -8880,7 +8880,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-fire",
       "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Fire Compartment + PHE — Level {lvl}",
+      "sheetNamePattern": "Fire Compartment + PHE \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8941,7 +8941,7 @@
     },
     {
       "id": "health-rad-shield-A1-1to50",
-      "name": "Healthcare — Radiation Shielding Plan (A1 1:50)",
+      "name": "Healthcare \u2014 Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "RP",
@@ -8955,7 +8955,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Radiation Shielding — {lvl}",
+      "sheetNamePattern": "Radiation Shielding \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9016,7 +9016,7 @@
     },
     {
       "id": "health-mri-zoning-A1-1to50",
-      "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
+      "name": "Healthcare \u2014 MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "RP",
@@ -9030,7 +9030,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MRI Zoning — {area}",
+      "sheetNamePattern": "MRI Zoning \u2014 {area}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9091,7 +9091,7 @@
     },
     {
       "id": "health-ligature-pln-A1-1to50",
-      "name": "Healthcare — Anti-Ligature Plan (A1 1:50)",
+      "name": "Healthcare \u2014 Anti-Ligature Plan (A1 1:50)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -9105,7 +9105,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ligature",
       "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Anti-Ligature Plan — {lvl}",
+      "sheetNamePattern": "Anti-Ligature Plan \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9166,7 +9166,7 @@
     },
     {
       "id": "health-bedhead-elev-A3-1to50",
-      "name": "Healthcare — Bedhead Elevations (A3 1:50)",
+      "name": "Healthcare \u2014 Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "H",
@@ -9180,7 +9180,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Bedhead Elevations — {area}",
+      "sheetNamePattern": "Bedhead Elevations \u2014 {area}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9247,7 +9247,7 @@
     },
     {
       "id": "health-or-ceiling-A3-1to50",
-      "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
+      "name": "Healthcare \u2014 OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
       "purpose": "RCP",
       "discipline": "H",
@@ -9261,7 +9261,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "OR Ceiling RCP — {area}",
+      "sheetNamePattern": "OR Ceiling RCP \u2014 {area}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9322,7 +9322,7 @@
     },
     {
       "id": "health-water-safety-A1-1to100",
-      "name": "Healthcare — Water Safety Plan (A1 1:100)",
+      "name": "Healthcare \u2014 Water Safety Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -9336,7 +9336,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-water",
       "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Water Safety Plan — {lvl}",
+      "sheetNamePattern": "Water Safety Plan \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9397,7 +9397,7 @@
     },
     {
       "id": "health-acoustic-A1-1to100",
-      "name": "Healthcare — Acoustic Strategy Plan (A1 1:100)",
+      "name": "Healthcare \u2014 Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -9411,7 +9411,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Acoustic Strategy — Level {lvl}",
+      "sheetNamePattern": "Acoustic Strategy \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9472,7 +9472,7 @@
     },
     {
       "id": "health-struct-loads-A1-1to100",
-      "name": "Healthcare — Imaging Equipment Structural Loads (A1 1:100)",
+      "name": "Healthcare \u2014 Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -9486,7 +9486,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Equipment Loads — Level {lvl}",
+      "sheetNamePattern": "Equipment Loads \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9547,7 +9547,7 @@
     },
     {
       "id": "health-rtls-coverage-A1-1to100",
-      "name": "Healthcare — RTLS Coverage Plan (A1 1:100)",
+      "name": "Healthcare \u2014 RTLS Coverage Plan (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -9561,7 +9561,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
-      "sheetNamePattern": "RTLS Coverage — Level {lvl}",
+      "sheetNamePattern": "RTLS Coverage \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9622,7 +9622,7 @@
     },
     {
       "id": "health-waste-flow-A1-1to100",
-      "name": "Healthcare — Clinical Waste Flow (A1 1:100)",
+      "name": "Healthcare \u2014 Clinical Waste Flow (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "H",
@@ -9636,7 +9636,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Waste Flow — Level {lvl}",
+      "sheetNamePattern": "Waste Flow \u2014 Level {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9697,7 +9697,7 @@
     },
     {
       "id": "health-nuclear-medicine-A1",
-      "name": "Healthcare — Nuclear Medicine Schematic (A1)",
+      "name": "Healthcare \u2014 Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "RP",
@@ -9711,7 +9711,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-NM-{seq:D3}",
-      "sheetNamePattern": "Nuclear Medicine — {area}",
+      "sheetNamePattern": "Nuclear Medicine \u2014 {area}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9773,7 +9773,7 @@
     {
       "id": "plumb-dcw-schematic-A1-NTS",
       "system": "DCW",
-      "name": "Cold Water Schematic (DCW) — A1 NTS",
+      "name": "Cold Water Schematic (DCW) \u2014 A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "P",
@@ -9843,7 +9843,7 @@
     {
       "id": "plumb-dhw-schematic-A1-NTS",
       "system": "DHW",
-      "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
+      "name": "Hot Water Schematic (DHW/HWS) \u2014 A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "P",
@@ -9913,7 +9913,7 @@
     {
       "id": "plumb-lthw-schematic-A1-NTS",
       "system": "LTHW",
-      "name": "LTHW Schematic — A1 NTS",
+      "name": "LTHW Schematic \u2014 A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "P",
@@ -9982,7 +9982,7 @@
     },
     {
       "id": "plumb-ag-drainage-A1-1to100",
-      "name": "Above-Ground Drainage Layout — A1 @ 1:100",
+      "name": "Above-Ground Drainage Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -9994,7 +9994,7 @@
       "viewTemplateName": "STING - Drainage",
       "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-AG-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ABOVE-GROUND DRAINAGE — {lvl}",
+      "sheetNamePattern": "ABOVE-GROUND DRAINAGE \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -10051,7 +10051,7 @@
     },
     {
       "id": "plumb-rwd-layout-A1-1to100",
-      "name": "Rainwater Drainage Layout — A1 @ 1:100",
+      "name": "Rainwater Drainage Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -10063,7 +10063,7 @@
       "viewTemplateName": "STING - Drainage",
       "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-RWD-{lvl}-{seq:D3}",
-      "sheetNamePattern": "RAINWATER DRAINAGE — {lvl}",
+      "sheetNamePattern": "RAINWATER DRAINAGE \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -10120,7 +10120,7 @@
     },
     {
       "id": "plumb-suds-A1-1to500",
-      "name": "SuDS / Surface Water Management Plan — A1 @ 1:500",
+      "name": "SuDS / Surface Water Management Plan \u2014 A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -10189,7 +10189,7 @@
     },
     {
       "id": "plumb-vent-riser-A3-NTS",
-      "name": "Drainage Vent Riser — A3 NTS",
+      "name": "Drainage Vent Riser \u2014 A3 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
       "discipline": "P",
@@ -10257,7 +10257,7 @@
     },
     {
       "id": "plumb-pressure-schedule-A3",
-      "name": "Pressure Zone / PRV Schedule — A3",
+      "name": "Pressure Zone / PRV Schedule \u2014 A3",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "P",
@@ -10325,7 +10325,7 @@
     },
     {
       "id": "plumb-water-treatment-A1-1to50",
-      "name": "Water Treatment / Plantroom — A1 @ 1:50",
+      "name": "Water Treatment / Plantroom \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -10394,7 +10394,7 @@
     },
     {
       "id": "plumb-drainage-schematic-A1",
-      "name": "Plumbing — Drainage Schematic Riser",
+      "name": "Plumbing \u2014 Drainage Schematic Riser",
       "purpose": "Schematic",
       "discipline": "P",
       "phase": "*",
@@ -10407,7 +10407,7 @@
       "viewportTypeName": "Title w Line",
       "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "PH-SCHEM-{seq:D2}",
-      "sheetNamePattern": "Drainage Schematic Riser — {lvl}",
+      "sheetNamePattern": "Drainage Schematic Riser \u2014 {lvl}",
       "crop": {
         "kind": "None"
       },
@@ -10465,7 +10465,7 @@
     },
     {
       "id": "penetration-register-A1",
-      "name": "Penetration Register — A1",
+      "name": "Penetration Register \u2014 A1",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "*",
@@ -10724,9 +10724,85 @@
         }
       ],
       "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped."
+    },
+    {
+      "id": "cover-A1",
+      "name": "Cover Sheet A1 (STING TB Cover)",
+      "origin": "corporate",
+      "purpose": "Cover",
+      "discipline": "*",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_COVER_A1_v1.0",
+      "scale": 100,
+      "detailLevel": "Coarse",
+      "viewTemplateName": "",
+      "viewportTypeName": "",
+      "viewStylePackId": "",
+      "sheetNumberPattern": "{disc}-0000",
+      "sheetNamePattern": "COVER SHEET",
+      "crop": {
+        "mode": "None",
+        "marginMm": 0
+      },
+      "slots": [],
+      "annotation": {
+        "autoDimension": false,
+        "autoTag": false
+      },
+      "titleBlockParams": {
+        "PRJ_ORG_PROJECT_NAME_TXT": "${PRJ_ORG_PROJECT_NAME_TXT}",
+        "PRJ_ORG_PROJECT_NUMBER_TXT": "${PRJ_ORG_PROJECT_NUMBER_TXT}",
+        "PRJ_ORG_PROJECT_ADDRESS_TXT": "${PRJ_ORG_PROJECT_ADDRESS_TXT}",
+        "PRJ_ORG_CLIENT_NAME_TXT": "${PRJ_ORG_CLIENT_NAME_TXT}",
+        "PRJ_ORG_COMPANY_NAME_TXT": "${PRJ_ORG_COMPANY_NAME_TXT}",
+        "PRJ_ORG_APPOINTING_PARTY_TXT": "${PRJ_ORG_APPOINTING_PARTY_TXT}",
+        "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT": "${PRJ_ORG_LEAD_APPOINTED_PARTY_TXT}",
+        "PRJ_ORG_ORIGINATOR_CODE_TXT": "${PRJ_ORG_ORIGINATOR_CODE_TXT}",
+        "PRJ_ORG_COORD_SYSTEM_TXT": "${PRJ_ORG_COORD_SYSTEM_TXT}",
+        "PRJ_ORG_PROJECT_NORTH_TXT": "${PRJ_ORG_PROJECT_NORTH_TXT}",
+        "PRJ_ORG_GROUND_LEVEL_TXT": "${PRJ_ORG_GROUND_LEVEL_TXT}",
+        "PRJ_ORG_REGION_TXT": "${PRJ_ORG_REGION_TXT}",
+        "PRJ_ORG_CLASS_TXT": "${PRJ_ORG_CLASS_TXT}",
+        "PRJ_ORG_SECURITY_CLASS_TXT": "${PRJ_ORG_SECURITY_CLASS_TXT}",
+        "PRJ_DWG_ISSUE_PURPOSE_TXT": "${PRJ_DWG_ISSUE_PURPOSE_TXT}",
+        "PRJ_DWG_SUITABILITY_COD_TXT": "${PRJ_DWG_SUITABILITY_COD_TXT}",
+        "PRJ_DWG_LOIN_LOD_TXT": "${PRJ_DWG_LOIN_LOD_TXT}",
+        "PRJ_TB_DISCIPLINE_TXT": "${PRJ_TB_DISCIPLINE_TXT}",
+        "PRJ_TB_DELIVERABLE_STATUS_TXT": "${PRJ_TB_DELIVERABLE_STATUS_TXT}",
+        "PRJ_TB_DELIVERABLE_CDE_TXT": "${PRJ_TB_DELIVERABLE_CDE_TXT}",
+        "PRJ_TB_FEDERATION_STATUS_TXT": "${PRJ_TB_FEDERATION_STATUS_TXT}",
+        "PRJ_TB_DRAWN_BY_TXT": "${PRJ_TB_DRAWN_BY_TXT}",
+        "PRJ_TB_CHECKED_BY_TXT": "${PRJ_TB_CHECKED_BY_TXT}",
+        "PRJ_TB_APVD_BY_TXT": "${PRJ_TB_APVD_BY_TXT}",
+        "PRJ_TB_AUTHORISED_BY_TXT": "${PRJ_TB_AUTHORISED_BY_TXT}",
+        "PRJ_TB_DATE_DRAWN_TXT": "${PRJ_TB_DATE_DRAWN_TXT}",
+        "PRJ_TB_REVISION_NR_TXT": "${PRJ_TB_REVISION_NR_TXT}",
+        "PRJ_TB_REVISION_DESCRIPTION_TXT": "${PRJ_TB_REVISION_DESCRIPTION_TXT}",
+        "PRJ_TB_REVISION_DATE_TXT": "${PRJ_TB_REVISION_DATE_TXT}",
+        "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT": "${PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT}",
+        "PRJ_TB_MEP_CONSULTANTS_NAME_TXT": "${PRJ_TB_MEP_CONSULTANTS_NAME_TXT}",
+        "PRJ_TB_CONTRACTOR_NAME_TXT": "${PRJ_TB_CONTRACTOR_NAME_TXT}",
+        "PRJ_TB_COPYRIGHT_TXT": "${PRJ_TB_COPYRIGHT_TXT}",
+        "PRJ_TB_DO_NOT_SCALE_TXT": "${PRJ_TB_DO_NOT_SCALE_TXT}"
+      },
+      "isoNaming": true,
+      "description": "Project cover / title sheet. Binds the STING_TB_COVER_A1_v1.0 family; every PRJ_* field auto-populates from ProjectInformation on sheet production. SHEET_NR/TOTAL_NO_SHEETS/FULL_REF are computed by NativeParamMapper.MapSheets + the ISO ref step; SUITABILITY_DESC is auto-derived from the code by TitleBlockParamApplier. Drawing register + revision history are live schedules placed on the sheet; QR is a sheet-level stamp.",
+      "print": {
+        "colourScheme": "Colour",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
     }
   ],
   "routing": [
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "COVER",
+      "drawingTypeId": "cover-A1"
+    },
     {
       "discipline": "E",
       "phase": "*",

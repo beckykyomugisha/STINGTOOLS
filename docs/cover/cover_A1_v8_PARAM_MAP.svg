@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1180 834" xmlns="http://www.w3.org/2000/svg" width="1180" height="834" font-family="'Segoe UI',Arial,sans-serif">
+<defs><style>
+  .navy{fill:#16324f}.disc{fill:#c98a2b}.band{fill:#f6f1e7}.panel{fill:#f5f7f9}
+  .rule{stroke:#d7dbe0;stroke-width:1}.rulel{stroke:#e9edf0;stroke-width:1}
+  .kick{font-size:11px;font-weight:700;letter-spacing:.24em;fill:#a8721f}
+  .h{font-size:11px;font-weight:800;letter-spacing:.14em;fill:#16324f}
+  .lbl{font-size:8px;font-weight:700;letter-spacing:.06em;fill:#8a94a1}
+  .tok{font-size:9px;font-weight:700;fill:#7a3fb0;font-family:'Consolas','Courier New',monospace}
+  .tokv{font-size:8.5px;font-weight:700;fill:#7a3fb0;font-family:'Consolas','Courier New',monospace}
+  .tiny{font-size:8.5px;font-weight:600;fill:#6b7280}
+  .chip{font-size:9px;font-weight:700;fill:#fff;font-family:'Consolas','Courier New',monospace}
+  .role{font-size:7.5px;font-weight:700;letter-spacing:.08em;fill:#a8721f}
+</style></defs>
+<rect x="0" y="0" width="1180" height="834" fill="#fff"/>
+<rect x="6" y="6" width="1168" height="822" rx="3" fill="#fff" stroke="#c4ccd4" stroke-width="1.5"/>
+<rect x="18" y="18" width="1144" height="62" class="band"/><rect x="18" y="18" width="1144" height="3" class="disc"/>
+<text x="42" y="45" font-size="12" font-weight="800" fill="#16324f">[ ${PRJ_ORG_COMPANY_LOGO} placeholder ]</text>
+<text x="43" y="66" class="tok" style="font-size:8px">${PRJ_ORG_LEAD_APPOINTED_PARTY_TXT}</text>
+<line x1="330" y1="30" x2="330" y2="70" class="rule"/>
+<text x="352" y="42" class="lbl">DOCUMENT No.</text><text x="352" y="63" class="tok" style="font-size:10px">${PRJ_SHEET_FULL_REF_TXT}</text>
+<line x1="650" y1="30" x2="650" y2="70" class="rule"/>
+<text x="672" y="42" class="lbl">ISSUE DATE</text><text x="672" y="63" class="tok">${PRJ_TB_DATE_DRAWN_TXT}</text>
+<line x1="800" y1="30" x2="800" y2="70" class="rule"/>
+<text x="822" y="42" class="lbl">SUIT · REV</text><text x="822" y="63" class="tok" style="font-size:8px">${PRJ_DWG_SUITABILITY_COD} · ${PRJ_TB_REVISION_NR}</text>
+<rect x="952" y="18" width="210" height="62" class="disc"/><rect x="952" y="18" width="6" height="62" fill="#a8721f"/>
+<text x="1062" y="42" text-anchor="middle" fill="#f6ead2" font-size="8" font-weight="700" letter-spacing=".2em">DISCIPLINE</text>
+<text x="1062" y="64" text-anchor="middle" class="chip" style="font-size:8.5px">${PRJ_TB_DISCIPLINE_TXT}</text>
+<text x="42" y="110" class="kick">PROJECT</text>
+<text x="40" y="147" class="tok" style="font-size:20px">${PRJ_ORG_PROJECT_NAME_TXT}</text>
+<text x="42" y="182" class="tok" style="font-size:13px">${PRJ_TB_SHEET_TITLE_TXT}</text>
+<text x="42" y="206" class="tok" style="font-size:9px">${PRJ_ORG_PROJECT_NUMBER} · ${PRJ_ORG_PROJECT_ADDRESS} · ${PRJ_ORG_CLIENT_NAME}</text>
+<line x1="42" y1="217" x2="806" y2="217" class="rule"/>
+<rect x="826" y="92" width="336" height="396" rx="3" fill="#fff" stroke="#cbd3da" stroke-width="1.2"/>
+<rect x="826" y="92" width="336" height="26" class="band"/><rect x="826" y="92" width="336" height="3" class="disc"/>
+<text x="841" y="111" class="h">DRAWING REGISTER</text><text x="1148" y="111" text-anchor="end" font-size="8" font-weight="800" fill="#a8721f">LIVE SCHEDULE</text>
+<rect x="841" y="128" width="306" height="300" fill="#faf7f1" stroke="#e4d9c4" stroke-dasharray="3 2"/>
+<text x="994" y="255" text-anchor="middle" class="tok" style="font-size:10px">Revit sheet-list schedule</text>
+<text x="994" y="272" text-anchor="middle" class="tiny">placed on the SHEET (not in the family)</text>
+<text x="994" y="288" text-anchor="middle" class="tiny">columns: Sheet No · Title · Current Rev</text>
+<text x="841" y="450" class="tiny">Auto-filters to this discipline · overflows to a continuation register sheet.</text>
+<text x="841" y="470" class="tiny" style="fill:#a8721f;font-weight:700">▲ Live — no parameter binding needed.</text>
+<rect x="826" y="500" width="336" height="254" rx="3" fill="#fff" stroke="#cbd3da" stroke-width="1.2"/>
+<rect x="826" y="500" width="336" height="26" class="band"/><rect x="826" y="500" width="336" height="3" class="disc"/>
+<text x="841" y="519" class="h">STANDARDS &amp; REFERENCES</text>
+<rect x="841" y="536" width="306" height="176" fill="#faf7f1" stroke="#e4d9c4" stroke-dasharray="3 2"/>
+<text x="994" y="600" text-anchor="middle" class="tiny">Corporate default rows baked into family staticText</text>
+<text x="994" y="620" text-anchor="middle" class="tok" style="font-size:9px">+ project rows: ${PRJ_TB_NOTES_LEGEND_REF_TXT}</text>
+<text x="994" y="640" text-anchor="middle" class="tiny">cols: Ref/Standard · Scope · Used-in clause</text>
+<text x="841" y="736" class="tiny" style="font-size:7.5px">Table quotes the CLAUSE/SECTION where each standard governs.</text>
+<rect x="18" y="228" width="392" height="212" rx="3" fill="#fff" stroke="#e2e6ea"/>
+<rect x="18" y="228" width="392" height="25" class="panel"/><text x="32" y="245" class="h">DOCUMENT CONTROL</text>
+<rect x="32" y="262" width="120" height="30" rx="3" class="disc"/><text x="92" y="281" text-anchor="middle" class="chip">${PRJ_DWG_SUITABILITY_COD}</text>
+<rect x="158" y="262" width="120" height="30" rx="3" fill="#fff" stroke="#c98a2b" stroke-width="1.4"/><text x="218" y="281" text-anchor="middle" class="tok" style="fill:#a8721f;font-size:8px">${PRJ_TB_DELIVERABLE_STATUS}</text>
+<rect x="284" y="262" width="120" height="30" rx="3" class="navy"/><text x="344" y="281" text-anchor="middle" class="chip">${PRJ_TB_REVISION_NR_TXT}</text>
+<g>
+<text x="32" y="312" class="lbl">PURPOSE</text><text x="100" y="312" class="tok">${PRJ_DWG_ISSUE_PURPOSE_TXT}</text>
+<text x="32" y="331" class="lbl">SECURITY</text><text x="100" y="331" class="tok">${PRJ_ORG_SECURITY_CLASS_TXT}</text>
+<text x="255" y="331" class="lbl">LOD</text><text x="285" y="331" class="tok">${PRJ_DWG_LOIN_LOD}</text>
+<line x1="32" y1="341" x2="300" y2="341" class="rulel"/>
+<text x="32" y="359" class="lbl">DRAWN</text><text x="90" y="359" class="tok">${PRJ_TB_DRAWN_BY_TXT}</text>
+<text x="32" y="377" class="lbl">CHECKED</text><text x="90" y="377" class="tok">${PRJ_TB_CHECKED_BY_TXT}</text>
+<text x="212" y="359" class="lbl">APPRVD</text><text x="270" y="359" class="tok">${PRJ_TB_APVD_BY_TXT}</text>
+<text x="212" y="377" class="lbl">AUTH</text><text x="270" y="377" class="tok">${PRJ_TB_AUTHORISED_BY_TXT}</text>
+<text x="32" y="396" class="lbl">DATE</text><text x="90" y="396" class="tok">${PRJ_TB_DATE_DRAWN_TXT}</text>
+<text x="32" y="422" class="tiny" style="font-size:8px">SUITABILITY_DESC auto-derived from the code by TitleBlockParamApplier.</text>
+</g>
+<g transform="translate(340,300)">
+  <rect x="0" y="0" width="60" height="60" fill="#f6f1e7" stroke="#16324f" stroke-dasharray="3 2"/>
+  <text x="30" y="27" text-anchor="middle" class="tiny" style="font-size:7px">QR raster</text>
+  <text x="30" y="39" text-anchor="middle" class="tiny" style="font-size:7px">stamp</text>
+</g>
+<text x="370" y="378" text-anchor="middle" class="tok" style="font-size:7px">TitleBlock_StampQR</text>
+<rect x="418" y="228" width="388" height="212" rx="3" fill="#fff" stroke="#e2e6ea"/>
+<rect x="418" y="228" width="388" height="25" class="panel"/><text x="432" y="245" class="h">BIM &amp; COORDINATION</text>
+<g>
+<text x="432" y="274" class="lbl">CDE STATE</text><text x="512" y="274" class="tok">${PRJ_TB_DELIVERABLE_CDE_TXT}</text>
+<text x="432" y="296" class="lbl">FEDERATION</text><text x="512" y="296" class="tok">${PRJ_TB_FEDERATION_STATUS_TXT}</text>
+<text x="432" y="318" class="lbl">COORD SYS</text><text x="512" y="318" class="tok">${PRJ_ORG_COORD_SYSTEM_TXT}</text>
+<text x="432" y="340" class="lbl">PROJ NORTH</text><text x="512" y="340" class="tok">${PRJ_ORG_PROJECT_NORTH_TXT}</text>
+<text x="432" y="362" class="lbl">GROUND LVL</text><text x="512" y="362" class="tok">${PRJ_ORG_GROUND_LEVEL_TXT}</text>
+<text x="432" y="384" class="lbl">REGION</text><text x="512" y="384" class="tok">${PRJ_ORG_REGION_TXT}</text>
+<text x="432" y="406" class="lbl">CLASS</text><text x="512" y="406" class="tok">${PRJ_ORG_CLASS_TXT}</text>
+<line x1="432" y1="416" x2="792" y2="416" class="rulel"/>
+<text x="432" y="432" class="tiny" style="font-size:7.5px">Discipline colour = family TYPE selected by ${PRJ_TB_DISCIPLINE_TXT} (auto).</text>
+</g>
+<rect x="18" y="450" width="470" height="170" rx="3" fill="#fff" stroke="#e2e6ea"/>
+<rect x="18" y="450" width="470" height="25" class="panel"/><text x="32" y="467" class="h">LATEST ISSUES</text>
+<rect x="32" y="482" width="442" height="94" fill="#f7f9fb" stroke="#dfe4e9" stroke-dasharray="3 2"/>
+<text x="253" y="522" text-anchor="middle" class="tok" style="font-size:10px">Revit revision schedule — placed on the SHEET</text>
+<text x="253" y="540" text-anchor="middle" class="tiny">shows LAST 4 rows: Rev · Description · Suit · Date · By</text>
+<text x="253" y="556" text-anchor="middle" class="tiny">bounded height — can never outgrow the sheet</text>
+<text x="32" y="596" class="tiny" style="font-size:8px">Full history stays on the CDE + register sheet (scan QR).</text>
+<rect x="498" y="450" width="308" height="170" rx="3" fill="#fff" stroke="#e2e6ea"/>
+<rect x="498" y="450" width="308" height="25" class="band"/><rect x="498" y="450" width="308" height="3" class="disc"/>
+<text x="512" y="467" class="h">CHANGES IN THIS ISSUE</text>
+<rect x="512" y="482" width="280" height="80" fill="#faf7f1" stroke="#e4d9c4" stroke-dasharray="3 2"/>
+<text x="652" y="516" text-anchor="middle" class="tok" style="font-size:9px">${PRJ_TB_ISSUE_SUMMARY_TXT}</text>
+<text x="652" y="534" text-anchor="middle" class="tiny">multiline — one bullet per clouded change</text>
+<text x="512" y="588" class="tiny" style="font-size:7.5px">Rev clouds on plans carry the matching rev tag.</text>
+<rect x="18" y="630" width="788" height="126" class="band"/><rect x="18" y="630" width="788" height="3" class="disc"/>
+<text x="32" y="650" class="h" style="font-size:10px">PROJECT DIRECTORY — STAKEHOLDERS &amp; CONSULTANTS</text>
+<g>
+  <rect x="32" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#cdd5dd"/>
+  <rect x="40" y="668" width="102" height="34" rx="2" fill="#f5f7f9"/><text x="91" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="91" y="716" text-anchor="middle" class="role">APPOINTING PARTY</text><text x="91" y="731" text-anchor="middle" class="tokv">${PRJ_ORG_APPOINTING_PARTY}</text>
+  <rect x="160" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#c98a2b" stroke-width="1.3"/>
+  <rect x="168" y="668" width="102" height="34" rx="2" fill="#f6f1e7"/><text x="219" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="219" y="716" text-anchor="middle" class="role">LEAD APPOINTED · MEP</text><text x="219" y="731" text-anchor="middle" class="tokv">${PRJ_ORG_LEAD_APPOINTED}</text>
+  <rect x="288" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#cdd5dd"/>
+  <rect x="296" y="668" width="102" height="34" rx="2" fill="#f5f7f9"/><text x="347" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="347" y="716" text-anchor="middle" class="role">ARCHITECT</text><text x="347" y="731" text-anchor="middle" class="tokv">${PRJ_TB_ARCHITECT_NAME}</text>
+  <rect x="416" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#cdd5dd"/>
+  <rect x="424" y="668" width="102" height="34" rx="2" fill="#f5f7f9"/><text x="475" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="475" y="716" text-anchor="middle" class="role">STRUCTURAL</text><text x="475" y="731" text-anchor="middle" class="tokv">${PRJ_TB_STRUCT_CONSULT}</text>
+  <rect x="544" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#cdd5dd"/>
+  <rect x="552" y="668" width="102" height="34" rx="2" fill="#f5f7f9"/><text x="603" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="603" y="716" text-anchor="middle" class="role">MAIN CONTRACTOR</text><text x="603" y="731" text-anchor="middle" class="tokv">${PRJ_TB_CONTRACTOR_NAME}</text>
+  <rect x="672" y="660" width="118" height="86" rx="3" fill="#fff" stroke="#cdd5dd"/>
+  <rect x="680" y="668" width="102" height="34" rx="2" fill="#f5f7f9"/><text x="731" y="689" text-anchor="middle" class="tiny" style="font-size:7px">[ logo ]</text>
+  <text x="731" y="716" text-anchor="middle" class="role">INFORMATION MANAGER</text><text x="731" y="731" text-anchor="middle" class="tokv">${PRJ_TB_INFO_MANAGER}</text>
+</g>
+<line x1="18" y1="792" x2="1162" y2="792" class="rule"/>
+<text x="32" y="812" class="tok" style="font-size:8px">${PRJ_TB_COPYRIGHT_TXT} · ${PRJ_TB_DO_NOT_SCALE_TXT}</text>
+<text x="980" y="812" class="lbl" style="fill:#16324f">SHEET</text>
+<text x="1030" y="813" class="tok" style="font-size:9px">${PRJ_TB_SHEET_NR} / ${PRJ_TB_TOTAL_NO_SHEETS}</text>
+</svg>
