@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in — Planscape</title>
+<meta name="description" content="Log in to your Planscape account.">
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/login">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.auth-wrap { max-width: 440px; margin: 48px auto; padding: 0 16px; }
+.auth-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px;
+}
+.auth-card h1 { margin: 0 0 8px; font-size: 26px; }
+.auth-card .sub { color: var(--muted); margin: 0 0 24px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.field input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 15px;
+  background: #fff;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.field input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 145, 45, 0.15); }
+.pw-wrap { position: relative; }
+.pw-toggle {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: 0; cursor: pointer; font-size: 12px;
+  color: var(--accent); font-weight: 600; padding: 4px;
+}
+.btn-primary {
+  width: 100%; background: var(--accent); color: #fff; border: 0;
+  padding: 14px; font-size: 16px; font-weight: 600; border-radius: 8px;
+  cursor: pointer; margin-top: 8px;
+}
+.btn-primary:hover { background: #d57f1f; }
+.btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+.error-state, .success-state {
+  border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; font-size: 14px;
+}
+.error-state { background: #fdebea; border: 1px solid #cc3322; color: #8b2018; }
+.success-state { background: #e8f7ed; border: 1px solid #2e9b59; color: #1e6b3c; }
+.error-state.shown, .success-state.shown { display: block; }
+.error-state a, .success-state a { color: inherit; font-weight: 600; }
+.row-between { display: flex; justify-content: space-between; align-items: baseline; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; font-size: 13px; cursor: pointer; }
+.alt-link { text-align: center; margin-top: 20px; font-size: 14px; color: var(--muted); }
+.alt-link a { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <!-- Login panel -->
+  <div class="auth-card" id="login-panel">
+    <div class="error-state" id="login-error"></div>
+    <h1>Log in</h1>
+    <p class="sub">Welcome back. Log in to reach your account.</p>
+
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@firm.com">
+      </div>
+      <div class="field">
+        <div class="row-between">
+          <label for="password">Password</label>
+          <button type="button" class="link-btn" id="show-forgot">Forgot password?</button>
+        </div>
+        <div class="pw-wrap">
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+          <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password">Show</button>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn">Log in</button>
+    </form>
+
+    <p class="alt-link">No account yet? <a href="/signup">Create one</a></p>
+  </div>
+
+  <!-- Forgot-password panel (inline, revealed on demand or via #forgot) -->
+  <div class="auth-card" id="forgot-panel" style="display:none">
+    <div class="success-state" id="forgot-success"></div>
+    <div class="error-state" id="forgot-error"></div>
+    <h1>Reset your password</h1>
+    <p class="sub">Enter your email and we'll send a reset link if an account exists.</p>
+
+    <form id="forgot-form" novalidate>
+      <div class="field">
+        <label for="forgot-email">Email</label>
+        <input type="email" id="forgot-email" name="email" required autocomplete="email" placeholder="you@firm.com">
+      </div>
+      <button type="submit" class="btn-primary" id="forgot-btn">Send reset link</button>
+    </form>
+
+    <p class="alt-link"><button type="button" class="link-btn" id="back-to-login">← Back to log in</button></p>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  var loginPanel = document.getElementById('login-panel');
+  var forgotPanel = document.getElementById('forgot-panel');
+  var loginForm = document.getElementById('login-form');
+  var loginBtn = document.getElementById('login-btn');
+  var loginError = document.getElementById('login-error');
+  var pwToggle = document.getElementById('pw-toggle');
+  var pw = document.getElementById('password');
+
+  var forgotForm = document.getElementById('forgot-form');
+  var forgotBtn = document.getElementById('forgot-btn');
+  var forgotSuccess = document.getElementById('forgot-success');
+  var forgotError = document.getElementById('forgot-error');
+
+  function showPanel(which) {
+    loginPanel.style.display = which === 'forgot' ? 'none' : 'block';
+    forgotPanel.style.display = which === 'forgot' ? 'block' : 'none';
+  }
+  if (location.hash === '#forgot') showPanel('forgot');
+
+  document.getElementById('show-forgot').addEventListener('click', function(){
+    history.replaceState(null, '', '#forgot');
+    showPanel('forgot');
+  });
+  document.getElementById('back-to-login').addEventListener('click', function(){
+    history.replaceState(null, '', location.pathname);
+    showPanel('login');
+  });
+
+  pwToggle.addEventListener('click', function(){
+    var showing = pw.type === 'text';
+    pw.type = showing ? 'password' : 'text';
+    pwToggle.textContent = showing ? 'Show' : 'Hide';
+  });
+
+  function setErr(box, html) {
+    box.innerHTML = html;
+    box.classList.add('shown');
+  }
+
+  // ---- Login ----
+  loginForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    loginError.classList.remove('shown');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+
+    fetch('/api/auth/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: loginForm.email.value.trim(),
+        password: loginForm.password.value
+      })
+    }).then(function(res){
+      if (res.ok) return res.json();
+      return res.json().then(function(j){ throw new Error((j && j.error) || 'Invalid email or password.'); },
+        function(){ throw new Error('Invalid email or password.'); });
+    }).then(function(){
+      // ps_refresh cookie is set; /account mints the access token from it.
+      window.location.href = '/account';
+    }).catch(function(err){
+      setErr(loginError, (err && err.message) || 'Something went wrong. Please try again.');
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Log in';
+    });
+  });
+
+  // ---- Forgot password ----
+  forgotForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    forgotError.classList.remove('shown');
+    forgotSuccess.classList.remove('shown');
+    forgotBtn.disabled = true;
+    forgotBtn.textContent = 'Sending…';
+
+    fetch('/api/auth/password/forgot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: forgotForm.email.value.trim() })
+    }).then(function(res){
+      // The endpoint always 200s (anti-enumeration).
+      if (!res.ok) throw new Error('Please enter a valid email address.');
+      return res.json();
+    }).then(function(j){
+      setErr(forgotSuccess, (j && j.message) || 'If an account exists for that email, a reset link is on its way.');
+      forgotBtn.disabled = false;
+      forgotBtn.textContent = 'Send reset link';
+    }).catch(function(err){
+      setErr(forgotError, (err && err.message) || 'Something went wrong. Please try again.');
+      forgotBtn.disabled = false;
+      forgotBtn.textContent = 'Send reset link';
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

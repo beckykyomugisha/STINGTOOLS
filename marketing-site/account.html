@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your account — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/account">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.acct-wrap { max-width: 720px; margin: 40px auto; padding: 0 16px; }
+.acct-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 32px; margin-bottom: 20px; }
+.acct-card h1 { margin: 0 0 4px; font-size: 26px; }
+.acct-card h2 { margin: 0 0 4px; font-size: 19px; }
+.acct-card .sub { color: var(--muted); margin: 0 0 24px; }
+.state { display: none; }
+.state.shown { display: block; }
+.spinner { font-size: 28px; text-align: center; }
+.dl { display: grid; grid-template-columns: 180px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.dl > div { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.dl > div:nth-last-child(-n+2) { border-bottom: 0; }
+.dl dt { font-weight: 600; color: var(--muted); font-size: 14px; background: #faf8f5; margin: 0; }
+.dl dd { margin: 0; font-size: 15px; }
+@media (max-width: 480px) { .dl { grid-template-columns: 1fr; } .dl dt { border-bottom: 0; } }
+.pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.pill.trial { background: rgba(232,145,45,.14); color: #b5670f; }
+.pill.active { background: rgba(40,167,69,.12); color: #1e7e34; }
+.pill.read_only, .pill.past_due, .pill.cancelled { background: rgba(204,51,34,.12); color: #8b2018; }
+.acct-actions { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; border: 0; padding: 11px 20px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #d57f1f; }
+.btn-primary:disabled { opacity: .55; cursor: default; }
+.btn-secondary { display: inline-block; background: none; color: var(--ink); border: 1px solid var(--line); padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.link-btn { background: none; border: 0; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; }
+.note { margin-top: 20px; font-size: 13px; color: var(--muted); padding: 12px 14px; background: #faf8f5; border: 1px solid var(--line); border-radius: 8px; }
+.note.warn { background: rgba(204,51,34,.06); border-color: rgba(204,51,34,.25); color: #8b2018; }
+.err { display: none; margin-top: 16px; padding: 11px 14px; border-radius: 8px; background: rgba(204,51,34,.08); border: 1px solid rgba(204,51,34,.3); color: #8b2018; font-size: 14px; }
+.err.shown { display: block; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.field select, .field input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; font-family: inherit; background: #fff; }
+.field select:focus, .field input:focus { outline: 0; border-color: var(--accent); }
+.radio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.radio-row label { flex: 1; min-width: 130px; display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; background: #fff; }
+.radio-row label:has(input:checked) { border-color: var(--accent); background: rgba(232,145,45,.06); }
+.radio-row input { margin: 0; }
+.price-box { margin: 20px 0 4px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #faf8f5; }
+.price-box .amount { font-size: 26px; font-weight: 700; }
+.price-box .per { color: var(--muted); font-size: 14px; }
+.price-box .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+table.inv { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.inv th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.inv td { padding: 10px; border-bottom: 1px solid var(--line); }
+table.inv tr:last-child td { border-bottom: 0; }
+.inv-wrap { overflow-x: auto; }
+.tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.tag.paid { background: rgba(40,167,69,.12); color: #1e7e34; }
+.tag.open, .tag.pending { background: rgba(232,145,45,.14); color: #b5670f; }
+.tag.void, .tag.failed { background: rgba(204,51,34,.12); color: #8b2018; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="acct-wrap">
+
+  <div class="acct-card">
+    <div class="state shown" id="loading">
+      <div class="spinner">⏳</div>
+      <p class="sub" style="text-align:center;margin-top:12px">Loading your account…</p>
+    </div>
+
+    <div class="state" id="ready">
+      <h1 id="greeting">Your account</h1>
+      <p class="sub" id="firm-line"></p>
+
+      <dl class="dl">
+        <div><dt>Firm</dt></div>
+        <div><dd id="v-firm">—</dd></div>
+        <div><dt>Subscription</dt></div>
+        <div><dd><span class="pill" id="v-status">—</span></dd></div>
+        <div><dt>Trial</dt></div>
+        <div><dd id="v-trial">—</dd></div>
+        <div><dt>Plan</dt></div>
+        <div><dd id="v-plan">—</dd></div>
+        <div><dt>Seats</dt></div>
+        <div><dd id="v-seats">—</dd></div>
+        <div><dt>Billing currency</dt></div>
+        <div><dd id="v-currency">—</dd></div>
+      </dl>
+
+      <div class="acct-actions">
+        <button type="button" class="link-btn" id="logout-btn">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current subscription — only once one exists. -->
+  <div class="acct-card state" id="sub-card">
+    <h2>Your subscription</h2>
+    <p class="sub" id="sub-line">—</p>
+    <div class="acct-actions" id="sub-actions"></div>
+    <div class="err" id="sub-err"></div>
+    <p class="note" id="sub-note" style="display:none"></p>
+  </div>
+
+  <!-- Plan picker — owner only, when there's no paid plan yet. -->
+  <div class="acct-card state" id="plan-card">
+    <h2 id="plan-heading">Choose a plan</h2>
+    <p class="sub" id="plan-sub">Your trial gives you full access. Pick a plan to keep it after the trial ends.</p>
+
+    <div class="field">
+      <label>Product</label>
+      <div class="radio-row" id="product-row"></div>
+    </div>
+
+    <div class="field">
+      <label for="tier-select">Plan</label>
+      <select id="tier-select"></select>
+    </div>
+
+    <div class="field">
+      <label>Billing cycle</label>
+      <div class="radio-row">
+        <label><input type="radio" name="cycle" value="monthly" checked> Monthly</label>
+        <label><input type="radio" name="cycle" value="annual"> Annual <span class="per" id="annual-off"></span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="discount">Discount code <span class="per">(optional)</span></label>
+      <input type="text" id="discount" autocomplete="off" placeholder="e.g. LAUNCH20">
+    </div>
+
+    <div class="price-box">
+      <div><span class="amount" id="price-amount">—</span> <span class="per" id="price-per"></span></div>
+      <div class="meta" id="price-meta"></div>
+    </div>
+
+    <div class="acct-actions">
+      <button type="button" class="btn-primary" id="subscribe-btn">Continue to payment</button>
+    </div>
+    <div class="err" id="plan-err"></div>
+    <p class="note" id="pay-route"></p>
+  </div>
+
+  <!-- Invoices — admin+ only. -->
+  <div class="acct-card state" id="inv-card">
+    <h2>Invoices</h2>
+    <p class="sub">Your most recent invoices.</p>
+    <div class="inv-wrap"><table class="inv" id="inv-table">
+      <thead><tr><th>Number</th><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+      <tbody id="inv-body"></tbody>
+    </table></div>
+    <p class="note" id="inv-empty" style="display:none">No invoices yet — they appear here after your first payment.</p>
+  </div>
+
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  var loading = document.getElementById('loading');
+  var ready = document.getElementById('ready');
+
+  function toLogin() { window.location.href = '/login'; }
+  function $(id) { return document.getElementById(id); }
+  function show(el) { el.classList.add('shown'); }
+
+  function titleCase(s) {
+    return String(s || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+
+  // Mirrors CURRENCY_MINOR_EXP in functions/api/_lib/billing/catalog.ts. Display
+  // only — the server is the source of truth for what's actually charged.
+  function minorExp(cur) { return (cur === 'UGX' || cur === 'RWF') ? 0 : 2; }
+
+  function fmtMoney(minor, cur) {
+    if (minor == null || isNaN(minor)) return '—';
+    var v = minor / Math.pow(10, minorExp(cur));
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency', currency: cur,
+        minimumFractionDigits: minorExp(cur), maximumFractionDigits: minorExp(cur)
+      }).format(v);
+    } catch (e) {
+      return cur + ' ' + v.toLocaleString();
+    }
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function trialDaysLeft(iso) {
+    if (!iso) return null;
+    var end = new Date(iso).getTime();
+    if (isNaN(end)) return null;
+    return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+  }
+
+  function showErr(el, msg) { el.textContent = msg; el.classList.add('shown'); }
+  function clearErr(el) { el.textContent = ''; el.classList.remove('shown'); }
+
+  // Session convention (see billing-success.html): mint an access token from the
+  // HttpOnly ps_refresh cookie, hold it in memory only, use it as a Bearer token.
+  // NEVER persist tokens to localStorage/sessionStorage.
+  var accessToken = null;
+  var state = { user: null, tenant: null, sub: null, plans: null, currency: 'USD', role: 'member' };
+
+  // One nonce per page load. The checkout Idempotency-Key is derived from it plus
+  // the chosen plan, so a double-click on the same selection replays the same
+  // Checkout Session instead of opening a second one, while changing the
+  // selection legitimately starts a new one.
+  var pageNonce = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                  : String(Date.now()) + Math.random().toString(16).slice(2);
+
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    opts.headers['Authorization'] = 'Bearer ' + accessToken;
+    return fetch(path, opts).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(body){
+        if (!res.ok) throw new Error((body && body.error) || ('Request failed (' + res.status + ')'));
+        return body;
+      });
+    });
+  }
+
+  function isAtLeast(role, min) {
+    var order = { member: 0, admin: 1, owner: 2 };
+    return (order[role] != null ? order[role] : 0) >= order[min];
+  }
+
+  // ---- render: account details ---------------------------------------------
+
+  function renderAccount(data) {
+    var t = data.tenant || {};
+    $('v-firm').textContent = t.name || '—';
+
+    var status = t.subscriptionStatus || 'unknown';
+    var statusEl = $('v-status');
+    statusEl.textContent = titleCase(status);
+    statusEl.className = 'pill ' + status;
+
+    var days = trialDaysLeft(t.trialEndsAt);
+    if (status === 'trial' && days !== null) {
+      $('v-trial').textContent = days === 0 ? 'Ends today' : (days + ' day' + (days === 1 ? '' : 's') + ' remaining');
+    } else if (days !== null) {
+      $('v-trial').textContent = 'Trial ended';
+    } else {
+      $('v-trial').textContent = '—';
+    }
+
+    if (t.planTier) {
+      var prod = t.planProduct ? titleCase(t.planProduct) + ' · ' : '';
+      $('v-plan').textContent = prod + titleCase(t.planTier);
+    } else {
+      $('v-plan').textContent = 'Trial — no plan yet';
+    }
+
+    var used = (data.seatsUsed != null) ? data.seatsUsed : data.memberCount;
+    if (used != null) {
+      $('v-seats').textContent = used + (data.cap != null ? ' of ' + data.cap : ' (unlimited)');
+    }
+
+    $('v-currency').textContent = t.currency || 'USD';
+    $('firm-line').textContent = t.name ? ('Signed in — ' + t.name) : '';
+
+    loading.classList.remove('shown');
+    show(ready);
+  }
+
+  // ---- render: current subscription ----------------------------------------
+
+  function renderSubscription() {
+    var s = state.sub;
+    if (!s) return;
+    show($('sub-card'));
+
+    $('sub-line').textContent =
+      titleCase(s.product) + ' · ' + titleCase(s.tier) + ' — ' +
+      fmtMoney(s.amountCents, s.currency) + ' / ' + (s.billingCycle === 'annual' ? 'year' : 'month');
+
+    var actions = $('sub-actions');
+    actions.innerHTML = '';
+
+    // Self-serve cancel / resume / portal drive the Stripe API, so they only
+    // exist for Stripe subscriptions (see getActiveSubscription in state.ts,
+    // which is deliberately Stripe-only).
+    if (s.provider !== 'stripe') {
+      $('sub-note').style.display = 'block';
+      $('sub-note').textContent =
+        'This subscription is billed by mobile money (Pesapal), which charges one period at a time — ' +
+        'it does not auto-renew, so there is nothing to cancel. To change or stop it, contact us and ' +
+        'we will sort it out.';
+      return;
+    }
+
+    if (s.cancelAtPeriodEnd) {
+      $('sub-note').style.display = 'block';
+      $('sub-note').className = 'note warn';
+      $('sub-note').textContent = 'Cancellation scheduled — you keep access until ' + fmtDate(s.currentPeriodEnd) + '.';
+      if (isAtLeast(state.role, 'owner')) actions.appendChild(mkBtn('Resume subscription', 'btn-primary', doResume));
+    } else {
+      $('sub-note').style.display = 'block';
+      $('sub-note').className = 'note';
+      $('sub-note').textContent = 'Renews on ' + fmtDate(s.currentPeriodEnd) + '.';
+      if (isAtLeast(state.role, 'owner')) actions.appendChild(mkBtn('Cancel subscription', 'btn-secondary', doCancel));
+    }
+
+    if (isAtLeast(state.role, 'owner')) {
+      actions.appendChild(mkBtn('Manage payment method', 'btn-secondary', doPortal));
+    }
+  }
+
+  function mkBtn(label, cls, fn) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.textContent = label;
+    b.addEventListener('click', function(){ fn(b); });
+    return b;
+  }
+
+  // ---- billing actions ------------------------------------------------------
+
+  function doCancel(btn) {
+    if (!window.confirm('Cancel your subscription? You keep access until the end of the current period.')) return;
+    clearErr($('sub-err')); btn.disabled = true;
+    api('/api/billing/subscription/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function(){ window.location.reload(); })
+      .catch(function(e){ btn.disabled = false; showErr($('sub-err'), e.message); });
+  }
+
+  function doResume(btn) {
+    clearErr($('sub-err')); btn.disabled = true;
+    api('/api/billing/subscription/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function(){ window.location.reload(); })
+      .catch(function(e){ btn.disabled = false; showErr($('sub-err'), e.message); });
+  }
+
+  function doPortal(btn) {
+    clearErr($('sub-err')); btn.disabled = true;
+    api('/api/billing/portal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function(j){
+        if (j && j.portalUrl) { window.location.href = j.portalUrl; return; }
+        throw new Error('Could not open the billing portal.');
+      })
+      .catch(function(e){ btn.disabled = false; showErr($('sub-err'), e.message); });
+  }
+
+  // ---- plan picker ----------------------------------------------------------
+
+  function productsFromPlans() { return (state.plans && state.plans.products) || []; }
+
+  function selectedProduct() {
+    var el = document.querySelector('input[name=product]:checked');
+    return el ? el.value : null;
+  }
+  function selectedCycle() {
+    var el = document.querySelector('input[name=cycle]:checked');
+    return el ? el.value : 'monthly';
+  }
+
+  function buildProductRow() {
+    var row = $('product-row');
+    row.innerHTML = '';
+    productsFromPlans().forEach(function(p, i){
+      var id = 'prod-' + p.product;
+      var label = document.createElement('label');
+      label.innerHTML = '<input type="radio" name="product" value="' + p.product + '" id="' + id + '"' +
+        (i === 0 ? ' checked' : '') + '> ' + titleCase(p.product);
+      row.appendChild(label);
+    });
+    row.addEventListener('change', function(){ buildTierSelect(); renderPrice(); });
+  }
+
+  function buildTierSelect() {
+    var sel = $('tier-select');
+    sel.innerHTML = '';
+    var prod = productsFromPlans().filter(function(p){ return p.product === selectedProduct(); })[0];
+    if (!prod) return;
+    prod.tiers.forEach(function(t){
+      var o = document.createElement('option');
+      o.value = t.tier;
+      var price = t.prices && t.prices[state.currency];
+      o.textContent = titleCase(t.tier) +
+        (t.contactSales ? ' — contact sales'
+                        : (price ? ' — ' + fmtMoney(price.monthly, state.currency) + '/mo' : '')) +
+        (t.cap != null ? ' · up to ' + t.cap + ' seat' + (t.cap === 1 ? '' : 's') : '');
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', renderPrice);
+  }
+
+  function currentTier() {
+    var prod = productsFromPlans().filter(function(p){ return p.product === selectedProduct(); })[0];
+    if (!prod) return null;
+    var tier = $('tier-select').value;
+    return prod.tiers.filter(function(t){ return t.tier === tier; })[0] || null;
+  }
+
+  function renderPrice() {
+    var t = currentTier();
+    var btn = $('subscribe-btn');
+    if (!t) return;
+
+    if (t.contactSales) {
+      $('price-amount').textContent = 'Contact sales';
+      $('price-per').textContent = '';
+      $('price-meta').textContent = 'Enterprise plans are quoted individually.';
+      btn.disabled = true;
+      btn.textContent = 'Contact sales';
+      return;
+    }
+
+    var cycle = selectedCycle();
+    var price = t.prices && t.prices[state.currency];
+    if (!price) {
+      $('price-amount').textContent = '—';
+      $('price-meta').textContent = 'Pricing unavailable for ' + state.currency + '.';
+      btn.disabled = true;
+      return;
+    }
+
+    var minor = cycle === 'annual' ? price.annual : price.monthly;
+    $('price-amount').textContent = fmtMoney(minor, state.currency);
+    $('price-per').textContent = cycle === 'annual' ? '/ year' : '/ month';
+    $('price-meta').textContent = cycle === 'annual'
+      ? 'Billed yearly · equivalent to ' + fmtMoney(Math.round(minor / 12), state.currency) + '/month'
+      : 'Billed monthly';
+    btn.disabled = false;
+    btn.textContent = 'Continue to payment';
+  }
+
+  function doSubscribe() {
+    var btn = $('subscribe-btn');
+    var t = currentTier();
+    if (!t || t.contactSales) { window.location.href = '/contact.html#enterprise'; return; }
+
+    clearErr($('plan-err'));
+    btn.disabled = true;
+    btn.textContent = 'Starting checkout…';
+
+    var product = selectedProduct();
+    var cycle = selectedCycle();
+    var body = { product: product, tier: t.tier, cycle: cycle, currency: state.currency };
+    var code = $('discount').value.trim();
+    if (code) body.discount = code;
+
+    api('/api/billing/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Stable per (selection, page load) — see pageNonce above.
+        'Idempotency-Key': 'co-' + product + '-' + t.tier + '-' + cycle + '-' + pageNonce
+      },
+      body: JSON.stringify(body)
+    }).then(function(j){
+      // Both rails return { provider, checkoutUrl } — Stripe Checkout or the
+      // Pesapal mobile-money redirect. Same handling either way.
+      if (j && j.checkoutUrl) { window.location.href = j.checkoutUrl; return; }
+      throw new Error('Checkout did not return a payment link.');
+    }).catch(function(e){
+      btn.disabled = false;
+      btn.textContent = 'Continue to payment';
+      showErr($('plan-err'), e.message);
+    });
+  }
+
+  function renderPlanPicker() {
+    var t = state.tenant || {};
+    // Owner-only: /api/billing/checkout requires the owner role.
+    if (!isAtLeast(state.role, 'owner')) return;
+    // Already on a live paid plan that isn't ending — nothing to choose.
+    if (state.sub && state.sub.status === 'active' && !state.sub.cancelAtPeriodEnd) return;
+
+    if (t.subscriptionStatus === 'read_only' || t.subscriptionStatus === 'cancelled') {
+      $('plan-heading').textContent = 'Reactivate your account';
+      $('plan-sub').textContent = 'Your access is paused. Choose a plan to switch it back on.';
+    } else if (t.subscriptionStatus === 'past_due') {
+      $('plan-heading').textContent = 'Payment needed';
+      $('plan-sub').textContent = 'Your last payment did not go through. Choose a plan or update your card to continue.';
+    }
+
+    var provider = (state.plans && state.plans.providers && state.plans.providers[state.currency]) || null;
+    $('pay-route').textContent = provider === 'pesapal'
+      ? 'You will pay in ' + state.currency + ' by mobile money or card via Pesapal. Your currency is set from your firm\'s country.'
+      : 'You will pay in ' + state.currency + ' by card via Stripe. Your currency is set from your firm\'s country.';
+
+    var off = state.plans && state.plans.annualDiscount;
+    if (off) $('annual-off').textContent = '(save ' + Math.round(off * 100) + '%)';
+
+    buildProductRow();
+    buildTierSelect();
+    renderPrice();
+    $('subscribe-btn').addEventListener('click', doSubscribe);
+    document.querySelectorAll('input[name=cycle]').forEach(function(el){
+      el.addEventListener('change', renderPrice);
+    });
+    show($('plan-card'));
+  }
+
+  // ---- invoices -------------------------------------------------------------
+
+  function renderInvoices(list) {
+    if (!isAtLeast(state.role, 'admin')) return;
+    show($('inv-card'));
+    var body = $('inv-body');
+    if (!list || !list.length) {
+      $('inv-table').style.display = 'none';
+      $('inv-empty').style.display = 'block';
+      return;
+    }
+    list.forEach(function(inv){
+      var tr = document.createElement('tr');
+      var link = inv.hostedUrl || inv.pdfUrl;
+      tr.innerHTML =
+        '<td>' + (inv.number || inv.id.slice(0, 8)) + '</td>' +
+        '<td>' + fmtDate(inv.paidAt || inv.createdAt) + '</td>' +
+        '<td>' + fmtMoney(inv.totalCents, inv.currency) +
+          (inv.taxLabel ? ' <span class="per">incl. ' + inv.taxLabel + '</span>' : '') + '</td>' +
+        '<td><span class="tag ' + (inv.status || '') + '">' + titleCase(inv.status) + '</span></td>' +
+        '<td>' + (link ? '<a href="' + link + '" target="_blank" rel="noopener">View</a>' : '') + '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  // ---- boot -----------------------------------------------------------------
+
+  $('logout-btn').addEventListener('click', function(){
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(toLogin, toLogin);
+  });
+
+  fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function(res){
+    if (!res.ok) throw new Error('refresh');
+    return res.json();
+  }).then(function(j){
+    accessToken = j && j.token;
+    if (!accessToken) throw new Error('no token');
+    // /api/tenants/me carries the tenant + seat usage but NOT the caller's role,
+    // so /api/auth/me is needed too — billing controls are owner-only and
+    // invoices are admin+.
+    return Promise.all([
+      api('/api/auth/me'),
+      api('/api/tenants/me')
+    ]);
+  }).then(function(r){
+    state.user = r[0] && r[0].user;
+    state.role = (state.user && state.user.role) || 'member';
+    state.tenant = r[1] && r[1].tenant;
+    state.currency = (state.tenant && state.tenant.currency) || 'USD';
+    renderAccount(r[1]);
+
+    // Plans are public. Subscription + invoices are admin+, so skip them for
+    // plain members rather than firing calls that will 403.
+    var jobs = [
+      fetch('/api/billing/plans?currency=' + encodeURIComponent(state.currency))
+        .then(function(res){ return res.ok ? res.json() : null; })
+        .catch(function(){ return null; })
+    ];
+    if (isAtLeast(state.role, 'admin')) {
+      jobs.push(api('/api/billing/subscription').catch(function(){ return null; }));
+      jobs.push(api('/api/billing/invoices?limit=10').catch(function(){ return null; }));
+    }
+    return Promise.all(jobs);
+  }).then(function(r){
+    state.plans = r[0];
+    state.sub = (r[1] && r[1].subscription) || null;
+
+    if (state.sub) renderSubscription();
+    if (state.plans) renderPlanPicker();
+    if (r[2]) renderInvoices(r[2].invoices);
+  }).catch(function(){
+    toLogin();
+  });
+})();
+</script>
+
+</body>
+</html>
