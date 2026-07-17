@@ -1940,7 +1940,7 @@ databases:
 ### Production Domain
 
 - **API**: `api.planscape.build` → Render planscape-api service
-- **Web app**: `app.planscape.build` → Planscape React/Expo web build
+- **Web app**: `app.planscape.build` → `planscape-web` (Next.js) — see `render.yaml` + `docs/DEPLOY_RUNBOOK.md`
 - **Marketing**: `planscape.build` → `marketing-site/`
 - **Platform owner**: `davis@planscape.build`
 

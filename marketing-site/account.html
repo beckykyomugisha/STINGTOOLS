@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your account — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/account">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.acct-wrap { max-width: 640px; margin: 40px auto; padding: 0 16px; }
+.acct-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 32px; }
+.acct-card h1 { margin: 0 0 4px; font-size: 26px; }
+.acct-card .sub { color: var(--muted); margin: 0 0 24px; }
+.state { display: none; }
+.state.shown { display: block; }
+.spinner { font-size: 28px; text-align: center; }
+.dl { display: grid; grid-template-columns: 180px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.dl > div { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.dl > div:nth-last-child(-n+2) { border-bottom: 0; }
+.dl dt { font-weight: 600; color: var(--muted); font-size: 14px; background: #faf8f5; margin: 0; }
+.dl dd { margin: 0; font-size: 15px; }
+@media (max-width: 480px) { .dl { grid-template-columns: 1fr; } .dl dt { border-bottom: 0; } }
+.pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.pill.trial { background: rgba(232,145,45,.14); color: #b5670f; }
+.pill.active { background: rgba(40,167,69,.12); color: #1e7e34; }
+.pill.read_only, .pill.past_due, .pill.cancelled { background: rgba(204,51,34,.12); color: #8b2018; }
+.acct-actions { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; border: 0; padding: 11px 20px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #d57f1f; }
+.link-btn { background: none; border: 0; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; }
+.phase2-note { margin-top: 24px; font-size: 13px; color: var(--muted); padding: 12px 14px; background: #faf8f5; border: 1px solid var(--line); border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+</nav>
+
+<div class="acct-wrap">
+  <div class="acct-card">
+    <div class="state shown" id="loading">
+      <div class="spinner">⏳</div>
+      <p class="sub" style="text-align:center;margin-top:12px">Loading your account…</p>
+    </div>
+
+    <div class="state" id="ready">
+      <h1 id="greeting">Your account</h1>
+      <p class="sub" id="firm-line"></p>
+
+      <dl class="dl">
+        <div><dt>Firm</dt></div>
+        <div><dd id="v-firm">—</dd></div>
+        <div><dt>Subscription</dt></div>
+        <div><dd><span class="pill" id="v-status">—</span></dd></div>
+        <div><dt>Trial</dt></div>
+        <div><dd id="v-trial">—</dd></div>
+        <div><dt>Plan</dt></div>
+        <div><dd id="v-plan">—</dd></div>
+        <div><dt>Seats</dt></div>
+        <div><dd id="v-seats">—</dd></div>
+        <div><dt>Billing currency</dt></div>
+        <div><dd id="v-currency">—</dd></div>
+      </dl>
+
+      <div class="acct-actions">
+        <a class="btn-primary" href="/pricing.html">View plans</a>
+        <button type="button" class="link-btn" id="logout-btn">Log out</button>
+      </div>
+
+      <p class="phase2-note">Billing controls — choosing a plan and paying — are coming here soon. For now, browse the <a href="/pricing.html">plans</a>; your trial gives you full access in the meantime.</p>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  var loading = document.getElementById('loading');
+  var ready = document.getElementById('ready');
+
+  function toLogin() { window.location.href = '/login'; }
+
+  function titleCase(s) {
+    return String(s || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+
+  function trialDaysLeft(iso) {
+    if (!iso) return null;
+    var end = new Date(iso).getTime();
+    if (isNaN(end)) return null;
+    return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+  }
+
+  function render(data) {
+    var t = data.tenant || {};
+    document.getElementById('v-firm').textContent = t.name || '—';
+
+    var status = t.subscriptionStatus || 'unknown';
+    var statusEl = document.getElementById('v-status');
+    statusEl.textContent = titleCase(status);
+    statusEl.className = 'pill ' + status;
+
+    // Trial days remaining (only meaningful while on trial).
+    var days = trialDaysLeft(t.trialEndsAt);
+    if (status === 'trial' && days !== null) {
+      document.getElementById('v-trial').textContent =
+        days === 0 ? 'Ends today' : (days + ' day' + (days === 1 ? '' : 's') + ' remaining');
+    } else if (days !== null) {
+      document.getElementById('v-trial').textContent = 'Trial ended';
+    } else {
+      document.getElementById('v-trial').textContent = '—';
+    }
+
+    // Plan: null tier means the trial hasn't converted to a paid plan yet.
+    if (t.planTier) {
+      var prod = t.planProduct ? titleCase(t.planProduct) + ' · ' : '';
+      document.getElementById('v-plan').textContent = prod + titleCase(t.planTier);
+    } else {
+      document.getElementById('v-plan').textContent = 'Trial — no plan yet';
+    }
+
+    // Seats: seatsUsed / cap (cap null = unlimited).
+    var used = (data.seatsUsed != null) ? data.seatsUsed : data.memberCount;
+    if (used != null) {
+      document.getElementById('v-seats').textContent =
+        used + (data.cap != null ? ' of ' + data.cap : ' (unlimited)');
+    }
+
+    document.getElementById('v-currency').textContent = t.currency || 'USD';
+
+    document.getElementById('firm-line').textContent =
+      t.name ? ('Signed in — ' + t.name) : '';
+
+    loading.classList.remove('shown');
+    ready.classList.add('shown');
+  }
+
+  // Session convention (see billing-success.html): mint an access token from the
+  // HttpOnly ps_refresh cookie, hold it in memory only, use it as a Bearer token.
+  // NEVER persist tokens to localStorage/sessionStorage.
+  var accessToken = null;
+
+  document.getElementById('logout-btn').addEventListener('click', function(){
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(toLogin, toLogin);
+  });
+
+  fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function(res){
+    if (!res.ok) throw new Error('refresh');
+    return res.json();
+  }).then(function(j){
+    accessToken = j && j.token;
+    if (!accessToken) throw new Error('no token');
+    // /api/tenants/me carries the tenant (with currency + plan) plus live seat usage.
+    return fetch('/api/tenants/me', { headers: { 'Authorization': 'Bearer ' + accessToken } });
+  }).then(function(res){
+    if (!res.ok) throw new Error('me');
+    return res.json();
+  }).then(function(j){
+    render(j);
+  }).catch(function(){
+    // No valid session → send them to log in.
+    toLogin();
+  });
+})();
+</script>
+
+</body>
+</html>
