@@ -88,7 +88,16 @@ export async function getAccessToken(env: PesapalEnv): Promise<string> {
     }
   );
   if (!r.token) {
-    console.error(`Pesapal RequestToken returned no token: ${r.message ?? "unknown"}`);
+    // Pesapal reports credential failures as HTTP 200 with an error body, so
+    // pesapalFetch's !res.ok check never fires. The detail lives at
+    // error.message ("Invalid Access Credentials provided"), NOT at a top-level
+    // `message` — reading the wrong field logged a useless "unknown" and made
+    // every auth failure undiagnosable.
+    const err = r.error as { code?: string; message?: string } | undefined;
+    const detail = err?.message || err?.code || r.message || "unknown";
+    console.error(
+      `Pesapal RequestToken returned no token from ${pesapalBase(env)}: ${detail}`
+    );
     throw new PesapalError(502, "Pesapal authentication failed");
   }
   return r.token;
