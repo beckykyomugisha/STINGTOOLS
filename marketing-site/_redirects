@@ -3,8 +3,8 @@
 # 301 = permanent, 302 = temporary
 
 # Legacy URLs
-/docs           https://docs.planscape.build/    301
-/docs/*         https://docs.planscape.build/:splat 301
+/docs           /guides                          301
+/docs/*         /guides                          301
 
 # Note: Cloudflare Pages auto-canonicalises /signup.html → /signup, /pricing.html → /pricing, etc.
 # Never add /signup → /signup.html or /pricing → /pricing.html — they create a redirect loop.
@@ -15,5 +15,4 @@
 # adding one for /login or /account would create a redirect loop (see d75f094a0).
 
 # Old WordPress-style paths (just in case)
-/?p=*           /blog/                          301
 /category/*     /blog/                          301
