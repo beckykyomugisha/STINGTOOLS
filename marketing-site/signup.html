@@ -287,7 +287,11 @@
     }).then(function(){
       // The signup response set the ps_refresh cookie; the account page mints an
       // access token from it. Head straight there.
-      window.location.href = '/account';
+      // Carry the plan the visitor picked on the pricing page through to the
+      // account page, which pre-selects it. Previously ?plan= was read by
+      // nobody, so choosing a plan then signing up silently forgot the choice.
+      var chosen = new URLSearchParams(window.location.search).get('plan');
+      window.location.href = chosen ? ('/account?plan=' + encodeURIComponent(chosen)) : '/account';
     }).catch(function(err){
       showError((err && err.msg) || 'Network error — please try again, or email hello@planscape.build.');
     });
