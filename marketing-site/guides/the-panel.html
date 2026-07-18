@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The STING panel, tab by tab — Planscape</title>
+<meta name="description" content="All nine tabs of the STING Tools panel in Revit explained in plain language — what each one is for and when you would use it.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/the-panel.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; The panel, tab by tab</div>
+  <h1>The panel, tab by tab</h1>
+  <div class="meta">📖 9-minute read · Beginner</div>
+
+  <p>Nearly everything STING Tools does happens in one panel docked to the right-hand side of Revit. This guide walks through all nine tabs so you know what each is for and when you would reach for it.</p>
+
+  <h2>Why a panel and not just a ribbon</h2>
+  <p>Revit's ribbon is designed for commands you run once — draw a wall, place a door. It hides everything not on the current tab, and it resets as you move around the model.</p>
+  <p>Most coordination work isn't like that. Tagging a floor, checking what you have tagged, fixing what failed, then tagging again is a loop you run for an hour at a time. A docked panel stays open beside the model while you work, keeps its settings between commands, and shows results without covering the drawing.</p>
+  <p>The ribbon tab is still there for the handful of commands you run occasionally. The panel is where the day's work happens.</p>
+
+  <div class="callout">
+    <strong>If the panel isn't showing:</strong> in Revit go to <strong>View &rsaquo; User Interface</strong> and tick the STING Tools panel, or use the Toggle Panel button on the STING Tools ribbon tab. See <a href="/guides/revit-plugin-setup.html">Installing STING Tools</a> if it isn't there at all.
+  </div>
+
+  <h2>The nine tabs at a glance</h2>
+  <table class="tbl">
+    <thead><tr><th>Tab</th><th>Use it when you want to…</th></tr></thead>
+    <tbody>
+      <tr><td><strong>HVAC</strong></td><td>Open the mechanical workspace — equipment, systems, duct sizing, heat loads</td></tr>
+      <tr><td><strong>SELECT</strong></td><td>Pick the elements you want to work on, by discipline or by pattern</td></tr>
+      <tr><td><strong>TAGGING</strong></td><td>Tag elements, tidy existing tags, colour them by discipline</td></tr>
+      <tr><td><strong>DOCS</strong></td><td>Lay out sheets — align, distribute and renumber views</td></tr>
+      <tr><td><strong>SETUP</strong></td><td>Prepare a new project: parameters, materials, standards</td></tr>
+      <tr><td><strong>CREATE TAGS</strong></td><td>Build and maintain the tag families themselves</td></tr>
+      <tr><td><strong>MODEL</strong></td><td>Create geometry and run model-wide audits</td></tr>
+      <tr><td><strong>BIM</strong></td><td>Coordinate: clashes, warnings, federated model checks</td></tr>
+      <tr><td><strong>TAG STUDIO</strong></td><td>Control exactly how tags look and where they sit</td></tr>
+    </tbody>
+  </table>
+
+  <h2>SELECT — choosing what to work on</h2>
+  <p>Every batch operation starts with a selection. Revit's own selection tools are either too broad (everything in the view) or too slow (clicking 400 light fittings one at a time).</p>
+  <p>The discipline buttons are the ones you will use most. They are abbreviated to fit: <strong>Lgt</strong> for lighting fixtures, <strong>Elc</strong> for electrical, <strong>Mch</strong> for mechanical, <strong>Plb</strong> for plumbing, <strong>Air</strong> for air terminals, <strong>Fur</strong> for furniture. One click selects every element of that discipline in the current view.</p>
+  <p>Above them sit the pattern-based tools, for when "all lighting" is too blunt:</p>
+  <ul>
+    <li><strong>Similar</strong> — everything matching what you already have selected</li>
+    <li><strong>Chain</strong> — follows a connected run of pipe, duct or conduit from end to end</li>
+    <li><strong>Cluster</strong> — elements grouped tightly together, such as a plant room</li>
+    <li><strong>Boundary</strong> — everything inside a room or area you pick</li>
+    <li><strong>Outliers</strong> — elements sitting oddly far from their neighbours, which is often how you find something modelled in the wrong place</li>
+    <li><strong>Dense</strong> — the congested spots, useful before a coordination review</li>
+  </ul>
+
+  <h2>TAGGING — putting identity on elements</h2>
+  <p>A tag is the label that tells everyone downstream what a thing is: which discipline owns it, where it sits, what system it belongs to, and its unique number. Getting these consistent across a model is what makes schedules, handover data and clash reports trustworthy.</p>
+  <p>Doing it by hand does not scale. A mid-size hospital floor can carry several thousand taggable elements, and each tag has several parts that must agree with each other.</p>
+  <p>The main buttons, in the order you would normally use them:</p>
+  <ul>
+    <li><strong>Pre-Audit</strong> — a dry run. Shows what would be tagged and flags problems before anything changes. Worth running first on an unfamiliar model.</li>
+    <li><strong>Auto Tag</strong> — tags everything in the current view</li>
+    <li><strong>Batch Tag</strong> — tags across the whole project rather than one view</li>
+    <li><strong>Tag New</strong> — only elements added since the last run, for keeping a live model current</li>
+    <li><strong>Tag+Combine</strong> — tags and assembles the combined text in one pass</li>
+    <li><strong>Undo</strong> — reverses the last tagging run</li>
+  </ul>
+  <p><strong>Smart Organise</strong> handles the other half of the job: tags that exist but sit badly — overlapping each other, covering the geometry, or trailing leaders across the sheet. <strong>Quick</strong> does a fast pass, <strong>Deep</strong> works harder at difficult areas, and <strong>Anneal</strong> keeps rearranging until it settles on the least-crowded arrangement it can find. Deep and Anneal take longer; use them before issuing a drawing rather than mid-session.</p>
+  <p>The colour controls tint elements by discipline or by any parameter value, which makes a wrong value obvious at a glance instead of buried in a schedule.</p>
+
+  <h2>SETUP — preparing a project</h2>
+  <p>This is the tab you use once at the start and rarely afterwards.</p>
+  <p><strong>Project Setup Wizard</strong> is the recommended route: it walks through the whole preparation in order rather than leaving you to guess. Behind it sit the individual steps for when you need just one.</p>
+  <p>The materials libraries are worth knowing about — <strong>BLE</strong> carries 815 building-element materials and <strong>MEP</strong> 464 mechanical and electrical ones, each already carrying the properties that schedules and cost plans expect. Loading these is usually faster than building materials by hand and gives everyone on the project the same definitions.</p>
+  <p><strong>Params Check</strong> verifies that the shared parameters STING relies on are present and correctly bound. If tagging behaves strangely on an inherited model, run this first.</p>
+
+  <h2>DOCS — laying out sheets</h2>
+  <p>Sheet composition is fiddly, repetitive work: nudging viewports until they line up, then renumbering everything when a drawing is inserted in the middle of a set.</p>
+  <p>The alignment buttons work on a selection of viewports — align their tops, bottoms, left edges, or centre them on a shared axis. <strong>L→R</strong> and <strong>T→B</strong> distribute them evenly left-to-right or top-to-bottom.</p>
+  <p>The renumbering tools handle the other half: <strong>+1</strong> and <strong>-1</strong> shift a run of numbers up or down to make room, and <strong>Prefix</strong> and <strong>Suffix</strong> add or change a common part of a sheet number across a set.</p>
+
+  <h2>CREATE TAGS — the tag families themselves</h2>
+  <p>Tags are Revit families, and they have to exist before anything can be tagged with them. Most firms either inherit a mismatched set or build them one at a time.</p>
+  <p><strong>Create Tag Fams</strong> builds the families to a consistent specification. <strong>Load Params</strong> brings in the shared parameters they depend on, and <strong>Cfg Labels</strong> sets what each label actually displays. <strong>Purge</strong> clears out unused tag families that accumulate in a long-running project.</p>
+  <p>You are unlikely to visit this tab often, but when a tag will not display what you expect, this is where the cause usually is.</p>
+
+  <h2>MODEL — geometry and model-wide checks</h2>
+  <p>Two different kinds of tool share this tab.</p>
+  <p>The creation tools build geometry from rules rather than by drawing: <strong>Building Shell</strong> generates walls, floor and roof for a footprint; <strong>Room Seed</strong> places rooms; <strong>Levels+Grids</strong> sets out the structural framework; <strong>DWG Wizard</strong> converts an imported CAD drawing into Revit elements.</p>
+  <p><strong>Placement Centre</strong> is the larger of these — a separate window for placing fixtures according to rules, such as spacing light fittings on a grid or setting sockets at standard heights.</p>
+  <p>The audit tools check the model as a whole: <strong>LOD Check</strong> tests whether elements carry the level of detail the current stage requires, <strong>Family Audit</strong> reviews the families in use, and <strong>Federation Review</strong> looks across linked models rather than just the one you have open.</p>
+
+  <h2>BIM — coordination</h2>
+  <p>Coordination is the business of finding where disciplines disagree and tracking those disagreements to resolution.</p>
+  <p><strong>Detect</strong> runs a clash check. <strong>Run X-Model</strong> extends it across linked models, which is where most real conflicts live — your ducts against someone else's beams. <strong>Refresh Matrix</strong> updates which discipline pairs are being checked against each other.</p>
+  <p><strong>BCF</strong> exports findings in the standard format that Navisworks, Solibri and most coordination tools can open, so an issue raised here arrives intact in the software the rest of the team uses.</p>
+  <p>The Warnings Dashboard addresses a different problem: Revit's own warning list, which on an inherited model can run to thousands of entries that nobody has read in months. It groups warnings by type and severity so you can see which few actually matter, and <strong>Auto-Fix</strong> resolves the mechanical ones.</p>
+
+  <h2>TAG STUDIO — how tags look</h2>
+  <p>The TAGGING tab decides <em>what</em> gets tagged. Tag Studio decides <em>how those tags appear</em>. It has its own sub-tabs:</p>
+  <ul>
+    <li><strong>Placement</strong> — where a tag sits relative to its element, and how hard to work at avoiding overlaps</li>
+    <li><strong>Leader &amp; Elbow</strong> — the line joining tag to element: straight or elbowed, and which arrowhead</li>
+    <li><strong>Style &amp; Color</strong> — text size, weight, colour, and whether tags carry a box</li>
+    <li><strong>Tokens &amp; Depth</strong> — which parts of the tag are shown. A busy plan might show only discipline and number; a coordination view might show everything</li>
+    <li><strong>Categories</strong> — which element categories get tagged at all, and which are excluded</li>
+  </ul>
+  <p>These settings are why the same model can produce a clean tender drawing and a dense coordination drawing without re-tagging anything.</p>
+
+  <h2>HVAC and the other discipline panels</h2>
+  <p>Mechanical, electrical and plumbing work needs more room than a tab can give, so each has its own panel with its own set of tabs. The HVAC tab on the main panel opens the mechanical one.</p>
+  <ul>
+    <li><strong>HVAC</strong> — equipment, systems, calculations, duct sizing, heat loads, fabrication and reports</li>
+    <li><strong>Electrical</strong> — distribution boards, circuits, calculations, cable sizing, single-line diagrams and lighting</li>
+    <li><strong>Plumbing</strong> — supply and drainage sizing, routing, storm water, audits and documentation</li>
+  </ul>
+  <p>Each of these gets its own guide, covering the engineering behind the numbers as well as the buttons.</p>
+
+  <h2>A sensible first hour</h2>
+  <ol>
+    <li>Open a project you know well — not a live deadline.</li>
+    <li><strong>SETUP</strong> &rsaquo; <strong>Params Check</strong>, to confirm the model is ready.</li>
+    <li><strong>SELECT</strong> &rsaquo; <strong>Lgt</strong>, to select the lighting in the current view.</li>
+    <li><strong>TAGGING</strong> &rsaquo; <strong>Pre-Audit</strong>, and read what it says it would do.</li>
+    <li>If it looks right, <strong>Auto Tag</strong>. If it doesn't, nothing has changed yet.</li>
+    <li><strong>Undo</strong> if you want the model back exactly as it was.</li>
+  </ol>
+  <p>That loop — select, audit, tag, check — is the core of how STING is meant to be used. Everything else builds on it.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/iso-19650-workflow.html">ISO 19650 in practice</a> explains what the tags actually mean and why they are shaped the way they are.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
