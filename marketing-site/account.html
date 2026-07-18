@@ -101,6 +101,7 @@ table.inv tr:last-child td { border-bottom: 0; }
       </dl>
 
       <div class="acct-actions">
+        <a class="btn-primary" href="/downloads">Downloads</a>
         <button type="button" class="link-btn" id="logout-btn">Log out</button>
       </div>
     </div>
@@ -496,6 +497,17 @@ table.inv tr:last-child td { border-bottom: 0; }
     });
   }
 
+  // A plan chosen on the pricing page arrives as ?plan=planscape-studio. Split
+  // it into product + tier so the picker opens on what the visitor actually
+  // asked for instead of making them choose twice.
+  function preselectFromQuery() {
+    var raw = new URLSearchParams(window.location.search).get('plan');
+    if (!raw) return null;
+    var i = raw.lastIndexOf('-');
+    if (i < 1) return null;
+    return { product: raw.slice(0, i), tier: raw.slice(i + 1) };
+  }
+
   function renderPlanPicker() {
     var t = state.tenant || {};
     // Owner-only: /api/billing/checkout requires the owner role.
@@ -528,7 +540,18 @@ table.inv tr:last-child td { border-bottom: 0; }
     if (off) $('annual-off').textContent = '(save ' + Math.round(off * 100) + '%)';
 
     buildProductRow();
+    var pre = preselectFromQuery();
+    if (pre) {
+      var pr = document.querySelector('input[name=product][value="' + pre.product + '"]');
+      if (pr) pr.checked = true;
+    }
     buildTierSelect();
+    if (pre) {
+      var sel = $('tier-select');
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === pre.tier) { sel.selectedIndex = i; break; }
+      }
+    }
     renderPrice();
     $('subscribe-btn').addEventListener('click', doSubscribe);
     document.querySelectorAll('input[name=cycle]').forEach(function(el){
