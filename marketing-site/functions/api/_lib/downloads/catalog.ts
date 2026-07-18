@@ -21,11 +21,11 @@ export interface ToolVersion {
   sizeMb?: number;
   releasedAt?: string; // ISO date
   notes?: string;
-  // Where the file actually lives. Null means "we don't have a self-serve URL
-  // yet" — the page then tells the user to request it by email rather than
-  // showing a button that 404s. Set this and the button lights up; no code
-  // change needed.
-  url?: string | null;
+  // Key of the object in the private R2 bucket. Set this and the download
+  // becomes self-serve, streamed through /api/downloads/:tool/:version with an
+  // entitlement check. Null means we have no file yet and the page falls back
+  // to "request by email" — no code change either way.
+  objectKey?: string | null;
   sha256?: string | null;
 }
 
@@ -57,11 +57,13 @@ export const DOWNLOAD_CATALOG: Tool[] = [
     docsUrl: "/guides/revit-plugin-setup.html",
     versions: [
       {
-        version: "current",
+        version: "2026-07-05",
         hosts: ["Revit 2025", "Revit 2026", "Revit 2027"],
+        sizeMb: 88,
+        releasedAt: "2026-07-05",
         notes:
-          "Tell us which Revit version you run and we will send the matching build with your licence.",
-        url: null,
+          "One package covers all three Revit versions — the installer puts the files in the right place. Includes an install guide and an uninstaller.",
+        objectKey: "sting-tools/2026-07-05/StingTools_Deploy_20260705.zip",
         sha256: null,
       },
     ],
@@ -80,7 +82,7 @@ export const DOWNLOAD_CATALOG: Tool[] = [
         version: "beta",
         notes:
           "In testing with a small group. Tell us about your ArchiCAD setup and we will include you.",
-        url: null,
+        objectKey: null,
       },
     ],
   },

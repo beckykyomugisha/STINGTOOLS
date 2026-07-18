@@ -45,7 +45,11 @@ export const onRequestGet = withHandler(async ({ request, env }) => {
               sizeMb: v.sizeMb ?? null,
               releasedAt: v.releasedAt ?? null,
               notes: v.notes ?? null,
-              url: v.url ?? null,
+              // Point at our own gated endpoint, never at R2 directly. The
+              // bucket is private; this URL re-checks entitlement per request.
+              downloadUrl: v.objectKey
+                ? `/api/downloads/${tool.id}/${encodeURIComponent(v.version)}`
+                : null,
               sha256: v.sha256 ?? null,
             }))
           : [],
