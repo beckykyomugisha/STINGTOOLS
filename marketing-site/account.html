@@ -150,9 +150,21 @@ table.inv tr:last-child td { border-bottom: 0; }
 
     <div class="acct-actions">
       <button type="button" class="btn-primary" id="subscribe-btn">Continue to payment</button>
+      <button type="button" class="btn-secondary" id="keep-trial-btn">Not now — keep evaluating</button>
     </div>
     <div class="err" id="plan-err"></div>
+    <p class="note" id="cancel-note"></p>
     <p class="note" id="pay-route"></p>
+  </div>
+
+  <!-- Shown when the user dismisses the plan picker. Nothing is charged for
+       choosing this — the trial is already running. -->
+  <div class="acct-card state" id="trial-card">
+    <h2>You're on the free trial</h2>
+    <p class="sub" id="trial-line">No card on file. Nothing will be charged.</p>
+    <div class="acct-actions">
+      <button type="button" class="btn-primary" id="show-plans-btn">See plans</button>
+    </div>
   </div>
 
   <!-- Invoices — admin+ only. -->
@@ -504,6 +516,14 @@ table.inv tr:last-child td { border-bottom: 0; }
       ? 'You will pay in ' + state.currency + ' by mobile money or card via Pesapal. Your currency is set from your firm\'s country.'
       : 'You will pay in ' + state.currency + ' by card via Stripe. Your currency is set from your firm\'s country.';
 
+    // Cancellation terms, worded per rail so it stays true. Stripe subscriptions
+    // renew and can be cancelled here; Pesapal charges one period at a time and
+    // never auto-renews, so there is literally nothing to cancel (self-serve
+    // cancel is Stripe-only — see getActiveSubscription in state.ts).
+    $('cancel-note').textContent = provider === 'pesapal'
+      ? 'No lock-in. Mobile-money plans are charged one period at a time and never auto-renew — if you do nothing at the end of a period, it simply stops. Your trial is unaffected until you pay.'
+      : 'No lock-in. Cancel any time from this page and you keep full access until the end of the period you have paid for — no partial-period charges after that.';
+
     var off = state.plans && state.plans.annualDiscount;
     if (off) $('annual-off').textContent = '(save ' + Math.round(off * 100) + '%)';
 
@@ -514,6 +534,26 @@ table.inv tr:last-child td { border-bottom: 0; }
     document.querySelectorAll('input[name=cycle]').forEach(function(el){
       el.addEventListener('change', renderPrice);
     });
+
+    // "Not now" is a pure UI toggle — it charges nothing and changes no state.
+    // The trial is already running from signup; this just stops the page
+    // reading as a paywall for someone who only wants to evaluate.
+    var days = trialDaysLeft(t.trialEndsAt);
+    $('trial-line').textContent =
+      (t.subscriptionStatus === 'trial' && days !== null
+        ? (days === 0 ? 'Your trial ends today.' : 'You have ' + days + ' day' + (days === 1 ? '' : 's') + ' left.')
+        : '') +
+      ' No card on file and nothing will be charged. Pick a plan whenever you are ready — or not at all.';
+
+    $('keep-trial-btn').addEventListener('click', function(){
+      $('plan-card').classList.remove('shown');
+      show($('trial-card'));
+    });
+    $('show-plans-btn').addEventListener('click', function(){
+      $('trial-card').classList.remove('shown');
+      show($('plan-card'));
+    });
+
     show($('plan-card'));
   }
 
