@@ -117,8 +117,8 @@
     // A version with no URL is not an error — it means we do not have a
     // self-serve link for it yet. Say so plainly and give the way that works,
     // rather than showing a button that goes nowhere.
-    var action = v.url
-      ? '<a class="btn-primary" href="' + esc(v.url) + '">Download</a>'
+    var action = v.downloadUrl
+      ? '<a class="btn-primary" href="' + esc(v.downloadUrl) + '">Download</a>'
       : '<a class="btn-secondary" href="mailto:hello@planscape.build?subject=' +
         encodeURIComponent('Download request: ' + t.name) +
         '">Request by email</a><span class="meta" style="margin:0">Self-serve download coming soon</span>';
