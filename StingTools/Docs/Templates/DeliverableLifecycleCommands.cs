@@ -52,17 +52,23 @@ namespace Planscape.Docs.Templates
                     // Render the deliverable INTO the CDE tree — <state>/<discipline>/Documents —
                     // so it is born inside its CDE container, then register it so the register's
                     // file_reference equals the physical location.
-                    string disc = "Z", cdeState = "WIP", suit = "S0";
+                    string disc = "Z", cdeState = "WIP", suit = "S0", docNumber = "";
                     try
                     {
                         dynamic upd = lr.Updated;
-                        disc     = string.IsNullOrWhiteSpace((string)upd?.Discipline)  ? "Z"   : (string)upd.Discipline;
-                        cdeState = string.IsNullOrWhiteSpace((string)upd?.CDE)         ? "WIP" : ((string)upd.CDE).ToUpperInvariant();
-                        suit     = string.IsNullOrWhiteSpace((string)upd?.Suitability) ? "S0"  : (string)upd.Suitability;
+                        disc      = string.IsNullOrWhiteSpace((string)upd?.Discipline)  ? "Z"   : (string)upd.Discipline;
+                        cdeState  = string.IsNullOrWhiteSpace((string)upd?.CDE)         ? "WIP" : ((string)upd.CDE).ToUpperInvariant();
+                        suit      = string.IsNullOrWhiteSpace((string)upd?.Suitability) ? "S0"  : (string)upd.Suitability;
+                        docNumber = (string)(upd?.DocNumber ?? upd?.Code) ?? "";
                     }
                     catch (Exception fx) { StingLog.Warn($"{title}: read deliverable fields: {fx.Message}"); }
 
                     rendered = engine.RenderToCde(lr.TemplateId, ctx, cdeState, disc, "Documents");
+
+                    // Move-on-transition: drop any earlier render of this deliverable from the
+                    // other CDE states so it lives in exactly one state (no stale WIP copy).
+                    try { engine.PurgeStaleRenders(docNumber, lr.TemplateId, disc, rendered); }
+                    catch (Exception pex) { StingLog.Warn($"{title}: purge stale renders: {pex.Message}"); }
 
                     try
                     {

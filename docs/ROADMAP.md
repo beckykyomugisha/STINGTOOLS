@@ -897,16 +897,18 @@ Eventually the two source stores retire once the UIs write through the canonical
   so existing publishing is not broken; organisations opt into strict Check→Review→Approve
   gates by adding `allowed_roles` in their project workflow override. `Supersede`/`Replace`
   still mark status directly (they don't map to a CDE state) and are left out of the drive.
-- **Close the physical loop — DONE (render + register); move-on-transition still open.**
-  `TemplateEngine.RenderToCde` renders a deliverable into its CDE container
-  `<state>/<discipline>/Documents/` (via `StingPaths.Cde`), and `LifecycleCommandHelper`
-  registers the rendered file (`AutoRegisterExport`) so the register's `file_reference`
-  equals the physical location. Transmittal/notice renders stay in `generated/` (they are
-  not discipline-scoped deliverables). **Still open:** because the flow re-renders into the
-  *current* CDE state on each transition, a Publish leaves the earlier WIP copy behind — a
-  true `MoveFile`-on-transition (delete/relocate the prior-state render) would clean that up;
-  and the discipline subfolder uses the raw discipline CODE (`A`) rather than the setup's
-  discipline folder name (`A_Architectural`).
+- **Close the physical loop — DONE.** `TemplateEngine.RenderToCde` renders a deliverable into
+  its CDE container `<state>/<discipline>/Documents/` (via `StingPaths.Cde`);
+  `LifecycleCommandHelper` registers the rendered file (`AutoRegisterExport`) so the register's
+  `file_reference` equals the physical location; and **move-on-transition** is wired —
+  `TemplateEngine.PurgeStaleRenders` removes the deliverable's render from the other CDE states
+  (and stale-dated copies) after each (re-)render, so a Publish no longer leaves an orphaned WIP
+  copy — the document lives in exactly one CDE state. Transmittal/notice renders stay in
+  `generated/` (not discipline-scoped deliverables). **Minor remaining:** `AutoRegisterExport`
+  adds a register row per render, so a deliverable's lifecycle accrues rows whose old
+  `file_path`s point at purged files — a dedup/update-in-place on the register would tidy that;
+  and the discipline subfolder uses the raw code (`A`) not the setup folder name
+  (`A_Architectural`).
 - **Acknowledgement capture** for transmittals (drives the workflow `acknowledge`
   transition — now that the role gate is enforced).
 

@@ -58,6 +58,36 @@ namespace Planscape.Docs.Templates
             return RenderById(id, ctx, dir);
         }
 
+        /// <summary>
+        /// Move-on-transition cleanup: after a deliverable is (re-)rendered into its current CDE
+        /// state, remove any earlier render of the SAME deliverable+template from the other CDE
+        /// state folders (and stale-dated copies in the same one), keeping only
+        /// <paramref name="keepPath"/>. Ensures a deliverable's document exists in exactly one
+        /// CDE state — no orphaned WIP copy after a Publish. Best-effort; never throws.
+        /// </summary>
+        public void PurgeStaleRenders(string docNumber, string templateId, string discipline, string keepPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(docNumber) || string.IsNullOrEmpty(templateId)) return;
+                string pattern = $"*_{Sanitise(docNumber)}_{templateId}.*"; // any date prefix, any extension
+                string keepFull = string.IsNullOrEmpty(keepPath) ? null : Path.GetFullPath(keepPath);
+
+                foreach (string state in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+                {
+                    string dir = StingTools.Core.StingPaths.Cde(Document, state, discipline, "Documents");
+                    if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+                    foreach (string f in Directory.GetFiles(dir, pattern))
+                    {
+                        if (keepFull != null && string.Equals(Path.GetFullPath(f), keepFull, StringComparison.OrdinalIgnoreCase)) continue;
+                        try { File.Delete(f); StingLog.Info($"TemplateEngine: purged stale render {f}"); }
+                        catch (Exception ex) { StingLog.Warn($"PurgeStaleRenders delete {f}: {ex.Message}"); }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PurgeStaleRenders: {ex.Message}"); }
+        }
+
         /// <summary>Renders a template by (family, purpose) lookup into generated/.</summary>
         public string RenderByPurpose(string family, string purpose, TokenContext ctx)
         {

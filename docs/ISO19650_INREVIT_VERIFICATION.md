@@ -55,6 +55,42 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
   the unified rows (deliverables + document-register, deduped). Edit a document-register row's
   field; confirm the edit persists (writes still go to `document_register.json`).
 
+## DL. Deliverable state machine (WP8)
+
+- [ ] **DL1.** Issue a deliverable (BIM → deliverable Issue). Confirm a workflow instance is
+  created at state **WIP** — check `<root>/_data/_BIM_COORD/workflow_state.json` for an entry
+  with `doc_id` = the deliverable number and `state: "WIP"`, and an `wf.started` audit line.
+- [ ] **DL2.** Publish it at a published stage (stage ≥ 3). Confirm the instance advances to
+  **Published** (walking Shared→Published), the deliverable's `WorkflowState` follows, and the
+  audit shows the `share` then `publish` hops.
+- [ ] **DL3. P→C promotion.** Confirm the deliverable's revision flips from the preliminary
+  `P0n` to the contractual `C0n` when it reaches PUBLISHED.
+- [ ] **DL4. Cancel.** Cancel a deliverable; confirm the instance moves to **Archived** (via the
+  `cancel` transition). (On a project whose extracted workflow predates this change the hop is
+  skipped with a log warning — Cancel still archives the record; re-extract or use a new project
+  to exercise the transition.)
+- [ ] **DL5. Role gate (opt-in enforcement).** In the project workflow override
+  (`_data/_BIM_COORD/workflows/deliverable_issue_default.json`) add `"allowed_roles": ["K"]` to
+  the `publish` transition, set `USER_ROLE` to a non-K/C role, and attempt Publish. Confirm it is
+  **denied** (lifecycle returns a role message, nothing persisted) and a `wf.transition_denied`
+  audit line is written. Set `USER_ROLE=K` and confirm it proceeds.
+- [ ] **DL6. Permissive default.** On a project WITHOUT any `allowed_roles` override, confirm a
+  normal user can still Issue/Publish (the gate infrastructure is live but does not block).
+
+## RC. Render → CDE + register (WP8)
+
+- [ ] **RC1.** Issue a deliverable that has a Discipline set (e.g. `A`). Confirm the rendered
+  `.docx` lands under `<root>/00_WIP/<disc>/Documents/` (CDE-first) or `<root>/01_WIP_<CODE>/…`
+  (BIM tree) — NOT in `_data/_BIM_COORD/generated/`.
+- [ ] **RC2.** Confirm the rendered deliverable now appears in the document register with its
+  `file_path` pointing at that CDE location.
+- [ ] **RC3.** Confirm a **transmittal** render (Create Transmittal) still lands in
+  `_data/_BIM_COORD/generated/` (only deliverables move to the CDE tree).
+- [ ] **RC4. Move-on-transition (WP8, move-on-transition step).** Issue then Publish the SAME
+  deliverable. Confirm the WIP render is **removed** and the current render lives under the new
+  state folder (`…/02_PUBLISHED/<disc>/Documents/` or `03_PUBLISHED_<CODE>/…`) — no stale copy
+  left behind in WIP.
+
 ## F. ES root-identity stamp (WP9)
 
 - [ ] **F1.** Open a saved project (this stamps the root on first open). Note the export root
