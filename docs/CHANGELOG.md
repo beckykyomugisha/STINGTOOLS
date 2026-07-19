@@ -132,6 +132,15 @@ semantic conflict on the element REV parameter. Six fixes:
   `EnsureNumberingSequence` re-searches by name when creation fails (name-in-use race)
   before falling back to default numbering.
 
+- **BCC auto-refresh after revision actions** (fifth follow-up — live testing showed the
+  register grid keeping purged/deleted rows until a manual header Refresh). New
+  `BIMCoordinationCenterCommand.RefreshBccIfOpen(doc)` rebuilds CoordData on the Revit
+  API thread and pushes it through the existing `ApplyReloadedData` path (no-op when BCC
+  is closed); the header Refresh button's `BCCReload` case now delegates to it. Called at
+  the end of CreateRevision, IssueSheetsForRevision, AutoRevisionOnTagChange,
+  RevisionApprovalWorkflow (both branches), RevisionDelete, and RevisionPurge — grids and
+  badges reflect the model the moment each command's summary dialog appears.
+
 **Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
 table was exercised against 20 cases in a standalone harness. **Revit runtime verification
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`

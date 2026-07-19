@@ -875,6 +875,7 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache ONCE after all rev-related transactions
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
                 // NTF-03: Notify team that revision is open
                 try
@@ -1677,6 +1678,8 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
+
                 TaskDialog.Show("StingTools Issue Sheets",
                     $"Revision {revNum} issued.\n\n" +
                     $"Sheets picked in BCC form: {pickedNumbers.Count}\n" +
@@ -2350,6 +2353,7 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache so dashboard shows fresh data
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
                 TaskDialog.Show("StingTools Auto Revision",
                     $"Auto-Revision Created!\n\n" +
@@ -2463,6 +2467,7 @@ namespace StingTools.BIMManager
                         tx.Commit();
                     }
 
+                    BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
                     TaskDialog.Show("Revision Approval",
                         $"Revision {latest.SequenceNumber} ({latest.Description}) marked as ISSUED.");
                     StingLog.Info($"Revision {latest.SequenceNumber} issued via approval workflow");
@@ -2479,6 +2484,7 @@ namespace StingTools.BIMManager
                         catch (Exception ibEx) { StingLog.Warn($"Review revision IssuedBy stamp: {ibEx.Message}"); }
                         tx.Commit();
 
+                        BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
                         TaskDialog.Show("Revision Approval",
                             $"Created review revision: Seq {newRev.SequenceNumber}");
                         StingLog.Info($"Review revision created: Seq {newRev.SequenceNumber}");
@@ -2976,6 +2982,8 @@ namespace StingTools.BIMManager
                     StingLog.Warn($"Purge title-block sync: {syEx.Message}");
                 }
 
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
+
                 TaskDialog.Show("STING Purge Revisions",
                     $"Purge complete.\n\n" +
                     $"Clouds deleted: {cloudIds.Count}\n" +
@@ -3230,6 +3238,8 @@ namespace StingTools.BIMManager
                     syncLine = "Title block re-sync FAILED (see log)";
                     StingLog.Warn($"Delete revision sync: {syEx.Message}");
                 }
+
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
                 TaskDialog.Show("STING Delete Revision",
                     $"Deleted {revsDeleted} revision(s) and {cloudTotal} cloud(s).\n" +

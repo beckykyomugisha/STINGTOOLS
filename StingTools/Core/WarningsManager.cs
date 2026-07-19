@@ -4503,6 +4503,24 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Rebuild CoordData and push it into the open BCC window so grids and
+        /// badges reflect the model immediately. No-op when BCC is closed.
+        /// Must be called on the Revit API thread — which is where every STING
+        /// command runs. Commands that mutate revisions / issues call this so
+        /// the user never sees a stale register after an action completes.
+        /// </summary>
+        internal static void RefreshBccIfOpen(Document doc)
+        {
+            try
+            {
+                if (doc == null || UI.BIMCoordinationCenter.CurrentInstance == null) return;
+                var fresh = BuildCoordData(doc);
+                UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
+            }
+            catch (Exception ex) { StingLog.Error("RefreshBccIfOpen failed", ex); }
+        }
+
         /// <summary>Process an action returned from the BIM Coordination Center dialog.</summary>
         internal static void ProcessAction(string action, Document doc, UIApplication app)
         {
@@ -4883,12 +4901,7 @@ namespace StingTools.Core
                     // to the WPF instance via ApplyReloadedData.
                     case "BCCReload":
                     {
-                        try
-                        {
-                            var fresh = BuildCoordData(doc);
-                            UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
-                        }
-                        catch (Exception ex) { StingLog.Error("BCCReload failed", ex); }
+                        RefreshBccIfOpen(doc);
                         return;
                     }
                     case "BCCSnapshot":
