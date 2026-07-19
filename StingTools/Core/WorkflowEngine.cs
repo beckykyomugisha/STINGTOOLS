@@ -1438,6 +1438,17 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // Aliases for the tags the Electrical panel handler uses. The panel and
+                // this resolver named the same six commands differently, so any workflow
+                // preset written against the panel's tags resolved to null and the step
+                // was reported as failed. Both spellings now resolve to the same command.
+                case "Panel_FillSlots":            return new Commands.Panels.FillSparesAllSchedulesCommand();
+                case "Panel_AddSpare":             return new Commands.Panels.FillEmptySlotsWithSparesCommand();
+                case "Panel_AddSpace":             return new Commands.Panels.FillEmptySlotsWithSpacesCommand();
+                case "Panel_ConvertSpaceToSpare":  return new Commands.Panels.ConvertSpacesToSparesCommand();
+                case "Panel_ClearSlots":           return new Commands.Panels.ClearSparesAndSpacesCommand();
+                case "Panel_ExcelExport":          return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+
                 // ── Plumbing (Phase 178c → 179) ──
                 case "Plumbing_AutoSizeDrainage": return new Commands.Plumbing.AutoSizeDrainageCommand();
                 case "Plumbing_BackflowAudit":    return new Commands.Plumbing.BackflowAuditCommand();

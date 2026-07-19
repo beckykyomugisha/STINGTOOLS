@@ -26,9 +26,9 @@ Every work package below must end green at 0/0.
 | WP2 | Heal issues/meetings/documents store split via `Core/CoordStores.cs` | DONE 18af9ece5 |
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
 | WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
-| WP5 | Resurrect or remove dead automation (wire it or delete it) | IN PROGRESS |
+| WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
 | WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | TODO |
-| WP7 | Dispatch consolidation — alias tags, null-safe `RunCommandByTag`, shared `Run<T>`, parity gate | TODO |
+| WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
 | WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | TODO |
 | WP9 | CDE-first tree + ES root identity + migration wizard | TODO |
 | WP10 | HTTP + storage hygiene (park if time-boxed) | TODO |
