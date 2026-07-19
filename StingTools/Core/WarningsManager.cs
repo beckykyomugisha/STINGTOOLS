@@ -1688,21 +1688,26 @@ namespace StingTools.Core
 
                 var groups = filtered.GroupBy(w => w.Category);
 
-                // Load or initialize issues.json
-                string issuesDir = "";
+                // Resolve the single issues store (CoordStores merges any legacy
+                // _bim_manager / STING_BIM_MANAGER copies on first access).
+                string issuesPath = "";
                 try
                 {
-                    string docPath = doc?.PathName;
-                    if (!string.IsNullOrEmpty(docPath))
-                        issuesDir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
-                    else
-                        issuesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "STING_BIM", "_bim_manager");
+                    issuesPath = CoordStores.Issues(doc);
+                    if (string.IsNullOrEmpty(issuesPath))
+                    {
+                        string fallbackDir = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                            "STING_BIM", "STING_BIM_MANAGER");
+                        Directory.CreateDirectory(fallbackDir);
+                        issuesPath = Path.Combine(fallbackDir, "issues.json");
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings directory: {ex.Message}"); }
 
-                if (string.IsNullOrEmpty(issuesDir)) return results;
-                Directory.CreateDirectory(issuesDir);
-                string issuesPath = Path.Combine(issuesDir, "issues.json");
+                if (string.IsNullOrEmpty(issuesPath)) return results;
+                string issuesDir = Path.GetDirectoryName(issuesPath) ?? "";
+                if (!string.IsNullOrEmpty(issuesDir)) Directory.CreateDirectory(issuesDir);
 
                 // Load existing issues
                 var existingJson = new StringBuilder();
@@ -2660,9 +2665,7 @@ namespace StingTools.Core
             try
             {
                 // Load existing issues to check for duplicates
-                string issuesPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
-                    "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
 
                 var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 int maxExistingId = 0;
@@ -3611,7 +3614,7 @@ namespace StingTools.Core
             {
                 string docPath = doc?.PathName;
                 if (string.IsNullOrEmpty(docPath)) return null;
-                string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 return Path.Combine(dir, "issue_doc_links.json");
             }
@@ -3666,8 +3669,8 @@ namespace StingTools.Core
             try
             {
                 string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                string docsPath = Path.Combine(docDir, "_bim_manager", "documents.json");
-                string issuesPath = Path.Combine(docDir, "_bim_manager", "issues.json");
+                string docsPath = CoordStores.Register(doc);
+                string issuesPath = CoordStores.Issues(doc);
 
                 // Check documents state
                 if (File.Exists(docsPath))
@@ -3732,7 +3735,7 @@ namespace StingTools.Core
                     string docPath = doc.PathName;
                     if (!string.IsNullOrEmpty(docPath))
                     {
-                        string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                        string issuesPath = CoordStores.Issues(doc);
                         if (File.Exists(issuesPath))
                         {
                             string raw = File.ReadAllText(issuesPath);
@@ -3972,7 +3975,7 @@ namespace StingTools.Core
                     string docPath2 = doc.PathName;
                     if (!string.IsNullOrEmpty(docPath2))
                     {
-                        string syncPath = Path.Combine(Path.GetDirectoryName(docPath2), "_bim_manager", "platform_sync.json");
+                        string syncPath = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "platform_sync.json");
                         if (File.Exists(syncPath))
                         {
                             string syncRaw = File.ReadAllText(syncPath);
@@ -3992,7 +3995,7 @@ namespace StingTools.Core
                     string docPath3 = doc.PathName;
                     if (!string.IsNullOrEmpty(docPath3))
                     {
-                        string issuesPath2 = Path.Combine(Path.GetDirectoryName(docPath3), "_bim_manager", "issues.json");
+                        string issuesPath2 = CoordStores.Issues(doc);
                         if (File.Exists(issuesPath2))
                         {
                             var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath2));
@@ -4561,7 +4564,7 @@ namespace StingTools.Core
                         string docPath = doc.PathName;
                         if (!string.IsNullOrEmpty(docPath))
                         {
-                            string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                            string issuesPath = CoordStores.Issues(doc);
                             if (File.Exists(issuesPath))
                             {
                                 var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
@@ -5130,7 +5133,7 @@ namespace StingTools.Core
                     return;
                 }
 
-                string bimDir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
 
                 string snapshotPath = Path.Combine(bimDir, "snapshots.json");
@@ -5197,7 +5200,7 @@ namespace StingTools.Core
                 string docPath = doc.PathName;
                 if (string.IsNullOrEmpty(docPath)) { TaskDialog.Show("STING", "Save the document first."); return; }
 
-                string meetPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "meetings.json");
+                string meetPath = CoordStores.Meetings(doc);
                 if (!File.Exists(meetPath)) { TaskDialog.Show("STING", "No meetings found."); return; }
 
                 var meetings = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(meetPath));
@@ -5238,7 +5241,7 @@ namespace StingTools.Core
                 if (result != TaskDialogResult.CommandLink1) return;
 
                 // Create issues
-                string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
                 var issues = File.Exists(issuesPath)
                     ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath))
                     : new Newtonsoft.Json.Linq.JArray();

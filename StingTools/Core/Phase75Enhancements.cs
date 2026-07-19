@@ -1197,7 +1197,7 @@ namespace StingTools.Core
             {
                 string projectDir = doc != null ? Path.GetDirectoryName(doc.PathName) : null;
                 if (string.IsNullOrEmpty(projectDir)) return;
-                string issuesPath = Path.Combine(projectDir, "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
                 if (!File.Exists(issuesPath)) return;
 
                 // AU-03: Only re-read file if modification time changed
@@ -1716,7 +1716,7 @@ namespace StingTools.Core
             {
                 string projectDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(projectDir)) return (0, violations);
-                string issuesPath = Path.Combine(projectDir, "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
                 if (!File.Exists(issuesPath)) return (0, violations);
 
                 var issues = JArray.Parse(File.ReadAllText(issuesPath));
@@ -1776,7 +1776,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(projectDir)) return (0, details);
 
             // Load existing issues for deduplication
-            string issuesPath = Path.Combine(projectDir, "_bim_manager", "issues.json");
+            string issuesPath = CoordStores.Issues(doc);
             JArray existingIssues;
             try
             {
@@ -2122,7 +2122,7 @@ namespace StingTools.Core
             {
                 try
                 {
-                    string path = Path.Combine(projectDir, "_bim_manager", "issues.json");
+                    string path = CoordStores.IssuesIn(projectDir);
                     if (File.Exists(path)) return JArray.Parse(File.ReadAllText(path));
                 }
                 catch (Exception ex) { StingLog.Warn($"ParallelLoad issues: {ex.Message}"); }
@@ -2133,7 +2133,7 @@ namespace StingTools.Core
             {
                 try
                 {
-                    string path = Path.Combine(projectDir, "_bim_manager", "meetings.json");
+                    string path = CoordStores.MeetingsIn(projectDir);
                     if (File.Exists(path)) return JArray.Parse(File.ReadAllText(path));
                 }
                 catch (Exception ex) { StingLog.Warn($"ParallelLoad meetings: {ex.Message}"); }

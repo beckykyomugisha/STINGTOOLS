@@ -865,7 +865,7 @@ namespace StingTools.Core
                             if (!string.IsNullOrEmpty(projectDir))
                             {
                                 // Preferred: _bim_manager/planscape_connection.json
-                                string bimDir = System.IO.Path.Combine(projectDir, "_bim_manager");
+                                string bimDir = ProjectFolderEngine.GetMetaPath(e.Document, "STING_BIM_MANAGER");
                                 cfgPath = System.IO.Path.Combine(bimDir, "planscape_connection.json");
                                 if (!System.IO.File.Exists(cfgPath)) cfgPath = null;
                             }

@@ -11461,7 +11461,7 @@ namespace StingTools.UI
             {
                 string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
                 if (string.IsNullOrEmpty(dir)) return result;
-                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
+                string path = CoordStores.MeetingsIn(dir);
                 if (!File.Exists(path)) return result;
                 var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
                 foreach (var item in arr)
@@ -11487,7 +11487,7 @@ namespace StingTools.UI
             {
                 string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
                 if (string.IsNullOrEmpty(dir)) return result;
-                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
+                string path = CoordStores.MeetingsIn(dir);
                 if (!File.Exists(path)) return result;
                 var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
                 foreach (var mtg in arr)

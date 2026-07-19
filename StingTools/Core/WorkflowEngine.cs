@@ -681,7 +681,7 @@ namespace StingTools.Core
                             try
                             {
                                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                string issuesPath = CoordStores.Issues(doc);
                                 if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
                                 // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
                                 var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
@@ -2144,7 +2144,7 @@ namespace StingTools.Core
                     case "has_overdue_issues":
                     {
                         // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues
-                        string issuePath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        string issuePath = CoordStores.Issues(doc);
                         if (!File.Exists(issuePath)) return false;
                         JArray cachedIssues = JArray.Parse(File.ReadAllText(issuePath));
                         if (condition == "has_open_issues")

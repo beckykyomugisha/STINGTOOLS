@@ -608,7 +608,7 @@ namespace StingTools.BIMManager
                 string docPath = doc?.PathName;
                 if (!string.IsNullOrEmpty(docPath))
                 {
-                    string bepPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "project_bep.json");
+                    string bepPath = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "project_bep.json");
                     if (File.Exists(bepPath))
                     {
                         string json = File.ReadAllText(bepPath);
@@ -1260,7 +1260,7 @@ namespace StingTools.BIMManager
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
-            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Path.Combine(dir, filename);
         }

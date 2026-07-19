@@ -697,23 +697,45 @@ namespace StingTools.BIMManager
             return Path.GetDirectoryName(path) ?? "";
         }
 
+        /// <summary>
+        /// Path to a coordination store inside the consolidated metadata root.
+        /// Resolves through <see cref="ProjectFolderEngine.GetMetaPath"/> so the folder
+        /// lives under &lt;root&gt;/_data/ rather than as a sibling of the .rvt; the known
+        /// coordination stores additionally route through <see cref="CoordStores"/>, which
+        /// merges any legacy _bim_manager / STING_BIM_MANAGER copies on first access.
+        /// </summary>
         internal static string GetBIMManagerFilePath(Document doc, string fileName)
         {
-            string dir = GetProjectDataDir(doc);
-            string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
-            if (!Directory.Exists(bimDir))
-                Directory.CreateDirectory(bimDir);
-            return Path.Combine(bimDir, fileName);
+            switch ((fileName ?? "").ToLowerInvariant())
+            {
+                case "issues.json":             return CoordStores.Issues(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "meetings.json":           return CoordStores.Meetings(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "document_register.json":  return CoordStores.Register(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "documents.json":          return CoordStores.Register(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "transmittals.json":       return CoordStores.Transmittals(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "revisions.json":          return CoordStores.Revisions(doc) ?? LegacyBimManagerPath(doc, fileName);
+            }
+            return Path.Combine(GetBIMManagerDir(doc), fileName);
         }
 
         internal static string GetBIMManagerDir(Document doc)
         {
-            string dir = GetProjectDataDir(doc);
-            string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
-            if (!Directory.Exists(bimDir))
-                Directory.CreateDirectory(bimDir);
+            string bimDir = null;
+            try { bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"); }
+            catch (Exception ex) { StingLog.Warn($"GetBIMManagerDir: {ex.Message}"); }
+
+            if (string.IsNullOrEmpty(bimDir))
+            {
+                bimDir = Path.Combine(GetProjectDataDir(doc), "STING_BIM_MANAGER");
+                if (!Directory.Exists(bimDir))
+                    Directory.CreateDirectory(bimDir);
+            }
             return bimDir;
         }
+
+        /// <summary>Legacy sibling path, used only when no project root can be resolved.</summary>
+        private static string LegacyBimManagerPath(Document doc, string fileName)
+            => Path.Combine(GetBIMManagerDir(doc), fileName);
 
         internal static JObject LoadJsonFile(string path)
         {
@@ -9699,7 +9721,7 @@ namespace StingTools.BIMManager
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
-            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Path.Combine(dir, "doc_versions.json");
         }
@@ -10046,7 +10068,7 @@ namespace StingTools.BIMManager
             int openIssues = 0, closedThisWeek = 0;
             try
             {
-                string issuesPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
                 if (File.Exists(issuesPath))
                 {
                     var issues = JArray.Parse(File.ReadAllText(issuesPath));
@@ -10292,7 +10314,7 @@ namespace StingTools.BIMManager
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
-            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Path.Combine(dir, "approvals.json");
         }
@@ -10683,7 +10705,7 @@ namespace StingTools.BIMManager
             if (result == TaskDialogResult.CommandLink1)
             {
                 // Create task
-                string tasksDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                string tasksDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 if (!Directory.Exists(tasksDir)) Directory.CreateDirectory(tasksDir);
                 string tasksPath = Path.Combine(tasksDir, "tasks.json");
 
@@ -10718,8 +10740,7 @@ namespace StingTools.BIMManager
             else if (result == TaskDialogResult.CommandLink2)
             {
                 // View tasks
-                string tasksPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "tasks.json");
+                string tasksPath = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "tasks.json");
                 if (!File.Exists(tasksPath))
                 {
                     TaskDialog.Show("STING", "No tasks found.");

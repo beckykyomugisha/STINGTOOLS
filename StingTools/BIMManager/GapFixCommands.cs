@@ -33,10 +33,12 @@ namespace StingTools.BIMManager
         // ── Helper: Get BIM manager directory ──
         internal static string GetBimDir(Document doc)
         {
-            string docDir = string.IsNullOrEmpty(doc.PathName)
-                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                : Path.GetDirectoryName(doc.PathName);
-            string dir = Path.Combine(docDir ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "_bim_manager");
+            // Consolidated metadata root; only unsaved documents fall back to a
+            // machine-level folder.
+            string dir = StingTools.Core.ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
+            if (string.IsNullOrEmpty(dir))
+                dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                                   "STING_BIM", "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }

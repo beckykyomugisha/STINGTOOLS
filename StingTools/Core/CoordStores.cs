@@ -1,0 +1,312 @@
+// CoordStores.cs — ISO 19650 consolidation (WP2).
+//
+// ONE resolver for the coordination JSON stores that were previously split across
+// three physical folders for the same logical concept:
+//
+//   <rvtDir>/_bim_manager/issues.json        ← WarningsManager, LPS auto-raiser, WorkflowEngine
+//   <rvtDir>/STING_BIM_MANAGER/issues.json   ← BIM Manager register, BCC
+//   <root>/_data/…                           ← consolidated location
+//
+// The same split applied to meetings.json and to documents.json vs
+// document_register.json. Issues raised by one subsystem were therefore invisible
+// to the tool that manages them.
+//
+// Every store now resolves through this class, which:
+//   * returns a path under the consolidated metadata root
+//     (ProjectFolderEngine.GetMetaPath), so the user sees ONE folder per project;
+//   * on first access per document, append-merges any legacy file found in the
+//     other folders into the canonical one, keyed by id so rows are never lost,
+//     and drops a ".migrated" marker beside the legacy file so the merge is
+//     performed exactly once;
+//   * offers atomic writes only — WriteArray/WriteObject go through
+//     OutputLocationHelper.WriteAllTextAtomic, so a crash mid-write cannot
+//     truncate a coordination store.
+//
+// Transmittals deliberately resolve to the "_BIM_COORD" bucket: that is where
+// Planscape.Docs.Templates.TransmittalOrchestrator already persists, and WP1 made
+// the auto-log path delegate to it. Pointing this resolver anywhere else would
+// re-fork the store it was written to unify.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Autodesk.Revit.DB;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace StingTools.Core
+{
+    /// <summary>Single resolver + atomic accessor for the project coordination stores.</summary>
+    public static class CoordStores
+    {
+        // Canonical bucket for coordination data (issues, meetings, register, revisions).
+        private const string CoordBucket = "STING_BIM_MANAGER";
+        // Bucket owned by the template engine (transmittals, deliverables, workflow state).
+        private const string TemplateBucket = "_BIM_COORD";
+
+        // Legacy sibling folder names that may still hold rows for these stores.
+        private static readonly string[] LegacyFolders = { "_bim_manager", "STING_BIM_MANAGER", "_BIM_COORD" };
+
+        // Documents whose legacy merge has already run this session (path-keyed).
+        private static readonly HashSet<string> _merged = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _lock = new();
+
+        // ── Typed store paths ─────────────────────────────────────────────
+
+        /// <summary>BIM issues (RFI/TQ/NCR/clash/design…). Legacy: _bim_manager/issues.json.</summary>
+        public static string Issues(Document doc) => Resolve(doc, CoordBucket, "issues.json");
+
+        /// <summary>Coordination meetings. Legacy: _bim_manager/meetings.json.</summary>
+        public static string Meetings(Document doc) => Resolve(doc, CoordBucket, "meetings.json");
+
+        /// <summary>
+        /// Document register. Also absorbs the legacy "documents.json" spelling that
+        /// WarningsManager used for the same concept.
+        /// </summary>
+        public static string Register(Document doc)
+        {
+            string path = Resolve(doc, CoordBucket, "document_register.json");
+            MergeAlias(doc, path, "documents.json");
+            return path;
+        }
+
+        /// <summary>Transmittals — the TransmittalOrchestrator store (TX-NNNN rows).</summary>
+        public static string Transmittals(Document doc) => Resolve(doc, TemplateBucket, "transmittals.json");
+
+        /// <summary>Revision records.</summary>
+        public static string Revisions(Document doc) => Resolve(doc, CoordBucket, "revisions.json");
+
+        // ── Document-free resolution ──────────────────────────────────────
+        //
+        // A few readers (the BCC meetings panels, the parallel file loader) only
+        // have a directory, not a Document. They cannot trigger the legacy merge —
+        // that needs a project root — so they probe the known layouts under the
+        // directory they were given and read whichever exists. Writers must always
+        // use the Document-based overloads above.
+
+        /// <summary>Issues store resolved from a bare directory (read-side only).</summary>
+        public static string IssuesIn(string baseDir) => ResolveIn(baseDir, "issues.json");
+
+        /// <summary>Meetings store resolved from a bare directory (read-side only).</summary>
+        public static string MeetingsIn(string baseDir) => ResolveIn(baseDir, "meetings.json");
+
+        private static string ResolveIn(string baseDir, string fileName)
+        {
+            if (string.IsNullOrEmpty(baseDir)) return null;
+
+            // The directory may already BE the store folder, or the store may sit in
+            // the canonical bucket, the consolidated _data root, or the legacy sibling.
+            var candidates = new[]
+            {
+                Path.Combine(baseDir, fileName),
+                Path.Combine(baseDir, CoordBucket, fileName),
+                Path.Combine(baseDir, "_data", CoordBucket, fileName),
+                Path.Combine(baseDir, "_bim_manager", fileName),
+            };
+
+            foreach (string c in candidates)
+            {
+                try { if (File.Exists(c)) return c; }
+                catch (Exception ex) { StingLog.Warn($"CoordStores.ResolveIn({fileName}): {ex.Message}"); }
+            }
+            return candidates[1];
+        }
+
+        // ── Atomic accessors ──────────────────────────────────────────────
+
+        /// <summary>Read a store as a JSON array; empty array when absent or unreadable.</summary>
+        public static JArray ReadArray(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new JArray();
+                return JArray.Parse(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CoordStores.ReadArray({Path.GetFileName(path)}): {ex.Message}");
+                return new JArray();
+            }
+        }
+
+        /// <summary>Write a store atomically (temp file + File.Replace with .bak).</summary>
+        public static void WriteArray(string path, JArray rows)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                OutputLocationHelper.WriteAllTextAtomic(path, (rows ?? new JArray()).ToString(Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Error($"CoordStores.WriteArray({Path.GetFileName(path)}) failed", ex); }
+        }
+
+        /// <summary>Append one row to a store atomically.</summary>
+        public static void Append(string path, JObject row)
+        {
+            if (string.IsNullOrEmpty(path) || row == null) return;
+            var rows = ReadArray(path);
+            rows.Add(row);
+            WriteArray(path, rows);
+        }
+
+        // ── Resolution + legacy merge ─────────────────────────────────────
+
+        private static string Resolve(Document doc, string bucket, string fileName)
+        {
+            string dir = null;
+            try { dir = ProjectFolderEngine.GetMetaPath(doc, bucket); }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.Resolve({fileName}): {ex.Message}"); }
+
+            if (string.IsNullOrEmpty(dir))
+            {
+                // No resolvable project root (unsaved doc): fall back to the legacy
+                // sibling so behaviour is unchanged rather than silently lost.
+                string docDir = null;
+                try { docDir = Path.GetDirectoryName(doc?.PathName ?? ""); } catch { /* unsaved */ }
+                if (string.IsNullOrEmpty(docDir)) return null;
+                dir = Path.Combine(docDir, bucket);
+                try { Directory.CreateDirectory(dir); } catch (Exception ex) { StingLog.Warn($"CoordStores fallback dir: {ex.Message}"); }
+            }
+
+            string canonical = Path.Combine(dir, fileName);
+            MergeLegacy(doc, canonical, fileName);
+            return canonical;
+        }
+
+        /// <summary>
+        /// Append-merge any legacy copies of <paramref name="fileName"/> into the canonical
+        /// store. Rows already present (matched on id) are skipped, so a repeated merge is a
+        /// no-op and no row is ever dropped.
+        /// </summary>
+        private static void MergeLegacy(Document doc, string canonicalPath, string fileName)
+        {
+            string key = canonicalPath ?? "";
+            lock (_lock)
+            {
+                if (_merged.Contains(key)) return;
+                _merged.Add(key);
+            }
+
+            try
+            {
+                foreach (string legacyPath in LegacyCandidates(doc, fileName))
+                {
+                    if (string.Equals(legacyPath, canonicalPath, StringComparison.OrdinalIgnoreCase)) continue;
+                    MergeFile(legacyPath, canonicalPath);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.MergeLegacy({fileName}): {ex.Message}"); }
+        }
+
+        /// <summary>Merge a differently-named legacy store (e.g. documents.json → document_register.json).</summary>
+        private static void MergeAlias(Document doc, string canonicalPath, string aliasFileName)
+        {
+            string key = (canonicalPath ?? "") + "|" + aliasFileName;
+            lock (_lock)
+            {
+                if (_merged.Contains(key)) return;
+                _merged.Add(key);
+            }
+
+            try
+            {
+                foreach (string legacyPath in LegacyCandidates(doc, aliasFileName))
+                    MergeFile(legacyPath, canonicalPath);
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.MergeAlias({aliasFileName}): {ex.Message}"); }
+        }
+
+        /// <summary>Every place a legacy copy of a store could physically live.</summary>
+        private static IEnumerable<string> LegacyCandidates(Document doc, string fileName)
+        {
+            var roots = new List<string>();
+
+            try
+            {
+                string docDir = Path.GetDirectoryName(doc?.PathName ?? "");
+                if (!string.IsNullOrEmpty(docDir)) roots.Add(docDir);
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.LegacyCandidates docDir: {ex.Message}"); }
+
+            try
+            {
+                string root = ProjectFolderEngine.GetRootPath(doc);
+                if (!string.IsNullOrEmpty(root)) roots.Add(root);
+                string data = ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(data)) roots.Add(data);
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.LegacyCandidates root: {ex.Message}"); }
+
+            foreach (string root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
+                foreach (string folder in LegacyFolders)
+                {
+                    string p = Path.Combine(root, folder, fileName);
+                    if (File.Exists(p)) yield return p;
+                }
+        }
+
+        /// <summary>
+        /// Append rows from <paramref name="legacyPath"/> that are not already in
+        /// <paramref name="canonicalPath"/>, then mark the legacy file as migrated.
+        /// </summary>
+        private static void MergeFile(string legacyPath, string canonicalPath)
+        {
+            if (string.IsNullOrEmpty(canonicalPath) || !File.Exists(legacyPath)) return;
+            if (File.Exists(legacyPath + ".migrated")) return;
+
+            try
+            {
+                var legacyRows = ReadArray(legacyPath);
+                if (legacyRows.Count == 0) { MarkMigrated(legacyPath); return; }
+
+                var canonical = ReadArray(canonicalPath);
+                var seen = new HashSet<string>(
+                    canonical.OfType<JObject>().Select(RowId).Where(s => !string.IsNullOrEmpty(s)),
+                    StringComparer.OrdinalIgnoreCase);
+
+                int added = 0;
+                foreach (var row in legacyRows.OfType<JObject>())
+                {
+                    string id = RowId(row);
+                    if (!string.IsNullOrEmpty(id) && !seen.Add(id)) continue;
+                    canonical.Add(row);
+                    added++;
+                }
+
+                if (added > 0)
+                {
+                    WriteArray(canonicalPath, canonical);
+                    StingLog.Info($"CoordStores: merged {added} row(s) from {legacyPath} → {canonicalPath}");
+                }
+                MarkMigrated(legacyPath);
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.MergeFile({legacyPath}): {ex.Message}"); }
+        }
+
+        /// <summary>Best-effort row identity across the several schemas these stores use.</summary>
+        private static string RowId(JObject row)
+        {
+            if (row == null) return null;
+            foreach (string k in new[] { "id", "issue_id", "document_id", "doc_id", "transmittal_id",
+                                         "meeting_id", "revision_id", "Id", "DocNumber", "number" })
+            {
+                string v = (string)row[k];
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+            return null;
+        }
+
+        private static void MarkMigrated(string legacyPath)
+        {
+            try { File.WriteAllText(legacyPath + ".migrated", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")); }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.MarkMigrated: {ex.Message}"); }
+        }
+
+        /// <summary>Drop the per-session merge memo (used by tests and folder-migration commands).</summary>
+        public static void ResetMergeState()
+        {
+            lock (_lock) { _merged.Clear(); }
+        }
+    }
+}

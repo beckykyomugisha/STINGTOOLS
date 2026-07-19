@@ -9183,7 +9183,7 @@ namespace StingTools.UI
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
-            string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
+            string outputDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             System.IO.Directory.CreateDirectory(outputDir);
             string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
             string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>

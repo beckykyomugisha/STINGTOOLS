@@ -405,7 +405,7 @@ namespace StingTools.Core
         {
             try
             {
-                string dir = OutputLocationHelper.GetOutputPath(doc, "_bim_manager");
+                string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 string path = Path.Combine(dir, "action_audit_log.json");
                 var json = Newtonsoft.Json.JsonConvert.SerializeObject(_log.TakeLast(500).Select(e => new
                 {

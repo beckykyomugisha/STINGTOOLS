@@ -567,8 +567,7 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        string issuesDir = System.IO.Path.Combine(
-                            System.IO.Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                        string issuesDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                         if (!System.IO.Directory.Exists(issuesDir)) System.IO.Directory.CreateDirectory(issuesDir);
                         string issuesPath = System.IO.Path.Combine(issuesDir, "issues.json");
 
