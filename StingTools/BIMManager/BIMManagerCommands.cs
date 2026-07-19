@@ -792,7 +792,7 @@ namespace StingTools.BIMManager
                 // File.Move with overwrite=true is atomic on NTFS, preventing corruption
                 // if the process crashes mid-write.
                 string tmpPath = path + ".tmp";
-                File.WriteAllText(tmpPath, data.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpPath, data.ToString(Formatting.Indented));
                 File.Move(tmpPath, path, true);
 
                 // BIM-SIDECAR-VER-01: Stamp the companion `<path>.meta.json` so
@@ -3912,7 +3912,7 @@ namespace StingTools.BIMManager
                         ["allowed_zone"] = bep["allowed_codes"]?["allowed_zone"],
                         ["allowed_sys"] = bep["allowed_codes"]?["allowed_sys"]
                     };
-                    File.WriteAllText(Path.Combine(dataPath, "project_bep.json"),
+                    OutputLocationHelper.WriteAllTextAtomic(Path.Combine(dataPath, "project_bep.json"),
                         validationBep.ToString(Formatting.Indented));
                 }
                 catch (Exception ex2) { StingLog.Warn($"BEP validation file: {ex2.Message}"); }
@@ -4616,7 +4616,7 @@ namespace StingTools.BIMManager
                         sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
                         foreach (var r in rows)
                             sb.AppendLine($"\"{r.IssueId}\",\"{r.Title}\",\"{r.Status}\",\"{r.Priority}\",\"{r.Type}\",\"{r.DateRaised}\",\"{r.DateDue}\",\"{r.Overdue}\",{r.ElementCount}");
-                        File.WriteAllText(csvPath, sb.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                         dlg.SetStatus($"Exported to: {csvPath}");
                     }
                     catch (Exception ex) { StingLog.Warn($"IssueExportCSV: {ex.Message}"); }
@@ -4909,7 +4909,7 @@ namespace StingTools.BIMManager
             }
             try
             {
-                File.WriteAllText(csvPath, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                 TaskDialog.Show("STING Issue Tracker", $"Exported {issues.Count} issues to:\n{csvPath}");
             }
             catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
@@ -5135,7 +5135,7 @@ namespace StingTools.BIMManager
                         sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
                         foreach (var r in rows)
                             sb.AppendLine($"\"{r.DocId}\",\"{r.Title}\",\"{r.Type}\",\"{r.Direction}\",\"{r.Suitability}\",\"{r.CDEStatus}\",\"{r.Revision}\",\"{r.Date}\"");
-                        File.WriteAllText(csvPath, sb.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                         dlg.SetStatus($"Exported to: {csvPath}");
                     }
                     catch (Exception ex) { StingLog.Warn($"DocRegisterExportCSV: {ex.Message}"); }
@@ -5446,7 +5446,7 @@ namespace StingTools.BIMManager
                         csv.AppendLine(string.Join(",", headers.Select(h =>
                             $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
 
-                    try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                    try { OutputLocationHelper.WriteAllTextAtomic(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                     catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
                 }
 
@@ -5784,7 +5784,7 @@ namespace StingTools.BIMManager
             // Save text version
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"TX_{transmittal["transmittal_id"]}_{DateTime.Now:yyyyMMdd}.txt");
-            try { File.WriteAllText(txtPath, note.ToString()); }
+            try { OutputLocationHelper.WriteAllTextAtomic(txtPath, note.ToString()); }
             catch (Exception ex) { StingLog.Warn($"Transmittal text file write failed: {ex.Message}"); }
 
             TaskDialog.Show("STING Transmittal", note.ToString());
@@ -6404,7 +6404,7 @@ namespace StingTools.BIMManager
                 foreach (var row in ws.Value)
                     csv.AppendLine(string.Join(",", headers.Select(h =>
                         $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
-                try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                try { OutputLocationHelper.WriteAllTextAtomic(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                 catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
 
@@ -6519,7 +6519,7 @@ namespace StingTools.BIMManager
                         $"BRIEFCASE_INDEX_{DateTime.Now:yyyyMMdd}.txt");
                     try
                     {
-                        File.WriteAllText(indexPath, report.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(indexPath, report.ToString());
                         TaskDialog.Show("STING Briefcase", $"Index exported to:\n{indexPath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
@@ -6623,7 +6623,7 @@ namespace StingTools.BIMManager
                         $"PRINT_{Path.GetFileNameWithoutExtension(selectedItem.FilePath)}_{DateTime.Now:yyyyMMdd}.txt");
                     try
                     {
-                        File.WriteAllText(savePath, content);
+                        OutputLocationHelper.WriteAllTextAtomic(savePath, content);
                         TaskDialog.Show("STING Briefcase", $"Saved to:\n{savePath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Save failed: {ex.Message}"); }
@@ -6692,7 +6692,7 @@ namespace StingTools.BIMManager
                     note.AppendLine();
                     try
                     {
-                        File.WriteAllText(notePath, note.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(notePath, note.ToString());
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true })?.Dispose();
                         TaskDialog.Show("STING Briefcase", $"Note created and opened:\n{notePath}");
                     }
@@ -7684,7 +7684,7 @@ namespace StingTools.BIMManager
                     .OrderBy(l => l.Elevation).ToList();
                 sb.AppendLine($"\"Levels\",\"{levels.Count}: {string.Join(", ", levels.Select(l => l.Name))}\"");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportProjectInfo: {ex.Message}"); return 0; }
@@ -7723,7 +7723,7 @@ namespace StingTools.BIMManager
                         $"\"{Esc(ParameterHelpers.GetString(el, ParamRegistry.REV))}\""));
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 StingLog.Info($"TagRegister: exported {elems.Count} tagged elements");
                 return 1;
             }
@@ -7747,7 +7747,7 @@ namespace StingTools.BIMManager
                 string issues = scan.TopIssues;
                 if (!string.IsNullOrEmpty(issues) && issues != "No issues")
                     sb.AppendLine($"\"Top Issues\",\"{Esc(issues)}\"");
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportComplianceReport: {ex.Message}"); return 0; }
@@ -7787,7 +7787,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{param}\",{pop},{empty},{total},{pct:F1}");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportParameterAudit: {ex.Message}"); return 0; }
@@ -7829,7 +7829,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"Rooms\",{rooms}");
                 sb.AppendLine($"\"Linked Models\",{links}");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportModelStats: {ex.Message}"); return 0; }
@@ -7860,7 +7860,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{Esc(num)}\",\"{Esc(name)}\",\"{disc}\",{viewCount},\"{Esc(approved)}\",\"{Esc(issued)}\"");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportSheetIndex: {ex.Message}"); return 0; }
@@ -7895,7 +7895,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{g.Key.Disc}\",\"{Esc(g.Key.Cat)}\",{count},{tagged},{untagged},{pct:F1}");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportDisciplineBreakdown: {ex.Message}"); return 0; }
@@ -7913,7 +7913,7 @@ namespace StingTools.BIMManager
                 foreach (var item in midp.Items)
                     sb.AppendLine($"\"{Esc(item.Name)}\",\"{item.Type}\",\"{item.Discipline}\",\"{item.Status}\",\"{item.Suitability}\"");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportMidpRegister: {ex.Message}"); return 0; }
@@ -7968,7 +7968,7 @@ namespace StingTools.BIMManager
                     var fi = new FileInfo(f);
                     idx.AppendLine($"\"{fi.Name}\",\"{Path.GetFileName(fi.DirectoryName)}\",{fi.Length},\"{fi.LastWriteTime:yyyy-MM-dd HH:mm}\"");
                 }
-                File.WriteAllText(idxPath, idx.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(idxPath, idx.ToString());
                 return copied > 0 ? 1 : 0;
             }
             catch (Exception ex) { StingLog.Warn($"ExportHealthcareEvidence: {ex.Message}"); return 0; }
@@ -8111,7 +8111,7 @@ namespace StingTools.BIMManager
                     $"\"{BriefcaseEngine.Esc(ParameterHelpers.GetString(el, NoteDateParam))}\""));
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             TaskDialog.Show("Export Notes", $"Exported {elements.Count} notes to:\n{path}");
             return Result.Succeeded;
         }
@@ -8358,7 +8358,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"\",\"\",\"\",\"{trimmed.TrimStart('•', ' ').Replace("\"", "\"\"")}\"");
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             return path;
         }
 
@@ -8578,7 +8578,7 @@ namespace StingTools.BIMManager
                     $"{durationDays}"));
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"4DTimeline: exported {elements.Count} elements to {path}");
 
             // Phase 76: XLSX mirror
@@ -8675,7 +8675,7 @@ namespace StingTools.BIMManager
                 });
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"5DCostData: exported {costed}/{elements.Count} elements (canonical take-off) to {path}");
 
             // Phase 76: XLSX mirror — reuse the rows already costed above (no
@@ -8730,7 +8730,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"{Esc(catName)}\",\"{disc}\",{count},{totalLength:F2},{totalArea:F2},{totalVolume:F4}");
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"MeasuredQty: exported for {groups.Count()} categories to {path}");
             return path;
         }
@@ -9761,7 +9761,7 @@ namespace StingTools.BIMManager
 
                 // Atomic write
                 string tempPath = path + ".tmp";
-                File.WriteAllText(tempPath, data.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tempPath, data.ToString(Formatting.Indented));
                 if (File.Exists(path)) File.Delete(path);
                 File.Move(tempPath, path);
             }
@@ -9908,7 +9908,7 @@ namespace StingTools.BIMManager
                 ["elements"] = tagMap
             };
 
-            File.WriteAllText(exportPath, wrapper.ToString(Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(exportPath, wrapper.ToString(Formatting.Indented));
             TaskDialog.Show("STING Tag Export", $"Exported {exported} tagged elements to:\n{exportPath}");
             StingLog.Info($"Tag map exported: {exported} elements to {exportPath}");
             return Result.Succeeded;
@@ -10162,7 +10162,7 @@ namespace StingTools.BIMManager
             // Save
             string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string reportPath = Path.Combine(dir, $"STING_Weekly_Report_{DateTime.Now:yyyyMMdd}.html");
-            File.WriteAllText(reportPath, html.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(reportPath, html.ToString());
 
             TaskDialog.Show("STING Weekly Report", $"Report saved to:\n{reportPath}");
             StingLog.Info($"Weekly report generated: {reportPath}");
@@ -10354,7 +10354,7 @@ namespace StingTools.BIMManager
 
                 approvals.Add(record);
                 string tmpPath1 = path + ".tmp";
-                File.WriteAllText(tmpPath1, approvals.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpPath1, approvals.ToString(Formatting.Indented));
                 File.Move(tmpPath1, path, overwrite: true);
                 StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
                 return approvalId;
@@ -10397,7 +10397,7 @@ namespace StingTools.BIMManager
                         record["completion_date"] = DateTime.Now.ToString("o");
 
                     string tmpPath2 = path + ".tmp";
-                    File.WriteAllText(tmpPath2, approvals.ToString(Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(tmpPath2, approvals.ToString(Formatting.Indented));
                     File.Move(tmpPath2, path, overwrite: true);
                     StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
                     return true;
@@ -10733,7 +10733,7 @@ namespace StingTools.BIMManager
                 };
                 tasks.Add(task);
                 string tmpTaskPath = tasksPath + ".tmp";
-                File.WriteAllText(tmpTaskPath, tasks.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpTaskPath, tasks.ToString(Formatting.Indented));
                 File.Move(tmpTaskPath, tasksPath, overwrite: true);
                 TaskDialog.Show("STING", $"Task {taskId} created with {selectedIds.Length} elements.");
             }

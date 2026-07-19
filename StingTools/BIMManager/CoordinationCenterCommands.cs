@@ -725,7 +725,7 @@ namespace StingTools.BIMManager
                     Path.GetDirectoryName(doc.PathName) ?? "",
                     "STING_BIM_MANAGER");
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(
+                OutputLocationHelper.WriteAllTextAtomic(
                     Path.Combine(dir, "access_control.json"),
                     JsonConvert.SerializeObject(_policy, Formatting.Indented));
             }

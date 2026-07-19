@@ -1177,16 +1177,16 @@ namespace StingTools.BIMManager
                     ["revit_version"] = doc.Application.VersionNumber,
                     ["export_date"] = DateTime.Now.ToString("o")
                 };
-                File.WriteAllText(Path.Combine(packageDir, "model_reference.json"),
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "model_reference.json"),
                     modelRef.ToString(Formatting.Indented));
 
                 // Generate transmittal cover sheet
                 string coverSheet = PlatformLinkEngine.BuildTransmittalCoverSheet(doc, suitability, deliverables);
-                File.WriteAllText(Path.Combine(packageDir, "TRANSMITTAL_COVER.txt"), coverSheet);
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "TRANSMITTAL_COVER.txt"), coverSheet);
 
                 // Generate manifest
                 var manifest = PlatformLinkEngine.BuildCDEManifest(doc, deliverables, packageDir);
-                File.WriteAllText(Path.Combine(packageDir, "manifest.json"),
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "manifest.json"),
                     manifest.ToString(Formatting.Indented));
 
                 // Create ZIP archive
@@ -1331,12 +1331,12 @@ namespace StingTools.BIMManager
                     ["revit_version"] = doc.Application.VersionNumber,
                     ["export_date"] = DateTime.Now.ToString("o")
                 };
-                File.WriteAllText(Path.Combine(packageDir, "model_reference.json"),
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "model_reference.json"),
                     modelRef.ToString(Formatting.Indented));
 
                 // Generate manifest.json
                 var manifest = PlatformLinkEngine.BuildCDEManifest(doc, deliverables, packageDir);
-                File.WriteAllText(Path.Combine(packageDir, "manifest.json"),
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "manifest.json"),
                     manifest.ToString(Formatting.Indented));
 
                 // Generate BEP summary if available
@@ -1361,7 +1361,7 @@ namespace StingTools.BIMManager
                         ["rag_status"] = compScan.RAGStatus,
                         ["top_issues"] = compScan.TopIssues
                     };
-                    File.WriteAllText(Path.Combine(packageDir, "compliance_summary.json"),
+                    OutputLocationHelper.WriteAllTextAtomic(Path.Combine(packageDir, "compliance_summary.json"),
                         compJson.ToString(Formatting.Indented));
                 }
 
@@ -2085,7 +2085,7 @@ namespace StingTools.BIMManager
                     : new JObject();
                 cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
                 cfg["lastSyncElements"] = tagSync.Count;
-                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(cfgPath, cfg.ToString(Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
@@ -2540,7 +2540,7 @@ namespace StingTools.BIMManager
 
                 // Generate index.html dashboard
                 string dashboard = PlatformLinkEngine.BuildSharePointDashboard(doc, deliverables, rootDir);
-                File.WriteAllText(Path.Combine(rootDir, "index.html"), dashboard, Encoding.UTF8);
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(rootDir, "index.html"), dashboard, Encoding.UTF8);
 
                 // Generate metadata XML for SharePoint document library columns
                 var metadataXml = PlatformLinkEngine.BuildSharePointMetadata(doc, deliverables);
@@ -2548,7 +2548,7 @@ namespace StingTools.BIMManager
 
                 // Generate manifest
                 var manifest = PlatformLinkEngine.BuildCDEManifest(doc, deliverables, rootDir);
-                File.WriteAllText(Path.Combine(rootDir, "manifest.json"),
+                OutputLocationHelper.WriteAllTextAtomic(Path.Combine(rootDir, "manifest.json"),
                     manifest.ToString(Formatting.Indented));
 
                 // Auto-register
@@ -2671,7 +2671,7 @@ namespace StingTools.BIMManager
                                     ? JObject.Parse(File.ReadAllText(cfgPath))
                                     : new JObject();
                                 cfg["projectId"] = projectId.Trim();
-                                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                                OutputLocationHelper.WriteAllTextAtomic(cfgPath, cfg.ToString(Formatting.Indented));
                             }
                             catch { /* non-fatal */ }
                         }

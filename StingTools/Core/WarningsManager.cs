@@ -1601,7 +1601,7 @@ namespace StingTools.Core
 
                 // Atomic write: temp file then replace to prevent mid-write corruption
                 string tempPath = path + ".tmp";
-                File.WriteAllText(tempPath, json, Encoding.UTF8);
+                OutputLocationHelper.WriteAllTextAtomic(tempPath, json, Encoding.UTF8);
                 // R1-WM-01: Use File.Replace for atomic swap (Delete+Move has crash window)
                 if (File.Exists(path))
                     File.Replace(tempPath, path, path + ".bak");
@@ -1664,7 +1664,7 @@ namespace StingTools.Core
             try
             {
                 Directory.CreateDirectory(exportDir);
-                File.WriteAllText(fullPath, sb.ToString(), Encoding.UTF8);
+                OutputLocationHelper.WriteAllTextAtomic(fullPath, sb.ToString(), Encoding.UTF8);
                 StingLog.Info($"Warnings exported: {fullPath}");
             }
             catch (Exception ex) { StingLog.Error($"Export warnings CSV", ex); }
@@ -1833,7 +1833,7 @@ namespace StingTools.Core
                     jsonSb.AppendLine("]");
                     // Phase 86: Atomic write — prevents sidecar corruption on crash mid-write
                     string tmpPath = issuesPath + ".tmp";
-                    File.WriteAllText(tmpPath, jsonSb.ToString(), Encoding.UTF8);
+                    OutputLocationHelper.WriteAllTextAtomic(tmpPath, jsonSb.ToString(), Encoding.UTF8);
                     File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
                     StingLog.Info($"Issues file updated: {issuesPath} ({existingEntries.Count} total entries)");
                 }
@@ -2290,7 +2290,7 @@ namespace StingTools.Core
 
                 // R2-FIX: Atomic write using File.Replace (no crash window between Delete and Move)
                 string tempPath = path + ".tmp";
-                File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
+                OutputLocationHelper.WriteAllTextAtomic(tempPath, sb.ToString(), Encoding.UTF8);
                 try { File.Replace(tempPath, path, path + ".bak"); }
                 catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } }
 
@@ -2754,7 +2754,7 @@ namespace StingTools.Core
 
                     // Phase 87: Atomic write to prevent corruption on crash
                     string tmpPath = issuesPath + ".tmp";
-                    File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     if (File.Exists(issuesPath))
                         File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
                     else
@@ -2846,7 +2846,7 @@ namespace StingTools.Core
                 if (!Directory.Exists(bimDir))
                     Directory.CreateDirectory(bimDir);
                 string tmpPath = issuesPath + ".tmp";
-                File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 if (File.Exists(issuesPath))
                     File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
                 else
@@ -3636,7 +3636,7 @@ namespace StingTools.Core
                         ["created_date"] = DateTime.Now.ToString("o"),
                         ["created_by"] = Environment.UserName
                     });
-                    File.WriteAllText(path, links.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(path, links.ToString(Newtonsoft.Json.Formatting.Indented));
                     StingLog.Info($"GAP-COORD-02: Linked {documentId} → {issueId} ({linkType})");
                 }
                 catch (Exception ex) { StingLog.Warn($"DocumentIssueLink: {ex.Message}"); }
@@ -4959,7 +4959,7 @@ namespace StingTools.Core
                     ["saved_at"] = DateTime.Now.ToString("o")
                 };
                 Directory.CreateDirectory(Path.GetDirectoryName(configPath));
-                File.WriteAllText(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
                 TaskDialog.Show("STING", $"Permissions saved to:\n{configPath}");
                 StingLog.Info($"SavePermissions: wrote {roles.Count} roles, {folders.Count} folders to project_config.json");
             }
@@ -5083,7 +5083,7 @@ namespace StingTools.Core
                                     : new Newtonsoft.Json.Linq.JObject();
                                 cfg["USER_ROLE"] = newRole;
                                 cfg["USER_ROLE_CHANGED"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                                File.WriteAllText(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
+                                OutputLocationHelper.WriteAllTextAtomic(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
                                 StingLog.Info($"User role changed to: {newRole}");
                             }
                             catch (Exception ex) { StingLog.Warn($"EditUserRole save: {ex.Message}"); }
@@ -5174,7 +5174,7 @@ namespace StingTools.Core
                 }
 
                 snapshots.Add(snap);
-                File.WriteAllText(snapshotPath, snapshots.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(snapshotPath, snapshots.ToString(Newtonsoft.Json.Formatting.Indented));
 
                 TaskDialog.Show("STING Snapshot",
                     $"Model snapshot saved: {snap["id"]}\n\n" +
@@ -5274,8 +5274,8 @@ namespace StingTools.Core
                     created++;
                 }
 
-                File.WriteAllText(issuesPath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(issuesPath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
                 TaskDialog.Show("STING Escalation",
                     $"Created {created} NCR issue(s) from overdue actions.\n\n" +

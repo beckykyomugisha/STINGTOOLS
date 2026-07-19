@@ -1278,7 +1278,7 @@ namespace StingTools.UI
                     note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
                     // M-03: Atomic file write to prevent corruption on crash
                     string tmp = stickyPath + ".tmp";
-                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     File.Replace(tmp, stickyPath, stickyPath + ".bak");
                     ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
                     item.Title = newText;
@@ -1740,7 +1740,7 @@ namespace StingTools.UI
                         $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
                         $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"");
             }
-            File.WriteAllText(dlg.FileName, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(dlg.FileName, sb.ToString());
             if (_doc != null) ProjectFolderEngine.LogActivity(_doc, "EXPORT_CSV", Path.GetFileName(dlg.FileName), $"{_view.Count} rows");
             MessageBox.Show($"Exported {_view.Count} rows to:\n{dlg.FileName}", "STING Export", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -1901,7 +1901,7 @@ namespace StingTools.UI
                         (trackCheck.IsChecked == true ? $"\n{DateTime.Now:yyyy-MM-dd HH:mm} SENT to {recipientNames.Count} recipients" : "")
                 };
                 arr.Add(trans);
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId,
                     $"{selected.Count} docs to {recipientNames.Count} recipients ({string.Join(", ", recipientNames)})");
 
@@ -1940,7 +1940,7 @@ namespace StingTools.UI
                         trans["template_id"]         = templateId;
                         trans["rendered_file_path"]  = renderedPath;
                         trans["workflow_instance_id"]= workflowInst;
-                        File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     }
                     else
                     {
@@ -2058,7 +2058,7 @@ namespace StingTools.UI
                 catch (Exception ex2) { StingLog.Warn($"QuickIssue rev detect: {ex2.Message}"); }
 
                 arr.Add(issue);
-                File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title} → {assignedTo}");
 
                 // Generate notification for critical/high priority issues
@@ -2156,7 +2156,7 @@ namespace StingTools.UI
                 try
                 {
                     _teamData["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    File.WriteAllText(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
                 }
                 catch (Exception ex) { StingLog.Warn($"TeamRegistry save: {ex.Message}"); }
             }
@@ -2949,7 +2949,7 @@ namespace StingTools.UI
             }
 
             meetings.Add(meeting);
-            File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
             ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(),
                 $"{meetingType} #{seriesNum}, {attendees.Count} attendees" +
                 (carryForwardActions > 0 ? $", {carryForwardActions} actions carried forward" : ""));
@@ -3105,7 +3105,7 @@ namespace StingTools.UI
 
             target["agenda"] = agenda;
             int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
-            File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
             // Show agenda in result panel, grouped by section
             var panel = StingResultPanel.Create("Meeting Agenda")
@@ -3182,7 +3182,7 @@ namespace StingTools.UI
             {
                 target["minutes"] = tb.Text;
                 target["status"] = "IN_PROGRESS";
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_LOGGED", meetId, $"{tb.Text.Length} chars");
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3276,7 +3276,7 @@ namespace StingTools.UI
                     ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
                 });
                 target["actions"] = actions;
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "ACTION_ADDED", meetId, descBox.Text);
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3434,7 +3434,7 @@ namespace StingTools.UI
             try
             {
                 string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
-                File.WriteAllText(exportPath, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(exportPath, sb.ToString());
                 Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
             }
@@ -3484,7 +3484,7 @@ namespace StingTools.UI
                     ["status"] = "PENDING"
                 });
 
-                File.WriteAllText(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"LogNotification: {ex.Message}"); }
         }
@@ -3531,7 +3531,7 @@ namespace StingTools.UI
                 }
             }
 
-            File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
 
             var panel = StingResultPanel.Create("SLA Compliance Check")
                 .SetSubtitle($"{issues.Count(i => i["status"]?.ToString() != "CLOSED")} open issues scanned")
@@ -4147,7 +4147,7 @@ namespace StingTools.UI
                             closed++;
                         }
                     }
-                    File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     MessageBox.Show($"Closed {closed} issues.");
                     RefreshData();
                 }
@@ -4284,7 +4284,7 @@ namespace StingTools.UI
                         }
                     }
                     if (synced > 0)
-                        File.WriteAllText(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BulkUpdateCDE register sync: {ex.Message}"); }
@@ -4314,7 +4314,7 @@ namespace StingTools.UI
                     var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
                     if (note != null) { arr.Remove(note); deleted++; _allItems.Remove(item); }
                 }
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "BULK_DELETE_NOTES", $"{deleted}", $"Deleted {deleted} notes");
                 MessageBox.Show($"Deleted {deleted} sticky notes.");
                 UpdateCounts();
@@ -4351,7 +4351,7 @@ namespace StingTools.UI
                         updated++;
                     }
                 }
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "TRANS_STATUS", $"{updated}", $"→ {newStatus}");
                 MessageBox.Show($"Updated {updated} transmittal(s) to {newStatus}.");
                 RefreshData();
@@ -4392,7 +4392,7 @@ namespace StingTools.UI
                     ["user"] = user,
                     ["element_ids"] = new JArray()
                 });
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_NOTE", noteId, $"{category}: {text.Substring(0, Math.Min(50, text.Length))}");
                 RefreshData();
             }
@@ -5500,7 +5500,7 @@ namespace StingTools.UI
                             {
                                 string hist = issue["status_history"]?.ToString() ?? "";
                                 issue["status_history"] = hist + $"\n{DateTime.Now:yyyy-MM-dd HH:mm} REASSIGNED to {name} by {Environment.UserName}";
-                                File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                                OutputLocationHelper.WriteAllTextAtomic(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
                             }
                         }
                     }
@@ -5581,7 +5581,7 @@ namespace StingTools.UI
                 if (entry != null)
                 {
                     entry[field] = value;
-                    File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
                 }
             }
@@ -5603,7 +5603,7 @@ namespace StingTools.UI
                     entry[field] = value;
                     entry["status_history"] = (entry["status_history"]?.ToString() ?? "")
                         + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {field}: {old}->{value}";
-                    File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
                 }
             }
