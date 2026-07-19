@@ -3294,6 +3294,8 @@
                                                 ToolTip="Export one merged register (deliverables + document register) to CSV — read-only, touches neither store"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Consolidate Register" Tag="Register_Consolidate" Click="Cmd_Click"
                                                 ToolTip="Dry-run preview, then write the canonical _data/register.json (source stores kept intact — reversible)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Consolidate Folders" Tag="Folders_ConsolidateAll" Click="Cmd_Click"
+                                                ToolTip="Dry-run preview, then move legacy STING folders next to the model into the one unified project root"/>
                                         <Button Style="{StaticResource GreenBtn}" Content="Add Doc" Tag="AddDocument" Click="Cmd_Click"
                                                 ToolTip="Register incoming or outgoing document with ISO 19650 naming"/>
                                         <Button Style="{StaticResource PurpleBtn}" Content="Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"

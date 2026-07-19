@@ -620,6 +620,73 @@ namespace StingTools.Core
             public List<string> Warnings { get; set; } = new();
         }
 
+        /// <summary>One legacy source folder a consolidation would move, with its file count and destination.</summary>
+        public class LegacyScanItem
+        {
+            public string Source { get; set; }
+            public string Destination { get; set; }
+            public int FileCount { get; set; }
+        }
+
+        /// <summary>Dry-run preview of what <see cref="MigrateFromLegacy"/> would consolidate. Moves nothing.</summary>
+        public class LegacyScanReport
+        {
+            public List<LegacyScanItem> Items { get; set; } = new();
+            public int TotalFiles => Items.Sum(i => i.FileCount);
+        }
+
+        /// <summary>
+        /// Enumerate the legacy sibling folders next to the .rvt that a consolidation would
+        /// fold into the unified &lt;root&gt;/_data (or routed export folders), with per-source
+        /// file counts. Read-only — nothing is moved. Backs the Folders_ConsolidateAll dry-run.
+        /// </summary>
+        public static LegacyScanReport ScanLegacy(Document doc)
+        {
+            var rep = new LegacyScanReport();
+            try
+            {
+                string projDir = doc != null ? Path.GetDirectoryName(doc.PathName ?? "") : null;
+                if (string.IsNullOrEmpty(projDir)) return rep;
+                string dataPath = GetDataPath(doc);
+
+                int Count(string dir)
+                {
+                    try { return Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories).Count(); }
+                    catch { return 0; }
+                }
+
+                // Metadata buckets folded into _data/<bucket>/
+                foreach (string bucket in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER", ".bimmanager" })
+                {
+                    string src = Path.Combine(projDir, bucket);
+                    if (!Directory.Exists(src)) continue;
+                    int n = Count(src);
+                    if (n > 0) rep.Items.Add(new LegacyScanItem
+                    {
+                        Source = src,
+                        Destination = string.IsNullOrEmpty(dataPath) ? "<root>/_data/" + bucket : Path.Combine(dataPath, bucket),
+                        FileCount = n
+                    });
+                }
+
+                // Separate CDE tree + export dumps, routed by content/extension
+                foreach (string legacy in new[] { "_CDE", "STING_Exports", "STING_Project" })
+                {
+                    string src = Path.Combine(projDir, legacy);
+                    if (!Directory.Exists(src)) continue;
+                    int n = Count(src);
+                    if (n > 0) rep.Items.Add(new LegacyScanItem
+                    {
+                        Source = src,
+                        Destination = "routed into the unified CDE / export / _data folders by type",
+                        FileCount = n
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ScanLegacy: {ex.Message}"); }
+            return rep;
+        }
+
         /// <summary>
         /// Detect legacy STING folders (_BIM_COORD, STING_BIM_MANAGER, STING_Exports,
         /// STING_Project) and .sting_*.json sidecar files alongside the .rvt; consolidate
