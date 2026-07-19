@@ -3718,6 +3718,14 @@ namespace StingTools.UI
                 ToolTip = "Short revision description (e.g. 'Structural coordination update')" };
             descBox.Text = "Coordination update";
 
+            // Feeds Revision.IssuedBy — the "Issued by" column of the native
+            // revision schedules embedded in the title-block families. Defaults
+            // to the current Windows user so the column is never left blank.
+            var issuedByBox = new TextBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0),
+                MinWidth = 140, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Approver name written to the revision's 'Issued by' field — shown in the title-block revision schedule's APPR./ISSUED BY column. Defaults to your Windows user name." };
+            issuedByBox.Text = Environment.UserName;
+
             var createBtn = new Button
             {
                 Content = "Create Revision", Height = 28, Padding = new Thickness(14,0,14,0),
@@ -3755,7 +3763,8 @@ namespace StingTools.UI
                 string selDisc = (discDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
                 string selDesc = descBox.Text?.Trim()?.Replace("|", "/");
                 if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
-                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
+                string selIssuedBy = issuedByBox.Text?.Trim()?.Replace("|", "/") ?? "";
+                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}|{selIssuedBy}");
             };
 
             // Phase 104: "Delete code" removes the currently-selected ISO revision code
@@ -3815,6 +3824,8 @@ namespace StingTools.UI
             formRow.Children.Add(discDropdown);
             formRow.Children.Add(new TextBlock { Text = "Description: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(descBox);
+            formRow.Children.Add(new TextBlock { Text = "Issued by: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(issuedByBox);
             formRow.Children.Add(createBtn);
             createFormBorder.Child = formRow;
             stack.Children.Add(createFormBorder);

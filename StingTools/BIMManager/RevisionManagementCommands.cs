@@ -563,11 +563,16 @@ namespace StingTools.BIMManager
                 var doc = _ctx.Doc;
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
-                // Parse params forwarded from BCC inline form: "CreateRevision|P01|M|Coordination update"
+                // Parse params forwarded from BCC inline form:
+                // "CreateRevision|P01|M|Coordination update|J. Approver"
                 // _pendingAction is set by CoordinationCenterCommands before invoking this command.
+                // Part 5 (Issued by) feeds Revision.IssuedBy — the "Issued by" column of the
+                // native revision schedules embedded in the title-block families. Falls back
+                // to the current Windows user so the column is never left blank.
                 string isoCode   = $"P{nextSeq:D2}";
                 string discipline = "ALL";
                 string userDesc   = "";
+                string issuedBy   = "";
                 try
                 {
                     string pending = CoordinationCenterCommands.BccPendingAction ?? "";
@@ -577,10 +582,12 @@ namespace StingTools.BIMManager
                         if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1])) isoCode    = parts[1].Trim();
                         if (parts.Length >= 3 && !string.IsNullOrWhiteSpace(parts[2])) discipline = parts[2].Trim();
                         if (parts.Length >= 4 && !string.IsNullOrWhiteSpace(parts[3])) userDesc   = parts[3].Trim();
+                        if (parts.Length >= 5 && !string.IsNullOrWhiteSpace(parts[4])) issuedBy   = parts[4].Trim();
                         CoordinationCenterCommands.BccPendingAction = null;
                     }
                 }
                 catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
+                if (string.IsNullOrEmpty(issuedBy)) issuedBy = Environment.UserName;
 
                 // Phase 101: the stepped TaskDialog picker that used to live here
                 // has been removed — the BCC Revisions tab is now the only entry
@@ -649,6 +656,13 @@ namespace StingTools.BIMManager
                     rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
 
+                    // Stamp the approver onto the Revision itself so the "Issued by"
+                    // column of the native title-block revision schedules populates.
+                    // Must happen while the revision is un-issued — Revit locks
+                    // revision properties once Issued = true.
+                    try { rev.IssuedBy = issuedBy; }
+                    catch (Exception ibEx) { StingLog.Warn($"CreateRevision IssuedBy stamp: {ibEx.Message}"); }
+
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
                     tx.Commit();
@@ -657,7 +671,8 @@ namespace StingTools.BIMManager
                         $"Revision created successfully.\n\n" +
                         $"Number: {prefix}\n" +
                         $"Description: {description}\n" +
-                        $"Date: {rev.RevisionDate}\n\n" +
+                        $"Date: {rev.RevisionDate}\n" +
+                        $"Issued by: {issuedBy}\n\n" +
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
@@ -1433,6 +1448,17 @@ namespace StingTools.BIMManager
                         }
                     }
 
+                    // Backfill the approver BEFORE marking issued — Revit locks
+                    // revision properties once Issued = true, and the "Issued by"
+                    // column of the native title-block revision schedules reads
+                    // this field. Existing values are respected.
+                    try
+                    {
+                        if (string.IsNullOrWhiteSpace(targetRev.IssuedBy))
+                            targetRev.IssuedBy = Environment.UserName;
+                    }
+                    catch (Exception ibEx) { StingLog.Warn($"IssueSheets IssuedBy stamp: {ibEx.Message}"); }
+
                     // Mark revision as issued
                     targetRev.Issued = true;
 
@@ -1535,7 +1561,7 @@ namespace StingTools.BIMManager
                     .OrderBy(r => r.SequenceNumber)
                     .ToList();
 
-                int valid = 0, invalid = 0, fixed_ = 0;
+                int valid = 0, invalid = 0, fixed_ = 0, noIssuedBy = 0;
                 var issues = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Revision Naming Enforcement"))
@@ -1543,6 +1569,19 @@ namespace StingTools.BIMManager
                     tx.Start();
                     foreach (var rev in revisions)
                     {
+                        // Audit: issued revisions with a blank "Issued by" leave the
+                        // approver column of native title-block revision schedules
+                        // empty, and the field is locked once Issued = true.
+                        try
+                        {
+                            if (rev.Issued && string.IsNullOrWhiteSpace(rev.IssuedBy))
+                            {
+                                noIssuedBy++;
+                                issues.Add($"Seq {rev.SequenceNumber}: issued with blank 'Issued by' — un-issue, fill it, re-issue.");
+                            }
+                        }
+                        catch (Exception ibEx) { StingLog.Warn($"IssuedBy audit: {ibEx.Message}"); }
+
                         string numStr = "";
                         try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                         string error = RevisionEngine.ValidateRevisionNumber(numStr);
@@ -1574,6 +1613,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"Total revisions: {revisions.Count}");
                 sb.AppendLine($"Valid naming: {valid}");
                 sb.AppendLine($"Invalid naming: {invalid}");
+                sb.AppendLine($"Issued with blank 'Issued by': {noIssuedBy}");
                 sb.AppendLine($"Auto-fixed descriptions: {fixed_}\n");
                 if (issues.Count > 0)
                 {
@@ -1581,13 +1621,13 @@ namespace StingTools.BIMManager
                     foreach (string issue in issues.Take(15))
                         sb.AppendLine($"  • {issue}");
                 }
-                sb.AppendLine("\nISO 19650 Naming Convention:");
-                sb.AppendLine("  P01-P99: Preliminary issues");
-                sb.AppendLine("  C01-C99: Construction issues");
-                sb.AppendLine("  A-Z: As-built issues");
+                sb.AppendLine("\nRecognised series (see RevisionSeries):");
+                sb.AppendLine("  T## Tender · P## Preliminary · Co## Contract · C## Construction");
+                sb.AppendLine("  R## Revision · B## Building · D## Digital · A1/A2 Approved · AB## As-Built");
+                sb.AppendLine("  A-Z single-letter as-built · IFC/IFA/IFR/IFT/IFP/IFI/IFPT/WD/SS/OB · numeric");
 
                 TaskDialog.Show("StingTools Revision Naming", sb.ToString());
-                StingLog.Info($"Revision naming audit: {valid} valid, {invalid} invalid, {fixed_} fixed");
+                StingLog.Info($"Revision naming audit: {valid} valid, {invalid} invalid, {fixed_} fixed, {noIssuedBy} blank IssuedBy");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -2066,6 +2106,12 @@ namespace StingTools.BIMManager
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
+                    // Auto-created revision: record who triggered it so the
+                    // "Issued by" column of native title-block revision
+                    // schedules is never blank.
+                    try { rev.IssuedBy = Environment.UserName; }
+                    catch (Exception ibEx) { StingLog.Warn($"AutoRevision IssuedBy stamp: {ibEx.Message}"); }
+
                     // Get the actual revision number assigned by Revit
                     try
                     {
@@ -2198,6 +2244,15 @@ namespace StingTools.BIMManager
                     using (var tx = new Transaction(doc, "STING Revision Approval"))
                     {
                         tx.Start();
+                        // Record the approver before Issued = true locks the
+                        // revision — feeds the "Issued by" column of native
+                        // title-block revision schedules. Existing values win.
+                        try
+                        {
+                            if (string.IsNullOrWhiteSpace(latest.IssuedBy))
+                                latest.IssuedBy = Environment.UserName;
+                        }
+                        catch (Exception ibEx) { StingLog.Warn($"Approval IssuedBy stamp: {ibEx.Message}"); }
                         latest.Issued = true;
                         tx.Commit();
                     }
@@ -2214,6 +2269,8 @@ namespace StingTools.BIMManager
                         var newRev = Revision.Create(doc);
                         newRev.Description = $"Review — {DateTime.Now:yyyy-MM-dd}";
                         newRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        try { newRev.IssuedBy = Environment.UserName; }
+                        catch (Exception ibEx) { StingLog.Warn($"Review revision IssuedBy stamp: {ibEx.Message}"); }
                         tx.Commit();
 
                         TaskDialog.Show("Revision Approval",

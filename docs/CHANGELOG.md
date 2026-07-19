@@ -69,6 +69,19 @@ semantic conflict on the element REV parameter. Six fixes:
   that the `RevisionSync` tag was **not** registered in `WorkflowEngine.ResolveCommand`; it
   is now, along with the known-tags list.
 
+- **`Revision.IssuedBy` auto-stamp** (follow-up on the same branch). The "Issued by" column
+  of the native title-block revision schedules can only read the Revision element's own
+  `IssuedBy` field — revision schedules cannot reference sheet or shared parameters — and
+  that field was never written, so the APPR./ISSUED BY column stayed blank. Now: the BCC
+  Revisions form gains an **"Issued by"** input (defaults to the Windows user), forwarded as
+  a 5th pipe-delimited field to `CreateRevisionCommand`, which stamps it at creation;
+  `IssueSheetsForRevisionCommand` and `RevisionApprovalWorkflowCommand` backfill a blank
+  `IssuedBy` (existing values win) **before** setting `Issued = true`, because Revit locks
+  revision properties at issue; `AutoRevisionOnTagChangeCommand` stamps the triggering user
+  on auto-created revisions; and `RevisionNamingEnforceCommand` audits issued revisions
+  with a blank `IssuedBy` (its convention footer now lists the full `RevisionSeries` set
+  instead of the stale P/C/A-Z trio).
+
 **Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
 table was exercised against 20 cases in a standalone harness. **Revit runtime verification
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
