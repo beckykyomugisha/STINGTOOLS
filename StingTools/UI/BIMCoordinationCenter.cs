@@ -846,6 +846,31 @@ namespace StingTools.UI
             public string SignedFilePath { get; set; }
         }
 
+        // ── Deliverable selection provider ────────────────────────────────
+        //
+        // The lifecycle and transmittal commands (Issue / ReIssue / Publish /
+        // Cancel / Supersede / Replace / Bulk-Issue / Create-Transmittal) need to
+        // know which deliverable rows the user picked in this window. They
+        // previously reflected over fields named SelectedDeliverable /
+        // SelectedDeliverables that never existed, so every one of those commands
+        // permanently behaved as "nothing selected". These are the real holders,
+        // populated from the deliverables grid's SelectionChanged.
+
+        /// <summary>First deliverable row currently selected in the BCC grid, or null.</summary>
+        internal static DeliverableRow SelectedDeliverable { get; private set; }
+
+        /// <summary>All deliverable rows currently selected in the BCC grid (never null).</summary>
+        internal static IReadOnlyList<DeliverableRow> SelectedDeliverables { get; private set; }
+            = new List<DeliverableRow>();
+
+        /// <summary>Record the current deliverables-grid selection for the lifecycle commands.</summary>
+        internal static void SetDeliverableSelection(IEnumerable<DeliverableRow> rows)
+        {
+            var list = (rows ?? Enumerable.Empty<DeliverableRow>()).Where(r => r != null).ToList();
+            SelectedDeliverables = list;
+            SelectedDeliverable = list.FirstOrDefault();
+        }
+
         /// <summary>Template engine v1.0 — revision history entry captured in DeliverableRow.RevisionHistory.</summary>
         internal class RevisionHistoryEntry
         {
@@ -8675,6 +8700,14 @@ namespace StingTools.UI
                 approvedT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xE8, 0xF5, 0xE9))));
                 rowStyle.Triggers.Add(approvedT);
                 dg.RowStyle = rowStyle;
+
+                // Publish the selection so the lifecycle / transmittal commands can
+                // see what the user picked (see SetDeliverableSelection).
+                dg.SelectionChanged += (s, e) =>
+                {
+                    try { SetDeliverableSelection(dg.SelectedItems.OfType<DeliverableRow>()); }
+                    catch (Exception ex2) { StingLog.Warn($"Deliverable selection capture: {ex2.Message}"); }
+                };
 
                 // Double-click to view/edit deliverable
                 dg.MouseDoubleClick += (s, e) =>

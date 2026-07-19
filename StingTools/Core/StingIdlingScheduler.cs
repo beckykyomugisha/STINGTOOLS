@@ -142,39 +142,6 @@ namespace StingTools.Core
     }
 
     /// <summary>
-    /// Single-shot job that pushes accumulated dirty-element geometry to the
-    /// Planscape federated-model endpoint. Runs once per enqueue on the next
-    /// quiet Idling tick so it never blocks the worksharing save callback.
-    /// </summary>
-    public class FullGeometrySyncJob : IIdlingJob
-    {
-        public string Name     => "FullGeometrySync";
-        public int    Priority => 4;
-        public int    BudgetMs => 50;
-
-        public bool Execute(UIApplication uiApp)
-        {
-            try
-            {
-                var doc = uiApp?.ActiveUIDocument?.Document;
-                if (doc == null) return true;
-                // Delegate to the server client's geometry-push path when available.
-                // Using reflection keeps a hard dependency on the BIMManager
-                // assembly out of the Core layer.
-                var t = Type.GetType("StingTools.BIMManager.PlanscapeServerClient, StingTools");
-                if (t != null)
-                {
-                    var m = t.GetMethod("PushDirtyGeometryAsync",
-                        new[] { typeof(Autodesk.Revit.DB.Document) });
-                    if (m != null) m.Invoke(null, new object[] { doc });
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"FullGeometrySyncJob: {ex.Message}"); }
-            return true; // one-shot
-        }
-    }
-
-    /// <summary>
     /// Single-shot job that promotes the accumulated stale-element flag into
     /// a BIM issue once the total stale count exceeds
     /// <c>TagConfig.StaleWarningThreshold</c>. Fires after the IUpdater

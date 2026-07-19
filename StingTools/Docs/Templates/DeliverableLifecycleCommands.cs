@@ -90,15 +90,15 @@ namespace Planscape.Docs.Templates
         /// Returns null if the user has nothing selected.</summary>
         public static dynamic ResolveSelection(Document doc)
         {
-            // BCC wires a static holder; callers stash the picked row there.
-            try
+            // Direct call — BCC lives in the same assembly, so the old string-based
+            // Type.GetType/GetField bridge bought nothing and silently resolved to
+            // null because the field it named did not exist.
+            try { return StingTools.UI.BIMCoordinationCenter.SelectedDeliverable; }
+            catch (Exception ex)
             {
-                var t = Type.GetType("StingTools.UI.BIMCoordinationCenter, StingTools");
-                var prop = t?.GetField("SelectedDeliverable",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-                return prop?.GetValue(null);
+                StingLog.Warn($"ResolveSelection: {ex.Message}");
+                return null;
             }
-            catch { return null; }
         }
     }
 

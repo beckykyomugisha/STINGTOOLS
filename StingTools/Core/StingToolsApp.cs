@@ -588,12 +588,17 @@ namespace StingTools.Core
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
 
-                // Enqueue a full geometry sync job so dirty element geometry accumulated
-                // since the last save is pushed to the federated-model endpoint.
-                // The IdlingScheduler defers it to the next quiet Revit moment so the
-                // STC callback returns immediately (never blocks the worksharing path).
-                try { StingIdlingScheduler.Enqueue(new FullGeometrySyncJob()); }
-                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync enqueue: {geoEx.Message}"); }
+                // Push dirty element geometry accumulated since the last save to the
+                // federated-model endpoint. Routed through GeometrySyncHandler — the
+                // real, working sync path also used by DocumentSaved. It raises an
+                // ExternalEvent, so the STC callback returns immediately and never
+                // blocks the worksharing path.
+                try
+                {
+                    if (!StingTools.Core.Clash.LiveClashUpdater.GeometrySyncQueue.IsEmpty)
+                        StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+                }
+                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync trigger: {geoEx.Message}"); }
 
                 // UIApplication fallback chain:
                 //   1. StingCommandHandler.CurrentApp (set during any prior command)

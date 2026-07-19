@@ -225,9 +225,7 @@ namespace StingTools.Commands.SLD
         {
             try
             {
-                var t = Type.GetType("StingTools.Core.Drawing.DrawingTypeStamper");
-                t?.GetMethod("Stamp", new[] { typeof(Element), typeof(string) })
-                  ?.Invoke(null, new object[] { view, dtId });
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, dtId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

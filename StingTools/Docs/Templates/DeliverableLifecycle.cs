@@ -149,15 +149,18 @@ namespace Planscape.Docs.Templates
         {
             try
             {
-                var entry = Activator.CreateInstance(Type.GetType("StingTools.UI.BIMCoordinationCenter+RevisionHistoryEntry, StingTools"));
-                if (entry == null) return;
-                var t = entry.GetType();
-                t.GetProperty("Revision")?.SetValue(entry, (string)d.Revision);
-                t.GetProperty("Suitability")?.SetValue(entry, (string)d.Suitability);
-                t.GetProperty("Timestamp")?.SetValue(entry, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
-                t.GetProperty("User")?.SetValue(entry, user);
-                t.GetProperty("Reason")?.SetValue(entry, reason);
-                t.GetProperty("TemplateId")?.SetValue(entry, templateId);
+                // Direct construction — the POCO is in this assembly, so the old
+                // Activator + per-property SetValue bridge only added a silent
+                // failure mode if any property were ever renamed.
+                var entry = new StingTools.UI.BIMCoordinationCenter.RevisionHistoryEntry
+                {
+                    Revision    = (string)d.Revision,
+                    Suitability = (string)d.Suitability,
+                    Timestamp   = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User        = user,
+                    Reason      = reason,
+                    TemplateId  = templateId
+                };
                 (d.RevisionHistory as System.Collections.IList)?.Add(entry);
             }
             catch (Exception ex) { StingLog.Warn($"AppendRevHistory failed: {ex.Message}"); }

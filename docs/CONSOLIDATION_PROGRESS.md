@@ -23,8 +23,8 @@ Every work package below must end green at 0/0.
 |---|---|---|
 | WP0 | Orientation; copy review + work order into `docs/`; create this tracker | DONE a708b7533 |
 | WP1 | Quick wins — MIDP join, transmittal merge, retire `_CDE`/`STING_Exports`, dead flags, junk containment, tree unification | DONE 830ea72db |
-| WP2 | Heal issues/meetings/documents store split via `Core/CoordStores.cs` | IN PROGRESS |
-| WP3 | Replace dead/fragile reflection bridges with real APIs | TODO |
+| WP2 | Heal issues/meetings/documents store split via `Core/CoordStores.cs` | DONE 18af9ece5 |
+| WP3 | Replace dead/fragile reflection bridges with real APIs | IN PROGRESS |
 | WP4 | Atomic writes on coordination stores | TODO |
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | TODO |
 | WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | TODO |
