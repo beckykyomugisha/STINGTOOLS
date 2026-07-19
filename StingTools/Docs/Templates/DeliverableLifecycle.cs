@@ -110,10 +110,27 @@ namespace Planscape.Docs.Templates
             if (d == null) return new LifecycleResult { Ok = false, Message = "Deliverable is null" };
             try
             {
+                // Run the workflow state machine FIRST so a role-gated transition can block
+                // the lifecycle change before anything is persisted. Only a genuine role
+                // denial blocks; undefined paths / an unstarted engine / no server never do —
+                // the workflow is a tracking overlay that enforces only when a transition
+                // declares allowed_roles (empty ⇒ any; K/C always permitted).
+                bool cancelling = string.Equals(action, "cancelled", StringComparison.OrdinalIgnoreCase);
+                // Explicitly-typed target: DriveWorkflow takes a dynamic 'd', so the call is
+                // dynamic-dispatched and cannot be `var`-deconstructed.
+                (bool blocked, string blockMsg) wf =
+                    DriveWorkflow(doc, d, MapCdeToWfState(newCde), user, reason, cancelling);
+                if (wf.blocked)
+                    return new LifecycleResult { Ok = false, Message = wf.blockMsg ?? "Workflow role gate denied this transition." };
+
                 d.Status = newStatus;
                 if (!string.IsNullOrEmpty(newSuitability)) d.Suitability = newSuitability;
                 if (!string.IsNullOrEmpty(newCde))         d.CDE = newCde;
                 if (bumpRevision)                          d.Revision = BumpRevision((string)d.Revision ?? "P01");
+                // ISO 19650: promote the preliminary P-series revision to the contractual
+                // C-series once the deliverable is authorised for publication.
+                if (string.Equals(newCde, "PUBLISHED", StringComparison.OrdinalIgnoreCase))
+                    d.Revision = PromoteToContractual((string)d.Revision);
                 d.IssuedBy = user;
 
                 AppendRevHistory(d, reason, user, templateId);
@@ -134,6 +151,123 @@ namespace Planscape.Docs.Templates
                 StingLog.Error($"Lifecycle transition {action} failed", ex);
                 return new LifecycleResult { Ok = false, Message = ex.Message };
             }
+        }
+
+        // ── Workflow state machine (deliverable_issue_default) ──────────────
+        //
+        // The lifecycle now DRIVES Planscape.Docs.Workflow.WorkflowEngine so the
+        // role-enforced gates (WP8.3) actually fire for deliverables, not just
+        // transmittals. Issue starts the instance (at WIP); every CDE-changing action
+        // walks the linear WIP→Shared→Published→Archived machine to the target state,
+        // one role-gated Transition per hop; Cancel jumps to Archived via a "cancel"
+        // transition. The instance state + SLA are synced back onto the deliverable.
+
+        private static readonly string[] _wfOrder = { "WIP", "Shared", "Published", "Archived" };
+        private static readonly Dictionary<string, string> _wfForward =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            { ["WIP"] = "share", ["Shared"] = "publish", ["Published"] = "archive" };
+
+        private static string MapCdeToWfState(string cde)
+        {
+            if (string.IsNullOrEmpty(cde)) return null;
+            switch (cde.ToUpperInvariant())
+            {
+                case "WIP":       return "WIP";
+                case "SHARED":    return "Shared";
+                case "PUBLISHED": return "Published";
+                case "ARCHIVE":
+                case "ARCHIVED":  return "Archived";
+                default:          return null;
+            }
+        }
+
+        /// <summary>
+        /// Ensure the deliverable's workflow instance exists and advance it toward
+        /// <paramref name="targetWf"/> (or to Archived when <paramref name="cancelling"/>).
+        /// Returns (blocked, message); blocked is true ONLY when a role gate denied a hop,
+        /// in which case the caller must abort the lifecycle change. All other issues are
+        /// logged and non-blocking.
+        /// </summary>
+        private static (bool blocked, string msg) DriveWorkflow(
+            Document doc, dynamic d, string targetWf, string user, string reason, bool cancelling)
+        {
+            string docNumber = (string)d.DocNumber ?? (string)d.Code ?? "";
+            if (string.IsNullOrEmpty(docNumber)) return (false, null);
+            try
+            {
+                var inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
+                if (inst == null)
+                {
+                    try { Planscape.Docs.Workflow.WorkflowEngine.Start(doc, "deliverable_issue_default", docNumber); }
+                    catch (Exception ex) { StingLog.Warn($"DriveWorkflow start: {ex.Message}"); return (false, null); }
+                    inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
+                }
+                if (inst == null) return (false, null);
+
+                if (cancelling)
+                {
+                    if (!string.Equals(inst.State, "Archived", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var r = TryTransition(doc, docNumber, "cancel", user, reason);
+                        if (r.blocked) return r;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(targetWf))
+                {
+                    for (int guard = 0; guard < 8; guard++)
+                    {
+                        int cur = Array.FindIndex(_wfOrder, s => string.Equals(s, inst.State, StringComparison.OrdinalIgnoreCase));
+                        int tgt = Array.FindIndex(_wfOrder, s => string.Equals(s, targetWf, StringComparison.OrdinalIgnoreCase));
+                        if (cur < 0 || tgt < 0 || tgt <= cur) break;
+                        if (!_wfForward.TryGetValue(_wfOrder[cur], out string act)) break;
+                        var r = TryTransition(doc, docNumber, act, user, reason);
+                        if (r.blocked) return r;
+                        inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
+                        if (inst == null) break;
+                    }
+                }
+
+                SyncWorkflowFields(d, Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber));
+                return (false, null);
+            }
+            catch (Exception ex) { StingLog.Warn($"DriveWorkflow: {ex.Message}"); return (false, null); }
+        }
+
+        /// <summary>One Transition; blocks only on a role denial, warns on an undefined path.</summary>
+        private static (bool blocked, string msg) TryTransition(
+            Document doc, string docNumber, string action, string user, string reason)
+        {
+            try { Planscape.Docs.Workflow.WorkflowEngine.Transition(doc, docNumber, action, user, reason); return (false, null); }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.IndexOf("not permitted", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return (true, ex.Message);   // role gate — abort the lifecycle change
+                StingLog.Warn($"DriveWorkflow transition '{action}': {ex.Message}"); // undefined path — non-blocking
+                return (false, null);
+            }
+            catch (Exception ex) { StingLog.Warn($"DriveWorkflow transition '{action}': {ex.Message}"); return (false, null); }
+        }
+
+        private static void SyncWorkflowFields(dynamic d, WorkflowInstance inst)
+        {
+            if (inst == null) return;
+            try
+            {
+                d.WorkflowState = inst.State;
+                if (!string.IsNullOrEmpty(inst.SlaDeadline) &&
+                    DateTime.TryParse(inst.SlaDeadline, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+                    d.SlaDeadline = (DateTime?)dt;
+            }
+            catch (Exception ex) { StingLog.Warn($"SyncWorkflowFields: {ex.Message}"); }
+        }
+
+        /// <summary>ISO 19650 P→C revision promotion (P01 → C01). Idempotent for non-P revisions.</summary>
+        private static string PromoteToContractual(string rev)
+        {
+            if (string.IsNullOrEmpty(rev)) return "C01";
+            if (rev.StartsWith("P", StringComparison.OrdinalIgnoreCase)) return "C" + rev.Substring(1);
+            return rev;
         }
 
         private static string BumpRevision(string cur)

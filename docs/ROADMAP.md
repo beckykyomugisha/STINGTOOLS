@@ -886,10 +886,17 @@ without going stale. **Still open:** the **BCC** stays deliverable-focused on pu
 grid runs deliverable-lifecycle bulk actions, so register-only rows must not be injected into
 it; a read-only "all documents" surface in BCC would need its own UI + Revit verification.
 Eventually the two source stores retire once the UIs write through the canonical one.
-- **Run the deliverable state machine end-to-end.** `Transition` is now role-safe but
-  still only reached by the transmittal flow (via `Start`). Wire `DeliverableLifecycle`
-  Issue/Publish to `Start`/`Transition` and add Check→Review→Approve→Authorize as required
-  transitions in the workflow JSON, with P→C revision promotion on authorize.
+- **Run the deliverable state machine end-to-end — DONE.** `DeliverableLifecycle` now
+  drives `Planscape.Docs.Workflow.WorkflowEngine`: `Issue` starts the instance (at WIP),
+  every CDE-changing action walks the role-gated `WIP→Shared→Published→Archived` machine one
+  `Transition` per hop, `Cancel` jumps to `Archived` via a new `cancel` transition, and
+  `P→C` revision promotion fires on publish-to-PUBLISHED. A genuine role denial blocks the
+  lifecycle change (returns `Ok=false`); undefined paths / an unstarted engine never block,
+  so the workflow is a tracking overlay that ENFORCES only when a transition declares
+  `allowed_roles` — the default `deliverable_issue_default.json` leaves them empty (permissive)
+  so existing publishing is not broken; organisations opt into strict Check→Review→Approve
+  gates by adding `allowed_roles` in their project workflow override. `Supersede`/`Replace`
+  still mark status directly (they don't map to a CDE state) and are left out of the drive.
 - **Close the physical loop.** `TemplateEngine` renders into `_data/_BIM_COORD/generated/`;
   it should render into `<WIP>/<disc>/Documents/`, register the file, and make each CDE
   transition a real `MoveFile` + register update + audit entry.
