@@ -34,24 +34,40 @@ namespace Planscape.Docs.Templates
             Registry = TemplateRegistry.Load(TemplatesDir, manifest);
         }
 
-        /// <summary>Renders a template by id. Returns absolute output path.</summary>
-        public string RenderById(string id, TokenContext ctx)
+        /// <summary>Renders a template by id into the default generated/ folder. Returns absolute output path.</summary>
+        public string RenderById(string id, TokenContext ctx) => RenderById(id, ctx, null);
+
+        /// <summary>Renders a template by id into <paramref name="outDirOverride"/> (or generated/ when null).</summary>
+        public string RenderById(string id, TokenContext ctx, string outDirOverride)
         {
             var entry = Registry.ResolveById(id);
             if (entry == null) throw new InvalidOperationException($"Template '{id}' not registered.");
-            return RenderEntry(entry, ctx);
+            return RenderEntry(entry, ctx, outDirOverride);
         }
 
-        /// <summary>Renders a template by (family, purpose) lookup.</summary>
+        /// <summary>
+        /// Render a deliverable template into the ISO 19650 CDE tree —
+        /// &lt;state&gt;/&lt;discipline&gt;/&lt;contentType&gt; (e.g. 00_WIP/A/Documents) — so the
+        /// deliverable document is born inside its CDE container rather than a flat
+        /// generated/ folder. Returns the absolute output path.
+        /// </summary>
+        public string RenderToCde(string id, TokenContext ctx, string state, string discipline, string contentType)
+        {
+            string dir = StingTools.Core.StingPaths.Cde(Document, state, discipline, contentType);
+            if (string.IsNullOrEmpty(dir)) dir = GeneratedDir; // safety fallback
+            return RenderById(id, ctx, dir);
+        }
+
+        /// <summary>Renders a template by (family, purpose) lookup into generated/.</summary>
         public string RenderByPurpose(string family, string purpose, TokenContext ctx)
         {
             var entry = Registry.ResolveByPurpose(family, purpose);
             if (entry == null)
                 throw new InvalidOperationException($"No template registered for family='{family}', purpose='{purpose}'.");
-            return RenderEntry(entry, ctx);
+            return RenderEntry(entry, ctx, null);
         }
 
-        private string RenderEntry(TemplateEntry entry, TokenContext ctx)
+        private string RenderEntry(TemplateEntry entry, TokenContext ctx, string outDirOverride)
         {
             string templatePath = Registry.ResolveFilePath(entry);
             if (string.IsNullOrEmpty(templatePath) || !File.Exists(templatePath))
@@ -62,7 +78,9 @@ namespace Planscape.Docs.Templates
             string dateTag = DateTime.Now.ToString("yyyyMMdd");
             string ext = Path.GetExtension(templatePath).ToLowerInvariant();
             string outName = $"{dateTag}_{safeNumber}_{entry.Id}{ext}";
-            string outPath = Path.Combine(GeneratedDir, outName);
+            string outDir = string.IsNullOrEmpty(outDirOverride) ? GeneratedDir : outDirOverride;
+            try { Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"TemplateEngine outDir: {ex.Message}"); }
+            string outPath = Path.Combine(outDir, outName);
 
             switch (ext)
             {

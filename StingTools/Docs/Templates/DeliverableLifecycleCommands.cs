@@ -48,7 +48,27 @@ namespace Planscape.Docs.Templates
                 try
                 {
                     var ctx = TokenContext.FromDeliverable(lr.Updated, doc, engine.Registry.Manifest);
-                    rendered = engine.RenderById(lr.TemplateId, ctx);
+
+                    // Render the deliverable INTO the CDE tree — <state>/<discipline>/Documents —
+                    // so it is born inside its CDE container, then register it so the register's
+                    // file_reference equals the physical location.
+                    string disc = "Z", cdeState = "WIP", suit = "S0";
+                    try
+                    {
+                        dynamic upd = lr.Updated;
+                        disc     = string.IsNullOrWhiteSpace((string)upd?.Discipline)  ? "Z"   : (string)upd.Discipline;
+                        cdeState = string.IsNullOrWhiteSpace((string)upd?.CDE)         ? "WIP" : ((string)upd.CDE).ToUpperInvariant();
+                        suit     = string.IsNullOrWhiteSpace((string)upd?.Suitability) ? "S0"  : (string)upd.Suitability;
+                    }
+                    catch (Exception fx) { StingLog.Warn($"{title}: read deliverable fields: {fx.Message}"); }
+
+                    rendered = engine.RenderToCde(lr.TemplateId, ctx, cdeState, disc, "Documents");
+
+                    try
+                    {
+                        StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, rendered, "DR", title, suit);
+                    }
+                    catch (Exception regEx) { StingLog.Warn($"{title}: register rendered deliverable: {regEx.Message}"); }
                 }
                 catch (Exception renderEx)
                 {

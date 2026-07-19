@@ -897,9 +897,16 @@ Eventually the two source stores retire once the UIs write through the canonical
   so existing publishing is not broken; organisations opt into strict Check→Review→Approve
   gates by adding `allowed_roles` in their project workflow override. `Supersede`/`Replace`
   still mark status directly (they don't map to a CDE state) and are left out of the drive.
-- **Close the physical loop.** `TemplateEngine` renders into `_data/_BIM_COORD/generated/`;
-  it should render into `<WIP>/<disc>/Documents/`, register the file, and make each CDE
-  transition a real `MoveFile` + register update + audit entry.
+- **Close the physical loop — DONE (render + register); move-on-transition still open.**
+  `TemplateEngine.RenderToCde` renders a deliverable into its CDE container
+  `<state>/<discipline>/Documents/` (via `StingPaths.Cde`), and `LifecycleCommandHelper`
+  registers the rendered file (`AutoRegisterExport`) so the register's `file_reference`
+  equals the physical location. Transmittal/notice renders stay in `generated/` (they are
+  not discipline-scoped deliverables). **Still open:** because the flow re-renders into the
+  *current* CDE state on each transition, a Publish leaves the earlier WIP copy behind — a
+  true `MoveFile`-on-transition (delete/relocate the prior-state render) would clean that up;
+  and the discipline subfolder uses the raw discipline CODE (`A`) rather than the setup's
+  discipline folder name (`A_Architectural`).
 - **Acknowledgement capture** for transmittals (drives the workflow `acknowledge`
   transition — now that the role gate is enforced).
 
