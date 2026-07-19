@@ -643,32 +643,6 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
-                // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
-                // has been REMOVED. Revit TaskDialogs parent to the main Revit
-                // window, not to BCC, so they opened behind the coordination
-                // centre and broke the user's flow. The BCC Revisions tab now
-                // shows an inline compliance banner before the user clicks
-                // Create (with a checkbox "Create anyway if below threshold"),
-                // so the decision is made IN the inline panel with no popup.
-                //
-                // When this command is invoked with an ACK flag
-                // (UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck")
-                // == "true") we skip the gate entirely; otherwise we still
-                // emit a warning to the STING log for audit traceability.
-                try
-                {
-                    var preRevScan = ComplianceScan.Scan(doc);
-                    if (preRevScan.CompliancePercent < 80)
-                    {
-                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
-                        StingLog.Warn(
-                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
-                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
-                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
-
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -748,47 +722,6 @@ namespace StingTools.BIMManager
                     }
                 }
                 catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
-
-                // GAP-FIX: Auto-save warning baseline on revision creation
-                if (TagConfig.AutoSaveBaselineOnRevision)
-                {
-                    try
-                    {
-                        WarningsEngine.SaveExtendedBaseline(doc);
-                        StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
-                    }
-                    catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
-                }
-
-                // GAP-R9: Auto-propagate new REV to all tagged elements
-                // so tags reflect the current revision immediately
-                try
-                {
-                    int revUpdated = 0;
-                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
-                    {
-                        revTx.Start();
-                        var catEnums = SharedParamGuids.AllCategoryEnums;
-                        var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType();
-                        if (catEnums != null && catEnums.Length > 0)
-                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
-                        foreach (var el in allTagged)
-                        {
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (string.IsNullOrEmpty(tag1)) continue;
-                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
-                                revUpdated++;
-                        }
-                        revTx.Commit();
-                    }
-                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
-                }
-                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
-
-                // Invalidate compliance cache ONCE after all rev-related transactions
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
 
                 // GAP-R9: Auto-propagate new REV to all tagged elements
                 // so tags reflect the current revision immediately
