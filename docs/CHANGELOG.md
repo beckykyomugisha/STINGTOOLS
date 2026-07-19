@@ -2,6 +2,65 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 206 — multi-host Phase B: change feed + pull + reconcile engine)
+
+Push already existed — every host could send tags to the hub. Nothing could ask
+"what changed since I last looked?", so a host had no way to learn about an edit
+made anywhere else. Implements `docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4.1–§1.4.3.
+
+- **`GET /api/projects/{id}/changes?since={cursor}&limit={n}`** (new
+  `ChangesController`). The cursor is `{ticks}_{guid}` of the last row returned,
+  **not a bare timestamp**. A bare timestamp cannot express "I have seen some of
+  the rows at this instant": bulk writes routinely share a millisecond, so
+  resuming at `> timestamp` silently skips the rest of that batch and `>=`
+  loops on it forever. Ordering by `(LastModifiedUtc, Id)` and comparing the
+  pair makes the feed exactly-once and resumable. Rows with no modification
+  stamp are excluded rather than silently ordered by something else.
+
+- **`stingtools_core/sync/pull.py`** — `PullClient` drains the feed into
+  `ChangeDelta`s, and `CursorStore` persists the position per (project, host) so
+  a restart is not a full backfill. The cursor advances only after a page has
+  been consumed, so crashing mid-drain replays that page rather than losing it.
+  A 404 disables pull for the run instead of failing it — degrading to push-only
+  beats refusing to sync against a server that works for everything else.
+
+- **`stingtools_core/sync/reconcile.py`** — the decision layer, replacing
+  StingBridge's heuristic. That heuristic was **not last-writer-wins**: it
+  compared the remote timestamp to *now* rather than to the local edit time, so
+  a local change made 5 seconds ago lost to a remote change made 59 seconds ago,
+  and it could not see an element the local model did not already hold. The six
+  rules are now stated once and tested individually — remote-only applies;
+  identical payloads are a no-op whatever the timestamps say (an unchanged delta
+  still costs a host write and an undo entry); newer wins; **ties go to local**
+  (ambiguous, so prefer the copy the user is looking at — and deterministic, so
+  two hosts reach the same answer); and a remote edit with a missing or
+  unparseable timestamp cannot win, because silently overwriting the user's work
+  on the strength of a missing field is the worst available failure. Every
+  conflict is reported whether or not it was applied, satisfying §1.4.3.
+
+**Verified.** 30 new core tests (90 total in `stingtools-core`, Phase A6 boundary
+lint included), and a two-way **E2E** (`StingBridge/tests/e2e_pull_reconcile.py`)
+against a real API build wired to the docker Postgres: a server-side change
+appears in the feed; re-pulling replays nothing; **five rows written in the same
+instant are delivered exactly once across three pages at page-size 2** — the
+exact case a bare-timestamp cursor gets wrong; a newer remote edit is applied; a
+newer local edit is kept and the loser surfaced; a tie resolves to local on every
+run; an identical payload issues no host write.
+
+Writing that E2E was worthwhile: its first version failed, and the failure was in
+the *test* — it stamped the burst with the same second as the cursor position. A
+timestamp-ordered feed cannot return a row written at or below the cursor. That
+is inherent to the design rather than a defect, but it means **a client that
+backdates its writes can miss its own row**, which is now documented in the test.
+
+**Not done — StingBridge wiring.** The bridge still uses the 60-second heuristic;
+this phase landed the engine, the server endpoint and the tests. Wiring the
+live-ArchiCAD path needs a local index built by reading ArchiCAD, which cannot be
+exercised without a licence (SB-1), and wiring it blind is exactly the
+half-wired outcome worth avoiding. The IFC-watcher path *is* testable without
+ArchiCAD and is the sensible first cut — scoped in ROADMAP as SB-5a/SB-5b rather
+than smuggled in unverified.
+
 #### Completed (Phase 205 — SB-3: token inference single-sourced into core + ArchiCAD HostAdapter)
 
 `StingBridge/sync/token_mapper.py` + `archicad/element_types.py` held their own
