@@ -2,6 +2,103 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 201 — account provisioning bridge: handoff → starter project → personal access tokens)
+
+Closes the gap that made a planscape.build subscription unusable from StingBridge:
+an account provisioned through the identity handoff had no project to work in and
+**no credential a headless client could hold**. Verified end-to-end against the
+local docker stack (real API build, real Postgres) — see the E2E script below.
+
+- **Starter project on handoff.** `AuthController.HandoffExchange` already
+  find-or-created `Tenant` + `AppUser`; it now also provisions a project and a
+  `ProjectMember` row when the tenant has none (`EnsureStarterProjectAsync`). The
+  gate is "this tenant has zero projects", so repeat handoffs are no-ops and a
+  tenant whose only project was deleted gets one back. Best-effort: a failure
+  here logs and still issues the session, because losing your login over a
+  starter project would be a bad trade.
+
+- **Personal access tokens** (`PersonalAccessToken` entity + four endpoints:
+  `POST/GET/DELETE /api/auth/tokens`, `POST /api/auth/token/exchange`). Handoff
+  accounts are created with a deliberately unusable `HashPassword(Guid+Guid)`, so
+  they can only be entered via a 120-second ticket — correct for a browser,
+  impossible for a bridge. A PAT is **not** accepted as a bearer token anywhere:
+  it is exchanged for an ordinary short-lived JWT exactly as a password is at
+  `/login`. That deliberate choice keeps the API single-scheme, so no endpoint's
+  authorisation behaviour changed and there is no second credential type for
+  authorisation code to reason about. Only the SHA-256 is stored; the plaintext
+  is returned once. 20 active tokens per user; revocation is a soft delete;
+  every exchange failure mode returns an identical message so probing cannot
+  distinguish unknown from revoked from expired.
+
+- **`PersonalAccessTokens` mirrored into `PlatformSchemaPatcher`.** Without this
+  the table would exist only on fresh `EnsureCreated` databases and 500 on every
+  long-lived one — the exact drift class `adr/0001-schema-management.md` warns
+  about. Verified by inspecting the real docker Postgres after boot: table plus
+  all three indexes present.
+
+- **StingBridge learns token auth.** New `STING_PLANSCAPE_TOKEN` /
+  `planscape_token` setting, `PlanscapeClient.login_with_token`, and re-auth that
+  refreshes via whichever credential the client holds. The two paths are kept
+  strictly separate — adopting a token clears any stored password and vice versa,
+  so a refresh can never silently fall back to a stale credential. A 404 from the
+  exchange endpoint reports "this server is too old, use email+password" instead
+  of a bare HTTP error.
+
+- **Fixed the token-expiry constant (ROADMAP DEP-8).** The client assumed a
+  60-minute access token and refreshed at 55; the server issues 30-minute tokens
+  (`AuthController.AccessTokenLifetime`). The proactive refresh therefore never
+  fired until the token had been dead for ~25 minutes, and every request in that
+  window paid for a reactive 401 + retry. Now 30 minutes with a 5-minute margin,
+  pinned by a regression test.
+
+**Repaired the integration-test harness**, which was fully broken on main —
+`PlanscapeWebApplicationFactory`-based tests could not construct a host at all
+(**0 of 15** `AuthControllerTests` passing before this). Three independent
+causes, each an unconditional startup call meeting a stripped-down test host:
+
+1. `UseHangfireDashboard` threw when the factory removed every Hangfire
+   descriptor → now mounted only when `JobStorage` is registered.
+2. ~40 static `RecurringJob.AddOrUpdate` calls threw "JobStorage.Current has not
+   been initialized" → the factory now **substitutes** in-memory Hangfire storage
+   rather than deleting the feature, keeping the production startup path under test.
+3. The startup schema block called relational-only APIs (`GetDbConnection`,
+   `information_schema` probes, the patchers) against the EF InMemory provider →
+   guarded with `IsRelational()`.
+
+A fourth cause made results non-deterministic: the production `auth` rate limit
+is 5 requests / 5 minutes **per IP**, and xunit runs test classes in parallel from
+a single loopback IP, so unrelated tests failed with 429 instead of their real
+assertion. Added a `RateLimiting:Enabled` seam (**default true** — rate limiting
+stays on in every real deployment) which the test host sets to false.
+
+Suite went from **265 passed / 129 failed** to **339 passed / 73 failed**:
+56 previously-failing tests now pass, **zero regressions** (verified by diffing
+the failing-test list against a clean `origin/main` worktree). The remaining 73
+are pre-existing failures unrelated to this work — assertions that drifted from
+current behaviour (e.g. `HealthCheck_ReturnsHealthy` now gets 403, and
+`Register_NewOrg` reads a response field that no longer exists).
+
+New tests: 18 `PersonalAccessTokenTests`, 8 `HandoffProvisioningTests`, 12
+StingBridge `test_token_auth.py` — all green, with the 28 pre-existing StingBridge
+tests still passing.
+
+**E2E** (`StingBridge/tests/e2e_handoff_provisioning.py`, run against a real API
+build on :5099 wired to the docker Postgres/Redis): mint a handoff ticket the way
+the Cloudflare Function does → redeem → assert tenant + user + starter project →
+assert password login is refused for all attempts → mint a PAT → authenticate a
+real `PlanscapeClient` with the token alone → ingest an IFC element
+(`1 mappings, 1 elements`) → read it back by GlobalId → revoke → confirm 401.
+
+Docs: `StingBridge/QUICKSTART.md` and `marketing-site/guides/stingbridge-setup.html`
+now lead with the token, explain how to mint and revoke one, and state plainly
+that website sign-ups have no server password and *must* use a token.
+
+**Not done / not verified:** the cloud app has no UI for minting tokens yet (the
+API is there; the guides document `curl`). Nothing was tested against a deployed
+Render environment — none exists. Handoff still provisions one tenant per user,
+and D1 remains the billing authority with no reverse sync, both per the original
+design.
+
 #### Completed (Phase 200 — Planscape Server go-live prep: blueprint validation + corrected schema story)
 
 Deployment-readiness pass on the Render blueprint. **No deployment happened** —

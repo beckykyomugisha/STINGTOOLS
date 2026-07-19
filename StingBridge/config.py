@@ -108,6 +108,11 @@ class BridgeConfig:
     planscape_url: str = "http://localhost:5000"
     planscape_email: str = ""
     planscape_password: str = ""
+    # Personal access token — an ALTERNATIVE to email+password, and the only
+    # credential available to accounts created through the planscape.build
+    # identity handoff (those have no usable password). Takes precedence when
+    # both are set. Mint one in the cloud app, or via POST /api/auth/tokens.
+    planscape_token: str = ""
     planscape_project_id: str = ""
 
     # Behaviour
@@ -155,6 +160,7 @@ class BridgeConfig:
             planscape_url=get("PLANSCAPE_URL", "http://localhost:5000"),
             planscape_email=get("PLANSCAPE_EMAIL", ""),
             planscape_password=get("PLANSCAPE_PASSWORD", ""),
+            planscape_token=get("PLANSCAPE_TOKEN", ""),
             planscape_project_id=get("PLANSCAPE_PROJECT_ID", ""),
             write_back_to_archicad=get_bool("WRITE_BACK"),
             verify_write_back=get_bool("VERIFY_WRITE_BACK"),

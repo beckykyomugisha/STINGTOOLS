@@ -68,9 +68,12 @@ Create `stingbridge.toml` next to where you run the command:
 
 ```toml
 planscape_url        = "https://api.planscape.build"
-planscape_email      = "you@example.com"
-planscape_password   = "your-password"
+planscape_token      = "psat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 planscape_project_id = "00000000-0000-0000-0000-000000000000"
+
+# Or, instead of planscape_token, an email + password:
+# planscape_email    = "you@example.com"
+# planscape_password = "your-password"
 
 # Optional
 building_name = "Block B"   # drives the LOC token; default BLD1
@@ -88,8 +91,9 @@ The equivalent environment variables:
 | Variable | Meaning |
 |---|---|
 | `STING_PLANSCAPE_URL` | Planscape server base URL |
-| `STING_PLANSCAPE_EMAIL` | Login email |
-| `STING_PLANSCAPE_PASSWORD` | Login password |
+| `STING_PLANSCAPE_TOKEN` | Access token (recommended — see below) |
+| `STING_PLANSCAPE_EMAIL` | Login email (alternative to the token) |
+| `STING_PLANSCAPE_PASSWORD` | Login password (alternative to the token) |
 | `STING_PLANSCAPE_PROJECT_ID` | Target project UUID |
 | `STING_BUILDING_NAME` | Building name → LOC token |
 | `STING_ARCHICAD_PORT` | ArchiCAD JSON API port (`0` = auto-discover) |
@@ -97,6 +101,38 @@ The equivalent environment variables:
 | `STING_WATCH_INTERVAL` | Seconds between `watch` passes |
 | `STING_IFC_DROP_DIR` | Folder watched by `watch-ifc` |
 | `STING_CONFIG_FILE` | Explicit config-file path |
+
+### Which credential should I use?
+
+**Use an access token.** It is a long-lived credential meant exactly for
+headless tools like this one: you can name it, see when it was last used, and
+revoke it on its own without changing your password or disturbing anything
+else you are signed in to.
+
+Mint one from the Planscape cloud app, or directly:
+
+```bash
+curl -X POST https://api.planscape.build/api/auth/tokens   -H "Authorization: Bearer <a JWT from signing in>"   -H "Content-Type: application/json"   -d '{"name":"StingBridge on the studio PC"}'
+```
+
+The response shows the token **once** — copy it straight into
+`planscape_token`. It is stored hashed on the server and cannot be shown again.
+Lost it? Revoke that one and mint another.
+
+> **If you signed up on planscape.build, a token is your only option.** Accounts
+> created by clicking through from the website are linked to your
+> planscape.build identity and have no separate server password to type, so
+> email + password login will always be refused for them. Mint a token instead.
+
+Revoke a token you no longer want:
+
+```bash
+curl -X DELETE https://api.planscape.build/api/auth/tokens/<token-id>   -H "Authorization: Bearer <a JWT from signing in>"
+```
+
+Email + password still works for accounts that have a password, and is fine for
+a quick local test. The token never becomes your login — StingBridge trades it
+for a short-lived session behind the scenes and refreshes that automatically.
 
 **Finding your project ID:** open the project in Planscape and copy the UUID
 from the URL, or run `python get_project_id.py` from the source checkout.
@@ -166,8 +202,10 @@ from model to Planscape.
 
 | Symptom | Cause and fix |
 |---|---|
-| `STING_PLANSCAPE_EMAIL and STING_PLANSCAPE_PASSWORD must be set` | No config found. Check you are running in the folder holding `stingbridge.toml`, or pass `--config`. |
+| `No Planscape credentials...` | No config found. Check you are running in the folder holding `stingbridge.toml`, or pass `--config`. |
 | `Invalid credentials` | Wrong email/password, or pointed at the wrong server. Confirm you can sign in at the same URL in a browser. |
+| `Access token rejected` | The token was revoked or expired, or belongs to a different server. Mint a new one and update `planscape_token`. |
+| `This Planscape server does not support access tokens` | The server predates the token endpoint. Upgrade it, or use email + password. |
 | `STING_PLANSCAPE_PROJECT_ID must be set` | Missing project UUID — see §2. |
 | `Cannot find ArchiCAD` | ArchiCAD is not running, or its JSON API is off. Enable *Options → Work Environment → JSON API*, or set `STING_ARCHICAD_PORT`. `watch-ifc` / `process-ifc` do not need ArchiCAD. |
 | `ifcopenshell is not installed` | Source install missed a dependency: re-run the `pip install` in §1B. |
