@@ -875,15 +875,18 @@ Electrical handlers should collapse into one shared internal helper in `UI/`.
   `allowed_roles` (resolved via `RoleBasedAccessControl.GetCurrentUserRole()`; K/C are CDE
   admins; empty = any). Denials are audit-logged (`wf.transition_denied`) and throw.
 
+**Landed (additive):** read-only **unified register view** — `Core/DocumentRegister.cs`
+normalises both stores into one de-duplicated `RegisterEntry` list, exported via the
+`DocRegister_Unified` command (BIM tab → "Unified Register"). Touches neither write path.
+
 **Still open — needs in-Revit verification and/or a dry-run migration (do NOT ship blind):**
-- **Register merge.** `deliverables.json` (lifecycle model) and `document_register.json`
-  (broad register incl. auto-registered exports + incoming docs, direction IN/OUT) are
-  genuinely different schemas for overlapping-but-distinct purposes. A hard merge into
-  `_data/register.json` is an irreversible data migration that can lose rows if the schema
-  mapping is wrong — it must be an explicit `Register_Consolidate` command with a dry-run
-  diff report, not an auto-migration, and needs in-Revit verification on real data. A
-  non-destructive first step is a read-only unified *view* (`Core/DocumentRegister.cs`)
-  that normalises both stores for reporting without touching either write path.
+- **Register merge (destructive).** `deliverables.json` (lifecycle model) and
+  `document_register.json` (broad register incl. auto-registered exports + incoming docs,
+  direction IN/OUT) are genuinely different schemas for overlapping-but-distinct purposes.
+  A hard merge into `_data/register.json` is an irreversible data migration that can lose
+  rows if the schema mapping is wrong — it must be an explicit `Register_Consolidate`
+  command with a dry-run diff report, not an auto-migration, verified in Revit on real
+  data. The unified *view* above is the safe read-side half; the merge is the write-side.
 - **Run the deliverable state machine end-to-end.** `Transition` is now role-safe but
   still only reached by the transmittal flow (via `Start`). Wire `DeliverableLifecycle`
   Issue/Publish to `Start`/`Transition` and add Check→Review→Approve→Authorize as required
@@ -908,15 +911,23 @@ heuristic; and a `Folders_ConsolidateAll` migration wizard with a dry-run report
 `StingPaths` in place the layout change is a change to one resolver (`ProjectSetup`
 defaults + `ExportRoutes`) rather than to every writer.
 
-**Safety design (why this is a command, not an auto-migration):** changing the layout
-moves existing files users already have on disk. It must ship as an explicit
-`Folders_ConsolidateAll` command that (1) prints a dry-run report (source → destination
-for every file, plus what the register will be re-pointed to), (2) only moves on
-confirmation, and (3) is verified in Revit on a real project. Two safe, additive
-sub-pieces can land first: (a) the ES root-identity **stamp** — additive, read-preferential
-with graceful fallback to the current per-doc resolution, best-effort write inside an
-existing transaction; and (b) making the new tree the default for *new* projects while
-`MigrateFromLegacy` keeps consolidating old ones, so nothing existing is force-moved.
+**Landed (additive):** the ES root-identity **stamp** — `StingProjectRootSchema` stores the
+resolved root (relative to the .rvt) on `ProjectInformation`; `GetRootPath` prefers it as
+step 0, so a project-number rename no longer forks a new `<CODE>` tree. Read is
+transaction-free with graceful fallback; `EnsureStamped` writes best-effort from
+`OnDocumentOpened`. Multi-model guid-sharing is deferred.
+
+**Still open — the core WP9 restructure (needs Revit verification):**
+- **CDE-first tree + routing.** Making content types nest inside CDE states
+  (`<state>/<disc>/<contentType>`) is not a small additive: it requires a *second* routing
+  model (`ProjectFolderMode.CdeFirst` + `ExportRoutes` mapping export-type keys to
+  `(state, contentType)` pairs) and a branch in the hot `GetExportFolder` path, plus a
+  greenfield gate so only brand-new projects adopt it. That changes where every new-project
+  export lands, so it must be built with in-Revit verification — a partial version
+  (structure without routing) has no value. This is the remaining heart of WP9.
+- **Migration wizard.** `Folders_ConsolidateAll` — an explicit command that (1) prints a
+  dry-run report (source → destination for every file + register re-pointing), (2) moves
+  only on confirmation, (3) is verified in Revit. Never an auto-migration.
 
 ### WP10 — HTTP + storage hygiene
 

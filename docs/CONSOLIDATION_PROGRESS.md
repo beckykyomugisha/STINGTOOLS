@@ -29,8 +29,8 @@ Every work package below must end green at 0/0.
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
 | WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | **DONE** — per-doc root cache + `OptionFolderManager` fix + `StingPaths` facade + gate; **all 43 sibling `_BIM_COORD` writers migrated across 37 files; baseline now ZERO** (gate is a hard ratchet) |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
-| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | PARTIAL — vocabulary unified (WP8.2) + workflow role-gate enforcement (WP8.3) landed; register merge + render→WIP loop + acknowledgement remain (destructive/UI — see ROADMAP) |
-| WP9 | CDE-first tree + ES root identity + migration wizard | NOT REACHED — destructive layout migration; see ROADMAP for the dry-run-command design |
+| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | PARTIAL — vocabulary unified (WP8.2), workflow role-gate enforced (WP8.3), read-only **unified register view** (`Core/DocumentRegister.cs`, additive) landed; destructive register merge + render→WIP loop + acknowledgement remain (ROADMAP) |
+| WP9 | CDE-first tree + ES root identity + migration wizard | PARTIAL — **ES root-identity stamp** landed (additive, stable root across renames); CDE-first tree/routing + migration wizard remain (core WP9 restructure — ROADMAP) |
 | WP10 | HTTP + storage hygiene (park if time-boxed) | NOT REACHED — see ROADMAP |
 | FINAL | Rebuild, gates, CHANGELOG/ROADMAP, push, report | DONE |
 
