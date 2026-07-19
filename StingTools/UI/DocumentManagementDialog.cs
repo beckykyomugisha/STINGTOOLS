@@ -4524,6 +4524,18 @@ namespace StingTools.UI
         {
             try
             {
+                // Once the user has consolidated (canonical _data/register.json exists), show
+                // the LIVE unified register — both stores merged fresh via DocumentRegister —
+                // so the Document Manager and the BIM Coordination Center see one register.
+                // Reads only: edits to register-sourced rows still persist to
+                // document_register.json, and deliverable-sourced rows are display-only here.
+                string canonical = ProjectFolderEngine.GetDataPath(doc, DocumentRegister.CanonicalFileName);
+                if (!string.IsNullOrEmpty(canonical) && File.Exists(canonical))
+                {
+                    LoadUnifiedRegister(doc);
+                    return;
+                }
+
                 string bimDir = GetBimManagerDir(doc);
                 string regPath = Path.Combine(bimDir, "document_register.json");
                 if (!File.Exists(regPath)) return;
@@ -4557,6 +4569,37 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDocReg: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Load the live unified register (document_register.json + deliverables.json merged
+        /// by <see cref="DocumentRegister"/>) into the shared item list. Read-only view.
+        /// </summary>
+        private static void LoadUnifiedRegister(Document doc)
+        {
+            try
+            {
+                foreach (var r in DocumentRegister.BuildUnified(doc))
+                {
+                    if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
+                    string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = r.Id,
+                        Title = string.IsNullOrEmpty(r.Title) ? r.Id : r.Title,
+                        Type = r.Type, TypeDesc = typeDesc,
+                        Status = r.Status, StatusDesc = r.Status,
+                        CDE = string.IsNullOrEmpty(r.CdeStatus) ? "WIP" : r.CdeStatus,
+                        Revision = r.Revision,
+                        Date = r.DateCreated,
+                        Direction = string.IsNullOrEmpty(r.Direction) ? "OUT" : r.Direction,
+                        FilePath = r.FilePath,
+                        Suitability = r.Suitability,
+                        Category = "DOCUMENT", Folder = "15_REGISTERS"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); }
         }
 
         private static void LoadIssues(Document doc)
