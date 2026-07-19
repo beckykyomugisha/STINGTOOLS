@@ -102,8 +102,10 @@ table.inv tr:last-child td { border-bottom: 0; }
 
       <div class="acct-actions">
         <a class="btn-primary" href="/downloads">Downloads</a>
+        <button type="button" class="btn-secondary" id="cloud-btn">Open Planscape cloud</button>
         <button type="button" class="link-btn" id="logout-btn">Log out</button>
       </div>
+      <p class="note" id="cloud-note" style="display:none"></p>
     </div>
   </div>
 
@@ -606,6 +608,28 @@ table.inv tr:last-child td { border-bottom: 0; }
   }
 
   // ---- boot -----------------------------------------------------------------
+
+  // Open Planscape cloud: mint a handoff ticket and follow its redirect. If
+  // the cloud side is not configured yet the endpoint says so — show that
+  // rather than a broken jump. The button lights up the day the cloud ships,
+  // with no page change (same philosophy as the downloads catalogue).
+  $('cloud-btn').addEventListener('click', function(){
+    var btn = $('cloud-btn');
+    btn.disabled = true; btn.textContent = 'Opening…';
+    api('/api/cloud/handoff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function(j){
+        if (j && j.redirectUrl) { window.location.href = j.redirectUrl; return; }
+        throw new Error('Planscape cloud is not available yet.');
+      })
+      .catch(function(e){
+        btn.disabled = false; btn.textContent = 'Open Planscape cloud';
+        var n = $('cloud-note');
+        n.style.display = 'block';
+        n.textContent = /not configured/i.test(e.message)
+          ? 'Planscape cloud is still in development — this button will start working the day it ships.'
+          : e.message;
+      });
+  });
 
   $('logout-btn').addEventListener('click', function(){
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include',
