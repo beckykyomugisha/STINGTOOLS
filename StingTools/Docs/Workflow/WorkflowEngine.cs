@@ -69,6 +69,35 @@ namespace Planscape.Docs.Workflow
                 if (transition == null)
                     throw new InvalidOperationException($"Action '{action}' not valid from state '{inst.State}'.");
 
+                // Enforce the transition's role gate. Previously allowed_roles was declared
+                // in the workflow JSON but never checked, so Check→Review→Approve gates could
+                // be driven by anyone. The acting role is resolved from project_config.json
+                // (USER_ROLE); the Information Manager (K) and Coordinator (C) administer the
+                // CDE and are always permitted. An empty allowed_roles means "any role".
+                if (transition.AllowedRoles != null && transition.AllowedRoles.Count > 0)
+                {
+                    string role = RoleBasedAccessControl.GetCurrentUserRole();
+                    bool permitted = string.Equals(role, "K", StringComparison.OrdinalIgnoreCase)
+                                  || string.Equals(role, "C", StringComparison.OrdinalIgnoreCase)
+                                  || transition.AllowedRoles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+                    if (!permitted)
+                    {
+                        AuditLog.Append(doc, "wf.transition_denied", docId, new JObject
+                        {
+                            ["workflow_id"]   = wf.Id,
+                            ["instance_id"]   = inst.Id,
+                            ["from"]          = inst.State,
+                            ["action"]        = action,
+                            ["user"]          = byUser,
+                            ["role"]          = role,
+                            ["allowed_roles"] = new JArray(transition.AllowedRoles)
+                        });
+                        throw new InvalidOperationException(
+                            $"Role '{role}' is not permitted to perform '{action}' from '{inst.State}' " +
+                            $"(requires one of: {string.Join(", ", transition.AllowedRoles)}).");
+                    }
+                }
+
                 string from = inst.State;
                 inst.State = transition.To;
                 var now = DateTime.UtcNow;
