@@ -49,8 +49,6 @@ def _configure_console_encoding() -> None:
             pass
 
 
-_configure_console_encoding()
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -268,6 +266,12 @@ def cmd_auto_publish(cfg: BridgeConfig, publisher_set_name: str | None) -> int:
 
 
 def main() -> None:
+    # Called here rather than at import so importing StingBridge.bridge as a
+    # library never mutates the host process's streams. reconfigure() mutates
+    # the stream objects in place, so the logging handler bound at import time
+    # picks up the new encoding too.
+    _configure_console_encoding()
+
     parser = argparse.ArgumentParser(
         prog="stingbridge",
         description="STING ArchiCAD ↔ Planscape sync bridge",

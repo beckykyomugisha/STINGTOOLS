@@ -120,6 +120,22 @@ def test_resolved_zone_reaches_the_token():
     assert fallback["loc"] == "BLD1"
 
 
+def test_zone_property_reads_are_batched():
+    """Thousands of zones must not produce one oversized API request — reads
+    go out in chunks of 100, and every zone still resolves."""
+    n = 250
+    relations = [
+        {"zoneId": {"guid": f"zone-{i}"}, "elementIds": [{"guid": f"el-{i}"}]}
+        for i in range(n)
+    ]
+    props = [_zone_prop(f"zone-{i}", number=str(i)) for i in range(n)]
+    ac = _FakeAC(relations=relations, zone_props=props)
+    idx = _build_zone_index(ac)
+    assert len(idx) == n
+    assert idx["el-249"] == "249"
+    assert ac.property_calls == 3, "250 zones → ceil(250/100) = 3 batched reads"
+
+
 def test_extract_guid_shapes():
     assert _extract_guid({"guid": "a"}) == "a"
     assert _extract_guid({"elementId": {"guid": "b"}}) == "b"

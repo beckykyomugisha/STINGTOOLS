@@ -146,11 +146,11 @@ class PlanscapeClient:
         worker-startup drift-check so a bridge running on a stale/forked
         shared/ifc copy is warned before it ingests against divergent enums.
         """
-        resp = self._session.get(
-            f"{self.base_url}/api/substrate/manifest", timeout=_TIMEOUT
+        resp = self._send(
+            "get", f"{self.base_url}/api/substrate/manifest", timeout=_TIMEOUT
         )
         if resp.status_code == 401:
-            raise PlanscapeAuthError("Token expired or invalid")
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
 
@@ -244,7 +244,8 @@ class PlanscapeClient:
         if not self._token or not self.project_id or not guids:
             return {}
         try:
-            resp = self._session.post(
+            resp = self._send(
+                "post",
                 f"{self.base_url}/api/projects/{self.project_id}/tagsync/timestamps",
                 json={"guids": guids},
                 timeout=_TIMEOUT,
@@ -301,7 +302,8 @@ class PlanscapeClient:
 
     def get_compliance(self) -> dict:
         """GET latest compliance snapshot for the project."""
-        resp = self._session.get(
+        resp = self._send(
+            "get",
             f"{self.base_url}/api/projects/{self.project_id}/compliance",
             timeout=_TIMEOUT,
         )

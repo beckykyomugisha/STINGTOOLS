@@ -184,6 +184,46 @@ def test_upload_model_retries_after_expiry(tmp_path=None):
     assert all(ct is None for ct in s.sent_content_types), s.sent_content_types
 
 
+def test_timestamps_and_manifest_survive_expiry():
+    """The read endpoints (conflict-detection timestamps, substrate manifest,
+    compliance) route through the same refresh path as the writes — otherwise
+    a long-lived caller would silently lose conflict detection after an hour
+    (get_element_timestamps swallows errors and returns {})."""
+
+    class _ReadSession(_ExpiringSession):
+        def post(self, url, json=None, timeout=None, **kw):
+            if url.endswith("/tagsync/timestamps"):
+                sent = self.headers.get("Authorization", "")
+                self.posts.append((url, sent))
+                if sent != f"Bearer {self.current_token}":
+                    return _Resp(401)
+                return _Resp(200, {"guid-1": "2026-07-19T12:00:00Z"})
+            return super().post(url, json=json, timeout=timeout, **kw)
+
+        def get(self, url, timeout=None, **kw):
+            sent = self.headers.get("Authorization", "")
+            self.posts.append((url, sent))
+            if sent != f"Bearer {self.current_token}":
+                return _Resp(401)
+            return _Resp(200, {"sha256": "abc", "schemaVersion": 1,
+                               "totalEnums": 52, "compliancePercent": 97})
+
+    s = _ReadSession()
+    c = _client(s)
+
+    s.current_token = "rotated"  # server-side expiry before each call
+    ts = c.get_element_timestamps(["guid-1"])
+    assert list(ts) == ["guid-1"], "timestamps must re-auth, not return {}"
+
+    s.current_token = "rotated-2"
+    assert c.get_substrate_manifest()["totalEnums"] == 52
+
+    s.current_token = "rotated-3"
+    assert c.get_compliance()["compliancePercent"] == 97
+
+    assert s.login_count == 4  # initial + one re-login per rotated token
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
