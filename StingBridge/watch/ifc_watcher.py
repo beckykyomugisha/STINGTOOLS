@@ -151,6 +151,7 @@ class IFCDropHandler:
         sync_payloads = []
         token_map: dict[str, dict] = {}  # guid → tokens (for write-back)
 
+        rows: list[tuple[dict, dict]] = []
         for el in elements:
             tokens = map_element_to_tokens(
                 element_type=el["ifc_type"],
@@ -159,6 +160,22 @@ class IFCDropHandler:
                 storey_elevation_m=el["storey_elevation_m"],
                 library_part_name=el.get("type_name", ""),
             )
+            rows.append((el, tokens))
+
+        # SB-2 — mint the 8th tag segment from the server's per-key counters,
+        # in one batched call for the whole file. Elements that already carry a
+        # SEQ are skipped, so re-dropping the same IFC neither renumbers them
+        # nor consumes counter values. If the server cannot reserve, tags stay
+        # 7-segment rather than the file failing to process.
+        from ..sync.seq_minter import assign_sequences
+        try:
+            minted = assign_sequences(self._ps, [t for _, t in rows])
+            if minted:
+                self._emit(f"Minted {minted} SEQ number(s)")
+        except Exception as e:  # noqa: BLE001 — numbering must never fail an ingest
+            self._emit(f"SEQ minting skipped: {e}")
+
+        for el, tokens in rows:
             is_complete = bool(
                 tokens.get("disc") and tokens.get("lvl") and
                 tokens.get("sys") and tokens.get("prod")
