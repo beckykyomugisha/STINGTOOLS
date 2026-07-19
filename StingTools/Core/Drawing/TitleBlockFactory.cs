@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Text;
 using Autodesk.Revit.ApplicationServices;
@@ -126,6 +127,14 @@ namespace StingTools.Core.Drawing
             string seedPath = ResolveSeedPath(app, spec);
             bool fromSeed = !string.IsNullOrEmpty(seedPath);
 
+            // No own seed -> can the A1 master seed of the same mode supply the
+            // ENTIRE design (graphics + captions + labels)? Detected up-front so
+            // the JSON graphics are skipped below (the propagated design replaces
+            // them wholesale -- drawing both would double every line).
+            string masterSeedId   = fromSeed ? null : ResolveMasterSeedId(spec.Id);
+            string masterSeedPath = masterSeedId == null ? null : ResolveNamedSeedPath(app, masterSeedId);
+            bool fromMaster = !string.IsNullOrEmpty(masterSeedPath);
+
             string rftPath = null;
             if (!fromSeed)
             {
@@ -173,12 +182,9 @@ namespace StingTools.Core.Drawing
                         r.Errors.Add($"NewFamilyDocument returned null for {rftPath}");
                         return r;
                     }
-                    // ONE summary warning — not one per missing label.
-                    r.Warnings.Add(
-                        $"no seed for '{spec.Id}' — built without labels; author a seed at "
-                        + $"Families/TitleBlocks/_seeds/{spec.Id}.rfa to render title-block value "
-                        + "cells (Revit 2025 removed the NewLabel API, so labels cannot be created "
-                        + "from a blank template).");
+                    // The "built without labels" warning is emitted AFTER the
+                    // master-seed propagation attempt below — a family that
+                    // received the A1 master's labels is not label-less.
                 }
 
                 // 3. Point at shared param file
@@ -215,16 +221,17 @@ namespace StingTools.Core.Drawing
                     // 4b. Lines — seed carries the border/strip already, so only
                     // the template fallback draws them (drawing them onto a seed
                     // would duplicate the border).
-                    if (!fromSeed)
+                    if (!fromSeed && !fromMaster)
                         foreach (var line in spec.Lines)
                             PlaceLine(famDoc, fm, view, line, paramByName, r);
 
-                    // 4c. Static text — factory-authored on BOTH paths. Static
-                    // text is a TextNote (not a label), so it creates fine on
-                    // 2025; the seed carries only the label VALUE cells, not the
-                    // fixed captions.
-                    foreach (var st in spec.StaticText)
-                        PlaceStaticText(famDoc, fm, view, st, paramByName, r);
+                    // 4c. Static text — template path only. A hand-authored seed
+                    // is the COMPLETE visual design (captions included, at the
+                    // author's own coordinates); overlaying the JSON captions on
+                    // top would double every heading at a different position.
+                    if (!fromSeed && !fromMaster)
+                        foreach (var st in spec.StaticText)
+                            PlaceStaticText(famDoc, fm, view, st, paramByName, r);
 
                     // 4d. Labels — NEVER placed here. On the seed path they live
                     // in the seed; on the template path they can't be created on
@@ -235,19 +242,45 @@ namespace StingTools.Core.Drawing
 
                     // 4e. Filled regions — like lines, authored in the seed; only
                     // the template fallback draws them.
-                    if (!fromSeed)
+                    if (!fromSeed && !fromMaster)
                         foreach (var fr in spec.FilledRegions)
                             PlaceFilledRegion(famDoc, fm, view, fr, paramByName, r);
 
-                    // 4f. Slots — viewport zones with optional reference planes +
-                    // a slot-id marker. Factory-authored on BOTH paths: slot
-                    // bounds are read from STING_TITLE_BLOCKS.json at
-                    // AutoPlaceViewports time (not from the .rfa), so this only
-                    // adds the operator's visual cue and the report summary.
-                    foreach (var slot in spec.Slots)
-                        PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
+                    // 4f. Slots — template path only. Slot BOUNDS are read from
+                    // STING_TITLE_BLOCKS.json at placement time (never from the
+                    // .rfa), so the authored ref-planes/corner markers are just a
+                    // visual cue — cluttering a hand-authored seed design with
+                    // them helps nobody.
+                    if (!fromSeed && !fromMaster)
+                        foreach (var slot in spec.Slots)
+                            PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
                     tx.Commit();
+                }
+
+                // 4f2. No-own-seed working sheets: propagate the label set from
+                // the A1 master seed of the same BIM mode. USER-PROVEN in Revit
+                // 2025: cross-document label paste preserves the shared-param
+                // binding (the GUID travels with the label element) — creation
+                // is banned, copying is not. Positions are remapped
+                // proportionally master-drawable → target-drawable, so ONE
+                // hand-authored A1 seed serves every size and orientation.
+                int propagated = 0;
+                if (fromMaster)
+                    propagated = PropagateFromMasterSeed(app, famDoc, spec, masterSeedPath, masterSeedId, r);
+                if (!fromSeed)
+                {
+                    if (fromMaster && propagated <= 0)
+                        r.Warnings.Add(
+                            $"'{spec.Id}': master-seed propagation returned nothing -- the family "
+                            + "was built BARE (JSON graphics were skipped expecting the master "
+                            + "design). Fix the master seed and re-run Build All.");
+                    if (propagated <= 0 && !fromMaster)
+                        r.Warnings.Add(
+                            $"no seed for '{spec.Id}' — built without labels; author a seed at "
+                            + $"Families/TitleBlocks/_seeds/{spec.Id}.rfa, or author the A1 master "
+                            + "seed of the same mode to propagate from (Revit 2025 removed the "
+                            + "NewLabel API, so labels cannot be created from a blank template).");
                 }
 
                 // 4g. Report the label count the family carries. Labels are
@@ -257,7 +290,9 @@ namespace StingTools.Core.Drawing
                 // static-text captions. N>0 ⇒ the value cells will render.
                 r.LabelsPlaced = CountLabels(famDoc);
                 StingLog.Info($"TitleBlockFactory '{spec.Id}': labels {r.LabelsPlaced} "
-                    + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})" : "(no seed)"));
+                    + (fromSeed ? $"(from seed {Path.GetFileName(seedPath)})"
+                       : propagated > 0 ? "(propagated from A1 master seed)"
+                       : "(no seed)"));
 
                 // 4g-drift. Seed↔spec label drift check. The spec's labels[] is
                 // the authoring contract for the seed — a seed authored before
@@ -504,6 +539,279 @@ namespace StingTools.Core.Drawing
                 r.Warnings.Add($"MakeSeedTempCopy '{seedPath}': {ex.Message}");
                 StingLog.Error("TitleBlockFactory.MakeSeedTempCopy", ex);
                 return null;
+            }
+        }
+
+        // ── Master-seed label propagation ───────────────────────────────────
+        // Labels cannot be CREATED on Revit 2025, but they CAN be COPIED
+        // between family documents with their shared-param binding intact
+        // (user-verified in Revit: pasted PRJ_TB_* labels kept their binding).
+        // So one hand-authored A1 master seed can supply the label set for
+        // every working-sheet size/orientation of the same BIM mode.
+
+        /// <summary>Working-sheet ids map to an A1 master of the same mode:
+        /// STING_TB_A0_PORT_BIM_v2.0 → STING_TB_A1_BIM_v2.0. Returns null for
+        /// the A1 masters themselves and for fab/specialty families (their
+        /// layouts are not derivable from a working-sheet master).</summary>
+        private static string ResolveMasterSeedId(string specId)
+        {
+            var m = Regex.Match(specId ?? "",
+                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return null;
+            string master = $"STING_TB_A1_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
+            return string.Equals(master, specId, StringComparison.OrdinalIgnoreCase)
+                ? null : master;
+        }
+
+        /// <summary>CopyElements duplicate-type collisions resolve to the
+        /// destination's types so the target family's text styles win.</summary>
+        private sealed class UseDestinationTypesHandler : IDuplicateTypeNamesHandler
+        {
+            public DuplicateTypeAction OnDuplicateTypeNamesFound(DuplicateTypeNamesHandlerArgs args)
+                => DuplicateTypeAction.UseDestinationTypes;
+        }
+
+        /// <summary>Same probe order as ResolveSeedPath but for an arbitrary
+        /// seed id (used for the A1 master).</summary>
+        private static string ResolveNamedSeedPath(Application app, string seedId)
+        {
+            if (string.IsNullOrEmpty(seedId)) return null;
+            foreach (var root in EnumerateSeedRoots(app))
+            {
+                if (string.IsNullOrEmpty(root)) continue;
+                try
+                {
+                    var candidate = Path.Combine(root, SeedRelDir, seedId + ".rfa");
+                    if (File.Exists(candidate)) return candidate;
+                }
+                catch (Exception ex) { StingLog.Warn($"named-seed probe '{root}': {ex.Message}"); }
+            }
+            return null;
+        }
+
+        /// <summary>ISO A-series paper dims (mm) parsed from a working-sheet
+        /// spec id. Returns false for non-working-sheet ids.</summary>
+        private static bool TryGetIsoPaper(string specId, out double wMm, out double hMm)
+        {
+            wMm = hMm = 0;
+            var m = Regex.Match(specId ?? "",
+                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return false;
+            switch (m.Groups[1].Value.ToUpperInvariant())
+            {
+                case "A0": wMm = 1189; hMm = 841; break;
+                case "A1": wMm = 841;  hMm = 594; break;
+                case "A3": wMm = 420;  hMm = 297; break;
+                default: return false;
+            }
+            if (m.Groups[2].Success) { var tmp = wMm; wMm = hMm; hMm = tmp; }
+            return true;
+        }
+
+        // ISO 3098 drafting text-height series (mm). Text must NOT scale
+        // linearly with paper (A1->A3 = 50% would print unreadably small);
+        // instead it steps DOWN one tier on A3 and stays put on A0/A1.
+        private static readonly double[] IsoTextTiers = { 1.8, 2.0, 2.5, 3.5, 5.0, 7.0, 10.0 };
+
+        private static double StepTextTierDown(double heightMm)
+        {
+            int idx = 0;
+            for (int i = 0; i < IsoTextTiers.Length; i++)
+                if (heightMm >= IsoTextTiers[i] - 1e-6) idx = i;
+            return IsoTextTiers[Math.Max(0, idx - 1)];
+        }
+
+        /// <summary>Copy the ENTIRE design (detail/symbolic lines, filled
+        /// regions, captions and labels) from the A1 master seed into
+        /// <paramref name="famDoc"/>. Positions remap by the paper-size ratio
+        /// (whole-sheet affine, so the strip lands where the design intends,
+        /// not just the drawable zone). Text keeps drafting-standard heights:
+        /// unchanged on A0, stepped one ISO 3098 tier down on A3. Uses the
+        /// view-to-view CopyElements overload (these elements are
+        /// view-specific). Returns the number of LABELS propagated.</summary>
+        private static int PropagateFromMasterSeed(Application app, Document famDoc,
+            TitleBlockSpec spec, string masterPath, string masterId, TitleBlockBuildResult r)
+        {
+            if (!TryGetIsoPaper(masterId, out double srcW, out double srcH)
+                || !TryGetIsoPaper(spec?.Id, out double tgtW, out double tgtH))
+                return 0;
+            double kx = tgtW / srcW, ky = tgtH / srcH;
+            bool isA3 = (spec.Id ?? "").IndexOf("_A3", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            string tempCopy = null;
+            Document masterDoc = null;
+            try
+            {
+                tempCopy = MakeSeedTempCopy(masterPath, masterId + "_master", r);
+                if (string.IsNullOrEmpty(tempCopy)) return 0;
+                masterDoc = app.OpenDocumentFile(tempCopy);
+                if (masterDoc == null || !masterDoc.IsFamilyDocument) return 0;
+
+                var srcView = ResolveTitleBlockView(masterDoc);
+                var dstView = ResolveTitleBlockView(famDoc);
+                if (srcView == null || dstView == null)
+                {
+                    r.Warnings.Add("master-seed propagation: title-block view missing on "
+                        + (srcView == null ? masterId : spec.Id));
+                    return 0;
+                }
+
+                // Everything visual: labels + captions (TextElement covers both),
+                // lines (CurveElement), filled regions.
+                var ids = new List<ElementId>();
+                foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id))
+                {
+                    if (e is TextElement || e is CurveElement || e is FilledRegion)
+                        ids.Add(e.Id);
+                }
+                if (ids.Count == 0) return 0;
+
+                var opts = new CopyPasteOptions();
+                opts.SetDuplicateTypeNamesHandler(new UseDestinationTypesHandler());
+
+                int labels = 0;
+                using (var tx = new Transaction(famDoc, "STING Propagate master seed design"))
+                {
+                    tx.Start();
+                    var copied = ElementTransformUtils.CopyElements(
+                        srcView, ids, dstView, Transform.Identity, opts);
+                    if (copied == null || copied.Count == 0) { tx.RollBack(); return 0; }
+
+                    // Pass 1 -- position remap by paper ratio.
+                    foreach (var id in copied)
+                    {
+                        try
+                        {
+                            var el = famDoc.GetElement(id);
+                            switch (el)
+                            {
+                                case TextElement te:
+                                {
+                                    XYZ pp = te.Coord;
+                                    if (pp == null) break;
+                                    var np = new XYZ(pp.X * kx, pp.Y * ky, pp.Z);
+                                    ElementTransformUtils.MoveElement(famDoc, id, np - pp);
+                                    if (!(te is TextNote)) labels++;
+                                    break;
+                                }
+                                case CurveElement ce:
+                                {
+                                    if (ce.GeometryCurve is Line ln)
+                                    {
+                                        var a = ln.GetEndPoint(0); var b = ln.GetEndPoint(1);
+                                        var na = new XYZ(a.X * kx, a.Y * ky, a.Z);
+                                        var nb = new XYZ(b.X * kx, b.Y * ky, b.Z);
+                                        if (na.DistanceTo(nb) > 1e-6)
+                                            ce.SetGeometryCurve(Line.CreateBound(na, nb), false);
+                                    }
+                                    // arcs/splines: rare in title blocks -- left 1:1.
+                                    break;
+                                }
+                                case FilledRegion fr:
+                                {
+                                    var loops = fr.GetBoundaries();
+                                    var newLoops = new List<CurveLoop>();
+                                    bool ok = true;
+                                    foreach (var loop in loops)
+                                    {
+                                        var nl = new CurveLoop();
+                                        foreach (var c in loop)
+                                        {
+                                            if (c is Line l2)
+                                            {
+                                                var a = l2.GetEndPoint(0); var b = l2.GetEndPoint(1);
+                                                nl.Append(Line.CreateBound(
+                                                    new XYZ(a.X * kx, a.Y * ky, a.Z),
+                                                    new XYZ(b.X * kx, b.Y * ky, b.Z)));
+                                            }
+                                            else { ok = false; break; }
+                                        }
+                                        if (!ok) break;
+                                        newLoops.Add(nl);
+                                    }
+                                    if (ok && newLoops.Count > 0)
+                                    {
+                                        var newFr = FilledRegion.Create(
+                                            famDoc, fr.GetTypeId(), dstView.Id, newLoops);
+                                        if (newFr != null) famDoc.Delete(fr.Id);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        catch (Exception exEl)
+                        { StingLog.Warn($"master remap {id}: {exEl.Message}"); }
+                    }
+
+                    // Pass 2 -- A3 text: step every distinct text type one ISO
+                    // 3098 tier down via a duplicated "<name> (A3)" type.
+                    if (isA3)
+                    {
+                        var typeSwap = new Dictionary<ElementId, ElementId>();
+                        foreach (var id in copied)
+                        {
+                            if (!(famDoc.GetElement(id) is TextElement te)) continue;
+                            var tid = te.GetTypeId();
+                            if (tid == ElementId.InvalidElementId) continue;
+                            if (!typeSwap.TryGetValue(tid, out var newTid))
+                            {
+                                newTid = tid;
+                                try
+                                {
+                                    if (famDoc.GetElement(tid) is ElementType et)
+                                    {
+                                        var szP = et.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                                        if (szP != null)
+                                        {
+                                            double hMm = szP.AsDouble() * 304.8;
+                                            double newMm = StepTextTierDown(hMm);
+                                            if (newMm < hMm - 1e-6)
+                                            {
+                                                string dupName = et.Name + " (A3)";
+                                                var existing = new FilteredElementCollector(famDoc)
+                                                    .OfClass(et.GetType()).Cast<ElementType>()
+                                                    .FirstOrDefault(x => x.Name == dupName);
+                                                var dup = existing ?? et.Duplicate(dupName) as ElementType;
+                                                dup?.get_Parameter(BuiltInParameter.TEXT_SIZE)
+                                                   ?.Set(newMm / 304.8);
+                                                if (dup != null) newTid = dup.Id;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception exT)
+                                { StingLog.Warn($"A3 text-tier dup: {exT.Message}"); }
+                                typeSwap[tid] = newTid;
+                            }
+                            try { if (newTid != tid) te.ChangeTypeId(newTid); }
+                            catch (Exception exS) { StingLog.Warn($"A3 text-tier swap: {exS.Message}"); }
+                        }
+                    }
+
+                    tx.Commit();
+                }
+                StingLog.Info($"TitleBlockFactory '{spec.Id}': propagated full design "
+                    + $"({labels} label(s)) from master seed {masterId} (kx={kx:0.###}, ky={ky:0.###}"
+                    + (isA3 ? ", text -1 tier)" : ")"));
+                return labels;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"master-seed propagation failed: {ex.Message}");
+                StingLog.Error($"PropagateFromMasterSeed({spec?.Id})", ex);
+                return 0;
+            }
+            finally
+            {
+                try { masterDoc?.Close(false); }
+                catch (Exception exC) { StingLog.Warn($"Suppressed: {exC.Message}"); }
+                if (!string.IsNullOrEmpty(tempCopy))
+                {
+                    try { if (File.Exists(tempCopy)) File.Delete(tempCopy); }
+                    catch (Exception exD) { StingLog.Warn($"master temp cleanup: {exD.Message}"); }
+                }
             }
         }
 
