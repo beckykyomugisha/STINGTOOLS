@@ -130,6 +130,28 @@ export const DOWNLOAD_CATALOG: Tool[] = [
     docsUrl: "/guides/stingbridge-setup.html",
     versions: [
       {
+        version: "0.1.0-beta.2",
+        releasedAt: "2026-07-20",
+        notes:
+          "Adds sequence numbers to ArchiCAD tags so they match Revit's 8-segment format, and files processed IFCs into done/ and failed/ folders so you can see at a glance what is still outstanding. Sign in with an access token instead of a password — the only option if you signed up on planscape.build.",
+        artifacts: [
+          {
+            label: "win64",
+            platform: "Windows 64-bit",
+            objectKey: "sting-bridge/0.1.0-beta.2/StingBridge_0.1.0-beta.2_win64.zip",
+            sizeMb: 57,
+            sha256: "1b7eada10cff762e4c0a74503fbc7321301117766f6882a5d0da91aa15bc81ca",
+          },
+          {
+            label: "any",
+            platform: "Any OS (Python 3.11+)",
+            objectKey: "sting-bridge/0.1.0-beta.2/StingBridge_0.1.0-beta.2_any.zip",
+            sizeMb: 1,
+            sha256: "7353a062fdec8057942bb98c98320f79e3b1efecc91ac55f0aeaa931aaeb572c",
+          },
+        ],
+      },
+      {
         version: "0.1.0-beta.1",
         releasedAt: "2026-07-19",
         notes:

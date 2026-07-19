@@ -5,4 +5,4 @@
 reports it under ``stingbridge --version``.
 """
 
-__version__ = "0.1.0b1"
+__version__ = "0.1.0b2"

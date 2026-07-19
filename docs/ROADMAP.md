@@ -317,9 +317,9 @@ retention release and the sign-off guard. Still open:
 - **QS import per-row accept/reject.** The import diff is whole-batch
   Apply/Cancel; per-row checkboxes would let a QS accept a subset.
 
-## StingBridge — remaining gaps (post 0.1.0-beta.1, Phase 199)
+## StingBridge — remaining gaps (post 0.1.0-beta.2)
 
-Shipped self-serve on planscape.build/downloads; these are the known gaps, roughly in value order:
+Shipped self-serve on planscape.build/downloads. **0.1.0-beta.2 is live** (SB-2, SB-3 and SB-4 closed; PATs added). Remaining gaps, roughly in value order:
 
 | # | Gap | Detail |
 |---|---|---|
