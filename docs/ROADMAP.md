@@ -304,6 +304,22 @@ Shipped self-serve on planscape.build/downloads; these are the known gaps, rough
 | SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
 | SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
 
+## Planscape Server — deployment gaps (Phase 200)
+
+The blueprint is validated and the owner package is written; what remains is
+owner-side or follow-on work. Status verified 2026-07-20.
+
+| # | Gap | Detail |
+|---|---|---|
+| DEP-1 | **Server is not deployed** | `api.planscape.build` does not resolve. Owner-only: apply the Render Blueprint, paste secrets, add the custom domain + registrar CNAME. Prep is complete — see [`SERVER_GO_LIVE.md`](SERVER_GO_LIVE.md) and the local package at `C:\Dev\planscape-render-golive\`. |
+| DEP-2 | **`PLANSCAPE_HANDOFF_SECRET` unset on Cloudflare** | `wrangler pages secret list --project-name planscape-marketing` returns 12 secrets and this is not one of them, so cloud→server handoff cannot work in production yet. It is a *shared* secret: set the identical value on Render (`planscape-api` **and** `planscape-worker`) and on Cloudflare Pages. Rotate both sides together. |
+| DEP-3 | **Handoff provisions no Project** | `AuthController.HandoffExchange` find-or-creates `Tenant` + `AppUser` but never a `Project`/`ProjectMember`, so a freshly handed-off subscriber lands in an empty account and any client needing a project id has nothing to target. |
+| DEP-4 | **Handoff accounts cannot log in with a password — by design** | The mirror `AppUser` is created with `PasswordHash = HashPassword(Guid+Guid)`, an intentionally unusable hash, so the account is reachable *only* via a fresh 120-second ticket. There is **no** personal-access-token/API-key path anywhere in `Planscape.Server/src`, and StingBridge is a pure email+password client — so a subscriber provisioned this way currently cannot authenticate StingBridge at all. |
+| DEP-5 | **`/api/auth/license/activate` is unrate-limited** | It is the only `AuthController` endpoint without `[EnableRateLimiting("auth")]`, leaving the licence-key space brute-forceable. It returns entitlement facts (`Valid`, `Tier`, `MimEnabled`, `ServerUrl`, `ExpiresAt`) rather than a JWT, so the blast radius is disclosure + activation-count burn, not session theft. |
+| DEP-6 | **Handoff single-use check fails open** | The `jti` replay guard is a Redis `SET … When.NotExists`; when Redis is unavailable the exchange logs a warning and proceeds, so a captured ticket could be replayed within its 120 s TTL during a Redis outage. Acceptable given the TTL, but it is an availability-over-integrity choice worth making deliberately. |
+| DEP-7 | **`PLANSCAPE_IDENTITY_HANDOFF.md` status line is stale** | It reads "design agreed 2026-07-18, not yet implemented"; the feature is in fact implemented on all three sides (Cloudflare Pages Function, `AuthController`, Next.js `/handoff` page). The doc's own line references still resolve, so only the status line drifted. Its role table also says `project_lead` → `ProjectLead`, but `UserRole` has no such member and the code maps it to `Manager`. |
+| DEP-8 | **StingBridge token-expiry constant is wrong** | `client.py` assumes a 60-minute access token (`_token_expiry = time.time() + 55*60`) but `AuthController` sets `AccessTokenLifetime = 30 minutes`, so the proactive refresh never fires before the token is ~25 minutes dead. Masked today by the reactive-401 retry added in Phase 199. |
+
 ## Sub-system reviews
 
 - [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md) — plain-English user guide to the Placement Centre: every button, every editor field, background concepts (anchors, regex, mounting reference, provenance, standards), worked walk-throughs, troubleshooting and a cheat-sheet (2026-04-25).
