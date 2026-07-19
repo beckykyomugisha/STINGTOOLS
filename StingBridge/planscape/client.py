@@ -66,6 +66,11 @@ class PlanscapeClient:
         self._session.headers.update({"Content-Type": "application/json"})
         self._token: str | None = None
         self._token_expiry: float = 0.0
+        # Credentials are retained so long-lived processes (the IFC drop-folder
+        # watcher, `watch` mode) can silently re-authenticate when the server
+        # token expires — see :meth:`_send`.
+        self._email: str = ""
+        self._password: str = ""
 
     # ── auth ─────────────────────────────────────────────────────────────────
 
@@ -82,6 +87,8 @@ class PlanscapeClient:
         self._token = data.get("token") or data.get("accessToken")
         if not self._token:
             raise PlanscapeAuthError("No token in login response")
+        # Remember the credentials for transparent re-auth on expiry.
+        self._email, self._password = email, password
         # Assume 60-minute expiry; refresh 5 minutes early
         self._token_expiry = time.time() + 55 * 60
         self._session.headers.update({"Authorization": f"Bearer {self._token}"})
@@ -90,6 +97,45 @@ class PlanscapeClient:
     def _ensure_auth(self, email: str, password: str) -> None:
         if not self._token or time.time() >= self._token_expiry:
             self.login(email, password)
+
+    def _relogin(self) -> bool:
+        """Re-authenticate with the stored credentials. Returns False (never
+        raises) when no credentials are held or the re-login itself fails, so
+        the caller can surface the original 401 instead of a masking error."""
+        if not (self._email and self._password):
+            return False
+        try:
+            self.login(self._email, self._password)
+            return True
+        except Exception as e:  # noqa: BLE001 — a failed refresh must not mask the 401
+            log.warning("Planscape re-authentication failed: %s", e)
+            return False
+
+    def _send(self, verb: str, url: str, **kw):
+        """Send a request, transparently refreshing an expired token.
+
+        A drop-folder watcher logs in once and then runs for days; the server
+        token expires long before the process does. Without this, every ingest
+        after the first hour raised ``PlanscapeAuthError`` and the dropped
+        files were recorded as errored and never retried.
+
+        Two refresh triggers:
+          * proactive — the locally tracked expiry has passed;
+          * reactive  — the server answered 401 (covers clock skew and any
+            server-side revocation), retried exactly once.
+
+        The refreshed ``Authorization`` header is written back onto the same
+        session object, so the retry re-reads it via ``getattr`` below.
+        """
+        if self._token and time.time() >= self._token_expiry:
+            log.info("Planscape token expired locally — refreshing")
+            self._relogin()
+
+        resp = getattr(self._session, verb)(url, **kw)
+        if getattr(resp, "status_code", None) == 401 and self._relogin():
+            log.info("Planscape token rejected (401) — retrying after re-auth")
+            resp = getattr(self._session, verb)(url, **kw)
+        return resp
 
     # ── substrate drift-check (Phase A4) ─────────────────────────────────────
 
@@ -142,13 +188,14 @@ class PlanscapeClient:
             "userName": user_name,
             "elements": [to_wire(e) for e in elements],
         }
-        resp = self._session.post(
+        resp = self._send(
+            "post",
             f"{self.base_url}/api/projects/{self.project_id}/ifc/data",
             json=payload,
             timeout=_TIMEOUT,
         )
         if resp.status_code == 401:
-            raise PlanscapeAuthError("Token expired or invalid")
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
 
@@ -226,12 +273,29 @@ class PlanscapeClient:
         from pathlib import Path
         path = Path(glb_path)
         mime = mimetypes.guess_type(str(path))[0] or "model/gltf-binary"
-        with open(path, "rb") as f:
-            resp = self._session.post(
-                f"{self.base_url}/api/projects/{project_id}/models",
-                files={"file": (path.name, f, mime)},
-                timeout=120,
-            )
+        # The file handle is opened per attempt: a retry after re-auth must
+        # re-read from the start, and a consumed handle would upload 0 bytes.
+        def _post():
+            with open(path, "rb") as f:
+                return self._session.post(
+                    f"{self.base_url}/api/projects/{project_id}/models",
+                    files={"file": (path.name, f, mime)},
+                    # The session sets Content-Type: application/json globally,
+                    # which would override the multipart boundary header that
+                    # `files=` generates and corrupt the upload. None deletes
+                    # the session header for this request only.
+                    headers={"Content-Type": None},
+                    timeout=120,
+                )
+
+        if self._token and time.time() >= self._token_expiry:
+            self._relogin()
+        resp = _post()
+        if getattr(resp, "status_code", None) == 401 and self._relogin():
+            log.info("Planscape token rejected on upload (401) — retrying after re-auth")
+            resp = _post()
+        if resp.status_code == 401:
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
 
