@@ -82,6 +82,32 @@ semantic conflict on the element REV parameter. Six fixes:
   with a blank `IssuedBy` (its convention footer now lists the full `RevisionSeries` set
   instead of the stale P/C/A-Z trio).
 
+- **Native ISO revision numbering + BCC Revisions-tab completion** (second follow-up,
+  driven by live Revit testing). Testing exposed four gaps: (1) the ISO code the user
+  picked ("P01") never became the revision number — Revit numeric numbering showed "3" in
+  every REV.NO column while the code was smuggled into the Description; (2) the BCC
+  "Issue Sheets" panel's sheet list was **hardcoded demo rows** (A-001/A-100/S-001) and its
+  Date/Suitability inputs were never read — ticked sheets were silently ignored; (3) after
+  issuing, Revit's native lock ("no new clouds on an issued revision") left users blocked
+  with no open draft; (4) the title-block sync and several revision commands had no BCC
+  Revisions-tab surface. Fixes: `RevisionEngine.EnsureNumberingSequence` mints per-series
+  alphanumeric `RevisionNumberingSequence`s ("STING P-series (Preliminary)" = P01…P99 via
+  `RevisionSeries.BuildSequenceCodes`) and `CreateRevisionCommand` /
+  `AutoRevisionOnTagChangeCommand` assign new revisions to them — Revit's own
+  `RevisionNumber` now IS the ISO code, descriptions stay clean, and the actually-assigned
+  code (sequence hands out the next free one) flows to element stamps / BOQ baseline /
+  notifications. `IssueSheetsForRevisionCommand` consumes the BCC form's ticked sheets +
+  date + suitability (pipe-delimited, in addition to cloud-detected sheets) and — gated by
+  new `TagConfig.AutoNextRevisionOnIssue` (`AUTO_NEXT_REVISION_ON_ISSUE`, default true) —
+  auto-opens the next DRAFT revision in the same sequence after issue so clouding is never
+  blocked. The BCC Issue Sheets panel now lists REAL sheets (gathered on the Revit thread
+  into `CoordData.IssueSheetList`); the register grid's Code / Series / Author columns
+  populate (`RevisionNumber` / `RevisionSeries.InferSeriesName` / `IssuedBy`); and a new
+  "TITLE BLOCKS & GOVERNANCE" row adds Sync Title Blocks, Approval Flow, Distribution, and
+  Cloud Audit buttons ("Export CSV" relabelled "Export XLSX" to match what
+  `RevisionExportCommand` writes). `RevisionApprovalWorkflow` / `RevisionDistribution` /
+  `Revision_CloudAudit` gained the missing `WorkflowEngine.ResolveCommand` cases.
+
 **Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
 table was exercised against 20 cases in a standalone harness. **Revit runtime verification
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`

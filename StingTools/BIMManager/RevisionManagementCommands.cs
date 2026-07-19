@@ -63,6 +63,48 @@ namespace StingTools.BIMManager
             return max + 1;
         }
 
+        /// <summary>
+        /// Finds or creates the Revit RevisionNumberingSequence for the series
+        /// an ISO code belongs to ("P01" → the "STING P-series" sequence whose
+        /// values are P01…P99). Assigning a revision to that sequence makes
+        /// Revit's own RevisionNumber BE the ISO code — so native revision
+        /// schedules, Current Revision labels, and the title-block sync all
+        /// show "P01" instead of the internal "3", and the code no longer has
+        /// to be smuggled into the Description.
+        ///
+        /// Must be called inside an active Transaction. Returns
+        /// ElementId.InvalidElementId for codes with no numbered series
+        /// (status stamps, bare letters, plain numerics, bespoke codes) or on
+        /// any API failure — callers fall back to default numbering.
+        /// </summary>
+        internal static ElementId EnsureNumberingSequence(Document doc, string isoCode)
+        {
+            try
+            {
+                if (!Core.RevisionSeries.TryParseSeriesPrefix(isoCode, out string prefix, out string label))
+                    return ElementId.InvalidElementId;
+
+                string seqName = $"STING {prefix}-series ({label})";
+
+                var existing = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevisionNumberingSequence))
+                    .Cast<RevisionNumberingSequence>()
+                    .FirstOrDefault(s => string.Equals(s.Name, seqName, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) return existing.Id;
+
+                var settings = new AlphanumericRevisionSettings();
+                settings.SetSequence(Core.RevisionSeries.BuildSequenceCodes(prefix));
+                var seq = RevisionNumberingSequence.CreateAlphanumericSequence(doc, seqName, settings);
+                StingLog.Info($"RevisionEngine: created numbering sequence '{seqName}'");
+                return seq?.Id ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EnsureNumberingSequence('{isoCode}'): {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
         /// <summary>Get the revision data directory.</summary>
         internal static string GetRevisionDir(Document doc)
         {
@@ -617,6 +659,12 @@ namespace StingTools.BIMManager
                 string description = string.IsNullOrEmpty(userDesc)
                     ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
                     : $"{isoCode} \u2014 {userDesc}";
+                // When the ISO code maps to a numbered series, the code becomes
+                // the ACTUAL Revit revision number via a numbering sequence, so
+                // the description no longer needs the code smuggled in.
+                string plainDescription = string.IsNullOrEmpty(userDesc)
+                    ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
+                    : userDesc;
 
                 // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
                 // has been REMOVED. Revit TaskDialogs parent to the main Revit
@@ -653,8 +701,42 @@ namespace StingTools.BIMManager
                     tx.Start();
 
                     var rev = Revision.Create(doc);
-                    rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+
+                    // ISO numbering: assign the revision to the series' numbering
+                    // sequence so Revit's RevisionNumber IS the ISO code ("P01"),
+                    // shown natively in revision schedules, Current Revision
+                    // labels and the title-block sync. Falls back to default
+                    // numbering (code embedded in the description) for status
+                    // stamps / bespoke codes / API failure.
+                    bool seqAssigned = false;
+                    var seqId = RevisionEngine.EnsureNumberingSequence(doc, isoCode);
+                    if (seqId != ElementId.InvalidElementId)
+                    {
+                        try
+                        {
+                            rev.RevisionNumberingSequenceId = seqId;
+                            seqAssigned = true;
+                        }
+                        catch (Exception seqEx) { StingLog.Warn($"CreateRevision sequence assign: {seqEx.Message}"); }
+                    }
+                    rev.Description = seqAssigned ? plainDescription : description;
+                    description = rev.Description;   // keep downstream (BOQ hook, notification, log) in sync
+
+                    // The sequence hands out the NEXT free code (first P-revision
+                    // gets P01, second P02) regardless of which preset the user
+                    // picked — read back the number Revit actually assigned so
+                    // everything downstream (element stamps, BOQ baseline,
+                    // notifications, issue cross-links) carries the real code.
+                    if (seqAssigned)
+                    {
+                        try
+                        {
+                            string assigned = rev.RevisionNumber;
+                            if (!string.IsNullOrWhiteSpace(assigned)) prefix = assigned;
+                        }
+                        catch (Exception numEx) { StingLog.Warn($"CreateRevision number readback: {numEx.Message}"); }
+                    }
 
                     // Stamp the approver onto the Revision itself so the "Issued by"
                     // column of the native title-block revision schedules populates.
@@ -669,8 +751,8 @@ namespace StingTools.BIMManager
 
                     TaskDialog.Show("StingTools Revision",
                         $"Revision created successfully.\n\n" +
-                        $"Number: {prefix}\n" +
-                        $"Description: {description}\n" +
+                        $"Number: {prefix}" + (seqAssigned ? "  (native ISO numbering)" : "") + "\n" +
+                        $"Description: {rev.Description}\n" +
                         $"Date: {rev.RevisionDate}\n" +
                         $"Issued by: {issuedBy}\n\n" +
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
@@ -1429,13 +1511,42 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // BCC inline form: "IssueSheetsForRevision|A-001,A-100|2026-07-19|S1"
+                // — the sheets the user TICKED in the Issue Sheets panel. Those
+                // are issued in addition to sheets detected via revision clouds,
+                // so a cloud-less coordination issue still lands on the chosen
+                // sheets instead of reporting "0 sheets updated".
+                var pickedNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string pending = CoordinationCenterCommands.BccPendingAction ?? "";
+                    if (pending.StartsWith("IssueSheetsForRevision|"))
+                    {
+                        var parts = pending.Split('|');
+                        if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1]))
+                            foreach (var n in parts[1].Split(','))
+                                if (!string.IsNullOrWhiteSpace(n)) pickedNumbers.Add(n.Trim());
+                        // parts[2] (issue date) and parts[3] (suitability) are logged
+                        // for audit; the revision's own date remains authoritative.
+                        if (parts.Length >= 4)
+                            StingLog.Info($"IssueSheets BCC form: {pickedNumbers.Count} sheet(s) picked, date={parts[2]}, suitability={parts[3]}");
+                        CoordinationCenterCommands.BccPendingAction = null;
+                    }
+                }
+                catch (Exception pEx) { StingLog.Warn($"IssueSheets param parse: {pEx.Message}"); }
+
+                var targetSheetIds = new HashSet<ElementId>(sheetsWithClouds);
+                foreach (var sheet in sheets)
+                    if (pickedNumbers.Contains(sheet.SheetNumber ?? ""))
+                        targetSheetIds.Add(sheet.Id);
+
                 int sheetsIssued = 0;
                 using (var tx = new Transaction(doc, "STING Issue Sheets for Revision"))
                 {
                     tx.Start();
 
-                    // Add revision to sheets with clouds
-                    foreach (ElementId sheetId in sheetsWithClouds)
+                    // Add revision to sheets with clouds + sheets picked in the BCC form
+                    foreach (ElementId sheetId in targetSheetIds)
                     {
                         var sheet = doc.GetElement(sheetId) as ViewSheet;
                         if (sheet == null) continue;
@@ -1482,12 +1593,51 @@ namespace StingTools.BIMManager
                     StingLog.Warn($"Title block sync after issue: {syncEx.Message}");
                 }
 
+                // Roll the cycle over: an Issued revision is locked by Revit —
+                // no new clouds can be drawn against it. Opening the next DRAFT
+                // revision in the same numbering sequence means the team is
+                // never blocked from clouding the next round of changes.
+                // Disable with AUTO_NEXT_REVISION_ON_ISSUE = false in project_config.json.
+                string nextRevLine = "";
+                if (TagConfig.AutoNextRevisionOnIssue)
+                {
+                    try
+                    {
+                        using (var nx = new Transaction(doc, "STING Open Next Revision"))
+                        {
+                            nx.Start();
+                            var nextRev = Revision.Create(doc);
+                            try
+                            {
+                                if (targetRev.RevisionNumberingSequenceId != ElementId.InvalidElementId)
+                                    nextRev.RevisionNumberingSequenceId = targetRev.RevisionNumberingSequenceId;
+                            }
+                            catch (Exception sqEx) { StingLog.Warn($"Next revision sequence copy: {sqEx.Message}"); }
+                            nextRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                            nextRev.Description = $"WIP — opened after issue of {revNum}";
+                            try { nextRev.IssuedBy = Environment.UserName; }
+                            catch (Exception nibEx) { StingLog.Warn($"Next revision IssuedBy: {nibEx.Message}"); }
+                            nx.Commit();
+
+                            string nextNum = "";
+                            try { nextNum = nextRev.RevisionNumber; } catch (Exception nnEx) { StingLog.Warn($"Next revision number read: {nnEx.Message}"); }
+                            nextRevLine = $"\nNext revision opened: {(string.IsNullOrEmpty(nextNum) ? $"Seq {nextRev.SequenceNumber}" : nextNum)} (draft — clouds go here now)";
+                            StingLog.Info($"IssueSheets: opened next revision {nextNum} after issuing {revNum}");
+                        }
+                    }
+                    catch (Exception nrEx)
+                    {
+                        StingLog.Warn($"Auto-open next revision: {nrEx.Message}");
+                    }
+                }
+
                 TaskDialog.Show("StingTools Issue Sheets",
                     $"Revision {revNum} issued.\n\n" +
+                    $"Sheets picked in BCC form: {pickedNumbers.Count}\n" +
                     $"Sheets with revision clouds: {sheetsWithClouds.Count}\n" +
                     $"Sheets updated: {sheetsIssued}\n" +
                     $"Revision marked as Issued: Yes\n" +
-                    syncLine);
+                    syncLine + nextRevLine);
 
                 StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
 
@@ -2111,6 +2261,16 @@ namespace StingTools.BIMManager
                     // schedules is never blank.
                     try { rev.IssuedBy = Environment.UserName; }
                     catch (Exception ibEx) { StingLog.Warn($"AutoRevision IssuedBy stamp: {ibEx.Message}"); }
+
+                    // Same ISO numbering as CreateRevision — auto revisions join
+                    // the P-series sequence so their number reads "P0n" natively.
+                    try
+                    {
+                        var autoSeqId = RevisionEngine.EnsureNumberingSequence(doc, revCode);
+                        if (autoSeqId != ElementId.InvalidElementId)
+                            rev.RevisionNumberingSequenceId = autoSeqId;
+                    }
+                    catch (Exception sqEx) { StingLog.Warn($"AutoRevision sequence assign: {sqEx.Message}"); }
 
                     // Get the actual revision number assigned by Revit
                     try

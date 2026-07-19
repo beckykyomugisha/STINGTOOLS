@@ -628,6 +628,10 @@ namespace StingTools.UI
             public int RevisionCount;
             public int RevisionClouds;
             public List<RevisionRow> Revisions = new();
+            // Real sheets for the Issue Sheets panel: [0]=SheetNumber [1]=SheetName.
+            // Gathered on the Revit thread (WarningsManager) — the panel builder
+            // runs on the UI thread and must not touch the Document.
+            public List<string[]> IssueSheetList = new();
             public Dictionary<string, int> CloudsByDiscipline = new();
             public Dictionary<string, int> CloudsBySheet = new();
             public int RevisionsThisWeek { get; set; }
@@ -4048,9 +4052,21 @@ namespace StingTools.UI
                 "Create/view Revit revision schedule showing all revisions and sheets"));
             issueWrap.Children.Add(MakeActionButton("Bulk Rev Stamp",       "BulkRevisionStamp",      Br(CRed),
                 "Stamp revision information across multiple sheets in batch"));
-            issueWrap.Children.Add(MakeActionButton("Export CSV",           "RevisionExport",         Br(Color.FromRgb(0x45,0x50,0x6E)),
-                "Export revision register to CSV for external tracking"));
+            issueWrap.Children.Add(MakeActionButton("Export XLSX",          "RevisionExport",         Br(Color.FromRgb(0x45,0x50,0x6E)),
+                "Export the full revision register + change history to Excel"));
             stack.Children.Add(issueWrap);
+
+            stack.Children.Add(MakeSectionHeader("TITLE BLOCKS & GOVERNANCE"));
+            var syncWrap = new WrapPanel { Margin = new Thickness(0,0,0,8) };
+            syncWrap.Children.Add(MakeActionButton("Sync Title Blocks", "RevisionSync",             Br(Color.FromRgb(0x2E,0x7D,0x32)),
+                "Mirror the newest revision (number / date / description) onto every sheet (SHT_REV_TXT) and its title-block revision box (PRJ_TB_REVISION_*)"));
+            syncWrap.Children.Add(MakeActionButton("Approval Flow",     "RevisionApprovalWorkflow", Br(Color.FromRgb(0x15,0x65,0xC0)),
+                "Multi-stage revision approval: advance the latest revision to Issued, or open a review revision"));
+            syncWrap.Children.Add(MakeActionButton("Distribution",      "RevisionDistribution",     Br(Color.FromRgb(0x45,0x50,0x6E)),
+                "Who received each issued revision, when, and acknowledgement status"));
+            syncWrap.Children.Add(MakeActionButton("Cloud Audit",       "Revision_CloudAudit",      Br(Color.FromRgb(0x6A,0x1B,0x9A)),
+                "Audit all revision clouds: per-revision totals, unassigned clouds, clouds per sheet"));
+            stack.Children.Add(syncWrap);
 
             // ── Inline Revision Dashboard panel ───────────────────────────
             stack.Children.Add(MakeSectionHeader("REVISION DASHBOARD"));
@@ -7617,17 +7633,25 @@ namespace StingTools.UI
                     sheetDg.Columns.Add(sheetCheckCol);
                     sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Number", Binding = new System.Windows.Data.Binding("SheetNumber"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                     sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Name", Binding = new System.Windows.Data.Binding("SheetName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    sheetDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<SheetIssueRow>
-                    {
-                        new SheetIssueRow { Include = true, SheetNumber = "A-001", SheetName = "Site Plan" },
-                        new SheetIssueRow { Include = true, SheetNumber = "A-100", SheetName = "Ground Floor Plan" },
-                        new SheetIssueRow { Include = false, SheetNumber = "S-001", SheetName = "Foundation Plan" }
-                    };
+                    // Real sheets from the last Refresh (gathered on the Revit
+                    // thread into CoordData.IssueSheetList) — this list used to
+                    // be hardcoded demo rows, so ticks never reached the command.
+                    var sheetRows = new System.Collections.ObjectModel.ObservableCollection<SheetIssueRow>();
+                    foreach (var s in _data.IssueSheetList)
+                        sheetRows.Add(new SheetIssueRow { Include = true, SheetNumber = s[0], SheetName = s[1] });
+                    if (sheetRows.Count == 0)
+                        sp.Children.Add(new TextBlock
+                        {
+                            Text = "No sheets found — click Refresh to load the sheet list from the model.",
+                            FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 4)
+                        });
+                    sheetDg.ItemsSource = sheetRows;
                     sp.Children.Add(sheetDg);
 
                     var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     dateRow.Children.Add(new TextBlock { Text = "Issue Date:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
-                    dateRow.Children.Add(new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today });
+                    var issueDatePicker = new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today };
+                    dateRow.Children.Add(issueDatePicker);
                     sp.Children.Add(dateRow);
 
                     var suitRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
@@ -7646,7 +7670,17 @@ namespace StingTools.UI
                         FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
                         HorizontalAlignment = HorizontalAlignment.Left
                     };
-                    issueBtn.Click += (s, e) => DispatchAction("IssueSheetsForRevision");
+                    issueBtn.Click += (s, e) =>
+                    {
+                        // Forward the TICKED sheets + date + suitability as pipe
+                        // params; IssueSheetsForRevisionCommand issues those in
+                        // addition to sheets detected via revision clouds.
+                        string csv = string.Join(",", sheetRows.Where(r => r.Include)
+                            .Select(r => (r.SheetNumber ?? "").Replace("|", "/").Replace(",", " ")));
+                        string dateStr = (issueDatePicker.SelectedDate ?? DateTime.Today).ToString("yyyy-MM-dd");
+                        string suit = (suitCb.SelectedItem as string ?? "S1").Split(' ')[0];
+                        DispatchAction($"IssueSheetsForRevision|{csv}|{dateStr}|{suit}");
+                    };
                     sp.Children.Add(issueBtn);
 
                     panelBorder.Child = sp;

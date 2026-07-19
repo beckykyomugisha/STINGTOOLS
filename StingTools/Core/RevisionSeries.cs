@@ -98,6 +98,46 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Extracts the series prefix from a NUMBERED series code ("P01" → "P",
+        /// "Co03" → "Co", "AB02" → "AB"). Returns false for status stamps,
+        /// bare single letters, plain numerics, and unrecognised codes — those
+        /// have no numbering sequence.
+        /// </summary>
+        public static bool TryParseSeriesPrefix(string code, out string prefix, out string label)
+        {
+            prefix = null; label = null;
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            string c = code.Trim().ToUpperInvariant();
+
+            foreach (var s in _series.Where(x => !string.IsNullOrEmpty(x.Prefix))
+                                     .OrderByDescending(x => x.Prefix.Length))
+            {
+                if (s.Pattern.IsMatch(c))
+                {
+                    prefix = s.Prefix;   // canonical casing, e.g. "Co"
+                    label  = s.Label;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The full ordered code list for a series' Revit numbering sequence:
+        /// "{prefix}01" … "{prefix}99". Used to mint an alphanumeric
+        /// RevisionNumberingSequence whose values ARE the ISO codes, so
+        /// Revit's RevisionNumber (and every native revision schedule /
+        /// Current Revision label) shows "P01" instead of "3".
+        /// </summary>
+        public static string[] BuildSequenceCodes(string prefix)
+        {
+            var codes = new string[99];
+            for (int i = 1; i <= 99; i++)
+                codes[i - 1] = prefix + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture);
+            return codes;
+        }
+
+        /// <summary>
         /// Maps a revision code to its series label for human-readable revision
         /// names. Deliberately more permissive than <see cref="Validate"/>: it
         /// matches on prefix, so bespoke project codes ("PQ-01", "G3-A") still

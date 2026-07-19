@@ -306,6 +306,12 @@ namespace StingTools.Core
         /// RevisionEngine.StampAffectedElements. Loaded from PROPAGATE_REV_ON_CREATE.</summary>
         public static bool PropagateRevOnCreate { get; internal set; } = false;
 
+        /// <summary>Whether issuing a revision auto-opens the next DRAFT revision in
+        /// the same numbering sequence. Revit locks an Issued revision — no new clouds
+        /// can target it — so without a fresh draft the team is blocked until someone
+        /// manually adds one. Default true. Loaded from AUTO_NEXT_REVISION_ON_ISSUE.</summary>
+        public static bool AutoNextRevisionOnIssue { get; internal set; } = true;
+
         /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
         /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
         public static (int Min, int Max) GetSeqRange(string modelDiscipline)
@@ -1102,6 +1108,12 @@ namespace StingTools.Core
                 {
                     if (procObj is bool procb) PropagateRevOnCreate = procb;
                     else if (procObj is string procs) PropagateRevOnCreate = procs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                AutoNextRevisionOnIssue = true;
+                if (data.TryGetValue("AUTO_NEXT_REVISION_ON_ISSUE", out object anriObj))
+                {
+                    if (anriObj is bool anrib) AutoNextRevisionOnIssue = anrib;
+                    else if (anriObj is string anris) AutoNextRevisionOnIssue = anris.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
                 // Phase 77: Custom title block family
