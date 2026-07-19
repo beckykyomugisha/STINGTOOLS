@@ -142,7 +142,9 @@ services:
     branch: main
     region: frankfurt
     plan: starter
-    healthCheckPath: /health
+    # NB: pserv (private service) types cannot carry healthCheckPath — the
+    # Blueprint validator rejects it. The sidecar still exposes /health for
+    # the API's own liveness probing over the private network.
     autoDeploy: true
     envVars:
       - key: PORT
@@ -186,7 +188,8 @@ services:
     dockerCommand: server /data --console-address ":9001"
     region: frankfurt
     plan: starter
-    healthCheckPath: /minio/health/live    # MinIO liveness (port 9000)
+    # (no healthCheckPath — pserv types cannot carry one; MinIO liveness is
+    # still available to peers at /minio/health/live on port 9000)
     disk:
       name: minio-data
       mountPath: /data
