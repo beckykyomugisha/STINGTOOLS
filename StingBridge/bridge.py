@@ -68,11 +68,7 @@ def _make_clients(cfg: BridgeConfig) -> tuple[ArchiCadClient, PlanscapeClient]:
         ac = ArchiCadClient.discover()
 
     # Planscape
-    if not cfg.planscape_email or not cfg.planscape_password:
-        log.error(
-            "STING_PLANSCAPE_EMAIL and STING_PLANSCAPE_PASSWORD must be set"
-        )
-        sys.exit(1)
+    _require_credentials(cfg)
     if not cfg.planscape_project_id:
         log.error("STING_PLANSCAPE_PROJECT_ID must be set")
         sys.exit(1)
@@ -81,7 +77,7 @@ def _make_clients(cfg: BridgeConfig) -> tuple[ArchiCadClient, PlanscapeClient]:
         base_url=cfg.planscape_url,
         project_id=cfg.planscape_project_id,
     )
-    ps.login(cfg.planscape_email, cfg.planscape_password)
+    _authenticate(cfg, ps)
     _warn_on_substrate_drift(ps)
 
     return ac, ps
@@ -143,16 +139,42 @@ def cmd_watch(cfg: BridgeConfig) -> int:
             return 0
 
 
+def _authenticate(cfg: BridgeConfig, ps: PlanscapeClient) -> None:
+    """Log the client in with whichever credential is configured.
+
+    A personal access token wins when both are present: it is the newer,
+    preferred path, and it is the ONLY credential an account provisioned
+    through the planscape.build identity handoff can have (those accounts are
+    created with an unusable password hash by design).
+    """
+    if cfg.planscape_token:
+        ps.login_with_token(cfg.planscape_token)
+    else:
+        ps.login(cfg.planscape_email, cfg.planscape_password)
+
+
+def _require_credentials(cfg: BridgeConfig) -> None:
+    """Exit with a usable message when no credential is configured."""
+    if cfg.planscape_token:
+        return
+    if cfg.planscape_email and cfg.planscape_password:
+        return
+    log.error(
+        "No Planscape credentials. Set STING_PLANSCAPE_TOKEN (recommended - "
+        "mint one in the Planscape cloud app), or STING_PLANSCAPE_EMAIL + "
+        "STING_PLANSCAPE_PASSWORD."
+    )
+    sys.exit(1)
+
+
 def _make_ps_client(cfg: BridgeConfig) -> PlanscapeClient:
     """Create and log in a PlanscapeClient without needing ArchiCAD."""
-    if not cfg.planscape_email or not cfg.planscape_password:
-        log.error("STING_PLANSCAPE_EMAIL and STING_PLANSCAPE_PASSWORD must be set")
-        sys.exit(1)
+    _require_credentials(cfg)
     if not cfg.planscape_project_id:
         log.error("STING_PLANSCAPE_PROJECT_ID must be set")
         sys.exit(1)
     ps = PlanscapeClient(base_url=cfg.planscape_url, project_id=cfg.planscape_project_id)
-    ps.login(cfg.planscape_email, cfg.planscape_password)
+    _authenticate(cfg, ps)
     _warn_on_substrate_drift(ps)
     return ps
 

@@ -60,14 +60,20 @@
   <h2>Step 2 — Connect to Planscape</h2>
   <p>Create a <code>stingbridge.toml</code> next to the executable (or set the same values as <code>STING_*</code> environment variables — environment always wins):</p>
   <pre><code>planscape_url        = "https://api.planscape.build"
-planscape_email      = "you@yourfirm.com"
-planscape_password   = "your-planscape-password"
+planscape_token      = "psat_&lt;your access token&gt;"
 planscape_project_id = "&lt;project UUID from Planscape&gt;"
 
 # Optional
 building_name        = "Block A"   # drives the LOC token, default BLD1
 ifc_drop_dir         = "C:/Projects/IFC_DROP"</code></pre>
   <p>Your project's UUID is in the Planscape web app under the project's settings, or ask your BIM manager.</p>
+
+  <h3>Getting your access token</h3>
+  <p>An access token is a named credential for tools like StingBridge. You can revoke it on its own, without changing your password or signing anything else out. Create one in the Planscape web app, or with:</p>
+  <pre><code>curl -X POST https://api.planscape.build/api/auth/tokens   -H "Authorization: Bearer &lt;a JWT from signing in&gt;"   -H "Content-Type: application/json"   -d '{"name":"StingBridge on the studio PC"}'</code></pre>
+  <p>The token is shown <strong>once</strong> — copy it straight into <code>planscape_token</code>. It is stored hashed, so it cannot be shown again; if you lose it, revoke that one and mint another.</p>
+  <p><strong>If you signed up on planscape.build, a token is your only option.</strong> Accounts created by clicking through from the website are linked to your planscape.build sign-in and have no separate server password, so email and password login will always be refused for them.</p>
+  <p>If your account does have a password, you can use <code>planscape_email</code> and <code>planscape_password</code> instead. Either way StingBridge trades your credential for a short-lived session and refreshes it automatically.</p>
 
   <h2>Step 3 — Pick your workflow</h2>
 
@@ -94,7 +100,8 @@ stingbridge auto-publish  # trigger the IFC Publisher Set, then ingest</code></p
     <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
     <tbody>
       <tr><td><code>ArchiCAD not found on ports 19723&ndash;19726</code></td><td>ArchiCAD must be running with a project open, and the JSON API enabled.</td></tr>
-      <tr><td><code>Invalid credentials</code></td><td>Check <code>planscape_email</code>/<code>planscape_password</code> — same details you use on planscape.build.</td></tr>
+      <tr><td><code>Access token rejected</code></td><td>The token was revoked or expired, or belongs to a different server. Mint a new one and update <code>planscape_token</code>.</td></tr>
+      <tr><td><code>Invalid credentials</code></td><td>Wrong <code>planscape_email</code>/<code>planscape_password</code>. If you signed up on planscape.build, your account has no server password — use <code>planscape_token</code> instead.</td></tr>
       <tr><td>Elements sync with <code>ZZ</code> zone / <code>BLD1</code> location</td><td>Zones need ArchiCAD zone numbers/names; set <code>building_name</code> for LOC. IFC files need spatial structure for levels.</td></tr>
       <tr><td>Watcher stops syncing after an hour</td><td>Fixed in 0.1.0-beta.1 — the bridge re-authenticates automatically. Update if you are on anything older.</td></tr>
     </tbody>

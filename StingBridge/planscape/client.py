@@ -71,8 +71,32 @@ class PlanscapeClient:
         # token expires — see :meth:`_send`.
         self._email: str = ""
         self._password: str = ""
+        # A personal access token is an ALTERNATIVE to email+password, not an
+        # addition. It is the only credential available to accounts provisioned
+        # through the planscape.build identity handoff: those are created with a
+        # deliberately unusable password hash, so there is no password to hold.
+        self._pat: str = ""
 
     # ── auth ─────────────────────────────────────────────────────────────────
+
+    # The server issues 30-minute access tokens (AuthController.AccessTokenLifetime).
+    # Refresh a little early so a long-running watcher never presents a token that
+    # expires mid-flight. This previously assumed 60 minutes, which meant the
+    # proactive refresh only fired ~25 minutes after the token was already dead and
+    # every request in that window paid for a reactive 401 + retry.
+    _ACCESS_TOKEN_LIFETIME_S = 30 * 60
+    _REFRESH_MARGIN_S = 5 * 60
+
+    def _accept_session(self, data: dict, how: str) -> None:
+        """Adopt a session payload from /login or /token/exchange (same shape)."""
+        self._token = data.get("token") or data.get("accessToken")
+        if not self._token:
+            raise PlanscapeAuthError(f"No token in {how} response")
+        self._token_expiry = time.time() + (
+            self._ACCESS_TOKEN_LIFETIME_S - self._REFRESH_MARGIN_S
+        )
+        self._session.headers.update({"Authorization": f"Bearer {self._token}"})
+        log.info("Planscape %s successful", how)
 
     def login(self, email: str, password: str) -> None:
         resp = self._session.post(
@@ -83,30 +107,67 @@ class PlanscapeClient:
         if resp.status_code == 401:
             raise PlanscapeAuthError("Invalid credentials")
         resp.raise_for_status()
-        data = resp.json()
-        self._token = data.get("token") or data.get("accessToken")
-        if not self._token:
-            raise PlanscapeAuthError("No token in login response")
         # Remember the credentials for transparent re-auth on expiry.
         self._email, self._password = email, password
-        # Assume 60-minute expiry; refresh 5 minutes early
-        self._token_expiry = time.time() + 55 * 60
-        self._session.headers.update({"Authorization": f"Bearer {self._token}"})
-        log.info("Planscape login successful")
+        self._pat = ""
+        self._accept_session(resp.json(), "login")
+
+    def login_with_token(self, token: str) -> None:
+        """Exchange a personal access token for a session.
+
+        The PAT itself is never sent as a bearer token — the server trades it
+        for an ordinary short-lived JWT, exactly as a password would be. That
+        keeps the API single-scheme and means the PAT only ever appears on this
+        one request.
+        """
+        token = (token or "").strip()
+        if not token:
+            raise PlanscapeAuthError("No access token supplied")
+
+        resp = self._session.post(
+            f"{self.base_url}/api/auth/token/exchange",
+            json={"token": token},
+            timeout=_TIMEOUT,
+        )
+        if resp.status_code == 401:
+            raise PlanscapeAuthError(
+                "Access token rejected — it may be revoked, expired, or from a "
+                "different server. Mint a new one and update STING_PLANSCAPE_TOKEN."
+            )
+        if resp.status_code == 404:
+            # An older server predates the exchange endpoint. Say so plainly
+            # rather than surfacing a bare 404 from deep in the stack.
+            raise PlanscapeAuthError(
+                "This Planscape server does not support access tokens "
+                "(no /api/auth/token/exchange). Upgrade the server, or use "
+                "STING_PLANSCAPE_EMAIL + STING_PLANSCAPE_PASSWORD instead."
+            )
+        resp.raise_for_status()
+        # Retain for re-auth; clear any password credentials so the two paths
+        # can never be mixed.
+        self._pat = token
+        self._email, self._password = "", ""
+        self._accept_session(resp.json(), "token exchange")
 
     def _ensure_auth(self, email: str, password: str) -> None:
         if not self._token or time.time() >= self._token_expiry:
             self.login(email, password)
 
     def _relogin(self) -> bool:
-        """Re-authenticate with the stored credentials. Returns False (never
-        raises) when no credentials are held or the re-login itself fails, so
-        the caller can surface the original 401 instead of a masking error."""
-        if not (self._email and self._password):
-            return False
+        """Re-authenticate with whichever credential this client holds.
+
+        Returns False (never raises) when no credential is held or the re-auth
+        itself fails, so the caller can surface the original 401 instead of a
+        masking error.
+        """
         try:
-            self.login(self._email, self._password)
-            return True
+            if self._pat:
+                self.login_with_token(self._pat)
+                return True
+            if self._email and self._password:
+                self.login(self._email, self._password)
+                return True
+            return False
         except Exception as e:  # noqa: BLE001 — a failed refresh must not mask the 401
             log.warning("Planscape re-authentication failed: %s", e)
             return False
