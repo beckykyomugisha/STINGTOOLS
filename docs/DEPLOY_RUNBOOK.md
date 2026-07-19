@@ -38,37 +38,40 @@ And choose the owner password (for `davis@planscape.build`).
 
 ---
 
-## 1. Pre-deploy migration check (one-time, on a dev machine)
+## 1. Schema — no pre-deploy migration step
 
-Production **auto-applies committed EF migrations on boot** (`Program.cs` calls
-`db.Database.Migrate()` in non-Development). So you don't run `database update`
-by hand — but you MUST make sure every mapped entity has a migration, or those
-tables won't exist and their endpoints will 500.
+> **Corrected 2026-07-20.** This section previously said production calls
+> `db.Database.Migrate()` and told you to run a pending-model-changes check.
+> That is **not** what the committed `render.yaml` does. Skip the old steps.
 
-```bash
-cd Planscape.Server
-# EF 8: detect entities mapped in the model but missing from migrations.
-dotnet ef migrations has-pending-model-changes \
-  --project src/Planscape.Infrastructure --startup-project src/Planscape.API
-```
+`render.yaml` sets **`PLANSCAPE_USE_ENSURE_CREATED=true`** on `planscape-api`
+and `planscape-worker`. `Program.cs` (~line 1327) therefore takes the
+**EnsureCreated** branch, not `Migrate()`:
 
-- If it reports **no pending model changes** → you're done; skip to step 2.
-- If it reports **pending changes** (known gap: the **HVAC snapshot** tables
-  `HvacLoadSnapshots` / `HvacNcSnapshots` / `HvacRefrigerantSizings` are in the
-  model snapshot but have no `CreateTable` migration), generate and commit it:
+1. It probes `information_schema` for the `Tenants` table.
+2. If absent (fresh DB), `creator.CreateTables()` materialises the whole schema
+   from `OnModelCreating`, which always matches the current entity classes.
+3. In **both** branches, idempotent patchers run (`PatchDevSchemaAsync`,
+   `PlatformSchemaPatcher.ApplyAsync`) with `ADD COLUMN IF NOT EXISTS` /
+   `CREATE TABLE IF NOT EXISTS`, so pre-existing DBs pick up later additions.
 
-```bash
-dotnet ef migrations add HvacEngineSnapshots \
-  --project src/Planscape.Infrastructure --startup-project src/Planscape.API
-git add src/Planscape.Infrastructure/Data/Migrations/*
-git commit -m "Add HvacEngineSnapshots migration"
-git push
-```
+This is the **official** schema-management mechanism for this codebase — see
+[adr/0001-schema-management.md](adr/0001-schema-management.md). The
+hand-authored migrations under `Planscape.Infrastructure/Data/Migrations/` are
+missing their `.Designer.cs` companions and the model snapshot is stale, so
+`Migrate()` cannot apply them in order; that is exactly why the flag exists.
+A startup schema-drift self-check fails loudly if an EF entity was never
+mirrored into the patcher.
 
-Already present (no action): `HealthcarePack` (`20260515…`),
-`IfcIngestSubstrate` (`20260519…`, incl. `ExternalElementMappings`), and ACC
-token columns (on `PlatformConnections`, base schema). The `#345` ACC issue
-sync needs **no** migration (it reuses `ConfigJson`).
+**So: nothing to do here before deploying.** (This also means the HVAC snapshot
+tables `HvacLoadSnapshots` / `HvacNcSnapshots` / `HvacRefrigerantSizings`, which
+have no `CreateTable` migration, are created correctly by the EnsureCreated
+path — the old instruction to generate an `HvacEngineSnapshots` migration is
+unnecessary.)
+
+If you ever **remove** `PLANSCAPE_USE_ENSURE_CREATED`, the `Migrate()` branch
+takes over and a complete, regenerated migration set becomes a hard
+prerequisite — regenerate it before flipping that switch.
 
 ---
 
@@ -167,7 +170,7 @@ Render once the CNAME verifies.)
 ## 5. First-boot verification
 
 ```bash
-# API healthy + migrations applied
+# API healthy + schema materialised (EnsureCreated path — see §1)
 curl -fsS https://api.planscape.build/health         # → 200
 
 # Owner login works (PlatformOwnerSeeder ran)
