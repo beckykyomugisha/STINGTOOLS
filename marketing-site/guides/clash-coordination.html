@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clash detection and coordination — Planscape</title>
+<meta name="description" content="What a clash actually is, why tolerance and clearance are not what they sound like, and how to get from thousands of raw hits to a coordinated model.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/clash-coordination.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Clash coordination</div>
+  <h1>Clash detection and getting to a coordinated model</h1>
+  <div class="meta">📖 10-minute read · Intermediate</div>
+
+  <p>Clash detection is easy to run and hard to use. The first run on a real project returns thousands of hits, most of which do not matter, and teams routinely abandon the process at that point. This guide is about the difference between finding clashes and resolving them.</p>
+
+  <h2>What a clash actually is</h2>
+  <p>At its simplest, a clash is two pieces of geometry occupying the same space. A duct through a beam. A pipe through a column.</p>
+  <p>But "occupying the same space" is a poor definition of a problem. Consider:</p>
+  <ul>
+    <li>A pipe passing through a wall — intended, that is what a sleeve is for.</li>
+    <li>Insulation touching the pipe it insulates — a mathematical overlap, not a conflict.</li>
+    <li>A beam meeting a column at a joint — that is the structure working.</li>
+    <li>Two ducts 5&nbsp;mm apart — no overlap at all, but nobody can install either one.</li>
+  </ul>
+  <p>The last is the important one. <strong>Geometric overlap and buildability are different questions.</strong> Things that do not touch can still be impossible to build, and things that overlap can be perfectly correct. A clash report that only answers the geometry question is mostly noise.</p>
+
+  <h2>How detection works</h2>
+  <p>Testing every element against every other element is unworkable — a model with 50,000 elements would need over a billion comparisons. So detection runs in stages, each cheap and approximate, narrowing the field for the next.</p>
+  <ol>
+    <li><strong>Broad phase.</strong> Every element is reduced to a simple box and boxes are tested for overlap. Crude, but it eliminates almost everything instantly. The boxes are padded by about 50&nbsp;mm so near-misses survive into the next stage.</li>
+    <li><strong>Narrow phase.</strong> Surviving pairs are tested against a tree of tighter, rotated boxes — which matters for anything long and diagonal, where an upright box is a poor fit.</li>
+    <li><strong>Triangle test.</strong> Only pairs that survive both get an exact surface-against-surface test.</li>
+  </ol>
+  <p>This is why a run takes minutes rather than days, and why the reported <em>volume</em> of a clash is an estimate rather than an exact intersection — computing true intersection volumes for every hit would cost far more than it is worth for a number used to sort a list.</p>
+
+  <h2>Tolerance and clearance — not what they sound like</h2>
+  <p>This is the part most worth reading carefully, because the names are misleading.</p>
+  <p>Which pairs of things get checked, and how strictly, is set by a matrix of rules. Each rule pairs two categories and gives them a tolerance:</p>
+  <table class="tbl">
+    <thead><tr><th>Pair</th><th>Tolerance</th><th>Severity</th></tr></thead>
+    <tbody>
+      <tr><td>Duct vs structural beam</td><td>Hard</td><td>High</td></tr>
+      <tr><td>Structural column vs architectural wall</td><td>Hard</td><td>High</td></tr>
+      <tr><td>Sprinkler vs duct</td><td>Clearance 100&nbsp;mm</td><td>High</td></tr>
+      <tr><td>Duct vs duct</td><td>Clearance 100&nbsp;mm</td><td>Medium</td></tr>
+      <tr><td>Pipe vs pipe</td><td>Clearance 50&nbsp;mm</td><td>Medium</td></tr>
+      <tr><td>Light fitting vs ceiling</td><td>Clearance 50&nbsp;mm</td><td>Low</td></tr>
+    </tbody>
+  </table>
+  <p>Services against structure are <strong>hard</strong> — any overlap is a problem, because you cannot route a duct through a beam without someone approving a penetration.</p>
+
+  <div class="callout warn">
+    <strong>A clearance setting relaxes detection; it does not widen it.</strong> "Clearance 50&nbsp;mm" does <em>not</em> mean "report anything within 50&nbsp;mm". It means "tolerate up to 50&nbsp;mm of genuine overlap before treating it as a clash". Two pipes 30&nbsp;mm apart are not reported at all, because they do not overlap. If you need true proximity checking for access or insulation space, do not rely on clearance rules to provide it.
+  </div>
+  <p>Each rule also carries an owning discipline and a stage gate, so structural conflicts can be raised at design development while service-against-service congestion waits for coordination stage — matching the order in which the work is actually resolvable.</p>
+
+  <h2>Filtering the noise</h2>
+  <p>Separately from the matrix, a set of rules classifies hits as genuine, intentional, or artefacts of how geometry is represented. Curved surfaces are approximated by flat triangles, and two nominally touching curved surfaces will overlap slightly — a real number, not a real problem.</p>
+  <p>Thresholds matter enormously here, and one example is instructive. The rule that recognises structural joints originally ignored overlaps below a 10&nbsp;cm cube. Real beam-to-column joints routinely overlap 30–80&nbsp;cm in each direction, so every joint in the building was reported as a clash. The threshold is now around 500 litres. A filter set too tight is indistinguishable from no filter at all.</p>
+  <p>Where several rules apply, the strictest verdict wins rather than the first one matched — so the order rules are listed in cannot silently change the result.</p>
+
+  <h2>Grouping — 3,000 clashes into 40 problems</h2>
+  <p>The single biggest step from raw output to usable output. One misrouted duct crossing twenty beams is <em>one</em> mistake with one fix, but naive detection reports it as twenty clashes. STING groups in three passes:</p>
+  <ul>
+    <li><strong>By element</strong> — the same element appearing repeatedly becomes one group. Fix the duct, clear twenty hits.</li>
+    <li><strong>By pattern</strong> — evenly spaced repetition, such as a riser hitting every floor or a light row hitting every ceiling tile, becomes one group with a recognisable shape.</li>
+    <li><strong>By location</strong> — whatever remains clusters spatially, so one congested plant room is one item on the list rather than sixty.</li>
+  </ul>
+  <p>The spatial grid adapts to what is being grouped: small light fittings cluster at around a metre, large plant against structure at several metres. A fixed grid over-clusters the small things and under-clusters the large ones.</p>
+
+  <h2>How STING approaches it</h2>
+  <p>Clash tools sit on the <strong>BIM</strong> tab of the main panel.</p>
+  <ul>
+    <li><strong>Detect</strong> — run detection.</li>
+    <li><strong>Run</strong> — the full pipeline through to stored results.</li>
+    <li><strong>X-Model</strong> — extend across linked models. This is where the real conflicts live: your services against someone else's structure. A model checked only against itself will look far cleaner than the project actually is.</li>
+    <li><strong>Matrix</strong> — edit which pairs are checked and how strictly.</li>
+    <li><strong>Refresh</strong> — re-run against the current model.</li>
+    <li><strong>Manager</strong> — work through results.</li>
+    <li><strong>BCF</strong> — export findings.</li>
+  </ul>
+  <p>Detection runs inside Revit against your model. It is not a streamed feed from a server, so results reflect the model as it is on your machine right now.</p>
+
+  <h3>Getting issues to the rest of the team</h3>
+  <p>BCF is the open format for construction issues, and STING exports <strong>BCF 2.1</strong> — readable by Solibri, BIMcollab, Navisworks and Autodesk Construction Cloud. Each issue carries a viewpoint, so opening it puts the recipient's camera on the problem rather than leaving them to find it.</p>
+  <p>One detail that matters more than it sounds: each issue gets an identifier derived from the clash itself, so re-exporting after a second run produces the <em>same</em> identifier for an unresolved clash. Without that, every weekly export would land as a fresh batch of duplicates and the issue tracker would become useless within a month.</p>
+  <p>Severity maps onto the priority levels those tools expect, so a critical clash arrives as critical rather than flattening to a default.</p>
+
+  <h2>Getting to a coordinated model</h2>
+  <ol>
+    <li><strong>Set the matrix before the first run.</strong> Running everything against everything produces a number so large it teaches the team the report is not worth reading.</li>
+    <li><strong>Run cross-model.</strong> Single-model results are reassuring and misleading.</li>
+    <li><strong>Work groups, not clashes.</strong> The list of forty grouped problems is the real agenda. Twenty hits from one duct is one conversation.</li>
+    <li><strong>Fix causes.</strong> If a service crosses a structural zone repeatedly, the route is wrong — nudging each crossing individually guarantees they return next week.</li>
+    <li><strong>Export to BCF and assign owners.</strong> A clash nobody owns does not get fixed.</li>
+    <li><strong>Re-run and compare.</strong> What matters is the trend: are groups closing faster than new ones appear.</li>
+  </ol>
+  <p>The number to watch is not clashes found — that number reflects how much of the building is modelled as much as how well it is coordinated. Watch how many grouped problems are open, and how long they stay open.</p>
+
+  <div class="cta-band">
+    <p>That completes the current guide set. If something you needed is not covered, email <a href="mailto:hello@planscape.build">hello@planscape.build</a> — the answer usually becomes the next guide.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

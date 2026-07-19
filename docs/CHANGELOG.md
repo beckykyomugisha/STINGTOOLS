@@ -2,6 +2,50 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 206 — planscape.build web funnel, self-serve licensing, and the guides library)
+
+The commercial front end of Planscape — everything a customer touches before the
+plugin loads. Landed across several branches; recorded here as one arc because the
+pieces only make sense together.
+
+**Web funnel (Phases 1–2).** Marketing site, signup, and the account area on
+Cloudflare Pages Functions backed by D1, which is canonical for identity. Pricing is
+derived per-visitor rather than hardcoded, after a currency-derivation defect that
+showed some visitors the wrong local figure; existing rows were backfilled rather
+than left inconsistent.
+
+**Downloads + licensing.** StingTools and StingBridge ship from a private R2 bucket
+through gated Functions that stream the artifact rather than exposing a bucket URL.
+Licence issuing is self-serve with seat caps enforced at issue time. StingBridge is
+deliberately licence-key-free — the Planscape account is the entitlement — and
+released at `0.1.0-beta.1`. (Detail in Phase 199.)
+
+**Identity handoff.** The cloud→server handoff from D1 to the .NET API, proven
+end-to-end locally. (Detail in Phase 201.) Note the production-side secret is still
+unset — see `docs/DEPLOY_RUNBOOK.md` §3e for the ordering constraint.
+
+**Deployment.** Render blueprint corrections and the runbook validation pass.
+(Detail in Phase 200.)
+
+**Guides library.** Rebuilt from 41 dead links to zero, then extended from
+installation-only coverage to the full subject set: tagging basics, drawing
+production, plumbing, HVAC, electrical, bills of quantities, and clash
+coordination. Each opens with the engineering — what a fixture unit is, why the sum
+of zone peaks oversizes plant, why voltage drop rather than current sizes a long
+cable — before naming a button. UI facts were read from the XAML, which caught
+CLAUDE.md being stale on the drawing-type counts (93 types / 118 routing rules, not
+40/43), the view style pack count (35), the panel tab list, and the plumbing panel's
+file type. Engine caveats that affect built work are stated in the guides rather
+than omitted: indicative NC prediction, the simplified load model, the assumed 5 m
+feeder in fault-current propagation, and simplified arc flash above 600 V.
+
+**Production-site corrections.** Four defects fixed on the live site: the homepage
+was redirecting to `/blog/`; a fabricated testimonial was removed; plan pricing was
+corrected from $15/$35 to $25/$60; and the comparison table was showing an 11×
+figure that the underlying numbers did not support.
+
+---
+
 #### Completed (Phase 205 — SB-3: token inference single-sourced into core + ArchiCAD HostAdapter)
 
 `StingBridge/sync/token_mapper.py` + `archicad/element_types.py` held their own
