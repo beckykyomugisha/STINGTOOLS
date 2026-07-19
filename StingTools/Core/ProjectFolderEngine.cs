@@ -195,6 +195,16 @@ namespace StingTools.Core
         /// </summary>
         public static string GetRootPath(Document doc)
         {
+            // 0. ES root-identity stamp — a STABLE stored root that survives a project-number
+            //    rename (which would otherwise fork a new <CODE> tree). Only used when it
+            //    resolves to an existing directory; absent/stale ⇒ fall through unchanged.
+            try
+            {
+                string stamped = Storage.StingProjectRootSchema.ResolveStampedRoot(doc);
+                if (!string.IsNullOrEmpty(stamped)) { RememberRoot(doc, stamped); return stamped; }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetRootPath stamp lookup: {ex.Message}"); }
+
             // 1. Phase 167: Honour persisted ProjectSetup first (per-document, authoritative)
             try
             {

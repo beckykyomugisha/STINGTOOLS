@@ -1177,6 +1177,13 @@ namespace StingTools.Core
                                 }
                                 catch (Exception fcEx) { StingLog.Warn($"DocumentOpened CDE folder creation: {fcEx.Message}"); }
                             }
+
+                            // Stamp the resolved root onto ProjectInformation (ES) so it
+                            // survives a later project-number rename. Best-effort, guarded,
+                            // and a no-op once stamped — follows the HVAC climate-stamp
+                            // pattern of writing to ProjectInformation from DocumentOpened.
+                            try { Core.Storage.StingProjectRootSchema.EnsureStamped(e.Document); }
+                            catch (Exception rsEx) { StingLog.Warn($"DocumentOpened root stamp: {rsEx.Message}"); }
                         }
                     }
                 }
