@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plumbing — water supply, drainage and fixture units — Planscape</title>
+<meta name="description" content="What fixture units are, why drains need fall, and how STING sizes water supply and drainage pipes in Revit — the engineering first, then the buttons.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/plumbing.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Plumbing</div>
+  <h1>Plumbing — supply, drainage and fixture units</h1>
+  <div class="meta">📖 10-minute read · Intermediate</div>
+
+  <p>This guide covers the two halves of a building's water services: getting clean water to the fixtures at a usable pressure, and getting waste away from them reliably. It starts with the engineering, because the buttons only make sense once the reasoning does.</p>
+
+  <h2>The problem with adding up taps</h2>
+  <p>The obvious way to size a water main is to add up what every fixture draws when it is running, and size for that. On a fifty-flat residential block this gives you an absurd number — a main big enough to serve every WC, shower and tap flushing at the same instant, which will never happen.</p>
+  <p>It is also actively harmful. An oversized pipe carries water slowly, water sits in it longer, and warm stagnant water is where <em>Legionella</em> grows. Oversizing is not the safe conservative choice people assume it is.</p>
+
+  <h2>What a fixture unit actually is</h2>
+  <p>A fixture unit is a weighting number. It rolls up two things about a fixture — roughly how much it draws when running, and how often it is likely to be running — into a single figure you can add up.</p>
+  <p>A WC gets a higher unit value than a wash-hand basin, not only because it discharges more but because its demand arrives in a sharp burst. Once you have totalled the units on a branch, you convert that total to a <strong>design flow</strong> through a curve that already accounts for the fact that fixtures don't coincide. That conversion is the entire trick: the curve flattens as the count rises, because the more fixtures you serve, the smaller the fraction running at once.</p>
+  <p>You will meet three flavours of the same idea, and STING carries all three per fixture:</p>
+  <ul>
+    <li><strong>LU — loading units</strong>, the UK and European supply-side measure, converted to design flow per <strong>BS EN 806-3</strong>. STING tracks hot and cold separately.</li>
+    <li><strong>WSFU — water supply fixture units</strong>, the North American equivalent, converted using <strong>Hunter's method</strong>, with a separate curve depending on whether flush valves dominate.</li>
+    <li><strong>DU — drainage units</strong>, the waste-side measure, used to size drains per <strong>BS EN 12056-2</strong>.</li>
+  </ul>
+  <p>Supply and drainage need separate numbers because the questions differ. Supply asks "how much do I need to deliver at once"; drainage asks "how much arrives, and will it carry the solids with it".</p>
+
+  <h2>Sizing the supply</h2>
+  <p>With a design flow established, two checks decide the diameter.</p>
+  <p><strong>Velocity.</strong> Too fast and you get noise, water hammer and erosion of the pipe wall — copper is particularly unforgiving. Too slow and you get the stagnation problem above. The usable band is narrow.</p>
+  <p><strong>Pressure loss.</strong> Water loses pressure to friction as it travels. Add up the losses along the worst route — usually the highest, most distant fixture — plus the static lift of getting it up there, and check that what remains at the outlet is enough to work. A shower needs meaningful residual pressure; a bib tap does not.</p>
+  <p>STING computes friction by <strong>Hazen-Williams</strong> by default, and can use <strong>Darcy-Weisbach</strong> instead — with the Swamee-Jain approximation to Colebrook-White, falling back to Hagen-Poiseuille in laminar flow. You can drive sizing by velocity limit or by unitary head loss, the latter being the approach engineers trained on WRc and IPS methods will expect for trunk mains.</p>
+
+  <h2>Why drains need fall — and why more is not better</h2>
+  <p>Drainage is gravity-driven, so a drain needs slope. What surprises people is that steeper is not safer.</p>
+  <p>At too shallow a gradient the flow lacks the energy to move solids, and they strand. At too steep a gradient the water simply outruns the solids — it drains away and leaves them behind on a dry invert, which blocks just as effectively. What you are aiming for is a <strong>self-cleansing velocity</strong>, and STING checks against <strong>0.7 m/s</strong>.</p>
+  <p>Drains are also sized to run about <strong>half full</strong>, not full, per <strong>BS EN 12056-2 §6.2.3</strong>. The empty upper half is not waste — it is the air path that lets the system breathe. STING evaluates velocity by <strong>Chezy-Manning</strong>, with roughness varying by pipe material.</p>
+
+  <h2>Vents, and the smell test</h2>
+  <p>Every fixture has a trap holding a plug of water that stops sewer gas entering the building. That plug is fragile.</p>
+  <p>When a large discharge rushes down a stack it drags air with it, dropping the pressure behind it. If nothing replaces that air, the nearest trap seal gets siphoned out — and the room smells. Conversely a surge downstream can push pressure back up and blow a seal out into the room.</p>
+  <p>Vents exist to let air in and out fast enough that neither happens. STING sizes them per <strong>BS EN 12056-2 Annex B</strong>, or <strong>IPC 2021 Table 916.1</strong> if the project is set to a US code, and will flag where an air admittance valve is needed.</p>
+
+  <h2>Invert levels</h2>
+  <p>An invert is the inside bottom of the pipe — the surface water actually runs on. Below-ground drainage is set out by invert level rather than centreline, because that is what governs whether one drain can discharge into another and whether you have enough cover.</p>
+  <p>STING derives upstream and downstream inverts from the pipe centreline less the radius, referenced to the project base point, and checks cover depth against burial thresholds — 1.20 m under highway, 0.60 m under soft landscape.</p>
+
+  <div class="callout warn">
+    <strong>Check this one before you trust it:</strong> without surveyed ground levels in the model, STING treats the lowest point in the project as ground when testing cover depth. On a sloping site that assumption will be wrong. Read the cover-depth results as a prompt to check, not as a verdict.
+  </div>
+
+  <h2>How STING approaches it</h2>
+  <p>Plumbing has its own panel, with eight tabs that follow the order the work actually happens in.</p>
+  <table class="tbl">
+    <thead><tr><th>Tab</th><th>What it is for</th></tr></thead>
+    <tbody>
+      <tr><td><strong>SYSTEM</strong></td><td>Set the project context — which code, building type, and whether there is a recirculation loop</td></tr>
+      <tr><td><strong>SUPPLY</strong></td><td>Fixture unit scan, pipe sizing, pressure checks, expansion vessel</td></tr>
+      <tr><td><strong>DRAINAGE</strong></td><td>Drain sizing, slopes, vents, stack capacity, invert levels</td></tr>
+      <tr><td><strong>ROUTE</strong></td><td>Routing, traps, sleeves, hangers, and the fixture palette</td></tr>
+      <tr><td><strong>STORM</strong></td><td>Roof drainage, attenuation, rainwater harvesting, soakaways</td></tr>
+      <tr><td><strong>SPECIALTY</strong></td><td>Backflow and cross-connection checks</td></tr>
+      <tr><td><strong>AUDIT</strong></td><td>Run everything and get a red/amber/green picture</td></tr>
+      <tr><td><strong>DOCS</strong></td><td>Schedules, bills of quantities, commissioning packs</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Start on SYSTEM</h3>
+  <p>Set the standard first — <strong>BS EN 12056 (UK / EU)</strong>, <strong>IPC 2021 (US)</strong>, <strong>UPC 2021 (US)</strong> or <strong>NCC AU</strong> — along with building type and hot-water regime. Everything downstream reads these, so changing them later means re-running the sizing. <strong>💾 Save System Config</strong> keeps the choice with the project.</p>
+
+  <h3>Then supply</h3>
+  <p><strong>Scan Fixtures (DU / LU / WSFU)</strong> is always the first calculation. It walks the plumbing fixtures, matches each against the fixture-unit tables by family name, and writes the unit values onto the elements. Anything it cannot match is reported as unmatched rather than silently assumed — read that count, because an unmatched fixture contributes nothing and will quietly undersize the branch feeding it.</p>
+  <p>Then <strong>▶ Size DCW / DHW pipes</strong> accumulates units upstream of each pipe, converts to design flow, and sizes. <strong>Pressure Check (per level)</strong> confirms residual pressure at the outlets. <strong>Size Expansion Vessel (BS 7074-1)</strong> and <strong>Build TMV Register</strong> handle the hot-water side, and <strong>Dead-Leg Scan (HSG 274)</strong> finds the stagnant branches that matter for water hygiene.</p>
+
+  <h3>Then drainage</h3>
+  <p><strong>Size Drainage (preview)</strong> shows what would change; <strong>▶ Auto-Size Drainage</strong> applies it. <strong>Fix Slopes (auto-correct)</strong> brings gradients into range, <strong>Design Vents</strong> then <strong>▶ Create Vents</strong> handles venting, and <strong>Calculate Invert Levels</strong> sets out the below-ground work. <strong>Stack Capacity</strong> and <strong>Trap &amp; Vent Audit</strong> are the checks worth running before you issue anything.</p>
+  <p>Sizing writes back to the actual Revit pipe diameter, not only to a reported value — so the model and the calculation stay in step rather than drifting apart.</p>
+
+  <h3>Finish on AUDIT</h3>
+  <p><strong>▶ Run Full Audit</strong> runs the compliance domains together and gives you one dashboard: backflow categories per <strong>BS EN 1717</strong>, dead legs, stack capacity, trap and vent integrity, and material compatibility. It is the fastest honest answer to "is the plumbing ready to issue".</p>
+
+  <h2>A sensible order of work</h2>
+  <ol>
+    <li><strong>SYSTEM</strong> — set the code and building type before anything else.</li>
+    <li><strong>SUPPLY</strong> &rsaquo; <strong>Scan Fixtures</strong>, and check the unmatched count is zero.</li>
+    <li><strong>SUPPLY</strong> &rsaquo; <strong>Size DCW / DHW pipes</strong>, then <strong>Pressure Check</strong>.</li>
+    <li><strong>DRAINAGE</strong> &rsaquo; <strong>Size Drainage (preview)</strong> — read it before applying.</li>
+    <li><strong>DRAINAGE</strong> &rsaquo; <strong>Auto-Size Drainage</strong>, <strong>Fix Slopes</strong>, <strong>Design Vents</strong>.</li>
+    <li><strong>AUDIT</strong> &rsaquo; <strong>Run Full Audit</strong> and clear what it raises.</li>
+  </ol>
+  <p>The preview-then-apply habit matters here more than anywhere else in STING. Drainage sizing changes real geometry, and it is much easier to read a proposed change than to unpick an applied one.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/hvac.html">HVAC</a> covers heat loads, duct sizing and noise — including why plant sized on the sum of zone peaks is usually 20–30% too big.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
