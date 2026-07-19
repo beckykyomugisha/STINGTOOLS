@@ -1018,11 +1018,21 @@ public class AuthController : ControllerBase
         var slug  = p.TenantSlug.Trim().ToLowerInvariant();
 
         // Email is the join key. An existing user keeps their existing tenant —
-        // the handoff never moves a user between tenants.
+        // the handoff never moves a user between tenants. Match regardless of
+        // IsActive (only exclude soft-deleted): filtering on IsActive here made
+        // the lookup miss a deactivated account and then collide with the
+        // (TenantId, Email) unique index trying to create a duplicate.
         var user = await _db.Users
             .IgnoreQueryFilters()
             .Include(u => u.Tenant)
-            .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+            .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+
+        if (user != null && !user.IsActive)
+        {
+            // D1 is the entitlement authority and it just vouched for this
+            // user by minting the ticket — reactivate rather than refuse.
+            user.IsActive = true;
+        }
 
         if (user == null)
         {
