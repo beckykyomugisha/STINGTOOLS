@@ -260,6 +260,72 @@ class PlanscapeClient:
         resp.raise_for_status()
         return resp.json()
 
+    def reserve_seq(self, reservations: dict[str, int]) -> dict[str, dict]:
+        """Reserve blocks of sequence numbers — POST /api/projects/{id}/seq/reserve.
+
+        ``reservations`` maps counter key → how many numbers are wanted. Returns
+        the same keys mapped to ``{"start": int, "end": int, "count": int}``,
+        an inclusive block this caller now owns exclusively.
+
+        DEGRADES GRACEFULLY. A server that predates the endpoint, an outage, or
+        any other failure returns ``{}`` rather than raising: SEQ is the last
+        segment of the tag and the other seven are still worth syncing. Failing
+        the whole run because numbering was unavailable would turn a cosmetic
+        gap into lost work — the caller simply leaves those tags 7-segment, and
+        a later run fills them in.
+
+        Callers MUST treat a missing key in the result as "no number available"
+        rather than assuming a default, or two runs could mint the same value.
+        """
+        if not reservations:
+            return {}
+        if not self.project_id:
+            log.warning("No project id - skipping SEQ reservation")
+            return {}
+
+        try:
+            resp = self._send(
+                "post",
+                f"{self.base_url}/api/projects/{self.project_id}/seq/reserve",
+                json={"reservations": reservations},
+                timeout=_TIMEOUT,
+            )
+        except Exception as e:  # noqa: BLE001 — network/transport
+            log.warning("SEQ reservation failed (%s) - tags will stay 7-segment", e)
+            return {}
+
+        if resp.status_code == 404:
+            # Either an older server without /seq/reserve, or an unknown project.
+            log.warning(
+                "SEQ reservation unavailable (404) - this server may predate "
+                "/api/projects/{id}/seq/reserve. Tags will stay 7-segment."
+            )
+            return {}
+        if resp.status_code >= 400:
+            log.warning(
+                "SEQ reservation rejected (HTTP %s) - tags will stay 7-segment",
+                resp.status_code,
+            )
+            return {}
+
+        try:
+            payload = resp.json().get("assignments") or {}
+        except Exception as e:  # noqa: BLE001 — malformed body
+            log.warning("SEQ reservation returned unreadable body (%s)", e)
+            return {}
+
+        out: dict[str, dict] = {}
+        for key, block in payload.items():
+            try:
+                out[key] = {
+                    "start": int(block["start"]),
+                    "end": int(block["end"]),
+                    "count": int(block["count"]),
+                }
+            except (KeyError, TypeError, ValueError):
+                log.warning("Ignoring malformed SEQ block for %r: %r", key, block)
+        return out
+
     def sync_elements(
         self,
         elements: list[dict],

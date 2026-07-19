@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 202 — Revision System Alignment, branch `claude/revision-system-fixes`)
+#### Completed (Phase 203 — Revision System Alignment, branch `claude/revision-system-fixes`)
 
 The revision subsystem had strong building blocks but broken wiring: two conflicting
 title-block sync commands, a revision strip writing to parameters that exist nowhere, a
@@ -145,6 +145,62 @@ table was exercised against 20 cases in a standalone harness. **Revit runtime ve
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
 and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
 every path there is warning-wrapped rather than fatal.
+#### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
+
+ArchiCAD elements were leaving the bridge with 7-segment tags
+(`M-BLD1-Z01-L02-HVAC-SUP-AHU`) while Revit produced 8 (`…-AHU-0003`), so the same
+building was numbered in one host and not the other. Closes ROADMAP **SB-2**.
+
+- **New `POST /api/projects/{id}/seq/reserve`.** The existing `/seq/sync` is a
+  max-per-key **merge**, which is right for the Revit plugin (each instance
+  allocates locally against a document it holds, then reconciles) but cannot make
+  two independent writers safe: both can read the same high-water mark, both mint
+  the same number, and max-merge then accepts the higher of two identical values.
+  A client with no local document to allocate against needs the counter bumped and
+  read indivisibly. Implemented as one
+  `INSERT … ON CONFLICT ("ProjectId","CounterKey") DO UPDATE SET "CurrentValue" =
+  "CurrentValue" + n RETURNING "CurrentValue"` per key — Postgres holds a row lock
+  for the statement, so concurrent callers serialise and each receives a disjoint
+  block. Keys are locked in `Ordinal` sort order so two multi-key reservations
+  cannot deadlock. Counts are bounded to 1..10000 so one caller cannot exhaust a
+  key's 4-digit space in a single call. Returns the inclusive `[start, end]` block
+  the caller owns.
+
+- **`StingBridge/sync/seq_minter.py`** ports `SeqAssigner.BuildSeqKey` exactly —
+  `DISC_SYS_LVL` and its zone/loc variants, including the placeholder
+  normalisation (`""`→`A`/`GEN`/`L00`, `XX`/`ZZ`→defaults). That fidelity is the
+  whole point: a key-format divergence would silently restart numbering per host
+  and mint duplicates *across* hosts, which is worse than not numbering at all.
+
+- **Wired into both paths** — the live-ArchiCAD sync engine (per chunk) and the
+  IFC drop-folder watcher (per file). One batched reservation per run, never one
+  call per element. Elements that already carry a SEQ are skipped, so re-dropping
+  the same IFC neither renumbers stable elements nor burns counter values.
+
+- **Degrades gracefully, and never invents a number.** A server that predates the
+  endpoint (404), an outage, or a malformed body leaves tags 7-segment and logs;
+  the sync still completes, because failing a whole run over the last tag segment
+  would turn a cosmetic gap into lost work. Critically, a key **missing** from the
+  response is treated as "no number available" rather than falling back to a local
+  guess — a local fallback is precisely how two runs would collide.
+
+**Verified.** 18 new unit tests against a fake counter server (key format,
+batching, idempotence, overflow at pad-4, graceful degrade, and the
+missing-key-is-not-invented rule); all 40 pre-existing StingBridge tests still
+pass. **E2E** (`StingBridge/tests/e2e_seq_minting.py`) against a real API build on
+:5099 wired to the docker Postgres: two sequential runs produce 10 distinct
+monotonic numbers; a re-run assigns 0 and leaves the counter un-advanced;
+**8 concurrent clients × 10 numbers each produce 80 distinct values that tile
+1..80 exactly — no gaps, no overlaps, every client receiving one contiguous
+block**; and a multi-key call numbers each key independently from 0001.
+
+**Not verified:** the reserve endpoint has no xunit test, because it relies on
+Postgres `ON CONFLICT … RETURNING` and the integration harness runs EF InMemory,
+which cannot execute that SQL. The concurrency guarantee is exactly the thing a
+fake cannot establish, so the E2E against real Postgres is the authority here.
+The Revit plugin still uses `/seq/sync` and was not changed; adopting `/reserve`
+there would let it drop its local-allocation dance, but that is its own change.
+
 #### Completed (Phase 201 — account provisioning bridge: handoff → starter project → personal access tokens)
 
 Closes the gap that made a planscape.build subscription unusable from StingBridge:

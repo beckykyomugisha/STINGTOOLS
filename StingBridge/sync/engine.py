@@ -24,6 +24,7 @@ from typing import Any
 
 from ..archicad.client import ArchiCadClient, ArchiCadError
 from ..archicad.element_types import SYNCABLE_TYPES
+from .seq_minter import assign_sequences
 from ..planscape.client import PlanscapeClient, PlanscapeError
 from .token_mapper import map_element_to_tokens
 from .property_writer import PropertyWriter
@@ -391,6 +392,7 @@ class SyncEngine:
             result.errors.append(f"get_property_values: {e}")
             return  # skip this chunk; token derivation would be empty
 
+        chunk_rows: list[tuple[str, dict, dict]] = []
         for guid in chunk:
             details = details_map.get(guid, {})
             props   = props_map.get(guid, {})
@@ -428,6 +430,21 @@ class SyncEngine:
                     library_part_name=details.get("libPartName", ""),
                 )
 
+            chunk_rows.append((guid, tokens, details))
+
+        # SB-2 — mint the 8th tag segment before building the payloads. Batched
+        # once per chunk rather than per element, and only for elements that do
+        # not already carry a SEQ, so re-running over the same model neither
+        # renumbers stable elements nor burns counter values. A server that
+        # cannot reserve leaves tags 7-segment; it never fails the sync.
+        try:
+            minted = assign_sequences(self._ps, [t for _, t, _ in chunk_rows])
+            if minted:
+                log.info("Minted %d SEQ number(s) for %s", minted, element_type)
+        except Exception as e:  # noqa: BLE001 — numbering must never fail a sync
+            log.warning("SEQ minting skipped for %s: %s", element_type, e)
+
+        for guid, tokens, details in chunk_rows:
             # Build Planscape sync element
             is_complete = bool(
                 tokens.get("disc") and tokens.get("lvl") and
