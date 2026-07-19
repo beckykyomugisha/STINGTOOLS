@@ -362,17 +362,11 @@ namespace StingTools.BIMManager
         /// </summary>
         internal static string ValidateRevisionNumber(string revNum)
         {
-            if (string.IsNullOrWhiteSpace(revNum)) return "Revision number is empty";
-            revNum = revNum.Trim().ToUpper();
-            // P## pattern (preliminary)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^P\d{2}$")) return null;
-            // C## pattern (construction)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^C\d{2}$")) return null;
-            // Single letter A-Z (as-built)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^[A-Z]$")) return null;
-            // Numeric (legacy)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^\d+$")) return null;
-            return $"Non-standard revision number '{revNum}'. Expected P01-P99, C01-C99, or A-Z.";
+            // Delegates to the canonical series table (StingTools.Core.RevisionSeries)
+            // so what the BCC Revisions dropdown offers is exactly what validates:
+            // all 9 series plus status stamps, single-letter as-built and legacy
+            // numeric codes.
+            return RevisionSeries.Validate(revNum);
         }
 
         /// <summary>
@@ -799,26 +793,8 @@ namespace StingTools.BIMManager
         /// label — the full code still appears verbatim in the description.</summary>
         private static string InferSeriesName(string code)
         {
-            if (string.IsNullOrWhiteSpace(code)) return "Custom";
-            string c = code.Trim().ToUpperInvariant();
-            // Multi-character prefixes first (must match before single-letter checks).
-            if (c.StartsWith("CO")) return "Contract";
-            if (c.StartsWith("AB")) return "As-Built";
-            if (c.StartsWith("IF") || c == "WD" || c == "SS" || c == "OB") return "Status Stamp";
-            // Single-letter series.
-            switch (c[0])
-            {
-                case 'T': return "Tender";
-                case 'P': return "Preliminary";
-                case 'C': return "Construction";
-                case 'R': return "Revision";
-                case 'B': return "Building";
-                case 'D': return "Digital";
-                case 'A': return "Approved";
-            }
-            // Plain single-letter as-built codes (A–Z without suffix).
-            if (c.Length == 1 && c[0] >= 'A' && c[0] <= 'Z') return "As-Built";
-            return "Custom";
+            // Delegates to the canonical series table (StingTools.Core.RevisionSeries).
+            return RevisionSeries.InferSeriesName(code);
         }
     }
 

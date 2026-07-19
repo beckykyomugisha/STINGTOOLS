@@ -3330,6 +3330,14 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"SaveHiddenIsoRevisions: {ex.Message}"); }
         }
 
+        // NOTE: StingTools.Core.RevisionSeries is the CANONICAL table of revision
+        // series (prefix → label → validation regex). RevisionEngine.ValidateRevisionNumber
+        // delegates to it, so every code enumerated below validates. When adding a
+        // series here, add the matching entry to RevisionSeries.Series or the new
+        // codes will be flagged by RevisionNamingEnforceCommand.
+        // This method stays hand-written because it also carries the per-code
+        // human labels and tooltips the dropdown needs, which the series table
+        // (deliberately) does not model.
         private static (string Code, string Label, string Series, string Tooltip)[] BuildIsoRevisionCodes()
         {
             var list = new List<(string, string, string, string)>();
