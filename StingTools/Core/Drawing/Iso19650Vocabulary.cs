@@ -116,6 +116,7 @@ namespace StingTools.Core.Drawing
             "S2",  // Suitable for information
             "S3",  // Suitable for review and comment
             "S4",  // Suitable for stage approval
+            "S5",  // Suitable for manufacture / procurement
             "S6",  // Suitable for PIM authorization
             "S7",  // Suitable for AIM authorization
             // Published (authorisation)
@@ -130,6 +131,9 @@ namespace StingTools.Core.Drawing
             "B4",  // Partial sign-off, manufacture
             "B5",  // Partial sign-off, installation
             "B6",  // Partial sign-off, archive
+            // As-constructed record + retirement
+            "CR",  // As-constructed record document
+            "AB",  // Abandoned / superseded
             // Archive
             "AR",  // Archive
         };
@@ -141,6 +145,7 @@ namespace StingTools.Core.Drawing
             { "S2", "S2 — Suitable for information" },
             { "S3", "S3 — Suitable for review & comment" },
             { "S4", "S4 — Suitable for stage approval" },
+            { "S5", "S5 — Suitable for manufacture / procurement" },
             { "S6", "S6 — Suitable for PIM authorization" },
             { "S7", "S7 — Suitable for AIM authorization" },
             { "A1", "A1 — Authorized and accepted" },
@@ -154,6 +159,8 @@ namespace StingTools.Core.Drawing
             { "B4", "B4 — Partial sign-off, manufacture" },
             { "B5", "B5 — Partial sign-off, installation" },
             { "B6", "B6 — Partial sign-off, archive" },
+            { "CR", "CR — As-constructed record document" },
+            { "AB", "AB — Abandoned / superseded" },
             { "AR", "AR — Archive" },
         };
 

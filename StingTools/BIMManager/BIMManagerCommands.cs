@@ -54,19 +54,13 @@ namespace StingTools.BIMManager
     internal static class BIMManagerEngine
     {
         // ── ISO 19650 Suitability Codes ──
-        internal static readonly Dictionary<string, string> SuitabilityCodes = new Dictionary<string, string>
-        {
-            ["S0"] = "Work In Progress",
-            ["S1"] = "Fit for Coordination",
-            ["S2"] = "Fit for Information",
-            ["S3"] = "Fit for Review and Comment",
-            ["S4"] = "Fit for Stage Approval",
-            ["S5"] = "Fit for Manufacturing/Procurement",
-            ["S6"] = "Fit for PIM Authorization",
-            ["S7"] = "Fit for AIM Authorization",
-            ["CR"] = "As-Constructed Record Document",
-            ["AB"] = "Abandoned/Superseded"
-        };
+        // Single source of truth: StingTools.Core.Drawing.Iso19650Vocabulary.SuitabilityLabels.
+        // Previously this was a separate {S0-S7,CR,AB} dict that omitted the A/B
+        // authorization codes; the register now offers the full canonical set
+        // (S0-S7 + A1-A5 + B1-B6 + CR + AB + AR). The vocabulary superset preserves
+        // every code this table used to carry, so no existing register row is orphaned.
+        internal static Dictionary<string, string> SuitabilityCodes =>
+            StingTools.Core.Drawing.Iso19650Vocabulary.SuitabilityLabels;
 
         // ── CDE Container States (ISO 19650-1 §12) ──
         internal static readonly Dictionary<string, string> CDEStates = new Dictionary<string, string>
