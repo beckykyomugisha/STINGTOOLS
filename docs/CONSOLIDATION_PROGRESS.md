@@ -29,8 +29,8 @@ Every work package below must end green at 0/0.
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
 | WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | **DONE** — per-doc root cache + `OptionFolderManager` fix + `StingPaths` facade + gate; **all 43 sibling `_BIM_COORD` writers migrated across 37 files; baseline now ZERO** (gate is a hard ratchet) |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
-| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | PARTIAL — vocabulary unified (WP8.2), workflow role-gate enforced (WP8.3), read-only **unified register view** (`Core/DocumentRegister.cs`, additive) landed; destructive register merge + render→WIP loop + acknowledgement remain (ROADMAP) |
-| WP9 | CDE-first tree + ES root identity + migration wizard | PARTIAL — **ES root-identity stamp** landed (additive, stable root across renames); CDE-first tree/routing + migration wizard remain (core WP9 restructure — ROADMAP) |
+| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | PARTIAL — vocabulary unified (WP8.2), role-gate enforced (WP8.3), unified register **view** + **`Register_Consolidate`** dry-run merge command landed; render→WIP loop + acknowledgement + repointing UIs at `register.json` remain (ROADMAP) |
+| WP9 | CDE-first tree + ES root identity + migration wizard | PARTIAL — **ES root stamp**, **CDE-first tree/routing** (greenfield gate, `CDE_FIRST_LAYOUT` flag), and **`Folders_ConsolidateAll`** dry-run wizard all landed; multi-model guid-sharing + in-Revit verification remain (ROADMAP) |
 | WP10 | HTTP + storage hygiene (park if time-boxed) | NOT REACHED — see ROADMAP |
 | FINAL | Rebuild, gates, CHANGELOG/ROADMAP, push, report | DONE |
 

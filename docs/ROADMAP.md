@@ -879,14 +879,13 @@ Electrical handlers should collapse into one shared internal helper in `UI/`.
 normalises both stores into one de-duplicated `RegisterEntry` list, exported via the
 `DocRegister_Unified` command (BIM tab → "Unified Register"). Touches neither write path.
 
-**Still open — needs in-Revit verification and/or a dry-run migration (do NOT ship blind):**
-- **Register merge (destructive).** `deliverables.json` (lifecycle model) and
-  `document_register.json` (broad register incl. auto-registered exports + incoming docs,
-  direction IN/OUT) are genuinely different schemas for overlapping-but-distinct purposes.
-  A hard merge into `_data/register.json` is an irreversible data migration that can lose
-  rows if the schema mapping is wrong — it must be an explicit `Register_Consolidate`
-  command with a dry-run diff report, not an auto-migration, verified in Revit on real
-  data. The unified *view* above is the safe read-side half; the merge is the write-side.
+**Landed:** the register merge now ships as **`Register_Consolidate`** — a dry-run command
+that previews the merged view (CSV) and, on confirmation, writes the canonical
+`_data/register.json` via `DocumentRegister.WriteCanonical`, leaving both source stores
+intact (reversible, re-runnable). **Still open:** repointing the two register UIs
+(`DocumentManagementDialog`, BCC) to *read* `register.json` when present — a read-side change
+that needs in-Revit verification — and, eventually, retiring the source stores once the UIs
+write through the canonical one.
 - **Run the deliverable state machine end-to-end.** `Transition` is now role-safe but
   still only reached by the transmittal flow (via `Start`). Wire `DeliverableLifecycle`
   Issue/Publish to `Start`/`Transition` and add Check→Review→Approve→Authorize as required
@@ -917,17 +916,21 @@ step 0, so a project-number rename no longer forks a new `<CODE>` tree. Read is
 transaction-free with graceful fallback; `EnsureStamped` writes best-effort from
 `OnDocumentOpened`. Multi-model guid-sharing is deferred.
 
-**Still open — the core WP9 restructure (needs Revit verification):**
-- **CDE-first tree + routing.** Making content types nest inside CDE states
-  (`<state>/<disc>/<contentType>`) is not a small additive: it requires a *second* routing
-  model (`ProjectFolderMode.CdeFirst` + `ExportRoutes` mapping export-type keys to
-  `(state, contentType)` pairs) and a branch in the hot `GetExportFolder` path, plus a
-  greenfield gate so only brand-new projects adopt it. That changes where every new-project
-  export lands, so it must be built with in-Revit verification — a partial version
-  (structure without routing) has no value. This is the remaining heart of WP9.
-- **Migration wizard.** `Folders_ConsolidateAll` — an explicit command that (1) prints a
-  dry-run report (source → destination for every file + register re-pointing), (2) moves
-  only on confirmation, (3) is verified in Revit. Never an auto-migration.
+**Landed:**
+- **CDE-first tree + routing.** `ProjectFolderMode.CdeFirst` + `ProjectSetup.CreateCdeFirst`
+  nest content types inside the CDE states; the shared `ResolveRoutedFolder` understands the
+  `STATE|ContentType` route encoding (BIM/Mini routes have no `|`, so they resolve exactly as
+  before — zero change for existing projects). A greenfield gate in `LoadOrBootstrapSetup`
+  adopts it only for brand-new projects (no ES stamp / no root / no legacy folders), overridable
+  via `CDE_FIRST_LAYOUT=false`.
+- **Migration wizard.** `Folders_ConsolidateAll` — `ScanLegacy` dry-run preview + confirmation
+  before `MigrateFromLegacy` runs. Writes a report CSV; never auto-runs.
+
+**Still open:** multi-model **guid-sharing** (siblings adopting one root by stamp), and
+**in-Revit verification** of the CDE-first routing + the two migration commands on a real
+project (per each commit's verification note). Discipline order under CdeFirst is
+`<state>/<contentType>/<disc>` (the disc-aware path nests discipline under the content type);
+revisit if `<state>/<disc>/<contentType>` is preferred.
 
 ### WP10 — HTTP + storage hygiene
 
