@@ -106,6 +106,27 @@
     }
   }
 
+  // The download href carries the access token because a navigation cannot
+  // send an Authorization header, and the ps_refresh cookie is scoped to
+  // /api/auth so it never reaches the download endpoint. Safe only because
+  // this token is short-lived; it is built from the in-memory token.
+  function tokenHref(url){
+    return esc(url) + (url.indexOf('?') === -1 ? '?' : '&') +
+      't=' + encodeURIComponent(accessToken || '');
+  }
+
+  function artifactRow(a){
+    var bits = [];
+    if (a.platform) bits.push(esc(a.platform));
+    if (a.sizeMb) bits.push(a.sizeMb + ' MB');
+    if (a.sha256) bits.push('<span title="SHA-256: ' + esc(a.sha256) + '" style="cursor:help">sha256 ' +
+      esc(a.sha256.slice(0, 12)) + '…</span>');
+    var meta = bits.length ? '<span class="meta" style="margin:0">' + bits.join(' &middot; ') + '</span>' : '';
+    var text = a.label ? 'Download — ' + esc(a.label) : 'Download';
+    return '<div class="acts" style="margin-bottom:8px"><a class="btn-primary" href="' +
+      tokenHref(a.downloadUrl) + '">' + text + '</a>' + meta + '</div>';
+  }
+
   function versionBlock(t, v){
     var bits = [];
     if (v.version && v.version !== 'current') bits.push('Version ' + esc(v.version));
@@ -114,20 +135,25 @@
     var meta = bits.length ? '<p class="meta">' + bits.join(' &middot; ') + '</p>' : '';
     var note = v.notes ? '<p class="meta">' + esc(v.notes) + '</p>' : '';
 
-    // A version with no URL is not an error — it means we do not have a
+    // One button per downloadable file. Most tools have exactly one; a
+    // cross-platform tool (e.g. StingBridge) lists a build per platform.
+    // A version with no files is not an error — it means we do not have a
     // self-serve link for it yet. Say so plainly and give the way that works,
     // rather than showing a button that goes nowhere.
-    // The href carries the access token because a navigation cannot send an
-    // Authorization header, and the ps_refresh cookie is scoped to /api/auth
-    // so it never reaches the download endpoint. Safe only because this token
-    // is short-lived; it is built at click time from the in-memory token.
-    var action = v.downloadUrl
-      ? '<a class="btn-primary" href="' + esc(v.downloadUrl) + '?t=' + encodeURIComponent(accessToken || '') + '">Download</a>'
-      : '<a class="btn-secondary" href="mailto:hello@planscape.build?subject=' +
+    var arts = (v.artifacts || []).filter(function(a){ return a.downloadUrl; });
+    var action;
+    if (arts.length) {
+      action = arts.map(artifactRow).join('');
+    } else if (v.downloadUrl) {
+      // Fallback for an API that predates artifacts (deploy skew).
+      action = '<div class="acts"><a class="btn-primary" href="' + tokenHref(v.downloadUrl) + '">Download</a></div>';
+    } else {
+      action = '<div class="acts"><a class="btn-secondary" href="mailto:hello@planscape.build?subject=' +
         encodeURIComponent('Download request: ' + t.name) +
-        '">Request by email</a><span class="meta" style="margin:0">Self-serve download coming soon</span>';
+        '">Request by email</a><span class="meta" style="margin:0">Self-serve download coming soon</span></div>';
+    }
 
-    return '<div class="ver">' + meta + note + '<div class="acts">' + action + '</div></div>';
+    return '<div class="ver">' + meta + note + action + '</div>';
   }
 
   function render(data){

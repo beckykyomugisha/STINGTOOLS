@@ -14,7 +14,11 @@ import { handlePreflight } from "../../auth/_lib/cors";
 import { requireAuth } from "../../auth/_lib/auth";
 import { getTenantById } from "../../auth/_lib/db";
 import { verifyJwt } from "../../auth/_lib/jwt";
-import { DOWNLOAD_CATALOG, entitlementFor } from "../../_lib/downloads/catalog";
+import {
+  DOWNLOAD_CATALOG,
+  entitlementFor,
+  resolveArtifacts,
+} from "../../_lib/downloads/catalog";
 import type { Env } from "../../auth/_lib/types";
 
 interface DownloadsEnv extends Env {
@@ -73,19 +77,32 @@ export const onRequestGet: PagesFunction<DownloadsEnv> = async ({
   if (entitlement !== "allowed") return deny(403, reason);
 
   const version = tool.versions.find((v) => v.version === versionId);
-  // objectKey is what makes path traversal a non-issue: the key is whatever the
-  // catalogue says, and the URL only ever selects a catalogue entry.
-  if (!version || !version.objectKey) return deny(404, "That version is not available.");
+  if (!version) return deny(404, "That version is not available.");
 
-  const object = await env.DOWNLOADS.get(version.objectKey);
+  // The object key is what makes path traversal a non-issue: the key is
+  // whatever the catalogue says, and the URL only ever selects a catalogue
+  // entry — ?artifact= picks between the files a version declares, nothing
+  // more. With no selector, a single-file version serves its one file (this is
+  // the pre-artifacts URL shape, so old links keep working); a multi-file
+  // version refuses to guess.
+  const artifacts = resolveArtifacts(version);
+  const wanted = new URL(request.url).searchParams.get("artifact");
+  const artifact = wanted
+    ? artifacts.find((a) => a.label === wanted)
+    : artifacts.length === 1
+      ? artifacts[0]
+      : undefined;
+  if (!artifact) return deny(404, "That file is not available.");
+
+  const object = await env.DOWNLOADS.get(artifact.objectKey);
   if (!object) {
     console.error(
-      `R2 object missing for ${toolId}/${versionId}: ${version.objectKey}`
+      `R2 object missing for ${toolId}/${versionId}: ${artifact.objectKey}`
     );
     return deny(404, "That file is temporarily unavailable. Please contact support.");
   }
 
-  const filename = version.objectKey.split("/").pop() || `${toolId}.zip`;
+  const filename = artifact.objectKey.split("/").pop() || `${toolId}.zip`;
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("Content-Type", "application/zip");

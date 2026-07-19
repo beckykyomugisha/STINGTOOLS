@@ -10,8 +10,33 @@
 // below. It is intentionally coarse: trial and active tenants get everything.
 // Per-product entitlement (STING Tools subscribers get only the plugin) would go
 // here too, via requiresProduct, once the plans justify it.
+//
+// Releasing a build: use tools/release-download.mjs — it uploads the files to
+// R2, computes sha256 + size from the bytes, and prints the entry to paste
+// here, so the catalogue cannot drift from what is actually in the bucket.
 
 export type ToolStatus = "available" | "beta" | "in-development";
+
+// One downloadable file within a version. A cross-platform tool ships several
+// (a Windows EXE zip, a platform-neutral source zip); a single-platform tool
+// keeps using ToolVersion.objectKey and never declares these.
+//
+// Ship ZIPS ONLY: the streaming endpoint serves everything as application/zip,
+// which is also kinder to browsers than a bare .exe download.
+//
+// Use tools/release-download.mjs to upload the files and generate this block —
+// it computes the sha256 and size so they can never drift from the object.
+export interface ToolArtifact {
+  // URL-safe slug, unique within the version (e.g. "win64", "any"). Shown on
+  // the download button and passed back as ?artifact= to select the file.
+  label: string;
+  // Short human label for where it runs, e.g. "Windows 64-bit" or
+  // "Any OS (Python 3.11+)". Display only.
+  platform?: string;
+  objectKey: string;
+  sizeMb?: number;
+  sha256?: string | null;
+}
 
 export interface ToolVersion {
   version: string;
@@ -27,6 +52,28 @@ export interface ToolVersion {
   // to "request by email" — no code change either way.
   objectKey?: string | null;
   sha256?: string | null;
+  // Multi-file alternative to objectKey for tools that ship more than one
+  // build per version. When present it wins over objectKey.
+  artifacts?: ToolArtifact[];
+}
+
+// Normalise the two shapes: a version's downloadable files as a single list.
+// Single-file versions (objectKey) come back as one artifact with an empty
+// label, which the endpoint serves without needing ?artifact= — so existing
+// STING Tools links keep working unchanged.
+export function resolveArtifacts(v: ToolVersion): ToolArtifact[] {
+  if (v.artifacts && v.artifacts.length) return v.artifacts;
+  if (v.objectKey) {
+    return [
+      {
+        label: "",
+        objectKey: v.objectKey,
+        sizeMb: v.sizeMb,
+        sha256: v.sha256 ?? null,
+      },
+    ];
+  }
+  return [];
 }
 
 export interface Tool {
