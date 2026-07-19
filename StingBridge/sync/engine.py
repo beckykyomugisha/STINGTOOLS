@@ -101,6 +101,14 @@ def _extract_guid(obj: Any) -> str:
     return ""
 
 
+def _read_zone_property_values(ac: ArchiCadClient, zone_guids: list[str]):
+    """Yield property-value rows for the zones in batches of 100 — same batch
+    discipline as element processing, so huge zone counts cannot produce one
+    oversized API request."""
+    for i in range(0, len(zone_guids), 100):
+        yield from ac.get_property_values(zone_guids[i : i + 100], _ZONE_PROPS_TO_READ)
+
+
 def _build_zone_index(ac: ArchiCadClient) -> dict[str, str]:
     """Map every zoned element's GUID → its zone's label (number, else name).
 
@@ -137,10 +145,11 @@ def _build_zone_index(ac: ArchiCadClient) -> dict[str, str]:
     if not zone_members:
         return {}
 
-    # Resolve each zone's label in one property read.
+    # Resolve the zone labels in batched property reads — a campus model can
+    # carry thousands of zones, and one giant request risks the API's limits.
     labels: dict[str, str] = {}
     try:
-        for epv in ac.get_property_values(list(zone_members), _ZONE_PROPS_TO_READ):
+        for epv in _read_zone_property_values(ac, list(zone_members)):
             zone_guid = _extract_guid(epv)
             if not zone_guid:
                 continue

@@ -290,6 +290,20 @@ retention release and the sign-off guard. Still open:
 - **QS import per-row accept/reject.** The import diff is whole-batch
   Apply/Cancel; per-row checkboxes would let a QS accept a subset.
 
+## StingBridge — remaining gaps (post 0.1.0-beta.1, Phase 199)
+
+Shipped self-serve on planscape.build/downloads; these are the known gaps, roughly in value order:
+
+| # | Gap | Detail |
+|---|---|---|
+| SB-1 | **Live-ArchiCAD verification** | Two documented-but-unverified assumptions need one session against real ArchiCAD (AC 28/29): (a) `_ifc_global_id_from_acguid` presumes ArchiCAD derives the IFC-export GlobalId from the JSON-API element GUID — if wrong, the live-sync and IFC-watcher paths mint two mapping rows per element; (b) zone labels read from `Zone_ZoneNumber`/`Zone_ZoneName` built-ins. Both degrade gracefully today. |
+| SB-2 | **SEQ minting** | The bridge never assigns sequence numbers, so ArchiCAD tags stay 7-segment. Server already has `SeqSyncController` (the Revit plugin uses it) — mint from the same per-key counters for cross-host parity. |
+| SB-3 | **Token inference single-sourcing** | `StingBridge/sync/token_mapper.py` + `archicad/element_types.py` duplicate what `stingtools_core/hosts/inference.py` owns — same drift class the wire contract fixed after Drift 5. Fold into core; StingBridge should also implement the `HostAdapter` contract (its sync engine predates it). |
+| SB-4 | **Hot-folder contract mismatch** | The Python watcher leaves processed files in place with sidecar JSONs; the C#-side Revit watcher uses `processing/done/failed` subfolders (`ifc_drop/`). Pick one contract. |
+| SB-5 | **Multi-host Phase B/C** | Pull + reconcile (bidirectional sync replacing the 60-s-grace heuristic) and the LoGeoRef coordinate engine — see `docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4 / Part 2. |
+| SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
+| SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
+
 ## Sub-system reviews
 
 - [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md) — plain-English user guide to the Placement Centre: every button, every editor field, background concepts (anchors, regex, mounting reference, provenance, standards), worked walk-throughs, troubleshooting and a cheat-sheet (2026-04-25).
