@@ -128,12 +128,16 @@ namespace StingTools.Core
         /// RevisionNumberingSequence whose values ARE the ISO codes, so
         /// Revit's RevisionNumber (and every native revision schedule /
         /// Current Revision label) shows "P01" instead of "3".
+        /// The A-series (Approved) is unpadded — A1, A2 … A99 — matching the
+        /// "A1/A2" convention on approval stamps.
         /// </summary>
         public static string[] BuildSequenceCodes(string prefix)
         {
+            bool unpadded = string.Equals(prefix, "A", StringComparison.Ordinal);
             var codes = new string[99];
             for (int i = 1; i <= 99; i++)
-                codes[i - 1] = prefix + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture);
+                codes[i - 1] = prefix + i.ToString(unpadded ? "D1" : "D2",
+                    System.Globalization.CultureInfo.InvariantCulture);
             return codes;
         }
 
@@ -149,9 +153,12 @@ namespace StingTools.Core
             if (string.IsNullOrWhiteSpace(code)) return "Custom";
             string c = code.Trim().ToUpperInvariant();
 
-            // Exact-match entries first (status stamps).
+            // Pattern-only entries first: status stamps (IFC/WD/…), bare
+            // single-letter as-built (A-Z), legacy numeric (1, 2, 3…). These
+            // must win before prefix matching so "A" reads As-Built (not
+            // Approved) and "1" reads Legacy (not Custom).
             foreach (var s in _series)
-                if (string.IsNullOrEmpty(s.Prefix) && s.Label == "Status Stamp" && s.Pattern.IsMatch(c))
+                if (string.IsNullOrEmpty(s.Prefix) && s.Pattern.IsMatch(c))
                     return s.Label;
 
             // Prefix match, longest prefix first so CO/AB beat C/A.
@@ -160,15 +167,9 @@ namespace StingTools.Core
                          .OrderByDescending(x => x.Prefix.Length))
             {
                 if (c.StartsWith(s.Prefix.ToUpperInvariant(), StringComparison.Ordinal))
-                {
-                    // A bare "A"/"AB" with no digits is a record-drawing code.
-                    if (s.Label == "Approved" && c.Length == 1) return "As-Built";
                     return s.Label;
-                }
             }
 
-            // Plain single-letter as-built codes (A-Z without suffix).
-            if (c.Length == 1 && c[0] >= 'A' && c[0] <= 'Z') return "As-Built";
             return "Custom";
         }
     }

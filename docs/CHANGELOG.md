@@ -121,6 +121,17 @@ semantic conflict on the element REV parameter. Six fixes:
   tag-snapshot deletion, gated by a typed-"PURGE" WPF confirmation. Both sit in the BCC
   TITLE BLOCKS & GOVERNANCE row.
 
+- **Behaviour polish** (fourth follow-up — closes the self-review's "known minor
+  behaviours"): pre-revision snapshots are saved AFTER the create transaction so the file
+  label carries the code the sequence actually assigned; the A-series numbers unpadded
+  (A1, A2 … A99) to match approval-stamp convention; Issue Sheets only auto-opens a next
+  draft when NO un-issued revision remains (otherwise it lists the open drafts instead of
+  piling up new ones); `RevisionSeries.InferSeriesName` now resolves pattern-only entries
+  first, so "1" reads **Legacy**, "A" reads **As-Built**, and stamps read **Status Stamp**
+  instead of falling to "Custom" (fixes the register's Series column for the purge seed);
+  `EnsureNumberingSequence` re-searches by name when creation fails (name-in-use race)
+  before falling back to default numbering.
+
 **Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
 table was exercised against 20 cases in a standalone harness. **Revit runtime verification
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`

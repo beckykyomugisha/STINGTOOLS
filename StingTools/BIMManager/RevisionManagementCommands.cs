@@ -92,11 +92,27 @@ namespace StingTools.BIMManager
                     .FirstOrDefault(s => string.Equals(s.Name, seqName, StringComparison.OrdinalIgnoreCase));
                 if (existing != null) return existing.Id;
 
-                var settings = new AlphanumericRevisionSettings();
-                settings.SetSequence(Core.RevisionSeries.BuildSequenceCodes(prefix));
-                var seq = RevisionNumberingSequence.CreateAlphanumericSequence(doc, seqName, settings);
-                StingLog.Info($"RevisionEngine: created numbering sequence '{seqName}'");
-                return seq?.Id ?? ElementId.InvalidElementId;
+                try
+                {
+                    var settings = new AlphanumericRevisionSettings();
+                    settings.SetSequence(Core.RevisionSeries.BuildSequenceCodes(prefix));
+                    var seq = RevisionNumberingSequence.CreateAlphanumericSequence(doc, seqName, settings);
+                    StingLog.Info($"RevisionEngine: created numbering sequence '{seqName}'");
+                    return seq?.Id ?? ElementId.InvalidElementId;
+                }
+                catch (Exception createEx)
+                {
+                    // Creation can fail if another session/path minted the same
+                    // sequence between our lookup and create (name-in-use), or
+                    // on a version-specific settings quirk. Re-search before
+                    // giving up so a survivable race still lands on the series.
+                    StingLog.Warn($"EnsureNumberingSequence create '{seqName}': {createEx.Message} — re-searching.");
+                    var retry = new FilteredElementCollector(doc)
+                        .OfClass(typeof(RevisionNumberingSequence))
+                        .Cast<RevisionNumberingSequence>()
+                        .FirstOrDefault(s => string.Equals(s.Name, seqName, StringComparison.OrdinalIgnoreCase));
+                    return retry?.Id ?? ElementId.InvalidElementId;
+                }
             }
             catch (Exception ex)
             {
@@ -692,9 +708,12 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
-                // Take pre-revision snapshot
+                // Take the pre-revision snapshot now (it must capture the state
+                // BEFORE the revision exists) but save it after the transaction,
+                // when `prefix` holds the code the numbering sequence actually
+                // assigned — so the file label matches the revision (pre_rev_P02,
+                // not the picked-but-superseded P01).
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
-                RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
 
                 using (var tx = new Transaction(doc, "STING Create Revision"))
                 {
@@ -758,6 +777,8 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
+
+                RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
 
                 // Phase 108k Item 3 — BOQ × BCC integration. Auto-save a BOQ
                 // snapshot labelled with the revision so every revision has a
@@ -1601,6 +1622,31 @@ namespace StingTools.BIMManager
                 string nextRevLine = "";
                 if (TagConfig.AutoNextRevisionOnIssue)
                 {
+                    // Only open a fresh draft when NONE remains — otherwise every
+                    // issue would pile up unused drafts. If drafts exist, point
+                    // the user at them instead.
+                    List<string> openDrafts = null;
+                    try
+                    {
+                        openDrafts = new FilteredElementCollector(doc)
+                            .OfClass(typeof(Revision))
+                            .Cast<Revision>()
+                            .Where(r => !r.Issued)
+                            .OrderBy(r => r.SequenceNumber)
+                            .Select(r =>
+                            {
+                                try { return string.IsNullOrWhiteSpace(r.RevisionNumber) ? $"Seq {r.SequenceNumber}" : r.RevisionNumber; }
+                                catch (Exception rnEx) { StingLog.Warn($"Draft number read: {rnEx.Message}"); return $"Seq {r.SequenceNumber}"; }
+                            })
+                            .ToList();
+                    }
+                    catch (Exception odEx) { StingLog.Warn($"Open-draft scan: {odEx.Message}"); }
+
+                    if (openDrafts != null && openDrafts.Count > 0)
+                    {
+                        nextRevLine = $"\nOpen draft(s) remain: {string.Join(", ", openDrafts)} — clouds go there.";
+                    }
+                    else
                     try
                     {
                         using (var nx = new Transaction(doc, "STING Open Next Revision"))
