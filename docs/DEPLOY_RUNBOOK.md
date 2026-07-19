@@ -100,6 +100,7 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 |---|---|
 | `Jwt__Key` | the `openssl rand -base64 48` output |
 | `PLANSCAPE_OWNER_PASSWORD` | the owner login password |
+| `PLANSCAPE_HANDOFF_SECRET` | another `openssl rand -base64 48` output. **Shared with Cloudflare** — the same value must later be set on the Pages side. See §3e. |
 | `Storage__S3__ServiceUrl` | **MinIO default:** the `planscape-minio` internal URL (Render → planscape-minio → Connect → Internal URL, e.g. `http://planscape-minio:9000`). **R2/S3:** their endpoint, or blank for AWS S3. |
 | `Storage__S3__AccessKey` | **= `MINIO_ROOT_USER`** (same value as 3d) — or the R2/S3 access key |
 | `Storage__S3__SecretKey` | **= `MINIO_ROOT_PASSWORD`** (same value as 3d) — or the R2/S3 secret key |
@@ -146,6 +147,37 @@ If you chose Cloudflare R2 / AWS S3 instead, suspend or delete `planscape-minio`
 
 After setting secrets, **Manual Deploy → Clear build cache & deploy** (or just
 redeploy) each service so it picks them up.
+
+### 3e. Cloudflare Pages side — set these LAST
+
+Two values live on the marketing site (Cloudflare Pages, project
+`planscape-marketing`), not on Render. They are what lets the account page hand a
+signed-in customer across to the cloud app:
+
+| Key | Value |
+|---|---|
+| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a. Both sides verify against it; a mismatch rejects every handoff. |
+| `CLOUD_APP_ORIGIN` | `https://app.planscape.build` — where the customer is sent |
+
+```bash
+cd marketing-site
+npx wrangler pages secret put PLANSCAPE_HANDOFF_SECRET --project-name=planscape-marketing
+npx wrangler pages secret put CLOUD_APP_ORIGIN --project-name=planscape-marketing
+```
+
+> **Ordering rule — do this only after Render is answering.**
+> Setting `CLOUD_APP_ORIGIN` is what activates the cloud button on the customer
+> account page. Set it before `app.planscape.build` resolves and serves, and the
+> button goes live pointing at an origin that is not there yet — so paying
+> customers get sent to a dead host. The consumer of these values is
+> `marketing-site/functions/api/cloud/handoff.ts`.
+>
+> Correct order: Render deployed (§2–§3d) → DNS resolving and TLS issued (§4) →
+> first-boot checks passing (§5) → **then** §3e.
+>
+> Until §3e is done the site is in a safe state: the handoff simply stays
+> disabled. An unset secret is a disabled feature; a wrong one is a broken
+> customer journey.
 
 ---
 
