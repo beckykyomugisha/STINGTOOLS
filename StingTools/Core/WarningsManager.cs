@@ -3728,6 +3728,19 @@ namespace StingTools.Core
                 var warningReport = WarningsEngine.ScanWarnings(doc);
                 int healthScore = WarningsEngine.CalculateWarningHealthScore(warningReport);
 
+                // S15 — opportunistic SLA sweep on BCC open/refresh. SlaScanner.Scan
+                // previously had zero callers, so document-workflow SLA breaches were
+                // never detected or escalated despite the engine being complete. Rate
+                // limited to once every 5 minutes; audit entries + escalations are
+                // emitted by the scanner itself.
+                try
+                {
+                    var breaches = Planscape.Docs.Workflow.SlaScanner.Scan(doc, TimeSpan.FromMinutes(5));
+                    if (breaches != null && breaches.Count > 0)
+                        StingLog.Info($"BCC: {breaches.Count} workflow SLA breach(es) detected.");
+                }
+                catch (Exception slaEx) { StingLog.Warn($"BCC SLA sweep: {slaEx.Message}"); }
+
                 // 3. Load issues from issues.json
                 int openIssues = 0, criticalIssues = 0;
                 try

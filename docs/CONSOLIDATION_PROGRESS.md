@@ -25,8 +25,8 @@ Every work package below must end green at 0/0.
 | WP1 | Quick wins — MIDP join, transmittal merge, retire `_CDE`/`STING_Exports`, dead flags, junk containment, tree unification | DONE 830ea72db |
 | WP2 | Heal issues/meetings/documents store split via `Core/CoordStores.cs` | DONE 18af9ece5 |
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
-| WP4 | Atomic writes on coordination stores | IN PROGRESS |
-| WP5 | Resurrect or remove dead automation (wire it or delete it) | TODO |
+| WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
+| WP5 | Resurrect or remove dead automation (wire it or delete it) | IN PROGRESS |
 | WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | TODO |
 | WP7 | Dispatch consolidation — alias tags, null-safe `RunCommandByTag`, shared `Run<T>`, parity gate | TODO |
 | WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | TODO |
@@ -44,6 +44,23 @@ Every work package below must end green at 0/0.
 - `UI/DocumentManagementDialog.LoadExportIndex` still *reads* a legacy `STING_Exports` folder.
   That is deliberate: nothing writes there any more, and `MigrateFromLegacy` sweeps it, but the
   reader keeps pre-migration projects visible in the Document Manager.
+
+## Review claims that were already fixed on `main`
+
+The review branch predates several fixes now on `main`. These WP5 items were
+**verified against the current tree and found already correct** — no change was made,
+and none should be "re-fixed" by a later session:
+
+| Review claim | Actual state on `main` |
+|---|---|
+| `StingStaleMarker.Register` has zero callers | Called from `StingToolsApp.OnStartup` (~L147) |
+| `CableManifestUpdater` orphaned | Registered at startup |
+| `HvacEnvelopeStaleUpdater` orphaned | Registered at startup (~L154) |
+| `GetAvailablePresets` block duplicated 3× | Single block, plus a built-in preset cache |
+
+Genuinely dead and therefore fixed in WP5: `SLDSyncUpdater`, `LiveStandardsUpdater`,
+`SlaScanner.Scan`, `PluginUpdateChecker.CheckAsync`, `DeliverableServerSync.FireAndForget`,
+`WorkflowScheduler.LoadFromConfig`, `ProjectFolderEngine.FileChanged`.
 
 ## Notes for a resuming session
 

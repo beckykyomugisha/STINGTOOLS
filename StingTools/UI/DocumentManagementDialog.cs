@@ -574,6 +574,11 @@ namespace StingTools.UI
                             }
                             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         });
+                        // Also refresh on plugin-initiated file operations (recycle,
+                        // restore, move, CDE transition). ProjectFolderEngine raises
+                        // FileChanged from 13 sites but had no subscriber, so those
+                        // never refreshed the list — only OS-level changes did.
+                        SubscribeFileChangedOnce();
                         MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
                             "External file changes will auto-refresh the document list.",
                             "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -5186,6 +5191,26 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
         //  HELPERS
         // ══════════════════════════════════════════════════════════════════
+
+        // Guard so repeated StartWatch presses do not stack handlers on the
+        // static ProjectFolderEngine.FileChanged event.
+        private static bool _fileChangedSubscribed;
+
+        /// <summary>Subscribe the document list to plugin-initiated file operations.</summary>
+        private static void SubscribeFileChangedOnce()
+        {
+            if (_fileChangedSubscribed) return;
+            try
+            {
+                ProjectFolderEngine.FileChanged += (action, fileName, path) =>
+                {
+                    try { _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData())); }
+                    catch (Exception ex) { StingLog.Warn($"FileChanged refresh: {ex.Message}"); }
+                };
+                _fileChangedSubscribed = true;
+            }
+            catch (Exception ex) { StingLog.Warn($"SubscribeFileChangedOnce: {ex.Message}"); }
+        }
 
         private static void RefreshData()
         {

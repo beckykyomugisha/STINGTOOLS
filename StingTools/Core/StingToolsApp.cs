@@ -169,10 +169,22 @@ namespace StingTools.Core
                 // source parameters change. Users enable it from Tag Studio.
                 StingTag7NarrativeUpdater.Register(application);
 
-                // Phase 106: reserve the Live Clash Updater id. Triggers are
-                // deferred to a follow-on phase so models that don't use clash
-                // detection pay zero cost at startup.
+                // Register the Live Clash Updater and attach its geometry /
+                // addition / deletion triggers. The comment here previously claimed
+                // triggers were deferred; they were always attached. Models that never
+                // use clash detection opt out via LIVE_CLASH_TRIGGERS_ENABLED=false
+                // in project_config.json.
                 LiveClashUpdater.Register(application);
+
+                // Register the SLD sync updater (IUpdater) — starts disabled. The
+                // SLD panel's "live sync" toggle writes sld_sync_enabled; without
+                // this registration that flag governed nothing.
+                StingTools.Core.SLD.SLDSyncUpdater.Register(application);
+
+                // Register the live standards validator (IUpdater) — starts disabled;
+                // enabled from the standards panel. Previously its Register had no
+                // caller despite the header claiming startup registration.
+                StingTools.Core.Validation.LiveStandardsUpdater.Register(application);
 
                 // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
                 // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
@@ -190,6 +202,30 @@ namespace StingTools.Core
                 // ClashSession.LastDirtyAtUtc, which is only advanced inside
                 // RefreshElement/RemoveElement on the live path).
                 LiveClashWireup.Subscribe(application);
+
+                // Plugin update check — CheckAsync previously had zero callers, so the
+                // update notification described in CLAUDE.md never happened. Fired
+                // fire-and-forget so a slow or unreachable server never delays startup;
+                // the result is logged and surfaced by the status bar on next refresh.
+                try
+                {
+                    string updateUrl = StingOfflineConfig.IsOnline
+                        ? "https://api.planscape.build" : null;
+                    if (!string.IsNullOrEmpty(updateUrl))
+                    {
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var info = await PluginUpdateChecker.CheckAsync(updateUrl);
+                                if (info != null)
+                                    StingLog.Info($"Plugin update available: {info.Version} (channel {info.Channel}).");
+                            }
+                            catch (Exception uEx) { StingLog.Warn($"Plugin update check: {uEx.Message}"); }
+                        });
+                    }
+                }
+                catch (Exception upEx) { StingLog.Warn($"Plugin update check scheduling: {upEx.Message}"); }
 
                 // Eager-init the GeometrySyncHandler ExternalEvent so it is
                 // created on the Revit API thread at startup, not lazily inside
@@ -982,6 +1018,17 @@ namespace StingTools.Core
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
                 {
+                    // WF-01: load the project's trigger definitions first. LoadFromConfig
+                    // previously had no caller, so _triggers was always empty and every
+                    // trigger check below iterated nothing.
+                    try
+                    {
+                        string cfg = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(e.Document.PathName) ?? "", "project_config.json");
+                        WorkflowScheduler.LoadFromConfig(cfg);
+                    }
+                    catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }
+
                     WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
                     while (WorkflowScheduler.HasPendingPresets)
                     {

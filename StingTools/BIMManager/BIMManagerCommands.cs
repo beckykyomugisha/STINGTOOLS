@@ -817,7 +817,18 @@ namespace StingTools.BIMManager
         /// Auto-register an exported file in the BIM document register.
         /// Called after any STING export operation to maintain a complete document trail.
         /// </summary>
-        internal static void AutoRegisterExport(Document doc, string filePath, string docType, string description)
+        /// <remarks>
+        /// This is the ONE auto-registration path. A second facade
+        /// (DocAutoRegister.RegisterExport) previously wrote the same
+        /// document_register.json with an incompatible schema — doc_id /
+        /// "STING-{type}-{timestamp}" vs document_id / DOC-NNNN — so the register
+        /// held two shapes of row and the ISO-conformant id scheme was only used by
+        /// half the writers. DocAutoRegister now delegates here; the optional
+        /// suitability parameter carries the only field its schema had that this one
+        /// lacked, plus cde_status.
+        /// </remarks>
+        internal static void AutoRegisterExport(Document doc, string filePath, string docType,
+            string description, string suitability = "S0")
         {
             try
             {
@@ -839,9 +850,11 @@ namespace StingTools.BIMManager
                     ["description"] = description,
                     ["originator"] = Environment.UserName,
                     ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["suitability"] = "S0",
+                    ["suitability"] = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability,
                     ["revision"] = "P01",
                     ["status"] = "WIP",
+                    ["cde_status"] = "WIP",
+                    ["file_format"] = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.'),
                     ["source"] = "STING Auto-Export"
                 };
 
@@ -4977,42 +4990,14 @@ namespace StingTools.BIMManager
     /// </summary>
     internal static class DocAutoRegister
     {
+        /// <summary>
+        /// Retained entry point — delegates to BIMManagerEngine.AutoRegisterExport so
+        /// there is ONE register schema and ONE id scheme (DOC-NNNN). This used to
+        /// write its own doc_id / "STING-{type}-{timestamp}" rows into the same file.
+        /// </summary>
         internal static void RegisterExport(Document doc, string filePath, string docType,
             string title, string suitability = "S3")
-        {
-            try
-            {
-                string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
-                var docs = BIMManagerEngine.LoadJsonArray(docsPath);
-
-                string ext = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
-                string docId = $"STING-{docType}-{DateTime.Now:yyyyMMdd-HHmmss}";
-
-                var entry = new JObject
-                {
-                    ["doc_id"] = docId,
-                    ["title"] = title,
-                    ["doc_type"] = docType,
-                    ["direction"] = "OUT",
-                    ["suitability"] = suitability,
-                    ["cde_status"] = "WIP",
-                    ["revision"] = "P01",
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["status_code"] = "IFI",
-                    ["file_path"] = filePath,
-                    ["file_format"] = ext,
-                    ["auto_registered"] = true
-                };
-
-                docs.Add(entry);
-                BIMManagerEngine.SaveJsonFile(docsPath, docs);
-                StingLog.Info($"DocAutoRegister: {docId} ({ext}) -> {filePath}");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"DocAutoRegister failed: {ex.Message}");
-            }
-        }
+            => BIMManagerEngine.AutoRegisterExport(doc, filePath, docType, title, suitability);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

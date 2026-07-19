@@ -60,6 +60,7 @@ namespace Planscape.Docs.Templates
                 WriteAudit(doc, "doc.superseded", (string)existing.DocNumber,
                     new JObject { ["superseded_by"] = newDocNumber, ["reason"] = reason, ["user"] = issuedBy });
                 Persist(doc, existing);
+                MirrorToServer(doc, existing, "superseded", reason);
                 return new LifecycleResult { Updated = existing, TemplateId = "A03", Message = $"Superseded by {newDocNumber}" };
             }
             catch (Exception ex)
@@ -88,6 +89,8 @@ namespace Planscape.Docs.Templates
                 });
                 Persist(doc, existing);
                 Persist(doc, newReplacing);
+                MirrorToServer(doc, existing, "replaced", reason);
+                MirrorToServer(doc, newReplacing, "replacing", reason);
                 return new LifecycleResult { Updated = newReplacing, TemplateId = "A04", Message = $"Replaces {existing.DocNumber}" };
             }
             catch (Exception ex)
@@ -123,6 +126,7 @@ namespace Planscape.Docs.Templates
                     ["reason"]      = reason
                 });
                 Persist(doc, d);
+                MirrorToServer(doc, d, action, reason);
                 return new LifecycleResult { Updated = d, TemplateId = templateId, Message = newStatus };
             }
             catch (Exception ex)
@@ -164,6 +168,19 @@ namespace Planscape.Docs.Templates
                 (d.RevisionHistory as System.Collections.IList)?.Add(entry);
             }
             catch (Exception ex) { StingLog.Warn($"AppendRevHistory failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Mirror a lifecycle event to the Planscape server. DeliverableServerSync
+        /// .FireAndForget previously had zero callers, so transitions only reached the
+        /// server via the periodic reconcile tick (and only while authenticated). This
+        /// makes the mirror event-driven, with the reconcile retained as a backstop.
+        /// No-ops when the project is not linked to a server project.
+        /// </summary>
+        private static void MirrorToServer(Document doc, dynamic d, string action, string reason)
+        {
+            try { DeliverableServerSync.FireAndForget(doc, d, action, reason); }
+            catch (Exception ex) { StingLog.Warn($"DeliverableServerSync ({action}): {ex.Message}"); }
         }
 
         // ── Persistence to _BIM_COORD/deliverables.json ─────────────────────

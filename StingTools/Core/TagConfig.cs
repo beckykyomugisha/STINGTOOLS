@@ -247,6 +247,13 @@ namespace StingTools.Core
         /// because the per-tick run on a large model is non-trivial.</summary>
         public static bool AutoStartClashScheduler { get; internal set; } = false;
 
+        /// <summary>BIM-CLASH-LIVE-01: When true (default), LiveClashUpdater attaches
+        /// its geometry/addition/deletion triggers at startup so live clash capture
+        /// works out of the box. Set LIVE_CLASH_TRIGGERS_ENABLED=false in
+        /// project_config.json on models that never use clash detection to skip the
+        /// trigger attachment entirely.</summary>
+        public static bool LiveClashTriggersEnabled { get; internal set; } = true;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
@@ -654,7 +661,7 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
-                    "AUTO_CREATE_CDE_FOLDERS",
+                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -928,6 +935,13 @@ namespace StingTools.Core
                 }
 
                 // Auto-bootstrap CDE folder structure on doc open.
+                LiveClashTriggersEnabled = true;
+                if (data.TryGetValue("LIVE_CLASH_TRIGGERS_ENABLED", out object lctObj))
+                {
+                    if (lctObj is bool lb) LiveClashTriggersEnabled = lb;
+                    else if (bool.TryParse(lctObj?.ToString(), out bool lbp)) LiveClashTriggersEnabled = lbp;
+                }
+
                 AutoCreateCdeFolders = true;
                 if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
                 {
