@@ -24,10 +24,32 @@ import logging
 import sys
 import time
 
+from . import __version__
 from .archicad.client import ArchiCadClient, ArchiCadError
 from .config import BridgeConfig
 from .planscape.client import PlanscapeClient, PlanscapeAuthError
 from .sync.engine import SyncEngine
+
+def _configure_console_encoding() -> None:
+    """Make the console tolerate the non-ASCII characters this CLI prints.
+
+    A default Windows console is cp1252, which cannot encode the arrows and
+    check marks used in the help text and progress messages; writing one raises
+    UnicodeEncodeError and takes the process down — ``stingbridge --help`` died
+    that way before this. Switching the streams to UTF-8 fixes rendering where
+    the terminal supports it, and ``errors="replace"`` guarantees that a stream
+    that still cannot encode a character degrades to "?" instead of crashing.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            # Not a reconfigurable TextIOWrapper (redirected/piped/embedded) —
+            # nothing to do; the streams stay as the host provided them.
+            pass
+
+
+_configure_console_encoding()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,6 +96,8 @@ def cmd_sync(cfg: BridgeConfig) -> int:
         planscape_client=ps,
         write_back=cfg.write_back_to_archicad,
         batch_size=cfg.batch_size,
+        verify_write_back=cfg.verify_write_back,
+        building_name=cfg.building_name,
     )
     result = engine.run()
     log.info("Sync complete — %s", result.summary())
@@ -245,7 +269,16 @@ def cmd_auto_publish(cfg: BridgeConfig, publisher_set_name: str | None) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="STING ArchiCAD ↔ Planscape sync bridge"
+        prog="stingbridge",
+        description="STING ArchiCAD ↔ Planscape sync bridge",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"stingbridge {__version__}"
+    )
+    parser.add_argument(
+        "--config", default=None, metavar="PATH",
+        help="Config file (default: stingbridge.toml, else .env in the working "
+             "directory). Environment variables always override it.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("sync",  help="Run a single sync pass (ArchiCAD must be open)")
@@ -274,7 +307,7 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    cfg = BridgeConfig.from_env()
+    cfg = BridgeConfig.from_env(getattr(args, "config", None))
 
     if args.command == "sync":
         sys.exit(cmd_sync(cfg))

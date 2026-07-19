@@ -9,8 +9,18 @@ watchdog>=4.0.0
 ifcopenshell>=0.8.0,<0.9
 
 # Shared STING core — single source of the Planscape /ifc/data wire contract
-# (_element_to_wire). In the monorepo dev checkout the bridge imports it from
-# ../stingtools-core/python via a sys.path fallback (see planscape/client.py),
-# so a pip install is only needed for a standalone bridge deployment:
+# (_element_to_wire).
+#
+# Packaging decision (v0.1.0b1): stingtools-core is a REAL declared dependency
+# of the stingbridge distribution (see pyproject.toml), not a vendored copy —
+# one wire contract, one place to fix it. It is not published to PyPI, so:
+#
+#   * release zips ship the built wheel next to stingbridge's, and the
+#     documented install is `pip install wheels/*.whl` — self-contained, no
+#     monorepo and no network needed (QUICKSTART.md §1);
+#   * the PyInstaller EXE bundles it like any other dependency;
+#   * in this monorepo checkout it resolves either from an editable install
+#     or, failing that, via the sys.path fallback in planscape/client.py.
+#
+# For a dev checkout, install it editable so both paths agree:
 #   pip install -e ../stingtools-core/python
-# stingtools-core @ file:../stingtools-core/python
