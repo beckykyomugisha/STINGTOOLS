@@ -639,22 +639,44 @@ block stay in sync.
 Snapshots are stored as JSON in `_BIM_COORD/Revisions/snapshot_*.json`.
 Revision naming format: `REV-{ProjectCode}-{Seq:D3}-{Date}-{Desc}`.
 
-### Step 10.1 — Sync revisions into the title-block strip
+### Step 10.1 — Sync revisions into the title block
 
-After creating a revision, push it into the printed revision strip:
-**DOCS → Drawing Types → Sync Rev Strip** (`DrawingTypes_SyncRevisions`).
-This fills the title block's `PRJ_TB_REV_COL_n` / `PRJ_TB_REV_DATE_n` /
-`PRJ_TB_REV_DESC_n` rows from Revit's revision sequence so the cloud and
-the strip agree.
+After creating a revision, push it into the printed revision box:
+**DOCS → Drawing Types → Sync Rev** (`DrawingTypes_SyncRevisions`), or the
+equivalent **Rev Sync** button (`RevisionSync`) — both run the same engine.
+
+This reads the newest revision on each sheet and fills:
+
+- on the sheet — `SHT_REV_TXT`, `SHT_REV_DATE_TXT`
+- on the title block — `PRJ_TB_REVISION_NR_TXT`, `PRJ_TB_REVISION_DATE_TXT`,
+  `PRJ_TB_REVISION_DESCRIPTION_TXT`, `PRJ_TB_ISSUE_SUMMARY_TXT`
+
+The value written is the revision **number** as you typed it (`P01`, `C02`),
+not Revit's internal sequence counter, so the cloud and the box agree.
+Sheets with no revisions have these values cleared rather than left stale.
+
+You normally don't need to click this after issuing: **Issue Sheets for
+Revision** runs the same sync automatically once the sheets are issued.
+
+Separately, title-block families built by the STING factory carry a **native
+Revit revision schedule** in their revision-history zone. Revit maintains that
+table by itself — it needs no sync at all.
 
 ### Typical revision cycle
 
 1. Make your model changes.
-2. **Create Revision** → snapshot + propagate the new REV code.
+2. **Create Revision** → snapshot taken. (REV is stamped on the elements that
+   actually changed. To instead mirror the current revision onto *every* tagged
+   element, set `PROPAGATE_REV_ON_CREATE` to true in `project_config.json` —
+   off by default, because it is slow on large models and makes the revision
+   compliance metric read ~100% regardless.)
 3. **Auto Clouds** → clouds appear where tags changed.
-4. **Sync Rev Strip** → title-block revision rows fill in.
-5. **Issue Sheets** → issue sheets created/updated, issues linked.
+4. **Sync Rev** → title-block revision box fills in.
+5. **Issue Sheets** → issue sheets created/updated, issues linked, title blocks
+   re-synced automatically.
 6. **Drawing Register Sync** → updated register CSV.
+
+All five steps run back-to-back from the **RevisionIssue** workflow preset.
 7. Issue via a transmittal (§11).
 
 ---

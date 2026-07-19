@@ -2,6 +2,33 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Revision system — deferred items (Phase 199)
+
+Recorded while aligning the revision subsystem (see CHANGELOG Phase 199).
+
+- **Rebind title-block revision labels to built-in parameters, then delete the TB half of the
+  syncer.** The revision box currently reads STING shared params (`PRJ_TB_REVISION_NR_TXT` /
+  `_DATE_TXT` / `_DESCRIPTION_TXT`) that a command must keep in sync. Revit exposes built-in
+  **Current Revision / Current Revision Date / Current Revision Description** parameters on
+  title blocks that it maintains itself. Rebinding the catalogue's revision-box labels to those
+  built-ins makes the drawing correct with **zero sync** — no command run, no drift window, no
+  stale box if someone forgets to click. Once rebound, `TitleBlockRevisionSyncer` can drop its
+  title-block writes entirely and keep only the `SHT_REV_TXT` / `SHT_REV_DATE_TXT` sheet stamps
+  (which feed schedules and exports, and have no built-in equivalent). Scope: a catalogue
+  migration across the affected families plus a factory change — deliberately out of scope for
+  Phase 199, which did not mass-edit the 206-family catalogue.
+- **Consolidate the three revision-cloud implementations.** `AutoRevisionCloudCommand`
+  (`BIMManager`), `DocAutomationExtCommands.RevisionCloudAuto` (`Docs`), and
+  `MaterialRevisionCloudJob` (`Core`) each independently decide what "changed" means, how clouds
+  are grouped, and which view they land in. Fold them onto one shared engine (change-set in →
+  clouds out) so the three entry points stay behaviourally identical and a fix to cloud grouping
+  lands once.
+- **Data-drive the LG-03 per-discipline auto-revision thresholds.** `AutoRevisionOnTagChangeCommand`
+  carries a hardcoded per-discipline threshold dictionary. Move it into a JSON data file with a
+  project override (same corporate-baseline + `_BIM_COORD` override pattern the drawing types and
+  sizing rules already use), so a project can tune how many tag changes trigger an auto-revision
+  without a code change.
+
 ## MEP print-readiness — deferred items (Phase 198)
 
 Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).

@@ -3,6 +3,78 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199 — Revision System Alignment, branch `claude/revision-system-fixes`)
+
+The revision subsystem had strong building blocks but broken wiring: two conflicting
+title-block sync commands, a revision strip writing to parameters that exist nowhere, a
+dead automation hook, duplicated blocks running whole-model transactions twice, and a
+semantic conflict on the element REV parameter. Six fixes:
+
+- **De-duplicated `CreateRevisionCommand`** (`BIMManager/RevisionManagementCommands.cs`).
+  The pre-revision compliance gate, the warning-baseline auto-save, and the GAP-R9 REV
+  propagation block each appeared **twice** in `Execute`. The propagation duplicate ran a
+  full-model `Transaction` a second time, roughly doubling revision-creation cost on large
+  models. Each block now appears once.
+
+- **Gated the blanket REV propagation** behind a new `TagConfig.PropagateRevOnCreate` flag
+  (`PROPAGATE_REV_ON_CREATE` in `project_config.json`, **default false**, following the
+  existing `AutoSaveBaselineOnRevision` pattern). Overwriting `ASS_REV_TXT` on every tagged
+  element at each revision conflicted with `RevisionEngine.StampAffectedElements` and
+  `RevisionTagIntegrationCommand` — which write REV only on *changed* elements ("the
+  revision this element last changed in") — and made `ComplianceScan.RevisionPercent`
+  trivially ~100%. The opt-in flag restores the old mirror behaviour for projects that
+  want it.
+
+- **Unified title-block revision sync into one engine.** `Docs.RevisionSyncCommand` wrote
+  the internal `SequenceNumber` (1, 2, 3…) into `PRJ_TB_REVISION_NR_TXT` instead of the
+  user-facing `RevisionNumber` ("P01"); `TitleBlockRevisionSyncer` wrote a five-row strip
+  to per-row column/date/description parameters **declared nowhere** — not in
+  `STING_TITLE_BLOCKS.json`, not in `MR_PARAMETERS`, with no labels bound — so every one of
+  those writes was a silent no-op. `TitleBlockRevisionSyncer` is now the single engine: it
+  writes `RevisionNumber` (never `SequenceNumber`; `"R{seq}"` fallback only when
+  `RevisionNumber` is empty/unreadable) plus date and description to the four TB params the
+  catalogue actually binds labels to (`PRJ_TB_REVISION_NR_TXT` / `_DATE_TXT` /
+  `_DESCRIPTION_TXT` / `PRJ_TB_ISSUE_SUMMARY_TXT`) and to `SHT_REV_TXT` / `SHT_REV_DATE_TXT`
+  on the sheet. It now covers all non-placeholder sheets (`stampedOnly: true` retains
+  Produce & Export's stamped-sheet scope). The dead strip path and
+  `ClearRevRowsOnTitleBlocks` are deleted. `Docs.RevisionSyncCommand` delegates to it,
+  keeping its tag and registration so both dock buttons ("Rev Sync" / "Sync Rev") do the
+  same correct thing. `IssueSheetsForRevisionCommand` syncs title blocks on issue, so they
+  are fresh at the moment sheets are issued.
+
+- **Single source of truth for revision series** — new `Core/RevisionSeries.cs`.
+  `RevisionEngine.ValidateRevisionNumber` accepted only P##/C##/single-letter/numeric while
+  the BCC Revisions dropdown offers 9 series plus status stamps, so legitimate
+  `T01`/`Co02`/`AB01`/`IFC` codes were flagged invalid and "auto-corrected" by
+  `RevisionNamingEnforceCommand`. The validator and `CreateRevisionCommand.InferSeriesName`
+  both delegate to the new canonical table; `BuildIsoRevisionCodes` carries a pointer
+  comment. Verified against 20 cases (T01/CO02/Co02/AB01/P01/C05/A/3/A1/IFC/WD/R07/B02/D10/
+  SS/OB valid; XX-1?/empty/P1/ZZZ rejected).
+
+- **Native revision schedules in the title-block factory.** Every working-sheet family in
+  `STING_TITLE_BLOCKS.json` declares a `revision-history` slot with `"automationHook":
+  "Revisions_AutoPopulateSchedule"`, but the hook was parsed and never dispatched — generated
+  families shipped with an **empty zone** where the revision history belonged.
+  `TitleBlockFactory` now calls `ViewSchedule.CreateRevisionSchedule` for those slots and
+  places the result at the slot anchor. Revit maintains an embedded revision schedule
+  automatically once it exists in the family, so this is the zero-maintenance fix. The step
+  is idempotent (a family already carrying one is left as authored) and never fatal — every
+  failure path records a warning and the build continues. `ParamRegistry` gains
+  `TB_SHOW_REV_TABLE` + GUID; the GUID `da7b6ce4-…` is the UUIDv5 the shared-param files
+  **already** declared, confirmed by reproducing the existing `TB_SHOW_KEY_PLAN` /
+  `SCALEBAR` / `NORTH_ARROW` GUIDs exactly, so `MR_PARAMETERS` needed no change.
+
+- **`WORKFLOW_RevisionIssue.json`** — five-step one-click chain (create revision → cloud
+  changed elements → issue sheets → sync title blocks → export register). Adding it exposed
+  that the `RevisionSync` tag was **not** registered in `WorkflowEngine.ResolveCommand`; it
+  is now, along with the known-tags list.
+
+**Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
+table was exercised against 20 cases in a standalone harness. **Revit runtime verification
+is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
+and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
+every path there is warning-wrapped rather than fatal.
+
 #### Completed (Phase 198b — MEP print-ready cross-check punch-list, branch `claude/mep-punchlist`)
 
 Fixes the correctness/consistency defects a cross-check found in Phase 198's MEP work. Base
