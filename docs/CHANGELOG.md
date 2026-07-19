@@ -1,9 +1,8 @@
-StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 199 — Revision System Alignment, branch `claude/revision-system-fixes`)
+#### Completed (Phase 202 — Revision System Alignment, branch `claude/revision-system-fixes`)
 
 The revision subsystem had strong building blocks but broken wiring: two conflicting
 title-block sync commands, a revision strip writing to parameters that exist nowhere, a
@@ -146,6 +145,199 @@ table was exercised against 20 cases in a standalone harness. **Revit runtime ve
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
 and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
 every path there is warning-wrapped rather than fatal.
+#### Completed (Phase 201 — account provisioning bridge: handoff → starter project → personal access tokens)
+
+Closes the gap that made a planscape.build subscription unusable from StingBridge:
+an account provisioned through the identity handoff had no project to work in and
+**no credential a headless client could hold**. Verified end-to-end against the
+local docker stack (real API build, real Postgres) — see the E2E script below.
+
+- **Starter project on handoff.** `AuthController.HandoffExchange` already
+  find-or-created `Tenant` + `AppUser`; it now also provisions a project and a
+  `ProjectMember` row when the tenant has none (`EnsureStarterProjectAsync`). The
+  gate is "this tenant has zero projects", so repeat handoffs are no-ops and a
+  tenant whose only project was deleted gets one back. Best-effort: a failure
+  here logs and still issues the session, because losing your login over a
+  starter project would be a bad trade.
+
+- **Personal access tokens** (`PersonalAccessToken` entity + four endpoints:
+  `POST/GET/DELETE /api/auth/tokens`, `POST /api/auth/token/exchange`). Handoff
+  accounts are created with a deliberately unusable `HashPassword(Guid+Guid)`, so
+  they can only be entered via a 120-second ticket — correct for a browser,
+  impossible for a bridge. A PAT is **not** accepted as a bearer token anywhere:
+  it is exchanged for an ordinary short-lived JWT exactly as a password is at
+  `/login`. That deliberate choice keeps the API single-scheme, so no endpoint's
+  authorisation behaviour changed and there is no second credential type for
+  authorisation code to reason about. Only the SHA-256 is stored; the plaintext
+  is returned once. 20 active tokens per user; revocation is a soft delete;
+  every exchange failure mode returns an identical message so probing cannot
+  distinguish unknown from revoked from expired.
+
+- **`PersonalAccessTokens` mirrored into `PlatformSchemaPatcher`.** Without this
+  the table would exist only on fresh `EnsureCreated` databases and 500 on every
+  long-lived one — the exact drift class `adr/0001-schema-management.md` warns
+  about. Verified by inspecting the real docker Postgres after boot: table plus
+  all three indexes present.
+
+- **StingBridge learns token auth.** New `STING_PLANSCAPE_TOKEN` /
+  `planscape_token` setting, `PlanscapeClient.login_with_token`, and re-auth that
+  refreshes via whichever credential the client holds. The two paths are kept
+  strictly separate — adopting a token clears any stored password and vice versa,
+  so a refresh can never silently fall back to a stale credential. A 404 from the
+  exchange endpoint reports "this server is too old, use email+password" instead
+  of a bare HTTP error.
+
+- **Fixed the token-expiry constant (ROADMAP DEP-8).** The client assumed a
+  60-minute access token and refreshed at 55; the server issues 30-minute tokens
+  (`AuthController.AccessTokenLifetime`). The proactive refresh therefore never
+  fired until the token had been dead for ~25 minutes, and every request in that
+  window paid for a reactive 401 + retry. Now 30 minutes with a 5-minute margin,
+  pinned by a regression test.
+
+**Repaired the integration-test harness**, which was fully broken on main —
+`PlanscapeWebApplicationFactory`-based tests could not construct a host at all
+(**0 of 15** `AuthControllerTests` passing before this). Three independent
+causes, each an unconditional startup call meeting a stripped-down test host:
+
+1. `UseHangfireDashboard` threw when the factory removed every Hangfire
+   descriptor → now mounted only when `JobStorage` is registered.
+2. ~40 static `RecurringJob.AddOrUpdate` calls threw "JobStorage.Current has not
+   been initialized" → the factory now **substitutes** in-memory Hangfire storage
+   rather than deleting the feature, keeping the production startup path under test.
+3. The startup schema block called relational-only APIs (`GetDbConnection`,
+   `information_schema` probes, the patchers) against the EF InMemory provider →
+   guarded with `IsRelational()`.
+
+A fourth cause made results non-deterministic: the production `auth` rate limit
+is 5 requests / 5 minutes **per IP**, and xunit runs test classes in parallel from
+a single loopback IP, so unrelated tests failed with 429 instead of their real
+assertion. Added a `RateLimiting:Enabled` seam (**default true** — rate limiting
+stays on in every real deployment) which the test host sets to false.
+
+Suite went from **265 passed / 129 failed** to **339 passed / 73 failed**:
+56 previously-failing tests now pass, **zero regressions** (verified by diffing
+the failing-test list against a clean `origin/main` worktree). The remaining 73
+are pre-existing failures unrelated to this work — assertions that drifted from
+current behaviour (e.g. `HealthCheck_ReturnsHealthy` now gets 403, and
+`Register_NewOrg` reads a response field that no longer exists).
+
+New tests: 18 `PersonalAccessTokenTests`, 8 `HandoffProvisioningTests`, 12
+StingBridge `test_token_auth.py` — all green, with the 28 pre-existing StingBridge
+tests still passing.
+
+**E2E** (`StingBridge/tests/e2e_handoff_provisioning.py`, run against a real API
+build on :5099 wired to the docker Postgres/Redis): mint a handoff ticket the way
+the Cloudflare Function does → redeem → assert tenant + user + starter project →
+assert password login is refused for all attempts → mint a PAT → authenticate a
+real `PlanscapeClient` with the token alone → ingest an IFC element
+(`1 mappings, 1 elements`) → read it back by GlobalId → revoke → confirm 401.
+
+Docs: `StingBridge/QUICKSTART.md` and `marketing-site/guides/stingbridge-setup.html`
+now lead with the token, explain how to mint and revoke one, and state plainly
+that website sign-ups have no server password and *must* use a token.
+
+**Not done / not verified:** the cloud app has no UI for minting tokens yet (the
+API is there; the guides document `curl`). Nothing was tested against a deployed
+Render environment — none exists. Handoff still provisions one tenant per user,
+and D1 remains the billing authority with no reverse sync, both per the original
+design.
+
+#### Completed (Phase 200 — Planscape Server go-live prep: blueprint validation + corrected schema story)
+
+Deployment-readiness pass on the Render blueprint. **No deployment happened** —
+`api.planscape.build` still does not resolve; actual go-live is owner-side
+(Render dashboard + registrar DNS). This phase makes that a zero-improvisation
+task and fixes a documentation contradiction that would have misled it.
+
+- **Blueprint validated against the real code.** The API image builds clean from
+  the committed Dockerfile (`docker build -f Planscape.Server/docker/Dockerfile .`
+  → exit 0, 1.04 GB). `healthCheckPath: /health` matches a live endpoint. All 47
+  env-var keys in `render.yaml` were checked against actual config reads:
+  `Cors__Origins__*` binds through `GetSection("Cors:Origins").Get<string[]>()`,
+  `Serilog__*` through `ReadFrom.Configuration`, and `Smtp__Username`/`Smtp__Password`
+  through `EmailServiceBase.Cfg` → `Smtp:Username`/`Smtp:Password`. The remaining
+  unmatched keys are correctly scoped elsewhere (converter sidecar's own
+  `API_BASE`/`API_BEARER`/`CONVERTER_TOKEN`/`IFCCONVERT_URL`, MinIO's
+  `MINIO_ROOT_*`, Next.js's `NEXT_PUBLIC_API_BASE`/`NODE_VERSION`, and the
+  framework's `ASPNETCORE_*`). `Planscape.Server/render.yaml` was confirmed to be
+  a stale copy that already self-marks as SUPERSEDED.
+
+- **Corrected the schema story (`DEPLOY_RUNBOOK.md` §1).** The runbook claimed
+  production calls `db.Database.Migrate()` and instructed the operator to run
+  `dotnet ef migrations has-pending-model-changes` and hand-author an
+  `HvacEngineSnapshots` migration. That contradicted the committed `render.yaml`,
+  which sets `PLANSCAPE_USE_ENSURE_CREATED=true` — so `Program.cs` (~line 1327)
+  takes the **EnsureCreated** branch: probe for `Tenants`, `creator.CreateTables()`
+  from `OnModelCreating` on a fresh DB, then idempotent patchers
+  (`PatchDevSchemaAsync`, `PlatformSchemaPatcher.ApplyAsync`) in both branches.
+  Per `adr/0001-schema-management.md` this is the official mechanism, not a
+  workaround. **Answer for day 1: no EF migration step**, and the HVAC snapshot
+  tables are created correctly by the EnsureCreated path.
+
+- **New `docs/SERVER_GO_LIVE.md`** — ordered critical path, the two secret pairs
+  that must match each other, the day-1 schema answer, and a
+  "looks-broken-but-isn't" table (notably: `/swagger` returns 404 in production
+  **by design** — it is gated behind `Swagger:Enabled=true` because schema
+  disclosure aids endpoint enumeration; an earlier draft of the smoke test
+  wrongly asserted a 200).
+
+- **Handoff secret is unset on the cloud side.** `wrangler pages secret list
+  --project-name planscape-marketing` shows 12 secrets, and
+  `PLANSCAPE_HANDOFF_SECRET` is **not** among them — the cloud→server identity
+  handoff is not yet wired in production. It is a *shared* secret and must be set
+  identically on Render (api **and** worker) and on Cloudflare Pages. Recorded in
+  both the go-live doc and the owner checklist.
+
+- **Owner package generated outside the repo** at `C:\Dev\planscape-render-golive\`
+  (`SECRETS.txt` + `GO-LIVE-CHECKLIST.md`) — pre-generated `Jwt__Key` (48 bytes),
+  owner password, handoff secret, converter token and MinIO credentials, each
+  labelled with its destination, plus paste-ready smoke commands. Never committed.
+
+Housekeeping: removed the `REAUTH_TEST_GUID_01` test element left in the local
+"Tendo testing" project by an earlier session (one `TaggedElements` row + one
+`ExternalElementMappings` row; local dev DB only).
+
+#### Completed (Phase 199 — StingBridge 0.1.0-beta.1 release + self-serve downloads, PRs #415–#417)
+
+StingBridge became a shipped product: packaged, released through the gated planscape.build
+downloads area, and live in production. All merged to main; artifacts verified end-to-end
+against the local docker Planscape stack before upload.
+
+- **Release readiness (PR #415, branch `claude/stingbridge-release`)** — transparent
+  re-authentication on token expiry (proactive + reactive-401, retried once; fixes the
+  drop-folder watcher dying silently after ~1 h); ZONE/LOC finally wired in the live sync
+  path (`_build_zone_index` via `GetElementsRelatedToZones` + `Zone_ZoneNumber`/`Zone_ZoneName`
+  built-ins, `STING_BUILDING_NAME` drives LOC); `upload_model` re-opens the file per retry
+  (a consumed handle uploaded 0 bytes) and suppresses the session's global
+  `Content-Type: application/json` that corrupted every multipart GLB upload;
+  `--help` no longer crashes on cp1252 consoles; `pyproject.toml` packaging
+  (`stingbridge` 0.1.0b1, entry point, dynamic version) + `stingbridge.toml`/`.env` config
+  file support (env > file > defaults); QUICKSTART.md. **Licence metadata set to
+  Proprietary** in both `StingBridge/pyproject.toml` and
+  `stingtools-core/python/pyproject.toml` (both said MIT — which would have granted every
+  download recipient redistribution rights) + `StingBridge/LICENSE.txt`.
+- **Downloads multi-artifact support (PR #416)** — `artifacts[]` per catalogue version
+  (label/platform/objectKey/sha256), `?artifact=<label>` selector on the gated streaming
+  endpoint (single-file versions keep their selector-less URLs), one Download button per
+  artifact on the page, and `marketing-site/tools/release-download.mjs` (hash → upload →
+  print-the-catalogue-block; **must pass `--remote` — wrangler 4 defaults `r2 object put`
+  to the local simulator**).
+- **Release + flip (PR #417)** — built on Python 3.13: `win64` one-file PyInstaller EXE
+  (51 MB, sha256 `976401ec…`) and `any` wheels zip with `run.bat`/`run.sh` launchers
+  (sha256 `22f1ed68…`); both smoke-tested from clean installs including a full
+  `process-ifc` E2E (3 elements → server → token write-back, 0 errors). Uploaded to the
+  private `planscape-downloads` R2 bucket; catalogue flipped from request-by-email to
+  self-serve; STING Tools sha256 backfilled from the canonical bucket object; new
+  `guides/stingbridge-setup.html`; Revit guide's stale "email us" step now points at
+  `/downloads`. Deployed to production and verified live (gating 401s, page + guide 200).
+- **Hardening (this branch)** — remaining review findings: `get_element_timestamps` /
+  `get_substrate_manifest` / `get_compliance` routed through the same `_send` refresh path
+  as the writes; zone property reads batched (100/request) for campus-scale zone counts;
+  console-encoding reconfigure moved from import time into `main()`. 28 tests pass.
+- **Deliberate decisions**: StingBridge carries **no offline licence key** — it is useless
+  without a Planscape server login, so the account is the entitlement (unlike the Revit
+  plugin's machine-locked keys). macOS ships via the `any` zip; a notarized binary is
+  deferred.
 
 #### Completed (Phase 198b — MEP print-ready cross-check punch-list, branch `claude/mep-punchlist`)
 

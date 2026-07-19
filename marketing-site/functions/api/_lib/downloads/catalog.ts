@@ -10,8 +10,33 @@
 // below. It is intentionally coarse: trial and active tenants get everything.
 // Per-product entitlement (STING Tools subscribers get only the plugin) would go
 // here too, via requiresProduct, once the plans justify it.
+//
+// Releasing a build: use tools/release-download.mjs — it uploads the files to
+// R2, computes sha256 + size from the bytes, and prints the entry to paste
+// here, so the catalogue cannot drift from what is actually in the bucket.
 
 export type ToolStatus = "available" | "beta" | "in-development";
+
+// One downloadable file within a version. A cross-platform tool ships several
+// (a Windows EXE zip, a platform-neutral source zip); a single-platform tool
+// keeps using ToolVersion.objectKey and never declares these.
+//
+// Ship ZIPS ONLY: the streaming endpoint serves everything as application/zip,
+// which is also kinder to browsers than a bare .exe download.
+//
+// Use tools/release-download.mjs to upload the files and generate this block —
+// it computes the sha256 and size so they can never drift from the object.
+export interface ToolArtifact {
+  // URL-safe slug, unique within the version (e.g. "win64", "any"). Shown on
+  // the download button and passed back as ?artifact= to select the file.
+  label: string;
+  // Short human label for where it runs, e.g. "Windows 64-bit" or
+  // "Any OS (Python 3.11+)". Display only.
+  platform?: string;
+  objectKey: string;
+  sizeMb?: number;
+  sha256?: string | null;
+}
 
 export interface ToolVersion {
   version: string;
@@ -27,6 +52,28 @@ export interface ToolVersion {
   // to "request by email" — no code change either way.
   objectKey?: string | null;
   sha256?: string | null;
+  // Multi-file alternative to objectKey for tools that ship more than one
+  // build per version. When present it wins over objectKey.
+  artifacts?: ToolArtifact[];
+}
+
+// Normalise the two shapes: a version's downloadable files as a single list.
+// Single-file versions (objectKey) come back as one artifact with an empty
+// label, which the endpoint serves without needing ?artifact= — so existing
+// STING Tools links keep working unchanged.
+export function resolveArtifacts(v: ToolVersion): ToolArtifact[] {
+  if (v.artifacts && v.artifacts.length) return v.artifacts;
+  if (v.objectKey) {
+    return [
+      {
+        label: "",
+        objectKey: v.objectKey,
+        sizeMb: v.sizeMb,
+        sha256: v.sha256 ?? null,
+      },
+    ];
+  }
+  return [];
 }
 
 export interface Tool {
@@ -59,12 +106,15 @@ export const DOWNLOAD_CATALOG: Tool[] = [
       {
         version: "2026-07-05",
         hosts: ["Revit 2025", "Revit 2026", "Revit 2027"],
-        sizeMb: 88,
+        sizeMb: 89,
         releasedAt: "2026-07-05",
         notes:
           "One package covers all three Revit versions — the installer puts the files in the right place. Includes an install guide and an uninstaller.",
         objectKey: "sting-tools/2026-07-05/StingTools_Deploy_20260705.zip",
-        sha256: null,
+        // Hashed from the canonical bucket object (wrangler r2 object get →
+        // sha256), 2026-07-19.
+        sha256:
+          "9ed1036ad08c12653e15f1501cd282f773a6edf06523f770af1565697f91b00c",
       },
     ],
   },
@@ -75,14 +125,31 @@ export const DOWNLOAD_CATALOG: Tool[] = [
       "Connects ArchiCAD models to Planscape, and watches a folder for IFC files to bring in automatically.",
     kind: "connector",
     status: "beta",
-    platform: "Windows · macOS · ArchiCAD",
+    platform: "Windows · macOS · ArchiCAD (and any IFC-exporting tool)",
     requiresProduct: null,
+    docsUrl: "/guides/stingbridge-setup.html",
     versions: [
       {
-        version: "beta",
+        version: "0.1.0-beta.1",
+        releasedAt: "2026-07-19",
         notes:
-          "In testing with a small group. Tell us about your ArchiCAD setup and we will include you.",
-        objectKey: null,
+          "First public beta. The IFC drop-folder and single-file workflows are verified end-to-end; live ArchiCAD JSON-API sync ships but is still maturing — tell us how it goes.",
+        artifacts: [
+          {
+            label: "win64",
+            platform: "Windows 64-bit",
+            objectKey: "sting-bridge/0.1.0-beta.1/StingBridge_0.1.0-beta.1_win64.zip",
+            sizeMb: 51,
+            sha256: "976401ecce06c9c3231c1d92477c1fe3185ba167232ee3bf8ce4a857e0bc6d26",
+          },
+          {
+            label: "any",
+            platform: "Any OS (Python 3.11+)",
+            objectKey: "sting-bridge/0.1.0-beta.1/StingBridge_0.1.0-beta.1_any.zip",
+            sizeMb: 1,
+            sha256: "22f1ed6805f79e5fa2b64dc91a6b0a8c5a7475dd640dd68cbf48fc34ac425cc2",
+          },
+        ],
       },
     ],
   },

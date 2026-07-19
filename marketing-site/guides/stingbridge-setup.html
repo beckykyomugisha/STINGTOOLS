@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StingBridge setup — ArchiCAD &amp; IFC to Planscape — Planscape</title>
+<meta name="description" content="Install StingBridge and connect ArchiCAD — or any IFC-exporting tool — to Planscape: drop-folder sync, live ArchiCAD sync, and Publisher Set automation.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/stingbridge-setup.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; StingBridge setup</div>
+  <h1>StingBridge setup — ArchiCAD &amp; IFC to Planscape</h1>
+  <div class="meta">📖 6-minute read · Beginner · Last updated 2026-07-19 · v0.1.0-beta.1</div>
+
+  <p>StingBridge connects <strong>ArchiCAD</strong> — or <em>any</em> tool that can export IFC — to your Planscape project. It reads the model, derives STING ISO 19650 tokens (<code>DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</code>), pushes them to Planscape, and writes them back into the model so the tags live in the file too.</p>
+
+  <p>There is <strong>no licence key</strong>. StingBridge signs in with your Planscape account — your subscription is the entitlement.</p>
+
+  <h2>Which download do I want?</h2>
+  <table>
+    <thead><tr><th>Build</th><th>Pick it when</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Windows 64-bit</strong> (<code>_win64.zip</code>)</td><td>You are on Windows and want zero setup — a single <code>stingbridge.exe</code>, no Python needed.</td></tr>
+      <tr><td><strong>Any OS</strong> (<code>_any.zip</code>)</td><td>You are on macOS/Linux, or you already have Python 3.11+ and prefer a smaller download. Ships the wheels plus <code>run.bat</code>/<code>run.sh</code> launchers that set everything up on first run.</td></tr>
+    </tbody>
+  </table>
+  <p>Both are on the <a href="/downloads">downloads page</a>, with SHA-256 checksums shown next to each button.</p>
+
+  <h2>Step 1 — Install</h2>
+  <h3>Windows EXE</h3>
+  <ol>
+    <li>Unzip anywhere, e.g. <code>C:\Tools\StingBridge</code>.</li>
+    <li>Open a terminal there and check it runs: <code>stingbridge.exe --version</code></li>
+  </ol>
+  <h3>Any OS (Python)</h3>
+  <ol>
+    <li>Unzip, then run <code>run.bat</code> (Windows) or <code>./run.sh</code> (macOS/Linux) — the first run creates a local environment and installs the bundled wheels.</li>
+    <li>Check: <code>./run.sh --version</code></li>
+  </ol>
+
+  <h2>Step 2 — Connect to Planscape</h2>
+  <p>Create a <code>stingbridge.toml</code> next to the executable (or set the same values as <code>STING_*</code> environment variables — environment always wins):</p>
+  <pre><code>planscape_url        = "https://api.planscape.build"
+planscape_token      = "psat_&lt;your access token&gt;"
+planscape_project_id = "&lt;project UUID from Planscape&gt;"
+
+# Optional
+building_name        = "Block A"   # drives the LOC token, default BLD1
+ifc_drop_dir         = "C:/Projects/IFC_DROP"</code></pre>
+  <p>Your project's UUID is in the Planscape web app under the project's settings, or ask your BIM manager.</p>
+
+  <h3>Getting your access token</h3>
+  <p>An access token is a named credential for tools like StingBridge. You can revoke it on its own, without changing your password or signing anything else out. Create one in the Planscape web app, or with:</p>
+  <pre><code>curl -X POST https://api.planscape.build/api/auth/tokens   -H "Authorization: Bearer &lt;a JWT from signing in&gt;"   -H "Content-Type: application/json"   -d '{"name":"StingBridge on the studio PC"}'</code></pre>
+  <p>The token is shown <strong>once</strong> — copy it straight into <code>planscape_token</code>. It is stored hashed, so it cannot be shown again; if you lose it, revoke that one and mint another.</p>
+  <p><strong>If you signed up on planscape.build, a token is your only option.</strong> Accounts created by clicking through from the website are linked to your planscape.build sign-in and have no separate server password, so email and password login will always be refused for them.</p>
+  <p>If your account does have a password, you can use <code>planscape_email</code> and <code>planscape_password</code> instead. Either way StingBridge trades your credential for a short-lived session and refreshes it automatically.</p>
+
+  <h2>Step 3 — Pick your workflow</h2>
+
+  <h3>A. IFC drop folder (recommended — works with any authoring tool)</h3>
+  <pre><code>stingbridge watch-ifc --drop-dir "C:/Projects/IFC_DROP"</code></pre>
+  <p>Leave it running. Every <code>.ifc</code> file that lands in the folder is parsed, tagged, synced to Planscape, and written back out as <code>&lt;name&gt;_sting.ifc</code> with a <code>STING_TOKENS</code> property set on every element. A <code>.sync_result.json</code> sidecar records what happened per file.</p>
+  <p>In ArchiCAD, point a <strong>Publisher Set</strong> (IFC translator) at the drop folder and publishing becomes your sync button. The same works from Tekla, Vectorworks, Allplan — anything that exports IFC.</p>
+
+  <h3>B. One file, right now</h3>
+  <pre><code>stingbridge process-ifc "C:/Projects/model.ifc"</code></pre>
+
+  <h3>C. Live ArchiCAD sync (beta)</h3>
+  <p>With ArchiCAD open (AC 28/29) and a project loaded:</p>
+  <pre><code>stingbridge sync          # one pass
+stingbridge watch         # every 5 minutes
+stingbridge auto-publish  # trigger the IFC Publisher Set, then ingest</code></pre>
+  <p>Live sync reads elements over ArchiCAD&rsquo;s JSON API, writes STING tokens back as User-Defined properties in a <code>STING</code> property group, and verifies what it wrote. It is the newest path in the beta — if anything looks off, use the drop-folder workflow and <a href="mailto:hello@planscape.build">tell us</a>.</p>
+
+  <h2>Optional — 3D viewer uploads</h2>
+  <p>If <code>IfcConvert</code> (from IfcOpenShell) is installed and on your <code>PATH</code>, processed models are also converted to GLB and uploaded to the Planscape 3D viewer automatically. Without it, everything else still works.</p>
+
+  <h2>Troubleshooting</h2>
+  <table>
+    <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>ArchiCAD not found on ports 19723&ndash;19726</code></td><td>ArchiCAD must be running with a project open, and the JSON API enabled.</td></tr>
+      <tr><td><code>Access token rejected</code></td><td>The token was revoked or expired, or belongs to a different server. Mint a new one and update <code>planscape_token</code>.</td></tr>
+      <tr><td><code>Invalid credentials</code></td><td>Wrong <code>planscape_email</code>/<code>planscape_password</code>. If you signed up on planscape.build, your account has no server password — use <code>planscape_token</code> instead.</td></tr>
+      <tr><td>Elements sync with <code>ZZ</code> zone / <code>BLD1</code> location</td><td>Zones need ArchiCAD zone numbers/names; set <code>building_name</code> for LOC. IFC files need spatial structure for levels.</td></tr>
+      <tr><td>Watcher stops syncing after an hour</td><td>Fixed in 0.1.0-beta.1 — the bridge re-authenticates automatically. Update if you are on anything older.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Beta caveats</h2>
+  <ul>
+    <li>Live ArchiCAD sync (workflow C) is verified against IFC round-trips; a live-model check on <em>your</em> ArchiCAD version is part of what the beta is for.</li>
+    <li>macOS users use the <code>_any</code> build — a signed native binary comes later.</li>
+  </ul>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      
+
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
