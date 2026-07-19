@@ -145,3 +145,40 @@ Inside each CDE state folder, sub-structure by **discipline → content type**, 
 | **D — doc manager unification** | Register merge, single vocabulary + state machine, role-enforced gates, render-into-WIP, audit-chain everywhere, acknowledgement capture. | Higher — schema migration, both UIs |
 
 Phases A and B deliver most of the visible tidiness (one folder next to the RVT, nothing recreated after migration). Phases C and D deliver the "truly ISO 19650" claim.
+
+---
+
+## Part 4 — Automation logic audit (second pass)
+
+What actually runs automatically today reduces to four things: the always-on `LiveClashUpdater` queue capture (registered with live triggers at startup, contradicting its own "deferred" comment — `StingToolsApp.cs:157-160`), the opt-in disabled IUpdaters, the 5-minute `SyncScheduler` (only when authenticated + linked), and idle jobs enqueued on open/save. The trigger-based automation layer is largely **dead or dormant**:
+
+| Finding | Evidence |
+|---|---|
+| `StingStaleMarker` is **never registered** — `Register` has zero callers, so the state-restore at `StingToolsApp.cs:908` and the Tag-Studio toggle are silent no-ops. Stale detection from live edits never runs; `StaleWarningPromotionJob` starves. | `Core/StingAutoTagger.cs:1318-1350` |
+| Four more updaters are orphaned (Register exists, no call site): `SLDSyncUpdater`, `CableManifestUpdater`, `HvacEnvelopeStaleUpdater`, `LiveStandardsUpdater`. Header comments claim OnStartup registration. | `Core/SLD/SLDSyncUpdater.cs:26`, `Core/Routing/CableManifestUpdater.cs:144`, `Core/Hvac/Loads/HvacEnvelopeStaleUpdater.cs:64`, `Core/Validation/LiveStandardsUpdater.cs:47` |
+| `Planscape.Docs.Workflow.WorkflowEngine.Transition` has **zero callers** — workflow instances are created (transmittals only) but never advance; Check→Review→Approve gates can never fire. `GetInstance` also uncalled. | `Docs/Workflow/WorkflowEngine.cs:66-98` |
+| `SlaScanner.Scan` has **zero callers** — SLA breach detection/escalation for document workflows never runs, despite its header claiming BCC-open/tab-switch wiring. | `Docs/Workflow/SlaScanner.cs:26` |
+| `WorkflowScheduler` trigger engine: `_triggers` is only fillable via `AddTrigger`/`LoadFromConfig` — **both have zero callers** — so every trigger check on open/SLA iterates an empty list. | `Core/Phase75Enhancements.cs:50`, `StingToolsApp.cs:962` |
+| Config flags parsed but consumed nowhere: `AUTO_CREATE_CDE_FOLDERS` (write-only property) and `AUTO_RUN_WORKFLOW_ON_OPEN` (logged "execute manually", never executed). | `TagConfig.cs:904-908, 972-975`, `StingToolsApp.cs:932-942` |
+| `PluginUpdateChecker.CheckAsync` — zero callers; the update check CLAUDE.md describes never happens. | `Core/PluginUpdateChecker.cs:27` |
+| `DeliverableServerSync.FireAndForget`/`PushAudit` — zero callers; lifecycle transitions reach the server only via the periodic reconcile tick (and only when authenticated). | `Docs/Templates/DeliverableServerSync.cs:38/89` |
+| `ProjectFolderEngine.FileChanged` public event — 13 raise sites, **zero subscribers**. | `Core/ProjectFolderEngine.cs:1874` |
+| Two divergent auto-register facades write the **same** `document_register.json` with incompatible schemas (`document_id`/`DOC-NNNN` vs `doc_id`/`STING-{type}-{ts}`); the ExLink batch export family (PDF/DWG/NWC/IFC/params) registers with **neither**. | `BIMManagerCommands.cs:798 vs 4958`, `ExLink/AutomationEngine.cs:429-528` |
+| `Core.WorkflowEngine.GetAvailablePresets` contains the same built-in-list block copy-pasted **three times**. | `Core/WorkflowEngine.cs:2369-2388` |
+
+## Part 5 — Integration seams (second pass)
+
+| # | Seam | Impact | Evidence |
+|---|---|---|---|
+| 1 | **issues.json folder split**: WarningsManager/LPS auto-raised issues go to `_bim_manager/issues.json`; the BCC/BIMManager register reads `STING_BIM_MANAGER/issues.json`. Issues silently invisible to the tool that manages them. Same split for `meetings.json`, and `documents.json` vs `document_register.json`. | Data desync | `WarningsManager.cs:3670` vs `BIMManagerCommands.cs:700-706`; `BIMCoordinationCenter.cs:11462` vs `CoordinationCenterCommands.cs:830` |
+| 2 | **Dead reflection bridges**: `BIMCoordinationCenter.SelectedDeliverable(s)` **do not exist anywhere** — every Issue/ReIssue/Publish/Cancel/Bulk-Issue/Transmittal driven from BCC selection permanently behaves as "nothing selected". `PlanscapeServerClient.PushDirtyGeometryAsync` also nonexistent → idle geometry sync is a permanent no-op. | Features inert | `DeliverableLifecycleCommands.cs:96-99`, `TransmittalCommands.cs:130-134`, `StingIdlingScheduler.cs:164-167` |
+| 3 | **Non-atomic writes on hot stores**: `WriteAllTextAtomic` covers ~13 of 395 `File.WriteAllText` sites; issues/register/transmittals/meetings writers are all raw writes — crash mid-write corrupts the store. Atomic logic re-implemented privately twice. | Corruption risk | `BIMManagerCommands.cs` (31 raw), `DocumentManagementDialog.cs` (21), `WarningsManager.cs` (12); `BOQBccBridge.cs:560` |
+| 4 | **Eight parallel tag→command dispatch maps** (~3,600 combined entries): main switch (1,934 cases) + CommandRegistry modules (~664) + `ResolveCommand` (380) + 5 panel handlers. Same command reachable under different tags per map (`Panel_FillSlots` vs `Panel_FillSparesAll` etc.) — workflow presets using panel tags resolve to null on a path with documented NRE history. | Drift + maintenance | `UI/CommandRegistry.cs`, `Core/WorkflowEngine.cs:1919`, `StingElectricalCommandHandler.cs:149-159` |
+| 5 | **7 copy-paste string-reflection calls to `DrawingTypeStamper.Stamp`** — one rename silently disables drawing-type stamping across SLD/arc-flash/voltage-drop/fault/panel schedules. | Fragile | `SLDGenerator.cs:478` + 6 siblings |
+| 6 | **Path divergence with %TEMP% fallbacks**: `clashes.json` written to `20_MISC` but read from `_BIM_COORD` (with `%TEMP%` fallback); `deliverables.json` has a `%TEMP%/Planscape/BIMCoord` fallback that silently orphans data. | Data loss | `ClashRunCommand.cs:115` vs `ClashManagerDialog.cs:82-84`; `DeliverableServerSync.cs:257-267` |
+| 7 | **Workflow state stored in two layers at once** (ES `StingWorkflowStateSchema` + `_BIM_COORD/workflow_state.json`) and two classes named `WorkflowEngine` for different concepts. No storage-ownership guidance (ES vs JSON vs shared params) anywhere. | Ambiguity | `Core/Storage/*`, `Docs/Workflow/WorkflowEngine.cs:172` |
+| 8 | **Panel singleton push-back**: commands push results to `Panel.Instance` which is null when the panel is closed — workflow-invoked commands update nothing visible. Handler statics (`SetInputs`/`Snapshot`) duplicate per panel with 5 copy-paste `Run<T>` helpers. | Silent no-ops | `StingHvacPanel.xaml.cs:48`, `StingHvacCommandHandler.cs:28-64` |
+| 9 | **Fragmented HTTP stack**: pooled Bearer `PlanscapeServerClient` (44 files) vs separate ACC OAuth stack vs API-key providers vs unauthenticated ad-hoc `HttpClient`s vs per-call `new HttpClient()` in telemetry. No shared retry. | Reliability | `PlanscapeServerClient.cs:1691`, `Core/PluginTelemetry.cs:112`, `CoordinationCenterCommands.cs:51` |
+| 10 | **BOQ fans out into ~12 JSON stores** across two folder conventions. | Sprawl | `BOQ/*` |
+
+**The autonomous-fix work plan derived from Parts 1–5 lives in [`docs/AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md`](AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md).**
