@@ -5898,6 +5898,23 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"ViewDocument dispatch: {ex.Message}"); }
                 return;
             }
+            // Targeted revision deletion from the BCC register context menu:
+            // "DeleteRevision_<elementId>" → RevisionDeleteCommand via ExtraParam.
+            if (action.StartsWith("DeleteRevision_", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string revId = action.Substring("DeleteRevision_".Length);
+                    UI.StingCommandHandler.SetExtraParam("DeleteRevisionId", revId);
+                    var delCmd = new BIMManager.RevisionDeleteCommand();
+                    string msg = "";
+                    var els = new ElementSet();
+                    delCmd.Execute(commandData, ref msg, els);
+                }
+                catch (Exception ex) { StingLog.Warn($"DeleteRevision dispatch: {ex.Message}"); }
+                return;
+            }
+
             if (action.StartsWith("Disconnect_", StringComparison.OrdinalIgnoreCase)
              || action.StartsWith("ViewLogs_", StringComparison.OrdinalIgnoreCase)
              || action.StartsWith("SelectRevision_", StringComparison.OrdinalIgnoreCase)

@@ -4000,6 +4000,9 @@ namespace StingTools.UI
                 var ctxSupersede = new MenuItem { Header = "\u2298  Mark as Superseded" };
                 ctxSupersede.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"SupersedeRevision_{rev.Id}"); };
                 ctx.Items.Add(ctxSupersede);
+                var ctxDelete = new MenuItem { Header = "\ud83d\uddd1  Delete This Revision" };
+                ctxDelete.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"DeleteRevision_{rev.Id}"); };
+                ctx.Items.Add(ctxDelete);
 
                 var ctxExport = new MenuItem { Header = "\U0001F4E4  Export Revision Report to CSV" };
                 ctxExport.Click += (s2, e2) => { DispatchAction("RevisionExport"); };
@@ -4066,6 +4069,10 @@ namespace StingTools.UI
                 "Who received each issued revision, when, and acknowledgement status"));
             syncWrap.Children.Add(MakeActionButton("Cloud Audit",       "Revision_CloudAudit",      Br(Color.FromRgb(0x6A,0x1B,0x9A)),
                 "Audit all revision clouds: per-revision totals, unassigned clouds, clouds per sheet"));
+            syncWrap.Children.Add(MakeActionButton("Delete Revision…",  "Revision_Delete",      Br(CRed),
+                "Pick one or more revisions to delete — un-issues them, deletes their clouds, removes them from every sheet, re-syncs title blocks. Also on the register's right-click menu."));
+            syncWrap.Children.Add(MakeActionButton("⚠ Purge Revisions", "Revision_Purge",       Br(CRed),
+                "START AFRESH: delete every revision cloud + every revision except one seed, clear revisions from all sheets, re-sync title blocks. Typed-PURGE confirmation required. For test/sandbox models."));
             stack.Children.Add(syncWrap);
 
             // ── Inline Revision Dashboard panel ───────────────────────────

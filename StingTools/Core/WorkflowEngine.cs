@@ -368,7 +368,8 @@ namespace StingTools.Core
             "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
             "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
             "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp", "RevisionSync",
-            "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit",
+            "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit", "Revision_Purge",
+            "Revision_Delete",
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
@@ -1781,6 +1782,8 @@ namespace StingTools.Core
                 case "RevisionApprovalWorkflow": return new BIMManager.RevisionApprovalWorkflowCommand();
                 case "RevisionDistribution":    return new BIMManager.RevisionDistributionCommand();
                 case "Revision_CloudAudit":     return new BIMManager.RevisionCloudAuditCommand();
+                case "Revision_Purge":          return new BIMManager.RevisionPurgeCommand();
+                case "Revision_Delete":         return new BIMManager.RevisionDeleteCommand();
                 case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
                 case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
                 case "PlatformSync":            return new BIMManager.PlatformSyncCommand();

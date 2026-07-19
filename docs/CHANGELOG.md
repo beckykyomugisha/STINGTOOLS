@@ -108,6 +108,19 @@ semantic conflict on the element REV parameter. Six fixes:
   `RevisionExportCommand` writes). `RevisionApprovalWorkflow` / `RevisionDistribution` /
   `Revision_CloudAudit` gained the missing `WorkflowEngine.ResolveCommand` cases.
 
+- **Revision removal tooling** (third follow-up). Two commands for clearing revisions,
+  both handling the full unlock chain (un-issue → delete clouds → remove from every
+  sheet → delete revision → re-sync title blocks): **`Revision_Delete`**
+  (`RevisionDeleteCommand`) deletes chosen revisions via a multi-select picker or the BCC
+  register's new right-click **"Delete This Revision"** (routed as `DeleteRevision_<id>`
+  through a new `DispatchCoordAction` prefix handler + `DeleteRevisionId` ExtraParam);
+  deleting ALL revisions is blocked (Revit requires one). **`Revision_Purge`**
+  (`RevisionPurgeCommand`) is the start-afresh variant for test models: deletes every
+  cloud and every revision except one neutral seed (reset to "Revision 1", moved off the
+  STING series sequences so the next create reads P01), clears all sheets, optional
+  tag-snapshot deletion, gated by a typed-"PURGE" WPF confirmation. Both sit in the BCC
+  TITLE BLOCKS & GOVERNANCE row.
+
 **Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
 table was exercised against 20 cases in a standalone harness. **Revit runtime verification
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`

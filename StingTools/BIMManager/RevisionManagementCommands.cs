@@ -2794,4 +2794,491 @@ namespace StingTools.BIMManager
             }
         }
     }
+
+    /// <summary>
+    /// Purge Revisions (start afresh) — deletes ALL revision clouds and every
+    /// revision except one seed, clears revisions from all sheets, and re-syncs
+    /// title blocks. Intended for test/sandbox models; on production models the
+    /// typed-"PURGE" confirmation is the only thing between the user and their
+    /// revision history, so the gate is deliberately strict.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionPurgeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+                var cloudIds = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds()
+                    .ToList();
+
+                if (revisions.Count <= 1 && cloudIds.Count == 0)
+                {
+                    TaskDialog.Show("STING Purge Revisions",
+                        "Nothing to purge — the project already has at most the single seed revision and no clouds.");
+                    return Result.Succeeded;
+                }
+
+                if (!ConfirmPurge(revisions.Count, cloudIds.Count, out bool deleteSnapshots))
+                    return Result.Cancelled;
+
+                var keeper = revisions.First();   // Revit requires at least one revision
+                int revsDeleted = 0, sheetsCleared = 0;
+
+                using (var tx = new Transaction(doc, "STING Purge Revisions"))
+                {
+                    tx.Start();
+
+                    // 1. Un-issue everything — Issued revisions lock their clouds
+                    //    and properties, blocking every step below.
+                    foreach (var rev in revisions)
+                    {
+                        try { if (rev.Issued) rev.Issued = false; }
+                        catch (Exception unEx) { StingLog.Warn($"Purge un-issue seq {rev.SequenceNumber}: {unEx.Message}"); }
+                    }
+
+                    // 2. Delete every revision cloud.
+                    if (cloudIds.Count > 0)
+                    {
+                        try { doc.Delete(cloudIds); }
+                        catch (Exception clEx) { StingLog.Warn($"Purge cloud delete: {clEx.Message}"); }
+                    }
+
+                    // 3. Clear revisions off every sheet so the keeper does not
+                    //    linger on any title-block revision schedule.
+                    foreach (var sheet in new FilteredElementCollector(doc)
+                                 .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                    {
+                        try
+                        {
+                            if (sheet.GetAdditionalRevisionIds().Count > 0)
+                            {
+                                sheet.SetAdditionalRevisionIds(new List<ElementId>());
+                                sheetsCleared++;
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Purge sheet {sheet.SheetNumber}: {shEx.Message}"); }
+                    }
+
+                    // 4. Delete every revision except the seed.
+                    var deleteIds = revisions.Skip(1).Select(r => r.Id).ToList();
+                    if (deleteIds.Count > 0)
+                    {
+                        try { revsDeleted = doc.Delete(deleteIds).Count > 0 ? deleteIds.Count : 0; }
+                        catch (Exception rdEx) { StingLog.Warn($"Purge revision delete: {rdEx.Message}"); }
+                    }
+
+                    // 5. Reset the seed to a neutral state, off the STING series
+                    //    sequences so the next Create Revision starts at P01.
+                    try
+                    {
+                        keeper.Description  = "Revision 1";
+                        keeper.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        try { keeper.IssuedBy = ""; } catch (Exception ibEx) { StingLog.Warn($"Purge seed IssuedBy: {ibEx.Message}"); }
+                        var defaultSeq = new FilteredElementCollector(doc)
+                            .OfClass(typeof(RevisionNumberingSequence))
+                            .Cast<RevisionNumberingSequence>()
+                            .FirstOrDefault(s => !(s.Name ?? "").StartsWith("STING", StringComparison.OrdinalIgnoreCase));
+                        if (defaultSeq != null && keeper.RevisionNumberingSequenceId != defaultSeq.Id)
+                            keeper.RevisionNumberingSequenceId = defaultSeq.Id;
+                    }
+                    catch (Exception kEx) { StingLog.Warn($"Purge seed reset: {kEx.Message}"); }
+
+                    tx.Commit();
+                }
+
+                // 6. Optionally clear the sidecar tag-snapshot history.
+                int snapshotsDeleted = 0;
+                if (deleteSnapshots)
+                {
+                    try
+                    {
+                        string dir = RevisionEngine.GetRevisionDir(doc);
+                        foreach (var f in Directory.GetFiles(dir, "snapshot_*.json"))
+                        {
+                            try { File.Delete(f); snapshotsDeleted++; }
+                            catch (Exception fEx) { StingLog.Warn($"Purge snapshot '{Path.GetFileName(f)}': {fEx.Message}"); }
+                        }
+                    }
+                    catch (Exception sdEx) { StingLog.Warn($"Purge snapshots: {sdEx.Message}"); }
+                }
+
+                // 7. Re-sync title blocks — with no revisions on any sheet this
+                //    clears the revision boxes and SHT_REV values.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks re-synced: {syncResult.SheetsProcessed} sheet(s)";
+                }
+                catch (Exception syEx)
+                {
+                    syncLine = "Title block re-sync FAILED (see log)";
+                    StingLog.Warn($"Purge title-block sync: {syEx.Message}");
+                }
+
+                TaskDialog.Show("STING Purge Revisions",
+                    $"Purge complete.\n\n" +
+                    $"Clouds deleted: {cloudIds.Count}\n" +
+                    $"Revisions deleted: {revsDeleted}\n" +
+                    $"Sheets cleared: {sheetsCleared}\n" +
+                    (deleteSnapshots ? $"Snapshots deleted: {snapshotsDeleted}\n" : "") +
+                    $"Seed kept: Seq {keeper.SequenceNumber} — \"{keeper.Description}\"\n" +
+                    syncLine + "\n\n" +
+                    "The next Create Revision starts the series fresh (P01 …).");
+
+                StingLog.Info($"RevisionPurge: {cloudIds.Count} clouds, {revsDeleted} revisions, " +
+                    $"{sheetsCleared} sheets cleared, {snapshotsDeleted} snapshots deleted");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionPurgeCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // Typed-confirmation gate: OK stays disabled until the user types PURGE.
+        internal static bool ConfirmPurge(int revisionCount, int cloudCount, out bool deleteSnapshots)
+        {
+            deleteSnapshots = false;
+            bool confirmed = false;
+
+            var win = new System.Windows.Window
+            {
+                Title = "STING — Purge Revisions",
+                Width = 480,
+                SizeToContent = System.Windows.SizeToContent.Height,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize
+            };
+            try
+            {
+                new System.Windows.Interop.WindowInteropHelper(win).Owner =
+                    System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ownEx) { StingLog.Warn($"Purge dialog owner: {ownEx.Message}"); }
+
+            var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = $"This will DELETE {cloudCount} revision cloud(s) and " +
+                       $"{Math.Max(0, revisionCount - 1)} of {revisionCount} revision(s) " +
+                       "(one seed is kept — Revit requires it), clear revisions from every sheet, " +
+                       "and re-sync all title blocks.\n\n" +
+                       "This cannot be undone from this dialog. Intended for test / sandbox models.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+            var snapChk = new System.Windows.Controls.CheckBox
+            {
+                Content = "Also delete tag-snapshot history (_BIM_COORD/Revisions/snapshot_*.json)",
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            stack.Children.Add(snapChk);
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Type PURGE to confirm:",
+                FontWeight = System.Windows.FontWeights.SemiBold
+            });
+            var confirmBox = new System.Windows.Controls.TextBox
+            {
+                Margin = new System.Windows.Thickness(0, 4, 0, 12),
+                FontSize = 14
+            };
+            stack.Children.Add(confirmBox);
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var okBtn = new System.Windows.Controls.Button
+            {
+                Content = "Purge", Width = 90, Height = 28, IsEnabled = false,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 90, Height = 28 };
+            confirmBox.TextChanged += (s, e) =>
+                okBtn.IsEnabled = string.Equals(confirmBox.Text?.Trim(), "PURGE", StringComparison.Ordinal);
+            okBtn.Click += (s, e) => { confirmed = true; win.Close(); };
+            cancelBtn.Click += (s, e) => { win.Close(); };
+            btnRow.Children.Add(okBtn);
+            btnRow.Children.Add(cancelBtn);
+            stack.Children.Add(btnRow);
+
+            win.Content = stack;
+            win.ShowDialog();
+
+            deleteSnapshots = confirmed && snapChk.IsChecked == true;
+            return confirmed;
+        }
+    }
+
+    /// <summary>
+    /// Delete Revision(s) — targeted removal of ONE or more chosen revisions:
+    /// un-issues them, deletes their clouds, removes them from every sheet,
+    /// then deletes the revision elements. Invoked either from the BCC
+    /// register's right-click ("Delete This Revision" → ExtraParam
+    /// "DeleteRevisionId") or bare, which opens a multi-select picker.
+    /// Revit requires at least one revision in the project — deleting ALL of
+    /// them is blocked (use Purge Revisions, which keeps a seed).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionDeleteCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+                if (revisions.Count == 0)
+                {
+                    TaskDialog.Show("STING Delete Revision", "No revisions in the project.");
+                    return Result.Succeeded;
+                }
+
+                // Cloud counts per revision — shown in the picker and used for deletion.
+                var cloudsByRev = new Dictionary<ElementId, List<ElementId>>();
+                foreach (var cl in new FilteredElementCollector(doc)
+                             .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                             .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var rid = cl.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                        if (rid == null || rid == ElementId.InvalidElementId) continue;
+                        if (!cloudsByRev.TryGetValue(rid, out var list))
+                            cloudsByRev[rid] = list = new List<ElementId>();
+                        list.Add(cl.Id);
+                    }
+                    catch (Exception cEx) { StingLog.Warn($"Delete revision cloud scan: {cEx.Message}"); }
+                }
+
+                // Target selection: BCC context menu passes the element id via
+                // ExtraParam; a bare invocation opens the multi-select picker.
+                var targets = new List<Revision>();
+                string idParam = UI.StingCommandHandler.GetExtraParam("DeleteRevisionId") ?? "";
+                UI.StingCommandHandler.SetExtraParam("DeleteRevisionId", "");
+                if (long.TryParse(idParam, out long revIdVal))
+                {
+                    var hit = revisions.FirstOrDefault(r => r.Id.Value == revIdVal);
+                    if (hit != null) targets.Add(hit);
+                }
+                if (targets.Count == 0)
+                {
+                    targets = PickRevisions(revisions, cloudsByRev);
+                    if (targets.Count == 0) return Result.Cancelled;
+                }
+
+                if (targets.Count >= revisions.Count)
+                {
+                    TaskDialog.Show("STING Delete Revision",
+                        "Revit requires at least one revision in the project — deselect one,\n" +
+                        "or use ⚠ Purge Revisions, which keeps a clean seed automatically.");
+                    return Result.Cancelled;
+                }
+
+                int cloudTotal = targets.Sum(t => cloudsByRev.TryGetValue(t.Id, out var l) ? l.Count : 0);
+                var confirm = new TaskDialog("STING Delete Revision")
+                {
+                    MainInstruction = $"Delete {targets.Count} revision(s)?",
+                    MainContent = string.Join("\n", targets.Select(t =>
+                        {
+                            string n = ""; try { n = t.RevisionNumber; } catch (Exception nEx) { StingLog.Warn($"Rev number read: {nEx.Message}"); }
+                            int cc = cloudsByRev.TryGetValue(t.Id, out var l) ? l.Count : 0;
+                            return $"  • Seq {t.SequenceNumber} [{n}] {t.Description} — {(t.Issued ? "ISSUED" : "draft")}, {cc} cloud(s)";
+                        })) +
+                        $"\n\nTheir {cloudTotal} revision cloud(s) are deleted with them and the revisions\n" +
+                        "are removed from every sheet. This cannot be undone from this dialog.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No
+                };
+                if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+                var targetIds = new HashSet<ElementId>(targets.Select(t => t.Id));
+                int sheetsTouched = 0, revsDeleted = 0;
+
+                using (var tx = new Transaction(doc, "STING Delete Revision(s)"))
+                {
+                    tx.Start();
+
+                    // 1. Un-issue — issued revisions lock their clouds and membership.
+                    foreach (var rev in targets)
+                    {
+                        try { if (rev.Issued) rev.Issued = false; }
+                        catch (Exception unEx) { StingLog.Warn($"Delete un-issue seq {rev.SequenceNumber}: {unEx.Message}"); }
+                    }
+
+                    // 2. Delete their clouds.
+                    var cloudIds = targets
+                        .Where(t => cloudsByRev.ContainsKey(t.Id))
+                        .SelectMany(t => cloudsByRev[t.Id])
+                        .ToList();
+                    if (cloudIds.Count > 0)
+                    {
+                        try { doc.Delete(cloudIds); }
+                        catch (Exception clEx) { StingLog.Warn($"Delete clouds: {clEx.Message}"); }
+                    }
+
+                    // 3. Remove the targets from every sheet's revision list.
+                    foreach (var sheet in new FilteredElementCollector(doc)
+                                 .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                    {
+                        try
+                        {
+                            var addl = sheet.GetAdditionalRevisionIds().ToList();
+                            var kept = addl.Where(id => !targetIds.Contains(id)).ToList();
+                            if (kept.Count != addl.Count)
+                            {
+                                sheet.SetAdditionalRevisionIds(kept);
+                                sheetsTouched++;
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Delete sheet {sheet.SheetNumber}: {shEx.Message}"); }
+                    }
+
+                    // 4. Delete the revision elements themselves.
+                    try
+                    {
+                        doc.Delete(targetIds.ToList());
+                        revsDeleted = targetIds.Count;
+                    }
+                    catch (Exception rdEx) { StingLog.Warn($"Delete revisions: {rdEx.Message}"); }
+
+                    tx.Commit();
+                }
+
+                // 5. Re-sync so title-block boxes reflect what remains.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks re-synced: {syncResult.SheetsProcessed} sheet(s)";
+                }
+                catch (Exception syEx)
+                {
+                    syncLine = "Title block re-sync FAILED (see log)";
+                    StingLog.Warn($"Delete revision sync: {syEx.Message}");
+                }
+
+                TaskDialog.Show("STING Delete Revision",
+                    $"Deleted {revsDeleted} revision(s) and {cloudTotal} cloud(s).\n" +
+                    $"Sheets updated: {sheetsTouched}\n" +
+                    syncLine);
+                StingLog.Info($"RevisionDelete: {revsDeleted} revisions, {cloudTotal} clouds, {sheetsTouched} sheets");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionDeleteCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // Multi-select picker: one checkbox per revision, newest first.
+        private static List<Revision> PickRevisions(List<Revision> revisions,
+            Dictionary<ElementId, List<ElementId>> cloudsByRev)
+        {
+            var picked = new List<Revision>();
+            bool confirmed = false;
+
+            var win = new System.Windows.Window
+            {
+                Title = "STING — Delete Revision(s)",
+                Width = 520,
+                SizeToContent = System.Windows.SizeToContent.Height,
+                MaxHeight = 560,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize
+            };
+            try
+            {
+                new System.Windows.Interop.WindowInteropHelper(win).Owner =
+                    System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ownEx) { StingLog.Warn($"Delete dialog owner: {ownEx.Message}"); }
+
+            var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tick the revision(s) to delete. Their clouds are deleted with them and " +
+                       "they are removed from every sheet. At least one revision must remain.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 10)
+            });
+
+            var listPanel = new System.Windows.Controls.StackPanel();
+            var checkByRev = new Dictionary<System.Windows.Controls.CheckBox, Revision>();
+            foreach (var rev in revisions.OrderByDescending(r => r.SequenceNumber))
+            {
+                string n = ""; try { n = rev.RevisionNumber; } catch (Exception nEx) { StingLog.Warn($"Rev number read: {nEx.Message}"); }
+                int cc = cloudsByRev.TryGetValue(rev.Id, out var l) ? l.Count : 0;
+                var chk = new System.Windows.Controls.CheckBox
+                {
+                    Content = $"Seq {rev.SequenceNumber}  [{n}]  {rev.Description}  — {(rev.Issued ? "ISSUED" : "draft")}, {cc} cloud(s)",
+                    Margin = new System.Windows.Thickness(0, 2, 0, 2)
+                };
+                checkByRev[chk] = rev;
+                listPanel.Children.Add(chk);
+            }
+            stack.Children.Add(new System.Windows.Controls.ScrollViewer
+            {
+                Content = listPanel,
+                MaxHeight = 340,
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var okBtn = new System.Windows.Controls.Button
+            {
+                Content = "Delete Selected", Width = 120, Height = 28,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 90, Height = 28 };
+            okBtn.Click += (s, e) => { confirmed = true; win.Close(); };
+            cancelBtn.Click += (s, e) => { win.Close(); };
+            btnRow.Children.Add(okBtn);
+            btnRow.Children.Add(cancelBtn);
+            stack.Children.Add(btnRow);
+
+            win.Content = stack;
+            win.ShowDialog();
+
+            if (confirmed)
+                foreach (var kv in checkByRev)
+                    if (kv.Key.IsChecked == true)
+                        picked.Add(kv.Value);
+            return picked;
+        }
+    }
 }
