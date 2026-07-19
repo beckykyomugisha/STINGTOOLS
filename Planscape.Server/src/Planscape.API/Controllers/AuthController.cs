@@ -936,6 +936,192 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password has been reset. Please log in." });
     }
 
+    // ── Cloud handoff (planscape.build → this API) ──────────────────────────
+    //
+    // planscape.build (Cloudflare D1) owns signup, passwords and billing. This
+    // API owns project data. A customer who signed up there has no AppUser row
+    // here, so the marketing site mints a short-lived single-use HMAC ticket
+    // and the web app exchanges it here for a NORMAL session — same JWT, same
+    // refresh flow as /login. Design: docs/PLANSCAPE_IDENTITY_HANDOFF.md.
+    //
+    // The ticket is NOT a password and no password ever transits this path.
+    // Mirror accounts are created with a random unusable hash; they can only
+    // ever be entered via a fresh ticket.
+
+    /// <summary>Exchange a planscape.build handoff ticket for a session.</summary>
+    /// <response code="200">Session issued.</response>
+    /// <response code="401">Ticket invalid, expired, or already used.</response>
+    [AllowAnonymous]
+    [HttpPost("handoff/exchange")]
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult> HandoffExchange([FromBody] HandoffExchangeRequest req)
+    {
+        var secret = Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
+        if (string.IsNullOrEmpty(secret))
+        {
+            _logger.LogError("Handoff exchange attempted but PLANSCAPE_HANDOFF_SECRET is unset");
+            return StatusCode(500, new { message = "Handoff is not configured." });
+        }
+
+        var ticket = req.Ticket ?? "";
+        var dot = ticket.IndexOf('.');
+        if (dot <= 0 || dot == ticket.Length - 1)
+            return Unauthorized(new { message = "Invalid ticket." });
+
+        byte[] payloadBytes, sig;
+        try
+        {
+            payloadBytes = Base64UrlDecodeHandoff(ticket[..dot]);
+            sig          = Base64UrlDecodeHandoff(ticket[(dot + 1)..]);
+        }
+        catch { return Unauthorized(new { message = "Invalid ticket." }); }
+
+        using (var hmac = new System.Security.Cryptography.HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+        {
+            var expected = hmac.ComputeHash(payloadBytes);
+            if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(expected, sig))
+                return Unauthorized(new { message = "Invalid ticket." });
+        }
+
+        HandoffTicketPayload? p;
+        try { p = System.Text.Json.JsonSerializer.Deserialize<HandoffTicketPayload>(payloadBytes); }
+        catch { p = null; }
+        if (p == null || string.IsNullOrWhiteSpace(p.Jti)
+                      || string.IsNullOrWhiteSpace(p.Email)
+                      || string.IsNullOrWhiteSpace(p.TenantSlug))
+            return Unauthorized(new { message = "Invalid ticket." });
+
+        // TTL is 120s at mint; enforce expiry here so clock skew on the minting
+        // side cannot extend a ticket's life.
+        if (p.Exp <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+            return Unauthorized(new { message = "Ticket expired — go back to planscape.build and try again." });
+
+        // Single use. A ticket travels in a URL, so anything that replays the
+        // URL (prefetch, back button, shared link) must not mint a second
+        // session. Redis-down fails OPEN with a warning, consistent with the
+        // other Redis-degraded paths in this controller: the worst case is a
+        // duplicate session for the same legitimate user inside a 120s window.
+        try
+        {
+            var redisDb = _redis.GetDatabase();
+            var fresh = await redisDb.StringSetAsync(
+                $"handoff:jti:{p.Jti}", 1, TimeSpan.FromMinutes(5), When.NotExists);
+            if (!fresh)
+                return Unauthorized(new { message = "Ticket already used — go back to planscape.build and try again." });
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex, "Redis unavailable during handoff jti check; single-use protection degraded.");
+        }
+
+        var email = p.Email.Trim().ToLowerInvariant();
+        var slug  = p.TenantSlug.Trim().ToLowerInvariant();
+
+        // Email is the join key. An existing user keeps their existing tenant —
+        // the handoff never moves a user between tenants.
+        var user = await _db.Users
+            .IgnoreQueryFilters()
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+
+        if (user == null)
+        {
+            var tenant = await _db.Tenants.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Slug == slug);
+            if (tenant == null)
+            {
+                var limits = BillingPlanLimits.For(BillingPlan.Network);
+                tenant = new Tenant
+                {
+                    Name         = string.IsNullOrWhiteSpace(p.TenantName) ? slug : p.TenantName!,
+                    Slug         = slug,
+                    ContactEmail = email,
+                    Tier         = LicenseTier.Starter,
+                    // Billing truth lives in planscape.build's D1, not here —
+                    // the handoff endpoint refuses cancelled/read_only tenants
+                    // before minting a ticket. Provision the mirror generously
+                    // so this side never locks out a customer D1 considers
+                    // paid; reconciliation is deliberately out of scope
+                    // (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+                    Plan           = BillingPlan.Trial,
+                    Currency       = "USD",
+                    BillingCycle   = BillingCycle.Monthly,
+                    MaxUsers       = limits.MaxAuthors + limits.MaxCoordinators,
+                    MaxProjects    = limits.MaxProjects,
+                    MimEnabled     = false,
+                    TrialExpiresAt = DateTime.UtcNow.AddDays(365)
+                };
+                _db.Tenants.Add(tenant);
+            }
+
+            // Explicit map, defaulting DOWN. Never pass the role string
+            // through — a rename on the D1 side must not escalate here.
+            var role = (p.Role ?? "").ToLowerInvariant() switch
+            {
+                "owner"        => UserRole.Owner,
+                "admin"        => UserRole.Admin,
+                "project_lead" => UserRole.Manager,
+                "coordinator"  => UserRole.Coordinator,
+                _              => UserRole.Viewer
+            };
+
+            var display = ($"{p.FirstName} {p.LastName}").Trim();
+            user = new AppUser
+            {
+                TenantId     = tenant.Id,
+                Tenant       = tenant,
+                Email        = email,
+                DisplayName  = string.IsNullOrWhiteSpace(display) ? email : display,
+                // Random, never disclosed, never usable: this account can only
+                // be entered via a handoff ticket.
+                PasswordHash = HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                Role         = role,
+                Iso19650Role = "A"
+            };
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+        }
+
+        // From here, identical to a successful /login.
+        var token = GenerateJwt(user);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _redis.GetDatabase().StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex, "Redis unavailable while seeding refresh activity for handoff session.");
+        }
+
+        return Ok(new
+        {
+            accessToken  = token,
+            refreshToken,
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
+            userName     = user.DisplayName,
+            role         = user.Role.ToString(),
+            tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            mimEnabled   = user.Tenant?.MimEnabled ?? false,
+            tenantSlug   = user.Tenant?.Slug ?? slug
+        });
+    }
+
+    private static byte[] Base64UrlDecodeHandoff(string s)
+    {
+        var b64 = s.Replace('-', '+').Replace('_', '/');
+        switch (b64.Length % 4) { case 2: b64 += "=="; break; case 3: b64 += "="; break; }
+        return Convert.FromBase64String(b64);
+    }
+
     private string GenerateJwt(Core.Entities.AppUser user)
     {
         // P1 — tag newly issued tokens with kid=current so future rotations can
@@ -1017,3 +1203,24 @@ public class AuthController : ControllerBase
 
 public record SwitchTenantRequest(Guid TenantId);
 public record AcceptInvitationRequest(string Token, string Email, string Password);
+
+// ── Handoff DTOs (docs/PLANSCAPE_IDENTITY_HANDOFF.md) ──────────────────────────
+
+public sealed class HandoffExchangeRequest
+{
+    public string? Ticket { get; set; }
+}
+
+internal sealed class HandoffTicketPayload
+{
+    [System.Text.Json.Serialization.JsonPropertyName("jti")]        public string? Jti { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("email")]      public string? Email { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tenantSlug")] public string? TenantSlug { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tenantName")] public string? TenantName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("firstName")]  public string? FirstName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("lastName")]   public string? LastName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("role")]       public string? Role { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tier")]       public string? Tier { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("iat")]        public long Iat { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("exp")]        public long Exp { get; set; }
+}
