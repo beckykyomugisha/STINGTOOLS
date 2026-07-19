@@ -101,6 +101,11 @@ document close), demoted `_rootPath` to an *explicit global override only* (neve
 per-doc computation), added `_lastResolvedRoot` purely for the document-less `RootPath` display
 getter, and made `SaveRootToConfig` persist `PROJECT_FOLDER_ROOT` only when a real override is set.
 
+Also fixed the `OptionFolderManager` nesting: per-option deliverable folders minted
+`20_MISC/_BIM_COORD/options/...` (a third `_BIM_COORD` one level deep inside an export
+bucket — a literal "folder repeated inside another folder"). They now mint under the WIP
+CDE container (`<WIP>/options/<set>/<option>/...`), matching the header's stated intent.
+
 Still TODO for WP6: the `Core/StingPaths.cs` facade, migrating the ~40 remaining hardcoded
 `<rvtDir>/_BIM_COORD` sibling writers (review Part 1 §A2) onto `GetMetaPath`, and the
 `tools/check_path_discipline` grep gate. Tracked in `docs/ROADMAP.md`.

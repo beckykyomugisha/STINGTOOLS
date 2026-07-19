@@ -851,8 +851,10 @@ remaining sprawl is narrower than the review describes.
 cache — the cross-project contamination risk — is fixed. Root resolution is now cached
 per-document (`_rootByDoc`, cleared on close), `_rootPath` is an explicit global override
 only, and `SaveRootToConfig` no longer persists a computed root as `PROJECT_FOLDER_ROOT`.
-See `docs/CONSOLIDATION_PROGRESS.md` → "WP6 (partial)". Still open: the `StingPaths` facade,
-the ~40 sibling-writer migration + `OptionFolderManager`, and the grep gate.
+The `OptionFolderManager` `20_MISC/_BIM_COORD/options` nesting is also fixed — per-option
+folders now mint under the WIP CDE container (`<WIP>/options/...`). See
+`docs/CONSOLIDATION_PROGRESS.md` → "WP6 (partial)". Still open: the `StingPaths` facade,
+the ~40 remaining sibling `_BIM_COORD`-writer migration, and the grep gate.
 
 ### WP7 remainder — shared `Run<T>` helper
 
