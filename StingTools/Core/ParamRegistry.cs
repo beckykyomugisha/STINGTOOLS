@@ -165,8 +165,12 @@ namespace StingTools.Core
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// Defaults to 5 (full 8-segment): ASS_DISPLAY_TXT is the on-drawing tag and
+        /// must start from the full string so a segment mask (TAG_SEG_MASK_TXT /
+        /// STING_VIEW_TOKEN_MASK_TXT / UI "TokenMask") has all 8 segments to shorten.
+        /// Masks only apply in modes 0/5 — the only modes that carry every segment.
         /// </summary>
-        public static int DisplayModeDefault = 2;
+        public static int DisplayModeDefault = 5;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
@@ -495,6 +499,11 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        // P4 — MEP system/service code shown on the title block SYSTEM cell.
+        // Instance param on OST_TitleBlocks; filled from DrawingType.System via
+        // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
+        public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
+        public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
         // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
         // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
         // constants below are kept on ViewSheet for backwards compat with sheets that
@@ -1280,6 +1289,20 @@ namespace StingTools.Core
         public static string TAG_SCALE_TIER_AUTO { get; private set; } = "TAG_SCALE_TIER_AUTO_BOOL";
         /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
         public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
+
+        // ── Universal-tag status gates (Phase 195 Task 2) ────────────────
+        // Instance INTEGER params stamped on model elements by ComplianceScan
+        // and read by the universal tag's two status badges (left = data gate,
+        // right = QA gate) via and(TAG_WARN_VISIBLE_BOOL, STING_GATE_x = n).
+        // 0 = red, 1 = amber, 2 = green.
+        /// <summary>Data-completeness gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
+        /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
+        /// <summary>Data gate terse reason for the label next to the left badge (instance TEXT, blank when green).</summary>
+        public static string GATE_DATA_MSG { get; private set; } = "STING_GATE_DATA_MSG_TXT";
+        /// <summary>QA gate terse reason for the label next to the right badge (instance TEXT, blank when green).</summary>
+        public static string GATE_QA_MSG { get; private set; } = "STING_GATE_QA_MSG_TXT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:

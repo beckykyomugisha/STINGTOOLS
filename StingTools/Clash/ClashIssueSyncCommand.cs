@@ -105,8 +105,8 @@ namespace StingTools.Core.Clash
                         desc.AppendLine($"source_hash: {hash}");
 
                         var elemIds = new List<ElementId>();
-                        if (clash.ElementA != null && clash.ElementA.ElementId > 0) elemIds.Add(new ElementId(clash.ElementA.ElementId));
-                        if (clash.ElementB != null && clash.ElementB.ElementId > 0) elemIds.Add(new ElementId(clash.ElementB.ElementId));
+                        if (clash.ElementA != null && clash.ElementA.ElementId > 0) elemIds.Add(new ElementId((long)clash.ElementA.ElementId));
+                        if (clash.ElementB != null && clash.ElementB.ElementId > 0) elemIds.Add(new ElementId((long)clash.ElementB.ElementId));
 
                         string disc = DiscFor(catA);
                         string nextId = BIMManagerEngine.GetNextIssueId(issues, "CLASH");

@@ -257,6 +257,7 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "halftone": true,
           "projWeight": 2,
@@ -303,6 +304,7 @@
       "scaleHint": "1:50",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 5,
           "cutWeight": 5,
@@ -350,6 +352,7 @@
       "scaleHint": "1:100",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 3
         },
@@ -387,6 +390,7 @@
       "scaleHint": "1:20",
       "colorScheme": "Monochrome",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projWeight": 6,
           "cutWeight": 6
@@ -441,6 +445,7 @@
         }
       ],
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Generic Annotations": {
           "projColor": "#FF0000",
           "projWeight": 2
@@ -680,6 +685,139 @@
       ]
     },
     {
+      "id": "corp-standard-hvac",
+      "name": "Corporate HVAC Plan",
+      "description": "Single-discipline HVAC production plan. Ductwork + air terminals + mechanical equipment bold in CIBSE mechanical colours; every other MEP discipline and the arch/struct shell halftoned grey (#808080) as background. Grids / rooms / matchline kept. Fixes the corp-standard-plan default that hid Pipes/Ducts.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "discipline": "Mechanical",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
+      "viewTemplate": "STING - Mechanical Plan",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "Discipline",
+      "vgOverrides": {
+        "Ducts":                 { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 5, "cutColor": "#1976D2", "cutWeight": 5 },
+        "Duct Fittings":         { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 3 },
+        "Duct Accessories":      { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 2 },
+        "Flex Ducts":            { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 2 },
+        "Duct Insulations":      { "visible": true, "halftone": true,  "projColor": "#1976D2", "projWeight": 1 },
+        "Air Terminals":         { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 3 },
+        "Mechanical Equipment":  { "visible": true, "halftone": false, "projColor": "#880E4F", "projWeight": 4 },
+        "Pipes":               { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 5 },
+        "Pipe Fittings":       { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 3 },
+        "Pipe Accessories":      { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Flex Pipes":          { "visible": true, "halftone": false, "projColor": "#1976D2", "projWeight": 2 },
+        "Plumbing Fixtures":     { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Sprinklers":            { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Electrical Equipment":  { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Electrical Fixtures":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Lighting Fixtures":     { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Conduits":              { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Cable Trays":           { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Fire Alarm Devices":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Communication Devices": { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Walls":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Columns":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Framing":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Floors":                { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Ceilings":              { "visible": false },
+        "Rooms":                 { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 80 }
+      }
+    },
+    {
+      "id": "corp-standard-elec",
+      "name": "Corporate Electrical Plan",
+      "description": "Single-discipline electrical production plan. Power / lighting / containment / devices bold in CIBSE electrical amber (fire-alarm devices red); every other MEP discipline and the arch/struct shell halftoned grey (#808080) as background. Grids / rooms / matchline kept.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "discipline": "Electrical",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
+      "viewTemplate": "STING - Electrical Plan",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "Discipline",
+      "vgOverrides": {
+        "Electrical Equipment":  { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 4 },
+        "Electrical Fixtures":   { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 3 },
+        "Lighting Fixtures":     { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 3 },
+        "Lighting Devices":      { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Conduits":              { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 3 },
+        "Conduit Fittings":      { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Cable Trays":           { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 3 },
+        "Cable Tray Fittings":   { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Wires":                 { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 1 },
+        "Communication Devices": { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Data Devices":          { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Security Devices":      { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Nurse Call Devices":    { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Telephone Devices":     { "visible": true, "halftone": false, "projColor": "#F57F17", "projWeight": 2 },
+        "Fire Alarm Devices":    { "visible": true, "halftone": false, "projColor": "#C00000", "projWeight": 3 },
+        "Ducts":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Duct Fittings":         { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Air Terminals":         { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Mechanical Equipment":  { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Pipes":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Pipe Fittings":         { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Plumbing Fixtures":     { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Sprinklers":            { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Walls":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Columns":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Framing":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Floors":                { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Ceilings":              { "visible": false },
+        "Rooms":                 { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 80 }
+      }
+    },
+    {
+      "id": "corp-standard-plumb",
+      "name": "Corporate Plumbing / Public Health Plan",
+      "description": "Single-discipline plumbing / drainage production plan. Pipework + fixtures + equipment bold in CIBSE plumbing green (fire-suppression sprinklers red); every other MEP discipline and the arch/struct shell halftoned grey (#808080) as background. Grids / rooms / matchline kept.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": ["scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"],
+      "discipline": "Plumbing",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
+      "viewTemplate": "STING - Plumbing Plan",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "Discipline",
+      "vgOverrides": {
+        "Pipes":                 { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 5, "cutColor": "#2E7D32", "cutWeight": 5 },
+        "Pipe Fittings":         { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 3 },
+        "Pipe Accessories":      { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 2 },
+        "Flex Pipes":            { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 2 },
+        "Pipe Insulations":      { "visible": true, "halftone": true,  "projColor": "#2E7D32", "projWeight": 1 },
+        "Plumbing Fixtures":     { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 3 },
+        "Plumbing Equipment":    { "visible": true, "halftone": false, "projColor": "#2E7D32", "projWeight": 3 },
+        "Sprinklers":            { "visible": true, "halftone": false, "projColor": "#C00000", "projWeight": 2 },
+        "Ducts":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Duct Fittings":         { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Air Terminals":         { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Mechanical Equipment":  { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Electrical Equipment":  { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Electrical Fixtures":   { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Lighting Fixtures":     { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Conduits":              { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Cable Trays":           { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Fire Alarm Devices":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Walls":                 { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Columns":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 2 },
+        "Structural Framing":    { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Floors":                { "visible": true, "halftone": true,  "projColor": "#808080", "projWeight": 1 },
+        "Ceilings":              { "visible": false },
+        "Rooms":                 { "visible": true, "projColor": "#1976D2", "projWeight": 1, "transparency": 80 }
+      }
+    },
+    {
       "id": "corp-fabrication-shop",
       "name": "Fabrication Shop Drawing",
       "description": "Workshop-floor look. Bold mono pipework / ductwork; structural and walls halftoned; ordinate dimensions.",
@@ -736,6 +874,7 @@
       "scaleHint": "1:50",
       "colorScheme": "PresentationRich",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "projColor": "#263238",
           "projWeight": 6,
@@ -853,6 +992,7 @@
         }
       ],
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Walls": {
           "halftone": true,
           "projWeight": 2
@@ -1845,6 +1985,7 @@
       "extends": "corp-base",
       "origin": "corporate",
       "vgOverrides": {
+        "STING_TagStatus": { "visible": false },
         "Ducts": {
           "visible": false
         },
@@ -2683,9 +2824,30 @@
           "projectionLineWeight": 1
         }
       }
+    },
+    {
+      "id": "coord-qa",
+      "name": "STING - Coordination / QA",
+      "description": "Coordination view that SHOWS the universal-tag status badges (STING_TagStatus subcategory ON) and recolours non-compliant tags by their stamped data / QA gate via the qa-gate-* filters. Extends corp-coordination for discipline colours + system filters.",
+      "extends": "corp-coordination",
+      "origin": "corporate",
+      "vgOverrides": {
+        "STING_TagStatus": { "visible": true }
+      },
+      "filters": [
+        { "name": "STING - QA: Data Gate — Red", "visible": true },
+        { "name": "STING - QA: Data Gate — Amber", "visible": true },
+        { "name": "STING - QA: QA Gate — Red", "visible": true },
+        { "name": "STING - QA: QA Gate — Amber", "visible": true }
+      ]
     }
   ],
   "routing": [
+    {
+      "purpose": "QA",
+      "discipline": "*",
+      "stylePackId": "coord-qa"
+    },
     {
       "purpose": "Spool",
       "discipline": "*",

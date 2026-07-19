@@ -104,6 +104,10 @@ namespace StingTools.UI
             // Store current UIApplication so commands can access it via
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
+            // Cache the doc path (plain string) on the API thread so the modeless panel can
+            // resolve project-scoped files WITHOUT touching the Revit API off-thread (which
+            // hangs). Read by TokenDepthPresets etc.
+            try { CurrentDocPath = app?.ActiveUIDocument?.Document?.PathName ?? ""; } catch { }
 
             // Snapshot command state under lock to prevent race with WPF UI thread
             string tag, p1, p2;
@@ -736,6 +740,10 @@ namespace StingTools.UI
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
                     case "SelectStale": RunCommand<Select.SelectStaleElementsCommand>(app); break;
+                    case "SelectStaleFlagged": RunCommand<Select.SelectStaleFlaggedCommand>(app); break;
+                    case "HighlightStale": RunCommand<Select.HighlightStaleCommand>(app); break;
+                    case "ClearStaleHighlight": RunCommand<Select.ClearStaleHighlightCommand>(app); break;
+                    case "StaleCountAction": RunCommand<Select.StaleCountActionCommand>(app); break;
                     case "QuickTagPreview": RunCommand<Select.QuickTagPreviewCommand>(app); break;
 
                     // ── Bulk param write ──
@@ -1487,6 +1495,7 @@ namespace StingTools.UI
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
                     case "ScaffoldTiers": RunCommand<Tags.ScaffoldTiersCommand>(app); break;
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
+                    case "Bindings_PruneToSpec": RunCommand<Tags.PruneBindingsToSpecCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
                     case "DisciplineProfiles":
@@ -1543,6 +1552,10 @@ namespace StingTools.UI
                     case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
                     case "MigrateTagLabelRefs": RunCommand<Commands.TagStudio.MigrateTagLabelReferencesCommand>(app); break;
+                    case "Propagate_UniversalTag": RunCommand<Commands.TagStudio.PropagateUniversalTagCommand>(app); break;
+                    case "Gate_StampStatus": RunCommand<Commands.TagStudio.StampGateStatusCommand>(app); break;
+                    case "Status_Register": RunCommand<Commands.TagStudio.StatusRegisterCommand>(app); break;
+                    case "Schedule_DisciplineTagExpander": RunCommand<Commands.TagStudio.ScheduleDisciplineTagExpanderCommand>(app); break;
                     case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 
                     // ── Populate tokens ──
@@ -2969,6 +2982,7 @@ namespace StingTools.UI
                     // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
                     case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
                     case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+                    case "MepTagPolicy": RunCommand<Organise.SetMepTagPolicyCommand>(app); break;
 
                     // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
                     case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;
@@ -4118,6 +4132,13 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
+
+        /// <summary>Active document path, cached on the API thread (Execute / ViewActivated).
+        /// The modeless panel reads this instead of touching the Revit API off-thread.</summary>
+        public static string CurrentDocPath { get; private set; } = "";
+
+        /// <summary>Publish the active doc path from an API-thread context (e.g. ViewActivated).</summary>
+        public static void SetDocPath(string path) { if (path != null) CurrentDocPath = path; }
 
         /// <summary>
         /// Phase 177 — allows StingElectricalCommandHandler to publish the

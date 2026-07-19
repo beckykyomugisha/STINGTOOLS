@@ -223,12 +223,21 @@ namespace StingTools.UI
             StringComparer.OrdinalIgnoreCase)
         {
             "CombineParameters", "TagAndCombine", "FamilyStagePopulate",
-            "FullAutoPopulate", "TagStudio_Pipeline",
+            "FullAutoPopulate", "TagStudio_Pipeline", "BuildTags",
             "AutoTag", "BatchTag", "BatchTagAll", "BatchTagView", "AutoTagSelected",
             "TagNewOnly", "ReTag", "ResolveAllIssues", "RetagStale",
             "SetParagraphDepth", "PreTagAudit", "ValidateTags",
             "SmartPlaceTags", "TagStudio_SmartPlace", "BatchPlaceTags",
         };
+
+        // Session flag: true once the Tokens &amp; Depth panel has itself applied a
+        // tag-format override (separator / SEQ pad / segment order). Distinguishes a
+        // CUSTOM format loaded from project_config.json at startup (which the panel's
+        // default UI state must NOT clobber) from one the USER dialled in here (the
+        // panel is then authoritative, so a return to defaults — 4-digit / hyphen /
+        // canonical order — must be honoured instead of latching). See the clobber
+        // guard in SetTokenDepthParams.
+        private static bool _panelAppliedTagFormat;
 
         // ── Phase B Round 1 shared helpers ───────────────────────────────
         //
@@ -962,7 +971,8 @@ namespace StingTools.UI
                 if (FindName("rbSepSlash") is System.Windows.Controls.RadioButton rSl && rSl.IsChecked == true) sep = "/";
                 else if (FindName("rbSepDot") is System.Windows.Controls.RadioButton rDt && rDt.IsChecked == true) sep = ".";
                 else if (FindName("rbSepUnderscore") is System.Windows.Controls.RadioButton rUs && rUs.IsChecked == true) sep = "_";
-                StingCommandHandler.SetExtraParam("TagSeparator", sep);
+                // (separator now feeds ParamRegistry.ApplyTagFormatOverrides below —
+                //  the old SetExtraParam("TagSeparator") had no reader and was removed)
 
                 // SEQ pad combo (4-digit default)
                 string seqPad = "4";
@@ -970,18 +980,22 @@ namespace StingTools.UI
                     && cSeqPad.SelectedItem is System.Windows.Controls.ComboBoxItem cbiSeq
                     && cbiSeq.Content is string spText)
                 {
-                    if (spText.StartsWith("001 "))      seqPad = "3";
+                    if (spText.StartsWith("01 "))       seqPad = "2";
+                    else if (spText.StartsWith("001 ")) seqPad = "3";
                     else if (spText.StartsWith("00001")) seqPad = "5";
                     else                                 seqPad = "4";
                 }
-                StingCommandHandler.SetExtraParam("SeqPad", seqPad);
+                // (seqPad now drives TagConfig.SeqPadWidth below — the old
+                //  SetExtraParam("SeqPad") had no reader and was removed)
 
-                // Segment order combo — pass the raw text; consumers parse it
+                // Segment order combo — parsed into the format override below.
+                string segOrderText = "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
                 if (FindName("cmbSegOrder") is System.Windows.Controls.ComboBox cSegOrder
                     && cSegOrder.SelectedItem is System.Windows.Controls.ComboBoxItem cbiOrder
                     && cbiOrder.Content is string orderText)
                 {
-                    StingCommandHandler.SetExtraParam("SegOrder", orderText);
+                    segOrderText = orderText;
+                    // (the old SetExtraParam("SegOrder") had no reader and was removed)
                 }
 
                 // Paragraph depth slider (1..10)
@@ -991,6 +1005,51 @@ namespace StingTools.UI
                 if (depth < 1) depth = 1;
                 if (depth > 10) depth = 10;
                 StingCommandHandler.SetExtraParam("ParaDepth", depth.ToString());
+
+                // ── Wire Separator / SEQ zero-pad / Segment order into the ACTUAL
+                // tag builder. TagConfig.BuildAndWriteTag reads ParamRegistry.Separator
+                // and NumPad; without this the Tokens & Depth separator + pad + order
+                // controls only ever set now-dead ExtraParams ("TagSeparator"/"SeqPad"/
+                // "SegOrder") that no command reads, so they were inert. Applying the
+                // override here means the next Build Tags / Combine / Auto-Tag picks them up.
+                //
+                // Clobber guard: if the panel still shows pure defaults (hyphen / 4-digit /
+                // canonical order) but a project has already loaded a CUSTOM format from
+                // project_config.json, leave that project format alone — only apply once the
+                // user has actually dialled in a non-default here.
+                try
+                {
+                    int padN = int.TryParse(seqPad, out int pn) ? pn : 4;
+                    string[] order = segOrderText.Split(new[] { '-' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                    for (int oi = 0; oi < order.Length; oi++)
+                        order[oi] = order[oi].Trim().ToUpperInvariant();
+
+                    bool uiIsDefault = sep == "-" && padN == 4 &&
+                        string.Join("-", order) == "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ";
+                    bool registryIsCustom =
+                        Core.ParamRegistry.Separator != "-" || Core.ParamRegistry.NumPad != 4
+                        || Core.TagConfig.SeqPadWidth != 4;
+                    // Only protect a custom format the PROJECT loaded at startup. Once the
+                    // panel itself has applied a format (_panelAppliedTagFormat), the panel
+                    // is authoritative — a return to defaults must be applied, not suppressed,
+                    // otherwise the format latches and the user can never switch back.
+                    bool projectLoadedCustom = registryIsCustom && !_panelAppliedTagFormat;
+
+                    if (!(uiIsDefault && projectLoadedCustom))
+                    {
+                        Core.ParamRegistry.ApplyTagFormatOverrides(sep, padN, order);
+                        // TagConfig.BuildAndWriteTag pads SEQ from TagConfig.SeqPadWidth when
+                        // it is > 0 — and it TAKES PRECEDENCE over NumPad — so the SEQ zero-pad
+                        // combo only bites if we drive SeqPadWidth directly, not just NumPad.
+                        Core.TagConfig.SeqPadWidth = padN;
+                        _panelAppliedTagFormat = true;
+                    }
+                }
+                catch (Exception exFmt)
+                {
+                    Core.StingLog.Warn($"Tokens&Depth ApplyTagFormatOverrides: {exFmt.Message}");
+                }
 
                 // Handover mode radios → ParagraphPreset + HandoverMode extra params
                 string handoverMode = "Handover";
@@ -1054,6 +1113,181 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("TokenScope", tokenScope);
             }
             catch (Exception ex) { StingLog.Warn($"Read Tokens & Depth params failed: {ex.Message}"); }
+        }
+
+        // ══ E3 / E4 / E5 — Tokens & Depth config: capture, apply, presets, per-view, live ══
+
+        private bool _suppressLiveApply;
+        private bool _suppressPresetSelect;
+        private bool _presetsInit;
+        private System.Windows.Threading.DispatcherTimer _liveTimer;
+        private bool _liveWired;
+
+        private char MaskChar(string name)
+            => (FindName(name) is System.Windows.Controls.CheckBox cb && cb.IsChecked != false) ? '1' : '0';
+        private bool RbChecked(string name)
+            => (FindName(name) is System.Windows.Controls.Primitives.ToggleButton tb && tb.IsChecked == true);
+        private void SetTgl(string name, bool v)
+            { if (FindName(name) is System.Windows.Controls.Primitives.ToggleButton tb) tb.IsChecked = v; }
+        private string ComboSelText(string name)
+            => (FindName(name) is System.Windows.Controls.ComboBox cb
+                && cb.SelectedItem is System.Windows.Controls.ComboBoxItem it && it.Content is string s) ? s : null;
+        private void SelectComboByPrefix(string name, string prefix)
+        {
+            if (!(FindName(name) is System.Windows.Controls.ComboBox cb)) return;
+            foreach (var o in cb.Items)
+                if (o is System.Windows.Controls.ComboBoxItem it && it.Content is string s
+                    && s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = it; return; }
+        }
+        private void SelectComboByExact(string name, string val)
+        {
+            if (!(FindName(name) is System.Windows.Controls.ComboBox cb) || val == null) return;
+            foreach (var o in cb.Items)
+                if (o is System.Windows.Controls.ComboBoxItem it && it.Content is string s
+                    && string.Equals(s, val, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = it; return; }
+        }
+        private static string SeqPadPrefix(int pad)
+        { switch (pad) { case 2: return "01 "; case 3: return "001 "; case 5: return "00001"; default: return "0001 "; } }
+
+        /// <summary>Capture current Tokens &amp; Depth controls into a config (E3 save / E4 persist).</summary>
+        private StingTools.Tags.TokenDepthConfig ReadTokenDepthConfig()
+        {
+            var c = new StingTools.Tags.TokenDepthConfig();
+            try
+            {
+                var m = new char[8];
+                m[0]=MaskChar("chkMaskDISC"); m[1]=MaskChar("chkMaskLOC"); m[2]=MaskChar("chkMaskZONE");
+                m[3]=MaskChar("chkMaskLVL");  m[4]=MaskChar("chkMaskSYS"); m[5]=MaskChar("chkMaskFUNC");
+                m[6]=MaskChar("chkMaskPROD"); m[7]=MaskChar("chkMaskSEQ");
+                c.Mask = new string(m);
+                c.Separator = RbChecked("rbSepSlash") ? "/" : RbChecked("rbSepDot") ? "." : RbChecked("rbSepUnderscore") ? "_" : "-";
+                string sp = ComboSelText("cmbSeqPad") ?? "";
+                c.SeqPad = sp.StartsWith("01 ") ? 2 : sp.StartsWith("001 ") ? 3 : sp.StartsWith("00001") ? 5 : 4;
+                c.SegOrder = ComboSelText("cmbSegOrder") ?? c.SegOrder;
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    c.Depth = Math.Max(1, Math.Min(10, (int)Math.Round(sd.Value)));
+                c.HandoverMode = RbChecked("rbModeDesign") ? "DesignConstruction" : RbChecked("rbModeCustom") ? "Custom" : "Handover";
+                string sc = ComboSelText("cmbTokenScope") ?? "";
+                c.Scope = sc.IndexOf("Active view", StringComparison.OrdinalIgnoreCase) >= 0 ? "View"
+                        : sc.IndexOf("Selected", StringComparison.OrdinalIgnoreCase) >= 0 ? "Selection" : "Project";
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadTokenDepthConfig: {ex.Message}"); }
+            return c;
+        }
+
+        /// <summary>Push a config onto the Tokens &amp; Depth controls (E3 preset recall / E4 view recall).</summary>
+        public void ApplyTokenDepthConfig(StingTools.Tags.TokenDepthConfig c)
+        {
+            if (c == null) return;
+            _suppressLiveApply = true;
+            try
+            {
+                string m = (!string.IsNullOrEmpty(c.Mask) && c.Mask.Length >= 8) ? c.Mask : "11111111";
+                SetTgl("chkMaskDISC", m[0]=='1'); SetTgl("chkMaskLOC", m[1]=='1'); SetTgl("chkMaskZONE", m[2]=='1');
+                SetTgl("chkMaskLVL", m[3]=='1');  SetTgl("chkMaskSYS", m[4]=='1'); SetTgl("chkMaskFUNC", m[5]=='1');
+                SetTgl("chkMaskPROD", m[6]=='1'); SetTgl("chkMaskSEQ", m[7]=='1');
+                SetTgl("rbSepHyphen", c.Separator=="-"); SetTgl("rbSepSlash", c.Separator=="/");
+                SetTgl("rbSepDot", c.Separator=="."); SetTgl("rbSepUnderscore", c.Separator=="_");
+                SelectComboByPrefix("cmbSeqPad", SeqPadPrefix(c.SeqPad));
+                SelectComboByExact("cmbSegOrder", c.SegOrder);
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    sd.Value = Math.Max(1, Math.Min(10, c.Depth));
+                SetTgl("rbModeHandover", c.HandoverMode=="Handover"); SetTgl("rbModeDesign", c.HandoverMode=="DesignConstruction");
+                SetTgl("rbModeCustom", c.HandoverMode=="Custom");
+                SelectComboByPrefix("cmbTokenScope", c.Scope=="View" ? "Active" : c.Scope=="Selection" ? "Selected" : "Project");
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyTokenDepthConfig: {ex.Message}"); }
+            finally { _suppressLiveApply = false; }
+        }
+
+        /// <summary>E3 — (re)populate the preset combo from corporate + project presets.</summary>
+        public void RefreshPresetCombo()
+        {
+            try
+            {
+                if (!(FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb)) return;
+                _suppressPresetSelect = true;   // clearing/repopulating must not fire recall
+                string sel = ComboSelText("cmbTokenPreset");
+                cb.Items.Clear();
+                foreach (string n in StingTools.Tags.TokenDepthPresets.Names(StingCommandHandler.CurrentDocPath))
+                    cb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = n });
+                if (sel != null) SelectComboByExact("cmbTokenPreset", sel);
+            }
+            catch (Exception ex) { StingLog.Warn($"RefreshPresetCombo: {ex.Message}"); }
+            finally { _suppressPresetSelect = false; }
+        }
+
+        private void OnTokenPresetSelected(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_suppressPresetSelect) return;
+            try
+            {
+                if (!(sender is System.Windows.Controls.ComboBox cb)
+                    || !(cb.SelectedItem is System.Windows.Controls.ComboBoxItem it) || !(it.Content is string name)) return;
+                var cfg = StingTools.Tags.TokenDepthPresets.Get(StingCommandHandler.CurrentDocPath, name);
+                if (cfg != null) { ApplyTokenDepthConfig(cfg); UpdateStatus($"Preset '{name}' loaded — press Set depth to apply."); }
+            }
+            catch (Exception ex) { StingLog.Warn($"OnTokenPresetSelected: {ex.Message}"); }
+        }
+
+        private void OnSaveTokenPreset(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Name is typed into the editable preset combo — no modal dialog (a modal
+                // from a dockable pane can deadlock the pane).
+                string name = (FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox cb ? cb.Text : null)?.Trim();
+                if (string.IsNullOrWhiteSpace(name)) { UpdateStatus("Type a preset name in the box, then Save."); return; }
+                string err = StingTools.Tags.TokenDepthPresets.Save(StingCommandHandler.CurrentDocPath, name, ReadTokenDepthConfig());
+                if (err != null) { UpdateStatus("Preset save failed: " + err); return; }
+                RefreshPresetCombo();
+                SelectComboByExact("cmbTokenPreset", name);
+                UpdateStatus($"Preset '{name}' saved.");
+            }
+            catch (Exception ex) { StingLog.Warn($"OnSaveTokenPreset: {ex.Message}"); }
+        }
+
+        /// <summary>E5 — wire live-apply handlers onto the format controls (once).</summary>
+        public void WireLiveTokenDepth()
+        {
+            if (_liveWired) return;
+            _liveWired = true;
+            try
+            {
+                _liveTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(350) };
+                _liveTimer.Tick += (s, e) => { _liveTimer.Stop(); DispatchLiveSetDepth(); };
+                string[] toggles = { "chkMaskDISC","chkMaskLOC","chkMaskZONE","chkMaskLVL","chkMaskSYS",
+                    "chkMaskFUNC","chkMaskPROD","chkMaskSEQ","rbSepHyphen","rbSepSlash","rbSepDot","rbSepUnderscore" };
+                foreach (string n in toggles)
+                    if (FindName(n) is System.Windows.Controls.Primitives.ToggleButton tb)
+                        { tb.Checked += LiveControlChanged; tb.Unchecked += LiveControlChanged; }
+                foreach (string n in new[] { "cmbSeqPad","cmbSegOrder","cmbTokenScope" })
+                    if (FindName(n) is System.Windows.Controls.ComboBox cb)
+                        cb.SelectionChanged += LiveControlChanged;
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    sd.ValueChanged += (s, e) => LiveControlChanged(s, e);
+            }
+            catch (Exception ex) { StingLog.Warn($"WireLiveTokenDepth: {ex.Message}"); }
+        }
+
+        private void LiveControlChanged(object sender, RoutedEventArgs e)
+        {
+            if (_suppressLiveApply) return;
+            if (!(FindName("chkLiveTokenDepth") is System.Windows.Controls.CheckBox cb) || cb.IsChecked != true) return;
+            try { _liveTimer?.Stop(); _liveTimer?.Start(); } catch { }
+        }
+
+        private void DispatchLiveSetDepth()
+        {
+            try
+            {
+                SetTokenDepthParams();
+                SetCategoryFilterParams();
+                _handler?.SetCommand("SetParagraphDepth");
+                _externalEvent?.Raise();
+            }
+            catch (Exception ex) { StingLog.Warn($"DispatchLiveSetDepth: {ex.Message}"); }
         }
 
         /// <summary>
@@ -1664,6 +1898,18 @@ namespace StingTools.UI
             // from inner controls (e.g. ComboBox inside a sub-tab).
             if (!ReferenceEquals(sender, tagStudioTabs)) return;
             e.Handled = true;
+
+            // E3/E5: once the Tokens & Depth sub-tab controls exist, populate the preset
+            // combo and wire the live-apply handlers (both idempotent / guarded).
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+            {
+                try
+                {
+                    if (!_presetsInit && FindName("cmbTokenPreset") is System.Windows.Controls.ComboBox)
+                    { _presetsInit = true; WireLiveTokenDepth(); RefreshPresetCombo(); }
+                }
+                catch { }
+            }));
 
             // If a tag op is running, revert the selection to the locked tab.
             if (_tagOpRunning && tagStudioTabs != null)

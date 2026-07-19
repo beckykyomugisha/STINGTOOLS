@@ -1,0 +1,9 @@
+param,group,desc
+BLE_ELES_SPARE_01_TXT,2,Spare parameter 1 for BLE_ELES group
+BLE_ELES_SPARE_02_TXT,2,Spare parameter 2 for BLE_ELES group
+BLE_ELES_SPARE_03_TXT,2,Spare parameter 3 for BLE_ELES group
+SPARE_PARAM_01_TXT,11,Spare parameter 01 for future use [ISO 19650-1:2018]
+SPARE_PARAM_02_TXT,11,Spare parameter 02 for future use [ISO 19650-1:2018]
+SPARE_PARAM_03_TXT,11,Spare parameter 03 for future use [ISO 19650-1:2018]
+SPARE_PARAM_04_NR,11,Spare parameter 04 for future use [ISO 19650-1:2018]
+SPARE_PARAM_05_INT,11,Spare parameter 05 for future use [ISO 19650-1:2018]

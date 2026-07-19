@@ -1584,6 +1584,10 @@ PARAM	a1b2c3d4-503a-4a01-b001-000000000158	TAG_LEADER_COLOR_G_INT	INTEGER		17	1	
 PARAM	a1b2c3d4-503b-4a01-b001-000000000159	TAG_LEADER_COLOR_B_INT	INTEGER		17	1	Tag leader line color blue channel (0-255)	1	0
 PARAM	b7f3e2a1-0001-4a01-b001-000000090001	TAG_SCALE_TIER_AUTO_BOOL	YESNO		17	1	Tag scale tier auto-selection flag	1	0
 PARAM	b7f3e2a1-0002-4a01-b001-000000090002	TAG_DEPTH_TIER_INT	INTEGER		17	1	Active paragraph depth tier cached on tag family type (1-10)	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0001	STING_GATE_DATA_STATUS_INT	INTEGER		17	1	Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0002	STING_GATE_QA_STATUS_INT	INTEGER		17	1	QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0003	STING_GATE_DATA_MSG_TXT	TEXT		17	1	Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge	1	0
+PARAM	b7f3e2a1-0002-4a01-b001-0000000a0004	STING_GATE_QA_MSG_TXT	TEXT		17	1	QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge	1	0
 PARAM	a1b2c3d4-503c-4a01-b001-000000000160	BLE_DOOR_FUNCTION_TXT	TEXT		2	1	Door functional type (Entry/Exit/Fire/Service)	1	0
 PARAM	a1b2c3d4-503d-4a01-b001-000000000161	BLE_DOOR_HEAD_HEIGHT_MM	TEXT		2	1	Door head height from floor in mm	1	0
 PARAM	a1b2c3d4-503e-4a01-b001-000000000162	BLE_ROOM_FINISH_BASE_TXT	TEXT		2	1	Room base finish material	1	0
@@ -1639,7 +1643,7 @@ PARAM	0ecf2056-1239-52bc-87f8-17c281e67209	FOHLIO_REF_TXT	TEXT		1	1	Fohlio item 
 PARAM	f2ec67d7-0d9a-561b-b3f6-11b713ac468e	LTG_HOIST_WEIGHT_KG	TEXT		7	1	Ltg Hoist Weight Kg [A1 §5]	1	0
 PARAM	aabcfa8d-62bb-55bc-8cf2-d84e365a75a5	LTG_HOIST_MOTOR_TXT	TEXT		7	1	Ltg Hoist Motor [A1 §5]	1	0
 PARAM	c110503a-c776-5c6e-8298-24adf24d1fd0	LTG_HOIST_DROP_MM	TEXT		7	1	Ltg Hoist Drop Mm [A1 §5]	1	0
-PARAM	c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa	ASS_WEIGHT_KG_NR	TEXT		1	1	Ass Weight Kg [ISO 19650]	1	0
+PARAM	c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa	ASS_WEIGHT_KG_NR	TEXT		1	1	DEPRECATED - use ASS_WEIGHT_KG (NUMBER); legacy TEXT duplicate. No code consumers; canonical numeric weight is ASS_WEIGHT_KG (Fabrication SpoolWeight/AssemblyGrouper/ParamRegistry).	1	0
 # -- Group 3: COM_DAT (Communications & Security) (8 params) --
 PARAM	d2828a98-abba-5a71-825c-e8b1c6355fe9	COM_C_PANEL_TXT	TEXT		3	1	Com C Panel [ISO 19650]	1	0
 PARAM	c7283cb7-804f-6024-edfc-bd3f2085facc	COM_HANDOVER_STATUS_TXT	TEXT		3	1	Com Handover Status [ISO 19650]	1	0
@@ -2598,6 +2602,7 @@ PARAM	5753b5aa-0004-4000-8000-000000000003	COMM_OPERATIVE_TXT	TEXT		25	1	Commiss
 PARAM	5753b5aa-0004-4000-8000-000000000010	COMM_WITNESS_TXT	TEXT		25	1	Commissioning witness name or ID (client / CA representative)	1	0
 PARAM	5753b5aa-0004-4000-8000-000000000011	COMM_NOTES_TXT	TEXT		25	1	Free-text commissioning notes captured from the QR workflow	1	0
 PARAM	d72513d3-2aed-5048-a949-b262fcd51a39	PRJ_ORG_PROJECT_CODE_TXT	TEXT		13	1	Project identifier code (alphanumeric) [template engine v1.1]	1	0
+PARAM	972024c1-53c5-5b57-b9f7-98e89fa53572	PRJ_SHEET_SYSTEM_TXT	TEXT		13	1	MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]	1	0
 PARAM	d9b568c8-0dcf-5226-add0-a6e3643589e8	PRJ_ORG_ORIGINATOR_CODE_TXT	TEXT		13	1	ISO 19650 originator code (default PLNS) [template engine v1.1]	1	0
 PARAM	f08b9a37-5e44-5074-a9e1-0a0f6418a305	PRJ_ORG_COMPANY_NAME_TXT	TEXT		13	1	Producing company name (default Planscape Limited) [template engine v1.1]	1	0
 PARAM	834df80b-0472-5724-afab-1c90ce7eac80	PRJ_ORG_COMPANY_ADDRESS_TXT	TEXT		13	1	Producing company address (default Kampala, Uganda) [template engine v1.1]	1	0

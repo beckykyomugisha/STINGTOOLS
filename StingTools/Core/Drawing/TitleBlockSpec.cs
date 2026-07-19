@@ -83,6 +83,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("category")]             public string Category { get; set; }
             = "OST_TitleBlocks";
 
+        /// <summary>P12 — structured drawable content rect (mm, origin at the
+        /// title-block family bottom-left = sheet bottom-left). This is the
+        /// SINGLE reference frame both placement paths resolve against
+        /// (SheetPlacementBridge): the norm* fractions of a <see cref="DrawingSlot"/>
+        /// and the <see cref="SlotSpec.FracAnchor"/>/<see cref="SlotSpec.FracSize"/>
+        /// of a family slot are both fractions of this rect. The values were
+        /// previously stated only in prose in each size base's description
+        /// ("drawable zone 821×469 mm, strip 110 mm"); this makes them a real
+        /// field. Leaf-wins on merge so A0/A3/portrait bases override the A1
+        /// root's rect (see MergeInto).</summary>
+        [JsonProperty("drawable", NullValueHandling = NullValueHandling.Ignore)]
+        public DrawableRect Drawable { get; set; }
+
         [JsonProperty("parameters")]   public List<ParamSpec>        Parameters    { get; set; } = new List<ParamSpec>();
         [JsonProperty("lines")]        public List<LineSpec>         Lines         { get; set; } = new List<LineSpec>();
         [JsonProperty("staticText")]   public List<StaticTextSpec>   StaticText    { get; set; } = new List<StaticTextSpec>();
@@ -140,6 +153,15 @@ namespace StingTools.Core.Drawing
     public sealed class StaticTextSpec
     {
         [JsonProperty("text")]    public string   Text { get; set; }
+
+        /// <summary>P10 — optional stable id. When a child spec re-declares a
+        /// staticText with the SAME id (case-insensitive), it OVERRIDES the
+        /// parent's (position, size, …) instead of adding a second copy — the
+        /// same dedup-by-key pattern as params/slots, but leaf-wins. id-less
+        /// entries keep concatenating exactly as before (backward compatible).</summary>
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+        public string   Id { get; set; }
+
         [JsonProperty("anchor")]  public double[] Anchor { get; set; }   // [x, y] mm
         [JsonProperty("size")]    public double   Size { get; set; } = 1.8;  // mm text height
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
@@ -152,6 +174,15 @@ namespace StingTools.Core.Drawing
     public sealed class LabelSpec
     {
         [JsonProperty("param")]   public string   Param { get; set; }
+
+        /// <summary>P10 — optional stable id. A child spec re-declaring a label
+        /// with the SAME id (case-insensitive) OVERRIDES the parent's (position,
+        /// size, bound param, …) rather than duplicating it — lets each size
+        /// base reposition an inherited label (SYSTEM / DISCIPLINE) at its own
+        /// coords, single copy. id-less labels keep concatenating as before.</summary>
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+        public string   Id { get; set; }
+
         [JsonProperty("anchor")]  public double[] Anchor { get; set; }
         [JsonProperty("size")]    public double   Size { get; set; } = 2.5;
         [JsonProperty("hAlign")]  public string   HAlign { get; set; } = "Left";
@@ -171,6 +202,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("color")]       public string   Color { get; set; }        // "#RRGGBB", optional
     }
 
+    /// <summary>P12 — the drawable content rect on a title-block family, in mm,
+    /// origin at the family bottom-left. Carries the 25 mm margin as a property
+    /// (already netted out of w/h — resolvers do NOT re-inset), so the norm and
+    /// fractional coordinate systems share one reference frame.</summary>
+    public sealed class DrawableRect
+    {
+        [JsonProperty("x")]        public double X { get; set; }
+        [JsonProperty("y")]        public double Y { get; set; }
+        [JsonProperty("w")]        public double W { get; set; }
+        [JsonProperty("h")]        public double H { get; set; }
+        [JsonProperty("marginMm")] public double MarginMm { get; set; } = 25.0;
+    }
+
     /// <summary>Viewport slot. Coordinates are mm relative to the
     /// title-block sheet bottom-left, same as every other coord in this
     /// spec. The Drawing-Type / Sheet-Manager system reads slot bounds
@@ -182,6 +226,24 @@ namespace StingTools.Core.Drawing
         [JsonProperty("id")]          public string   Id { get; set; }            // "S01" / "S02" / "MAIN" — used for the corner marker label
         [JsonProperty("anchor")]      public double[] Anchor { get; set; }        // [x, y] mm — bottom-left corner of the slot
         [JsonProperty("size")]        public double[] Size   { get; set; }        // [w, h] mm
+
+        /// <summary>P12 — optional fractional (0..1) bottom-left anchor, resolved
+        /// against the family's <see cref="TitleBlockSpec.Drawable"/> rect at
+        /// BUILD time. A family authored with fractional slots needs no per-size
+        /// override — one definition scales to A0/A1/A3. When present (with a
+        /// drawable rect available) it wins over the absolute <see cref="Anchor"/>;
+        /// otherwise the absolute fields are used unchanged (fully backward
+        /// compatible). Shares identical semantics with <see cref="DrawingSlot"/>'s
+        /// normX/normY (P12.E).</summary>
+        [JsonProperty("fracAnchor", NullValueHandling = NullValueHandling.Ignore)]
+        public double[] FracAnchor { get; set; }
+
+        /// <summary>P12 — optional fractional (0..1) [w, h] size, resolved against
+        /// the family's <see cref="TitleBlockSpec.Drawable"/> rect at build time.
+        /// See <see cref="FracAnchor"/>.</summary>
+        [JsonProperty("fracSize", NullValueHandling = NullValueHandling.Ignore)]
+        public double[] FracSize { get; set; }
+
         [JsonProperty("description")] public string   Description { get; set; }   // human-readable purpose
 
         /// <summary>Routing key used by TitleBlock_AutoPlaceViewports —
@@ -262,6 +324,34 @@ namespace StingTools.Core.Drawing
         /// slot so the operator can see slot identifiers when authoring
         /// the title block.</summary>
         [JsonProperty("showCornerMarker")]      public bool ShowCornerMarker      { get; set; } = true;
+
+        /// <summary>P12 — resolve the effective absolute (anchorMm, sizeMm) for
+        /// this slot. Prefers the fractional coords resolved against
+        /// <paramref name="drawable"/> when both are present; otherwise falls
+        /// back to the absolute <see cref="Anchor"/>/<see cref="Size"/> fields.
+        /// Returns false when neither is available. The single resolution point
+        /// shared by the factory (PlaceSlot) and the runtime reader
+        /// (TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock).</summary>
+        public bool TryResolveAbsolute(DrawableRect drawable, out double[] anchorMm, out double[] sizeMm)
+        {
+            anchorMm = null; sizeMm = null;
+            if (drawable != null
+                && FracAnchor != null && FracAnchor.Length >= 2
+                && FracSize != null && FracSize.Length >= 2)
+            {
+                anchorMm = new[] { drawable.X + FracAnchor[0] * drawable.W,
+                                   drawable.Y + FracAnchor[1] * drawable.H };
+                sizeMm   = new[] { FracSize[0] * drawable.W, FracSize[1] * drawable.H };
+                return true;
+            }
+            if (Anchor != null && Anchor.Length >= 2 && Size != null && Size.Length >= 2)
+            {
+                anchorMm = new[] { Anchor[0], Anchor[1] };
+                sizeMm   = new[] { Size[0], Size[1] };
+                return true;
+            }
+            return false;
+        }
     }
 
     /// <summary>Loader — corporate baseline at Data/STING_TITLE_BLOCKS.json,
@@ -353,17 +443,73 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(into.TemplateRft)) into.TemplateRft = from.TemplateRft;
             if (string.IsNullOrEmpty(into.Mode))        into.Mode        = from.Mode;
             if (string.IsNullOrEmpty(into.Category))    into.Category    = from.Category;
-            // Lists — append parent contents under child contents,
-            // de-duplicate parameters and slots by id.
+            // P12 — Drawable is LEAF-WINS (unlike the string scalars above).
+            // Resolve() folds root→…→leaf as `incoming`, so taking the incoming
+            // value whenever it supplies one means a size base (A0/A3/portrait)
+            // overrides the A1_common root's drawable rect, and the leaf can
+            // override the size base. Mirrors the params/slots leaf-wins rule.
+            if (from.Drawable != null) into.Drawable = from.Drawable;
+            // P11 — params (by name) + slots (by id) are LEAF-WINS: Resolve folds
+            // root → nearest-parent → leaf into this accumulator, so the INCOMING
+            // (nearer-to-leaf) spec must win on key collision for a size / specialty
+            // base to override the A1_common root. Fixes the prior root-wins quirk
+            // where A1_common's slot coords + default values (paper "A1", variant
+            // "WORKING", …) shadowed every A0/A3/portrait/fab/presentation family.
             into.Parameters    = MergeParams(into.Parameters,       from.Parameters);
             into.Slots         = MergeSlots (into.Slots,            from.Slots);
-            // Lines / static text / labels / filled regions don't have
-            // natural ids, so just concatenate. The generator handles
-            // duplicates via spatial collision (rare in practice).
+            // Lines / filled regions have no natural id → plain concatenate.
             into.Lines         = ConcatList(into.Lines,             from.Lines);
-            into.StaticText    = ConcatList(into.StaticText,        from.StaticText);
-            into.Labels        = ConcatList(into.Labels,            from.Labels);
             into.FilledRegions = ConcatList(into.FilledRegions,     from.FilledRegions);
+            // P10 — static text + labels are id-aware. An id-less entry
+            // concatenates exactly as ConcatList did (100% backward compatible);
+            // an id'd entry lets a nearer-to-leaf spec OVERRIDE the inherited one
+            // of the same id — a single copy at the child's coords. This is how
+            // each size base repositions the inherited SYSTEM / DISCIPLINE cell.
+            into.StaticText    = MergeAnnById(into.StaticText, from.StaticText, s => s?.Id);
+            into.Labels        = MergeAnnById(into.Labels,     from.Labels,     l => l?.Id);
+        }
+
+        /// <summary>
+        /// P10 — id-aware merge for annotation entries (static text + labels)
+        /// that preserves ConcatList ordering for id-less entries but lets the
+        /// nearer-to-leaf spec override an inherited entry of the same id.
+        ///
+        /// IMPORTANT — this is LEAF-wins, the opposite of MergeParams/MergeSlots.
+        /// Resolve() merges root-first (foreach chain: A1_common, then each size
+        /// base, then the leaf), calling MergeInto(accumulator, incoming) where
+        /// <paramref name="accum"/> is the accumulator built so far and
+        /// <paramref name="incoming"/> is the spec being layered in. Because a
+        /// later MergeInto call carries the nearer-to-leaf spec as
+        /// <paramref name="incoming"/>, making <paramref name="incoming"/> win by
+        /// id gives correct inheritance (size base / leaf overrides the root).
+        /// MergeParams/MergeSlots instead let the accumulator win, which is why
+        /// the root's slots/params currently shadow a size base's — a pre-existing
+        /// quirk this deliberately does NOT replicate.
+        ///
+        /// Ordering mirrors ConcatList(accum, incoming) = incoming entries first,
+        /// then accumulator entries; when both carry the same id the accumulator's
+        /// copy is dropped so exactly one (the incoming/leaf) survives.
+        /// </summary>
+        private static List<T> MergeAnnById<T>(List<T> accum, List<T> incoming, Func<T, string> getId)
+        {
+            var result = new List<T>();
+            var incomingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (incoming != null)
+                foreach (var e in incoming)
+                {
+                    var id = getId(e);
+                    if (!string.IsNullOrEmpty(id)) incomingIds.Add(id);
+                    result.Add(e);                       // incoming (nearer-leaf) first
+                }
+            if (accum != null)
+                foreach (var e in accum)
+                {
+                    var id = getId(e);
+                    // drop the accumulator's copy when the incoming spec overrides it
+                    if (!string.IsNullOrEmpty(id) && incomingIds.Contains(id)) continue;
+                    result.Add(e);
+                }
+            return result;
         }
 
         private static List<T> ConcatList<T>(List<T> a, List<T> b)
@@ -374,28 +520,43 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
-        private static List<ParamSpec> MergeParams(List<ParamSpec> child, List<ParamSpec> parent)
+        /// <summary>
+        /// P11 — id/name-keyed merge that is LEAF-WINS, mirroring the annotation
+        /// (label/staticText) override rule. Callers pass
+        /// <c>MergeXxx(into.X, from.X)</c> where <paramref name="accum"/> is the
+        /// accumulator built so far (root-first) and <paramref name="incoming"/>
+        /// is the spec being layered in; because a later fold step carries the
+        /// nearer-to-leaf spec as <paramref name="incoming"/>, making it win gives
+        /// correct inheritance (size/specialty base and leaf override the root).
+        /// Ordering matches the previous implementation (incoming-keys first, then
+        /// accumulator-only keys) — only the winner on collision changed, so the
+        /// factory sees the same param/slot ADD order it did before.
+        /// </summary>
+        private static List<T> MergeKeyedLeafWins<T>(List<T> accum, List<T> incoming, Func<T, string> getKey)
         {
-            var byName = new Dictionary<string, ParamSpec>(StringComparer.OrdinalIgnoreCase);
-            if (parent != null)
-                foreach (var p in parent)
-                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p;
-            if (child != null)
-                foreach (var p in child)
-                    if (!string.IsNullOrEmpty(p?.Name)) byName[p.Name] = p; // child wins
-            return new List<ParamSpec>(byName.Values);
+            var result = new List<T>();
+            var incomingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (incoming != null)
+                foreach (var e in incoming)
+                {
+                    var k = getKey(e);
+                    if (!string.IsNullOrEmpty(k)) incomingKeys.Add(k);
+                    result.Add(e);                 // incoming (nearer-leaf) first — and wins
+                }
+            if (accum != null)
+                foreach (var e in accum)
+                {
+                    var k = getKey(e);
+                    if (!string.IsNullOrEmpty(k) && incomingKeys.Contains(k)) continue; // overridden by incoming
+                    result.Add(e);
+                }
+            return result;
         }
 
-        private static List<SlotSpec> MergeSlots(List<SlotSpec> child, List<SlotSpec> parent)
-        {
-            var byId = new Dictionary<string, SlotSpec>(StringComparer.OrdinalIgnoreCase);
-            if (parent != null)
-                foreach (var s in parent)
-                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s;
-            if (child != null)
-                foreach (var s in child)
-                    if (!string.IsNullOrEmpty(s?.Id)) byId[s.Id] = s; // child wins
-            return new List<SlotSpec>(byId.Values);
-        }
+        private static List<ParamSpec> MergeParams(List<ParamSpec> accum, List<ParamSpec> incoming)
+            => MergeKeyedLeafWins(accum, incoming, p => p?.Name);
+
+        private static List<SlotSpec> MergeSlots(List<SlotSpec> accum, List<SlotSpec> incoming)
+            => MergeKeyedLeafWins(accum, incoming, s => s?.Id);
     }
 }

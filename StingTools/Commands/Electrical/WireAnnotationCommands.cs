@@ -425,6 +425,7 @@ namespace StingTools.Commands.Electrical
             // the values are already stamped.
             int    circuitPoles    = 0;
             double circuitCurrentA = 0;
+            double circuitVoltV    = 0;
             if (cores <= 0 || (vd <= 0 && csa > 0))
             {
                 try
@@ -435,6 +436,10 @@ namespace StingTools.Commands.Electrical
                         var pp = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES);
                         if (pp != null && pp.StorageType == StorageType.Integer) circuitPoles = pp.AsInteger();
                         try { circuitCurrentA = circuit.ApparentCurrent; } catch { }
+                        // Read the circuit's REAL nominal voltage so the VD recalc
+                        // isn't pinned to the nominal UK LV pair (400/230). Falls
+                        // back to that pair below only when this is unreadable.
+                        try { circuitVoltV = circuit.Voltage; } catch { }
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }
@@ -454,15 +459,32 @@ namespace StingTools.Commands.Electrical
                         double lengthM = lc.Curve.Length * 0.3048; // ft → m
                         if (lengthM > 0.01)
                         {
-                            double currentA = circuitCurrentA > 0 ? circuitCurrentA : 16.0; // default 16A
-                            // Phase count comes from the circuit poles, not the core
-                            // count — a 3-core cable is commonly single-phase (L+N+E).
-                            int phases = circuitPoles >= 3 ? 3 : 1;
-                            double voltV = phases == 3 ? 400.0 : 230.0;
-                            string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
-                            vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
-                                currentA, lengthM, csa, materialStr, voltV, phases);
-                            // No write-back: ReadWireData is a pure read.
+                            // Only recompute VD when a REAL circuit current is
+                            // available. Previously a missing/zero current fell back
+                            // to a hardcoded 16 A, printing a confidently-wrong VD%
+                            // on the drawing. With no real current, skip the VD
+                            // portion of the label (leave vd = 0) and warn once
+                            // (rate-limited) so it's diagnosable.
+                            if (circuitCurrentA > 0)
+                            {
+                                // Phase count comes from the circuit poles, not the core
+                                // count — a 3-core cable is commonly single-phase (L+N+E).
+                                int phases = circuitPoles >= 3 ? 3 : 1;
+                                // Prefer the circuit's real voltage; fall back to the
+                                // nominal UK LV pair (400 V 3φ / 230 V 1φ) only when
+                                // the real voltage is unreadable.
+                                double voltV = circuitVoltV > 0 ? circuitVoltV : (phases == 3 ? 400.0 : 230.0);
+                                string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
+                                vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
+                                    circuitCurrentA, lengthM, csa, materialStr, voltV, phases);
+                                // No write-back: ReadWireData is a pure read.
+                            }
+                            else
+                            {
+                                StingLog.WarnRateLimited("WireAnnot.VdNoCurrent",
+                                    "Wire annotation: no connected-circuit current available for VD recompute — " +
+                                    "VD omitted from label rather than assuming 16 A.");
+                            }
                         }
                     }
                 }

@@ -1691,6 +1691,10 @@ namespace StingTools.Core
                 case "AutoPopulate": return new Temp.AutoPopulateCommand();
                 case "CombineParameters": return new Tags.CombineParametersCommand();
                 case "RetagStale": return new Organise.RetagStaleCommand();
+                case "SelectStaleFlagged": return new Select.SelectStaleFlaggedCommand();
+                case "HighlightStale": return new Select.HighlightStaleCommand();
+                case "ClearStaleHighlight": return new Select.ClearStaleHighlightCommand();
+                case "StaleCountAction": return new Select.StaleCountActionCommand();
                 case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
                 case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
                 case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();
@@ -2072,6 +2076,10 @@ namespace StingTools.Core
                 case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias
                 case "Sustain_LeedScorecard":  return new Commands.Sustainability.SustainLeedScorecardCommand();
                 case "Sustain_Scorecard":      return new Commands.Sustainability.SustainLeedScorecardCommand(); // friendly alias
+
+                // Phase 195 — Universal Tag: refresh the stamped status gates
+                // (data + QA) so QA workflows never surface stale badges.
+                case "Gate_StampStatus":       return new Commands.TagStudio.StampGateStatusCommand();
 
                 default: return null;
             }

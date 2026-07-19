@@ -2295,7 +2295,7 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Mint STING tag families (shell + params + type variants) for all categories. Then run 'Propagate Universal' to apply the universal label, and 'Set depth' for the tier count. Label rows are not authored here."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>
                                 <Expander Header="Advanced setup, schema &amp; migration" FontSize="10" Margin="0,4,0,0">
@@ -2320,6 +2320,10 @@
                                             <Button Style="{StaticResource OrangeBtn}" Content="Cfg Loaded"  Tag="ConfigureLoadedFamilies"   Click="Cmd_Click" ToolTip="Inject STING parameters into every editable family already loaded. Mapped scope by default; 'All editable' and purge mode are opt-in."/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Fams" Tag="MigrateTagFamilies"       Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, pre-create standard type variants"/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Refs" Tag="MigrateTagLabelRefs"      Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. FamilyManager.ReplaceParameter preserves every label cell + formula + type value."/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="Propagate Universal" Tag="Propagate_UniversalTag" Click="Cmd_Click" ToolTip="Universal-tag pivot: clone the hand-built universal master label to loaded STING tag families — EditFamily → recategorise → rename → re-create type variants → SaveAs/LoadFamily. Re-run = safe re-sync. Smoke-test on Duct first."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Stamp Gates" Tag="Gate_StampStatus" Click="Cmd_Click" ToolTip="Compute + stamp STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT (0=red/1=amber/2=green) on every taggable element. Binds the params first if needed."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Status Register" Tag="Status_Register" Click="Cmd_Click" ToolTip="Export a colour-coded data/QA status register to Excel (Register + Summary sheets) to share with modellers. Read-only — computes each element's data + QA gate fresh, reds sorted to top, auto-filtered."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. Skips empty entries + unresolved categories."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Style Audit"  Tag="StyleAudit"               Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                         </WrapPanel>
                                     </StackPanel>
@@ -2377,7 +2381,10 @@
                                 <Button Style="{StaticResource BlueBtn}"   Content="PROD Cover" Tag="Prod_CoverageAudit"    Click="Cmd_Click" ToolTip="PROD coverage audit: per-category how many elements got a family-specific PROD code vs the generic category default; lists the unmatched families + writes a CSV"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="PROD Rules" Tag="Prod_GenerateRules"    Click="Cmd_Click" ToolTip="Generate a project prod_codes.csv overlay seeded from the families that currently get the generic default (gaps only); curate then Tag &amp; Combine"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (live recompute — stored vs current LVL/SYS/PROD/FUNC)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale ⚑"    Tag="SelectStaleFlagged"    Click="Cmd_Click" ToolTip="Select elements flagged STING_STALE_BOOL=1 (the exact set the dashboard STALE count reports)"/>
+                                <Button Style="{StaticResource RedBtn}"    Content="Stale HL"   Tag="HighlightStale"        Click="Cmd_Click" ToolTip="Highlight flagged-stale elements in the active view with a red parameter-filter override"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear HL"   Tag="ClearStaleHighlight"   Click="Cmd_Click" ToolTip="Remove the stale highlight filter from the active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
@@ -4252,6 +4259,19 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
+                                        <!-- PRESETS + LIVE (E3/E5) -->
+                                        <TextBlock Text="PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" IsEditable="True" IsTextSearchEnabled="False" SelectionChanged="OnTokenPresetSelected" ToolTip="Pick a preset to recall it — or type a name and click Save to store the current settings as a project preset"/>
+                                                    <Button Grid.Column="1" Content="Save" Width="50" Height="22" Margin="4,0,0,0" FontSize="9" Click="OnSaveTokenPreset" ToolTip="Save the current controls as a project preset"/>
+                                                </Grid>
+                                                <CheckBox x:Name="chkLiveTokenDepth" Content="Live — apply to active view as I change controls" FontSize="9" Margin="0,4,0,0" ToolTip="When on, mask / separator / pad / order / depth changes apply to the active view automatically (debounced) — no Set depth press."/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- TOKEN SEGMENT VISIBILITY -->
                                         <TextBlock Text="TOKEN SEGMENT VISIBILITY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4280,6 +4300,7 @@
                                                     <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
                                                         <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="01 (2-digit)"/>
                                                         <ComboBoxItem Content="00001 (5-digit)"/>
                                                     </ComboBox>
                                                 </Grid>
@@ -4291,7 +4312,7 @@
                                                         <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
                                                     </ComboBox>
                                                 </Grid>
-                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline. Note: separator / pad / order only RE-PAD or reformat tags that already exist when Overwrite = Yes — with Overwrite = No they apply to newly built tags only." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
@@ -4324,6 +4345,9 @@
                                                     <TextBlock x:Name="lblParaTier10" Grid.Column="9" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T10 —"/>
                                                 </Grid>
                                                 <TextBlock x:Name="lblParaDepthHint" Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <Button Style="{StaticResource GreenBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click"
+                                                        Height="24" MinWidth="90" HorizontalAlignment="Left" Margin="0,5,0,0"
+                                                        ToolTip="Apply the slider depth (tiers T1..N ON, N+1..10 OFF) to the SELECTED tags' type — or all tag types if nothing is selected. This is what makes the slider take effect."/>
                                             </StackPanel>
                                         </Border>
 

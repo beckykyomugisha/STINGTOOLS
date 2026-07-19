@@ -68,15 +68,26 @@ namespace StingTools.Commands.Drawing
                     if (hasRecipe)
                     {
                         var dt = DrawingTypeRegistry.Get(doc, dtId);
-                        if (dt != null && !string.IsNullOrEmpty(dt.TitleBlockFamily))
+                        if (dt != null)
                         {
-                            foreach (var tb in tbs)
+                            // P5 — compare the live family against the CONCRETE
+                            // family the resolver maps the profile to, not the
+                            // logical name (else every sheet false-flags a swap).
+                            string declared = dt.TitleBlockFamily;
+                            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            if (string.IsNullOrWhiteSpace(declared)) declared = dt.TitleBlockFamily;
+                            string concrete = declared;
+                            try { concrete = TitleBlockResolver.ToConcreteFamily(doc, dt, declared); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            if (!string.IsNullOrEmpty(concrete))
                             {
-                                var liveFam = tb.Symbol?.FamilyName ?? "(unknown)";
-                                if (!string.Equals(liveFam, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                                foreach (var tb in tbs)
                                 {
-                                    familySwap.Add($"{s.SheetNumber}  live='{liveFam}'  profile='{dt.TitleBlockFamily}'");
-                                    break;
+                                    var liveFam = tb.Symbol?.FamilyName ?? "(unknown)";
+                                    if (!string.Equals(liveFam, concrete, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        familySwap.Add($"{s.SheetNumber}  live='{liveFam}'  profile='{concrete}'");
+                                        break;
+                                    }
                                 }
                             }
                         }

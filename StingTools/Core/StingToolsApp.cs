@@ -138,6 +138,21 @@ namespace StingTools.Core
                 // element so the QS sees the stale BOQ row before exporting.
                 StingCostStaleMarker.Register(application);
 
+                // Register the tag stale marker (IUpdater) — starts disabled.
+                // Marks STING_STALE_BOOL when geometry / material / spatial
+                // context changes invalidate a tagged element so ComplianceScan
+                // reports a non-zero StaleCount. State is restored from
+                // TagConfig.AutoTaggerStaleMarker on document open; registering
+                // here only connects the actuator the UI toggle already drives.
+                StingStaleMarker.Register(application);
+
+                // Register the HVAC envelope stale marker (IUpdater) — starts
+                // disabled; toggled via Hvac_StaleUpdaterEnable. Flags HVAC
+                // Spaces as load-stale when exterior walls / windows / roofs
+                // change so the user re-runs Hvac_BlockLoad before trusting
+                // downstream sizing.
+                Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Register(application);
+
                 // Phase 2D — incremental BOQ take-off dirty marker. Records which
                 // cost elements changed so the Cost Manager can re-take-off only
                 // those. Registered disabled; the BOQ panel enables it on open.
@@ -1262,6 +1277,8 @@ namespace StingTools.Core
             {
                 Autodesk.Revit.DB.View view = e.CurrentActiveView;
                 Document currentDoc = view?.Document;
+                // Cache doc path (API thread) for the modeless panel — no off-thread API access.
+                try { StingTools.UI.StingCommandHandler.SetDocPath(currentDoc?.PathName); } catch { }
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
                     StingAutoTagger.InvalidateContext();
@@ -1274,6 +1291,21 @@ namespace StingTools.Core
 
                 if (view != null) UpdateScaleTabInfo(view);
                 if (view != null && currentDoc != null) MaybeAutoApplyScaleSize(currentDoc, view);
+
+                // E4: repopulate the Tokens & Depth panel from this view's saved config so
+                // each view remembers its own tag style. Marshal to the panel's UI thread.
+                if (view != null && currentDoc != null)
+                {
+                    try
+                    {
+                        var cfg = StingTools.Tags.TokenDepthViewStore.Get(currentDoc, view.UniqueId);
+                        var panel = StingTools.UI.StingDockPanel.LastInstance;
+                        if (cfg != null && panel != null)
+                            panel.Dispatcher.BeginInvoke(new System.Action(() =>
+                            { try { panel.ApplyTokenDepthConfig(cfg); } catch { } }));
+                    }
+                    catch (Exception exE4) { StingLog.Warn($"E4 view-config recall: {exE4.Message}"); }
+                }
             }
             catch (Exception ex)
             {
@@ -1621,6 +1653,7 @@ namespace StingTools.Core
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingCostStaleMarker.Unregister();
+            try { StingStaleMarker.Unregister(); } catch { }
             try { StingTools.BOQ.StingCostDirtyMarker.Unregister(); } catch { }
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }

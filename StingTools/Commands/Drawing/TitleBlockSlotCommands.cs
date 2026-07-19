@@ -220,29 +220,7 @@ namespace StingTools.Commands.Drawing
         /// Returns the slot id, or null if nothing matches even via aliases.</summary>
         private static string ResolveSlotForTag(Dictionary<string, SlotBounds> slotMap,
             string tag, ViewportPlacementRules rules)
-        {
-            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
-            // Direct hit: any slot whose purposeTag matches.
-            foreach (var kv in slotMap)
-            {
-                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
-                    return kv.Key;
-            }
-            // Alias chain.
-            if (rules?.PurposeTagAliases != null
-                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
-            {
-                foreach (var alias in aliases)
-                {
-                    foreach (var kv in slotMap)
-                    {
-                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
-                            return kv.Key;
-                    }
-                }
-            }
-            return null;
-        }
+            => TitleBlockSlotUtils.ResolveSlotIdForTag(slotMap, tag, rules);
 
         private static bool GlobMatch(string pattern, string value)
         {
@@ -576,16 +554,18 @@ namespace StingTools.Commands.Drawing
                         spec = Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, spec);
                         foreach (var slot in spec.Slots ?? Enumerable.Empty<Core.Drawing.SlotSpec>())
                         {
-                            if (string.IsNullOrEmpty(slot.Id)
-                                || slot.Anchor == null || slot.Anchor.Length < 2
-                                || slot.Size   == null || slot.Size.Length   < 2) continue;
+                            if (string.IsNullOrEmpty(slot.Id)) continue;
+                            // P12 — resolve fractional coords against the family's
+                            // drawable rect when present, else absolute anchor/size.
+                            if (!slot.TryResolveAbsolute(spec.Drawable, out var anchorMm, out var sizeMm))
+                                continue;
                             // Convert the spec's mm coords to feet (Revit
                             // internal length unit), origin at sheet's
                             // bottom-left.
-                            double xFt = MmToFt(slot.Anchor[0]);
-                            double yFt = MmToFt(slot.Anchor[1]);
-                            double wFt = MmToFt(slot.Size[0]);
-                            double hFt = MmToFt(slot.Size[1]);
+                            double xFt = MmToFt(anchorMm[0]);
+                            double yFt = MmToFt(anchorMm[1]);
+                            double wFt = MmToFt(sizeMm[0]);
+                            double hFt = MmToFt(sizeMm[1]);
                             result[slot.Id] = new SlotBounds
                             {
                                 Id           = slot.Id,
@@ -669,6 +649,40 @@ namespace StingTools.Commands.Drawing
                 StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
             return result;
+        }
+
+        /// <summary>Find the id of the slot whose <see cref="SlotBounds.PurposeTag"/>
+        /// matches <paramref name="tag"/>. Exact (case-insensitive) match first,
+        /// then the alias chain from
+        /// <see cref="ViewportPlacementRules.PurposeTagAliases"/> for graceful
+        /// fallback (a "main-plan-half-left" request lands in a "main-plan" slot
+        /// when the half-left pocket isn't present). Returns null when nothing
+        /// matches even via aliases. Shared by the manual auto-placer and the
+        /// automated <c>SheetPlacementBridge</c> (P1 — unified slot model).</summary>
+        public static string ResolveSlotIdForTag(Dictionary<string, SlotBounds> slotMap,
+            string tag, ViewportPlacementRules rules)
+        {
+            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
+            // Direct hit: any slot whose purposeTag matches.
+            foreach (var kv in slotMap)
+            {
+                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
+                    return kv.Key;
+            }
+            // Alias chain.
+            if (rules?.PurposeTagAliases != null
+                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    foreach (var kv in slotMap)
+                    {
+                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
+                            return kv.Key;
+                    }
+                }
+            }
+            return null;
         }
 
         private const double MmPerFoot = 304.8;

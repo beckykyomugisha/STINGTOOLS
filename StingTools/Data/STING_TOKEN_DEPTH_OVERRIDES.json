@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "description": "Per-category token-depth overrides applied live on 'Set depth'. Category key = Revit category name (spaced, e.g. 'Mechanical Equipment'). Fields are optional and fall back to the Tokens & Depth panel globals when omitted: seqPad (2-5 SEQ zero-pad width), mask (8-char 0/1 over DISC LOC ZONE LVL SYS FUNC PROD SEQ), depth (1-10 paragraph/tier depth). Corporate baseline; override per project at <project>/_BIM_COORD/token_depth_overrides.json (merged by category key).",
+  "categories": {
+    "Doors":               { "seqPad": 2, "mask": "00011011", "depth": 2 },
+    "Windows":             { "seqPad": 2, "mask": "00011011", "depth": 2 },
+    "Plumbing Fixtures":   { "seqPad": 3, "depth": 3 },
+    "Lighting Fixtures":   { "seqPad": 3, "depth": 3 },
+    "Lighting Devices":    { "seqPad": 2, "depth": 2 },
+    "Electrical Fixtures": { "seqPad": 3, "depth": 3 },
+    "Mechanical Equipment":{ "seqPad": 4, "depth": 10 },
+    "Electrical Equipment":{ "seqPad": 4, "depth": 10 },
+    "Air Terminals":       { "seqPad": 3, "depth": 4 }
+  }
+}

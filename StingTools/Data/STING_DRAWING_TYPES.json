@@ -1240,7 +1240,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
       "crop": {
@@ -1270,6 +1270,7 @@
         {
           "label": "Main Plan",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.75,
@@ -1288,9 +1289,13 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "DuctSystem": "STING_TAG_DUCT",
-          "PipeSystem": "STING_TAG_PIPE",
-          "ElectricalEquipment": "STING_TAG_ELEC"
+          "Rooms": "STING - Room Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -1457,6 +1462,7 @@
         {
           "label": "Plan 3D Overlay",
           "viewType": "Plan",
+          "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -1465,6 +1471,15 @@
         }
       ],
       "annotation": {
+        "tagFamilies": {
+          "Rooms": "STING - Room Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag"
+        },
         "denseUntilScale": 50,
         "rules": [
           {
@@ -1672,8 +1687,10 @@
       "annotation": {
         "dimensionStrategy": "Ordinate",
         "tagFamilies": {
-          "PipeFitting": "STING_TAG_WELD",
-          "PipeAccessory": "STING_TAG_FIT"
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag",
+          "Duct Accessories": "STING - Duct Accessory Tag"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -1838,8 +1855,10 @@
       "annotation": {
         "dimensionStrategy": "Ordinate",
         "tagFamilies": {
-          "DuctFitting": "STING_TAG_DUCT_FIT",
-          "DuctAccessory": "STING_TAG_DMP"
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag",
+          "Duct Accessories": "STING - Duct Accessory Tag"
         },
         "rules": [
           {
@@ -1961,6 +1980,14 @@
         }
       ],
       "annotation": {
+        "tagFamilies": {
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Fire Alarm Devices": "STING - Fire Alarm Device Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -3450,6 +3477,7 @@
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
+      "system": "HVAC",
       "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3459,7 +3487,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - HVAC Duct",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
       "sheetNamePattern": "HVAC DUCT \u2014 {lvl}",
       "crop": {
@@ -3507,9 +3535,13 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "DuctSystem": "STING_TAG_DUCT",
-          "DuctFitting": "STING_TAG_DUCT_FIT",
-          "AirTerminals": "STING_TAG_AIRTERM"
+          "Rooms": "STING - Room Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -3576,6 +3608,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3616,7 +3649,7 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Plant Room",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "M-PR-{seq:D3}",
       "sheetNamePattern": "PLANT ROOM \u2014 {mark}",
       "crop": {
@@ -3678,8 +3711,13 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "MechanicalEquipment": "STING_TAG_MECH_EQ",
-          "PipeSystem": "STING_TAG_PIPE"
+          "Rooms": "STING - Room Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag"
         },
         "rules": [
           {
@@ -3776,6 +3814,7 @@
     },
     {
       "id": "elec-power-A1-1to100",
+      "system": "LV",
       "name": "Electrical Power Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3785,7 +3824,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Power Layout",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
       "crop": {
@@ -3832,8 +3871,12 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "ElectricalEquipment": "STING_TAG_ELEC",
-          "ElectricalFixtures": "STING_TAG_SOCKET"
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Fire Alarm Devices": "STING - Fire Alarm Device Tag"
         },
         "rules": [
           {
@@ -3886,6 +3929,7 @@
         "revision": "P01"
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -3910,6 +3954,7 @@
     },
     {
       "id": "elec-lighting-A1-1to100",
+      "system": "LTG",
       "name": "Lighting Layout \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
@@ -3919,7 +3964,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Lighting Layout",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
       "sheetNamePattern": "LIGHTING LAYOUT \u2014 {lvl}",
       "crop": {
@@ -3966,8 +4011,12 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "LightingFixtures": "STING_TAG_LIGHT",
-          "LightingDevices": "STING_TAG_SWITCH"
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Fire Alarm Devices": "STING - Fire Alarm Device Tag"
         },
         "rules": [
           {
@@ -4013,6 +4062,7 @@
         ]
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -4053,7 +4103,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Alarm",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
       "sheetNamePattern": "FIRE ALARM \u2014 {lvl}",
       "crop": {
@@ -4107,7 +4157,12 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "FireAlarmDevices": "STING_TAG_FA_DEV"
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Fire Alarm Devices": "STING - Fire Alarm Device Tag"
         },
         "rules": [
           {
@@ -4193,7 +4248,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
       "sheetNamePattern": "DRAINAGE \u2014 {lvl}",
       "crop": {
@@ -4241,9 +4296,9 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "PipeSystem": "STING_TAG_PIPE",
-          "PipeFitting": "STING_TAG_GULLY",
-          "PlumbingFixtures": "STING_TAG_SAN"
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag"
         },
         "rules": [
           {
@@ -4374,10 +4429,10 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "MechanicalEquipment": "STING_TAG_FM_QR",
-          "ElectricalEquipment": "STING_TAG_FM_QR",
-          "PlumbingFixtures": "STING_TAG_FM_QR",
-          "Rooms": "STING_TAG_ROOM"
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Rooms": "STING - Room Tag"
         },
         "rules": [
           {
@@ -4499,6 +4554,15 @@
         }
       ],
       "annotation": {
+        "tagFamilies": {
+          "Rooms": "STING - Room Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag"
+        },
         "denseUntilScale": 50,
         "rules": [
           {
@@ -6552,7 +6616,8 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "Mechanical Equipment": "STING_TAG_MECH"
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -6656,10 +6721,10 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "Mechanical Equipment": "STING_TAG_MECH",
-          "Air Terminals": "STING_TAG_AIR_TERMINAL",
-          "Pipe Fittings": "STING_TAG_PIPE",
-          "Duct Fittings": "STING_TAG_DUCT"
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -6793,8 +6858,9 @@
         "dimensionStrategy": "Ordinate",
         "dimensionStyle": "STING - Ordinate",
         "tagFamilies": {
-          "Pipe Fittings": "STING_TAG_PIPE_SHOP",
-          "Duct Fittings": "STING_TAG_DUCT_SHOP"
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag"
         },
         "denseUntilScale": 50,
         "rules": [
@@ -7430,9 +7496,10 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "ElectricalEquipment": "STING_TAG_ELEC",
-          "Conduits": "STING_TAG_CONDUIT",
-          "CableTrays": "STING_TAG_TRAY"
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Conduit Fittings": "STING - Conduit Fitting Tag"
         },
         "rules": [
           {
@@ -7546,11 +7613,15 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "ElectricalEquipment": "STING_TAG_ELEC",
-          "Conduits": "STING_TAG_CONDUIT",
-          "CableTrays": "STING_TAG_TRAY",
-          "LightingFixtures": "STING_TAG_LIGHT",
-          "FireAlarmDevices": "STING_TAG_FA"
+          "Conduits": "STING - Conduit Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag",
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Fire Alarm Devices": "STING - Fire Alarm Device Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Pipes": "STING - Pipe Tag",
+          "Ducts": "STING - Duct Tag"
         },
         "rules": [
           {
@@ -7848,6 +7919,7 @@
     },
     {
       "id": "health-medgas-pln-A1-1to100",
+      "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
       "purpose": "Plan",
@@ -7887,6 +7959,7 @@
         }
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9146,6 +9219,7 @@
     },
     {
       "id": "plumb-dcw-schematic-A1-NTS",
+      "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9158,7 +9232,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DCW-{seq:D3}",
-      "sheetNamePattern": "DCW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9182,6 +9256,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9207,6 +9282,7 @@
     },
     {
       "id": "plumb-dhw-schematic-A1-NTS",
+      "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9219,7 +9295,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-DHW-{seq:D3}",
-      "sheetNamePattern": "DHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9243,6 +9319,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9268,6 +9345,7 @@
     },
     {
       "id": "plumb-lthw-schematic-A1-NTS",
+      "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
       "purpose": "Schematic",
@@ -9280,7 +9358,7 @@
       "viewTemplateName": "STING - Plumbing Schematic",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "P-LTHW-{seq:D3}",
-      "sheetNamePattern": "LTHW SCHEMATIC",
+      "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
         "kind": "None"
       },
@@ -9304,6 +9382,7 @@
         "halftoneLinks": false
       },
       "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
         "Project Code": "${PRJ_ORG_PROJECT_CODE}",
         "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
@@ -9339,7 +9418,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-AG-{lvl}-{seq:D3}",
       "sheetNamePattern": "ABOVE-GROUND DRAINAGE — {lvl}",
       "crop": {
@@ -9401,7 +9480,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-RWD-{lvl}-{seq:D3}",
       "sheetNamePattern": "RAINWATER DRAINAGE — {lvl}",
       "crop": {
@@ -9647,7 +9726,7 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Plumbing",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-WTR-{seq:D3}",
       "sheetNamePattern": "WATER TREATMENT / PLANTROOM",
       "crop": {
@@ -9700,7 +9779,7 @@
     {
       "id": "plumb-drainage-schematic-A1",
       "name": "Plumbing — Drainage Schematic Riser",
-      "purpose": "Schedule",
+      "purpose": "Schematic",
       "discipline": "P",
       "phase": "*",
       "paperSize": "A1",
@@ -9710,6 +9789,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Schematic",
       "viewportTypeName": "Title w Line",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "PH-SCHEM-{seq:D2}",
       "sheetNamePattern": "Drainage Schematic Riser — {lvl}",
       "crop": {
@@ -9718,10 +9798,13 @@
       "origin": "corporate",
       "slots": [
         {
-          "x": 0.05,
-          "y": 0.05,
-          "w": 0.9,
-          "h": 0.85
+          "label": "Schematic",
+          "viewType": "Section",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.85,
+          "required": true
         }
       ],
       "description": "Plumbing schedule on A1 at 1:50.",
@@ -9817,9 +9900,194 @@
         "Sheet Status": "WIP",
         "Revision": "P01"
       }
+    },
+    {
+      "id": "mech-equip-schedule-A3",
+      "name": "Mechanical Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "M",
+      "system": "HVAC",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewportTypeName": "STING - Standard Viewport",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "M-SCH-EQ-{seq:D2}"
+      },
+      "sheetNumberPattern": "M-SCH-EQ-{seq:D2}",
+      "sheetNamePattern": "MECHANICAL EQUIPMENT SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Mechanical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Level",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP mechanical-equipment schedule (AHU / FCU / VAV / chiller / boiler / pump). The producer emits a ViewSchedule of category Mechanical Equipment with the listed fields; unknown fields are skipped."
+    },
+    {
+      "id": "elec-panel-schedule-A3",
+      "name": "Electrical Panel / Equipment Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewportTypeName": "STING - Standard Viewport",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "E-SCH-PNL-{seq:D2}"
+      },
+      "sheetNumberPattern": "E-SCH-PNL-{seq:D2}",
+      "sheetNamePattern": "ELECTRICAL PANEL SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Electrical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Panel",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "MEP electrical panel / equipment schedule (distribution boards, panels, MCCBs). The producer emits a ViewSchedule of category Electrical Equipment; unknown fields are skipped."
+    },
+    {
+      "id": "valve-schedule-A3",
+      "name": "Valve Schedule - A3",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "P",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewportTypeName": "STING - Standard Viewport",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "P-SCH-VLV-{seq:D2}"
+      },
+      "sheetNumberPattern": "P-SCH-VLV-{seq:D2}",
+      "sheetNamePattern": "VALVE SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Pipe Accessories",
+          "scheduleFields": [
+            "Mark",
+            "Family and Type",
+            "Size",
+            "ASS_SYSTEM_TYPE_TXT"
+          ]
+        }
+      ],
+      "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped."
     }
   ],
   "routing": [
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SPOOL",
+      "drawingTypeId": "elec-spool-A1-1to50"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "COORD",
+      "drawingTypeId": "elec-coord-A1-1to50"
+    },
     {
       "disciplineMatches": ".*",
       "phaseMatches": "PRESENTATION",
@@ -10475,6 +10743,24 @@
       "phase": "*",
       "docType": "PENETRATION_REGISTER",
       "drawingTypeId": "penetration-register-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "MECH_EQUIP_SCHEDULE",
+      "drawingTypeId": "mech-equip-schedule-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ELEC_PANEL_SCHEDULE",
+      "drawingTypeId": "elec-panel-schedule-A3"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "VALVE_SCHEDULE",
+      "drawingTypeId": "valve-schedule-A3"
     }
   ]
 }

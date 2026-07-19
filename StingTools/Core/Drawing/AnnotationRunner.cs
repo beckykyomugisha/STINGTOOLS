@@ -394,12 +394,19 @@ namespace StingTools.Core.Drawing
                     if (tag != null) stats.TagsPlaced++;
 
                     // Apply CategoryDepths from the active pack, if declared.
+                    // FIX-6: write the tier flags CUMULATIVELY — a depth of N
+                    // means tiers 1..N are all visible (higher tiers off), not
+                    // tier N alone. Mirrors TokenProfileApplier.WriteCategoryDepths
+                    // so the produce path and the per-category depth path agree.
                     if (hasDepth)
                     {
                         try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
                         catch { }
-                        try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{resolvedDepth}_BOOL", 1); }
-                        catch { }
+                        for (int t = 1; t <= 10; t++)
+                        {
+                            try { ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{t}_BOOL", t <= resolvedDepth ? 1 : 0); }
+                            catch { }
+                        }
                     }
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
