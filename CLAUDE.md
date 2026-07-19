@@ -1777,7 +1777,7 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `CostCommands.cs` | `Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_MigrateCurrencyParams`, `Cost_ReloadRules` |
 | `CostPlanCommands.cs` | `CostPlan_Create`, `CostPlan_Update`, `CostPlan_Export`, `CostPlan_CompareStages`, `CostPlan_SetBudget` |
 | `IfcAndIcmsCommands.cs` | `ICMS_Export`, `IFC_CostIngest`, `ICMS_Validate`, `IFC_CostBridge` |
-| `MeasurementStandardCommands.cs` | `Cost_SetMeasurementStandard` — picks the active measurement standard from the registry (NRM2 / CESMM4 / POMI / ICMS 3 / MMHW) |
+| `MeasurementStandardCommands.cs` | `Cost_SetMeasurementStandard` (pick the active standard: NRM2 / CESMM4 / POMI / ICMS 3 / MMHW), `Cost_StandardInspect` |
 | `PaymentCertCommands.cs` | `PayCert_Create`, `PayCert_Export`, `PayCert_Reconcile`, `PayCert_Sign` |
 | `VariationAndEvmCommands.cs` | `Var_Create`, `Var_Approve`, `EVM_Dashboard`, `EVM_Export`, `EVM_Forecast` |
 
