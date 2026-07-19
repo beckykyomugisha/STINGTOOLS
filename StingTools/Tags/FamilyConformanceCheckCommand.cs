@@ -381,7 +381,7 @@ namespace StingTools.Tags
                     string projDir = Path.GetDirectoryName(doc.PathName);
                     if (!string.IsNullOrEmpty(projDir))
                     {
-                        string bim = Path.Combine(projDir, "_BIM_COORD");
+                        string bim = StingPaths.Meta(doc, "_BIM_COORD");
                         Directory.CreateDirectory(bim);
                         return bim;
                     }

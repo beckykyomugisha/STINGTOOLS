@@ -31,10 +31,10 @@ namespace StingTools.Core.Content
                     ? Path.GetDirectoryName(doc.PathName) : null;
                 if (!string.IsNullOrEmpty(docDir))
                 {
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Content"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Seeds"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Content"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families"));
                 }
             }
             catch { /* unsaved doc */ }

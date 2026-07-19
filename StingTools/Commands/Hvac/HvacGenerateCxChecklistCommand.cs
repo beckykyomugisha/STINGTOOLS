@@ -69,7 +69,7 @@ namespace StingTools.Commands.Hvac
                     TaskDialog.Show("STING HVAC", "Save the project before generating the Cx checklist.");
                     return Result.Cancelled;
                 }
-                string cxDir = Path.Combine(projDir, "_BIM_COORD", "cx");
+                string cxDir = StingPaths.Meta(doc, "_BIM_COORD", "cx");
                 Directory.CreateDirectory(cxDir);
                 string ts = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string csvPath = Path.Combine(cxDir, $"cx_checklist_{ts}.csv");

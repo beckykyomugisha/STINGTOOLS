@@ -153,8 +153,8 @@ namespace StingTools.Commands.Symbols
             {
                 // Determine subfolder from JSON filename
                 string subfolder = ResolveSubfolder(jsonFile);
-                string genPath = Path.Combine(projDir, "_BIM_COORD", "Families",
-                    "Symbols", subfolder, symbolId + ".rfa");
+                string genPath = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"),
+                    subfolder, symbolId + ".rfa");
                 fs = TryLoad(doc, genPath);
                 if (fs != null) return fs;
             }

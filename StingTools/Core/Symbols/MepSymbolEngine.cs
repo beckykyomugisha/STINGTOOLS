@@ -721,7 +721,7 @@ namespace StingTools.Core.Symbols
                         ? null : Path.GetDirectoryName(doc.PathName);
                     if (!string.IsNullOrEmpty(docDir))
                     {
-                        string bimCoordRoot = Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols");
+                        string bimCoordRoot = StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols");
                         if (Directory.Exists(bimCoordRoot))
                         {
                             // Flat root
