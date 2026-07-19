@@ -1,6 +1,6 @@
 {
   "version": "5.15",
-  "description": "STING Tools master parameter registry v5.11 \u2014 Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
+  "description": "STING Tools master parameter registry v5.11 — Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -361,7 +361,7 @@
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
-      "description": "Pattern selector \u2014 Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -369,7 +369,7 @@
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
-      "description": "Pattern selector \u2014 Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -377,7 +377,7 @@
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
-      "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -1441,7 +1441,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "a1b2c3d4-5035-4a01-b001-000000000153",
-      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
+      "description": "Tag bounding box fill color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1449,7 +1449,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "a1b2c3d4-5036-4a01-b001-000000000154",
-      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
+      "description": "Tag bounding box fill color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1457,7 +1457,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "a1b2c3d4-5037-4a01-b001-000000000155",
-      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
+      "description": "Tag bounding box fill color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1520,7 +1520,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "a1b2c3d4-5039-4a01-b001-000000000157",
-      "description": "Tag leader line color \u2014 Red channel (0-255)",
+      "description": "Tag leader line color — Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1528,7 +1528,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "a1b2c3d4-503a-4a01-b001-000000000158",
-      "description": "Tag leader line color \u2014 Green channel (0-255)",
+      "description": "Tag leader line color — Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1536,7 +1536,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "a1b2c3d4-503b-4a01-b001-000000000159",
-      "description": "Tag leader line color \u2014 Blue channel (0-255)",
+      "description": "Tag leader line color — Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -2094,7 +2094,7 @@
     {
       "param_name": "STING_SLEEVE_PFV_UUID",
       "guid": "cfe809e7-77c4-5f44-a43c-1d770d97abea",
-      "description": "Deterministic UUIDv5 keyed on (host, mep) \u2014 round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
+      "description": "Deterministic UUIDv5 keyed on (host, mep) — round-trip key for IFC Pset_ProvisionForVoid and BCF topic GUID.",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2102,7 +2102,7 @@
     {
       "param_name": "STING_SLEEVE_BORE_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c13",
-      "description": "Round sleeve bore in millimetres (element OD + 2\u00d7 insulation + 2\u00d7 clearance, clamped to rule minimum).",
+      "description": "Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -2126,7 +2126,7 @@
     {
       "param_name": "STING_SLEEVE_DEPTH_MM",
       "guid": "5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c16",
-      "description": "Sleeve depth in millimetres (host thickness + 2\u00d7 protrusion).",
+      "description": "Sleeve depth in millimetres (host thickness + 2× protrusion).",
       "binding": "Instance",
       "required": false,
       "group": "Sleeve"
@@ -14866,7 +14866,7 @@
     {
       "param_name": "ASS_TAG_SCHEME_TXT",
       "guid": "2c8224df-92e0-567b-a9df-c8cd1e4402a3",
-      "description": "Project-grammar tag rendering (TagSchemeEngine) \u2014 derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
+      "description": "Project-grammar tag rendering (TagSchemeEngine) — derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
       "binding": "universal",
       "required": false
     },
@@ -17558,10 +17558,6 @@
       "discipline": "Project",
       "curated": true
     },
-
-
-
-
     {
       "param_name": "PRJ_TB_SCALE_OVERRIDE_TXT",
       "guid": "624563ac-3067-5990-ba13-a4d750e9ffc2",
@@ -24417,7 +24413,7 @@
     {
       "param_name": "HVC_SEGMENT_ROLE_TXT",
       "guid": "5bf0485f-08dd-53d1-9cc5-d956305d42e0",
-      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) \u2014 cached by HvacSegmentRoleDetector [Phase 182]",
+      "description": "Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke) — cached by HvacSegmentRoleDetector [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24429,7 +24425,7 @@
     {
       "param_name": "HVC_SIZE_PREV_TXT",
       "guid": "b4385937-438e-5d5f-8ce0-f13c2a94a63d",
-      "description": "Previous duct size before auto-sizing run, format WxH or \u00d8 (audit trail) [Phase 182]",
+      "description": "Previous duct size before auto-sizing run, format WxH or Ø (audit trail) [Phase 182]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -24501,7 +24497,7 @@
     {
       "param_name": "HVC_REFRIGERANT_KG_NR",
       "guid": "b99d07d1-6eca-50cf-b983-b6fe2442bc8c",
-      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand \u00d7 GWP) [Phase 183]",
+      "description": "Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183]",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -26323,7 +26319,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line top \u2014 DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
+          "description": "Multi-line top — DISC-LOC-ZONE-LVL (top line of a 2-line tag family layout: place TAG_5 above TAG_6)"
         },
         {
           "param_name": "ASS_TAG_6_TXT",
@@ -26332,7 +26328,7 @@
           "separator": "-",
           "prefix": "",
           "suffix": "",
-          "description": "Multi-line bottom \u2014 SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
+          "description": "Multi-line bottom — SYS-FUNC-PROD-SEQ (bottom line of a 2-line tag family layout: place below TAG_5)"
         },
         {
           "param_name": "ASS_TAG_7_TXT",
@@ -26341,7 +26337,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -26350,7 +26346,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -26359,7 +26355,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -26368,7 +26364,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -26377,7 +26373,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -26386,7 +26382,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -26395,7 +26391,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
         },
         {
           "param_name": "RGL_TAG_7_PARA_CMPL_TXT",
@@ -28362,7 +28358,7 @@
         "key": "TERM_CAPPED",
         "param_name": "ASS_TERM_CAPPED_BOOL",
         "guid": "f4a5b6c7-d8e9-4f0a-b1c2-3d4e5f6a7b8c",
-        "description": "Termination capped/blanked flag (connectivity validator \u2014 open end with intentional cap)",
+        "description": "Termination capped/blanked flag (connectivity validator — open end with intentional cap)",
         "categories": [
           "Pipes",
           "Ducts",
@@ -28407,12 +28403,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m\u00b2)"
+        "description": "Room area (m²)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m\u00b3)"
+        "description": "Room volume (m³)"
       },
       {
         "key": "DEPT",
@@ -28538,7 +28534,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m\u00b2)"
+        "description": "Element area (m²)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -28800,7 +28796,7 @@
       {
         "key": "ELC_PNL_FAULT_KA",
         "param_name": "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
-        "description": "Calculated fault current at panel (kA) \u2014 reuses Phase 175 short-circuit param [STING Phase 178]",
+        "description": "Calculated fault current at panel (kA) — reuses Phase 175 short-circuit param [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28818,7 +28814,7 @@
         "key": "ELC_FEEDER_CSA",
         "param_name": "ELC_FEEDER_CSA_MM2",
         "guid": "f1d6e7c8-1002-5178-9178-100000000002",
-        "description": "Calculated / proposed feeder cable cross-sectional area (mm\u00b2) \u2014 distinct from circuit cable size [STING Phase 178]",
+        "description": "Calculated / proposed feeder cable cross-sectional area (mm²) — distinct from circuit cable size [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28827,7 +28823,7 @@
         "key": "ELC_FEEDER_RATING_A",
         "param_name": "ELC_FEEDER_RATING_A",
         "guid": "f1d6e7c8-1003-5178-9178-100000000003",
-        "description": "Calculated feeder breaker / fuse rating in amperes \u2014 the upstream protective device rating [STING Phase 178]",
+        "description": "Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28835,7 +28831,7 @@
       {
         "key": "ELC_CKT_VD_PCT",
         "param_name": "ELC_VLT_DROP_PCT",
-        "description": "Calculated voltage drop % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated voltage drop % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits"
         ]
@@ -28843,7 +28839,7 @@
       {
         "key": "ELC_CKT_CSA_MM2",
         "param_name": "ELC_CBL_SZ_MM",
-        "description": "Assigned cable CSA \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Assigned cable CSA — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Electrical Circuits",
           "Wires"
@@ -28852,7 +28848,7 @@
       {
         "key": "ELC_CONDUIT_FILL_PCT",
         "param_name": "ELC_CDT_CBL_FILL_PCT",
-        "description": "Calculated conduit fill % \u2014 reuses existing Phase 175 param [STING Phase 178]",
+        "description": "Calculated conduit fill % — reuses existing Phase 175 param [STING Phase 178]",
         "categories": [
           "Conduits"
         ]
@@ -28870,7 +28866,7 @@
         "key": "ELC_LPD_W_M2",
         "param_name": "ELC_LPD_W_PER_M2",
         "guid": "f1d6e7c8-1005-5178-9178-100000000005",
-        "description": "Calculated lighting power density (W/m\u00b2) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
+        "description": "Calculated lighting power density (W/m²) [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -28879,7 +28875,7 @@
         "key": "ELC_LPD_LIMIT_W_M2",
         "param_name": "ELC_LPD_LIMIT_W_PER_M2",
         "guid": "f1d6e7c8-1006-5178-9178-100000000006",
-        "description": "Standard LPD limit for the room type (W/m\u00b2) [STING Phase 178]",
+        "description": "Standard LPD limit for the room type (W/m²) [STING Phase 178]",
         "categories": [
           "Rooms"
         ]
@@ -28897,7 +28893,7 @@
         "key": "ELC_ARC_FLASH_IE",
         "param_name": "ELC_ARC_FLASH_IE_CAL_CM2",
         "guid": "a2e7f8d9-1001-5179-9179-100000000001",
-        "description": "Calculated incident energy in cal/cm\u00b2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
+        "description": "Calculated incident energy in cal/cm² at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28915,7 +28911,7 @@
         "key": "ELC_ARC_FLASH_PPE",
         "param_name": "ELC_ARC_FLASH_PPE_CAT",
         "guid": "a2e7f8d9-1003-5179-9179-100000000003",
-        "description": "NFPA 70E Table 130.5(G) PPE category 0\u20134 (-1 = exceeds Cat 4) [STING Phase 179]",
+        "description": "NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]",
         "categories": [
           "Electrical Equipment"
         ]
@@ -28951,7 +28947,7 @@
         "key": "ELC_BUSBAR_CSA",
         "param_name": "ELC_BUSBAR_CSA_MM2",
         "guid": "a2e7f8d9-1007-5179-9179-100000000007",
-        "description": "Busbar trunking conductor cross-sectional area (mm\u00b2) [BS EN 60439-1 / STING Phase 179]",
+        "description": "Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]",
         "categories": [
           "Electrical Equipment",
           "Cable Trays"
@@ -31813,7 +31809,7 @@
       {
         "key": "STING_SLEEVE_CREATED_BY",
         "param_name": "STING_SLEEVE_CREATED_BY",
-        "description": "Audit \u2014 placement command"
+        "description": "Audit — placement command"
       }
     ],
     "tier_4_10": [
@@ -31831,7 +31827,7 @@
         "key": "COMM_DATE",
         "param_name": "COMM_DATE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000002",
-        "description": "Commissioning date (ISO 8601) \u2014 when state was last stamped",
+        "description": "Commissioning date (ISO 8601) — when state was last stamped",
         "categories": [
           "ALL"
         ],
@@ -31841,7 +31837,7 @@
         "key": "COMM_OPERATIVE",
         "param_name": "COMM_OPERATIVE_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000003",
-        "description": "Commissioning operative \u2014 name / ID of engineer who stamped the asset",
+        "description": "Commissioning operative — name / ID of engineer who stamped the asset",
         "categories": [
           "ALL"
         ],
@@ -31851,7 +31847,7 @@
         "key": "CST_UG_PRICE",
         "param_name": "CST_UG_PRICE_UGX",
         "guid": "694fcd57-d0c2-5ed3-afca-f225781b3bc8",
-        "description": "Uganda local price (UGX) \u2014 quoted supplier price ex-works",
+        "description": "Uganda local price (UGX) — quoted supplier price ex-works",
         "categories": [
           "ALL"
         ],
@@ -31861,7 +31857,7 @@
         "key": "CST_INTL_PRICE",
         "param_name": "CST_INTL_PRICE_USD",
         "guid": "c40720fa-3e80-5880-86c3-a82f43055fbf",
-        "description": "International price (USD) \u2014 CIF/DAP quote for imported goods",
+        "description": "International price (USD) — CIF/DAP quote for imported goods",
         "categories": [
           "ALL"
         ],
@@ -31871,7 +31867,7 @@
         "key": "CST_QUOTE_REF",
         "param_name": "CST_QUOTE_REF_TXT",
         "guid": "4de58d8f-38e2-584f-b8aa-5a5744a80fcd",
-        "description": "Quote reference \u2014 supplier quote/PO number",
+        "description": "Quote reference — supplier quote/PO number",
         "categories": [
           "ALL"
         ],
@@ -31881,7 +31877,7 @@
         "key": "CBN_A1_A3",
         "param_name": "CBN_A1_A3_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000001",
-        "description": "Product stage carbon A1-A3 (kgCO2e) \u2014 cradle-to-gate embodied",
+        "description": "Product stage carbon A1-A3 (kgCO2e) — cradle-to-gate embodied",
         "categories": [
           "ALL"
         ],
@@ -31891,7 +31887,7 @@
         "key": "CBN_A4",
         "param_name": "CBN_A4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000002",
-        "description": "Transport stage carbon A4 (kgCO2e) \u2014 factory-to-site haulage",
+        "description": "Transport stage carbon A4 (kgCO2e) — factory-to-site haulage",
         "categories": [
           "ALL"
         ],
@@ -31901,7 +31897,7 @@
         "key": "CBN_B6",
         "param_name": "CBN_B6_KG_CO2E_YR",
         "guid": "5753b5aa-0006-4000-8000-000000000003",
-        "description": "Operational energy carbon B6 (kgCO2e/yr) \u2014 annual in-use emissions",
+        "description": "Operational energy carbon B6 (kgCO2e/yr) — annual in-use emissions",
         "categories": [
           "ALL"
         ],
@@ -31911,7 +31907,7 @@
         "key": "ASS_SPOOL_NR",
         "param_name": "ASS_SPOOL_NR_TXT",
         "guid": "1a4353be-eaaa-5e46-95ee-b64a74667194",
-        "description": "Fabrication spool number \u2014 BS EN ISO 6412 isometric reference",
+        "description": "Fabrication spool number — BS EN ISO 6412 isometric reference",
         "categories": [
           "ALL"
         ],
@@ -31931,7 +31927,7 @@
         "key": "ASS_QC_INSPECTOR",
         "param_name": "ASS_QC_INSPECTOR_TXT",
         "guid": "a028f908-b100-53bc-b21a-1a0a6a03ffac",
-        "description": "QC inspector \u2014 name / ID of signing engineer",
+        "description": "QC inspector — name / ID of signing engineer",
         "categories": [
           "ALL"
         ],
@@ -31941,7 +31937,7 @@
         "key": "CLASH_TRIAGE_SEV",
         "param_name": "CLASH_TRIAGE_SEVERITY_NR",
         "guid": "5753b5aa-0008-4000-8000-000000000001",
-        "description": "Clash triage severity (0-5) \u2014 higher = more blocking",
+        "description": "Clash triage severity (0-5) — higher = more blocking",
         "categories": [
           "ALL"
         ],
@@ -31971,7 +31967,7 @@
         "key": "ASBUILT_DEV",
         "param_name": "ASBUILT_DEVIATION_MM",
         "guid": "5753b5aa-0009-4000-8000-000000000001",
-        "description": "As-built deviation (mm) \u2014 delta vs design position from reality capture",
+        "description": "As-built deviation (mm) — delta vs design position from reality capture",
         "categories": [
           "ALL"
         ],
@@ -31981,7 +31977,7 @@
         "key": "ASBUILT_DATE",
         "param_name": "ASBUILT_CAPTURE_DATE_TXT",
         "guid": "5753b5aa-0009-4000-8000-000000000002",
-        "description": "As-built capture date (ISO 8601) \u2014 when reality-capture snapshot was taken",
+        "description": "As-built capture date (ISO 8601) — when reality-capture snapshot was taken",
         "categories": [
           "ALL"
         ],
@@ -31991,7 +31987,7 @@
         "key": "HEALTH_SCORE",
         "param_name": "HEALTH_SCORE_LAST_NR",
         "guid": "5753b5aa-0009-4000-8000-000000000003",
-        "description": "Model health score (0-100) \u2014 last computed compliance / data quality rating",
+        "description": "Model health score (0-100) — last computed compliance / data quality rating",
         "categories": [
           "ALL"
         ],
@@ -32001,7 +31997,7 @@
         "key": "IFC_PSET_OVERRIDE",
         "param_name": "IFC_PSET_OVERRIDE_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000001",
-        "description": "IFC PSet override \u2014 custom IFC property set / value mapping for export",
+        "description": "IFC PSet override — custom IFC property set / value mapping for export",
         "categories": [
           "ALL"
         ],
@@ -32011,7 +32007,7 @@
         "key": "ACC_ISSUE_ID",
         "param_name": "ACC_ISSUE_ID_TXT",
         "guid": "5753b5aa-000a-4000-8000-000000000002",
-        "description": "ACC Issue ID \u2014 Autodesk Construction Cloud Issue round-trip reference",
+        "description": "ACC Issue ID — Autodesk Construction Cloud Issue round-trip reference",
         "categories": [
           "ALL"
         ],
@@ -32031,7 +32027,7 @@
         "key": "COMM_WITNESS",
         "param_name": "COMM_WITNESS_TXT",
         "guid": "5753b5aa-0004-4000-8000-000000000010",
-        "description": "Commissioning witness \u2014 name / ID of client/third-party observer",
+        "description": "Commissioning witness — name / ID of client/third-party observer",
         "categories": [
           "ALL"
         ],
@@ -32051,7 +32047,7 @@
         "key": "CST_INSTALL_HRS",
         "param_name": "CST_INSTALL_HRS",
         "guid": "5753b5aa-0005-4000-8000-000000000010",
-        "description": "Installation labour hours (N-G12) \u2014 estimated man-hours for install",
+        "description": "Installation labour hours (N-G12) — estimated man-hours for install",
         "categories": [
           "ALL"
         ],
@@ -32061,7 +32057,7 @@
         "key": "CST_LABOUR_CREW",
         "param_name": "CST_LABOUR_CREW_TXT",
         "guid": "5753b5aa-0005-4000-8000-000000000011",
-        "description": "Labour crew identifier \u2014 crew code assigned to install",
+        "description": "Labour crew identifier — crew code assigned to install",
         "categories": [
           "ALL"
         ],
@@ -32071,7 +32067,7 @@
         "key": "CST_LABOUR_RATE_GBP",
         "param_name": "CST_LABOUR_RATE_GBP",
         "guid": "5753b5aa-0005-4000-8000-000000000012",
-        "description": "Labour rate (GBP/hr) \u2014 override for cost roll-up",
+        "description": "Labour rate (GBP/hr) — override for cost roll-up",
         "categories": [
           "ALL"
         ],
@@ -32081,7 +32077,7 @@
         "key": "CBN_A5",
         "param_name": "CBN_A5_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000010",
-        "description": "Construction stage carbon A5 (kgCO2e) \u2014 site installation emissions",
+        "description": "Construction stage carbon A5 (kgCO2e) — site installation emissions",
         "categories": [
           "ALL"
         ],
@@ -32091,7 +32087,7 @@
         "key": "CBN_C1",
         "param_name": "CBN_C1_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000011",
-        "description": "End-of-life carbon C1 (kgCO2e) \u2014 demolition energy",
+        "description": "End-of-life carbon C1 (kgCO2e) — demolition energy",
         "categories": [
           "ALL"
         ],
@@ -32101,7 +32097,7 @@
         "key": "CBN_C2",
         "param_name": "CBN_C2_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000012",
-        "description": "End-of-life carbon C2 (kgCO2e) \u2014 transport to waste processing",
+        "description": "End-of-life carbon C2 (kgCO2e) — transport to waste processing",
         "categories": [
           "ALL"
         ],
@@ -32111,7 +32107,7 @@
         "key": "CBN_C3_C4",
         "param_name": "CBN_C3_C4_KG_CO2E",
         "guid": "5753b5aa-0006-4000-8000-000000000013",
-        "description": "End-of-life carbon C3-C4 (kgCO2e) \u2014 waste processing + disposal",
+        "description": "End-of-life carbon C3-C4 (kgCO2e) — waste processing + disposal",
         "categories": [
           "ALL"
         ],
@@ -32121,7 +32117,7 @@
         "key": "CLASH_TRIAGE_SCORE",
         "param_name": "CLASH_TRIAGE_SCORE",
         "guid": "5753b5aa-0008-4000-8000-000000000010",
-        "description": "Clash triage composite score (0-100) \u2014 weighted severity x business impact",
+        "description": "Clash triage composite score (0-100) — weighted severity x business impact",
         "categories": [
           "ALL"
         ],
@@ -32131,7 +32127,7 @@
         "key": "CLASH_RES_ACTION",
         "param_name": "CLASH_RESOLUTION_ACTION_TXT",
         "guid": "5753b5aa-0008-4000-8000-000000000011",
-        "description": "Clash resolution action \u2014 remediation action taken or planned",
+        "description": "Clash resolution action — remediation action taken or planned",
         "categories": [
           "ALL"
         ],
@@ -32693,7 +32689,8 @@
     "Zones": "OST_Zones",
     "Building Pad": "OST_BuildingPad",
     "Rebar": "OST_Rebar",
-    "Structural Loads": "OST_LoadCases"
+    "Structural Loads": "OST_LoadCases",
+    "Project Information": "OST_ProjectInformation"
   },
   "universal_categories": [
     "Air Terminals",
@@ -32916,7 +32913,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33006,7 +33003,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33196,7 +33193,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33226,7 +33223,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33366,7 +33363,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33376,7 +33373,7 @@
       "guid": "9cff654b-b254-4be2-9067-c5bb1fbb2b1b",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m\u00b2",
+      "unit": "m²",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33506,7 +33503,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m\u00b2",
+      "unit": "W/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33566,7 +33563,7 @@
       "guid": "b8930262-2de1-4ec1-a68b-c7d1ce741b3c",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO\u2082e/m\u00b2",
+      "unit": "kgCO₂e/m²",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33576,7 +33573,7 @@
       "guid": "05aac695-72d4-4826-be4c-f7f050ff2cba",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33586,7 +33583,7 @@
       "guid": "8fad1a00-1d39-4672-87f7-72aa5f3350c2",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33596,7 +33593,7 @@
       "guid": "a64d1a09-088f-4e61-9356-8190e9efc50e",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m\u00b2K",
+      "unit": "W/m²K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -33606,7 +33603,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "\u00b5g/m\u00b3",
+      "unit": "µg/m³",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -38157,7 +38154,7 @@
       "guid": "f8f7f079-15c9-5799-b518-3abe89470613",
       "description": "Foundation bearing capacity minimum (warn if allowable bearing falls below this) [BS 8004 / BS EN 1997-1 Eurocode 7]",
       "threshold": "100",
-      "unit": "kN/m\u00b2",
+      "unit": "kN/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
@@ -38502,7 +38499,7 @@
       "guid": "8f1233a3-a77a-583b-8e95-0afd66d0a766",
       "description": "Embodied carbon limit A1-A5, offices (2025 target; 2030 target 350) [LETI Climate Emergency Design Guide / RIBA 2030 Challenge]",
       "threshold": "600",
-      "unit": "kgCO\u2082/m\u00b2",
+      "unit": "kgCO₂/m²",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "project",
