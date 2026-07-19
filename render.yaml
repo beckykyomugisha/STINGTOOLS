@@ -184,7 +184,6 @@ services:
     image:
       url: docker.io/minio/minio:latest
     dockerCommand: server /data --console-address ":9001"
-    branch: main
     region: frankfurt
     plan: starter
     healthCheckPath: /minio/health/live    # MinIO liveness (port 9000)
@@ -293,7 +292,10 @@ databases:
     databaseName: planscape
     user: planscape
     region: frankfurt
-    plan: starter               # £6/mo — 1GB storage, daily backups
+    # Render retired the legacy Postgres plan names (starter/standard/pro) —
+    # new databases must use the current instance types. basic-256mb is the
+    # ~£6/mo entry tier; move to basic-1gb when data outgrows it.
+    plan: basic-256mb
 
 # ── Indicative cost (Frankfurt starter tiers) ───────────────────────────────
 # api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + minio £6 + 10GB disk
