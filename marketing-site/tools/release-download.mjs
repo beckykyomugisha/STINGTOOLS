@@ -99,7 +99,9 @@ for (const a of artifacts) {
   }
   execFileSync(
     "npx",
-    ["wrangler", "r2", "object", "put", `${BUCKET}/${a.objectKey}`, "--file", a.path],
+    // --remote is required: wrangler 4 defaults r2 object commands to the LOCAL
+    // simulator, which silently uploads to nowhere the production bucket reads.
+    ["wrangler", "r2", "object", "put", `${BUCKET}/${a.objectKey}`, "--file", a.path, "--remote"],
     { stdio: "inherit", shell: process.platform === "win32" }
   );
 }
