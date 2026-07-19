@@ -861,15 +861,38 @@ Electrical handlers should collapse into one shared internal helper in `UI/`.
 
 ### WP8 — Document Manager unification (the ISO 19650 core)
 
-One register (`_data/register.json` via a new `Core/DocumentRegister.cs`, merging
-`document_register.json` and `deliverables.json`); one vocabulary
-(`Iso19650Vocabulary` as sole source for S0-S7 + A1-A6 + B1-B6 + CR, deleting the other
-four tables) with per-state legality; one state machine actually running
-(`Planscape.Docs.Workflow.WorkflowEngine.Transition` still has **zero callers**, and it
-ignores `allowed_roles`, so Check/Review/Approve gates can never fire); closing the
-physical loop so `TemplateEngine` renders into `00_WIP/<disc>/Documents/` and every CDE
-transition is a real move + register update + audit entry; extending the SHA-256 audit
-chain to register mutations; and transmittal acknowledgement capture.
+**Done:**
+- **One vocabulary (WP8.2).** `Iso19650Vocabulary.SuitabilityLabels` is the single source
+  of suitability codes; `BIMManagerEngine.SuitabilityCodes` derives from it. It was
+  extended to the exact union of the two old tables (added S5/CR/AB with register-context
+  meanings) so it is a strict superset — no register row is orphaned — and the register
+  now offers the A/B authorization codes it lacked. `DocStatusCodes` was intentionally
+  *not* merged: it mixes issue-purpose codes (IFC/IFT/…) with suitability and gives "AB" a
+  conflicting meaning, so folding it in would mislabel data. `MidpEngine.SuitRank` (a
+  code→rank map) and `TemplateManifest.SuitabilityScheme` (a config string) are different
+  shapes and stay as-is.
+- **Role gate now real (WP8.3).** `WorkflowEngine.Transition` enforces the transition's
+  `allowed_roles` (resolved via `RoleBasedAccessControl.GetCurrentUserRole()`; K/C are CDE
+  admins; empty = any). Denials are audit-logged (`wf.transition_denied`) and throw.
+
+**Still open — needs in-Revit verification and/or a dry-run migration (do NOT ship blind):**
+- **Register merge.** `deliverables.json` (lifecycle model) and `document_register.json`
+  (broad register incl. auto-registered exports + incoming docs, direction IN/OUT) are
+  genuinely different schemas for overlapping-but-distinct purposes. A hard merge into
+  `_data/register.json` is an irreversible data migration that can lose rows if the schema
+  mapping is wrong — it must be an explicit `Register_Consolidate` command with a dry-run
+  diff report, not an auto-migration, and needs in-Revit verification on real data. A
+  non-destructive first step is a read-only unified *view* (`Core/DocumentRegister.cs`)
+  that normalises both stores for reporting without touching either write path.
+- **Run the deliverable state machine end-to-end.** `Transition` is now role-safe but
+  still only reached by the transmittal flow (via `Start`). Wire `DeliverableLifecycle`
+  Issue/Publish to `Start`/`Transition` and add Check→Review→Approve→Authorize as required
+  transitions in the workflow JSON, with P→C revision promotion on authorize.
+- **Close the physical loop.** `TemplateEngine` renders into `_data/_BIM_COORD/generated/`;
+  it should render into `<WIP>/<disc>/Documents/`, register the file, and make each CDE
+  transition a real `MoveFile` + register update + audit entry.
+- **Acknowledgement capture** for transmittals (drives the workflow `acknowledge`
+  transition — now that the role gate is enforced).
 
 WP5 partially de-risked this: auto-registration now has one method and one schema, and
 lifecycle transitions mirror to the server event-driven.
@@ -882,8 +905,18 @@ Extensible-Storage root-identity stamp replacing the 8-char filename-prefix mult
 heuristic; and a `Folders_ConsolidateAll` migration wizard with a dry-run report.
 
 **Sequencing note:** WP9 changes the physical tree, so it should follow WP6 — with
-`StingPaths` in place the layout change is a change to one resolver rather than to
-every writer.
+`StingPaths` in place the layout change is a change to one resolver (`ProjectSetup`
+defaults + `ExportRoutes`) rather than to every writer.
+
+**Safety design (why this is a command, not an auto-migration):** changing the layout
+moves existing files users already have on disk. It must ship as an explicit
+`Folders_ConsolidateAll` command that (1) prints a dry-run report (source → destination
+for every file, plus what the register will be re-pointed to), (2) only moves on
+confirmation, and (3) is verified in Revit on a real project. Two safe, additive
+sub-pieces can land first: (a) the ES root-identity **stamp** — additive, read-preferential
+with graceful fallback to the current per-doc resolution, best-effort write inside an
+existing transaction; and (b) making the new tree the default for *new* projects while
+`MigrateFromLegacy` keeps consolidating old ones, so nothing existing is force-moved.
 
 ### WP10 — HTTP + storage hygiene
 
