@@ -15,10 +15,12 @@
 //     re-aligns each drifted view to its profile (annotation skipped —
 //     same as the manual SyncStyles command).
 //
-//   Phase C — Revision strip synchronisation
-//     TitleBlockRevisionSyncer.SyncAll writes the current Revit Revision
-//     sequence into PRJ_TB_REV_COL_n / _DATE_n / _DESC_n cells on every
-//     stamped sheet.
+//   Phase C — Revision synchronisation
+//     TitleBlockRevisionSyncer.SyncAll writes the newest Revit Revision's
+//     number / date / description onto every stamped sheet (SHT_REV_TXT,
+//     SHT_REV_DATE_TXT) and its title-block instances
+//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT /
+//     PRJ_TB_ISSUE_SUMMARY_TXT).
 //
 //   Phase D — PDF export
 //     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
@@ -255,7 +257,9 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var result = TitleBlockRevisionSyncer.SyncAll(doc);
+                // Produce & Export operates on STING-stamped sheets throughout,
+                // so keep Phase C to the same scope.
+                var result = TitleBlockRevisionSyncer.SyncAll(doc, stampedOnly: true);
                 stats.RevisionsUpdated = result.SheetsProcessed;
                 stats.Warnings.AddRange(result.Warnings.Select(w => $"[RevSync] {w}"));
             }

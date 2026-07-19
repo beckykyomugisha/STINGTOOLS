@@ -1463,11 +1463,29 @@ namespace StingTools.BIMManager
                     tx.Commit();
                 }
 
+                // Refresh title blocks at the exact moment sheets are issued, so
+                // the revision box on the drawing matches the issue without the
+                // user having to click "Rev Sync" separately.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks synced: {syncResult.SheetsProcessed} sheet(s)";
+                    if (syncResult.Warnings.Count > 0)
+                        syncLine += $" ({syncResult.Warnings.Count} warning(s) — see log)";
+                }
+                catch (Exception syncEx)
+                {
+                    syncLine = "Title blocks synced: FAILED (see log)";
+                    StingLog.Warn($"Title block sync after issue: {syncEx.Message}");
+                }
+
                 TaskDialog.Show("StingTools Issue Sheets",
                     $"Revision {revNum} issued.\n\n" +
                     $"Sheets with revision clouds: {sheetsWithClouds.Count}\n" +
                     $"Sheets updated: {sheetsIssued}\n" +
-                    $"Revision marked as Issued: Yes");
+                    $"Revision marked as Issued: Yes\n" +
+                    syncLine);
 
                 StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
 
