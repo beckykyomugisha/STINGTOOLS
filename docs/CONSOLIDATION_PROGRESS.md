@@ -27,7 +27,7 @@ Every work package below must end green at 0/0.
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
 | WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
-| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | NOT REACHED — see ROADMAP |
+| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | PARTIAL — per-doc root cache landed (see notes); facade + sibling-writer migration + grep gate still TODO |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
 | WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | NOT REACHED — see ROADMAP |
 | WP9 | CDE-first tree + ES root identity + migration wizard | NOT REACHED — see ROADMAP |
@@ -86,6 +86,24 @@ Three items surfaced by the code review of this branch, fixed directly here:
 | **HIGH** — `DocumentManagementDialog.GetBimManagerDir` still resolved the raw `<rvtDir>/STING_BIM_MANAGER` sibling, so after WP2 moved `BIMManagerEngine`/`WarningsManager`/BCC to `<root>/_data/STING_BIM_MANAGER` the Document Manager and BIM Coordination Center diverged (the exact issues/register/meetings split WP2 targeted). | Routed `GetBimManagerDir` through `ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER")` (sibling fallback only for unsaved docs) and moved all 5 dialog transmittal sites to `CoordStores.Transmittals(doc)` — the dialog now shares the canonical stores. |
 | **LOW** — the "already fixed on `main`" note wrongly listed `GetAvailablePresets` as de-duplicated; it was still triplicated on both `main` and this branch. | Removed the 2 redundant `RemoveAll`/cache blocks and corrected this table. |
 | **LOW** — `tools/check_dispatch_parity.ps1` `$RepoRoot` default threw under `powershell -File` (empty `$PSScriptRoot`). | Added a `$MyInvocation.MyCommand.Path` fallback with a clear error if the root still can't be derived. |
+
+## WP6 (partial) — per-document root cache
+
+`ProjectFolderEngine` cached the resolved project root in a single static `_rootPath` and
+also treated it as the fast-path in `GetRootPath`. A second project opened before its own
+`project_setup.json` was bootstrapped would return the *first* project's root — writing its
+exports into the wrong project's folder tree (cross-document contamination, flagged in the
+review). `SaveRootToConfig` then persisted that computed root as `PROJECT_FOLDER_ROOT`, so the
+leak survived into the next session as a global override.
+
+Fix: added an authoritative per-document cache (`_rootByDoc`, keyed on `.rvt` path, cleared on
+document close), demoted `_rootPath` to an *explicit global override only* (never written from
+per-doc computation), added `_lastResolvedRoot` purely for the document-less `RootPath` display
+getter, and made `SaveRootToConfig` persist `PROJECT_FOLDER_ROOT` only when a real override is set.
+
+Still TODO for WP6: the `Core/StingPaths.cs` facade, migrating the ~40 remaining hardcoded
+`<rvtDir>/_BIM_COORD` sibling writers (review Part 1 §A2) onto `GetMetaPath`, and the
+`tools/check_path_discipline` grep gate. Tracked in `docs/ROADMAP.md`.
 
 ## Notes for a resuming session
 

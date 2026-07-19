@@ -843,11 +843,16 @@ not a blanket alias pass. Remove a tag's line from the baseline when you wire it
 Single path API (`Cde` / `Meta` / `Staging` / `Recycle` / `Export`) that
 `OutputLocationHelper` and `ProjectFolderEngine` delegate to, migration of the remaining
 `<rvtDir>/_BIM_COORD` sibling writers, the `OptionFolderManager` fix (it mints
-`_BIM_COORD` inside `20_MISC`), a `tools/check_path_discipline.ps1` grep gate, and
-killing the static cross-document `ProjectFolderEngine._rootPath` cache (a real
-cross-project contamination risk: two projects in one directory can adopt each other's
-roots). WP1/WP2 removed the `_CDE`, `STING_Exports` and `_bim_manager` roots, so the
+`_BIM_COORD` inside `20_MISC`), and a `tools/check_path_discipline.ps1` grep gate.
+WP1/WP2 removed the `_CDE`, `STING_Exports` and `_bim_manager` roots, so the
 remaining sprawl is narrower than the review describes.
+
+**Done (post-review follow-up):** the static cross-document `ProjectFolderEngine._rootPath`
+cache — the cross-project contamination risk — is fixed. Root resolution is now cached
+per-document (`_rootByDoc`, cleared on close), `_rootPath` is an explicit global override
+only, and `SaveRootToConfig` no longer persists a computed root as `PROJECT_FOLDER_ROOT`.
+See `docs/CONSOLIDATION_PROGRESS.md` → "WP6 (partial)". Still open: the `StingPaths` facade,
+the ~40 sibling-writer migration + `OptionFolderManager`, and the grep gate.
 
 ### WP7 remainder — shared `Run<T>` helper
 

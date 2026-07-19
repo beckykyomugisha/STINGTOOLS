@@ -101,20 +101,46 @@ namespace StingTools.Core
             ["Letter"]         = "CORRESPONDENCE",
         };
 
+        // Explicit GLOBAL override only (user-configured PROJECT_FOLDER_ROOT / the
+        // RootPath setter). Computed per-document roots are NOT stored here — that was
+        // the cross-document contamination vector: the single static returned whichever
+        // document resolved last, so a second project opened before its own setup was
+        // bootstrapped adopted the first project's root.
         private static string _rootPath;
+
+        // Most recently resolved root, for the document-less RootPath display getter only.
+        private static string _lastResolvedRoot;
 
         // ── Phase 167: Per-document ProjectSetup cache ────────────────────
         private static readonly ConcurrentDictionary<string, ProjectSetup> _setupCache = new();
+
+        // Authoritative per-document root cache, keyed on the .rvt path.
+        private static readonly ConcurrentDictionary<string, string> _rootByDoc =
+            new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Drop the cached setup for a specific document (call on close).</summary>
         public static void InvalidateSetupCache(string docPath)
         {
             if (string.IsNullOrEmpty(docPath)) return;
             _setupCache.TryRemove(docPath, out _);
+            _rootByDoc.TryRemove(docPath, out _);
         }
 
         /// <summary>Drop all cached setups.</summary>
-        public static void InvalidateAllSetupCaches() => _setupCache.Clear();
+        public static void InvalidateAllSetupCaches()
+        {
+            _setupCache.Clear();
+            _rootByDoc.Clear();
+        }
+
+        /// <summary>Cache a resolved root per-document and record it as the most recent for display.</summary>
+        private static void RememberRoot(Document doc, string root)
+        {
+            if (string.IsNullOrEmpty(root)) return;
+            _lastResolvedRoot = root;
+            string key = doc?.PathName;
+            if (!string.IsNullOrEmpty(key)) _rootByDoc[key] = root;
+        }
 
         // PERF-02: Folder stats cache
         private static List<FolderStats> _folderStatsCache;
@@ -150,19 +176,26 @@ namespace StingTools.Core
 
         // ── Root path ─────────────────────────────────────────────────────
 
-        /// <summary>Get or set the project folder root. Persisted to project_config.json.</summary>
+        /// <summary>
+        /// Explicit global project-folder root override (persisted to project_config.json
+        /// as PROJECT_FOLDER_ROOT). The getter falls back to the most recently resolved
+        /// root for document-less display callers. Setting this establishes a global
+        /// override for every document — per-document roots are cached separately.
+        /// </summary>
         public static string RootPath
         {
-            get => _rootPath;
+            get => !string.IsNullOrEmpty(_rootPath) ? _rootPath : _lastResolvedRoot;
             set { _rootPath = value; StingLog.Info($"ProjectFolderEngine root set: {value}"); }
         }
 
         /// <summary>
-        /// Resolve the root path. Uses: ProjectSetup → explicit RootPath → project dir → user docs → temp.
+        /// Resolve the root path. Order: per-doc ProjectSetup → per-doc cache →
+        /// explicit global override → project dir → user docs → temp. The result is
+        /// cached per-document so two projects open at once never share a root.
         /// </summary>
         public static string GetRootPath(Document doc)
         {
-            // Phase 167: Honour persisted ProjectSetup first
+            // 1. Phase 167: Honour persisted ProjectSetup first (per-document, authoritative)
             try
             {
                 var setup = LoadOrDetectSetup(doc);
@@ -172,16 +205,29 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(resolved))
                     {
                         try { Directory.CreateDirectory(resolved); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        if (Directory.Exists(resolved)) return resolved;
+                        if (Directory.Exists(resolved)) { RememberRoot(doc, resolved); return resolved; }
                     }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetRootPath setup lookup: {ex.Message}"); }
 
-            if (!string.IsNullOrEmpty(_rootPath) && Directory.Exists(_rootPath))
-                return _rootPath;
+            // 2. Per-document cache — keyed on the .rvt path, so a second project opened
+            //    before its setup is bootstrapped can never adopt the first project's root
+            //    (the old single static _rootPath fast-path did exactly that).
+            string docKey = doc?.PathName;
+            if (!string.IsNullOrEmpty(docKey) && _rootByDoc.TryGetValue(docKey, out string cachedRoot)
+                && Directory.Exists(cachedRoot))
+                return cachedRoot;
 
-            // Try project directory: name root after the project code so the
+            // 3. Explicit global override only (user-configured PROJECT_FOLDER_ROOT).
+            //    Computed per-doc roots no longer leak into _rootPath.
+            if (!string.IsNullOrEmpty(_rootPath) && Directory.Exists(_rootPath))
+            {
+                RememberRoot(doc, _rootPath);
+                return _rootPath;
+            }
+
+            // 4. Try project directory: name root after the project code so the
             // user sees one container per project (e.g. FIRESTONE_LIBERIA/),
             // not a generic "STING_Project" sibling.
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
@@ -191,16 +237,16 @@ namespace StingTools.Core
                 {
                     string code = DetectProjectCode(doc);
                     string stingRoot = Path.Combine(projDir, code);
-                    try { Directory.CreateDirectory(stingRoot); _rootPath = stingRoot; return stingRoot; }
+                    try { Directory.CreateDirectory(stingRoot); RememberRoot(doc, stingRoot); return stingRoot; }
                     catch (Exception ex2) { StingLog.Warn($"ProjectFolderEngine: Cannot create at project dir: {ex2.Message}"); }
                 }
             }
 
-            // Fallback to Documents/<code> when project dir is unwritable
+            // 5. Fallback to Documents/<code> when project dir is unwritable
             string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string codeDocs = doc != null ? DetectProjectCode(doc) : "STING_Project";
             string fallback = Path.Combine(docsDir, codeDocs);
-            try { Directory.CreateDirectory(fallback); _rootPath = fallback; return fallback; }
+            try { Directory.CreateDirectory(fallback); RememberRoot(doc, fallback); return fallback; }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Documents fallback failed: {ex.Message}"); }
 
             return Path.GetTempPath();
@@ -1466,8 +1512,15 @@ namespace StingTools.Core
                     config = JObject.Parse(File.ReadAllText(configPath));
                 else
                     config = new JObject();
-                config["PROJECT_FOLDER_ROOT"] = _rootPath ?? "";
-                File.WriteAllText(configPath, config.ToString(Newtonsoft.Json.Formatting.Indented));
+                // Persist PROJECT_FOLDER_ROOT only when a genuine global override is set.
+                // Auto-populating it with a computed per-document root (the old behaviour)
+                // re-introduced the override next session and leaked one project's root
+                // onto every other project — the cross-session form of the same bug.
+                if (!string.IsNullOrEmpty(_rootPath))
+                {
+                    config["PROJECT_FOLDER_ROOT"] = _rootPath;
+                    File.WriteAllText(configPath, config.ToString(Newtonsoft.Json.Formatting.Indented));
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.SaveRootToConfig: {ex.Message}"); }
         }
