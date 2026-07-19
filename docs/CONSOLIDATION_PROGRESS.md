@@ -27,7 +27,7 @@ Every work package below must end green at 0/0.
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
 | WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
-| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | PARTIAL — per-doc root cache + `OptionFolderManager` fix + `StingPaths` facade + gate landed; 8 of 43 sibling writers migrated (35 remaining, ratcheted by the gate) |
+| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | **DONE** — per-doc root cache + `OptionFolderManager` fix + `StingPaths` facade + gate; **all 43 sibling `_BIM_COORD` writers migrated across 37 files; baseline now ZERO** (gate is a hard ratchet) |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
 | WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | NOT REACHED — see ROADMAP |
 | WP9 | CDE-first tree + ES root identity + migration wizard | NOT REACHED — see ROADMAP |
@@ -114,12 +114,20 @@ ExportPfvIfc, ExportSleeveBcf, KutKpiDashboard, MEPIntelligenceEngine, WireAnnot
 DIALuxExport, PhotometricLibrary) — several of which also silently fixed a read/writer
 folder mismatch (e.g. KutKpi read `deliverables.json` from the wrong root).
 
-Still TODO for WP6: **35 sibling occurrences across 28 files** (see the baseline file),
-including the doc-less loaders that take a `projectDir` string rather than a `Document`
-(`EdgeKpiSnapshot`, the TemplateManager registries, `ContentRoots`) — those need a `doc`
-threaded through first — and `ClashManagerDialog` (deliberately skipped: its clash-store
-read/writer mismatch is a separate seam, not a mechanical path move). The gate caps the
-count meanwhile. Tracked in `docs/ROADMAP.md`.
+**WP6 is now COMPLETE.** All 43 hand-built `<projDir>/_BIM_COORD` sibling occurrences across
+37 files are migrated onto `StingPaths.Meta`, and the baseline is **zero** — the gate is now a
+hard ratchet: any new hand-built sibling fails the build. `ClashManagerDialog` was migrated too
+(its clash-store read/writer mismatch remains a separate seam, noted in ROADMAP). The final
+cluster (`EdgeKpiSnapshot`, `SustainProjectSetup`, the Cx `LoadTaskLibrary` cache) was migrated
+**without** breaking the two sustainability POCOs' documented "no Revit dependency,
+unit-testable" contract: they now accept the already-resolved sustainability directory, and the
+callers resolve it via `StingPaths`. That also fixed a live bug — `MigrateFromLegacy` relocates
+the sibling `_BIM_COORD` on open, after which the old `SustainProjectSetup.Save` recreated it and
+`Load` then read from the emptied sibling.
+
+Remaining consolidation work is WP8 (register/vocabulary/state-machine unification — schema
+changes) and WP9 (CDE-first tree + ES root identity — layout change). With `StingPaths` in place,
+WP9's layout change is now a one-resolver edit. Tracked in `docs/ROADMAP.md`.
 
 ## Notes for a resuming session
 

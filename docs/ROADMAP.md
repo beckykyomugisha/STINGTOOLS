@@ -838,23 +838,21 @@ They are recorded in `tools/dispatch_parity_baseline.txt`, and
 silently. Closing the gap needs a per-command decision (alias vs genuinely panel-only),
 not a blanket alias pass. Remove a tag's line from the baseline when you wire it.
 
-### WP6 — `Core/StingPaths.cs` path service + path-discipline gate
+### WP6 — `Core/StingPaths.cs` path service + path-discipline gate — **COMPLETE**
 
-Single path API (`Cde` / `Meta` / `Staging` / `Recycle` / `Export`) that
-`OutputLocationHelper` and `ProjectFolderEngine` delegate to, migration of the remaining
-`<rvtDir>/_BIM_COORD` sibling writers, the `OptionFolderManager` fix (it mints
-`_BIM_COORD` inside `20_MISC`), and a `tools/check_path_discipline.ps1` grep gate.
-WP1/WP2 removed the `_CDE`, `STING_Exports` and `_bim_manager` roots, so the
-remaining sprawl is narrower than the review describes.
+`Core/StingPaths.cs` is the single path API (`Cde` / `Meta` / `Data` / `Staging` / `Recycle`
+/ `Export` / `ExportFile`) delegating to `ProjectFolderEngine`. All 43 hand-built
+`<projDir>/_BIM_COORD` sibling occurrences across 37 files were migrated onto `StingPaths.Meta`;
+`tools/check_path_discipline.ps1` + `path_discipline_baseline.txt` (now zero) hard-ratchet the
+build against any new sibling. The cross-document `_rootPath` cache, the `OptionFolderManager`
+and `DesignOptionRegistry` `20_MISC/_BIM_COORD` nesting, `CorporateLibrary.Push`'s relative-path
+bug, and the sustainability-cluster relocate/recreate bug were all fixed along the way — the two
+sustainability POCOs stayed Revit-free (they now take the resolved dir; callers resolve via
+`StingPaths`). See `docs/CONSOLIDATION_PROGRESS.md` → "WP6".
 
-**Done (post-review follow-up):** the static cross-document `ProjectFolderEngine._rootPath`
-cache — the cross-project contamination risk — is fixed. Root resolution is now cached
-per-document (`_rootByDoc`, cleared on close), `_rootPath` is an explicit global override
-only, and `SaveRootToConfig` no longer persists a computed root as `PROJECT_FOLDER_ROOT`.
-The `OptionFolderManager` `20_MISC/_BIM_COORD/options` nesting is also fixed — per-option
-folders now mint under the WIP CDE container (`<WIP>/options/...`). See
-`docs/CONSOLIDATION_PROGRESS.md` → "WP6 (partial)". Still open: the `StingPaths` facade,
-the ~40 remaining sibling `_BIM_COORD`-writer migration, and the grep gate.
+**Still open (separate seam):** `ClashManagerDialog` reads `clashes.json` from `_data/_BIM_COORD`
+but the clash writers (`ClashRunCommand`, `ClashXlsxExportCommand`) write to the `20_MISC` export
+dir — a read/writer mismatch that predates WP6 and needs both sides aligned (not just a path move).
 
 ### WP7 remainder — shared `Run<T>` helper
 

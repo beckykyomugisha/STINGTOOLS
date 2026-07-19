@@ -1224,8 +1224,8 @@ namespace StingTools.Core.Sustainability
             SustainProjectSetup setup = null;
             try
             {
-                string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
-                if (!string.IsNullOrEmpty(dir)) setup = SustainProjectSetup.Load(dir, out _);
+                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    setup = SustainProjectSetup.Load(StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
             }
             catch { }
             return GatherMaterialLines(doc, setup, forceRefresh: false);

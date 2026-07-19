@@ -690,9 +690,8 @@ namespace StingTools.Core
         private static void PreWarnSustainabilityReadiness(Autodesk.Revit.DB.Document doc)
         {
             if (doc == null) return;
-            string dir = null;
-            try { dir = System.IO.Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
-            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
 
             bool locationSet = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
                             || !string.IsNullOrWhiteSpace(setup.ClimateZone);

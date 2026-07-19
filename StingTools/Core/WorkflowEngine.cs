@@ -2284,8 +2284,8 @@ namespace StingTools.Core
                         // or a resolvable design-day site.
                         try
                         {
-                            string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+                            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
                             if (!string.IsNullOrWhiteSpace(setup.ClimateSiteId) || !string.IsNullOrWhiteSpace(setup.ClimateZone))
                                 return true;
                             return !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id);

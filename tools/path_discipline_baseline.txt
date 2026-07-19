@@ -1,6 +1,5 @@
 # Path-discipline baseline — hand-built <projectDir>/_BIM_COORD sibling paths.
 # Format: <relative path under StingTools/><TAB><count>. Lower a line when you migrate a file;
 # tools/check_path_discipline.ps1 fails the build if any file exceeds its baseline.
-Commands/Hvac/HvacGenerateCxChecklistCommand.cs	1
-Core/Sustainability/EdgeKpiSnapshot.cs	1
-Core/Sustainability/SustainProjectSetup.cs	1
+# ALL sibling writers migrated onto StingPaths (WP6 complete). Baseline is now ZERO:
+# any new hand-built _BIM_COORD sibling path fails the gate.

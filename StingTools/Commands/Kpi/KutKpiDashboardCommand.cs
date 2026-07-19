@@ -254,7 +254,8 @@ namespace StingTools.Commands.Kpi
                     string projDir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     var edge = string.IsNullOrEmpty(projDir)
                         ? null
-                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(projDir);
+                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(
+                            StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
                     if (edge != null)
                     {
                         sb.Append("<h3>EDGE / sustainability (latest snapshot)</h3>");
