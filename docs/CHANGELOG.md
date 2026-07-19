@@ -2,6 +2,43 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 208 — StingBridge 0.1.0-beta.2 released)
+
+Cuts and ships the release carrying Phases 201–205: personal access tokens, SEQ
+minting, and the drop-folder contract. **Live on planscape.build/downloads**
+alongside beta.1, which stays listed.
+
+- **`__version__` → `0.1.0b2`.** Both wheels rebuilt on Python 3.13
+  (`stingbridge-0.1.0b2`, `stingtools_core-0.1.0`).
+- **Two artifacts**, matching beta.1's layout exactly (verified by pulling
+  beta.1 out of R2 and diffing the structure rather than guessing):
+  `win64` one-file PyInstaller EXE — 57 MB,
+  sha256 `1b7eada1…`; and `any` wheels zip with the `run.bat`/`run.sh`
+  launchers — 1 MB, sha256 `7353a062…`. Both carry `LICENSE.txt` +
+  `QUICKSTART.md`.
+- **Both smoke-tested from clean installs against a real API build** wired to
+  the docker Postgres. The EXE: `--version` → `0.1.0b2`, `--help` renders, and
+  `process-ifc` → 3 elements, **3 SEQ minted**, 3 synced, 0 errors, tokens
+  written back. The `any` zip: `run.bat` built its venv from the bundled wheels
+  on first run and completed the same `process-ifc` E2E.
+- **Uploaded** to the private `planscape-downloads` R2 bucket via
+  `release-download.mjs`, **catalogue entry added keeping beta.1**, and the site
+  deployed to production.
+
+**Verified live:** unauthenticated downloads of both beta.2 artifacts return
+**401** (gating intact), `/downloads` returns 200, and the setup guide resolves
+200. Both R2 objects were **re-downloaded and their sha256 confirmed to match
+the catalogue** — the release script computes hashes from the files themselves,
+so the catalogue cannot drift from the objects, and this closes the loop.
+
+**Not verified:** that the live *page* renders the beta.2 row. `/api/downloads`
+requires a subscriber session, and the gated download endpoint returns 401
+before it ever consults the catalogue — a bogus version number returns 401 too,
+so a 401 on beta.2 proves nothing about catalogue presence. What is established
+is that the objects exist with the right hashes and the deploy succeeded with
+beta.2 in `catalog.ts`. Confirming the rendered row needs one signed-in page
+load, which is an owner action.
+
 #### Completed (Phase 207 — multi-host Phase B: change feed + pull + reconcile engine)
 
 Push already existed — every host could send tags to the hub. Nothing could ask
