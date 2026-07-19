@@ -2,6 +2,65 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 204 — SB-4: one drop-folder contract across both watchers)
+
+The Python watcher left every processed file where it landed with a
+`.sync_result.json` beside it; the C# watcher
+(`StingBridge/src/IFC/IfcDropWatcher.cs`) moved files through
+`processing/ → done/YYYYMMDD_<name>` or `failed/` + a `.log`. Two contracts over
+one folder is a real problem, not a cosmetic one: with files left in place
+"what is still outstanding?" has no answer, a re-run reprocesses everything, and
+a publisher writing into the folder cannot tell finished work from pending.
+The Python side now follows the C# contract, keeping the sidecars — they are
+strictly more information than the C# side records. Closes ROADMAP **SB-4**.
+
+- **New `StingBridge/watch/hot_folder.py`** — `ensure_layout` / `claim` /
+  `complete` / `fail` / `recover_orphans`. Every move retries for up to 30 s
+  against the Windows file-in-use race (matching the C# watcher's exclusive-open
+  wait), and a name collision in `done/` disambiguates to `name(2).ifc` rather
+  than overwriting: two exports of the same name on the same day is normal and
+  silently destroying the earlier result would lose work.
+
+- **`_sting.ifc` output and sidecars travel with the source**, so `done/` holds
+  the whole record of one drop instead of scattering it across folders.
+
+- **Failure routing reads the result, not just exceptions.** `process()` reports
+  parse and sync failures in `result["errors"]` rather than raising — so routing
+  on exceptions alone archived an unopenable IFC into `done/` as a success. This
+  was caught by testing the failure path live, not in review. The rule is now
+  "errors **and** nothing synced ⇒ `failed/`": a file that yielded elements is a
+  successful drop even if something secondary complained (the sidecar records
+  that), while a file that parsed to nothing, or whose elements were all
+  rejected, lands in `failed/` where an operator will see it.
+
+- **Two robustness gaps closed while the contract made them safe to close.**
+  Files already sitting in the drop root at start-up are now swept in — watchdog
+  only reports *events*, so previously they waited for someone to touch them
+  again. That sweep is only correct because processed files now leave the root;
+  before SB-4 it would have reprocessed the entire folder on every start.
+  Separately, `recover_orphans` returns files stranded in `processing/` by a
+  crash back to the inbox — without it such a file is invisible forever: gone
+  from the root, and nothing moves it out of `processing/`.
+
+- The single-file `process-ifc` path is unchanged (no managed root ⇒ legacy
+  in-place behaviour with its sidecar).
+
+**Verified.** 24 unit tests over real temp directories (a mocked filesystem
+would prove nothing about the race this module exists to survive) covering each
+transition, double-claim, same-name archiving, orphan recovery, and the
+failure-detection rule. **Live**, against a real API build wired to the docker
+Postgres: a good IFC and a corrupt IFC dropped into one folder in one run →
+`done/20260720_good.ifc` + `_sting.ifc` + sidecar, and
+`failed/corrupt.ifc` + `corrupt.ifc.log` reading
+`IFC open failed: Unable to parse IFC SPF header`, with the root and
+`processing/` both drained. Phase 202's SEQ minting was exercised in the same
+run ("Minted 3 SEQ number(s)").
+
+**Note on the ROADMAP's framing:** SB-4 described the C# watcher as the
+Revit-side one, but `StingToolsApp` stopped auto-starting `IfcDropWatcher` in
+Phase 184 — the class still exists under `StingBridge/src/IFC/` and remains the
+authoritative statement of the contract, which is what this aligned to.
+
 #### Completed (Phase 203 — Revision System Alignment, branch `claude/revision-system-fixes`)
 
 The revision subsystem had strong building blocks but broken wiring: two conflicting
