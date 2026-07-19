@@ -403,7 +403,7 @@ namespace StingTools.Commands.Kpi
                 {
                     string projDir2 = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     string delivJson = string.IsNullOrEmpty(projDir2) ? null
-                        : System.IO.Path.Combine(projDir2, "_BIM_COORD", "deliverables.json");
+                        : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "deliverables.json");
                     int delivCount = 0;
                     if (!string.IsNullOrEmpty(delivJson) && System.IO.File.Exists(delivJson))
                     {

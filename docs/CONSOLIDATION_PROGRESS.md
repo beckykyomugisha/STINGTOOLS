@@ -27,7 +27,7 @@ Every work package below must end green at 0/0.
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
 | WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
-| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | PARTIAL — per-doc root cache landed (see notes); facade + sibling-writer migration + grep gate still TODO |
+| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | PARTIAL — per-doc root cache + `OptionFolderManager` fix + `StingPaths` facade + gate landed; 8 of 43 sibling writers migrated (35 remaining, ratcheted by the gate) |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
 | WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | NOT REACHED — see ROADMAP |
 | WP9 | CDE-first tree + ES root identity + migration wizard | NOT REACHED — see ROADMAP |
@@ -106,9 +106,20 @@ Also fixed the `OptionFolderManager` nesting: per-option deliverable folders min
 bucket — a literal "folder repeated inside another folder"). They now mint under the WIP
 CDE container (`<WIP>/options/<set>/<option>/...`), matching the header's stated intent.
 
-Still TODO for WP6: the `Core/StingPaths.cs` facade, migrating the ~40 remaining hardcoded
-`<rvtDir>/_BIM_COORD` sibling writers (review Part 1 §A2) onto `GetMetaPath`, and the
-`tools/check_path_discipline` grep gate. Tracked in `docs/ROADMAP.md`.
+Landed the WP6 foundation: `Core/StingPaths.cs` (the single path API) and
+`tools/check_path_discipline.ps1` + `path_discipline_baseline.txt` (a ratchet gate that
+fails the build on any NEW hand-built `<projDir>/_BIM_COORD` sibling beyond baseline).
+Migrated the first 8 doc-in-scope command sites onto `StingPaths.Meta` (ExportCircuits,
+ExportPfvIfc, ExportSleeveBcf, KutKpiDashboard, MEPIntelligenceEngine, WireAnnotation,
+DIALuxExport, PhotometricLibrary) — several of which also silently fixed a read/writer
+folder mismatch (e.g. KutKpi read `deliverables.json` from the wrong root).
+
+Still TODO for WP6: **35 sibling occurrences across 28 files** (see the baseline file),
+including the doc-less loaders that take a `projectDir` string rather than a `Document`
+(`EdgeKpiSnapshot`, the TemplateManager registries, `ContentRoots`) — those need a `doc`
+threaded through first — and `ClashManagerDialog` (deliberately skipped: its clash-store
+read/writer mismatch is a separate seam, not a mechanical path move). The gate caps the
+count meanwhile. Tracked in `docs/ROADMAP.md`.
 
 ## Notes for a resuming session
 
