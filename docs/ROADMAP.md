@@ -879,13 +879,13 @@ Electrical handlers should collapse into one shared internal helper in `UI/`.
 normalises both stores into one de-duplicated `RegisterEntry` list, exported via the
 `DocRegister_Unified` command (BIM tab → "Unified Register"). Touches neither write path.
 
-**Landed:** the register merge now ships as **`Register_Consolidate`** — a dry-run command
-that previews the merged view (CSV) and, on confirmation, writes the canonical
-`_data/register.json` via `DocumentRegister.WriteCanonical`, leaving both source stores
-intact (reversible, re-runnable). **Still open:** repointing the two register UIs
-(`DocumentManagementDialog`, BCC) to *read* `register.json` when present — a read-side change
-that needs in-Revit verification — and, eventually, retiring the source stores once the UIs
-write through the canonical one.
+**Landed:** the register merge ships as **`Register_Consolidate`** (dry-run → canonical
+`_data/register.json`, sources intact). The **Document Manager** now reads the LIVE unified
+register (both stores merged fresh) once `register.json` exists, so it shows one register
+without going stale. **Still open:** the **BCC** stays deliverable-focused on purpose — its
+grid runs deliverable-lifecycle bulk actions, so register-only rows must not be injected into
+it; a read-only "all documents" surface in BCC would need its own UI + Revit verification.
+Eventually the two source stores retire once the UIs write through the canonical one.
 - **Run the deliverable state machine end-to-end.** `Transition` is now role-safe but
   still only reached by the transmittal flow (via `Start`). Wire `DeliverableLifecycle`
   Issue/Publish to `Start`/`Transition` and add Check→Review→Approve→Authorize as required
@@ -926,11 +926,22 @@ transaction-free with graceful fallback; `EnsureStamped` writes best-effort from
 - **Migration wizard.** `Folders_ConsolidateAll` — `ScanLegacy` dry-run preview + confirmation
   before `MigrateFromLegacy` runs. Writes a report CSV; never auto-runs.
 
-**Still open:** multi-model **guid-sharing** (siblings adopting one root by stamp), and
-**in-Revit verification** of the CDE-first routing + the two migration commands on a real
-project (per each commit's verification note). Discipline order under CdeFirst is
-`<state>/<contentType>/<disc>` (the disc-aware path nests discipline under the content type);
-revisit if `<state>/<disc>/<contentType>` is preferred.
+**Multi-model guid-sharing — assessed, intentionally not shipped as an auto-adopt.** Robust
+sibling sharing already comes from `LoadOrDetectSetup`'s sibling scan (folder-based: a sibling
+model adopts a neighbour's root via its `_data/project_setup.json`) plus the ES stamp (per-model
+root stability). A blanket "adopt any sibling root with a matching guid" would either duplicate
+that scan or *risk merging two genuinely-separate projects that happen to share a folder* — the
+hard part is a reliable project-grouping signal, not the guid. So the safe path is: keep the
+setup-scan + ES stamp for the common case, and add explicit guid-adopt only behind a real
+grouping signal (shared project number, or user-declared grouping). The fragile 8-char
+filename-prefix heuristic (`ProjectFolderEngine.cs` sibling block) is now superseded by the
+subdir scan and could be removed in a focused cleanup.
+
+**In-Revit verification** of the CDE-first routing + the two migration commands + the register
+repoint is required before merge — the full runnable checklist is
+[`docs/ISO19650_INREVIT_VERIFICATION.md`](ISO19650_INREVIT_VERIFICATION.md). Note: discipline
+order under CdeFirst is `<state>/<contentType>/<disc>`; revisit if `<state>/<disc>/<contentType>`
+is preferred.
 
 ### WP10 — HTTP + storage hygiene
 

@@ -1,0 +1,110 @@
+# ISO 19650 Consolidation — In-Revit Verification Checklist
+
+**Branch**: `claude/iso19650-consolidation`. Every change built clean (Release, 0/0) but the
+Linux/CI build cannot exercise the Revit API. Run these in Revit before merging. Do them on a
+**copy** of a real project (the migration/consolidation commands move files and write folders).
+
+Tick order matters: some steps set up state the next one depends on (noted inline).
+
+---
+
+## A. No-regression baseline (existing projects unchanged)
+
+- [ ] **A1. Existing BIM-tree project.** Open a project that already has a STING folder tree
+  (`01_WIP…20_MISC`). Run a few exports (PDF, IFC, a schedule). Confirm they land in the SAME
+  folders as before (`06_DRAWINGS`, `05_MODELS`, `07_SCHEDULES`), and no new/duplicate top-level
+  folders appear next to the `.rvt`.
+- [ ] **A2. Metadata folders.** Confirm coordination stores resolve under
+  `<project>/<CODE>/_data/` (issues, document_register, meetings, transmittals) — one `_data`
+  root, not scattered `_BIM_COORD` / `STING_BIM_MANAGER` siblings.
+- [ ] **A3. Two projects, one folder.** Open two saved projects with different project Numbers
+  from the same directory; run an export in each; confirm each writes into its OWN `<CODE>` root
+  (WP6 per-document root fix — no cross-contamination).
+
+## B. Suitability vocabulary (WP8.2)
+
+- [ ] **B1.** Open the Document Register / BCC suitability dropdown. Confirm it now offers the
+  full set incl. the authorization codes **A1–A5** and partial-sign-off **B1–B6** (not just
+  S0–S7/CR/AB).
+- [ ] **B2.** Open an existing document that already has an S-code (e.g. `S3`) or `CR`/`AB`;
+  confirm its suitability + description still resolve (no orphaned rows).
+
+## C. Workflow role gate (WP8.3)
+
+- [ ] **C1.** In `project_config.json` set `USER_ROLE` to a non-approver role (e.g. `A`). Drive a
+  workflow action whose transition restricts `allowed_roles` (transmittal flow). Confirm it is
+  **denied** with a role message, and an audit entry `wf.transition_denied` is written.
+- [ ] **C2.** Set `USER_ROLE` to `K` (Information Manager) or `C` (Coordinator); repeat; confirm
+  it now **proceeds**.
+
+## D. Unified register view + export (WP8)
+
+- [ ] **D1.** BIM tab → **Unified Register**. Confirm a CSV is written to the REGISTERS export
+  folder listing rows from BOTH stores with a `Source` column (`deliverable` / `register` /
+  `both`), and the TaskDialog reports the three counts.
+- [ ] **D2.** Confirm `deliverables.json` and `document_register.json` are byte-for-byte
+  unchanged (read-only view).
+
+## E. Register consolidation (WP8, dry-run command)
+
+- [ ] **E1.** BIM tab → **Consolidate Register**. A dry-run preview CSV is written; the dialog
+  shows counts. Click **No** → confirm NOTHING was written (no `register.json`).
+- [ ] **E2.** Run it again, click **Yes** → confirm `<root>/_data/register.json` now exists, and
+  the two source stores are still unchanged.
+- [ ] **E3.** (Depends on E2.) Open the **Document Manager**; confirm its register list now shows
+  the unified rows (deliverables + document-register, deduped). Edit a document-register row's
+  field; confirm the edit persists (writes still go to `document_register.json`).
+
+## F. ES root-identity stamp (WP9)
+
+- [ ] **F1.** Open a saved project (this stamps the root on first open). Note the export root
+  folder name (`<CODE>`).
+- [ ] **F2.** Edit the Revit project **Number** (which changes the derived CODE). Save, close,
+  re-open. Run an export. Confirm it still lands in the **ORIGINAL** `<CODE>` root — NOT a new
+  root named after the new number.
+- [ ] **F3.** Confirm the stamp is written once (no repeated transactions on subsequent opens —
+  check the log for a single "Stamp project root" entry per project).
+
+## G. CDE-first tree for new projects (WP9)
+
+- [ ] **G1.** Create a **brand-new empty** project; save it to an empty folder. Run any STING
+  export. Confirm it lands under `<root>/00_WIP/<ContentType>/` (e.g. `00_WIP/Drawings/`), and the
+  top level has states (`00_WIP`/`01_SHARED`/`02_PUBLISHED`/`03_ARCHIVE`) + cross-cutting folders
+  (transmittals/issues/registers…) — NOT the numbered `05_MODELS…20_MISC` content folders.
+- [ ] **G2.** Confirm a disc-scoped export nests under the content type
+  (`00_WIP/<ContentType>/<Discipline>`).
+- [ ] **G3.** (Opt-out.) Set `CDE_FIRST_LAYOUT=false` in `project_config.json`, create another
+  new project, confirm it uses the numbered BIM tree instead.
+- [ ] **G4.** Re-confirm A1 — an EXISTING project still uses its numbered tree (greenfield gate).
+
+## H. Folder consolidation wizard (WP9, dry-run command)
+
+- [ ] **H1.** On a copy of a project that has legacy sibling folders (`_BIM_COORD`,
+  `STING_BIM_MANAGER`, `_CDE`, `STING_Exports`…), BIM tab → **Consolidate Folders**. Confirm the
+  dry-run report CSV lists each legacy folder with its file count and destination. Click **No** →
+  confirm nothing moved.
+- [ ] **H2.** Run again, click **Yes** → confirm the files now live under `<root>/_data` (metadata
+  buckets) / routed export folders, and the legacy siblings are gone or empty. Confirm the
+  activity log recorded the move.
+
+## I. Regression gates (already green in CI, re-run if you touch the code)
+
+- [ ] **I1.** `pwsh tools/check_path_discipline.ps1` → "0 remaining" (no new `_BIM_COORD` siblings).
+- [ ] **I2.** `pwsh tools/check_dispatch_parity.ps1` → passes (no new panel-tag drift).
+
+---
+
+## Known-deferred (not in this branch — see docs/ROADMAP.md)
+
+- **Deliverable state machine end-to-end** (WP8) — `Transition` is role-safe but still only
+  reached by the transmittal flow; wiring `DeliverableLifecycle` Issue/Publish to it + the
+  Check→Review→Approve→Authorize gates is pending.
+- **Render→WIP loop** (WP8) — `TemplateEngine` still renders into `_data/_BIM_COORD/generated/`
+  rather than `<WIP>/<disc>/Documents/` with a register entry per file.
+- **BCC repoint** — the BIM Coordination Center stays deliverable-focused (its grid runs
+  deliverable-lifecycle bulk actions that register-only rows must not be exposed to).
+- **Multi-model guid-sharing** — see the note in docs/ROADMAP.md: robust sharing already comes
+  from the setup-file sibling scan + the ES stamp; a blanket guid auto-adopt would risk merging
+  unrelated projects that happen to share a folder, so it needs a reliable grouping signal first.
+- **Clash-store read/writer mismatch** — `ClashManagerDialog` reads `_data/_BIM_COORD/clashes.json`
+  but the clash writers target the `20_MISC` export dir; both sides need aligning.
