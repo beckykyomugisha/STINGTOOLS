@@ -723,31 +723,42 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
 
-                // GAP-R9: Auto-propagate new REV to all tagged elements
-                // so tags reflect the current revision immediately
-                try
+                // GAP-R9: OPT-IN blanket REV propagation. When
+                // TagConfig.PropagateRevOnCreate is true, ASS_REV_TXT on every tagged
+                // element is overwritten with the new revision code — i.e. REV is
+                // treated as a project-wide "current revision" mirror.
+                //
+                // Default is FALSE. The default semantics of REV are "the revision this
+                // element last CHANGED in", written per-element by
+                // RevisionEngine.StampAffectedElements and RevisionTagIntegrationCommand.
+                // Blanket propagation conflicts with that, and makes
+                // ComplianceScan.RevisionPercent trivially ~100%.
+                if (TagConfig.PropagateRevOnCreate)
                 {
-                    int revUpdated = 0;
-                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
+                    try
                     {
-                        revTx.Start();
-                        var catEnums = SharedParamGuids.AllCategoryEnums;
-                        var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType();
-                        if (catEnums != null && catEnums.Length > 0)
-                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
-                        foreach (var el in allTagged)
+                        int revUpdated = 0;
+                        using (var revTx = new Transaction(doc, "STING Propagate REV"))
                         {
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (string.IsNullOrEmpty(tag1)) continue;
-                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
-                                revUpdated++;
+                            revTx.Start();
+                            var catEnums = SharedParamGuids.AllCategoryEnums;
+                            var allTagged = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType();
+                            if (catEnums != null && catEnums.Length > 0)
+                                allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
+                            foreach (var el in allTagged)
+                            {
+                                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                if (string.IsNullOrEmpty(tag1)) continue;
+                                if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
+                                    revUpdated++;
+                            }
+                            revTx.Commit();
                         }
-                        revTx.Commit();
+                        StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                     }
-                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
+                    catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
                 }
-                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
 
                 // Invalidate compliance cache ONCE after all rev-related transactions
                 ComplianceScan.InvalidateCache();

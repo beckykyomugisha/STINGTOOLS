@@ -299,6 +299,13 @@ namespace StingTools.Core
         /// <summary>Whether to auto-save warning baseline on revision creation. Default true.</summary>
         public static bool AutoSaveBaselineOnRevision { get; internal set; } = true;
 
+        /// <summary>Whether creating a revision overwrites ASS_REV_TXT on EVERY tagged
+        /// element with the new revision code (opt-in: REV as a project-wide "current
+        /// revision" mirror). Default false, in which case REV keeps its normal
+        /// semantics — the revision an element last CHANGED in, written per-element by
+        /// RevisionEngine.StampAffectedElements. Loaded from PROPAGATE_REV_ON_CREATE.</summary>
+        public static bool PropagateRevOnCreate { get; internal set; } = false;
+
         /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
         /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
         public static (int Min, int Max) GetSeqRange(string modelDiscipline)
@@ -1089,6 +1096,12 @@ namespace StingTools.Core
                 {
                     if (asbrObj is bool asbrb) AutoSaveBaselineOnRevision = asbrb;
                     else if (asbrObj is string asbrs) AutoSaveBaselineOnRevision = asbrs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                PropagateRevOnCreate = false;
+                if (data.TryGetValue("PROPAGATE_REV_ON_CREATE", out object procObj))
+                {
+                    if (procObj is bool procb) PropagateRevOnCreate = procb;
+                    else if (procObj is string procs) PropagateRevOnCreate = procs.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
                 // Phase 77: Custom title block family
