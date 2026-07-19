@@ -1471,11 +1471,10 @@ namespace StingTools.Temp
                 }
             }
 
-            // Save report
-            string outputDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(outputDir)) outputDir = Path.GetTempPath();
-
-            string exportDir = Path.Combine(outputDir, "STING_Exports");
+            // Save report into the routed project export folder rather than a legacy
+            // "STING_Exports" sibling of the .rvt (one project ⇒ one folder tree).
+            string exportDir = StingTools.Core.ProjectFolderEngine.GetExportFolder(doc, "Schedule");
+            if (string.IsNullOrEmpty(exportDir)) exportDir = Path.GetTempPath();
             Directory.CreateDirectory(exportDir);
 
             string reportPath = Path.Combine(exportDir,

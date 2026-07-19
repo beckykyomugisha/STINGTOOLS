@@ -941,14 +941,17 @@ namespace StingTools.Core
                 }
                 catch (Exception drEx) { StingLog.Warn($"DocumentOpened deferred sidecar load: {drEx.Message}"); }
 
-                // AL-07: Notify user of auto-run workflow on open
+                // AL-07: Queue the configured auto-run workflow. Enqueued through the
+                // WorkflowScheduler pending-preset queue, which the block below drains
+                // onto the ExternalEvent — so the preset actually executes rather than
+                // only being logged as "run it manually".
                 try
                 {
                     string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
                     if (!string.IsNullOrEmpty(autoWorkflow))
                     {
-                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
-                            "Use 'Workflow Preset' command to execute manually.");
+                        WorkflowScheduler.EnqueuePreset(autoWorkflow);
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN queued preset '{autoWorkflow}'.");
                     }
                 }
                 catch (Exception arwEx)
@@ -1109,6 +1112,20 @@ namespace StingTools.Core
                                 }
                             }
                             catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
+
+                            // BIM-CDE-FOLDER-01: materialise the CDE folders so exports
+                            // never race a missing directory. Idempotent — existing
+                            // folders are skipped and the call returns 0.
+                            if (TagConfig.AutoCreateCdeFolders)
+                            {
+                                try
+                                {
+                                    int createdFolders = ProjectFolderEngine.CreateFolderStructure(e.Document);
+                                    if (createdFolders > 0)
+                                        StingLog.Info($"DocumentOpened: created {createdFolders} CDE folders (AUTO_CREATE_CDE_FOLDERS).");
+                                }
+                                catch (Exception fcEx) { StingLog.Warn($"DocumentOpened CDE folder creation: {fcEx.Message}"); }
+                            }
                         }
                     }
                 }

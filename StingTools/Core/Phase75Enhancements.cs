@@ -173,6 +173,17 @@ namespace StingTools.Core
         // Queue of preset names pending execution
         private static readonly ConcurrentQueue<string> _pendingPresets = new();
 
+        /// <summary>
+        /// Queue a preset for execution through the same consume path the trigger
+        /// engine uses (drained in StingToolsApp.OnDocumentOpened via
+        /// StingCommandHandler's ExternalEvent). Used by AUTO_RUN_WORKFLOW_ON_OPEN.
+        /// </summary>
+        public static void EnqueuePreset(string presetName)
+        {
+            if (string.IsNullOrWhiteSpace(presetName)) return;
+            _pendingPresets.Enqueue(presetName.Trim());
+        }
+
         /// <summary>Dequeue next pending preset name, or null if empty.</summary>
         public static string DequeuePendingPreset() =>
             _pendingPresets.TryDequeue(out var name) ? name : null;

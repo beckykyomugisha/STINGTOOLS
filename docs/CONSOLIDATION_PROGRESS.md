@@ -21,8 +21,8 @@ Every work package below must end green at 0/0.
 
 | WP | Scope | Status |
 |---|---|---|
-| WP0 | Orientation; copy review + work order into `docs/`; create this tracker | IN PROGRESS |
-| WP1 | Quick wins — MIDP join, transmittal merge, retire `_CDE`/`_bim_manager`/`STING_Exports`, dead flags, junk containment, tree unification | TODO |
+| WP0 | Orientation; copy review + work order into `docs/`; create this tracker | DONE a708b7533 |
+| WP1 | Quick wins — MIDP join, transmittal merge, retire `_CDE`/`STING_Exports`, dead flags, junk containment, tree unification | IN PROGRESS |
 | WP2 | Heal issues/meetings/documents store split via `Core/CoordStores.cs` | TODO |
 | WP3 | Replace dead/fragile reflection bridges with real APIs | TODO |
 | WP4 | Atomic writes on coordination stores | TODO |
@@ -33,6 +33,17 @@ Every work package below must end green at 0/0.
 | WP9 | CDE-first tree + ES root identity + migration wizard | TODO |
 | WP10 | HTTP + storage hygiene (park if time-boxed) | TODO |
 | FINAL | Rebuild, gates, CHANGELOG/ROADMAP, push, report | TODO |
+
+## Scope decisions taken during the run
+
+- **WP1.3 / WP2 split.** The work order lists the `_bim_manager` writers under WP1.3 and the
+  issues/meetings/documents store split under WP2. Those are the same ~35 call sites, so WP1.3
+  covers only the `_CDE/` and `STING_Exports` writers (distinct roots, no overlap) and the
+  `_bim_manager` sweep is done once, properly, through WP2's `CoordStores` resolver. Touching
+  them twice would have meant re-editing every site.
+- `UI/DocumentManagementDialog.LoadExportIndex` still *reads* a legacy `STING_Exports` folder.
+  That is deliberate: nothing writes there any more, and `MigrateFromLegacy` sweeps it, but the
+  reader keeps pre-migration projects visible in the Document Manager.
 
 ## Notes for a resuming session
 

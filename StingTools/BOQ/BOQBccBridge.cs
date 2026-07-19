@@ -526,9 +526,11 @@ namespace StingTools.BOQ
             }
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                if (string.IsNullOrEmpty(bimDir)) return null;
-                string cdeBase = Path.Combine(Path.GetDirectoryName(bimDir) ?? "", "_CDE", cdeFolder, "BOQ");
+                // Route into the unified CDE state folder (01_WIP … 04_ARCHIVE) rather
+                // than a second "_CDE" tree beside the .rvt.
+                string stateDir = StingTools.Core.ProjectFolderEngine.GetFolderPath(doc, cdeFolder);
+                if (string.IsNullOrEmpty(stateDir)) return null;
+                string cdeBase = Path.Combine(stateDir, "BOQ");
                 Directory.CreateDirectory(cdeBase);
                 string target = Path.Combine(cdeBase, Path.GetFileName(xlsxPath));
                 File.Copy(xlsxPath, target, overwrite: true);

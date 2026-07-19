@@ -78,7 +78,12 @@ namespace StingTools.Core
             ("COBIE",        "08_COBie",        false, new string[0]),
             ("BEP",          "09_BEP",          false, new string[0]),
             ("TRANSMITTALS", "10_TRANSMITTALS", false, new string[0]),
-            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN" }),
+            // Full ISO 19650 issue-type set — this is the single definition; the
+            // legacy ProjectFolderEngine.CreateFolderStructure builder used to carry
+            // its own richer 14-type list, which made the tree differ by entry point.
+            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI",
+                                                               "CVI", "CE", "DESIGN", "CLASH", "SNAGGING",
+                                                               "RFA", "PMI" }),
             ("CLASHES",      "12_CLASHES",      false, new[] { "BCF", "Reports", "Snapshots" }),
             ("HANDOVER",     "13_HANDOVER",     false, new string[0]),
             ("REVISIONS",    "14_REVISIONS",    false, new string[0]),

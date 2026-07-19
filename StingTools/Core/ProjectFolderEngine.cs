@@ -124,18 +124,20 @@ namespace StingTools.Core
         /// <summary>Invalidate the folder stats cache (call after file operations).</summary>
         public static void InvalidateFolderStatsCache() { _folderStatsCacheTime = DateTime.MinValue; }
 
-        // CONFIG-02: Configurable discipline list
-        private static string[] _disciplineFolders = new[]
-        {
-            "A_Architectural", "M_Mechanical", "E_Electrical",
-            "P_Plumbing", "S_Structural", "FP_Fire", "Z_General"
-        };
+        // CONFIG-02: Optional discipline-list override. Null ⇒ use the project
+        // setup's own Disciplines (ProjectSetup.DefaultBimDisciplines by default),
+        // which keeps this builder and the auto-bootstrap path in agreement.
+        private static string[] _disciplineFolders;
 
         /// <summary>Set custom discipline folder names from config.</summary>
         public static void SetDisciplineFolders(string[] folders)
         {
             if (folders != null && folders.Length > 0) _disciplineFolders = folders;
         }
+
+        /// <summary>Effective discipline folder names: config override, else the setup's own list.</summary>
+        private static IEnumerable<string> EffectiveDisciplines(ProjectSetup setup)
+            => _disciplineFolders ?? (IEnumerable<string>)setup?.Disciplines ?? ProjectSetup.DefaultBimDisciplines;
 
         // ── Allowed file extensions for import validation (OP-002) ──
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -329,6 +331,17 @@ namespace StingTools.Core
             try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
             return p;
         }
+
+        /// <summary>
+        /// Transient staging area for an outbound channel (e.g. "acc", "sharepoint"),
+        /// under &lt;root&gt;/_data/staging/&lt;channel&gt;. Replaces the per-file
+        /// "_acc_mirror_tmp" folders and the case-inconsistent "_DATA/sharepoint_queue".
+        /// </summary>
+        public static string GetStagingPath(Document doc, string channel)
+            => GetMetaPath(doc, "staging", channel);
+
+        /// <summary>The single project recycle bin: &lt;root&gt;/_data/recycle/.</summary>
+        public static string GetRecyclePath(Document doc) => GetMetaPath(doc, "recycle");
 
         /// <summary>
         /// Persist the setup, build folder structure on disk, write FOLDER_INDEX.txt,
@@ -937,58 +950,60 @@ namespace StingTools.Core
 
         // ── Folder creation ───────────────────────────────────────────────
 
-        /// <summary>Create the full ISO 19650 folder structure.</summary>
+        /// <summary>
+        /// Create the full ISO 19650 folder structure.
+        /// <para>
+        /// Builds from the active <see cref="ProjectSetup"/> (bootstrapped from
+        /// <see cref="ProjectSetup.CreateBIM"/> when absent) so this entry point and the
+        /// auto-bootstrap path produce an IDENTICAL tree. Previously the two builders
+        /// disagreed — 7 vs 5 discipline subfolders and 14 vs 4 issue subfolders — so the
+        /// shape of a project's folders depended on which code path ran first.
+        /// </para>
+        /// </summary>
         public static int CreateFolderStructure(Document doc)
         {
             string root = GetRootPath(doc);
-            string code = doc != null ? DetectProjectCode(doc) : "";
-            int created = 0;
-            foreach (var (id, name, desc, _) in Folders)
+            if (string.IsNullOrEmpty(root)) return 0;
+
+            var setup = LoadOrBootstrapSetup(doc);
+            if (setup == null)
             {
-                string suffixed = ProjectSetup.WithCodeSuffix(name, code);
-                string path = Path.Combine(root, suffixed);
+                StingLog.Warn("CreateFolderStructure: no project setup available");
+                return 0;
+            }
+
+            int created = 0;
+            foreach (var f in setup.CustomFolders)
+            {
+                if (setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
+
+                string path = Path.Combine(root, f.DisplayName);
                 if (!Directory.Exists(path))
                 {
                     try { Directory.CreateDirectory(path); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {suffixed}: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {f.DisplayName}: {ex.Message}"); continue; }
                 }
-            }
-            // Create sub-folders for CDE folders (CONFIG-02: configurable)
-            foreach (string cdeFolder in new[] { "01_WIP", "02_SHARED", "03_PUBLISHED" })
-            {
-                string cdePath = Path.Combine(root, ProjectSetup.WithCodeSuffix(cdeFolder, code));
-                foreach (string disc in _disciplineFolders)
+
+                if (f.HasDisciplineSubfolders)
                 {
-                    string discPath = Path.Combine(cdePath, disc);
-                    if (!Directory.Exists(discPath))
+                    foreach (string disc in EffectiveDisciplines(setup))
                     {
+                        string discPath = Path.Combine(path, disc);
+                        if (Directory.Exists(discPath)) continue;
                         try { Directory.CreateDirectory(discPath); created++; }
                         catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {discPath}: {ex.Message}"); }
                     }
                 }
-            }
 
-            // Create clash sub-folders
-            string clashRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("12_CLASHES", code));
-            foreach (string sub in new[] { "BCF", "Reports", "Snapshots" })
-            {
-                string subPath = Path.Combine(clashRoot, sub);
-                if (!Directory.Exists(subPath))
+                if (f.SubFolders != null)
                 {
-                    try { Directory.CreateDirectory(subPath); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create clash sub: {ex.Message}"); }
-                }
-            }
-
-            // Create issue sub-folders by type
-            string issueRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("11_ISSUES", code));
-            foreach (string sub in new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI", "CVI", "CE", "DESIGN", "CLASH", "SNAGGING", "RFA", "PMI" })
-            {
-                string subPath = Path.Combine(issueRoot, sub);
-                if (!Directory.Exists(subPath))
-                {
-                    try { Directory.CreateDirectory(subPath); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create issue sub: {ex.Message}"); }
+                    foreach (string sub in f.SubFolders)
+                    {
+                        string subPath = Path.Combine(path, sub);
+                        if (Directory.Exists(subPath)) continue;
+                        try { Directory.CreateDirectory(subPath); created++; }
+                        catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {subPath}: {ex.Message}"); }
+                    }
                 }
             }
 
@@ -1186,23 +1201,63 @@ namespace StingTools.Core
 
         // ── File operations ───────────────────────────────────────────────
 
-        /// <summary>Soft-delete: move file to _RECYCLE subfolder (OP-005). Hard-delete if recycle fails.</summary>
+        /// <summary>
+        /// Resolve the ONE recycle bin for the project that owns <paramref name="filePath"/>:
+        /// &lt;root&gt;/_data/recycle/. Walks up from the file looking for the project root
+        /// (the ancestor containing a "_data" folder). Falls back to a sibling "_RECYCLE"
+        /// only for files outside any StingTools project root.
+        /// </summary>
+        private static string ResolveRecycleDir(string filePath)
+        {
+            try
+            {
+                var dir = new DirectoryInfo(Path.GetDirectoryName(filePath) ?? "");
+                for (int depth = 0; dir != null && depth < 8; depth++, dir = dir.Parent)
+                {
+                    string data = Path.Combine(dir.FullName, "_data");
+                    if (Directory.Exists(data)) return Path.Combine(data, "recycle");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRecycleDir: {ex.Message}"); }
+            return Path.Combine(Path.GetDirectoryName(filePath) ?? "", "_RECYCLE");
+        }
+
+        /// <summary>
+        /// Record where a recycled file came from, so RestoreFile can put it back even
+        /// though the bin is now central rather than a sibling of the original folder.
+        /// </summary>
+        private static void RecordRecycleOrigin(string recycleDir, string recycledName, string originalPath)
+        {
+            try
+            {
+                string indexPath = Path.Combine(recycleDir, "recycle_index.json");
+                JObject index;
+                try { index = File.Exists(indexPath) ? JObject.Parse(File.ReadAllText(indexPath)) : new JObject(); }
+                catch (Exception ex) { StingLog.Warn($"recycle_index parse failed — starting fresh: {ex.Message}"); index = new JObject(); }
+                index[recycledName] = originalPath;
+                OutputLocationHelper.WriteAllTextAtomic(indexPath, index.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"RecordRecycleOrigin: {ex.Message}"); }
+        }
+
+        /// <summary>Soft-delete: move file to the project recycle bin (OP-005). Hard-delete if recycle fails.</summary>
         public static bool DeleteFile(string filePath)
         {
             try
             {
                 if (!File.Exists(filePath)) return false;
                 string name = Path.GetFileName(filePath);
-                string dir = Path.GetDirectoryName(filePath) ?? "";
 
-                // Try soft-delete to _RECYCLE
-                string recycleDir = Path.Combine(dir, "_RECYCLE");
+                // Soft-delete into the single project recycle bin
+                string recycleDir = ResolveRecycleDir(filePath);
                 try
                 {
                     if (!Directory.Exists(recycleDir)) Directory.CreateDirectory(recycleDir);
-                    string recyclePath = Path.Combine(recycleDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}");
+                    string recycledName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}";
+                    string recyclePath = Path.Combine(recycleDir, recycledName);
                     File.Move(filePath, recyclePath);
-                    StingLog.Info($"ProjectFolderEngine: Recycled {name} → _RECYCLE");
+                    RecordRecycleOrigin(recycleDir, recycledName, filePath);
+                    StingLog.Info($"ProjectFolderEngine: Recycled {name} → {recycleDir}");
                     LogActivity(null, "RECYCLE", name, filePath);
                     InvalidateFolderStatsCache();
                     RaiseFileChanged("RECYCLE", name, filePath);
@@ -1223,17 +1278,26 @@ namespace StingTools.Core
             return false;
         }
 
-        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        /// <summary>Restore a file from the project recycle bin.</summary>
         public static bool RestoreFile(string recyclePath, string originalDir = null)
         {
             try
             {
                 if (!File.Exists(recyclePath)) return false;
-                string name = Path.GetFileName(recyclePath);
+                string recycledName = Path.GetFileName(recyclePath);
+                string name = recycledName;
                 // Strip timestamp prefix (yyyyMMdd_HHmmss_)
                 if (name.Length > 16 && name[15] == '_')
                     name = name.Substring(16);
-                string targetDir = originalDir ?? Path.GetDirectoryName(Path.GetDirectoryName(recyclePath)) ?? "";
+
+                // Prefer the recorded origin — the bin is central, so the old
+                // "parent of the parent" guess no longer locates the source folder.
+                string targetDir = originalDir;
+                if (string.IsNullOrEmpty(targetDir))
+                    targetDir = LookupRecycleOrigin(Path.GetDirectoryName(recyclePath) ?? "", recycledName);
+                if (string.IsNullOrEmpty(targetDir))
+                    targetDir = Path.GetDirectoryName(Path.GetDirectoryName(recyclePath)) ?? "";
+
                 string targetPath = Path.Combine(targetDir, name);
                 if (File.Exists(targetPath)) targetPath = GetUniqueFileName(targetPath);
                 File.Move(recyclePath, targetPath);
@@ -1245,6 +1309,20 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RestoreFile: {ex.Message}"); }
             return false;
+        }
+
+        /// <summary>Original directory a recycled file came from, or null when unknown.</summary>
+        private static string LookupRecycleOrigin(string recycleDir, string recycledName)
+        {
+            try
+            {
+                string indexPath = Path.Combine(recycleDir, "recycle_index.json");
+                if (!File.Exists(indexPath)) return null;
+                var index = JObject.Parse(File.ReadAllText(indexPath));
+                string original = (string)index[recycledName];
+                return string.IsNullOrEmpty(original) ? null : Path.GetDirectoryName(original);
+            }
+            catch (Exception ex) { StingLog.Warn($"LookupRecycleOrigin: {ex.Message}"); return null; }
         }
 
         /// <summary>Rename a file and log the activity.</summary>
@@ -1731,54 +1809,138 @@ namespace StingTools.Core
         /// <summary>
         /// When files are moved to PUBLISHED or SHARED, auto-log a transmittal record.
         /// Called from BulkUpdateCDE and MoveFile when target is a CDE folder.
+        /// <para>
+        /// Delegates to <see cref="Planscape.Docs.Templates.TransmittalOrchestrator"/> so
+        /// auto-logged transmittals share ONE store, ONE id scheme (TX-NNNN), the rendered
+        /// document, the workflow instance and the hash-chained audit entry with
+        /// user-initiated transmittals. Recipients come from the default distribution
+        /// group when one is configured. If the orchestrator cannot complete (typically
+        /// no transmittal template registered in the project manifest), a minimal stub row
+        /// is still written so the CDE move is never silently unrecorded.
+        /// </para>
         /// </summary>
         public static void AutoLogTransmittal(Document doc, List<string> filePaths, string cdeStatus)
         {
             if (filePaths == null || filePaths.Count == 0) return;
             if (cdeStatus != "SHARED" && cdeStatus != "PUBLISHED") return;
 
+            string user;
+            try { user = doc?.Application?.Username ?? Environment.UserName; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
+
             try
             {
-                string bimDir = GetMetaPath(doc, "STING_BIM_MANAGER");
-                if (string.IsNullOrEmpty(bimDir))
+                var request = new Planscape.Docs.Templates.TransmittalRequest
+                {
+                    Subject      = $"Auto-transmittal: {filePaths.Count} file(s) → {cdeStatus}",
+                    Reason       = "CDE state change",
+                    Method       = "CDE",
+                    IssueDate    = DateTime.UtcNow,
+                    IssuedBy     = user,
+                    CoveringNote = $"Automatically raised when {filePaths.Count} file(s) moved to {cdeStatus}.",
+                    Recipients   = ResolveAutoTransmittalRecipients(doc),
+                    Documents    = filePaths.Select(f => new Planscape.Docs.Templates.TransmittalDocumentRef
+                    {
+                        Number      = Path.GetFileNameWithoutExtension(f),
+                        Title       = Path.GetFileName(f),
+                        Suitability = cdeStatus == "PUBLISHED" ? "S4" : "S2",
+                        FilePath    = f
+                    }).ToList()
+                };
+
+                var result = Planscape.Docs.Templates.TransmittalOrchestrator.Create(doc, request);
+                if (result != null && result.Ok)
+                {
+                    string id = result.Record?.Value<string>("id") ?? request.TransmittalId;
+                    LogActivity(doc, "AUTO_TRANSMITTAL", id, $"{filePaths.Count} files moved to {cdeStatus}");
+                    StingLog.Info($"ProjectFolderEngine: Auto-transmittal {id} created for {filePaths.Count} files → {cdeStatus}");
+                    return;
+                }
+
+                StingLog.Warn($"AutoLogTransmittal: orchestrator declined ({result?.Error ?? "no result"}) — writing stub row");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoLogTransmittal: orchestrator failed ({ex.Message}) — writing stub row");
+            }
+
+            WriteStubTransmittal(doc, filePaths, cdeStatus, user);
+        }
+
+        /// <summary>
+        /// Recipients for an auto-raised transmittal: the members of the first configured
+        /// distribution group (preferring one named/ided "default"), else empty so the
+        /// orchestrator records an unaddressed CDE notice rather than a fake recipient.
+        /// </summary>
+        private static List<string> ResolveAutoTransmittalRecipients(Document doc)
+        {
+            try
+            {
+                var groups = Planscape.Docs.Workflow.DistributionGroups.LoadAll(doc);
+                if (groups == null || groups.Count == 0) return new List<string>();
+
+                var group = groups.FirstOrDefault(g =>
+                                string.Equals(g?.Id, "default", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(g?.Name, "default", StringComparison.OrdinalIgnoreCase))
+                            ?? groups[0];
+
+                return (group?.Members ?? new List<Planscape.Docs.Workflow.DistributionMember>())
+                       .Select(m => string.IsNullOrWhiteSpace(m?.Email) ? m?.Name : m.Email)
+                       .Where(s => !string.IsNullOrWhiteSpace(s))
+                       .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveAutoTransmittalRecipients: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// Last-resort transmittal row, written only when the orchestrator cannot run.
+        /// Uses the orchestrator's own store and id prefix so there is still exactly one
+        /// transmittal store per project.
+        /// </summary>
+        private static void WriteStubTransmittal(Document doc, List<string> filePaths, string cdeStatus, string user)
+        {
+            try
+            {
+                string metaDir = GetMetaPath(doc, "_BIM_COORD");
+                if (string.IsNullOrEmpty(metaDir))
                 {
                     StingLog.Warn("AutoLogTransmittal: cannot resolve metadata path");
                     return;
                 }
 
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = Path.Combine(metaDir, "transmittals.json");
                 JArray arr;
-                if (File.Exists(transPath))
-                    arr = JArray.Parse(File.ReadAllText(transPath));
-                else
-                    arr = new JArray();
-
-                string transId = $"TR-{DateTime.Now:yyyyMMdd-HHmmss}";
-                string user = "";
-                try { user = doc?.Application?.Username ?? Environment.UserName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
-
-                var trans = new JObject
+                try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
+                catch (Exception ex)
                 {
-                    ["transmittal_id"] = transId,
-                    ["title"] = $"Auto-transmittal: {filePaths.Count} files → {cdeStatus}",
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["status"] = "AUTO_GENERATED",
-                    ["cde_status"] = cdeStatus,
-                    ["recipient"] = "(auto-logged)",
-                    ["created_by"] = user,
-                    ["revision"] = "",
-                    ["documents"] = new JArray(filePaths.Select(f => Path.GetFileName(f)))
-                };
-                arr.Add(trans);
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    StingLog.Warn($"transmittals.json parse failed — starting fresh: {ex.Message}");
+                    arr = new JArray();
+                }
 
-                // Log activity
-                LogActivity(doc, "AUTO_TRANSMITTAL", transId,
-                    $"{filePaths.Count} files moved to {cdeStatus}");
+                string transId = $"TX-{(arr.Count + 1):D4}";
+                arr.Add(new JObject
+                {
+                    ["id"]           = transId,
+                    ["subject"]      = $"Auto-transmittal: {filePaths.Count} file(s) → {cdeStatus}",
+                    ["reason"]       = "CDE state change",
+                    ["method"]       = "CDE",
+                    ["issue_date"]   = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["status"]       = "AUTO_GENERATED",
+                    ["cde_status"]   = cdeStatus,
+                    ["recipients"]   = new JArray(ResolveAutoTransmittalRecipients(doc)),
+                    ["issued_by"]    = user,
+                    ["documents"]    = new JArray(filePaths.Select(f => Path.GetFileName(f)))
+                });
 
-                StingLog.Info($"ProjectFolderEngine: Auto-transmittal {transId} created for {filePaths.Count} files → {cdeStatus}");
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                LogActivity(doc, "AUTO_TRANSMITTAL", transId, $"{filePaths.Count} files moved to {cdeStatus}");
+                StingLog.Info($"ProjectFolderEngine: stub auto-transmittal {transId} for {filePaths.Count} files → {cdeStatus}");
             }
-            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.AutoLogTransmittal: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.WriteStubTransmittal: {ex.Message}"); }
         }
 
         // ── Clash Grouping ────────────────────────────────────────────────
@@ -2013,9 +2175,11 @@ namespace StingTools.Core
             // Wrap in a try so a missing ACC connection never blocks the caller.
             try
             {
-                // Build a minimal package dir alongside the file
+                // Stage under the single machine-state root (<root>/_data/staging/acc)
+                // instead of littering an "_acc_mirror_tmp" folder beside every published file.
                 string fileName = Path.GetFileName(localFilePath);
-                string tmpDir = Path.Combine(Path.GetDirectoryName(localFilePath), "_acc_mirror_tmp");
+                string tmpDir = GetStagingPath(doc, "acc")
+                                ?? Path.Combine(Path.GetDirectoryName(localFilePath), "_acc_mirror_tmp");
                 Directory.CreateDirectory(tmpDir);
                 string dest = Path.Combine(tmpDir, fileName);
                 File.Copy(localFilePath, dest, overwrite: true);
@@ -2039,8 +2203,8 @@ namespace StingTools.Core
                 // SharePoint: stage the file in a well-known export folder.
                 // The existing SharePointExportCommand handles the actual upload;
                 // here we create a sidecar that tells it which file to upload.
-                string bimDir = GetRootPath(doc);
-                string spStageDir = Path.Combine(bimDir, "_DATA", "sharepoint_queue");
+                string spStageDir = GetStagingPath(doc, "sharepoint");
+                if (string.IsNullOrEmpty(spStageDir)) return;
                 Directory.CreateDirectory(spStageDir);
                 string entry = $"{{\"file\":\"{localFilePath.Replace("\\", "\\\\")}\",\"cdeState\":\"{cdeState}\",\"cloudRoot\":\"{cloudRoot.Replace("\\", "\\\\")}\"}}";
                 string queueFile = Path.Combine(spStageDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(localFilePath)}.json");
