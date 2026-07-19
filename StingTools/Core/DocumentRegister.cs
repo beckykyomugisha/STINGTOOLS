@@ -98,6 +98,31 @@ namespace StingTools.Core
             return path;
         }
 
+        /// <summary>
+        /// Write the merged view to the canonical <c>_data/register.json</c>. NON-destructive:
+        /// the two source stores are left intact, so this can be re-run any time and the UIs
+        /// keep working. Returns the path written.
+        /// </summary>
+        public static string WriteCanonical(Document doc)
+        {
+            var rows = BuildUnified(doc);
+            var arr = new JArray(rows.Select(r => new JObject
+            {
+                ["id"] = r.Id, ["title"] = r.Title, ["type"] = r.Type, ["discipline"] = r.Discipline,
+                ["suitability"] = r.Suitability, ["cde_status"] = r.CdeStatus, ["revision"] = r.Revision,
+                ["direction"] = r.Direction, ["status"] = r.Status, ["reviewed_by"] = r.ReviewedBy,
+                ["approved_by"] = r.ApprovedBy, ["date_created"] = r.DateCreated,
+                ["file_path"] = r.FilePath, ["source"] = r.Source
+            }));
+            string path = ProjectFolderEngine.GetDataPath(doc, CanonicalFileName);
+            OutputLocationHelper.WriteAllTextAtomic(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+            ProjectFolderEngine.LogActivity(doc, "WRITE_CANONICAL_REGISTER", CanonicalFileName, $"{rows.Count} rows");
+            return path;
+        }
+
+        /// <summary>Canonical unified register filename under &lt;root&gt;/_data/.</summary>
+        public const string CanonicalFileName = "register.json";
+
         // ── Store readers ─────────────────────────────────────────────────
 
         private static IEnumerable<RegisterEntry> ReadRegister(Document doc)
@@ -252,6 +277,63 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Error("UnifiedRegisterExportCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Consolidate the two document registers into the canonical <c>_data/register.json</c>.
+    /// Dry-run first: it always writes a preview CSV of the merged view and shows the counts,
+    /// then asks before writing <c>register.json</c>. NON-destructive — the two source stores
+    /// are never modified or deleted, so this is safe to run and re-run. Command tag:
+    /// <c>Register_Consolidate</c>.
+    /// </summary>
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class RegisterConsolidateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = data?.Application?.ActiveUIDocument?.Document;
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var rows = DocumentRegister.BuildUnified(doc);
+                string csv = DocumentRegister.ExportCsv(doc); // dry-run preview
+                int both = rows.Count(r => r.Source == "both");
+                int reg  = rows.Count(r => r.Source == "register");
+                int del  = rows.Count(r => r.Source == "deliverable");
+
+                var td = new TaskDialog("STING — Consolidate Register")
+                {
+                    MainInstruction = $"Merge {rows.Count} rows into one canonical register?",
+                    MainContent =
+                        $"Dry-run preview written to:\n{csv}\n\n" +
+                        $"  {del} deliverables\n  {reg} register-only\n  {both} in both stores\n\n" +
+                        "Applying writes _data/register.json. The two source stores " +
+                        "(deliverables.json, document_register.json) are kept unchanged, so this is " +
+                        "reversible — just delete register.json. Continue?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No
+                };
+                if (td.Show() != TaskDialogResult.Yes)
+                {
+                    TaskDialog.Show("STING — Consolidate Register",
+                        $"Dry-run only. No canonical register written.\nPreview: {csv}");
+                    return Result.Cancelled;
+                }
+
+                string path = DocumentRegister.WriteCanonical(doc);
+                TaskDialog.Show("STING — Consolidate Register",
+                    $"Canonical register written ({rows.Count} rows):\n{path}\n\n" +
+                    "Source stores were left intact.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RegisterConsolidateCommand", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

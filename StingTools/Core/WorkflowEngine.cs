@@ -371,7 +371,7 @@ namespace StingTools.Core
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
-            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "StageComplianceGate",
+            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "Register_Consolidate", "StageComplianceGate",
             "WarningsSelectElements", "WarningsSuppress",
             "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
             "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
@@ -1807,6 +1807,7 @@ namespace StingTools.Core
                 case "AddDocument":             return new BIMManager.AddDocumentCommand();
                 case "DocumentRegister":        return new BIMManager.DocumentRegisterCommand();
                 case "DocRegister_Unified":     return new UnifiedRegisterExportCommand();
+                case "Register_Consolidate":    return new RegisterConsolidateCommand();
                 case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
                 case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
                 case "WarningsSuppress":        return new WarningsSuppressCommand();
