@@ -2401,21 +2401,6 @@ namespace StingTools.Core
             _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
             _cachedBuiltInPresetsDataPath = dataDir;
 
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // User-defined JSON files
             // Append user-defined JSON presets on top
             AppendUserPresets(presets, dataDir);
 

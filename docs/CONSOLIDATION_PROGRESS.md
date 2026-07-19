@@ -72,11 +72,20 @@ and none should be "re-fixed" by a later session:
 | `StingStaleMarker.Register` has zero callers | Called from `StingToolsApp.OnStartup` (~L147) |
 | `CableManifestUpdater` orphaned | Registered at startup |
 | `HvacEnvelopeStaleUpdater` orphaned | Registered at startup (~L154) |
-| `GetAvailablePresets` block duplicated 3× | Single block, plus a built-in preset cache |
 
 Genuinely dead and therefore fixed in WP5: `SLDSyncUpdater`, `LiveStandardsUpdater`,
 `SlaScanner.Scan`, `PluginUpdateChecker.CheckAsync`, `DeliverableServerSync.FireAndForget`,
 `WorkflowScheduler.LoadFromConfig`, `ProjectFolderEngine.FileChanged`.
+
+## Post-review fixes (follow-up commit)
+
+Three items surfaced by the code review of this branch, fixed directly here:
+
+| Item | Fix |
+|---|---|
+| **HIGH** — `DocumentManagementDialog.GetBimManagerDir` still resolved the raw `<rvtDir>/STING_BIM_MANAGER` sibling, so after WP2 moved `BIMManagerEngine`/`WarningsManager`/BCC to `<root>/_data/STING_BIM_MANAGER` the Document Manager and BIM Coordination Center diverged (the exact issues/register/meetings split WP2 targeted). | Routed `GetBimManagerDir` through `ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER")` (sibling fallback only for unsaved docs) and moved all 5 dialog transmittal sites to `CoordStores.Transmittals(doc)` — the dialog now shares the canonical stores. |
+| **LOW** — the "already fixed on `main`" note wrongly listed `GetAvailablePresets` as de-duplicated; it was still triplicated on both `main` and this branch. | Removed the 2 redundant `RemoveAll`/cache blocks and corrected this table. |
+| **LOW** — `tools/check_dispatch_parity.ps1` `$RepoRoot` default threw under `powershell -File` (empty `$PSScriptRoot`). | Added a `$MyInvocation.MyCommand.Path` fallback with a clear error if the root still can't be derived. |
 
 ## Notes for a resuming session
 

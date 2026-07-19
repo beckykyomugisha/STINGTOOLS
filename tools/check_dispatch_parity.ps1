@@ -32,10 +32,23 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$RepoRoot
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Derive the repo root from the script location when not supplied. $PSScriptRoot is
+# empty under some invocation styles (e.g. `powershell -File` on Windows PowerShell),
+# so fall back to the script's own path before giving up.
+if ([string]::IsNullOrEmpty($RepoRoot)) {
+    $scriptDir = $PSScriptRoot
+    if ([string]::IsNullOrEmpty($scriptDir)) { $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+    if ([string]::IsNullOrEmpty($scriptDir)) {
+        Write-Error "Cannot determine repo root. Pass -RepoRoot <path> explicitly."
+        exit 2
+    }
+    $RepoRoot = Split-Path -Parent $scriptDir
+}
 
 $resolverPath = Join-Path $RepoRoot 'StingTools/Core/WorkflowEngine.cs'
 if (-not (Test-Path $resolverPath)) {

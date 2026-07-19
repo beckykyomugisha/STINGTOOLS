@@ -1856,8 +1856,7 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 JArray arr;
                 try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
                 catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
@@ -3037,7 +3036,7 @@ namespace StingTools.UI
             }
 
             // 3. Pending transmittals
-            string txPath = Path.Combine(bimDir, "transmittals.json");
+            string txPath = CoordStores.Transmittals(doc);
             if (File.Exists(txPath))
             {
                 try
@@ -3742,7 +3741,7 @@ namespace StingTools.UI
                 // Pending transmittals
                 try
                 {
-                    string txPath = Path.Combine(bimDir, "transmittals.json");
+                    string txPath = CoordStores.Transmittals(doc);
                     if (File.Exists(txPath))
                     {
                         var txs = JArray.Parse(File.ReadAllText(txPath));
@@ -4339,8 +4338,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(newStatus)) return;
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 if (!File.Exists(transPath)) return;
                 var arr = JArray.Parse(File.ReadAllText(transPath));
                 int updated = 0;
@@ -4738,8 +4736,7 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 if (!File.Exists(transPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(transPath));
@@ -5240,10 +5237,23 @@ namespace StingTools.UI
 
         private static string GetBimManagerDir(Document doc)
         {
+            // Consolidated metadata root (<root>/_data/STING_BIM_MANAGER) — the SAME
+            // directory BIMManagerEngine.GetBIMManagerDir resolves, so the Document
+            // Manager and the BIM Coordination Center share ONE physical store for
+            // issues / document_register / meetings / revisions instead of the two
+            // diverging folders they used before consolidation. Only unsaved documents
+            // fall back to a sibling of the .rvt. Transmittals do NOT come through here
+            // — those route to CoordStores.Transmittals (the _BIM_COORD bucket the
+            // TransmittalOrchestrator owns).
+            string bimDir = null;
+            try { bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr dir: {ex.Message}"); }
+            if (!string.IsNullOrEmpty(bimDir)) return bimDir;
+
             string projDir = "";
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-            string bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
+            bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
             if (!Directory.Exists(bimDir))
             {
                 try { Directory.CreateDirectory(bimDir); }
