@@ -2,6 +2,67 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 205 — SB-3: token inference single-sourced into core + ArchiCAD HostAdapter)
+
+`StingBridge/sync/token_mapper.py` + `archicad/element_types.py` held their own
+copy of the STING inference rules while `stingtools_core/hosts/inference.py` held
+another — the same drift class the wire contract hit after Drift 5. Closes
+ROADMAP **SB-3**.
+
+**The drift was already real, not hypothetical.** Both sides derived a level
+code from a storey name, and probing 31 storey names showed **13 disagreements**:
+
+- the ArchiCAD path recognised `G/F`, `1st Floor`, `Penthouse`, `Attic`,
+  `Rez-de-chaussee`, `Sous-sol`, `Top`, `L05` — core returned `XX` for all of them;
+- core recognised `Mezzanine` → `MZ` and `Plant` → `PR` — the ArchiCAD path did not;
+- and **`Basement 2` and `Basement 3` both returned `B1`** on the ArchiCAD side.
+  Its regex put the bare word `basement` before the digit group, so the word
+  matched first, the capture never fired, and every numbered basement silently
+  collided with Basement 1.
+
+`level_for_storey_name` in core is now the union of both, with the basement
+capture fixed. Three previously-*known* answers changed, all deliberately:
+`Basement 2` → `B2`, `Basement 3` → `B3`, and `"0"` → `GF` (was `L00`, which is
+not a level anyone means). Three more moved `XX` → a real code, which is a gain,
+not drift — `XX` is the "unknown" sentinel.
+
+- **`stingtools_core/hosts/archicad.py`** (new) holds the ArchiCAD vocabulary —
+  `DISC_MAP`, `SYS_MAP`, the 34/31 library-part hint tables, the product and
+  renovation-status maps, and LOC/ZONE derivation. Note these are *not*
+  duplicates of `inference.py`: that maps **IFC classes** (`IfcWall`), this maps
+  **ArchiCAD JSON-API type strings** (`Wall`) and library-part names. Two
+  vocabularies for one grammar. Level derivation is the one genuinely shared
+  question, so both call the single implementation.
+
+- **`StingBridge/_core.py`** (new) resolves `stingtools_core` whether it is
+  pip-installed or a sibling source tree. `client.py` carried that fallback
+  inline for one symbol; it now lives in one place.
+
+- **The bridge modules are thin re-export shims.** Existing imports keep working
+  — the equivalence tests import *through the shims* and assert the tables are
+  the *same objects* as core's, so there is genuinely one copy rather than two
+  that happen to agree today.
+
+- **`StingBridge/archicad/host_adapter.py`** (new) implements the core
+  `HostAdapter` contract for the ArchiCAD-live path. The sync engine predates
+  the contract, so ArchiCAD was the one host reaching the hub bespoke; that
+  matters for Phase B, whose reconcile engine drives hosts through
+  `apply_remote_change`. Non-`tag` deltas return `False` rather than claiming
+  success, and `georef_descriptor` reports tier 0 rather than guessing a
+  coordinate system the JSON API does not expose.
+
+**Verified.** 17 equivalence tests over a fixture matrix covering all 18 syncable
+element types and 29 library-part names, plus 19 adapter tests — all green, with
+the 82 pre-existing StingBridge tests and all **60 stingtools-core tests**
+(including the Phase A6 boundary lint) still passing: **178 total**. Live smoke
+through the refactored shims against a real API build: 3 elements extracted,
+3 SEQ minted, 3 synced, `done/` archived — the pipeline is unchanged end to end.
+
+**Not done:** the IFC watcher still uses its own extraction rather than
+`IfcFileHostAdapter`. Re-pointing it would change the extraction path with
+nothing proving equivalence, so it is left as a scoped follow-on rather than an
+unverified swap inside a refactor whose whole point was zero drift.
+
 #### Completed (Phase 204 — SB-4: one drop-folder contract across both watchers)
 
 The Python watcher left every processed file where it landed with a
