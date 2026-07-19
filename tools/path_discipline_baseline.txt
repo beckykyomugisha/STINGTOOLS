@@ -1,0 +1,40 @@
+# Path-discipline baseline — hand-built <projectDir>/_BIM_COORD sibling paths.
+# Format: <relative path under StingTools/><TAB><count>. Lower a line when you migrate a file;
+# tools/check_path_discipline.ps1 fails the build if any file exceeds its baseline.
+BOQ/BOQExportIfcQtoCommand.cs	1
+Commands/Electrical/Export/DIALuxExportCommand.cs	1
+Commands/Electrical/ExportCircuitsCommand.cs	1
+Commands/Electrical/Photometric/PhotometricLibraryCommand.cs	1
+Commands/Electrical/WireAnnotationCommands.cs	1
+Commands/Fabrication/ExportMajCommand.cs	1
+Commands/Fabrication/FabricationPresets.cs	1
+Commands/Fabrication/FabricationUndoManager.cs	2
+Commands/Hvac/HvacCompareLoadsCommand.cs	1
+Commands/Hvac/HvacCrossTalkAuditCommand.cs	1
+Commands/Hvac/HvacGenerateCxChecklistCommand.cs	2
+Commands/Hvac/HvacRtsBenchmarkCommand.cs	1
+Commands/Kpi/KutKpiDashboardCommand.cs	1
+Commands/Lightning/LpsWave4Commands.cs	2
+Commands/Mep/ExportPfvIfcCommand.cs	1
+Commands/Mep/ExportSleeveBcfCommand.cs	1
+Commands/Panels/PanelScheduleExcelCommands.cs	1
+Commands/Panels/PanelScheduleTemplateRegistry.cs	1
+Commands/Storage/MigrateToExtensibleStorageCommand.cs	1
+Commands/Symbols/EquipmentSymbolCommands.cs	1
+Commands/TemplateManager/TemplateManagerCommandsV2.cs	1
+Core/Branding/CorporateBrand.cs	1
+Core/Content/ContentRoots.cs	4
+Core/DesignOptions/DesignOptionRegistry.cs	1
+Core/Fabrication/IsoSymbolPlacer.cs	1
+Core/Lightning/LpsSldRules.cs	1
+Core/StingPaths.cs	1
+Core/Sustainability/EdgeKpiSnapshot.cs	1
+Core/Sustainability/SustainProjectSetup.cs	1
+Core/Symbols/MepSymbolEngine.cs	1
+Core/TemplateManager/AuditLog.cs	1
+Core/TemplateManager/CorporateLibrary.cs	2
+Core/TemplateManager/SnapshotEngine.cs	1
+Core/TemplateManager/TemplateRulesRegistry.cs	1
+Model/MEPIntelligenceEngine.cs	1
+Tags/FamilyConformanceCheckCommand.cs	1
+UI/ClashManagerDialog.cs	1
