@@ -85,7 +85,7 @@ namespace StingTools.Commands.Kpi
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 if (!string.IsNullOrEmpty(outDir))
                 {
-                    var run = ClashPersistence.Load(Path.Combine(outDir, "clashes.json"));
+                    var run = ClashPersistence.Load(ClashPersistence.CanonicalPath(doc));
                     if (run?.Clashes != null)
                     {
                         foreach (var c in run.Clashes)
