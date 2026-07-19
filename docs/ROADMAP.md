@@ -814,3 +814,75 @@ so LookupParameter hits directly), and rekey the 998 entries; (2) add the 8 new
 command copying `PRJ_TB_* -> PRJ_ORG_*` on ProjectInformation (SetIfEmpty);
 (5) regenerate STING_TITLE_BLOCK_PARAMETERS.txt; (6) run TitleBlock_CreateAll +
 verify the stamp fills from PRJ_ORG_* in Revit.
+
+---
+
+## ISO 19650 consolidation — deferred work (branch `claude/iso19650-consolidation`)
+
+Work packages WP0-WP5 and WP7 (partial) landed on that branch; the evidence base is
+[`ISO19650_DOC_FOLDER_REVIEW.md`](ISO19650_DOC_FOLDER_REVIEW.md), the work order is
+[`AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md`](AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md),
+and per-package status is in [`CONSOLIDATION_PROGRESS.md`](CONSOLIDATION_PROGRESS.md).
+Nothing below was attempted-and-reverted; these are packages the session did not reach.
+
+### Dispatch drift — 183 unreachable panel tags (from WP7)
+
+A parity sweep found **183 panel command tags that resolve in neither
+`Core/WorkflowEngine.ResolveCommand` nor `UI/StingCommandHandler`** — mostly the
+`Hvac_*`, `Elec_*`, `Circuit_*`, `Lite_*`, `Photo_*`, `Rprt_*`, `PlumbSym_*` and
+`Plumb_*` families. They work from their own panel button, but a workflow preset naming
+one resolves to null and the step is reported failed.
+
+They are recorded in `tools/dispatch_parity_baseline.txt`, and
+`tools/check_dispatch_parity.ps1` fails only on NEW drift so the number cannot grow
+silently. Closing the gap needs a per-command decision (alias vs genuinely panel-only),
+not a blanket alias pass. Remove a tag's line from the baseline when you wire it.
+
+### WP6 — `Core/StingPaths.cs` path service + path-discipline gate
+
+Single path API (`Cde` / `Meta` / `Staging` / `Recycle` / `Export`) that
+`OutputLocationHelper` and `ProjectFolderEngine` delegate to, migration of the remaining
+`<rvtDir>/_BIM_COORD` sibling writers, the `OptionFolderManager` fix (it mints
+`_BIM_COORD` inside `20_MISC`), a `tools/check_path_discipline.ps1` grep gate, and
+killing the static cross-document `ProjectFolderEngine._rootPath` cache (a real
+cross-project contamination risk: two projects in one directory can adopt each other's
+roots). WP1/WP2 removed the `_CDE`, `STING_Exports` and `_bim_manager` roots, so the
+remaining sprawl is narrower than the review describes.
+
+### WP7 remainder — shared `Run<T>` helper
+
+Five copy-paste `Run<T>()` helpers across the HVAC / Plumbing / LPS / Sustainability /
+Electrical handlers should collapse into one shared internal helper in `UI/`.
+
+### WP8 — Document Manager unification (the ISO 19650 core)
+
+One register (`_data/register.json` via a new `Core/DocumentRegister.cs`, merging
+`document_register.json` and `deliverables.json`); one vocabulary
+(`Iso19650Vocabulary` as sole source for S0-S7 + A1-A6 + B1-B6 + CR, deleting the other
+four tables) with per-state legality; one state machine actually running
+(`Planscape.Docs.Workflow.WorkflowEngine.Transition` still has **zero callers**, and it
+ignores `allowed_roles`, so Check/Review/Approve gates can never fire); closing the
+physical loop so `TemplateEngine` renders into `00_WIP/<disc>/Documents/` and every CDE
+transition is a real move + register update + audit entry; extending the SHA-256 audit
+chain to register mutations; and transmittal acknowledgement capture.
+
+WP5 partially de-risked this: auto-registration now has one method and one schema, and
+lifecycle transitions mirror to the server event-driven.
+
+### WP9 — CDE-first tree + ES root identity
+
+States at the top of the tree with content types inside them, dropping the
+`05_MODELS...20_MISC` numbered folders and the per-folder project-code suffixes; an
+Extensible-Storage root-identity stamp replacing the 8-char filename-prefix multi-model
+heuristic; and a `Folders_ConsolidateAll` migration wizard with a dry-run report.
+
+**Sequencing note:** WP9 changes the physical tree, so it should follow WP6 — with
+`StingPaths` in place the layout change is a change to one resolver rather than to
+every writer.
+
+### WP10 — HTTP + storage hygiene
+
+Pooled client for `PluginTelemetry` (currently `new HttpClient()` per call), routing the
+ad-hoc unauthenticated clients through `PlanscapeServerClient`, and resolving the
+workflow-state dual storage (ES `StingWorkflowStateSchema` vs `workflow_state.json`) —
+pick one, migrate, document the storage-ownership rule in CLAUDE.md.

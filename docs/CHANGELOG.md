@@ -3,6 +3,42 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 199 — ISO 19650 consolidation WP0-WP5 + WP7, branch `claude/iso19650-consolidation`)
+
+Consolidates the fragmented folder-management, document-management, automation and
+integration layers toward one ISO 19650 system, per the review in
+[`ISO19650_DOC_FOLDER_REVIEW.md`](ISO19650_DOC_FOLDER_REVIEW.md). Cut from `main`
+@ `6713f570b`. Release build **0 err / 0 warn** verified after every package on this
+machine. **Not merged; no PR.** In-Revit verification checklist is in the per-package
+commit bodies and `CONSOLIDATION_PROGRESS.md`.
+
+| WP | Commit | Summary |
+|---|---|---|
+| WP0 | `a708b7533` | Review + work order + WP0-WP10 progress tracker |
+| WP1 | `830ea72db` | MIDP join fix; auto-transmittal delegates to `TransmittalOrchestrator`; `_CDE`/`STING_Exports` roots retired; `AUTO_CREATE_CDE_FOLDERS` + `AUTO_RUN_WORKFLOW_ON_OPEN` wired; single `_data/recycle` + `_data/staging`; the two tree builders unified |
+| WP2 | `18af9ece5` | New `Core/CoordStores.cs` — one resolver for issues / meetings / register / transmittals / revisions, with one-time append-merge of legacy copies |
+| WP3 | `f21dcdf34` | Dead reflection bridges replaced with direct calls (BCC deliverable selection, geometry sync, 7× `DrawingTypeStamper`, `RevisionHistoryEntry`) |
+| WP4 | `44f3af74f` | 80 raw `File.WriteAllText` calls on coordination stores made atomic; duplicate atomic-writer collapsed |
+| WP5 | `2e79439ee` | Every dormant automation hook wired or removed; auto-registration facades collapsed to one schema; ExLink batch exports now registered |
+| WP7 | `f97ecb843` | Six panel tag aliases + baseline-based dispatch parity gate (partial — shared `Run<T>` deferred) |
+
+**Three defects fixed that were silently producing wrong results, not just untidiness:**
+the MIDP drift report read the wrong folder *and* the wrong key casing so it always
+resolved empty; every BCC-driven deliverable lifecycle command reflected over fields that
+do not exist, so all of them behaved as "nothing selected"; and issues raised by
+WarningsManager landed in a different physical file from the one the BIM Manager reads.
+
+**Corrections to the review.** Several findings were already fixed on `main`:
+`StingStaleMarker`, `CableManifestUpdater` and `HvacEnvelopeStaleUpdater` are registered
+at startup; `GetAvailablePresets` is no longer triplicated; `RunCommandByTag` is already
+null-hardened. These were verified and left alone rather than "re-fixed" — see
+`CONSOLIDATION_PROGRESS.md`.
+
+**Deferred:** WP6 (`StingPaths` service), WP8 (document-manager unification), WP9
+(CDE-first tree + ES root identity), WP10 (HTTP/storage hygiene), the WP7 `Run<T>`
+extraction, and the 183 unreachable panel tags — all logged in
+[`ROADMAP.md`](ROADMAP.md).
+
 #### Completed (Phase 198b — MEP print-ready cross-check punch-list, branch `claude/mep-punchlist`)
 
 Fixes the correctness/consistency defects a cross-check found in Phase 198's MEP work. Base

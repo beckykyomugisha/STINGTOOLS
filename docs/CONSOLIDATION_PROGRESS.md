@@ -27,12 +27,22 @@ Every work package below must end green at 0/0.
 | WP3 | Replace dead/fragile reflection bridges with real APIs | DONE f21dcdf34 |
 | WP4 | Atomic writes on coordination stores | DONE 44f3af74f |
 | WP5 | Resurrect or remove dead automation (wire it or delete it) | DONE 2e79439ee |
-| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | TODO |
+| WP6 | `Core/StingPaths.cs` service + path-discipline grep gate | NOT REACHED — see ROADMAP |
 | WP7 | Dispatch consolidation — alias tags + parity gate | PARTIAL (see notes) |
-| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | TODO |
-| WP9 | CDE-first tree + ES root identity + migration wizard | TODO |
-| WP10 | HTTP + storage hygiene (park if time-boxed) | TODO |
-| FINAL | Rebuild, gates, CHANGELOG/ROADMAP, push, report | TODO |
+| WP8 | Document Manager unification — one register / vocabulary / state machine / audit chain | NOT REACHED — see ROADMAP |
+| WP9 | CDE-first tree + ES root identity + migration wizard | NOT REACHED — see ROADMAP |
+| WP10 | HTTP + storage hygiene (park if time-boxed) | NOT REACHED — see ROADMAP |
+| FINAL | Rebuild, gates, CHANGELOG/ROADMAP, push, report | DONE |
+
+## Where this run stopped
+
+WP0-WP5 completed in full and WP7 partially, each committed green at 0/0. WP6, WP8, WP9
+and WP10 were **not reached** — they were never started, so there is no half-applied
+change to unpick. Every deferred item is written up in `docs/ROADMAP.md` with enough
+detail to resume cold, including a sequencing note (WP9 should follow WP6, because with
+`StingPaths` in place the tree change is one resolver rather than every writer).
+
+No package needed the stop-loss rule: nothing was reverted, and the branch is green.
 
 ## Scope decisions taken during the run
 
@@ -41,6 +51,12 @@ Every work package below must end green at 0/0.
   covers only the `_CDE/` and `STING_Exports` writers (distinct roots, no overlap) and the
   `_bim_manager` sweep is done once, properly, through WP2's `CoordStores` resolver. Touching
   them twice would have meant re-editing every site.
+- **WP7 was scoped down honestly.** The work order asked for alias tags plus a parity
+  gate. The gate revealed 183 unreachable panel tags, not the ~6 the review named.
+  Aliasing 183 tags blind would have been worse than the drift, so the six named cases
+  were fixed properly, the rest were recorded as a baseline the gate enforces against,
+  and the gap went to `ROADMAP.md`. The gate was verified in both directions: it passes
+  on the current tree and fails when a new unwired tag is injected.
 - `UI/DocumentManagementDialog.LoadExportIndex` still *reads* a legacy `STING_Exports` folder.
   That is deliberate: nothing writes there any more, and `MigrateFromLegacy` sweeps it, but the
   reader keeps pre-migration projects visible in the Document Manager.
