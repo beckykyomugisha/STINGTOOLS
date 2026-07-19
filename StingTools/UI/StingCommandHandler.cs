@@ -2038,6 +2038,7 @@ namespace StingTools.UI
                     case "CDEStatus": RunCommand<BIMManager.CDEStatusCommand>(app); break;
                     case "ValidateDocNaming": RunCommand<BIMManager.ValidateDocNamingCommand>(app); break;
                     case "DocumentRegister": RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
+                    case "DocRegister_Unified": RunCommand<Core.UnifiedRegisterExportCommand>(app); break;
                     case "AddDocument": RunCommand<BIMManager.AddDocumentCommand>(app); break;
                     case "CreateTransmittal": RunCommand<BIMManager.CreateTransmittalCommand>(app); break;
                     case "ReviewTracker": RunCommand<BIMManager.ReviewTrackerCommand>(app); break;
