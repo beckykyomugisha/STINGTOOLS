@@ -35,6 +35,85 @@ namespace StingTools.Core.Drawing
 
     public static partial class TitleBlockParamApplier
     {
+        internal const string SuitabilityCodeParam = "PRJ_DWG_SUITABILITY_COD_TXT";
+        internal const string SuitabilityDescParam = "PRJ_DWG_SUITABILITY_DESC_TXT";
+
+        // G1-a: several drawing types seed titleBlockParams under friendly UI
+        // labels ("Suitability", "Client Name", …) rather than the canonical
+        // shared-parameter name. A raw LookupParameter(key) then misses the
+        // bound shared param (e.g. "Suitability" never reached
+        // PRJ_DWG_SUITABILITY_COD_TXT), so the value silently dropped and the
+        // emptiness validator false-fired. Apply() now tries the canonical
+        // param name FIRST (via this map), then falls back to the literal key.
+        // Case-insensitive. Keys audited across all drawing types.
+        private static readonly Dictionary<string, string> _friendlyAlias =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Suitability"]          = SuitabilityCodeParam,
+            ["Sheet Status"]         = "PRJ_TB_DELIVERABLE_STATUS_TXT",
+            ["Revision"]             = "PRJ_TB_REVISION_NR_TXT",
+            ["Discipline"]           = "PRJ_TB_DISCIPLINE_TXT",
+            ["Client Name"]          = "PRJ_TB_CLIENT_NAME_TXT",
+            ["Company Name"]         = "PRJ_TB_COMPANY_NAME_TXT",
+            ["Company Address"]      = "PRJ_TB_COMPANY_ADDRESS_TXT",
+            ["Appointing Party"]     = "PRJ_ORG_APPOINTING_PARTY_TXT",
+            ["Lead Appointed Party"] = "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
+            ["Project Code"]         = "PRJ_ORG_PROJECT_CODE_TXT",
+            ["Originator"]           = "PRJ_ORG_ORIGINATOR_CODE_TXT",
+            ["Copyright"]            = "PRJ_TB_COPYRIGHT_TXT",
+            ["Do Not Scale"]         = "PRJ_TB_DO_NOT_SCALE_TXT",
+            ["Company Phone"]        = "PRJ_ORG_CONTACT_PHONE_TXT",
+            ["Company Email"]        = "PRJ_ORG_CONTACT_EMAIL_TXT",
+            ["Company Website"]      = "PRJ_ORG_CONTACT_WEBSITE_TXT",
+            ["Registration No"]      = "PRJ_ORG_REG_NO_TXT",
+            ["Level Code"]           = "PRJ_SHEET_LEVEL_TXT",
+            ["System Code"]          = "PRJ_SHEET_SYSTEM_TXT",
+            ["Spool Number"]         = "ASS_SPOOL_NR_TXT",
+        };
+
+        /// <summary>Resolve the writable title-block Parameter for a
+        /// titleBlockParams key, preferring the canonical shared-param name
+        /// (via <see cref="_friendlyAlias"/>) then the literal key. Returns the
+        /// Parameter (and its actual name) or null when neither exists.</summary>
+        private static Parameter ResolveTargetParam(FamilyInstance tb, string key, out string actualName)
+        {
+            actualName = null;
+            if (tb == null || string.IsNullOrWhiteSpace(key)) return null;
+            // Canonical (alias-mapped) first, then the literal key.
+            if (_friendlyAlias.TryGetValue(key, out var canon))
+            {
+                var pc = tb.LookupParameter(canon);
+                if (pc != null) { actualName = canon; return pc; }
+            }
+            var pk = tb.LookupParameter(key);
+            if (pk != null) { actualName = key; return pk; }
+            return null;
+        }
+
+        /// <summary>G1-c: write PRJ_DWG_SUITABILITY_DESC_TXT from the ISO 19650
+        /// code→description map (reusing BIMManagerEngine.SuitabilityCodes) when
+        /// the suitability code is stamped. Best-effort: silently no-ops when the
+        /// desc param isn't on the title block; never throws.</summary>
+        private static void ApplySuitabilityDesc(FamilyInstance tb, string code, TitleBlockApplyResult r)
+        {
+            try
+            {
+                var pd = tb.LookupParameter(SuitabilityDescParam);
+                if (pd == null || pd.IsReadOnly || pd.StorageType != StorageType.String) return;
+                string desc = "";
+                if (!string.IsNullOrWhiteSpace(code)
+                    && StingTools.BIMManager.BIMManagerEngine.SuitabilityCodes
+                        .TryGetValue(code.Trim(), out var d))
+                    desc = d;
+                pd.Set(desc);
+                r.ParamsWritten++;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"Suitability desc: {ex.Message}");
+            }
+        }
+
         private static readonly Regex _projInfo =
             new Regex(@"\$\{([A-Za-z0-9_]+)\}", RegexOptions.Compiled);
         private static readonly Regex _token =
@@ -100,7 +179,8 @@ namespace StingTools.Core.Drawing
 
                 try
                 {
-                    var p = tb.LookupParameter(paramName);
+                    // G1-a: canonical param name first, then the literal key.
+                    var p = ResolveTargetParam(tb, paramName, out var actualName);
                     if (p == null)
                     {
                         r.Warnings.Add($"Title block has no parameter '{paramName}'.");
@@ -108,7 +188,7 @@ namespace StingTools.Core.Drawing
                     }
                     if (p.IsReadOnly)
                     {
-                        r.Warnings.Add($"Parameter '{paramName}' is read-only.");
+                        r.Warnings.Add($"Parameter '{actualName}' is read-only.");
                         continue;
                     }
                     switch (p.StorageType)
@@ -121,18 +201,25 @@ namespace StingTools.Core.Drawing
                         case StorageType.Integer:
                             if (string.IsNullOrEmpty(resolved)) p.Set(0);
                             else if (int.TryParse(resolved, out var iv)) p.Set(iv);
-                            else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
+                            else r.Warnings.Add($"'{actualName}' expects integer; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
                             if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
                             else if (double.TryParse(resolved, out var dv)) p.Set(dv);
-                            else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
+                            else r.Warnings.Add($"'{actualName}' expects number; '{resolved}' not parsable.");
                             break;
                         default:
-                            r.Warnings.Add($"'{paramName}' has unsupported storage type {p.StorageType}.");
+                            r.Warnings.Add($"'{actualName}' has unsupported storage type {p.StorageType}.");
                             continue;
                     }
                     r.ParamsWritten++;
+
+                    // G1-c: when the suitability CODE is written, mirror the
+                    // paired DESCRIPTION from the ISO 19650 code→desc map so
+                    // PRJ_DWG_SUITABILITY_DESC_TXT (0 setters before this) stays
+                    // in sync. Best-effort — absent desc param is not an error.
+                    if (string.Equals(actualName, SuitabilityCodeParam, StringComparison.OrdinalIgnoreCase))
+                        ApplySuitabilityDesc(tb, resolved, r);
                 }
                 catch (Exception ex)
                 {

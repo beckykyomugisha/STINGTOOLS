@@ -29,7 +29,7 @@ namespace StingTools.Core.Drawing
         public const string PARAM_DRAWING_TYPE_ID   = "STING_DRAWING_TYPE_ID_TXT";
         public const string PARAM_STYLE_LOCKED      = "STING_STYLE_LOCKED_BOOL";
         public const string PARAM_DRAWING_PACKAGE_ID = "STING_DRAWING_PACKAGE_ID_TXT";
-        public const string PARAM_SHEET_SEQUENCE    = "STING_SHEET_SEQUENCE_INT";
+        public const string PARAM_SHEET_SEQUENCE    = "PRJ_SHEET_SEQUENCE_INT";
 
         // Phase 183 — crop stamps written by DrawingCropApplier so the
         // DriftDetector can spot a profile whose crop kind / margin has

@@ -1,0 +1,256 @@
+<svg viewBox="0 0 1345.6000000000001 950.4000000000001" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif">
+<rect x="0" y="0" width="1345.6000000000001" height="950.4000000000001" fill="#fff"/>
+<rect x="16.0" y="16.0" width="1313.6" height="57.6" fill="#F6F1E7"/>
+<rect x="16.0" y="16.0" width="1313.6" height="4.8" fill="#C98A2B"/>
+<rect x="1081.6" y="16.0" width="248.0" height="57.6" fill="#F6ECD2"/>
+<rect x="1081.6" y="16.0" width="6.4" height="57.6" fill="#C98A2B"/>
+<rect x="16.0" y="163.2" width="464.0" height="25.6" fill="#F5F7F9"/>
+<rect x="28.8" y="198.4" width="147.2" height="38.4" fill="#F5F7F9"/>
+<rect x="28.8" y="198.4" width="147.2" height="3.2" fill="#C98A2B"/>
+<rect x="185.6" y="198.4" width="147.2" height="38.4" fill="#F5F7F9"/>
+<rect x="185.6" y="198.4" width="147.2" height="3.2" fill="#16324F"/>
+<rect x="342.4" y="198.4" width="131.2" height="38.4" fill="#F5F7F9"/>
+<rect x="342.4" y="198.4" width="131.2" height="3.2" fill="#C98A2B"/>
+<rect x="489.6" y="163.2" width="428.8" height="25.6" fill="#F5F7F9"/>
+<rect x="502.4" y="337.6" width="11.2" height="11.2" fill="#6B7280"/>
+<rect x="554.2" y="337.6" width="11.2" height="11.2" fill="#B5493A"/>
+<rect x="614.4" y="337.6" width="11.2" height="11.2" fill="#2563A8"/>
+<rect x="666.2" y="337.6" width="11.2" height="11.2" fill="#C98A2B"/>
+<rect x="718.1" y="337.6" width="11.2" height="11.2" fill="#2E7D4F"/>
+<rect x="774.1" y="337.6" width="11.2" height="11.2" fill="#C0392B"/>
+<rect x="825.9" y="337.6" width="11.2" height="11.2" fill="#2F7D8F"/>
+<rect x="16.0" y="435.2" width="560.0" height="25.6" fill="#F5F7F9"/>
+<rect x="585.6" y="435.2" width="332.8" height="25.6" fill="#F6F1E7"/>
+<rect x="585.6" y="435.2" width="332.8" height="4.8" fill="#C98A2B"/>
+<rect x="16.0" y="723.2" width="902.4" height="134.4" fill="#F6F1E7"/>
+<rect x="16.0" y="723.2" width="902.4" height="4.8" fill="#C98A2B"/>
+<rect x="28.8" y="752.0" width="131.2" height="25.6" fill="#F6ECD2"/>
+<rect x="177.6" y="752.0" width="131.2" height="25.6" fill="#F6ECD2"/>
+<rect x="326.4" y="752.0" width="131.2" height="25.6" fill="#FFFFFF"/>
+<rect x="475.2" y="752.0" width="131.2" height="25.6" fill="#FFFFFF"/>
+<rect x="624.0" y="752.0" width="131.2" height="25.6" fill="#FFFFFF"/>
+<rect x="772.8" y="752.0" width="131.2" height="25.6" fill="#FFFFFF"/>
+<rect x="928.0" y="80.0" width="401.6" height="25.6" fill="#F6F1E7"/>
+<rect x="928.0" y="80.0" width="401.6" height="4.8" fill="#C98A2B"/>
+<rect x="928.0" y="483.2" width="401.6" height="25.6" fill="#F6F1E7"/>
+<rect x="928.0" y="483.2" width="401.6" height="4.8" fill="#C98A2B"/>
+<line x1="12.8" y1="937.6" x2="1332.8" y2="937.6" stroke="#333" stroke-width="1.6"/>
+<line x1="1332.8" y1="937.6" x2="1332.8" y2="12.8" stroke="#333" stroke-width="1.6"/>
+<line x1="1332.8" y1="12.8" x2="12.8" y2="12.8" stroke="#333" stroke-width="1.6"/>
+<line x1="12.8" y1="12.8" x2="12.8" y2="937.6" stroke="#333" stroke-width="1.6"/>
+<line x1="400.0" y1="68.8" x2="400.0" y2="22.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="752.0" y1="68.8" x2="752.0" y2="22.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="896.0" y1="68.8" x2="896.0" y2="22.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="22.4" y1="152.0" x2="918.4" y2="152.0" stroke="#666" stroke-width="1.0"/>
+<line x1="16.0" y1="422.4" x2="480.0" y2="422.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="480.0" y1="422.4" x2="480.0" y2="163.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="480.0" y1="163.2" x2="16.0" y2="163.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="16.0" y1="163.2" x2="16.0" y2="422.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="28.8" y1="283.2" x2="467.2" y2="283.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="28.8" y1="348.8" x2="467.2" y2="348.8" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="489.6" y1="422.4" x2="918.4" y2="422.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="918.4" y1="422.4" x2="918.4" y2="163.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="918.4" y1="163.2" x2="489.6" y2="163.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="489.6" y1="163.2" x2="489.6" y2="422.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="502.4" y1="273.6" x2="905.6" y2="273.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="502.4" y1="313.6" x2="905.6" y2="313.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="16.0" y1="710.4" x2="576.0" y2="710.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="576.0" y1="710.4" x2="576.0" y2="435.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="576.0" y1="435.2" x2="16.0" y2="435.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="16.0" y1="435.2" x2="16.0" y2="710.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="22.4" y1="484.8" x2="569.6" y2="484.8" stroke="#666" stroke-width="1.0"/>
+<line x1="22.4" y1="670.4" x2="569.6" y2="670.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="585.6" y1="710.4" x2="918.4" y2="710.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="918.4" y1="710.4" x2="918.4" y2="435.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="918.4" y1="435.2" x2="585.6" y2="435.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="585.6" y1="435.2" x2="585.6" y2="710.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="598.4" y1="681.6" x2="905.6" y2="681.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="22.4" y1="848.0" x2="166.4" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="166.4" y1="848.0" x2="166.4" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="166.4" y1="745.6" x2="22.4" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="22.4" y1="745.6" x2="22.4" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="171.2" y1="848.0" x2="315.2" y2="848.0" stroke="#666" stroke-width="1.0"/>
+<line x1="315.2" y1="848.0" x2="315.2" y2="745.6" stroke="#666" stroke-width="1.0"/>
+<line x1="315.2" y1="745.6" x2="171.2" y2="745.6" stroke="#666" stroke-width="1.0"/>
+<line x1="171.2" y1="745.6" x2="171.2" y2="848.0" stroke="#666" stroke-width="1.0"/>
+<line x1="320.0" y1="848.0" x2="464.0" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="464.0" y1="848.0" x2="464.0" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="464.0" y1="745.6" x2="320.0" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="320.0" y1="745.6" x2="320.0" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="468.8" y1="848.0" x2="612.8" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="612.8" y1="848.0" x2="612.8" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="612.8" y1="745.6" x2="468.8" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="468.8" y1="745.6" x2="468.8" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="617.6" y1="848.0" x2="761.6" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="761.6" y1="848.0" x2="761.6" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="761.6" y1="745.6" x2="617.6" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="617.6" y1="745.6" x2="617.6" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="766.4" y1="848.0" x2="910.4" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="910.4" y1="848.0" x2="910.4" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="910.4" y1="745.6" x2="766.4" y2="745.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="766.4" y1="745.6" x2="766.4" y2="848.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="16.0" y1="867.2" x2="918.4" y2="867.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="928.0" y1="470.4" x2="1329.6" y2="470.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="1329.6" y1="470.4" x2="1329.6" y2="80.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="1329.6" y1="80.0" x2="928.0" y2="80.0" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="928.0" y1="80.0" x2="928.0" y2="470.4" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="940.8" y1="126.4" x2="1316.8" y2="126.4" stroke="#666" stroke-width="1.0"/>
+<line x1="928.0" y1="857.6" x2="1329.6" y2="857.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="1329.6" y1="857.6" x2="1329.6" y2="483.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="1329.6" y1="483.2" x2="928.0" y2="483.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="928.0" y1="483.2" x2="928.0" y2="857.6" stroke="#9aa5b1" stroke-width="0.5"/>
+<line x1="940.8" y1="529.6" x2="1316.8" y2="529.6" stroke="#666" stroke-width="1.0"/>
+<line x1="940.8" y1="691.2" x2="1316.8" y2="691.2" stroke="#9aa5b1" stroke-width="0.5"/>
+<rect x="377.6" y="342.4" width="70.4" height="70.4" fill="#eef6fb" stroke="#5b9bd5" stroke-width="0.8" stroke-dasharray="4 3"/>
+<text x="412.8" y="377.59999999999997" font-size="7" fill="#2b6cb0" text-anchor="middle">[qr-code]</text>
+<rect x="22.4" y="494.4" width="553.6" height="168.0" fill="#eef6fb" stroke="#5b9bd5" stroke-width="0.8" stroke-dasharray="4 3"/>
+<text x="299.2" y="578.4" font-size="7" fill="#2b6cb0" text-anchor="middle">[revision-schedule]</text>
+<rect x="937.6" y="137.6" width="382.4" height="313.6" fill="#eef6fb" stroke="#5b9bd5" stroke-width="0.8" stroke-dasharray="4 3"/>
+<text x="1128.8" y="294.4" font-size="7" fill="#2b6cb0" text-anchor="middle">[drawing-register]</text>
+<text x="36.8" y="60.8" font-size="5" fill="#1f2937" text-anchor="start">CONSULTING ENGINEERS  ·  LEAD APPOINTED PARTY</text>
+<text x="412.8" y="33.6" font-size="5" fill="#1f2937" text-anchor="start">DOCUMENT No.</text>
+<text x="764.8" y="33.6" font-size="5" fill="#1f2937" text-anchor="start">ISSUE DATE</text>
+<text x="908.8" y="33.6" font-size="5" fill="#1f2937" text-anchor="start">SUIT · REV</text>
+<text x="953.6" y="52.8" font-size="5" fill="#1f2937" text-anchor="start">·</text>
+<text x="1211.2" y="36.8" font-size="5" fill="#1f2937" text-anchor="middle">DISCIPLINE</text>
+<text x="22.4" y="89.6" font-size="5" fill="#1f2937" text-anchor="start">PROJECT</text>
+<text x="28.8" y="180.8" font-size="5" fill="#1f2937" text-anchor="start">DOCUMENT CONTROL</text>
+<text x="102.4" y="209.6" font-size="5" fill="#1f2937" text-anchor="middle">SUITABILITY</text>
+<text x="259.2" y="209.6" font-size="5" fill="#1f2937" text-anchor="middle">STATUS</text>
+<text x="408.0" y="209.6" font-size="5" fill="#1f2937" text-anchor="middle">REVISION</text>
+<text x="28.8" y="252.8" font-size="5" fill="#1f2937" text-anchor="start">PURPOSE</text>
+<text x="28.8" y="270.4" font-size="5" fill="#1f2937" text-anchor="start">SECURITY</text>
+<text x="264.0" y="270.4" font-size="5" fill="#1f2937" text-anchor="start">LOD</text>
+<text x="28.8" y="300.8" font-size="5" fill="#1f2937" text-anchor="start">DRAWN</text>
+<text x="264.0" y="300.8" font-size="5" fill="#1f2937" text-anchor="start">CHECKED</text>
+<text x="28.8" y="318.4" font-size="5" fill="#1f2937" text-anchor="start">APPROVED</text>
+<text x="264.0" y="318.4" font-size="5" fill="#1f2937" text-anchor="start">AUTH.</text>
+<text x="28.8" y="336.0" font-size="5" fill="#1f2937" text-anchor="start">DATE</text>
+<text x="342.4" y="417.6" font-size="5" fill="#1f2937" text-anchor="start">SCAN — VERIFY ISSUE</text>
+<text x="502.4" y="180.8" font-size="5" fill="#1f2937" text-anchor="start">BIM &amp; COORDINATION</text>
+<text x="502.4" y="208.0" font-size="5" fill="#1f2937" text-anchor="start">CDE STATE</text>
+<text x="752.0" y="208.0" font-size="5" fill="#1f2937" text-anchor="start">FEDERATION</text>
+<text x="502.4" y="225.6" font-size="5" fill="#1f2937" text-anchor="start">COORD SYS</text>
+<text x="502.4" y="243.2" font-size="5" fill="#1f2937" text-anchor="start">PROJECT N</text>
+<text x="752.0" y="243.2" font-size="5" fill="#1f2937" text-anchor="start">GROUND LVL</text>
+<text x="502.4" y="260.8" font-size="5" fill="#1f2937" text-anchor="start">REGION</text>
+<text x="752.0" y="260.8" font-size="5" fill="#1f2937" text-anchor="start">CLASS</text>
+<text x="502.4" y="288.0" font-size="5" fill="#1f2937" text-anchor="start">Naming standard:  BS EN ISO 19650-2 : 2018</text>
+<text x="502.4" y="302.4" font-size="5" fill="#1f2937" text-anchor="start">Units mm  ·  Revit 2025  ·  IFC 4</text>
+<text x="502.4" y="326.4" font-size="5" fill="#1f2937" text-anchor="start">DISCIPLINE COLOUR — WHOLE SHEET TAKES ONE (family type, hand-set)</text>
+<text x="516.8" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">ARCH</text>
+<text x="568.6" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">STRUCT</text>
+<text x="628.8" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">MECH</text>
+<text x="680.6" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">ELEC</text>
+<text x="732.5" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">PLUMB</text>
+<text x="788.5" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">FIRE</text>
+<text x="840.3" y="347.2" font-size="5" fill="#1f2937" text-anchor="start">COMBINED</text>
+<text x="28.8" y="452.8" font-size="5" fill="#1f2937" text-anchor="start">LATEST ISSUES</text>
+<text x="566.4" y="452.8" font-size="5" fill="#1f2937" text-anchor="end">last 4 — full history on register + CDE</text>
+<text x="28.8" y="475.2" font-size="5" fill="#1f2937" text-anchor="start">REV</text>
+<text x="80.0" y="475.2" font-size="5" fill="#1f2937" text-anchor="start">DESCRIPTION</text>
+<text x="368.0" y="475.2" font-size="5" fill="#1f2937" text-anchor="start">SUIT.</text>
+<text x="432.0" y="475.2" font-size="5" fill="#1f2937" text-anchor="start">DATE</text>
+<text x="528.0" y="475.2" font-size="5" fill="#1f2937" text-anchor="start">BY</text>
+<text x="28.8" y="681.6" font-size="5" fill="#1f2937" text-anchor="start">Shows the last 4 issues; the table can never outgrow the sheet.</text>
+<text x="28.8" y="694.4" font-size="5" fill="#1f2937" text-anchor="start">Older issues remain queryable on the CDE and register sheet.</text>
+<text x="598.4" y="452.8" font-size="5" fill="#1f2937" text-anchor="start">CHANGES IN THIS ISSUE</text>
+<text x="598.4" y="691.2" font-size="5" fill="#1f2937" text-anchor="start">One bullet per clouded change; clouds on plans</text>
+<text x="598.4" y="702.4" font-size="5" fill="#1f2937" text-anchor="start">carry the matching revision tag.</text>
+<text x="28.8" y="737.6" font-size="5" fill="#1f2937" text-anchor="start">PROJECT DIRECTORY — STAKEHOLDERS &amp; CONSULTANTS</text>
+<text x="905.6" y="737.6" font-size="5" fill="#1f2937" text-anchor="end">roles per ISO 19650-2  ·  contacts in the BEP</text>
+<text x="94.4" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="94.4" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">APPOINTING PARTY</text>
+<text x="243.2" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="243.2" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">LEAD APPOINTED · MEP</text>
+<text x="392.0" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="392.0" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">STRUCTURAL</text>
+<text x="540.8" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="540.8" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">MEP ENGINEER</text>
+<text x="689.6" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="689.6" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">MAIN CONTRACTOR</text>
+<text x="838.4" y="768.0" font-size="5" fill="#1f2937" text-anchor="middle">[ logo ]</text>
+<text x="838.4" y="790.4" font-size="5" fill="#1f2937" text-anchor="middle">ORIGINATOR / IM</text>
+<text x="940.8" y="896.0" font-size="5" fill="#1f2937" text-anchor="start">SHEET</text>
+<text x="940.8" y="91.2" font-size="5" fill="#1f2937" text-anchor="start">DRAWING REGISTER</text>
+<text x="1316.8" y="91.2" font-size="5" fill="#1f2937" text-anchor="end">LIVE</text>
+<text x="940.8" y="116.8" font-size="5" fill="#1f2937" text-anchor="start">SHEET No.</text>
+<text x="1088.0" y="116.8" font-size="5" fill="#1f2937" text-anchor="start">TITLE</text>
+<text x="1316.8" y="116.8" font-size="5" fill="#1f2937" text-anchor="end">REV</text>
+<text x="940.8" y="460.8" font-size="5" fill="#1f2937" text-anchor="start">Auto-filters to this discipline; splits to columns.</text>
+<text x="940.8" y="494.4" font-size="5" fill="#1f2937" text-anchor="start">STANDARDS &amp; REFERENCES</text>
+<text x="940.8" y="520.0" font-size="5" fill="#1f2937" text-anchor="start">REF / STANDARD</text>
+<text x="1129.6" y="520.0" font-size="5" fill="#1f2937" text-anchor="start">SCOPE</text>
+<text x="1264.0" y="520.0" font-size="5" fill="#1f2937" text-anchor="start">USED IN</text>
+<text x="940.8" y="544.0" font-size="5" fill="#1f2937" text-anchor="start">BS EN ISO 19650-2</text>
+<text x="1129.6" y="544.0" font-size="5" fill="#1f2937" text-anchor="start">Info mgmt</text>
+<text x="1264.0" y="544.0" font-size="5" fill="#1f2937" text-anchor="start">All</text>
+<text x="940.8" y="563.2" font-size="5" fill="#1f2937" text-anchor="start">BS 7671:2018+A2</text>
+<text x="1129.6" y="563.2" font-size="5" fill="#1f2937" text-anchor="start">Wiring regs</text>
+<text x="1264.0" y="563.2" font-size="5" fill="#1f2937" text-anchor="start">Power</text>
+<text x="940.8" y="582.4" font-size="5" fill="#1f2937" text-anchor="start">BS EN 62305 §4.3</text>
+<text x="1129.6" y="582.4" font-size="5" fill="#1f2937" text-anchor="start">Lightning</text>
+<text x="1264.0" y="582.4" font-size="5" fill="#1f2937" text-anchor="start">E-4001</text>
+<text x="940.8" y="601.6" font-size="5" fill="#1f2937" text-anchor="start">BS 5839-1 §14</text>
+<text x="1129.6" y="601.6" font-size="5" fill="#1f2937" text-anchor="start">Fire detect</text>
+<text x="1264.0" y="601.6" font-size="5" fill="#1f2937" text-anchor="start">E-5001</text>
+<text x="940.8" y="620.8" font-size="5" fill="#1f2937" text-anchor="start">BS EN 12464-1</text>
+<text x="1129.6" y="620.8" font-size="5" fill="#1f2937" text-anchor="start">Lighting</text>
+<text x="1264.0" y="620.8" font-size="5" fill="#1f2937" text-anchor="start">E-1101</text>
+<text x="940.8" y="640.0" font-size="5" fill="#1f2937" text-anchor="start">CIBSE Guide K</text>
+<text x="1129.6" y="640.0" font-size="5" fill="#1f2937" text-anchor="start">Electricity</text>
+<text x="1264.0" y="640.0" font-size="5" fill="#1f2937" text-anchor="start">E-2001</text>
+<text x="940.8" y="659.2" font-size="5" fill="#1f2937" text-anchor="start">IEEE 1584</text>
+<text x="1129.6" y="659.2" font-size="5" fill="#1f2937" text-anchor="start">Arc flash</text>
+<text x="1264.0" y="659.2" font-size="5" fill="#1f2937" text-anchor="start">E-9001</text>
+<text x="940.8" y="678.4" font-size="5" fill="#1f2937" text-anchor="start">Uganda NBC 2019</text>
+<text x="1129.6" y="678.4" font-size="5" fill="#1f2937" text-anchor="start">Natl code</text>
+<text x="1264.0" y="678.4" font-size="5" fill="#1f2937" text-anchor="start">All</text>
+<text x="940.8" y="704.0" font-size="5" fill="#1f2937" text-anchor="start">Project rows via PRJ_TB_NOTES_LEGEND_REF_TXT.</text>
+<text x="940.8" y="716.8" font-size="5" fill="#1f2937" text-anchor="start">Quote the clause/section where each standard governs.</text>
+<text x="35.2" y="44.8" font-size="8.6" fill="#7a3fb0" font-weight="bold" text-anchor="start">${COMPANY_NAME}</text>
+<text x="412.8" y="52.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${SHEET_FULL_REF}</text>
+<text x="764.8" y="52.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${DATE_DRAWN}</text>
+<text x="908.8" y="52.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${SUITABILITY_COD}</text>
+<text x="966.4" y="52.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${REVISION_NR}</text>
+<text x="1211.2" y="54.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${DISCIPLINE}</text>
+<text x="22.4" y="115.2" font-size="13.0" fill="#7a3fb0" font-weight="bold" text-anchor="start">${PROJECT_NAME}</text>
+<text x="22.4" y="142.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">PROJECT No.  ${PROJECT_NUMBER}</text>
+<text x="304.0" y="142.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${PROJECT_ADDRESS}</text>
+<text x="608.0" y="142.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">CLIENT:  ${CLIENT_NAME}</text>
+<text x="102.4" y="227.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${SUITABILITY_COD}</text>
+<text x="259.2" y="227.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${DELIVERABLE_STATUS}</text>
+<text x="408.0" y="227.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${REVISION_NR}</text>
+<text x="124.8" y="252.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${ISSUE_PURPOSE}</text>
+<text x="124.8" y="270.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${SECURITY_CLASS}</text>
+<text x="307.2" y="270.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${LOIN_LOD}</text>
+<text x="124.8" y="300.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${DRAWN_BY}</text>
+<text x="336.0" y="300.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${CHECKED_BY}</text>
+<text x="124.8" y="318.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${APVD_BY}</text>
+<text x="336.0" y="318.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${AUTHORISED_BY}</text>
+<text x="124.8" y="336.0" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${DATE_DRAWN}</text>
+<text x="28.8" y="361.6" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">Suitability:  ${SUITABILITY_DESC}</text>
+<text x="633.6" y="208.0" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${DELIVERABLE_CDE}</text>
+<text x="832.0" y="208.0" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${FEDERATION_STATUS}</text>
+<text x="633.6" y="225.6" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${COORD_SYSTEM}</text>
+<text x="633.6" y="243.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${PROJECT_NORTH}</text>
+<text x="844.8" y="243.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${GROUND_LEVEL}</text>
+<text x="633.6" y="260.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${REGION}</text>
+<text x="819.2" y="260.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${CLASS}</text>
+<text x="28.8" y="494.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${REVISION_NR}</text>
+<text x="80.0" y="494.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${REVISION_DESCRIPTION}</text>
+<text x="368.0" y="494.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${SUITABILITY_COD}</text>
+<text x="432.0" y="494.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${REVISION_DATE}</text>
+<text x="528.0" y="494.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${CHECKED_BY}</text>
+<text x="598.4" y="476.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${ISSUE_SUMMARY}</text>
+<text x="94.4" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${APPOINTING_PARTY}</text>
+<text x="243.2" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${LEAD_APPOINTED_PARTY}</text>
+<text x="392.0" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${STRUCTURAL_CONSULTANTS_NAME}</text>
+<text x="540.8" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${MEP_CONSULTANTS_NAME}</text>
+<text x="689.6" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${CONTRACTOR_NAME}</text>
+<text x="838.4" y="806.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="middle">${ORIGINATOR_CODE}</text>
+<text x="22.4" y="886.4" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">© ${COPYRIGHT}</text>
+<text x="22.4" y="908.8" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start">${DO_NOT_SCALE}</text>
+<text x="1120.0" y="899.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="end">${SHEET_NR}</text>
+<text x="1129.6" y="899.2" font-size="5" fill="#7a3fb0" font-weight="bold" text-anchor="start"> / ${TOTAL_NO_SHEETS}</text>
+</svg>

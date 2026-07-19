@@ -229,6 +229,7 @@ namespace StingTools.Core.Drawing
             "Spool",
             "Coordination",
             "Legend",
+            "Notes",
             "ThreeD",
             "Cover",
             "Startup",

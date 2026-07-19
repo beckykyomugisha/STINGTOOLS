@@ -63,6 +63,9 @@ namespace StingTools.UI.Plumbing
                         Run<StingTools.Commands.Plumbing.StackCapacityCommand>(app); break;
                     case "Plumbing_MaterialAudit":
                         Run<StingTools.Commands.Plumbing.MaterialAuditCommand>(app); break;
+                    // W2 — plumbing drawing symbols legend.
+                    case "Plumb_DrawingLegend":
+                        Run<StingTools.Commands.Reports.PlumbingDrawingLegendCommand>(app); break;
 
                     // ── Phase 179a — SYSTEM ──
                     case "Plumb_SaveSystemConfig":

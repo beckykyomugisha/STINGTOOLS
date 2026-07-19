@@ -845,7 +845,7 @@ namespace StingTools.Core.Drawing
             // Two-family architecture (Phase 170 revision): no BIM_MODE_BOOL
             // is minted by the factory itself. Each spec carries its own
             // declared parameter list (typically including a shared
-            // STING_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
+            // PRJ_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
             // each sheet records the variant in use). Specs that need
             // family-internal calculated parameters declare them via the
             // standard ParamSpec.Kind = "internal" + Formula path.
@@ -867,7 +867,7 @@ namespace StingTools.Core.Drawing
                     fp = AddSharedParameter(fm, defFile, p.Name, p.Group,
                         p.Instance, r);
                     // For shared params, write the spec-supplied default
-                    // value if any (e.g. STING_SHEET_BIM_MODE_TXT default
+                    // value if any (e.g. PRJ_SHEET_BIM_MODE_TXT default
                     // "BIM" / "NONBIM" — the marker every sheet inherits
                     // from the loaded title-block family).
                     if (fp != null && !string.IsNullOrEmpty(p.Default))
@@ -1120,6 +1120,15 @@ namespace StingTools.Core.Drawing
         {
             if (spec?.Anchor == null || spec.Anchor.Length < 2
                 || string.IsNullOrEmpty(spec.Param)) return;
+            // W5 — built-in labels (e.g. the built-in "Sheet Name" for the
+            // DRAWING TITLE cell) are authored in the seed .rfa; Revit 2025 has
+            // no label-authoring API, so record the intent and skip without a
+            // warning rather than trying (and failing) to bind a shared param.
+            if (spec.Builtin)
+            {
+                StingLog.Info($"PlaceLabel: built-in '{spec.Param}' — authored in seed .rfa, factory skips authoring.");
+                return;
+            }
             if (!map.TryGetValue(spec.Param, out var fp))
             { r.Warnings.Add($"PlaceLabel: param '{spec.Param}' not added — skipped"); return; }
             try

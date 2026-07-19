@@ -37,7 +37,9 @@ namespace StingTools.Core
                 {
                     Width = size,
                     Height = size,
-                    Margin = 1,
+                    // 4-module quiet zone per ISO/IEC 18004 (was 1 — too thin for
+                    // reliable scanning off a printed sheet).
+                    Margin = 4,
                     ErrorCorrection = ZXing.QrCode.Internal.ErrorCorrectionLevel.M
                 }
             };

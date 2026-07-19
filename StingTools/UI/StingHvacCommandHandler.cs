@@ -129,6 +129,9 @@ namespace StingTools.UI
                         Run<StingTools.Temp.MEPSpaceAnalysisCommand>(app); break;
                     case "Hvac_SizingCheck":
                         Run<StingTools.Temp.MEPSizingCheckCommand>(app); break;
+                    // W2 — mechanical drawing symbols legend.
+                    case "Hvac_DrawingLegend":
+                        Run<StingTools.Commands.Reports.MechanicalDrawingLegendCommand>(app); break;
 
                     // ── SYS tab ────────────────────────────────────────────
                     case "Hvac_SystemAudit":

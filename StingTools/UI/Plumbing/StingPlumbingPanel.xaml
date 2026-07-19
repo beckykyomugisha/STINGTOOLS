@@ -852,6 +852,9 @@
                             <Button Content="TMV Register" Style="{StaticResource PlumbActionBtn}"
                                     Tag="Plumb_TMVRegister" Click="Cmd_Click" HorizontalAlignment="Stretch"
                                     ToolTip="Cross-listed with the SUPPLY tab."/>
+                            <Button Content="Symbols Legend" Style="{StaticResource PlumbActionBtn}"
+                                    Tag="Plumb_DrawingLegend" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                    ToolTip="Auto-build a Plumbing symbols legend (per BS EN 12056 / BS 1553)."/>
                         </StackPanel>
 
                         <Expander Header="MANHOLE / ACCESS CHAMBER GRID" Style="{StaticResource PlumbExpander}">

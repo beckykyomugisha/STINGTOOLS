@@ -40,6 +40,152 @@ behaviour is reasoned + statically proven, not Revit-confirmed.
 
 Cross-check gate re-run: 18 in-scope AutoTag types, **0** key/family failures. Owner-run in-Revit gate
 for #1: set a SegmentMask, Produce → `ASS_DISPLAY_TXT` shortens; display-mode + TAG7 sections materialise.
+#### Completed (Title-block param propagation + gap fixes, branch `claude/tb-w1w5-impl`)
+
+Cross-file consistency pass for the W1–W5 title-block shared params. Release build
+**0/0** (`-t:Rebuild`, Revit 2025). **Not merged.** No live Revit run yet — see
+[`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md) "Param propagation pass (2026-07-13)".
+
+**Binding-model decision.** All in-scope title-block params are **family-carried
+instance parameters** (added to the title-block `.rfa` in the Family Editor; written
+per-sheet by `TitleBlockParamApplier` for `PRJ_ORG_*`/`PRJ_DWG_*` ${ProjectInfo} refs,
+by the graphics placers for the `PRJ_TB_SHOW_*` toggles, and by the sheet-ID commands
+for `PRJ_SHEET_*`). They therefore need consistent **definition** (MR/registry/TB
+subset) + **seed defaults** (TITLE_BLOCK.csv), but **not** a project-level "Title
+Blocks" `CATEGORY_BINDINGS.csv` row. `CATEGORY_BINDINGS.csv` left unchanged — the 2
+existing "Title Blocks" rows are the consultant-address params that sheet schedules /
+QA read at project scope, a different use case.
+
+- **Definition consistency.** Added the 7 lagging rows to `MR_PARAMETERS.csv`
+  (`PRJ_TB_COPYRIGHT_TXT`, `PRJ_TB_DO_NOT_SCALE_TXT`, `PRJ_ORG_CONTACT_PHONE/EMAIL/
+  WEBSITE_TXT`, `PRJ_ORG_REG_NO_TXT`, `PRJ_SHEET_SYSTEM_TXT`) with GUIDs matching
+  `MR_PARAMETERS.txt`. Added the 7 `PRJ_TB_SHOW_*_BOOL` toggles to
+  `STING_TITLE_BLOCK_PARAMETERS.txt` under new local **GROUP 7 `07_Visibility_Toggles`**
+  (they are YESNO instance params bound to the family so the placers can read them via
+  `LookupParameter`); header note rewritten (was "excluded by design").
+- **Seed defaults.** Added the 3 missing toggles + new text params to `TITLE_BLOCK.csv`.
+- **Gap fixes.** `STING_DRAWING_TYPES.json`: 645 `${PRJ_ORG_*}` refs were missing the
+  `_TXT` suffix (Project Code / Originator / Company / Client / Appointing / Lead
+  Appointed Party) and resolved to blank on every sheet — fixed to canonical `_TXT`
+  names. Stale "builds 3 families / STING_TB_ScaleBar" header comment in
+  `TitleBlockGraphicsFamilyBuilder.cs` corrected (scale bar is now drawn in-view; only
+  2 families build). Verified `STING_TITLE_BLOCKS.json` (78 param refs) all defined;
+  the `PRJ_DWG_ISSUE_PURPOSE_TXT` group "drift" (local 4 vs master 13) is intentional
+  and already documented; alias map covers every friendly key ("Sheet Number"/"Sheet
+  Title" resolve as literal Revit built-ins, no alias needed).
+
+#### Completed (Title-block slot graphics — three-reviewer fixes G1–G3, branch `claude/tb-w1w5-impl`)
+
+Twelve review findings over the Work Items A–E work below. Release build **0/0**
+(`-t:Rebuild`, Revit 2025) after each group. **Not merged.** Items marked ⚠ still need a
+live Revit run to verify at runtime (see [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md)).
+
+- **G1 (data/contract).** `TitleBlockParamApplier.Apply` now resolves each `titleBlockParams`
+  key against a friendly-alias→canonical-param map first, then the literal key — so seeded
+  friendly keys ("Suitability", "Client Name", … audited across all 93 drawing types) reach
+  their bound shared params; the two emptiness validators read the suitability code from the
+  title-block instance (where it is stamped). Added `PRJ_SHEET_SYSTEM_TXT` to
+  `PARAMETER_REGISTRY.json`; wired a `PRJ_DWG_SUITABILITY_DESC_TXT` setter from the ISO 19650
+  code→desc map; de-conflated `PRJ_DWG_ISSUE_PURPOSE_TXT`'s group + documented the local vs
+  master group schemes and the GROUP-26 programmatic toggles.
+- **G2 (placement).** ⚠ Legend duplicate-leak fixed — the finder matches the engine's real
+  view name (`STING Legend - {Title}`, Legend **or** Drafting) so the view is reused and its
+  viewport moved, not recreated. `Document.EditFamily` (ref-plane slot override) is now guarded
+  by `!doc.IsModifiable` and slot bounds are pre-resolved outside the transaction via
+  `WarmSlotBounds` (family-scoped cache). Key-plan toggle-off deletes the orphaned per-sheet
+  drafting view. Unified the slot-absent policy — QR now SKIPS (was: bottom-right fallback),
+  matching the four placers.
+- **G3 (families / view-aware).** ⚠ North arrow is placed IN the primary plan view (inherits
+  the view's north), falling back to a sheet symbol at the slot only when there is no plan
+  viewport, logging the path. ⚠ Scale bar is now a true graphic scale drawn as auto-scaling
+  in-view detail lines (fixed real length ⇒ paper length = length ÷ viewScale, so 1:50 and
+  1:100 differ), idempotent via a dedicated `STING_ScaleBar` line subcategory — it is no longer
+  a family. ⚠ The family builder counts authored curves and reports FAILURE (not `[OK]`) when a
+  family ends up with zero geometry, and uses `NewSymbolicCurve` (→ `NewDetailCurve` fallback).
+  Added a `%TEMP%` search root and removed the dead north-arrow "Rotation Angle" param.
+
+#### Completed (Title-block param normalization + slot graphics — Work Items A–E, branch `claude/tb-w1w5-impl`)
+
+Follow-on to the W1–W5 title-block work below. Release build **0 errors / 0 warnings**
+(`-t:Rebuild`, Revit 2025) after every work-item. **Not merged to main**; **no `.rfa` touched**
+(Revit 2025 has no label-authoring API — cell rebinds captured in [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md)).
+
+- **A — Parameter naming normalization (GUID-preserved).** Renamed the title-block shared params to a
+  consistent `PRJ_*` scheme: `STING_SHEET_*` → `PRJ_SHEET_*` (10 TXT + `SEQUENCE_INT`),
+  `STING_SUITABILITY_DESC` → `PRJ_DWG_SUITABILITY_DESC_TXT`, `STING_LOIN_LOD` → `PRJ_DWG_LOIN_LOD_TXT`,
+  `STING_FEDERATION_STATUS` → `PRJ_TB_FEDERATION_STATUS_TXT`, `STING_AUTHORISED_BY/DATE` →
+  `PRJ_TB_AUTHORISED_*`, `TB_COPYRIGHT`/`TB_DO_NOT_SCALE` → `PRJ_TB_*`. Consolidated 7 duplicate
+  visibility toggles to one canonical `PRJ_TB_SHOW_*` each (dropped the legacy GROUP-13 GUIDs, kept the
+  GROUP-26 GUIDs). Swept every reference across `MR_PARAMETERS.txt/.csv`, `PARAMETER_REGISTRY.json`,
+  the binding CSVs, `STING_TITLE_BLOCK_PARAMETERS.txt`, `STING_TITLE_BLOCKS.json`,
+  `STING_DRAWING_TYPES.json`, `ParamRegistry.cs`, all title-block `.cs`, and `StingDockPanel.xaml`;
+  zero `STING_`-prefixed param refs remain in source.
+- **B — Suitability/purpose row fix.** Default compliance row de-duplicated to
+  **SECURITY | CDE REF | LOD | SYSTEM**: removed the 2 `PRJ_DWG_ISSUE_PURPOSE_TXT` label cells from the
+  seed (param stays defined, just unused in the default row), normalized the LOD caption, and added
+  `PRJ_DWG_LOIN_LOD_TXT` to all 93 drawing types' `titleBlockParams`. Suitability chip already binds the
+  CODE param with a separate description param.
+- **C — Slot-driven graphics placement.** Generalised the W4 QR pattern into four toggle-gated,
+  idempotent, remove-when-off placers — `TitleBlock_PlaceNorthArrow` / `PlaceScaleBar` / `PlaceKeyPlan`
+  / `PlaceLegend` — landing on the reserved `north-arrow` / `scale-bar` / `key-plan` /
+  `discipline-legend` slots. North arrow rotates to project north; scale bar keys to the primary plan
+  viewport's scale; key plan is a per-sheet drafting view; legend reuses `DisciplineLegendEngine`
+  (closes the W1 legend gap). New shared helpers in `TitleBlockSlotUtils`.
+- **D — Annotation family builder.** `TitleBlock_BuildGraphicsFamilies` authors the 3 minimal
+  Generic-Annotation families (`STING_TB_NorthArrow` / `ScaleBar` / `KeyPlanBase`) via
+  `Application.NewFamilyDocument` + `FamilyManager`, into `Families/Annotations/` where
+  `TitleBlockGraphicsRegistry` loads them. `.rfa` are generated on first run (binary format, not
+  committed); placers skip cleanly until they exist. `Families/Annotations/README.md` documents it.
+- **E — Orchestrator + producer wiring.** `TitleBlock_StampSheetGraphics` (active) /
+  `TitleBlock_StampSheetGraphicsAll` run QR + north + scale + key-plan + legend in one TransactionGroup,
+  each toggle-gated, collecting per-graphic failures without aborting. `DrawingProducer` gained an
+  optional `ProduceOptions.StampTitleBlockGraphics` flag (default off) that runs the same orchestrator
+  after the title block is stamped, folding graphics issues into producer warnings. All new commands
+  registered in `StingCommandHandler` + the DOCS panel.
+
+#### Completed (Title-block / Legends / Notes / QR — branch `claude/tb-w1w5-impl`)
+
+Five title-block-and-documentation workstreams. Base `claude/gold-all-integration` (`3821c2ab4`).
+Release build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025). **Not merged to main**;
+**not Revit-verified** (owner runs the in-Revit acceptance sweep). Cell-authoring work that the
+Revit 2025 API cannot do (label creation was removed) is captured in [`../SEED_FOLLOWUP.md`](../SEED_FOLLOWUP.md).
+
+- **W1 — Legend/Notes wired into drawing production.** `DrawingProducer` had no `Legend` case
+  (`Legend` rules hit the `default` → null + "Unknown rule.ViewType 'Legend'" warning) and no `Notes`
+  purpose at all. Added `DrawingPurpose.Notes` + the `Notes` vocabulary entry; `SynthesizeSingleRule`
+  now maps Legend→`Legend` and Notes→`Notes` (previously both silently synthesized a FloorPlan). New
+  `ProduceLegendOrNotesView` short-circuits before `ResolveViewFamilyType` (legends/notes have no
+  ViewFamilyType): Legend → `DisciplineLegendEngine` (native legend / drafting fallback), Notes →
+  `DisciplineNotesRegistry` drafting view. `DrawingTypeValidator` DT-095 now exempts Legend/Notes from
+  the positive-scale rule. New shared engine `Core/Drawing/DisciplineLegendEngine.cs`.
+- **W2 — Discipline symbol legends for M / P / S.** `MechanicalDrawingLegendCommand` /
+  `PlumbingDrawingLegendCommand` / `StructuralDrawingLegendCommand` (`Commands/Reports/`) mirror the
+  electrical legend via the shared `DisciplineLegendEngine` (walk placed components → dedupe → resolve
+  STING concept → LegendBuilder). Registered `Hvac_DrawingLegend` (HVAC panel + handler),
+  `Plumb_DrawingLegend` (Plumbing panel + handler), `Str_DrawingLegend` (main handler + DOCS button).
+  Architectural omitted — no dedicated architectural symbol catalogue (noted in SEED_FOLLOWUP).
+- **W3 — General/discipline notes automation.** New `Data/STING_DISCIPLINE_NOTES.json` (General +
+  M/E/P/A/S), `Core/Drawing/DisciplineNotesRegistry.cs` (baseline + `_BIM_COORD/discipline_notes.json`
+  override, per-doc cache, TextNote renderer), and `NotesBlockCommand` (`Notes_PlaceBlock`) placing a
+  numbered notes block on the active sheet's `notes` slot; discipline inferred from the sheet's
+  drawing-type stamp. JSON edits change output without a rebuild.
+- **W4 — QR stamp on the sheet.** `TitleBlock_StampQR` / `TitleBlock_StampQRAll`
+  (`Commands/Drawing/TitleBlockStampQRCommand.cs`) place a QR **raster on the sheet** (`ImageType`/
+  `ImageInstance` — first use in the repo), sidestepping the label-API limit. Payload
+  `<app.planscape.build>/sheet/{STING_SHEET_FULL_REF_TXT}` (base URL configurable via the Planscape
+  client settings; `sting://` divergence flagged as an app follow-up). Gated by `TB_SHOW_QR_CODE_BOOL`,
+  idempotent (removes prior STING QR before re-placing). Added a `qr-code` slot to the 6 symbol-bearing
+  title-block families in `STING_TITLE_BLOCKS.json`; `TB_SHOW_QR_CODE_BOOL` already existed in
+  `MR_PARAMETERS.txt` (added a `ParamRegistry` constant + bool-coercion entry).
+- **W5 — Missing title-block info (data = code, cells = Revit follow-up).**
+  (a) Repointed the 7 DRAWING-TITLE labels in `STING_TITLE_BLOCKS.json` from the wrong
+  `PRJ_ORG_PROJECT_NAME_TXT` to the built-in **Sheet Name** via a new `LabelSpec.builtin` flag
+  (`TitleBlockFactory.PlaceLabel` records + skips authoring cleanly). (b) Added 6 shared params
+  (`TB_COPYRIGHT_TXT`, `TB_DO_NOT_SCALE_TXT`, `PRJ_ORG_CONTACT_PHONE/EMAIL/WEBSITE_TXT`,
+  `PRJ_ORG_REG_NO_TXT`; deterministic UUIDv5) to `MR_PARAMETERS.txt` + `PARAMETER_REGISTRY.json` +
+  `ParamRegistry`. (c) Wired them into all 93 drawing types' `titleBlockParams` for auto-stamp. (d)
+  `SEED_FOLLOWUP.md` is the human/Revit cell-authoring worklist. `PRJ_SHEET_SYSTEM_TXT` left as-is
+  (out of scope).
 
 #### Completed (Phase 198 — MEP drawing-type print-readiness, branch `claude/mep-print-ready`)
 

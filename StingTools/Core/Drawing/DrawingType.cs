@@ -91,6 +91,7 @@ namespace StingTools.Core.Drawing
         public const string Spool        = "Spool";
         public const string Coordination = "Coordination";
         public const string Legend       = "Legend";
+        public const string Notes        = "Notes";
         public const string ThreeD       = "3D";
     }
 

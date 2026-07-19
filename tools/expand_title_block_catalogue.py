@@ -230,19 +230,19 @@ def make_concrete(size: str, orientation: str, mode: str, common_id: str) -> dic
         bim_strip_y1 = sh + 30
 
         params = [
-            {"name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
-            {"name": "STING_SHEET_PROJECT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG"},
-            {"name": "STING_SHEET_ORIG_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "PLNS"},
-            {"name": "STING_SHEET_VOLUME_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "ZZ"},
-            {"name": "STING_SHEET_LEVEL_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "01"},
-            {"name": "STING_SHEET_TYPE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "DR"},
-            {"name": "STING_SHEET_ROLE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "A"},
-            {"name": "STING_SHEET_SEQ_TXT",      "kind": "shared", "instance": True, "group": "IdentityData", "default": "0001"},
-            {"name": "STING_SHEET_FULL_REF_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001"},
-            {"name": "STING_SHEET_OF_TOTAL_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "01 / 01"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "BIM"},
+            {"name": "PRJ_SHEET_PROJECT_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG"},
+            {"name": "PRJ_SHEET_ORIG_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "PLNS"},
+            {"name": "PRJ_SHEET_VOLUME_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "ZZ"},
+            {"name": "PRJ_SHEET_LEVEL_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "01"},
+            {"name": "PRJ_SHEET_TYPE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "DR"},
+            {"name": "PRJ_SHEET_ROLE_TXT",     "kind": "shared", "instance": True, "group": "IdentityData", "default": "A"},
+            {"name": "PRJ_SHEET_SEQ_TXT",      "kind": "shared", "instance": True, "group": "IdentityData", "default": "0001"},
+            {"name": "PRJ_SHEET_FULL_REF_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "STG-PLNS-ZZ-01-DR-A-0001"},
+            {"name": "PRJ_SHEET_OF_TOTAL_TXT", "kind": "shared", "instance": True, "group": "IdentityData", "default": "01 / 01"},
 
             {"name": "PRJ_DWG_SUITABILITY_COD_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "S2"},
-            {"name": "STING_SUITABILITY_DESC_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared, Non-contractual"},
+            {"name": "PRJ_DWG_SUITABILITY_DESC_TXT",   "kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared, Non-contractual"},
             {"name": "PRJ_DWG_ISSUE_PURPOSE_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "FOR INFORMATION"},
             {"name": "PRJ_TB_DELIVERABLE_STATUS_TXT","kind": "shared", "instance": True, "group": "IdentityData", "default": "Shared"},
             {"name": "PRJ_TB_REVISION_NR_TXT",       "kind": "shared", "instance": True, "group": "IdentityData", "default": "P01"},
@@ -250,10 +250,10 @@ def make_concrete(size: str, orientation: str, mode: str, common_id: str) -> dic
             {"name": "PRJ_TB_REVISION_DESCRIPTION_TXT","kind": "shared", "instance": True, "group": "IdentityData"},
             {"name": "PRJ_TB_LAST_TRANSMITTAL_TXT",  "kind": "shared", "instance": True, "group": "IdentityData"},
             {"name": "PRJ_TB_DELIVERABLE_CDE_TXT",   "kind": "shared", "instance": True, "group": "IdentityData"},
-            {"name": "STING_FEDERATION_STATUS_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "Federated"},
-            {"name": "STING_LOIN_LOD_TXT",           "kind": "shared", "instance": True, "group": "IdentityData", "default": "LOD 300"},
-            {"name": "STING_AUTHORISED_BY_TXT",      "kind": "shared", "instance": True, "group": "IdentityData"},
-            {"name": "STING_AUTHORISED_DATE_TXT",    "kind": "shared", "instance": True, "group": "IdentityData"},
+            {"name": "PRJ_TB_FEDERATION_STATUS_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "Federated"},
+            {"name": "PRJ_DWG_LOIN_LOD_TXT",           "kind": "shared", "instance": True, "group": "IdentityData", "default": "LOD 300"},
+            {"name": "PRJ_TB_AUTHORISED_BY_TXT",      "kind": "shared", "instance": True, "group": "IdentityData"},
+            {"name": "PRJ_TB_AUTHORISED_DATE_TXT",    "kind": "shared", "instance": True, "group": "IdentityData"},
         ]
         lines = [
             {"from": [0,            bim_strip_y1], "to": [paper_w, bim_strip_y1], "style": "Medium Lines"},
@@ -280,16 +280,16 @@ def make_concrete(size: str, orientation: str, mode: str, common_id: str) -> dic
             {"param": "PRJ_DWG_SUITABILITY_COD_TXT",   "anchor": [paper_w*0.25,     bim_strip_y1-15], "size": 1.6},
             {"param": "PRJ_TB_REVISION_NR_TXT",        "anchor": [paper_w*0.5,      bim_strip_y1-15], "size": 1.6},
             {"param": "PRJ_TB_REVISION_DATE_TXT",      "anchor": [paper_w*0.65,     bim_strip_y1-15], "size": 1.4},
-            {"param": "STING_LOIN_LOD_TXT",            "anchor": [paper_w*0.78,     bim_strip_y1-15], "size": 1.2},
-            {"param": "STING_FEDERATION_STATUS_TXT",   "anchor": [paper_w*0.92,     bim_strip_y1-15], "size": 1.2},
+            {"param": "PRJ_DWG_LOIN_LOD_TXT",            "anchor": [paper_w*0.78,     bim_strip_y1-15], "size": 1.2},
+            {"param": "PRJ_TB_FEDERATION_STATUS_TXT",   "anchor": [paper_w*0.92,     bim_strip_y1-15], "size": 1.2},
             # 7-segment cells
-            {"param": "STING_SHEET_PROJECT_TXT",       "anchor": [seg_w*0+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_ORIG_TXT",          "anchor": [seg_w*1+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_VOLUME_TXT",        "anchor": [seg_w*2+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_LEVEL_TXT",         "anchor": [seg_w*3+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_TYPE_TXT",          "anchor": [seg_w*4+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_ROLE_TXT",          "anchor": [seg_w*5+4, bim_strip_y0+5], "size": 1.4},
-            {"param": "STING_SHEET_SEQ_TXT",           "anchor": [seg_w*6+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_PROJECT_TXT",       "anchor": [seg_w*0+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_ORIG_TXT",          "anchor": [seg_w*1+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_VOLUME_TXT",        "anchor": [seg_w*2+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_LEVEL_TXT",         "anchor": [seg_w*3+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_TYPE_TXT",          "anchor": [seg_w*4+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_ROLE_TXT",          "anchor": [seg_w*5+4, bim_strip_y0+5], "size": 1.4},
+            {"param": "PRJ_SHEET_SEQ_TXT",           "anchor": [seg_w*6+4, bim_strip_y0+5], "size": 1.4},
         ]
         filled_regions = [
             # Suitability chip
@@ -302,7 +302,7 @@ def make_concrete(size: str, orientation: str, mode: str, common_id: str) -> dic
     else:
         # NONBIM: just sheet number cell + revision in the rightmost column.
         params = [
-            {"name": "STING_SHEET_BIM_MODE_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
+            {"name": "PRJ_SHEET_BIM_MODE_TXT",  "kind": "shared", "instance": True, "group": "IdentityData", "default": "NONBIM"},
             {"name": "PRJ_TB_SHEET_NR_TXT",       "kind": "shared", "instance": True, "group": "IdentityData", "default": "A-001"},
             {"name": "PRJ_TB_REVISION_NR_TXT",    "kind": "shared", "instance": True, "group": "IdentityData", "default": "0"},
             {"name": "PRJ_TB_REVISION_DATE_TXT",  "kind": "shared", "instance": True, "group": "IdentityData"},

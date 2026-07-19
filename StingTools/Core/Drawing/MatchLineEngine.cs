@@ -9,7 +9,7 @@ using StingTools.Core;
 //      drawn along the shared face. Line style: 'STING - Match Line'
 //      (falls back to 'Medium Lines' when missing).
 //   2. STING_MATCH_REF_TXT on each curve = the paired sheet's
-//      STING_SHEET_FULL_REF (or sheet number when the full ref param
+//      PRJ_SHEET_FULL_REF_TXT (or sheet number when the full ref param
 //      isn't bound) — re-resolves on sheet renumber.
 //   3. STING_MATCH_LINE_GUID_TXT — stable pair identifier so re-runs
 //      find the existing pair and update in place rather than
@@ -359,7 +359,7 @@ namespace StingTools.Core.Drawing
             return idx;
         }
 
-        /// <summary>Reads STING_SHEET_FULL_REF on the sheet hosting
+        /// <summary>Reads PRJ_SHEET_FULL_REF_TXT on the sheet hosting
         /// the view; falls back to Sheet Number when the param isn't
         /// bound. Returns "" when the view isn't placed on a sheet.</summary>
         private static string ResolveSheetRef(Document doc, View view)
@@ -371,7 +371,7 @@ namespace StingTools.Core.Drawing
                     if (!(vp is Viewport viewport)) continue;
                     if (viewport.ViewId != view.Id) continue;
                     if (!(doc.GetElement(viewport.SheetId) is ViewSheet sheet)) continue;
-                    var pFull = sheet.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (pFull != null && pFull.HasValue)
                     {
                         var v = pFull.AsString();
@@ -777,7 +777,7 @@ namespace StingTools.Core.Drawing
                 foreach (var sh in new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue) sheetRefs.Add(p.AsString() ?? "");
                     sheetRefs.Add(sh.SheetNumber ?? "");
                 }
@@ -850,12 +850,12 @@ namespace StingTools.Core.Drawing
             try
             {
                 // Build set of refs the bundle PROVIDES (every sheet's
-                // STING_SHEET_FULL_REF + Sheet Number).
+                // PRJ_SHEET_FULL_REF_TXT + Sheet Number).
                 var bundleRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var id in bundle)
                 {
                     if (!(doc.GetElement(id) is ViewSheet sh)) continue;
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue)
                         bundleRefs.Add(p.AsString() ?? "");
                     bundleRefs.Add(sh.SheetNumber ?? "");

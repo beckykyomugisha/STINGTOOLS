@@ -22,7 +22,7 @@
 //
 //   Phase D — PDF export
 //     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
-//     by STING_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
+//     by PRJ_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
 //     project output folder (OutputLocationHelper).
 //
 //   Phase E — Sheet register CSV

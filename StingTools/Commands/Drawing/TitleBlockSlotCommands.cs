@@ -11,7 +11,7 @@
 //     at the slot's centre. Applies the slot's scaleHint + viewportType
 //     when set. Reports per-view what slot it landed in.
 //
-//   TitleBlock_ToggleBIMMode — read STING_SHEET_BIM_MODE_TXT on the
+//   TitleBlock_ToggleBIMMode — read PRJ_SHEET_BIM_MODE_TXT on the
 //     active sheet, swap the title-block family between *_BIM_* and
 //     *_NONBIM_* variants, transfer existing viewports onto the new
 //     family (positions transfer 1:1 since slot ids are stable across
@@ -270,7 +270,7 @@ namespace StingTools.Commands.Drawing
             }
             var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
             var currentName = sym?.Family?.Name ?? "";
-            var bimModeParam = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+            var bimModeParam = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
             var currentMode  = bimModeParam?.AsString();
             if (string.IsNullOrEmpty(currentMode)) currentMode = GuessModeFromName(currentName);
             string targetMode = string.Equals(currentMode, "BIM", StringComparison.OrdinalIgnoreCase)
@@ -322,7 +322,7 @@ namespace StingTools.Commands.Drawing
                 if (fi != null) fi.Symbol = targetSym;
 
                 // Update the BIM mode marker on the new instance.
-                var newBim = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+                var newBim = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                 if (newBim != null && !newBim.IsReadOnly)
                 {
                     try { newBim.Set(targetMode); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -536,10 +536,47 @@ namespace StingTools.Commands.Drawing
         ///      or migrated layouts may still have them.
         ///
         /// JSON is the authoritative source.</summary>
+        // G2-b: slot bounds are family-scoped (identical for every instance of a
+        // title-block family), and the ref-plane override step calls
+        // Document.EditFamily which THROWS if a transaction is open. Placement
+        // commands therefore WarmSlotBounds() outside their transaction; this
+        // cache serves those pre-resolved bounds to callers running inside the tx.
+        private static readonly Dictionary<string, Dictionary<string, SlotBounds>> _slotBoundsCache =
+            new Dictionary<string, Dictionary<string, SlotBounds>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Pre-resolve slot bounds for every distinct title-block family
+        /// on the given sheets, OUTSIDE any transaction, so the ref-plane override
+        /// (Document.EditFamily) runs safely and later in-transaction reads hit the
+        /// cache. Call this before opening the placement transaction.</summary>
+        public static void WarmSlotBounds(Document doc, IEnumerable<ViewSheet> sheets)
+        {
+            if (doc == null || sheets == null) return;
+            _slotBoundsCache.Clear();
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    var tb = FindTitleBlockOnSheet(doc, sheet);
+                    if (tb == null) continue;
+                    var fam = GetFamilyName(doc, tb);
+                    if (_slotBoundsCache.ContainsKey(fam)) continue;
+                    ReadSlotBoundsFromTitleBlock(doc, tb);   // populates the cache
+                }
+                catch (Exception ex) { StingLog.Warn($"WarmSlotBounds: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>Drop the warmed slot-bounds cache (call after a placement run
+        /// so a later edit to a family is picked up).</summary>
+        public static void ClearSlotBoundsCache() => _slotBoundsCache.Clear();
+
         public static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlock(Document doc, Element titleBlock)
         {
-            var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
             var familyName = GetFamilyName(doc, titleBlock);
+            // Serve pre-warmed bounds when available (resolved outside any tx).
+            if (_slotBoundsCache.TryGetValue(familyName, out var cachedBounds)) return cachedBounds;
+
+            var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
 
             // 1. Primary source — STING_TITLE_BLOCKS.json (extends-resolved).
             try
@@ -588,15 +625,19 @@ namespace StingTools.Commands.Drawing
             }
 
             // 2. Optional override — if the family has named reference planes,
-            // they take precedence (the operator may have manually nudged
-            // slots in Family Editor and we want to honour that).
+            // they take precedence (the operator may have manually nudged slots
+            // in Family Editor). Document.EditFamily is ILLEGAL inside an open
+            // transaction, so this step only runs when the document is not
+            // modifiable (no tx). Placement commands reach this path via
+            // WarmSlotBounds() BEFORE they open their transaction; the warmed
+            // result is then served from cache during placement.
+            if (!doc.IsModifiable)
             try
             {
                 var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
                 var family = sym?.Family;
-                if (family == null) return result;
-                var famDoc = doc.EditFamily(family);
-                if (famDoc == null) return result;
+                var famDoc = family != null ? doc.EditFamily(family) : null;
+                if (famDoc != null)
                 try
                 {
                     var byId = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
@@ -648,6 +689,9 @@ namespace StingTools.Commands.Drawing
             {
                 StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
+            // Cache family-scoped bounds so a subsequent in-transaction read
+            // (which cannot run EditFamily) returns the fully-resolved set.
+            if (!string.IsNullOrEmpty(familyName)) _slotBoundsCache[familyName] = result;
             return result;
         }
 
@@ -687,5 +731,188 @@ namespace StingTools.Commands.Drawing
 
         private const double MmPerFoot = 304.8;
         private static double MmToFt(double mm) => mm / MmPerFoot;
+
+        // ---------------------------------------------------------------
+        // W-C shared helpers — slot-driven graphics placement.
+        //   Used by the QR stamper and the north-arrow / scale-bar /
+        //   key-plan / legend placement commands + the StampSheetGraphics
+        //   orchestrator. All are toggle-aware + idempotent.
+        // ---------------------------------------------------------------
+
+        /// <summary>True when a <c>PRJ_TB_SHOW_*_BOOL</c> integer toggle on the
+        /// title-block instance is present and explicitly set to 0. A missing
+        /// toggle is treated as "on" (visible) so legacy blocks still stamp.</summary>
+        public static bool IsShowToggleOff(Element titleBlock, string toggleParamName)
+        {
+            if (titleBlock == null || string.IsNullOrEmpty(toggleParamName)) return false;
+            try
+            {
+                var p = titleBlock.LookupParameter(toggleParamName);
+                return p != null && p.StorageType == StorageType.Integer && p.AsInteger() == 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsShowToggleOff: {ex.Message}"); return false; }
+        }
+
+        /// <summary>Resolve a slot's centre + size (feet, sheet coords) by
+        /// purpose tag. Returns false when the title block has no matching
+        /// slot.</summary>
+        public static bool TryResolveSlotCentre(Document doc, Element titleBlock, string purposeTag,
+            out XYZ centre, out double widthFt, out double heightFt)
+        {
+            centre = XYZ.Zero; widthFt = 0; heightFt = 0;
+            if (titleBlock == null) return false;
+            try
+            {
+                var slotMap = ReadSlotBoundsFromTitleBlock(doc, titleBlock);
+                var slotId  = ResolveSlotIdForTag(slotMap, purposeTag, null);
+                if (slotId == null || !slotMap.TryGetValue(slotId, out var b) || b.Bbox == null) return false;
+                var min = b.Min; var max = b.Max;
+                centre   = new XYZ((min.X + max.X) / 2.0, (min.Y + max.Y) / 2.0, 0);
+                widthFt  = Math.Abs(max.X - min.X);
+                heightFt = Math.Abs(max.Y - min.Y);
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"TryResolveSlotCentre '{purposeTag}': {ex.Message}"); return false; }
+        }
+
+        private static readonly ViewType[] PlanViewTypes =
+        {
+            ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.EngineeringPlan,
+            ViewType.AreaPlan,
+        };
+
+        /// <summary>Find the largest plan viewport on a sheet — the "primary
+        /// plan" used to key the scale bar / orient the north arrow. Null when
+        /// the sheet has no plan viewport.</summary>
+        public static Viewport FindPrimaryPlanViewport(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                Viewport best = null; double bestArea = -1;
+                foreach (var vpId in sheet.GetAllViewports())
+                {
+                    if (!(doc.GetElement(vpId) is Viewport vp)) continue;
+                    if (!(doc.GetElement(vp.ViewId) is View v)) continue;
+                    if (Array.IndexOf(PlanViewTypes, v.ViewType) < 0) continue;
+                    var ol = vp.GetBoxOutline();
+                    double area = Math.Abs((ol.MaximumPoint.X - ol.MinimumPoint.X)
+                                         * (ol.MaximumPoint.Y - ol.MinimumPoint.Y));
+                    if (area > bestArea) { bestArea = area; best = vp; }
+                }
+                return best;
+            }
+            catch (Exception ex) { StingLog.Warn($"FindPrimaryPlanViewport: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Delete every FamilyInstance on the sheet whose family name
+        /// starts with <paramref name="familyNamePrefix"/>. Used to make graphic
+        /// placement idempotent (drop the prior instance before re-placing, or
+        /// when the toggle goes off).</summary>
+        public static int RemoveStingFamilyInstancesOnSheet(Document doc, ViewSheet sheet, string familyNamePrefix)
+        {
+            try
+            {
+                var ids = new FilteredElementCollector(doc, sheet.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .OfType<FamilyInstance>()
+                    .Where(fi => fi.Symbol?.Family?.Name != null
+                                 && fi.Symbol.Family.Name.StartsWith(familyNamePrefix, StringComparison.OrdinalIgnoreCase))
+                    .Select(fi => fi.Id).ToList();
+                if (ids.Count > 0) doc.Delete(ids);
+                return ids.Count;
+            }
+            catch (Exception ex) { StingLog.Warn($"RemoveStingFamilyInstancesOnSheet: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>G3-a: delete every FamilyInstance in the given VIEW whose
+        /// family name starts with <paramref name="familyNamePrefix"/>. Used to
+        /// keep in-view graphics (north arrow) idempotent.</summary>
+        public static int RemoveStingFamilyInstancesInView(Document doc, ElementId viewId, string familyNamePrefix)
+        {
+            try
+            {
+                var ids = new FilteredElementCollector(doc, viewId)
+                    .OfClass(typeof(FamilyInstance))
+                    .OfType<FamilyInstance>()
+                    .Where(fi => fi.Symbol?.Family?.Name != null
+                                 && fi.Symbol.Family.Name.StartsWith(familyNamePrefix, StringComparison.OrdinalIgnoreCase))
+                    .Select(fi => fi.Id).ToList();
+                if (ids.Count > 0) doc.Delete(ids);
+                return ids.Count;
+            }
+            catch (Exception ex) { StingLog.Warn($"RemoveStingFamilyInstancesInView: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>A world-coordinate point near a corner of the view's crop box
+        /// (fractional insets 0..1 from min). Falls back to the origin when the
+        /// view has no active crop. Used to seat in-view graphics.</summary>
+        public static XYZ ViewCropCorner(View view, double fx, double fy)
+        {
+            try
+            {
+                if (view != null && view.CropBoxActive && view.CropBox != null)
+                {
+                    var cb = view.CropBox;
+                    double x = cb.Min.X + fx * (cb.Max.X - cb.Min.X);
+                    double y = cb.Min.Y + fy * (cb.Max.Y - cb.Min.Y);
+                    return cb.Transform.OfPoint(new XYZ(x, y, 0));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ViewCropCorner: {ex.Message}"); }
+            return XYZ.Zero;
+        }
+
+        /// <summary>The existing viewport on the sheet showing <paramref name="viewId"/>,
+        /// or null.</summary>
+        public static Viewport FindViewportForView(Document doc, ViewSheet sheet, ElementId viewId)
+        {
+            try
+            {
+                foreach (var vpId in sheet.GetAllViewports())
+                    if (doc.GetElement(vpId) is Viewport vp && vp.ViewId == viewId) return vp;
+            }
+            catch (Exception ex) { StingLog.Warn($"FindViewportForView: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Place <paramref name="view"/> as a viewport at the given
+        /// sheet-coordinate centre, or move the existing viewport there.
+        /// Idempotent per (sheet, view). Returns the viewport or null.</summary>
+        public static Viewport PlaceOrMoveViewport(Document doc, ViewSheet sheet, View view, XYZ centre)
+        {
+            try
+            {
+                var existing = FindViewportForView(doc, sheet, view.Id);
+                if (existing != null) { existing.SetBoxCenter(centre); return existing; }
+                if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id)) return null;
+                return Viewport.Create(doc, sheet.Id, view.Id, centre);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlaceOrMoveViewport: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Resolve the first Drafting ViewFamilyType in the document.</summary>
+        public static ElementId ResolveDraftingViewFamilyType(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType)).OfType<ViewFamilyType>()
+                    .Where(t => t.ViewFamily == ViewFamily.Drafting)
+                    .Select(t => t.Id).FirstOrDefault() ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveDraftingViewFamilyType: {ex.Message}"); return ElementId.InvalidElementId; }
+        }
+
+        /// <summary>Find a drafting view by exact name, or null.</summary>
+        public static ViewDrafting FindDraftingViewByName(Document doc, string name)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewDrafting)).OfType<ViewDrafting>()
+                    .FirstOrDefault(v => !v.IsTemplate && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) { StingLog.Warn($"FindDraftingViewByName: {ex.Message}"); return null; }
+        }
     }
 }
