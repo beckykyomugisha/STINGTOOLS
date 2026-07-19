@@ -8989,7 +8989,7 @@ namespace StingTools.BIMManager
             {
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 if (string.IsNullOrEmpty(outDir)) return (true, "no project output dir — clash budget skipped");
-                string clashesJson = Path.Combine(outDir, "clashes.json");
+                string clashesJson = StingTools.Core.Clash.ClashPersistence.CanonicalPath(doc);
                 if (!File.Exists(clashesJson))
                     return (true, "no clashes.json — clash budget skipped (run clash detection first)");
 

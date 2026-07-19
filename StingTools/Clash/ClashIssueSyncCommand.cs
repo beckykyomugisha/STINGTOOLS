@@ -48,7 +48,7 @@ namespace StingTools.Core.Clash
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
-                string clashesJson = Path.Combine(outDir, "clashes.json");
+                string clashesJson = ClashPersistence.CanonicalPath(doc);
                 if (!File.Exists(clashesJson))
                 {
                     StingResultPanel.Create("Clash → Issues")
