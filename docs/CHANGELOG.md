@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 203 — SB-4: one drop-folder contract across both watchers)
+#### Completed (Phase 204 — SB-4: one drop-folder contract across both watchers)
 
 The Python watcher left every processed file where it landed with a
 `.sync_result.json` beside it; the C# watcher
@@ -61,6 +61,149 @@ Revit-side one, but `StingToolsApp` stopped auto-starting `IfcDropWatcher` in
 Phase 184 — the class still exists under `StingBridge/src/IFC/` and remains the
 authoritative statement of the contract, which is what this aligned to.
 
+#### Completed (Phase 203 — Revision System Alignment, branch `claude/revision-system-fixes`)
+
+The revision subsystem had strong building blocks but broken wiring: two conflicting
+title-block sync commands, a revision strip writing to parameters that exist nowhere, a
+dead automation hook, duplicated blocks running whole-model transactions twice, and a
+semantic conflict on the element REV parameter. Six fixes:
+
+- **De-duplicated `CreateRevisionCommand`** (`BIMManager/RevisionManagementCommands.cs`).
+  The pre-revision compliance gate, the warning-baseline auto-save, and the GAP-R9 REV
+  propagation block each appeared **twice** in `Execute`. The propagation duplicate ran a
+  full-model `Transaction` a second time, roughly doubling revision-creation cost on large
+  models. Each block now appears once.
+
+- **Gated the blanket REV propagation** behind a new `TagConfig.PropagateRevOnCreate` flag
+  (`PROPAGATE_REV_ON_CREATE` in `project_config.json`, **default false**, following the
+  existing `AutoSaveBaselineOnRevision` pattern). Overwriting `ASS_REV_TXT` on every tagged
+  element at each revision conflicted with `RevisionEngine.StampAffectedElements` and
+  `RevisionTagIntegrationCommand` — which write REV only on *changed* elements ("the
+  revision this element last changed in") — and made `ComplianceScan.RevisionPercent`
+  trivially ~100%. The opt-in flag restores the old mirror behaviour for projects that
+  want it.
+
+- **Unified title-block revision sync into one engine.** `Docs.RevisionSyncCommand` wrote
+  the internal `SequenceNumber` (1, 2, 3…) into `PRJ_TB_REVISION_NR_TXT` instead of the
+  user-facing `RevisionNumber` ("P01"); `TitleBlockRevisionSyncer` wrote a five-row strip
+  to per-row column/date/description parameters **declared nowhere** — not in
+  `STING_TITLE_BLOCKS.json`, not in `MR_PARAMETERS`, with no labels bound — so every one of
+  those writes was a silent no-op. `TitleBlockRevisionSyncer` is now the single engine: it
+  writes `RevisionNumber` (never `SequenceNumber`; `"R{seq}"` fallback only when
+  `RevisionNumber` is empty/unreadable) plus date and description to the four TB params the
+  catalogue actually binds labels to (`PRJ_TB_REVISION_NR_TXT` / `_DATE_TXT` /
+  `_DESCRIPTION_TXT` / `PRJ_TB_ISSUE_SUMMARY_TXT`) and to `SHT_REV_TXT` / `SHT_REV_DATE_TXT`
+  on the sheet. It now covers all non-placeholder sheets (`stampedOnly: true` retains
+  Produce & Export's stamped-sheet scope). The dead strip path and
+  `ClearRevRowsOnTitleBlocks` are deleted. `Docs.RevisionSyncCommand` delegates to it,
+  keeping its tag and registration so both dock buttons ("Rev Sync" / "Sync Rev") do the
+  same correct thing. `IssueSheetsForRevisionCommand` syncs title blocks on issue, so they
+  are fresh at the moment sheets are issued.
+
+- **Single source of truth for revision series** — new `Core/RevisionSeries.cs`.
+  `RevisionEngine.ValidateRevisionNumber` accepted only P##/C##/single-letter/numeric while
+  the BCC Revisions dropdown offers 9 series plus status stamps, so legitimate
+  `T01`/`Co02`/`AB01`/`IFC` codes were flagged invalid and "auto-corrected" by
+  `RevisionNamingEnforceCommand`. The validator and `CreateRevisionCommand.InferSeriesName`
+  both delegate to the new canonical table; `BuildIsoRevisionCodes` carries a pointer
+  comment. Verified against 20 cases (T01/CO02/Co02/AB01/P01/C05/A/3/A1/IFC/WD/R07/B02/D10/
+  SS/OB valid; XX-1?/empty/P1/ZZZ rejected).
+
+- **Native revision schedules in the title-block factory.** Every working-sheet family in
+  `STING_TITLE_BLOCKS.json` declares a `revision-history` slot with `"automationHook":
+  "Revisions_AutoPopulateSchedule"`, but the hook was parsed and never dispatched — generated
+  families shipped with an **empty zone** where the revision history belonged.
+  `TitleBlockFactory` now calls `ViewSchedule.CreateRevisionSchedule` for those slots and
+  places the result at the slot anchor. Revit maintains an embedded revision schedule
+  automatically once it exists in the family, so this is the zero-maintenance fix. The step
+  is idempotent (a family already carrying one is left as authored) and never fatal — every
+  failure path records a warning and the build continues. `ParamRegistry` gains
+  `TB_SHOW_REV_TABLE` + GUID; the GUID `da7b6ce4-…` is the UUIDv5 the shared-param files
+  **already** declared, confirmed by reproducing the existing `TB_SHOW_KEY_PLAN` /
+  `SCALEBAR` / `NORTH_ARROW` GUIDs exactly, so `MR_PARAMETERS` needed no change.
+
+- **`WORKFLOW_RevisionIssue.json`** — five-step one-click chain (create revision → cloud
+  changed elements → issue sheets → sync title blocks → export register). Adding it exposed
+  that the `RevisionSync` tag was **not** registered in `WorkflowEngine.ResolveCommand`; it
+  is now, along with the known-tags list.
+
+- **`Revision.IssuedBy` auto-stamp** (follow-up on the same branch). The "Issued by" column
+  of the native title-block revision schedules can only read the Revision element's own
+  `IssuedBy` field — revision schedules cannot reference sheet or shared parameters — and
+  that field was never written, so the APPR./ISSUED BY column stayed blank. Now: the BCC
+  Revisions form gains an **"Issued by"** input (defaults to the Windows user), forwarded as
+  a 5th pipe-delimited field to `CreateRevisionCommand`, which stamps it at creation;
+  `IssueSheetsForRevisionCommand` and `RevisionApprovalWorkflowCommand` backfill a blank
+  `IssuedBy` (existing values win) **before** setting `Issued = true`, because Revit locks
+  revision properties at issue; `AutoRevisionOnTagChangeCommand` stamps the triggering user
+  on auto-created revisions; and `RevisionNamingEnforceCommand` audits issued revisions
+  with a blank `IssuedBy` (its convention footer now lists the full `RevisionSeries` set
+  instead of the stale P/C/A-Z trio).
+
+- **Native ISO revision numbering + BCC Revisions-tab completion** (second follow-up,
+  driven by live Revit testing). Testing exposed four gaps: (1) the ISO code the user
+  picked ("P01") never became the revision number — Revit numeric numbering showed "3" in
+  every REV.NO column while the code was smuggled into the Description; (2) the BCC
+  "Issue Sheets" panel's sheet list was **hardcoded demo rows** (A-001/A-100/S-001) and its
+  Date/Suitability inputs were never read — ticked sheets were silently ignored; (3) after
+  issuing, Revit's native lock ("no new clouds on an issued revision") left users blocked
+  with no open draft; (4) the title-block sync and several revision commands had no BCC
+  Revisions-tab surface. Fixes: `RevisionEngine.EnsureNumberingSequence` mints per-series
+  alphanumeric `RevisionNumberingSequence`s ("STING P-series (Preliminary)" = P01…P99 via
+  `RevisionSeries.BuildSequenceCodes`) and `CreateRevisionCommand` /
+  `AutoRevisionOnTagChangeCommand` assign new revisions to them — Revit's own
+  `RevisionNumber` now IS the ISO code, descriptions stay clean, and the actually-assigned
+  code (sequence hands out the next free one) flows to element stamps / BOQ baseline /
+  notifications. `IssueSheetsForRevisionCommand` consumes the BCC form's ticked sheets +
+  date + suitability (pipe-delimited, in addition to cloud-detected sheets) and — gated by
+  new `TagConfig.AutoNextRevisionOnIssue` (`AUTO_NEXT_REVISION_ON_ISSUE`, default true) —
+  auto-opens the next DRAFT revision in the same sequence after issue so clouding is never
+  blocked. The BCC Issue Sheets panel now lists REAL sheets (gathered on the Revit thread
+  into `CoordData.IssueSheetList`); the register grid's Code / Series / Author columns
+  populate (`RevisionNumber` / `RevisionSeries.InferSeriesName` / `IssuedBy`); and a new
+  "TITLE BLOCKS & GOVERNANCE" row adds Sync Title Blocks, Approval Flow, Distribution, and
+  Cloud Audit buttons ("Export CSV" relabelled "Export XLSX" to match what
+  `RevisionExportCommand` writes). `RevisionApprovalWorkflow` / `RevisionDistribution` /
+  `Revision_CloudAudit` gained the missing `WorkflowEngine.ResolveCommand` cases.
+
+- **Revision removal tooling** (third follow-up). Two commands for clearing revisions,
+  both handling the full unlock chain (un-issue → delete clouds → remove from every
+  sheet → delete revision → re-sync title blocks): **`Revision_Delete`**
+  (`RevisionDeleteCommand`) deletes chosen revisions via a multi-select picker or the BCC
+  register's new right-click **"Delete This Revision"** (routed as `DeleteRevision_<id>`
+  through a new `DispatchCoordAction` prefix handler + `DeleteRevisionId` ExtraParam);
+  deleting ALL revisions is blocked (Revit requires one). **`Revision_Purge`**
+  (`RevisionPurgeCommand`) is the start-afresh variant for test models: deletes every
+  cloud and every revision except one neutral seed (reset to "Revision 1", moved off the
+  STING series sequences so the next create reads P01), clears all sheets, optional
+  tag-snapshot deletion, gated by a typed-"PURGE" WPF confirmation. Both sit in the BCC
+  TITLE BLOCKS & GOVERNANCE row.
+
+- **Behaviour polish** (fourth follow-up — closes the self-review's "known minor
+  behaviours"): pre-revision snapshots are saved AFTER the create transaction so the file
+  label carries the code the sequence actually assigned; the A-series numbers unpadded
+  (A1, A2 … A99) to match approval-stamp convention; Issue Sheets only auto-opens a next
+  draft when NO un-issued revision remains (otherwise it lists the open drafts instead of
+  piling up new ones); `RevisionSeries.InferSeriesName` now resolves pattern-only entries
+  first, so "1" reads **Legacy**, "A" reads **As-Built**, and stamps read **Status Stamp**
+  instead of falling to "Custom" (fixes the register's Series column for the purge seed);
+  `EnsureNumberingSequence` re-searches by name when creation fails (name-in-use race)
+  before falling back to default numbering.
+
+- **BCC auto-refresh after revision actions** (fifth follow-up — live testing showed the
+  register grid keeping purged/deleted rows until a manual header Refresh). New
+  `BIMCoordinationCenterCommand.RefreshBccIfOpen(doc)` rebuilds CoordData on the Revit
+  API thread and pushes it through the existing `ApplyReloadedData` path (no-op when BCC
+  is closed); the header Refresh button's `BCCReload` case now delegates to it. Called at
+  the end of CreateRevision, IssueSheetsForRevision, AutoRevisionOnTagChange,
+  RevisionApprovalWorkflow (both branches), RevisionDelete, and RevisionPurge — grids and
+  badges reflect the model the moment each command's summary dialog appears.
+
+**Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
+table was exercised against 20 cases in a standalone harness. **Revit runtime verification
+is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
+and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
+every path there is warning-wrapped rather than fatal.
 #### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
 
 ArchiCAD elements were leaving the bridge with 7-segment tags

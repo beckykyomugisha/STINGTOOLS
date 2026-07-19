@@ -255,6 +255,16 @@ namespace StingTools.Core.Drawing
                         foreach (var slot in spec.Slots)
                             PlaceSlot(famDoc, fm, view, slot, spec.Drawable, r);
 
+                    // 4g. Revision history — a NATIVE Revit revision schedule for
+                    // any slot tagged "revision-history". Runs on every build path
+                    // (template / seed / master): hand-authored seeds want the
+                    // schedule too, and the helper is idempotent so a seed that
+                    // already carries one is left alone. Revit maintains an
+                    // embedded revision schedule automatically once it exists in
+                    // the family, which is why this is the zero-maintenance fix
+                    // for the previously-empty revision zone.
+                    PlaceRevisionSchedules(famDoc, fm, defFile, view, spec, paramByName, r);
+
                     tx.Commit();
                 }
 
@@ -1232,6 +1242,124 @@ namespace StingTools.Core.Drawing
                     string.IsNullOrEmpty(spec.Description) ? "" : "  — " + spec.Description));
             }
             catch (Exception ex) { r.Warnings.Add($"PlaceSlot '{spec.Id}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Creates a native Revit revision schedule for every slot whose
+        /// purposeTag is "revision-history", and places it at the slot anchor.
+        /// Previously these slots declared an automationHook that was parsed and
+        /// never dispatched, so generated families shipped with an EMPTY zone
+        /// where the revision history belonged.
+        ///
+        /// Idempotent: a family that already carries a title-block revision
+        /// schedule is left untouched. Never fails the build — every failure is
+        /// recorded as a warning, because ViewSchedule.CreateRevisionSchedule
+        /// and ScheduleSheetInstance.Create behave differently across Revit
+        /// versions and a title block without a rev table is still usable.
+        ///
+        /// Must be called inside an active transaction on famDoc.
+        /// </summary>
+        private static void PlaceRevisionSchedules(Document famDoc, FamilyManager fm,
+            DefinitionFile defFile, View view, TitleBlockSpec spec,
+            Dictionary<string, FamilyParameter> paramByName, TitleBlockBuildResult r)
+        {
+            if (famDoc == null || spec?.Slots == null) return;
+
+            var revSlots = spec.Slots
+                .Where(s => s != null && string.Equals(s.PurposeTag, "revision-history",
+                                                       StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (revSlots.Count == 0) return;
+
+            // Idempotency — does this family already have a revision schedule?
+            try
+            {
+                bool exists = new FilteredElementCollector(famDoc)
+                    .OfClass(typeof(ViewSchedule))
+                    .Cast<ViewSchedule>()
+                    .Any(vs => vs.IsTitleblockRevisionSchedule);
+                if (exists)
+                {
+                    r.Warnings.Add("Revision schedule: family already carries one — left as authored.");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"Revision schedule: existence check failed ({ex.Message}) — continuing.");
+            }
+
+            foreach (var slot in revSlots)
+            {
+                ViewSchedule sched;
+                try
+                {
+                    sched = ViewSchedule.CreateRevisionSchedule(famDoc);
+                    if (sched == null)
+                    {
+                        r.Warnings.Add($"Revision schedule '{slot.Id}': CreateRevisionSchedule returned null.");
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    r.Warnings.Add($"Revision schedule '{slot.Id}': CreateRevisionSchedule failed — {ex.Message}. " +
+                                   "Add the revision schedule by hand in the Family Editor.");
+                    continue;
+                }
+
+                // Place it at the slot's top-left. Revit sizes the embedded
+                // revision schedule from its own column definition; the API
+                // exposes no width/height setter here, so the slot's size is
+                // advisory. Mismatches are reported, never fatal.
+                try
+                {
+                    if (!slot.TryResolveAbsolute(spec.Drawable, out var anchorMm, out var sizeMm))
+                    {
+                        r.Warnings.Add($"Revision schedule '{slot.Id}': schedule created but slot has no " +
+                                       "resolvable anchor — position it by hand.");
+                        continue;
+                    }
+                    var origin = new XYZ(MmToFt(anchorMm[0]), MmToFt(anchorMm[1] + sizeMm[1]), 0);
+                    ScheduleSheetInstance.Create(famDoc, view.Id, sched.Id, origin);
+                    r.SlotSummary.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "  {0,-6} revision schedule placed at ({1:0.0}, {2:0.0}) mm " +
+                        "[width/height set by Revit, slot size {3:0.0}×{4:0.0} mm is advisory]",
+                        slot.Id, anchorMm[0], anchorMm[1] + sizeMm[1], sizeMm[0], sizeMm[1]));
+                }
+                catch (Exception ex)
+                {
+                    r.Warnings.Add($"Revision schedule '{slot.Id}': created but placement failed — " +
+                                   $"{ex.Message}. Drag it onto the title block in the Family Editor.");
+                }
+
+                // Ensure the visibility gate parameter exists when the slot asks
+                // for it. The factory has no slot visibility-binding mechanism
+                // (no element here exposes an associatable Visible parameter), so
+                // the family param is minted and the binding is flagged as a
+                // manual Family Editor step rather than faked.
+                if (slot.RespectShowToggle)
+                {
+                    try
+                    {
+                        if (!paramByName.ContainsKey(ParamRegistry.TB_SHOW_REV_TABLE))
+                        {
+                            var fp = AddSharedParameter(fm, defFile, ParamRegistry.TB_SHOW_REV_TABLE,
+                                "TBL_TITLEBLOCK", isInstance: false, r);
+                            if (fp != null) paramByName[ParamRegistry.TB_SHOW_REV_TABLE] = fp;
+                        }
+                        r.Warnings.Add($"Revision schedule '{slot.Id}': {ParamRegistry.TB_SHOW_REV_TABLE} " +
+                                       "added, but its visibility binding must be set by hand in the " +
+                                       "Family Editor (Revit exposes no API to associate a schedule " +
+                                       "instance's visibility with a family parameter).");
+                    }
+                    catch (Exception ex)
+                    {
+                        r.Warnings.Add($"Revision schedule '{slot.Id}': " +
+                                       $"{ParamRegistry.TB_SHOW_REV_TABLE} not added — {ex.Message}");
+                    }
+                }
+            }
         }
 
         // Best-effort reference-plane authoring. Title-block family documents

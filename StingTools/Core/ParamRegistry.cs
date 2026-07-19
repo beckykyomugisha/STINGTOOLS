@@ -517,6 +517,10 @@ namespace StingTools.Core
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
         public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // Gates the revision-history zone (the native Revit revision schedule
+        // created by TitleBlockFactory for slots with purposeTag "revision-history").
+        public const string TB_SHOW_REV_TABLE      = "TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
@@ -536,11 +540,14 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
-        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
+        /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
+        /// (19 originals plus TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
+        /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE,
             TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
             TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
             TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
@@ -549,7 +556,8 @@ namespace StingTools.Core
         /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
-            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──
