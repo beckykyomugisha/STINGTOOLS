@@ -174,14 +174,45 @@ The most reliable path today. You export IFC; StingBridge does the rest.
 For each file that lands, StingBridge will:
 
 - wait for the file to finish writing (3-second debounce),
+- move it into `processing/` so nothing is picked up twice,
 - extract elements and derive STING tokens,
 - push them to your Planscape project,
 - write the tokens back as a `STING_TOKENS` property set, saved alongside as
   `<name>_sting.ifc` (your original is never modified),
 - convert to GLB for the Planscape 3D viewer *if* `IfcConvert` is available,
-- drop a `<name>.sync_result.json` next to the file with the outcome.
+- drop a `<name>.sync_result.json` with the outcome,
+- and file everything into `done/` or `failed/`.
 
 The watcher re-authenticates on its own, so it can run for days.
+
+### What the folder looks like
+
+The watcher manages three subfolders, matching what the Revit-side watcher does
+so both leave the folder in the same state:
+
+```
+IFC_DROP/
+├── processing/     in flight right now (normally empty)
+├── done/           20260720_model.ifc, 20260720_model_sting.ifc, 20260720_model.sync_result.json
+└── failed/         model.ifc, model.ifc.log  ← .log says why
+```
+
+**The drop root itself is your inbox.** Anything sitting there is still
+outstanding; anything processed has moved on. That means you can drop the same
+filename repeatedly without clobbering earlier results — same-day repeats become
+`20260720_model(2).ifc`.
+
+A file lands in `failed/` when it could not be opened, or when none of its
+elements reached Planscape. Read the `.log` next to it, fix the export, and drop
+it again. A file that synced but had a minor complaint (no `IfcConvert`, say)
+still counts as `done/` — check its `.sync_result.json` for the detail.
+
+Two conveniences worth knowing:
+
+- Files already sitting in the drop folder when the watcher starts are picked up
+  on start-up; you do not have to re-save them.
+- If the watcher is killed mid-file, that file is returned from `processing/` to
+  the inbox on the next start rather than being stranded.
 
 ### ArchiCAD Publisher Set automation
 
