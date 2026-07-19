@@ -12,9 +12,8 @@
 
 import { handlePreflight } from "../../auth/_lib/cors";
 import { requireAuth } from "../../auth/_lib/auth";
-import { getTenantById, getSessionByTokenHash, getUserById } from "../../auth/_lib/db";
-import { readRefreshCookie } from "../../auth/_lib/session";
-import { sha256Hex } from "../../auth/_lib/tokens";
+import { getTenantById } from "../../auth/_lib/db";
+import { verifyJwt } from "../../auth/_lib/jwt";
 import { DOWNLOAD_CATALOG, entitlementFor } from "../../_lib/downloads/catalog";
 import type { Env } from "../../auth/_lib/types";
 
@@ -37,25 +36,26 @@ export const onRequestGet: PagesFunction<DownloadsEnv> = async ({
   env,
   params,
 }) => {
-  // A download is triggered by a plain browser navigation (<a href>), which
-  // sends NO Authorization header — the access token lives in memory in the
-  // page, not in a cookie. So Bearer auth alone always failed here with "Sign
-  // in to download" for a user who was very much signed in.
+  // A download is a plain browser navigation (<a href>), which sends no
+  // Authorization header — the access token lives in memory in the page. The
+  // ps_refresh cookie cannot help either: it is deliberately scoped to
+  // Path=/api/auth, so it is never sent here (that scoping is a good thing and
+  // is left alone).
   //
-  // Fall back to the HttpOnly ps_refresh cookie, which the browser DOES send on
-  // a same-origin navigation (SameSite=Strict). Bearer is still accepted first
-  // so scripted clients keep working.
+  // So the page passes the access token it already holds as ?t=. The token is
+  // the same short-lived JWT used everywhere else, verified identically. It
+  // ends up in browser history and any intermediary log, which is acceptable
+  // only because it expires quickly — never accept a long-lived credential this
+  // way.
   let auth: { userId: string; tenantId: string } | null = null;
   try {
-    auth = await requireAuth(request, env);
+    const ctx = await requireAuth(request, env);
+    auth = { userId: ctx.userId, tenantId: ctx.tenantId };
   } catch {
-    const presented = readRefreshCookie(request);
-    if (presented) {
-      const session = await getSessionByTokenHash(env.WAITLIST_DB, await sha256Hex(presented));
-      if (session && new Date(session.expires_at).getTime() > Date.now() && !session.revoked_at) {
-        const user = await getUserById(env.WAITLIST_DB, session.user_id);
-        if (user) auth = { userId: user.id, tenantId: user.tenant_id };
-      }
+    const t = new URL(request.url).searchParams.get("t");
+    if (t) {
+      const claims = await verifyJwt(t, env.JWT_SECRET);
+      if (claims) auth = { userId: claims.sub, tenantId: claims.tid };
     }
   }
   if (!auth) return deny(401, "Sign in to download.");
