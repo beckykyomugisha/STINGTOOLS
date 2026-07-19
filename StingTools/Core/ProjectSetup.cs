@@ -7,8 +7,14 @@ using Newtonsoft.Json;
 
 namespace StingTools.Core
 {
-    /// <summary>Folder layout mode — full ISO 19650 BIM tree, or flat 5-folder mini.</summary>
-    public enum ProjectFolderMode { BIM, Mini }
+    /// <summary>
+    /// Folder layout mode. BIM = the numbered tree (01_WIP…20_MISC) alongside the CDE
+    /// states. Mini = flat 5-folder. CdeFirst = ISO 19650 "state-first": content types nest
+    /// inside the CDE state folders (00_WIP/&lt;type&gt;) with cross-cutting coordination
+    /// folders (transmittals/issues/registers…) kept at the top; used for brand-new
+    /// (greenfield) projects so exports are born in a state.
+    /// </summary>
+    public enum ProjectFolderMode { BIM, Mini, CdeFirst }
 
     /// <summary>Naming convention for files written into the export folders.</summary>
     public enum NamingConvention { ISO19650, Timestamp, Custom }
@@ -105,6 +111,57 @@ namespace StingTools.Core
             ("REPORTS",   "Reports"),
         };
 
+        // ── CDE-first content types nested inside each state ──────────────
+        public static readonly string[] CdeFirstContentTypes =
+            { "Models", "Drawings", "Schedules", "Documents", "BOQ", "COBie", "Reports" };
+
+        // ── CDE-first folder defaults: states with content-type subfolders +
+        //    top-level cross-cutting coordination folders (not state-scoped) ──
+        public static readonly (string Id, string Name, bool DiscSubs, string[] SubFolders)[] CdeFirstFolderDefaults = new[]
+        {
+            ("WIP",          "00_WIP",          false, CdeFirstContentTypes),
+            ("SHARED",       "01_SHARED",       false, CdeFirstContentTypes),
+            ("PUBLISHED",    "02_PUBLISHED",    false, CdeFirstContentTypes),
+            ("ARCHIVE",      "03_ARCHIVE",      false, new string[0]),
+            ("BEP",          "09_BEP",          false, new string[0]),
+            ("TRANSMITTALS", "10_TRANSMITTALS", false, new string[0]),
+            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI",
+                                                               "CVI", "CE", "DESIGN", "CLASH", "SNAGGING",
+                                                               "RFA", "PMI" }),
+            ("CLASHES",      "12_CLASHES",      false, new[] { "BCF", "Reports", "Snapshots" }),
+            ("HANDOVER",     "13_HANDOVER",     false, new string[0]),
+            ("REGISTERS",    "15_REGISTERS",    false, new string[0]),
+            ("COMPLIANCE",   "16_COMPLIANCE",   false, new string[0]),
+            ("MISC",         "20_MISC",         false, new string[0]),
+        };
+
+        /// <summary>
+        /// Export routes for CdeFirst. Values are either "STATE|ContentType" (routed into a
+        /// CDE state's content-type subfolder — default state WIP) or a plain folder id
+        /// (routed to a top-level cross-cutting folder). "_DATA" routes to _data.
+        /// </summary>
+        public static Dictionary<string, string> DefaultCdeFirstRoutes() => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PDF"] = "WIP|Drawings",
+            ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models",
+            ["SCHEDULE"] = "WIP|Schedules", ["EXCEL"] = "WIP|Schedules", ["CSV"] = "WIP|Schedules",
+            ["BOQ"] = "WIP|BOQ",
+            ["COBIE"] = "WIP|COBie", ["COBie"] = "WIP|COBie", ["COBieStream"] = "WIP|COBie",
+            ["BEP"] = "BEP",
+            ["TRANSMITTAL"] = "TRANSMITTALS", ["Transmittal"] = "TRANSMITTALS",
+            ["ISSUE"] = "ISSUES", ["Issue"] = "ISSUES", ["RFI"] = "ISSUES",
+            ["BCF"] = "CLASHES", ["CLASH"] = "CLASHES", ["Clash"] = "CLASHES",
+            ["HANDOVER"] = "HANDOVER", ["Handover"] = "HANDOVER", ["OAM"] = "HANDOVER",
+            ["OandM"] = "HANDOVER", ["Maintenance"] = "HANDOVER", ["AssetHealth"] = "HANDOVER",
+            ["REVISION"] = "WIP|Reports", ["Revision"] = "WIP|Reports",
+            ["REGISTER"] = "REGISTERS", ["TagRegister"] = "REGISTERS",
+            ["DocRegister"] = "REGISTERS", ["AssetRegister"] = "REGISTERS",
+            ["COMPLIANCE"] = "COMPLIANCE", ["Compliance"] = "COMPLIANCE",
+            ["MODELHEALTH"] = "COMPLIANCE", ["ModelHealth"] = "COMPLIANCE", ["Validation"] = "COMPLIANCE",
+            ["Photo"] = "WIP|Reports",
+            ["JSON"] = "_DATA",
+        };
+
         /// <summary>
         /// Append `_<projectCode>` to a folder display name if not already suffixed.
         /// Idempotent: WithCodeSuffix("01_WIP", "FIRESTONE") → "01_WIP_FIRESTONE"
@@ -170,6 +227,33 @@ namespace StingTools.Core
                 ExportRoutes = DefaultBimRoutes(),
             };
             foreach (var (id, name, discSubs, subs) in BimFolderDefaults)
+            {
+                s.CustomFolders.Add(new FolderDef
+                {
+                    Id = id,
+                    DisplayName = WithCodeSuffix(name, s.ProjectCode),
+                    HasDisciplineSubfolders = discSubs,
+                    SubFolders = subs.ToList(),
+                    IsCustom = false,
+                });
+            }
+            return s;
+        }
+
+        /// <summary>Build a default CdeFirst-mode setup: content types nested inside the CDE states.</summary>
+        public static ProjectSetup CreateCdeFirst(string projectCode, string rootPath, List<string> disciplines = null)
+        {
+            var s = new ProjectSetup
+            {
+                ProjectCode = projectCode ?? "PRJ",
+                RootPath = rootPath ?? "",
+                Mode = ProjectFolderMode.CdeFirst,
+                Disciplines = disciplines != null && disciplines.Count > 0
+                    ? new List<string>(disciplines)
+                    : new List<string>(DefaultBimDisciplines),
+                ExportRoutes = DefaultCdeFirstRoutes(),
+            };
+            foreach (var (id, name, discSubs, subs) in CdeFirstFolderDefaults)
             {
                 s.CustomFolders.Add(new FolderDef
                 {

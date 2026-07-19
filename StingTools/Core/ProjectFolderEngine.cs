@@ -359,16 +359,44 @@ namespace StingTools.Core
             try
             {
                 string code = DetectProjectCode(doc);
-                var setup = ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
+                // Greenfield (brand-new) projects adopt the ISO 19650 CDE-first tree; any
+                // project with an existing root / legacy folders / setup keeps the numbered
+                // BIM tree so nothing an existing project relies on is force-restructured.
+                bool cdeFirst = TagConfig.CdeFirstLayout && IsGreenfield(doc, code);
+                var setup = cdeFirst
+                    ? ProjectSetup.CreateCdeFirst(code, code)
+                    : ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
                 setup.RootPathIsRelative = true;
                 setup.ProjectName = "";
                 try { setup.ProjectName = doc.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 InitializeSetup(doc, setup);
-                StingLog.Info($"LoadOrBootstrapSetup: minted default BIM setup for {code}");
+                StingLog.Info($"LoadOrBootstrapSetup: minted default {(cdeFirst ? "CdeFirst" : "BIM")} setup for {code}");
                 return setup;
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrBootstrapSetup: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// A project is "greenfield" (safe to adopt the CDE-first tree) only when nothing of
+        /// STING's exists for it yet: no ES root stamp, no &lt;projDir&gt;/&lt;code&gt; root, and no
+        /// legacy sibling folders next to the .rvt. Any of these ⇒ an established project that
+        /// keeps the numbered BIM tree.
+        /// </summary>
+        private static bool IsGreenfield(Document doc, string code)
+        {
+            try
+            {
+                if (Storage.StingProjectRootSchema.Read(doc) != null) return false;
+                string projDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(projDir)) return false;
+                if (Directory.Exists(Path.Combine(projDir, code))) return false;
+                foreach (string legacy in new[] { "_BIM_COORD", "STING_BIM_MANAGER", "_bim_manager",
+                                                  "_CDE", "STING_Exports", "STING_Project" })
+                    if (Directory.Exists(Path.Combine(projDir, legacy))) return false;
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsGreenfield: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -924,28 +952,28 @@ namespace StingTools.Core
             try
             {
                 var setup = LoadOrDetectSetup(doc);
-                string folderId = null;
+                string route = null;
                 if (setup != null && setup.ExportRoutes != null &&
                     setup.ExportRoutes.TryGetValue(exportTypeKey ?? "", out string routed))
                 {
-                    folderId = routed;
+                    route = routed;
                 }
-                if (string.IsNullOrEmpty(folderId) && ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string fb))
-                    folderId = fb;
-                if (string.IsNullOrEmpty(folderId)) folderId = "MISC";
+                bool cdeFirst = setup != null && setup.Mode == ProjectFolderMode.CdeFirst;
+                if (string.IsNullOrEmpty(route) && !cdeFirst && ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string fb))
+                    route = fb;
+                if (string.IsNullOrEmpty(route)) route = "MISC";
 
-                string folder;
-                if (string.Equals(folderId, "_DATA", StringComparison.OrdinalIgnoreCase))
-                    folder = GetDataPath(doc);
-                else
-                    folder = GetFolderPath(doc, folderId);
+                string folder = ResolveRoutedFolder(doc, route);
                 if (string.IsNullOrEmpty(folder)) folder = GetRootPath(doc);
 
-                // Discipline sub-routing
+                // Discipline sub-routing. For a "STATE|ContentType" (CdeFirst) route the
+                // discipline nests under the content-type folder; for a plain folder id the
+                // legacy rule applies (only folders flagged HasDisciplineSubfolders).
                 if (!string.IsNullOrEmpty(disciplineCode) && setup != null)
                 {
-                    var fdef = setup.GetFolder(folderId);
-                    if (fdef != null && fdef.HasDisciplineSubfolders && setup.Disciplines != null)
+                    bool applyDisc = route.IndexOf('|') > 0
+                        || (setup.GetFolder(route)?.HasDisciplineSubfolders ?? false);
+                    if (applyDisc && setup.Disciplines != null)
                     {
                         string match = setup.Disciplines.FirstOrDefault(d =>
                             d.StartsWith(disciplineCode + "_", StringComparison.OrdinalIgnoreCase) ||
@@ -1109,25 +1137,56 @@ namespace StingTools.Core
         /// <summary>Get the folder path for an export type key (e.g. "PDF", "COBie", "BCF").</summary>
         public static string GetExportFolder(Document doc, string exportTypeKey)
         {
+            ProjectSetup setup = null;
             // Phase 167: honour ProjectSetup ExportRoutes first
             try
             {
-                var setup = LoadOrDetectSetup(doc);
+                setup = LoadOrDetectSetup(doc);
                 if (setup != null && setup.ExportRoutes != null &&
                     !string.IsNullOrEmpty(exportTypeKey) &&
-                    setup.ExportRoutes.TryGetValue(exportTypeKey, out string folderId) &&
-                    !string.IsNullOrEmpty(folderId))
+                    setup.ExportRoutes.TryGetValue(exportTypeKey, out string route) &&
+                    !string.IsNullOrEmpty(route))
                 {
-                    if (string.Equals(folderId, "_DATA", StringComparison.OrdinalIgnoreCase))
-                        return GetDataPath(doc);
-                    return GetFolderPath(doc, folderId);
+                    return ResolveRoutedFolder(doc, route);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetExportFolder setup lookup: {ex.Message}"); }
 
+            // CdeFirst projects have no numbered content folders (05_MODELS…20_MISC), so an
+            // unmatched key must land in that mode's own MISC rather than mint a stray
+            // BIM-style folder via the ExportTypeToFolder fallback.
+            if (setup != null && setup.Mode == ProjectFolderMode.CdeFirst)
+                return GetFolderPath(doc, "MISC");
+
             if (ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string folderId2))
                 return GetFolderPath(doc, folderId2);
             return GetFolderPath(doc, "MISC");
+        }
+
+        /// <summary>
+        /// Resolve a route value to a folder. Values are "_DATA" (→ _data), "STATE|ContentType"
+        /// (→ a CDE state's content-type subfolder, CdeFirst mode), or a plain folder id
+        /// (→ that top-level folder). BIM/Mini route values never contain '|', so they resolve
+        /// exactly as before.
+        /// </summary>
+        private static string ResolveRoutedFolder(Document doc, string route)
+        {
+            if (string.Equals(route, "_DATA", StringComparison.OrdinalIgnoreCase))
+                return GetDataPath(doc);
+
+            int bar = route.IndexOf('|');
+            if (bar > 0)
+            {
+                string state = route.Substring(0, bar);
+                string contentType = route.Substring(bar + 1);
+                string stateDir = GetFolderPath(doc, state);
+                if (string.IsNullOrEmpty(stateDir)) return GetFolderPath(doc, "MISC");
+                string p = Path.Combine(stateDir, contentType);
+                try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"ResolveRoutedFolder: {ex.Message}"); }
+                return p;
+            }
+
+            return GetFolderPath(doc, route);
         }
 
         /// <summary>Get timestamped export path routed to the correct folder.</summary>

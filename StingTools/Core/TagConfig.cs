@@ -247,6 +247,12 @@ namespace StingTools.Core
         /// because the per-tick run on a large model is non-trivial.</summary>
         public static bool AutoStartClashScheduler { get; internal set; } = false;
 
+        /// <summary>WP9: When true (default), brand-new (greenfield) projects adopt the ISO
+        /// 19650 CDE-first folder tree (content types nested inside WIP/SHARED/PUBLISHED).
+        /// Existing projects are unaffected. Set CDE_FIRST_LAYOUT=false in project_config.json
+        /// to keep new projects on the numbered BIM tree.</summary>
+        public static bool CdeFirstLayout { get; internal set; } = true;
+
         /// <summary>BIM-CLASH-LIVE-01: When true (default), LiveClashUpdater attaches
         /// its geometry/addition/deletion triggers at startup so live clash capture
         /// works out of the box. Set LIVE_CLASH_TRIGGERS_ENABLED=false in
@@ -661,7 +667,7 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
-                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED",
+                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED","CDE_FIRST_LAYOUT",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -940,6 +946,13 @@ namespace StingTools.Core
                 {
                     if (lctObj is bool lb) LiveClashTriggersEnabled = lb;
                     else if (bool.TryParse(lctObj?.ToString(), out bool lbp)) LiveClashTriggersEnabled = lbp;
+                }
+
+                CdeFirstLayout = true;
+                if (data.TryGetValue("CDE_FIRST_LAYOUT", out object cflObj))
+                {
+                    if (cflObj is bool cb) CdeFirstLayout = cb;
+                    else if (bool.TryParse(cflObj?.ToString(), out bool cbp)) CdeFirstLayout = cbp;
                 }
 
                 AutoCreateCdeFolders = true;
