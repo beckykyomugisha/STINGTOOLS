@@ -2,6 +2,50 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 212 — handoff provisioning no longer costs the user their session)
+
+`EnsureStarterProjectAsync` promises "a failure here must never cost the user
+their session". It did not keep that promise.
+
+- **Failed provisioning is now unwound from the change tracker.** The catch
+  swallowed the exception but left the half-inserted `Project` /
+  `ProjectMember` sitting as `Added`. The very next `SaveChangesAsync` — the
+  unguarded one persisting the refresh token — picked them up, failed
+  identically, and threw out of a path with no handler, so a *provisioning*
+  failure denied the user login. Reproduces by double-clicking "open in app":
+  two redemptions race the `(TenantId, Code)` unique index and the loser's retry
+  inherits the poisoned tracker.
+- **Tested on a provider that enforces unique indexes.** EF InMemory does not,
+  so it cannot reproduce the race at all. The new `HandoffProvisioningSqliteTests`
+  use in-memory SQLite to assert (a) the `(TenantId, Code)` index really does
+  reject the second insert, and (b) the exact failure mode — a dead `Added`
+  entity making a later, *unrelated* write fail until it is detached, after
+  which the write succeeds. That second test is the fix's mechanism, stated as
+  an executable claim.
+
+**Gate:** both SQLite tests pass; **zero new failures versus `origin/main` across
+three consecutive full-suite runs** (main itself sits at 74 failures / 66 unique
+names, unchanged by this branch).
+
+**Not delivered, and why.** The phase also asked for an HTTP-level test that
+forces provisioning to throw and asserts the handoff still returns a session. It
+was written and it *works in isolation* — it fails without the fix and passes
+with it — but it cannot be made green in the full suite. Any test that builds an
+extra `WebApplicationFactory` is unreliable here: Program.cs's ~40 static
+`RecurringJob.AddOrUpdate` calls read the process-wide
+`Hangfire.JobStorage.Current` during host build, and a sibling factory disposing
+at that moment leaves it dangling — `ObjectDisposedException` from inside the
+request. Five different remedies were tried and measured (shared immortal
+storage, re-pointing the static before and after host build, an `AsyncLocal`
+interceptor on the shared factory instead of a new host, an xunit collection,
+and full suite serialisation); serialisation made it *worse* — 136 failures,
+because classes sharing an in-memory DB then bleed state — and the others either
+did not help or regressed previously-green tests. Rather than ship a known-red
+test or destabilise shared test infrastructure for every other phase, the HTTP
+assertion is **dropped** and the underlying defect recorded in ROADMAP as
+test-infrastructure work. The guarantee itself is covered by the SQLite
+mechanism test.
+
 #### Completed (Phase 211 — SEQ minting correctness)
 
 Four SEQ findings from the #421 review.

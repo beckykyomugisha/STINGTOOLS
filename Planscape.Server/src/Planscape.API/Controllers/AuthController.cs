@@ -1195,6 +1195,30 @@ public class AuthController : ControllerBase
             _logger.LogWarning(ex,
                 "Starter-project provisioning failed for user {UserId} (tenant {TenantId}); "
                 + "handoff session still issued.", user.Id, user.TenantId);
+
+            // Swallowing the exception is not enough on its own. A failed
+            // SaveChangesAsync leaves the Project / ProjectMember it was trying
+            // to insert sitting in the change tracker as Added, and the very
+            // next SaveChangesAsync — the unguarded one that persists the
+            // refresh token a few lines after this method returns — picks them
+            // up again, fails identically, and throws out of a path with no
+            // handler. The user is then denied a session by a *provisioning*
+            // failure, which is exactly the guarantee this method's summary
+            // promises it will never do.
+            //
+            // Reproduces in the wild by double-clicking "open in app": two
+            // concurrent redemptions race the (TenantId, Code) unique index, the
+            // loser's insert fails, and the retry inherits its poisoned tracker.
+            //
+            // So: drop anything this method staged, leaving the tracker holding
+            // only the AppUser changes the caller still needs to persist.
+            foreach (var entry in _db.ChangeTracker.Entries()
+                         .Where(e => e.State == EntityState.Added
+                                     && (e.Entity is Project || e.Entity is ProjectMember))
+                         .ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
         }
     }
 
