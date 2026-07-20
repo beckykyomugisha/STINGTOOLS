@@ -2548,10 +2548,9 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var rep = Core.ProjectFolderEngine.MigrateFromLegacy(fmDoc);
-                                Autodesk.Revit.UI.TaskDialog.Show("STING Migration",
-                                    $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
-                                    (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
+                                // Shared consent gate — preview, confirm, breadcrumb.
+                                // Previously migrated immediately on button press.
+                                StingTools.Commands.Folders.FolderConsolidateCommand.RunWithConsent(fmDoc);
                             }
                             catch (Exception ex2) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex2.Message}"); }
                         }
@@ -2670,19 +2669,17 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
-                                {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
-                                }
+                                // Canonical JSONL read — see Core.CoordLog.
+                                string logPath = StingTools.Core.CoordLog.ResolveReadPath(d);
                                 if (System.IO.File.Exists(logPath))
                                 {
-                                    string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
-                                    var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BIMCoordinationCenter.CoordLogEntry>>(
-                                        System.IO.File.ReadAllText(logPath));
-                                    if (entries != null && entries.Count > 0)
+                                    string csvPath = System.IO.Path.ChangeExtension(logPath, null)
+                                        + $"_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+                                    var entries = StingTools.Core.CoordLog.Read(d)
+                                        .Select(o => o.ToObject<BIMCoordinationCenter.CoordLogEntry>())
+                                        .Where(e => e != null)
+                                        .ToList();
+                                    if (entries.Count > 0)
                                     {
                                         var sb = new System.Text.StringBuilder();
                                         sb.AppendLine("Timestamp,User,Category,Action,Detail,Impact");
@@ -2710,15 +2707,17 @@ namespace StingTools.UI
                             confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
                             if (confirm.Show() == TaskDialogResult.Yes)
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                                // Clear the canonical log — and any pre-unification
+                                // spelling, or "cleared" would leave old entries showing.
+                                int cleared = 0;
+                                foreach (string p in StingTools.Core.CoordLog.AllExistingPaths(d))
                                 {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
+                                    try { System.IO.File.Delete(p); cleared++; }
+                                    catch (Exception delEx) { StingTools.Core.StingLog.Warn($"Clear coord log {p}: {delEx.Message}"); }
                                 }
-                                if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
-                                TaskDialog.Show("STING", "Coordination log cleared.");
+                                TaskDialog.Show("STING", cleared > 0
+                                    ? "Coordination log cleared."
+                                    : "No coordination log found.");
                             }
                         }
                         break;

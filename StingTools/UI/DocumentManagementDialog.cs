@@ -5323,6 +5323,8 @@ namespace StingTools.UI
             string projDir = "";
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+            // path-discipline: legacy-fallback -- only reached when GetMetaPath above
+            // could not resolve a root at all (unsaved / detached model).
             bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
             if (!Directory.Exists(bimDir))
             {

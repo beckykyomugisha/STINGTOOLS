@@ -16,11 +16,16 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Same version as the main plugin to avoid transitive mismatch. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The units under test — all have zero Autodesk.Revit.* dependencies,
          so they compile cleanly against net8.0 with no shims. -->
+    <!-- Coordination-log wire format. Revit-free by design so the JSONL contract is
+         testable outside Revit. -->
+    <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />

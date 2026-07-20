@@ -704,6 +704,23 @@ namespace StingTools.Core
             public int FilesMoved { get; set; }
             public int FoldersRemoved { get; set; }
             public List<string> Warnings { get; set; } = new();
+
+            /// <summary>Every file relocation, "source|destination", in the order performed.</summary>
+            public List<string> Moves { get; set; } = new();
+
+            /// <summary>Legacy folders renamed aside rather than deleted, "original|retiredAs".</summary>
+            public List<string> RetiredFolders { get; set; } = new();
+
+            /// <summary>Where the breadcrumb was written, empty when nothing moved.</summary>
+            public string BreadcrumbPath { get; set; } = "";
+
+            /// <summary>
+            /// Non-empty when the run was declined rather than performed — no consent,
+            /// or already consolidated. Callers must treat this as "nothing happened".
+            /// </summary>
+            public string SkippedReason { get; set; } = "";
+
+            public bool DidRun => string.IsNullOrEmpty(SkippedReason);
         }
 
         /// <summary>One legacy source folder a consolidation would move, with its file count and destination.</summary>
@@ -773,15 +790,92 @@ namespace StingTools.Core
             return rep;
         }
 
+        /// <summary>Breadcrumb recording that a consolidation already ran for this project.</summary>
+        public static string ConsolidationBreadcrumbPath(Document doc)
+        {
+            string dataPath = GetDataPath(doc);
+            return string.IsNullOrEmpty(dataPath)
+                ? ""
+                : Path.Combine(dataPath, ".sting_consolidation.json");
+        }
+
+        /// <summary>
+        /// True once a consolidation has completed for this project. The breadcrumb is
+        /// what makes the migration at-most-once — re-running it after the user has
+        /// reorganised their folders by hand would drag files back.
+        /// </summary>
+        public static bool HasConsolidated(Document doc)
+        {
+            try
+            {
+                string p = ConsolidationBreadcrumbPath(doc);
+                return !string.IsNullOrEmpty(p) && File.Exists(p);
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Rename a drained legacy folder aside instead of deleting it, so a
+        /// consolidation is reversible by hand. Returns the retired path, or "" if
+        /// the folder still holds files (in which case it is left completely alone).
+        /// </summary>
+        private static string RetireLegacyFolder(string legacyDir, MigrationReport rep)
+        {
+            try
+            {
+                if (!Directory.Exists(legacyDir)) return "";
+                if (Directory.EnumerateFiles(legacyDir, "*.*", SearchOption.AllDirectories).Any())
+                    return "";   // something did not move — never touch it
+
+                string retired = legacyDir + ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                if (Directory.Exists(retired)) retired = GetUniqueFileName(retired);
+                Directory.Move(legacyDir, retired);
+                rep.FoldersRemoved++;
+                rep.RetiredFolders.Add(legacyDir + "|" + retired);
+                return retired;
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add($"Retire {legacyDir}: {ex.Message}");
+                return "";
+            }
+        }
+
         /// <summary>
         /// Detect legacy STING folders (_BIM_COORD, STING_BIM_MANAGER, STING_Exports,
         /// STING_Project) and .sting_*.json sidecar files alongside the .rvt; consolidate
         /// them into the new {ProjectCode}\ root.
+        ///
+        /// This MOVES a user's project data on disk, so it is opt-in and at-most-once:
+        /// <paramref name="consented"/> must be true (the caller having obtained explicit
+        /// consent), and it refuses to run a second time once the breadcrumb exists.
+        /// It never deletes a source folder — drained folders are renamed
+        /// <c>*.migrated_yyyyMMdd</c> so the operation can be undone by hand — and it
+        /// records every relocation in <c>.sting_consolidation.json</c>.
+        ///
+        /// It previously ran unprompted on every DocumentOpened, which moved files the
+        /// user had not asked to move, repeatedly, with no record of what went where.
         /// </summary>
-        public static MigrationReport MigrateFromLegacy(Document doc)
+        /// <param name="consented">
+        /// True only when the user has explicitly agreed to this specific run. Callers
+        /// wired to an automatic event MUST NOT pass true.
+        /// </param>
+        public static MigrationReport MigrateFromLegacy(Document doc, bool consented = false)
         {
             var rep = new MigrationReport();
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return rep;
+
+            if (!consented)
+            {
+                rep.SkippedReason = "consent required — call the Folders_Consolidate command";
+                return rep;
+            }
+
+            if (HasConsolidated(doc))
+            {
+                rep.SkippedReason = "already consolidated (" + ConsolidationBreadcrumbPath(doc) + ")";
+                return rep;
+            }
 
             try
             {
@@ -803,6 +897,7 @@ namespace StingTools.Core
                             if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                             File.Move(f, dest);
                             rep.FilesMoved++;
+                            rep.Moves.Add(f + "|" + dest);
                         }
                         catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
@@ -814,6 +909,7 @@ namespace StingTools.Core
                             if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                             File.Move(f, dest);
                             rep.FilesMoved++;
+                            rep.Moves.Add(f + "|" + dest);
                         }
                         catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
@@ -842,11 +938,11 @@ namespace StingTools.Core
                                 if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
+                                rep.Moves.Add(f + "|" + dest);
                             }
                             catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
-                        try { if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(legacy, true); rep.FoldersRemoved++; } }
-                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(legacy, rep);
                     }
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
@@ -871,11 +967,11 @@ namespace StingTools.Core
                                     if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
+                                    rep.Moves.Add(f + "|" + dst);
                                 }
                                 catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
-                            try { if (!Directory.EnumerateFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(hiddenLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex2) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex2.Message}"); }
+                            RetireLegacyFolder(hiddenLegacy, rep);
                         }
                         catch (Exception ex2) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex2.Message}"); }
                     }
@@ -892,6 +988,7 @@ namespace StingTools.Core
                         if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                         File.Move(src, dst);
                         rep.FilesMoved++;
+                        rep.Moves.Add(src + "|" + dst);
                     }
                     catch (Exception ex2) { rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
                 }
@@ -916,11 +1013,11 @@ namespace StingTools.Core
                                     if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
+                                    rep.Moves.Add(f + "|" + dst);
                                 }
                                 catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
-                            try { if (!Directory.EnumerateFiles(boqLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(boqLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex2) { rep.Warnings.Add($"Delete {boqLegacy}: {ex2.Message}"); }
+                            RetireLegacyFolder(boqLegacy, rep);
                         }
                         catch (Exception ex2) { rep.Warnings.Add($"Process {boqLegacy}: {ex2.Message}"); }
                     }
@@ -941,6 +1038,7 @@ namespace StingTools.Core
                                 if (Directory.Exists(dest)) dest = GetUniqueFileName(dest);
                                 Directory.Move(sub, dest);
                                 rep.FoldersRemoved++;
+                                rep.Moves.Add(sub + "|" + dest);
                             }
                             catch (Exception ex2) { rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
                         }
@@ -983,25 +1081,18 @@ namespace StingTools.Core
                                 if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
+                                rep.Moves.Add(f + "|" + dest);
                             }
                             catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
-                        try
-                        {
-                            // Only delete if empty after migration
-                            if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any())
-                            {
-                                Directory.Delete(legacy, true);
-                                rep.FoldersRemoved++;
-                            }
-                        }
-                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(legacy, rep);
                     }
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
                 InvalidateFolderStatsCache();
-                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders removed.");
+                WriteConsolidationBreadcrumb(doc, rep);
+                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders retired. Breadcrumb: {rep.BreadcrumbPath}");
             }
             catch (Exception ex)
             {
@@ -1009,6 +1100,57 @@ namespace StingTools.Core
                 StingLog.Warn($"MigrateFromLegacy: {ex.Message}");
             }
             return rep;
+        }
+
+        /// <summary>
+        /// Record exactly what a consolidation moved, so the user can see what
+        /// happened and undo it: every relocation is listed source-to-destination,
+        /// and every retired folder names the <c>*.migrated_yyyyMMdd</c> it became.
+        /// Presence of this file is also what stops a second run.
+        /// </summary>
+        private static void WriteConsolidationBreadcrumb(Document doc, MigrationReport rep)
+        {
+            try
+            {
+                // Nothing moved: leave no breadcrumb, so a project that genuinely has
+                // legacy folders later still gets its one consolidation.
+                if (rep.FilesMoved == 0 && rep.FoldersRemoved == 0) return;
+
+                string path = ConsolidationBreadcrumbPath(doc);
+                if (string.IsNullOrEmpty(path)) return;
+
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                var payload = new JObject
+                {
+                    ["consolidated_utc"] = DateTime.UtcNow.ToString("o"),
+                    ["model"]            = doc?.PathName ?? "",
+                    ["files_moved"]      = rep.FilesMoved,
+                    ["folders_retired"]  = rep.FoldersRemoved,
+                    ["moves"]            = new JArray(rep.Moves.Select(m => (JToken)new JObject
+                    {
+                        ["from"] = m.Split('|')[0],
+                        ["to"]   = m.Split('|').Length > 1 ? m.Split('|')[1] : "",
+                    })),
+                    ["retired_folders"]  = new JArray(rep.RetiredFolders.Select(m => (JToken)new JObject
+                    {
+                        ["original"]   = m.Split('|')[0],
+                        ["retired_as"] = m.Split('|').Length > 1 ? m.Split('|')[1] : "",
+                    })),
+                    ["warnings"]         = new JArray(rep.Warnings.Select(w => (JToken)w)),
+                    ["undo_hint"]        = "No source was deleted. To undo, move files back "
+                                         + "and rename each *.migrated_* folder to its original name.",
+                };
+
+                File.WriteAllText(path, payload.ToString(Newtonsoft.Json.Formatting.Indented));
+                rep.BreadcrumbPath = path;
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add($"Breadcrumb: {ex.Message}");
+                StingLog.Warn($"WriteConsolidationBreadcrumb: {ex.Message}");
+            }
         }
 
         /// <summary>UI-bindable folder tree node.</summary>
