@@ -18,7 +18,15 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 # A run that produced no summary line never got as far as running tests (build
 # break, host crash). Treat that as failure — an empty failure list would
 # otherwise read as "nothing new broke".
-if ! grep -qE "^(Passed!|Failed!)" "$OUTPUT"; then
+#
+# Two summary formats have to be accepted. `dotnet test` on a single project
+# prints the VSTest console summary ("Passed!  - Failed: 0, ..."). On a
+# SOLUTION it goes through MSBuild, and when VSTestTask returns false that
+# line is never emitted — the only summary is the MSBuild-style
+# "Test Run Failed." / "Total tests: N". Matching just the former made this
+# gate abort with "the run did not complete" on every solution-level run that
+# had failures, which is precisely when its diff is worth reading.
+if ! grep -qE "^\s*(Passed!|Failed!|Test Run (Successful|Failed)\.|Total tests:)" "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1

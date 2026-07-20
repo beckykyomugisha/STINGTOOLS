@@ -2,6 +2,51 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 223 — CI green again: a cache outage no longer turns 404 into 500)
+
+- **The real defect was in production code, not the workflow.** The project-visibility
+  cache in `ProjectAccessAttribute` (Phase 175 P1-13) is an optimisation over the
+  authoritative `ProjectVisibility.CanSeeProjectAsync` query, but `GetStringAsync` /
+  `SetStringAsync` were unguarded — so an unreachable Redis propagated out of the
+  filter and **every gated request 500'd**, including the cross-tenant ones the filter
+  exists to answer with 404. Both cache operations now degrade: a read failure is
+  treated as a miss, a write failure as "not cached", and the decision comes from the
+  database either way. Correctness is unchanged; only the hot-path saving is lost while
+  Redis is down.
+- **That is what broke CI.** PR #444 added a `postgres:16` service to
+  `.github/workflows/planscape-server.yml` but no Redis, while the committed baseline
+  had been captured on a machine with a docker Redis on 6379. Five tenant-isolation
+  tests then failed `Expected: NotFound / Actual: InternalServerError`
+  (`Issues_OtherTenant_Returns404`, `TenantIsolation_OtherTenantCannotAccess{Documents,
+  Meetings,Mim}`, `DeepLink_NonMember_GetsNotFound_NotForbidden`). Reproduced locally by
+  pointing `Redis:Connection` at a dead port, and fixed by the guard above — they pass
+  with Redis still unreachable.
+- **A `redis:7` service joins postgres in CI.** Not to make the suite pass (the code now
+  fails soft) but for prod parity and speed: ~900 Redis calls were each burning a full
+  5 s timeout, which is most of why the run took 30 minutes.
+- **The fix is pinned by its own test.** Adding Redis to CI would otherwise have quietly
+  stopped exercising the outage path — the five tests above only caught it because Redis
+  was absent. `ProjectAccessCacheOutageTests` injects an `IDistributedCache` that throws
+  on every operation and asserts both directions: a foreign project still 404s, and a
+  visible one is still allowed (a fail-soft that denied everything would satisfy the
+  first assertion alone). It drives the filter directly rather than standing up a second
+  `WebApplicationFactory`, which is unreliable here (ROADMAP DEP-7) — the same approach
+  Phase 222 took. Verified red without the fix, green with it.
+- **`check-new-failures.sh` could not report what it found.** Its summary precondition
+  matched only the VSTest console format (`Passed!` / `Failed!`). A solution-level
+  `dotnet test` goes through MSBuild, and when `VSTestTask` returns false that line is
+  never emitted — the only summary is `Test Run Failed.` / `Total tests: N`. So the gate
+  aborted with "no test summary in output — the run did not complete" on precisely the
+  runs whose diff was worth reading, and printed a 30-line tail that pointed at an
+  unrelated `AuthController` frame. Both formats are now accepted; replayed against the
+  real failing CI output it correctly lists the five.
+- **No baseline lines deleted.** The gate reported zero baseline entries passing in CI.
+  (Locally many appear to pass, but that is the Redis-on-6379 artefact that produced the
+  stale baseline in the first place — CI is the authority.)
+- Verified: `dotnet build Planscape.sln` 0 errors, 14 warnings (unchanged); plugin build
+  0 errors / 0 warnings; full suite 67 unique failures both with and without the change,
+  the only delta being a per-run random DEP-7 victim.
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously

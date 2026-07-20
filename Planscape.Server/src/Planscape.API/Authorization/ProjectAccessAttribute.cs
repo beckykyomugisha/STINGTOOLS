@@ -67,16 +67,46 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
         var ct = context.HttpContext.RequestAborted;
         var cacheKey = ProjectAccessCache.Key(tenantId, userId, projectId);
 
+        // The cache is an OPTIMISATION over the authoritative EF query
+        // below — never a source of truth and never a dependency. A Redis
+        // outage previously propagated out of Get/SetStringAsync and turned
+        // every gated request into a 500, including the cross-tenant ones
+        // this filter exists to answer with 404. Degrade to the DB instead:
+        // a cache read failure is treated as a miss, a cache write failure
+        // as "not cached". Correctness is unchanged either way; only the
+        // hot-path saving is lost while Redis is down.
+        var logger = context.HttpContext.RequestServices
+            .GetService<ILogger<ProjectAccessAttribute>>();
+
         bool ok;
         if (cache != null && userId != Guid.Empty)
         {
-            var cached = await cache.GetStringAsync(cacheKey, ct);
+            string? cached = null;
+            try
+            {
+                cached = await cache.GetStringAsync(cacheKey, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger?.LogWarning(ex,
+                    "Project-visibility cache read failed; falling back to the database (decision unaffected).");
+            }
+
             if (cached == "1") { await next(); return; }
             if (cached == "0") { context.Result = new NotFoundResult(); return; }
 
             ok = await ProjectVisibility.CanSeeProjectAsync(db, projectId, context.HttpContext.User, ct);
-            await cache.SetStringAsync(cacheKey, ok ? "1" : "0",
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) }, ct);
+
+            try
+            {
+                await cache.SetStringAsync(cacheKey, ok ? "1" : "0",
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) }, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger?.LogWarning(ex,
+                    "Project-visibility cache write failed; decision served from the database and not cached.");
+            }
         }
         else
         {
