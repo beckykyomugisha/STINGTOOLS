@@ -465,17 +465,78 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// P-5: build a real section frame. THE single constructor for section
+        /// bounding boxes — the producer's default and the "along grid lines"
+        /// batch command both come here, because they previously disagreed on
+        /// which axis carried height (producer: Y with Transform.Identity;
+        /// command: Z, also with an implicit Identity) and neither built the
+        /// frame that ViewSection.CreateSection actually consumes.
+        ///
+        /// CreateSection reads the box's Transform as the section's own
+        /// coordinate system and its Min/Max as extents IN THAT FRAME:
+        ///   BasisX — along the cut, i.e. the drawing's horizontal
+        ///   BasisY — model +Z, i.e. the drawing's vertical
+        ///   BasisZ — BasisX × BasisY, the horizontal direction the section
+        ///            looks along
+        /// With Transform.Identity the frame is the model frame, so BasisY is
+        /// model +Y — horizontal — and the result is a downward "plan-section"
+        /// rather than a vertical cut.
+        ///
+        /// <paramref name="bottomZ"/> / <paramref name="topZ"/> are absolute
+        /// model elevations and are converted into frame-relative Y here, so
+        /// callers never have to think about the frame. Extents are normalised
+        /// so Min &lt; Max on every axis: the grid path derived its X extent by
+        /// adding a perpendicular vector whose components go negative for
+        /// north-south grids, which inverted the box and made CreateSection
+        /// throw.
+        /// </summary>
+        internal static BoundingBoxXYZ BuildSectionBox(
+            XYZ origin, XYZ cutDirection, double halfWidthFt,
+            double bottomZ, double topZ, double depthFt)
+        {
+            origin = origin ?? XYZ.Zero;
+
+            // Horizontal component of the cut direction; fall back to model +X
+            // for a degenerate (vertical or zero-length) input.
+            var flat = new XYZ(cutDirection?.X ?? 0, cutDirection?.Y ?? 0, 0);
+            var bx = flat.GetLength() > 1e-9 ? flat.Normalize() : XYZ.BasisX;
+            var by = XYZ.BasisZ;
+            var bz = bx.CrossProduct(by);
+
+            var t = Transform.Identity;
+            t.Origin = origin;
+            t.BasisX = bx;
+            t.BasisY = by;
+            t.BasisZ = bz;
+
+            double halfW = Math.Abs(halfWidthFt);
+            double depth = Math.Abs(depthFt);
+            double yLo = Math.Min(bottomZ, topZ) - origin.Z;
+            double yHi = Math.Max(bottomZ, topZ) - origin.Z;
+            if (yHi - yLo < 1e-6) yHi = yLo + 1.0;   // never a zero-height box
+
+            return new BoundingBoxXYZ
+            {
+                Transform = t,
+                Min = new XYZ(-halfW, yLo, -depth),
+                Max = new XYZ( halfW, yHi, 0.0),
+            };
+        }
+
         private static BoundingBoxXYZ BuildDefaultSectionBbox(DrawingContext ctx)
         {
-            // 10m × 5m × 10m default box at level elevation (or origin).
+            // 10 m wide × 5 m tall × 10 m deep default cut at the context
+            // level's elevation, looking along model +Y.
+            const double mToFt = 1.0 / 0.3048;
             double elevFt = ctx?.Level?.Elevation ?? 0;
-            var bb = new BoundingBoxXYZ
-            {
-                Transform = Transform.Identity,
-                Min = new XYZ(-5.0 * 3.281, elevFt - 1.0 * 3.281, -5.0 * 3.281),
-                Max = new XYZ( 5.0 * 3.281, elevFt + 4.0 * 3.281,  5.0 * 3.281)
-            };
-            return bb;
+            return BuildSectionBox(
+                origin:       new XYZ(0, 0, elevFt),
+                cutDirection: XYZ.BasisX,
+                halfWidthFt:  5.0 * mToFt,
+                bottomZ:      elevFt - 1.0 * mToFt,
+                topZ:         elevFt + 4.0 * mToFt,
+                depthFt:      10.0 * mToFt);
         }
 
         private static BoundingBoxXYZ BuildDefaultDetailBbox(DrawingContext ctx)
