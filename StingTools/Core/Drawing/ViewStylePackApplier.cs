@@ -514,7 +514,18 @@ namespace StingTools.Core.Drawing
                     catch (Exception ex) { StingTools.Core.StingLog.WarnRateLimited("MatClassFilter.Rule", $"Rule build: {ex.Message}"); }
                 }
                 if (rules.Count == 0) return existing;
-                ElementParameterFilter elemFilter = new ElementParameterFilter(rules, false /* OR semantics across the rules */);
+
+                // One ElementParameterFilter per rule, OR-ed together.
+                // ElementParameterFilter's second argument is `inverted`,
+                // not "use OR" — multiple FilterRules handed to a single
+                // ElementParameterFilter are AND-ed. This filter asks
+                // "material is any of these N materials in the class", so
+                // the AND form (material == A AND material == B) could
+                // never match anything once a class had more than one
+                // material. Mirrors AecFilterFactory.BuildFilter.
+                ElementFilter elemFilter = rules.Count == 1
+                    ? (ElementFilter)new ElementParameterFilter(rules[0])
+                    : new LogicalOrFilter(rules.Select(r => (ElementFilter)new ElementParameterFilter(r)).ToList());
 
                 ParameterFilterElement built;
                 if (existing == null)

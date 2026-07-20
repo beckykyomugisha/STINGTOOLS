@@ -149,18 +149,80 @@ namespace StingTools.Core.Drawing
                 var union = GetOrComputeUnion(doc, view, warnings);
                 if (union == null) { warnings.Add("TightBbox: view is empty, no crop applied."); return; }
 
-                var marginFt = (marginMm / 304.8);
-                var withMargin = new BoundingBoxXYZ
-                {
-                    Min = union.Min - new XYZ(marginFt, marginFt, 0),
-                    Max = union.Max + new XYZ(marginFt, marginFt, 0),
-                };
+                var cropBox = ApplyUnionToCropFrame(view, union, marginMm, warnings);
+                if (cropBox == null) return;
 
                 view.CropBoxActive  = true;
                 view.CropBoxVisible = true;
-                view.CropBox        = withMargin;
+                view.CropBox        = cropBox;
             }
             catch (Exception ex) { warnings.Add($"TightBbox: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// E-2: convert a MODEL-space bounding box into the view's own crop
+        /// frame and apply the margin there.
+        ///
+        /// View.CropBox reads its Min/Max in the coordinate system carried by
+        /// the crop box's Transform, not in model space. Assigning a
+        /// model-space box with an identity transform only appears to work on
+        /// an unrotated plan, where the two frames coincide in XY; on a
+        /// section, an elevation or a rotated plan the crop lands somewhere
+        /// arbitrary. The built-in spool profiles use TightBbox on sections,
+        /// so this was the common case, not the exotic one.
+        ///
+        /// All eight corners are transformed, not just Min and Max: a rotation
+        /// mixes the axes, so the frame-space extents are only correct if every
+        /// corner is considered. The margin is then applied along the frame's
+        /// own X and Y, which is what "margin" means on the drawing.
+        /// </summary>
+        private static BoundingBoxXYZ ApplyUnionToCropFrame(
+            View view, BoundingBoxXYZ modelUnion, double marginMm, List<string> warnings)
+        {
+            try
+            {
+                var current = view.CropBox;
+                var frame = current?.Transform ?? Transform.Identity;
+                var inv = frame.Inverse;
+
+                var mn = modelUnion.Min;
+                var mx = modelUnion.Max;
+                double loX = double.MaxValue, loY = double.MaxValue, loZ = double.MaxValue;
+                double hiX = double.MinValue, hiY = double.MinValue, hiZ = double.MinValue;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = new XYZ(
+                        (i & 1) == 0 ? mn.X : mx.X,
+                        (i & 2) == 0 ? mn.Y : mx.Y,
+                        (i & 4) == 0 ? mn.Z : mx.Z);
+                    var p = inv.OfPoint(corner);
+                    if (p.X < loX) loX = p.X; if (p.X > hiX) hiX = p.X;
+                    if (p.Y < loY) loY = p.Y; if (p.Y > hiY) hiY = p.Y;
+                    if (p.Z < loZ) loZ = p.Z; if (p.Z > hiZ) hiZ = p.Z;
+                }
+
+                var marginFt = marginMm / 304.8;
+                loX -= marginFt; hiX += marginFt;
+                loY -= marginFt; hiY += marginFt;
+
+                // Depth stays as the view had it — widening a crop's Z can
+                // pull unrelated geometry into a section.
+                if (current != null) { loZ = current.Min.Z; hiZ = current.Max.Z; }
+                if (hiZ - loZ < 1e-6) { loZ -= 1.0; hiZ += 1.0; }
+
+                return new BoundingBoxXYZ
+                {
+                    Transform = frame,
+                    Min = new XYZ(loX, loY, loZ),
+                    Max = new XYZ(hiX, hiY, hiZ),
+                };
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"Crop frame conversion: {ex.Message}");
+                return null;
+            }
         }
 
         private static BoundingBoxXYZ GetOrComputeUnion(Document doc, View view, List<string> warnings)
@@ -240,13 +302,15 @@ namespace StingTools.Core.Drawing
                 }
                 if (union == null) { warnings.Add("RoomBoundary: no room bboxes."); return; }
 
-                var marginFt = (marginMm / 304.8);
-                union.Min = union.Min - new XYZ(marginFt, marginFt, 0);
-                union.Max = union.Max + new XYZ(marginFt, marginFt, 0);
+                // E-2: same model-space-into-crop-frame conversion as
+                // TightBbox. The room union is gathered in model space; the
+                // margin is applied in frame coords inside the helper.
+                var cropBox = ApplyUnionToCropFrame(view, union, marginMm, warnings);
+                if (cropBox == null) return;
 
                 view.CropBoxActive  = true;
                 view.CropBoxVisible = true;
-                view.CropBox        = union;
+                view.CropBox        = cropBox;
             }
             catch (Exception ex) { warnings.Add($"RoomBoundary: {ex.Message}"); }
         }

@@ -1068,7 +1068,7 @@ namespace StingTools.Docs
                 $"Synced {result.SheetsProcessed} sheet(s), {result.ParamsWritten} parameter(s) written.\n" +
                 $"Skipped: {result.SheetsSkipped}.\n\n" +
                 "Wrote SHT_REV_TXT / SHT_REV_DATE_TXT on sheets and\n" +
-                "PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT\n" +
+                "PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT\n" +
                 "on title blocks." + warn);
             return Result.Succeeded;
         }

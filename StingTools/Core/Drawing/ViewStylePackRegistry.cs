@@ -207,9 +207,19 @@ namespace StingTools.Core.Drawing
 
             // Fold parent → child. Later entries overwrite earlier.
             chain.Reverse();
-            var merged = new ViewStylePack { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin };
+            var merged = new ViewStylePack { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin, Extends = leaf.Extends };
             foreach (var p in chain)
             {
+                // Carry every field not explicitly merged below. Without
+                // this the fold dropped templateMode / managedFields /
+                // discipline / visualStyle / viewRange / worksetVisibility /
+                // linkOverrides / colorFillSchemes / categoryDepths /
+                // categoryTag7Sections / viewTemplate / detailLevel /
+                // scaleHint / colorScheme — and since all 35 shipped packs
+                // declare `extends`, that ran on every Get(), which is why
+                // IsManaged never survived to DrawingTypePresentation.
+                ExtendsMerge.Overlay(p, merged, _overlayProps);
+
                 if (p.LineWeightScale != 0) merged.LineWeightScale = p.LineWeightScale;
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
@@ -229,9 +239,53 @@ namespace StingTools.Core.Drawing
                         merged.CategoryTagStyles = new Dictionary<string, string>();
                     foreach (var kv in p.CategoryTagStyles) merged.CategoryTagStyles[kv.Key] = kv.Value;
                 }
+
+                // Phase 177 per-category maps — merge by key like their
+                // siblings above rather than letting the child's whole
+                // dictionary replace the parent's.
+                if (p.CategoryDepths != null)
+                {
+                    if (merged.CategoryDepths == null)
+                        merged.CategoryDepths = new Dictionary<string, int>();
+                    foreach (var kv in p.CategoryDepths) merged.CategoryDepths[kv.Key] = kv.Value;
+                }
+                if (p.CategoryTag7Sections != null)
+                {
+                    if (merged.CategoryTag7Sections == null)
+                        merged.CategoryTag7Sections = new Dictionary<string, bool>();
+                    foreach (var kv in p.CategoryTag7Sections) merged.CategoryTag7Sections[kv.Key] = kv.Value;
+                }
             }
             return merged;
         }
+
+        // Fields the fold above merges by hand — collections with
+        // accumulate / merge-by-key semantics, plus the identity fields
+        // taken from the leaf and the scalars whose existing guards are
+        // preserved verbatim. Everything else is carried by
+        // ExtendsMerge.Overlay.
+        private static readonly HashSet<string> _overlaySkip = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(ViewStylePack.Id),
+            nameof(ViewStylePack.Name),
+            nameof(ViewStylePack.Origin),
+            nameof(ViewStylePack.Extends),
+            nameof(ViewStylePack.LineWeightScale),
+            nameof(ViewStylePack.TextStyle),
+            nameof(ViewStylePack.DimensionStyle),
+            nameof(ViewStylePack.HatchPalette),
+            nameof(ViewStylePack.TagColorScheme),
+            nameof(ViewStylePack.DefaultTagStyle),
+            nameof(ViewStylePack.Filters),
+            nameof(ViewStylePack.VgOverrides),
+            nameof(ViewStylePack.TagFamilies),
+            nameof(ViewStylePack.CategoryTagStyles),
+            nameof(ViewStylePack.CategoryDepths),
+            nameof(ViewStylePack.CategoryTag7Sections),
+        };
+
+        private static readonly System.Reflection.PropertyInfo[] _overlayProps
+            = ExtendsMerge.OverlayProps(typeof(ViewStylePack), _overlaySkip);
 
         private static string DocKey(Document doc)
         {

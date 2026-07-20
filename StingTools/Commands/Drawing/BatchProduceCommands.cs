@@ -344,20 +344,31 @@ namespace StingTools.Commands.Drawing
                 {
                     contextsToProduce = grids.Select(g =>
                     {
-                        var bb = new BoundingBoxXYZ();
                         try
                         {
                             var c = g.Curve as Line;
                             if (c == null) return null;
                             var origin = (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
-                            double depthFt = sec.DepthMm / 304.8;
-                            var d = c.Direction;
-                            // perpendicular = (-d.Y, d.X)
-                            var perp = new XYZ(-d.Y, d.X, 0).Normalize();
                             var len = (c.GetEndPoint(1) - c.GetEndPoint(0)).GetLength();
-                            var widthFt = len * 0.5 + 5.0 / 0.3048;
-                            bb.Min = origin - perp * widthFt + new XYZ(0, 0, -3.0 / 0.3048);
-                            bb.Max = origin + perp * widthFt + new XYZ(0, 0, 30.0 / 0.3048);
+
+                            // P-5: one shared frame builder with the producer.
+                            // This used to offset Min/Max by a perpendicular
+                            // vector in MODEL space with an implicit identity
+                            // transform — so height landed on the wrong axis
+                            // (the producer put it on Y, this on Z), and for a
+                            // north-south grid the perpendicular's negative
+                            // components made Min > Max, which CreateSection
+                            // rejects outright. The section now cuts ALONG the
+                            // grid and looks perpendicular to it, which is what
+                            // "section along grid line" means.
+                            var bb = DrawingProducer.BuildSectionBox(
+                                origin:       origin,
+                                cutDirection: c.Direction,
+                                halfWidthFt:  len * 0.5 + 5.0 / 0.3048,
+                                bottomZ:      origin.Z - 3.0 / 0.3048,
+                                topZ:         origin.Z + 30.0 / 0.3048,
+                                depthFt:      sec.DepthMm / 304.8);
+
                             return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset.PackageId };
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
