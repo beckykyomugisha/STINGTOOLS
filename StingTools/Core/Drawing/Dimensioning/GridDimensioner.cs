@@ -43,10 +43,20 @@ namespace StingTools.Core.Drawing.Dimensioning
             var strategy = DimensionStrategy.Parse(pack.DimensionStrategy);
             var dimType  = DimensionStrategy.ResolveType(doc, strategy, pack.DimensionStyle);
 
-            try { CreateChain(doc, view, vert,  XYZ.BasisX, strategy, dimType, result); }
-            catch (Exception ex) { result.Warnings.Add($"GridDim X-axis: {ex.Message}"); }
-            try { CreateChain(doc, view, horiz, XYZ.BasisY, strategy, dimType, result); }
-            catch (Exception ex) { result.Warnings.Add($"GridDim Y-axis: {ex.Message}"); }
+            // A-5: the axis passed here is the direction the CHAIN runs, and
+            // a chain can only measure grids it crosses — so it must be
+            // PERPENDICULAR to the set. `vert` holds grids whose curve runs
+            // along X (|dX| >= |dY|), i.e. grids spaced along Y, so their
+            // chain runs along Y — it was given BasisX, parallel to the very
+            // grids it was measuring, which Revit rejects outright. `horiz`
+            // had the mirror-image error. The predicate NAMES are also
+            // backwards for plan reading (a grid running along X draws as a
+            // horizontal line), and the two errors were consistent with each
+            // other, which is why the pairing looked right.
+            try { CreateChain(doc, view, vert,  XYZ.BasisY, strategy, dimType, result); }
+            catch (Exception ex) { result.Warnings.Add($"GridDim (grids along X): {ex.Message}"); }
+            try { CreateChain(doc, view, horiz, XYZ.BasisX, strategy, dimType, result); }
+            catch (Exception ex) { result.Warnings.Add($"GridDim (grids along Y): {ex.Message}"); }
         }
 
         private static void CreateChain(Document doc, View view, List<Grid> grids,

@@ -183,10 +183,26 @@ namespace StingTools.Core.Drawing.Dimensioning
             // bottom; the externally-visible invert (which BS EN 12056
             // and Approved Document H reference for clearances) sits one
             // wall-thickness lower.
+            // A-5: the invert BS EN 12056 and Approved Document H reference is
+            // the INTERNAL bottom of the pipe — centreline minus the internal
+            // radius. Revit exposes a single Pipe.Diameter (nominal, which for
+            // drainage pipe is the internal bore), so centreline - Diameter/2
+            // already IS that invert; the extra wall-thickness subtraction put
+            // the dimension one wall thickness below the true invert.
+            //
+            // The review states the error is ~2 wall thicknesses. That would
+            // only hold if Diameter were the OUTSIDE diameter; Revit's API has
+            // no inside/outside distinction on Pipe (verified against the 2025
+            // assembly — Diameter is the only such property), so the error is
+            // one wall thickness.
+            //
+            // NOTE: this changes a reported engineering value. It is correct
+            // per the standards the surrounding comment already cites, but
+            // wants a drainage engineer's sign-off before this dimensioner is
+            // wired into production output.
             double radius = 0;
-            try { radius = pipe.Diameter * 0.5; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            double wallFt = GetWallThicknessFt(pipe);
-            var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius - wallFt);
+            try { radius = pipe.Diameter * 0.5; } catch (Exception ex) { StingLog.Warn($"Pipe diameter: {ex.Message}"); }
+            var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius);
 
             // Bend / end / refPt offsets — small in-plane offsets so the
             // leader sits clear of the centreline.
